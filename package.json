@@ -1,15 +1,19 @@
 {
-  "name": "dspf-designer",
+  "name": "i-sda",
   "displayName": "DDS Screen Design",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
   "version": "0.2.0",
   "publisher": "Manojkumar-IBMi",
-  "engines": { "vscode": "^1.85.0" },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Manojkumar-Dharma/I-SDA.git"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:dds",
@@ -41,6 +45,7 @@
   "devDependencies": {
     "@types/node": "^26.1.2",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.1",
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2"
