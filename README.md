@@ -1,4 +1,4 @@
-# I-SDA — Interactive Screen Design Aid
+# iSDA — Interactive Screen Design Aid
 
 A VS Code extension that replaces IBM i's traditional 5250 Screen Design Aid
 (`STRSDA`) with a modern, file-backed, fully interactive DDS display-file
@@ -37,7 +37,7 @@ npm run compile   # regenerates src/webviewTemplate.ts, src/fixtures/sample.dspf
 
 Then open this folder in VS Code and press **F5** to launch an Extension
 Development Host. Open a `.dspf` (or `.pf`) file containing DDS display-file
-source and run **"DDS Designer: Open Screen Design Preview"** from the
+source and run **"iSDA: Open Screen Design Preview"** from the
 command palette, or click the preview icon in the editor title bar.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.

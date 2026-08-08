@@ -1,4 +1,4 @@
-# I-SDA — Extension Development Quickstart
+# iSDA — Extension Development Quickstart
 
 ## Setup
 
@@ -23,7 +23,7 @@ This launches an Extension Development Host with the extension loaded.
 
 In that new window, open a `.dspf` or `.pf` file containing DDS display-file
 source, then either:
-- run **"DDS Designer: Open Screen Design Preview"** from the command palette, or
+- run **"iSDA: Open Screen Design Preview"** from the command palette, or
 - click the preview icon in the editor title bar (shown automatically when
   the file looks like a DDS display file — see `isLikelyDisplayFile` in
   `src/extension.ts`)

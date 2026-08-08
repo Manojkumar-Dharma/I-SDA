@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the I-SDA extension are documented here.
+All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.2.0] - Unreleased

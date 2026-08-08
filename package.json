@@ -1,6 +1,6 @@
 {
   "name": "i-sda",
-  "displayName": "DDS Screen Design",
+  "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
   "version": "0.2.0",
   "publisher": "Manojkumar-IBMi",
@@ -23,7 +23,7 @@
     "commands": [
       {
         "command": "dspfDesigner.openPreview",
-        "title": "DDS Designer: Open Screen Design Preview",
+        "title": "iSDA: Open Screen Design Preview",
         "icon": "$(open-preview)"
       }
     ],

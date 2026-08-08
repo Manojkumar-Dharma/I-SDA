@@ -62,7 +62,7 @@ function openDesigner(context: vscode.ExtensionContext, document: vscode.TextDoc
 
   const panel = vscode.window.createWebviewPanel(
     'dspfDesigner',
-    'Screen Design: ' + document.fileName.split(/[\\/]/).pop(),
+    'iSDA: ' + document.fileName.split(/[\\/]/).pop(),
     vscode.ViewColumn.Beside,
     { enableScripts: true, retainContextWhenHidden: true }
   );
@@ -90,7 +90,7 @@ function openDesigner(context: vscode.ExtensionContext, document: vscode.TextDoc
       await vscode.workspace.applyEdit(edit);
       applyingFromWebview = false;
     } else if (msg.type === 'error') {
-      vscode.window.showErrorMessage('DDS Designer: ' + msg.message);
+      vscode.window.showErrorMessage('iSDA: ' + msg.message);
     }
     // 'ready' needs no response; initial content was already embedded in the HTML.
   });
