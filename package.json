@@ -1,0 +1,48 @@
+{
+  "name": "dspf-designer",
+  "displayName": "DDS Screen Design",
+  "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
+  "version": "0.1.0",
+  "publisher": "Manojkumar-IBMi",
+  "engines": { "vscode": "^1.85.0" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Manojkumar-Dharma/I-SDA.git"
+  },
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:dds",
+    "workspaceContains:**/*.dspf"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "dspfDesigner.openPreview",
+        "title": "DDS Designer: Open Screen Design Preview",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "dspfDesigner.openPreview",
+          "when": "resourceExtname =~ /\\.(dspf|DSPF|pf|PF)$/",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js",
+    "compile": "npm run build:webview-assets && tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.28.1",
+    "jsdom": "^30.0.1",
+    "typescript": "^7.0.2"
+  }
+}
