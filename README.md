@@ -42,11 +42,15 @@ command palette, or click the preview icon in the editor title bar.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations (v1)
+## Known limitations (v0.2)
 
-- `SFL`/`SFLCTL`/`WINDOW` aren't given special layout treatment yet in the
-  renderer — they render as their individual field rows without subfile/
-  window-specific handling.
+- `WINDOW(*DEFINE ...)` named-window references aren't resolved yet (only
+  the direct `WINDOW(line col height width)` form).
+- Menu-bar (`MNUBAR`/`MNUBARCHC`) cascading pulldown interaction isn't
+  implemented - `PULLDOWN` record choice fields render, but there's no
+  simulated menu-bar trigger.
+- Dragging a subfile row moves one field at a time, not the whole row as a
+  group.
 - The interactive editor supports `FIELD`/`CONSTANT` entries only; `RECORD`
   and `HELP` entries aren't editable through the UI yet.
 - Fields with multi-group (OR'd) or more-than-3-indicator conditioning are

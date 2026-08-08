@@ -2,7 +2,7 @@
   "name": "dspf-designer",
   "displayName": "DDS Screen Design",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "Manojkumar-IBMi",
   "engines": { "vscode": "^1.85.0" },
   "repository": {

@@ -57,6 +57,26 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-blink { animation: dspf-blink 1s steps(1) infinite; }
   .dspf-protect { opacity: 0.65; }
   @keyframes dspf-blink { 50% { opacity: 0; } }
+  .dspf-subfile-row { background: rgba(51,255,102,0.04); }
+  .dspf-window-border {
+    position: relative; border: 2px solid #3a5a45; background: #0a0f0c; border-radius: 2px;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.5); pointer-events: none; z-index: 0;
+  }
+  .dspf-window-title {
+    position: absolute; top: -1px; left: 8px; transform: translateY(-50%);
+    background: #0a0f0c; padding: 0 6px; font-size: 11px; color: var(--ink-dim);
+  }
+  .dspf-field.dspf-widget-radio, .dspf-field.dspf-widget-checkbox {
+    display: flex; flex-direction: column; justify-content: center; white-space: normal; z-index: 1;
+  }
+  .dspf-choice-row { display: flex; align-items: center; gap: 4px; line-height: 1.3em; }
+  .dspf-choice-glyph { color: var(--ink-dim); font-family: var(--mono); }
+  .dspf-field.dspf-widget-button { background: transparent; z-index: 1; }
+  .dspf-widget-button {
+    width: 100%; height: 100%; background: #14261c; color: var(--accent);
+    border: 1px solid #3a5a45; border-radius: 3px; font-family: var(--mono);
+    font-size: 12px; cursor: grab; padding: 2px 8px;
+  }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
   button { background: #14261c; color: var(--accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
@@ -149,18 +169,34 @@ const htmlTemplate = `<!DOCTYPE html>
 
     screenOutput.querySelectorAll('.dspf-field').forEach((el) => {
       const name = el.getAttribute('data-field');
-      const line = parseInt(el.getAttribute('data-line'), 10);
-      const column = parseInt(el.getAttribute('data-column'), 10);
-      const rec = model.records.find((r) => r.name === recordName);
-      const underlying = rec.fields.find((f) => f.name === name && f.location.line === line) ||
-                          rec.fields.find((f) => f.location.line === line && f.location.column === column);
+      const anchorLine = parseInt(el.getAttribute('data-line'), 10);
+      const anchorColumn = el.getAttribute('data-column') === '' ? null : parseInt(el.getAttribute('data-column'), 10);
+      // data-line/data-column are the ANCHOR (source) coordinates set by resolveScreen -
+      // for a plain field these equal field.location.line/.column; for a windowed field
+      // or a repeated subfile row they're the window-relative / template-row source
+      // position, which is what matching against field.location must use. A subfile
+      // row's fields belong to the PAIRED SFL record, not the previewed SFLCTL record
+      // (or vice versa), so the lookup searches every record, primary one first.
+      const primaryRec = model.records.find((r) => r.name === recordName);
+      let underlying = primaryRec && (
+        primaryRec.fields.find((f) => f.name === name && f.location.line === anchorLine) ||
+        primaryRec.fields.find((f) => f.location.line === anchorLine && f.location.column === anchorColumn)
+      );
+      let ownerRecordName = recordName;
+      if (!underlying) {
+        for (const r of model.records) {
+          const found = r.fields.find((f) => f.name === name && f.location.line === anchorLine) ||
+                        r.fields.find((f) => f.location.line === anchorLine && f.location.column === anchorColumn);
+          if (found) { underlying = found; ownerRecordName = r.name; break; }
+        }
+      }
       if (!underlying) return;
       const editable = DspfWriter.isEditable(underlying);
       if (!editable) el.classList.add('locked');
-      if (selectedKey && selectedKey.record === recordName && selectedKey.sourceLine === underlying.sourceLine) el.classList.add('selected');
+      if (selectedKey && selectedKey.sourceLine === underlying.sourceLine) el.classList.add('selected');
 
-      el.addEventListener('click', () => { if (dragState) return; selectedKey = { record: recordName, sourceLine: underlying.sourceLine }; render(); });
-      el.addEventListener('mousedown', (e) => { if (!editable) return; e.preventDefault(); startDrag(el, underlying, recordName); });
+      el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; render(); });
+      el.addEventListener('mousedown', (e) => { if (!editable) return; e.preventDefault(); startDrag(el, underlying, ownerRecordName); });
     });
 
     renderProps(recordName);
@@ -178,26 +214,42 @@ const htmlTemplate = `<!DOCTYPE html>
     return { rect, colWidth, rowHeight };
   }
 
+  // Dragging moves the field by a DELTA, not to an absolute grid position -
+  // this is what makes it correct for windowed fields (only the window-relative
+  // source position changes, the WINDOW keyword's own placement is untouched)
+  // and for subfile rows (dragging any visible row instance moves the one
+  // template row that actually exists in the DDS source, shifting every
+  // rendered row together).
   function startDrag(el, field, recordName) {
     const { rect, colWidth, rowHeight } = gridMetrics();
-    const origLine = field.location.line;
-    const origCol = field.location.column != null ? field.location.column : 1;
+    const origRenderLine = parseInt(el.getAttribute('data-render-line'), 10);
+    const origRenderColumn = parseInt(el.getAttribute('data-render-column'), 10);
+    const renderLength = parseInt(el.getAttribute('data-length'), 10) || field.length || 1;
+    const renderHeight = parseInt(el.getAttribute('data-height'), 10) || 1;
+    const origSourceLine = field.location.line != null ? field.location.line : 1;
+    // Baseline for the column: exact if the field has an absolute column, otherwise
+    // fall back to the rendered position (see buildWebviewTemplate.js comment near
+    // commitEdit for the known limitation this implies for relative-offset columns
+    // inside a window).
+    const origSourceColumn = field.location.column != null ? field.location.column : origRenderColumn;
     el.classList.add('dragging');
 
     function onMove(e) {
       dragState = dragState || {};
       const newCol = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
       const newLine = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
-      el.style.gridColumn = newCol + ' / span ' + field.length;
-      el.style.gridRow = newLine;
-      dragState.line = newLine; dragState.column = newCol;
+      el.style.gridColumn = newCol + ' / span ' + renderLength;
+      el.style.gridRow = newLine + (renderHeight > 1 ? ' / span ' + renderHeight : '');
+      dragState.renderLine = newLine; dragState.renderColumn = newCol;
     }
     function onUp() {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
       el.classList.remove('dragging');
-      if (dragState && (dragState.line !== origLine || dragState.column !== origCol)) {
-        commitEdit(recordName, field, { line: dragState.line, column: dragState.column });
+      if (dragState && (dragState.renderLine !== origRenderLine || dragState.renderColumn !== origRenderColumn)) {
+        const deltaLine = dragState.renderLine - origRenderLine;
+        const deltaColumn = dragState.renderColumn - origRenderColumn;
+        commitEdit(recordName, field, { line: origSourceLine + deltaLine, column: origSourceColumn + deltaColumn });
       }
       setTimeout(() => { dragState = null; }, 0);
     }
@@ -205,10 +257,19 @@ const htmlTemplate = `<!DOCTYPE html>
     window.addEventListener('mouseup', onUp);
   }
 
+  function findFieldBySourceLine(sourceLine) {
+    for (const r of model.records) {
+      const f = r.fields.find((x) => x.sourceLine === sourceLine);
+      if (f) return { record: r, field: f };
+    }
+    return null;
+  }
+
   function renderProps(recordName) {
-    if (!selectedKey || selectedKey.record !== recordName) { propsBody.innerHTML = '<div class="empty-state">Select a field to edit it.</div>'; return; }
-    const rec = model.records.find((r) => r.name === recordName);
-    const field = rec && rec.fields.find((f) => f.sourceLine === selectedKey.sourceLine);
+    if (!selectedKey) { propsBody.innerHTML = '<div class="empty-state">Select a field to edit it.</div>'; return; }
+    const found = findFieldBySourceLine(selectedKey.sourceLine);
+    const field = found && found.field;
+    const ownerRecordName = found && found.record.name;
     if (!field) { propsBody.innerHTML = '<div class="empty-state">Select a field to edit it.</div>'; return; }
 
     const editable = DspfWriter.isEditable(field);
@@ -231,7 +292,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!editable) return;
 
     document.getElementById('p-apply').addEventListener('click', () => {
-      commitEdit(recordName, field, {
+      commitEdit(ownerRecordName, field, {
         name: document.getElementById('p-name').value.trim().toUpperCase(),
         length: document.getElementById('p-length').value === '' ? null : parseInt(document.getElementById('p-length').value, 10),
         decimalPositions: document.getElementById('p-dec').value === '' ? null : parseInt(document.getElementById('p-dec').value, 10),
@@ -246,14 +307,14 @@ const htmlTemplate = `<!DOCTYPE html>
         const idx = parseInt(btn.getAttribute('data-idx'), 10);
         const newKeywords = field.keywords.slice();
         newKeywords.splice(idx, 1);
-        commitEdit(recordName, field, { keywords: newKeywords });
+        commitEdit(ownerRecordName, field, { keywords: newKeywords });
       });
     });
     document.getElementById('p-add-kw').addEventListener('click', () => {
       const name = document.getElementById('p-new-kw-name').value.trim().toUpperCase();
       const params = document.getElementById('p-new-kw-params').value.trim();
       if (!name) return;
-      commitEdit(recordName, field, { keywords: field.keywords.concat([{ name, parameters: params, conditions: [], raw: '', sourceLines: [] }]) });
+      commitEdit(ownerRecordName, field, { keywords: field.keywords.concat([{ name, parameters: params, conditions: [], raw: '', sourceLines: [] }]) });
     });
   }
 
@@ -265,7 +326,7 @@ const htmlTemplate = `<!DOCTYPE html>
       model = DspfParser.parseDspf(sourceText);
       const rec = model.records.find((r) => r.name === recordName);
       const stillThere = rec && field.name && rec.fields.find((f) => f.name === field.name);
-      selectedKey = stillThere ? { record: recordName, sourceLine: stillThere.sourceLine } : null;
+      selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
       suppressNextExternalUpdate = true;
       vscode.postMessage({ type: 'applyEdit', text: sourceText });
       render();

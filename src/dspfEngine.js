@@ -153,8 +153,191 @@
   }
 
   // ---------------------------------------------------------------------
-  // resolveScreen: DspfFile + record name + active indicators -> ScreenModel
+  // GUI-style widget detection: MLTCHCFLD/SNGCHCFLD (checkbox/radio group),
+  // PSHBTNFLD (push button). These are DDS's "graphical character-based
+  // interface" keywords - CHOICE/PSHBTNCHC sub-entries are ordinary keywords
+  // on the SAME field, already correctly bucketed there by the parser.
   // ---------------------------------------------------------------------
+
+  /** Parses a CHOICE(id 'text') or CHOICE(id &variable) keyword's parameters. */
+  function parseChoiceParams(parameters) {
+    var literalMatch = parameters.match(/^(\d+)\s+'((?:[^']|'')*)'/);
+    if (literalMatch) {
+      return { id: literalMatch[1], text: literalMatch[2].replace(/''/g, "'") };
+    }
+    var varMatch = parameters.match(/^(\d+)\s+(&\S+)/);
+    if (varMatch) {
+      return { id: varMatch[1], text: varMatch[2] };
+    }
+    return { id: parameters.trim(), text: parameters.trim() };
+  }
+
+  /** PSHBTNCHC's parameter is just the button text (optionally quoted), with no leading choice-id - unlike CHOICE. */
+  function parseQuotedOrRaw(parameters) {
+    var m = parameters.trim().match(/^'((?:[^']|'')*)'/);
+    return m ? m[1].replace(/''/g, "'") : parameters.trim();
+  }
+
+  function widgetFromKeywords(field) {
+    var names = field.keywords.map(function (k) { return k.name; });
+    if (names.indexOf('MLTCHCFLD') !== -1 || names.indexOf('SNGCHCFLD') !== -1) {
+      var kind = names.indexOf('MLTCHCFLD') !== -1 ? 'checkbox' : 'radio';
+      var choices = field.keywords
+        .filter(function (k) { return k.name === 'CHOICE'; })
+        .map(function (k) { return parseChoiceParams(k.parameters); });
+      return { type: kind, choices: choices };
+    }
+    if (names.indexOf('PSHBTNFLD') !== -1) {
+      var btnChoices = field.keywords
+        .filter(function (k) { return k.name === 'PSHBTNCHC'; })
+        .map(function (k) { return parseQuotedOrRaw(k.parameters); });
+      var label = btnChoices.length > 0 ? btnChoices[0] : field.constantValue || field.name || 'Button';
+      return { type: 'button', label: label };
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------
+  // WINDOW: field positions in a windowed record are relative to the
+  // window's own top-left corner (window row 1 / col 1), which is itself
+  // placed on the physical screen at the row/col given in the WINDOW keyword.
+  // ---------------------------------------------------------------------
+
+  /** @returns {{line:number, col:number, height:number, width:number, title:string|null}|null} */
+  function resolveWindow(record) {
+    var kw = record.keywords.find(function (k) { return k.name === 'WINDOW'; });
+    if (!kw) return null;
+    var parts = kw.parameters.trim().split(/\s+/);
+    if (parts.length < 4 || parts[0].toUpperCase().indexOf('*') === 0) {
+      // *DEFINE-style / named-window references aren't resolvable without
+      // cross-referencing a WDWDEFINE elsewhere; not handled in v1.
+      return null;
+    }
+    var line = parseInt(parts[0], 10);
+    var col = parseInt(parts[1], 10);
+    var height = parseInt(parts[2], 10);
+    var width = parseInt(parts[3], 10);
+    if ([line, col, height, width].some(function (n) { return Number.isNaN(n); })) return null;
+
+    var titleKw = record.keywords.find(function (k) { return k.name === 'WDWTITLE'; });
+    var title = null;
+    if (titleKw) {
+      var m = titleKw.parameters.match(/'((?:[^']|'')*)'/);
+      if (m) title = m[1].replace(/''/g, "'");
+    }
+    return { line: line, col: col, height: height, width: width, title: title };
+  }
+
+  // ---------------------------------------------------------------------
+  // SFL / SFLCTL: a subfile is two paired record formats - the subfile
+  // record (SFL keyword) defines one row's fields; the control record
+  // (SFLCTL(subfile-record-name) keyword) carries SFLPAG (visible rows) plus
+  // whatever static header/footer fields surround the subfile. Either record
+  // name may be the one being previewed, so pairing is resolved from both directions.
+  // ---------------------------------------------------------------------
+
+  function findSflPairing(dspfFile, recordName) {
+    var record = dspfFile.records.find(function (r) { return r.name === recordName; });
+    if (!record) return null;
+
+    var hasSfl = record.keywords.some(function (k) { return k.name === 'SFL'; });
+    var sflCtlKw = record.keywords.find(function (k) { return k.name === 'SFLCTL'; });
+
+    var sflRecord = null;
+    var sflCtlRecord = null;
+
+    if (sflCtlKw) {
+      sflCtlRecord = record;
+      var sflName = sflCtlKw.parameters.trim();
+      sflRecord = dspfFile.records.find(function (r) { return r.name === sflName; }) || null;
+    } else if (hasSfl) {
+      sflRecord = record;
+      sflCtlRecord = dspfFile.records.find(function (r) {
+        return r.keywords.some(function (k) { return k.name === 'SFLCTL' && k.parameters.trim() === recordName; });
+      }) || null;
+    } else {
+      return null;
+    }
+    if (!sflRecord) return null;
+
+    var sflPag = 5; // sensible fallback if SFLPAG is missing or non-numeric (e.g. driven by a variable)
+    if (sflCtlRecord) {
+      var pagKw = sflCtlRecord.keywords.find(function (k) { return k.name === 'SFLPAG'; });
+      if (pagKw) {
+        var n = parseInt(pagKw.parameters.trim(), 10);
+        if (!Number.isNaN(n)) sflPag = n;
+      }
+    }
+    return { sflRecord: sflRecord, sflCtlRecord: sflCtlRecord, sflPag: sflPag };
+  }
+
+  /**
+   * Resolves one record's fields into candidate screen entries, WITHOUT overlap
+   * resolution (that happens once, after all contributing records - primary,
+   * windowed, subfile rows - are merged). lineOffset/colOffset let callers place
+   * a record's fields relative to a window origin or a repeated subfile row.
+   */
+  function resolveRecordFields(record, activeIndicators, lineOffset, colOffset, tag) {
+    var candidates = [];
+    var previousColumnEnd = 1;
+
+    record.fields.forEach(function (field) {
+      if (!conditionsSatisfied(field.conditions, activeIndicators)) return;
+      if (field.usage === 'H' || field.usage === 'P') return; // hidden / program-to-system: not drawn
+
+      var widget = widgetFromKeywords(field);
+      var len = displayLength(field);
+      var line = (field.location.line != null ? field.location.line : 1) + lineOffset;
+      var startCol;
+      if (field.location.column != null) {
+        startCol = field.location.column;
+      } else if (field.location.relativeColumnOffset != null) {
+        startCol = previousColumnEnd + field.location.relativeColumnOffset;
+      } else {
+        startCol = previousColumnEnd + 1;
+      }
+      previousColumnEnd = startCol + len;
+      startCol += colOffset;
+
+      var style = styleFromKeywords(field.keywords, activeIndicators);
+      if (style.hidden) return;
+
+      // A choice/button widget needs room for its own content (one row per
+      // choice, or a minimum button width) rather than the raw field length.
+      var renderLength = len;
+      var renderHeight = 1;
+      if (widget && widget.type !== 'button') {
+        renderHeight = Math.max(widget.choices.length, 1);
+        widget.choices.forEach(function (c) {
+          renderLength = Math.max(renderLength, c.text.length + 4); // "( ) " / "[ ] " prefix
+        });
+      } else if (widget && widget.type === 'button') {
+        renderLength = Math.max(len, widget.label.length + 2);
+      }
+
+      candidates.push({
+        name: field.name,
+        nameType: field.nameType,
+        usage: field.usage,
+        line: line,
+        column: startCol,
+        length: Math.max(renderLength, 1),
+        height: renderHeight,
+        text: fieldDisplayText(field, len),
+        style: style,
+        widget: widget,
+        sourceLine: field.sourceLine,
+        // Anchor coordinates: where an edit/drag should be written back to in the
+        // DDS source, which may differ from rendered line/column for a repeated
+        // subfile row (anchor = the template row) - drag handlers use these.
+        anchorLine: field.location.line != null ? field.location.line : 1,
+        anchorColumn: field.location.column,
+        tag: tag || null,
+      });
+    });
+
+    return candidates;
+  }
 
   /**
    * @param {object} dspfFile parsed model from dspfParser.parseDspf()
@@ -175,45 +358,33 @@
       return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], suppressed: true };
     }
 
-    var candidates = [];
-    var previousColumnEnd = 1;
+    var windowBox = resolveWindow(record);
+    var lineOffset = windowBox ? windowBox.line - 1 : 0;
+    var colOffset = windowBox ? windowBox.col - 1 : 0;
 
-    record.fields.forEach(function (field) {
-      if (!conditionsSatisfied(field.conditions, activeIndicators)) return;
-      if (field.usage === 'H' || field.usage === 'P') return; // hidden / program-to-system: not drawn
+    var candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null);
 
-      var len = displayLength(field);
-      var line = field.location.line != null ? field.location.line : 1;
-      var startCol;
-      if (field.location.column != null) {
-        startCol = field.location.column;
-      } else if (field.location.relativeColumnOffset != null) {
-        startCol = previousColumnEnd + field.location.relativeColumnOffset;
-      } else {
-        startCol = previousColumnEnd + 1;
+    // Subfile: append repeated rows from the paired SFL record, if this record
+    // participates in a subfile pairing (either side - SFL or SFLCTL).
+    var sflInfo = findSflPairing(dspfFile, recordName);
+    if (sflInfo && sflInfo.sflRecord.fields.length > 0) {
+      var sflLines = sflInfo.sflRecord.fields
+        .map(function (f) { return f.location.line != null ? f.location.line : 1; })
+        .filter(function (n) { return n != null; });
+      var rowHeight = sflLines.length > 0 ? Math.max.apply(null, sflLines) - Math.min.apply(null, sflLines) + 1 : 1;
+
+      for (var row = 0; row < sflInfo.sflPag; row++) {
+        var rowOffset = lineOffset + row * rowHeight;
+        var rowCandidates = resolveRecordFields(sflInfo.sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-row-' + row);
+        candidates = candidates.concat(rowCandidates);
       }
-      previousColumnEnd = startCol + len;
-
-      var style = styleFromKeywords(field.keywords, activeIndicators);
-      if (style.hidden) return;
-
-      candidates.push({
-        name: field.name,
-        nameType: field.nameType,
-        usage: field.usage,
-        line: line,
-        column: startCol,
-        length: Math.max(len, 1),
-        text: fieldDisplayText(field, len),
-        style: style,
-        sourceLine: field.sourceLine,
-      });
-    });
+    }
 
     // Position-sequence overlap resolution: process in (line, column) order; the
     // first satisfied field to claim a cell range wins, later overlapping fields
     // are dropped for the overlapping cells. (See "Overlapping fields", DDS for
     // display files.) This drops the whole field rather than partial cells for v1.
+    // Multi-row widgets (choice groups) occupy `height` rows, not just 1.
     candidates.sort(function (a, b) {
       return a.line - b.line || a.column - b.column;
     });
@@ -221,20 +392,22 @@
     var resolved = [];
     candidates.forEach(function (f) {
       var blocked = false;
-      for (var c = f.column; c < f.column + f.length; c++) {
-        if (occupied[f.line + ':' + c]) {
-          blocked = true;
-          break;
+      var h = f.height || 1;
+      for (var r = 0; r < h && !blocked; r++) {
+        for (var c = f.column; c < f.column + f.length; c++) {
+          if (occupied[(f.line + r) + ':' + c]) { blocked = true; break; }
         }
       }
       if (blocked) return;
-      for (var c2 = f.column; c2 < f.column + f.length; c2++) {
-        occupied[f.line + ':' + c2] = true;
+      for (var r2 = 0; r2 < h; r2++) {
+        for (var c2 = f.column; c2 < f.column + f.length; c2++) {
+          occupied[(f.line + r2) + ':' + c2] = true;
+        }
       }
       resolved.push(f);
     });
 
-    return { lines: size.lines, columns: size.columns, recordName: recordName, fields: resolved };
+    return { lines: size.lines, columns: size.columns, recordName: recordName, fields: resolved, window: windowBox, subfile: sflInfo ? { pageRows: sflInfo.sflPag } : null };
   }
 
   // ---------------------------------------------------------------------
@@ -247,6 +420,20 @@
     });
   }
 
+  function widgetInnerHtml(f) {
+    var w = f.widget;
+    if (w.type === 'button') {
+      return '<button type="button" class="dspf-widget-button" tabindex="-1">' + escapeHtml(w.label) + '</button>';
+    }
+    var glyph = w.type === 'radio' ? function (i) { return '( ' + (i === 0 ? '\u25CF' : ' ') + ' )'; } : function () { return '[ ]'; };
+    var rows = w.choices.length > 0 ? w.choices : [{ id: '', text: '(no CHOICE entries)' }];
+    return rows
+      .map(function (c, i) {
+        return '<div class="dspf-choice-row"><span class="dspf-choice-glyph">' + glyph(i) + '</span> ' + escapeHtml(c.text) + '</div>';
+      })
+      .join('');
+  }
+
   function renderScreenHtml(screen) {
     var fieldDivs = screen.fields
       .map(function (f) {
@@ -256,13 +443,18 @@
         if (f.style.underline) classes.push('dspf-underline');
         if (f.style.blink) classes.push('dspf-blink');
         if (f.style.protect) classes.push('dspf-protect');
+        if (f.widget) classes.push('dspf-widget-' + f.widget.type);
+        if (f.tag && f.tag.indexOf('subfile-row-') === 0) classes.push('dspf-subfile-row');
         var colorStyle = f.style.color ? 'color:' + f.style.color + ';' : '';
         var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : ''));
+        var innerHtml = f.widget ? widgetInnerHtml(f) : escapeHtml(f.text);
+        var height = f.height || 1;
         return (
           '<div class="' +
           classes.join(' ') +
           '" style="grid-row:' +
           f.line +
+          (height > 1 ? ' / span ' + height : '') +
           ';grid-column:' +
           f.column +
           ' / span ' +
@@ -274,15 +466,41 @@
           '" data-field="' +
           escapeHtml(f.name || '') +
           '" data-line="' +
-          f.line +
+          f.anchorLine +
           '" data-column="' +
+          (f.anchorColumn != null ? f.anchorColumn : '') +
+          '" data-render-line="' +
+          f.line +
+          '" data-render-column="' +
           f.column +
+          '" data-length="' +
+          f.length +
+          '" data-height="' +
+          height +
           '">' +
-          escapeHtml(f.text) +
+          innerHtml +
           '</div>'
         );
       })
       .join('\n');
+
+    var windowDiv = '';
+    if (screen.window) {
+      var w = screen.window;
+      var titleHtml = w.title ? '<div class="dspf-window-title">' + escapeHtml(w.title) + '</div>' : '';
+      windowDiv =
+        '<div class="dspf-window-border" style="grid-row:' +
+        w.line +
+        ' / span ' +
+        w.height +
+        ';grid-column:' +
+        w.col +
+        ' / span ' +
+        w.width +
+        ';">' +
+        titleHtml +
+        '</div>\n';
+    }
 
     return (
       '<div class="dspf-screen" style="grid-template-columns:repeat(' +
@@ -290,6 +508,7 @@
       ',1ch);grid-template-rows:repeat(' +
       screen.lines +
       ',1.4em);">\n' +
+      windowDiv +
       fieldDivs +
       '\n</div>'
     );
