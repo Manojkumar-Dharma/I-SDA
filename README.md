@@ -49,8 +49,10 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - Menu-bar (`MNUBAR`/`MNUBARCHC`) cascading pulldown interaction isn't
   implemented - `PULLDOWN` record choice fields render, but there's no
   simulated menu-bar trigger.
-- Dragging a subfile row moves one field at a time, not the whole row as a
-  group.
+- Whole-row subfile drag moves every *named* field of the row together;
+  unnamed constants within a subfile row template stay put (they can't be
+  reliably re-located by name across the sequential per-field edits a batch
+  move applies).
 - The interactive editor supports `FIELD`/`CONSTANT` entries only; `RECORD`
   and `HELP` entries aren't editable through the UI yet.
 - Fields with multi-group (OR'd) or more-than-3-indicator conditioning are

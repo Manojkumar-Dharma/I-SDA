@@ -477,6 +477,8 @@
           f.length +
           '" data-height="' +
           height +
+          '" data-tag="' +
+          escapeHtml(f.tag || '') +
           '">' +
           innerHtml +
           '</div>'

@@ -195,8 +195,25 @@ const htmlTemplate = `<!DOCTYPE html>
       if (!editable) el.classList.add('locked');
       if (selectedKey && selectedKey.sourceLine === underlying.sourceLine) el.classList.add('selected');
 
+      const ownerRecord = model.records.find((r) => r.name === ownerRecordName);
+      const isSflRow = ownerRecord && ownerRecord.keywords.some((k) => k.name === 'SFL');
+      const tag = el.getAttribute('data-tag');
+
       el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; render(); });
-      el.addEventListener('mousedown', (e) => { if (!editable) return; e.preventDefault(); startDrag(el, underlying, ownerRecordName); });
+      el.addEventListener('mousedown', (e) => {
+        if (!editable) return;
+        e.preventDefault();
+        if (isSflRow && tag) {
+          // Whole-row drag: every field visible in this rendered row instance moves
+          // together, and every NAMED field of the SFL template record is batch-committed
+          // together (that's the one row definition that actually exists in the DDS
+          // source - constants in the row are left in place, see commitGroupEdit).
+          const siblingEls = Array.from(screenOutput.querySelectorAll('[data-tag="' + tag.replace(/"/g, '\\\\"') + '"]'));
+          startGroupDrag(siblingEls, ownerRecord.fields.filter((f) => f.name), ownerRecordName);
+        } else {
+          startDrag(el, underlying, ownerRecordName);
+        }
+      });
     });
 
     renderProps(recordName);
@@ -255,6 +272,89 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+  }
+
+  // Whole-row subfile drag: moves every field of the SFL template record by the
+  // same delta, visually together and as one batched source edit.
+  function startGroupDrag(els, fields, recordName) {
+    const { rect, colWidth, rowHeight } = gridMetrics();
+    const originals = els.map((el) => ({
+      el,
+      origRenderLine: parseInt(el.getAttribute('data-render-line'), 10),
+      origRenderColumn: parseInt(el.getAttribute('data-render-column'), 10),
+      renderLength: parseInt(el.getAttribute('data-length'), 10) || 1,
+      renderHeight: parseInt(el.getAttribute('data-height'), 10) || 1,
+    }));
+    const ref = originals[0];
+    if (!ref) return;
+    els.forEach((el) => el.classList.add('dragging'));
+
+    function onMove(e) {
+      dragState = dragState || {};
+      const newCol = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
+      const newLine = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+      const deltaLine = newLine - ref.origRenderLine;
+      const deltaColumn = newCol - ref.origRenderColumn;
+      originals.forEach((o) => {
+        o.el.style.gridColumn = (o.origRenderColumn + deltaColumn) + ' / span ' + o.renderLength;
+        o.el.style.gridRow = (o.origRenderLine + deltaLine) + (o.renderHeight > 1 ? ' / span ' + o.renderHeight : '');
+      });
+      dragState.deltaLine = deltaLine;
+      dragState.deltaColumn = deltaColumn;
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      els.forEach((el) => el.classList.remove('dragging'));
+      if (dragState && (dragState.deltaLine || dragState.deltaColumn)) {
+        commitGroupEdit(recordName, fields, dragState.deltaLine, dragState.deltaColumn);
+      }
+      setTimeout(() => { dragState = null; }, 0);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  function commitGroupEdit(recordName, fields, deltaLine, deltaColumn) {
+    try {
+      const previousSelected = selectedKey ? findFieldBySourceLine(selectedKey.sourceLine) : null;
+      const previousSelectedName = previousSelected && previousSelected.field.name;
+
+      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      let currentModel = model;
+      const fieldNames = fields.map((f) => f.name).filter(Boolean);
+
+      // Each field is re-fetched from the freshly re-parsed model on every iteration,
+      // since editing one field shifts source line numbers for everything after it -
+      // a stale field reference from before this loop started would write to the wrong line.
+      fieldNames.forEach((fieldName) => {
+        const rec = currentModel.records.find((r) => r.name === recordName);
+        const f = rec && rec.fields.find((x) => x.name === fieldName);
+        if (!f) return;
+        const newLine = (f.location.line != null ? f.location.line : 1) + deltaLine;
+        // Baseline column: exact if absolute, otherwise 1 - known limitation for
+        // relative-offset (+n) columns within a subfile row, same as single-field drag.
+        const baseColumn = f.location.column != null ? f.location.column : 1;
+        const newColumn = baseColumn + deltaColumn;
+        lines = DspfWriter.applyFieldUpdate(f, lines, { line: newLine, column: newColumn });
+        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      });
+
+      sourceText = lines.join('\\n');
+      model = currentModel;
+
+      if (previousSelectedName && fieldNames.indexOf(previousSelectedName) !== -1) {
+        const rec = model.records.find((r) => r.name === recordName);
+        const stillThere = rec && rec.fields.find((f) => f.name === previousSelectedName);
+        selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
+      }
+
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
   }
 
   function findFieldBySourceLine(sourceLine) {

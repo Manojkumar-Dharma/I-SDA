@@ -3,6 +3,21 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- Whole-row subfile drag: dragging any field within a rendered subfile row
+  now moves every named field of that row's template together - visually
+  during the drag and as one batched source edit - instead of moving just
+  the one field grabbed. Unnamed constants in the row template are left in
+  place (see README known limitations).
+
+### Fixed
+- The previous single-field-only subfile drag would silently leave sibling
+  row fields behind, making a dragged row look consistent on screen but
+  actually misaligned in the underlying DDS source relative to other fields
+  in the same row.
+
 ## [0.2.0] - Unreleased
 
 ### Added
