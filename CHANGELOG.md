@@ -3,6 +3,25 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.0] - Unreleased
+
+### Added
+- `WINDOW(record-format-name)` resolution: a record can now correctly
+  inherit its window geometry from another record's `WINDOW` keyword,
+  including transitively through chains and through a referenced record
+  that itself uses `*DFT` or a field-name position.
+- `WINDOW(*DFT height width)` and field-name-based dynamic positioning
+  (`WINDOW(&line &col height width)`) now render at a placeholder origin
+  with a dashed border and a "position set at runtime" label, instead of
+  not rendering at all.
+
+### Fixed
+- Corrected a wrong assumption from earlier docs research: there is no
+  `WDWDEFINE`/`WINDOW(*DEFINE...)` keyword in DDS. The real named-reference
+  mechanism is `WINDOW(record-format-name)`, verified against IBM's actual
+  WINDOW keyword reference before implementing, to avoid building against
+  a keyword that doesn't exist.
+
 ## [0.4.0] - Unreleased
 
 ### Added

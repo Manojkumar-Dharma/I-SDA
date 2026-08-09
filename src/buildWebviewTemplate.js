@@ -62,6 +62,7 @@ const htmlTemplate = `<!DOCTYPE html>
     position: relative; border: 2px solid #3a5a45; background: #0a0f0c; border-radius: 2px;
     box-shadow: 3px 3px 0 rgba(0,0,0,0.5); pointer-events: none; z-index: 0;
   }
+  .dspf-window-border.dspf-window-default-position { border-style: dashed; border-color: var(--warn); }
   .dspf-window-title {
     position: absolute; top: -1px; left: 8px; transform: translateY(-50%);
     background: #0a0f0c; padding: 0 6px; font-size: 11px; color: var(--ink-dim);

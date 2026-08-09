@@ -222,31 +222,97 @@
   // WINDOW: field positions in a windowed record are relative to the
   // window's own top-left corner (window row 1 / col 1), which is itself
   // placed on the physical screen at the row/col given in the WINDOW keyword.
+  //
+  // Three forms exist (verified against IBM's WINDOW keyword reference):
+  //   WINDOW(line col height width [options])       - direct geometry
+  //   WINDOW(*DFT height width [options])            - *DFT replaces the
+  //                                                     line/col PAIR as one
+  //                                                     token; system positions
+  //                                                     it relative to the
+  //                                                     cursor at runtime
+  //   WINDOW(record-format-name)                     - inherit the geometry
+  //                                                     from another record
+  //                                                     format's own WINDOW
+  //                                                     keyword
+  // line/col can also each be a program-to-system field name instead of a
+  // literal, for positions computed at runtime. Neither *DFT nor a field-name
+  // position is knowable at design time, so both fall back to a placeholder
+  // origin (flagged via positionIsDefault) rather than failing to render at all.
   // ---------------------------------------------------------------------
 
-  /** @returns {{line:number, col:number, height:number, width:number, title:string|null}|null} */
-  function resolveWindow(record) {
+  var PLACEHOLDER_WINDOW_LINE = 2;
+  var PLACEHOLDER_WINDOW_COL = 2;
+
+  function resolveWindowTitle(record) {
+    var titleKw = record.keywords.find(function (k) { return k.name === 'WDWTITLE'; });
+    if (!titleKw) return null;
+    var m = titleKw.parameters.match(/'((?:[^']|'')*)'/);
+    return m ? m[1].replace(/''/g, "'") : null;
+  }
+
+  /** @returns {{line:number, col:number, height:number, width:number, title:string|null, positionIsDefault:boolean, inheritedFrom:string|null}|null} */
+  function resolveWindow(record, dspfFile, depth) {
+    depth = depth || 0;
+    if (depth > 5) return null; // guard against a reference cycle between records
+
     var kw = record.keywords.find(function (k) { return k.name === 'WINDOW'; });
     if (!kw) return null;
-    var parts = kw.parameters.trim().split(/\s+/);
-    if (parts.length < 4 || parts[0].toUpperCase().indexOf('*') === 0) {
-      // *DEFINE-style / named-window references aren't resolvable without
-      // cross-referencing a WDWDEFINE elsewhere; not handled in v1.
-      return null;
-    }
-    var line = parseInt(parts[0], 10);
-    var col = parseInt(parts[1], 10);
-    var height = parseInt(parts[2], 10);
-    var width = parseInt(parts[3], 10);
-    if ([line, col, height, width].some(function (n) { return Number.isNaN(n); })) return null;
+    var parts = kw.parameters.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return null;
 
-    var titleKw = record.keywords.find(function (k) { return k.name === 'WDWTITLE'; });
-    var title = null;
-    if (titleKw) {
-      var m = titleKw.parameters.match(/'((?:[^']|'')*)'/);
-      if (m) title = m[1].replace(/''/g, "'");
+    // Form: WINDOW(record-format-name) - a single bare token that's neither
+    // a number nor *DFT means "use that record's window geometry".
+    if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') {
+      var refRecord = dspfFile && dspfFile.records.find(function (r) { return r.name === parts[0]; });
+      if (!refRecord) return null;
+      var inherited = resolveWindow(refRecord, dspfFile, depth + 1);
+      if (!inherited) return null;
+      // WDWTITLE, if present, is still read from THIS record, not the referenced one.
+      var ownTitle = resolveWindowTitle(record);
+      return {
+        line: inherited.line,
+        col: inherited.col,
+        height: inherited.height,
+        width: inherited.width,
+        title: ownTitle != null ? ownTitle : inherited.title,
+        positionIsDefault: inherited.positionIsDefault,
+        inheritedFrom: parts[0],
+      };
     }
-    return { line: line, col: col, height: height, width: width, title: title };
+
+    var isDftPosition = parts[0].toUpperCase() === '*DFT';
+    var height, width;
+    if (isDftPosition) {
+      height = parseInt(parts[1], 10);
+      width = parseInt(parts[2], 10);
+    } else {
+      height = parseInt(parts[2], 10);
+      width = parseInt(parts[3], 10);
+    }
+    if (Number.isNaN(height) || Number.isNaN(width)) return null;
+
+    var line, col, positionIsDefault;
+    if (isDftPosition) {
+      line = PLACEHOLDER_WINDOW_LINE;
+      col = PLACEHOLDER_WINDOW_COL;
+      positionIsDefault = true;
+    } else {
+      var lineNum = parseInt(parts[0], 10);
+      var colNum = parseInt(parts[1], 10);
+      if (!Number.isNaN(lineNum) && !Number.isNaN(colNum)) {
+        line = lineNum;
+        col = colNum;
+        positionIsDefault = false;
+      } else {
+        // A field name (program-to-system field) instead of a literal - its
+        // runtime value isn't knowable at design time.
+        line = PLACEHOLDER_WINDOW_LINE;
+        col = PLACEHOLDER_WINDOW_COL;
+        positionIsDefault = true;
+      }
+    }
+
+    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record), positionIsDefault: positionIsDefault, inheritedFrom: null };
   }
 
   // ---------------------------------------------------------------------
@@ -394,7 +460,7 @@
       return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], suppressed: true };
     }
 
-    var windowBox = resolveWindow(record);
+    var windowBox = resolveWindow(record, dspfFile);
     var lineOffset = windowBox ? windowBox.line - 1 : 0;
     var colOffset = windowBox ? windowBox.col - 1 : 0;
 
@@ -578,9 +644,16 @@
     var windowDiv = '';
     if (screen.window) {
       var w = screen.window;
-      var titleHtml = w.title ? '<div class="dspf-window-title">' + escapeHtml(w.title) + '</div>' : '';
+      var titleParts = [];
+      if (w.title) titleParts.push(w.title);
+      if (w.positionIsDefault) titleParts.push('position set at runtime');
+      if (w.inheritedFrom) titleParts.push('window shared with ' + w.inheritedFrom);
+      var titleHtml = titleParts.length > 0 ? '<div class="dspf-window-title">' + escapeHtml(titleParts.join(' \u00b7 ')) + '</div>' : '';
+      var windowClasses = 'dspf-window-border' + (w.positionIsDefault ? ' dspf-window-default-position' : '');
       windowDiv =
-        '<div class="dspf-window-border" style="grid-row:' +
+        '<div class="' +
+        windowClasses +
+        '" style="grid-row:' +
         w.line +
         ' / span ' +
         w.height +

@@ -42,10 +42,15 @@ command palette, or click the preview icon in the editor title bar.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations (v0.3)
+## Known limitations (v0.5)
 
-- `WINDOW(*DEFINE ...)` named-window references aren't resolved yet (only
-  the direct `WINDOW(line col height width)` form).
+- `WINDOW` positions that depend on a runtime value - `*DFT` (system
+  positions it relative to the cursor) or a program-to-system field name -
+  can't be known at design time by definition, so they render at a
+  placeholder position with a dashed border and a "position set at runtime"
+  label rather than their real runtime position. `WINDOW(record-format-name)`
+  (inheriting another record's geometry) is fully resolved, including
+  through the inherited record's own `*DFT`/field-name cases.
 - The pulldown-overlay preview (menu bar → clicked choice → dropdown) is
   read-only: you can't drag or edit fields while a pulldown is showing.
   Switch to previewing the `PULLDOWN` record directly to edit it.
@@ -57,8 +62,9 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   reliably re-located by name across the sequential per-field edits a batch
   move applies).
 - Record renaming isn't supported (other keywords like `SFLCTL(name)`,
-  `MNUBARCHC(id name text)` reference records by name in plain text and
-  wouldn't be updated) - the record name field is intentionally read-only.
+  `MNUBARCHC(id name text)`, `WINDOW(record-format-name)` reference records
+  by name in plain text and wouldn't be updated) - the record name field is
+  intentionally read-only.
 - Fields with multi-group (OR'd) or more-than-3-indicator conditioning are
   intentionally locked read-only in the editor, to avoid corrupting
   conditioning the writer can't yet safely round-trip. Edit those directly
