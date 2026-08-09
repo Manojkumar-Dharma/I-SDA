@@ -6,6 +6,17 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Menu-bar (`MNUBAR`) rendering: a field with `MNUBARCHC` keywords now
+  renders as a horizontal row of clickable choices (in ascending numeric
+  order, per DDS semantics), instead of a single plain-text field.
+- Simulated menu-bar trigger: clicking a menu choice opens its linked
+  `PULLDOWN` record as an overlay anchored just below the choice, with an
+  auto-sized border (matching the real "system calculates the dimensions"
+  behavior). Clicking the open choice again, clicking a different choice, or
+  clicking elsewhere on the screen all close/switch it correctly.
+- The pulldown overlay renders as a separate layer on top of the base
+  screen rather than competing for grid cells with it, matching how a real
+  pulldown visually covers whatever is underneath.
 - Whole-row subfile drag: dragging any field within a rendered subfile row
   now moves every named field of that row's template together - visually
   during the drag and as one batched source edit - instead of moving just
@@ -17,6 +28,11 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   row fields behind, making a dragged row look consistent on screen but
   actually misaligned in the underlying DDS source relative to other fields
   in the same row.
+
+### Known limitations
+- Pulldown-overlay fields are preview-only (not draggable/editable) - edit
+  the `PULLDOWN` record directly via the record picker instead.
+- `CHCCTL` (per-choice runtime logic) has no visual representation.
 
 ## [0.2.0] - Unreleased
 

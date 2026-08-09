@@ -46,9 +46,12 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
 - `WINDOW(*DEFINE ...)` named-window references aren't resolved yet (only
   the direct `WINDOW(line col height width)` form).
-- Menu-bar (`MNUBAR`/`MNUBARCHC`) cascading pulldown interaction isn't
-  implemented - `PULLDOWN` record choice fields render, but there's no
-  simulated menu-bar trigger.
+- The pulldown-overlay preview (menu bar → clicked choice → dropdown) is
+  read-only: you can't drag or edit fields while a pulldown is showing.
+  Switch to previewing the `PULLDOWN` record directly to edit it.
+- `CHCCTL` (per-choice runtime field-setting logic within a pulldown) has no
+  visual representation, since it's a logic construct rather than a layout
+  one.
 - Whole-row subfile drag moves every *named* field of the row together;
   unnamed constants within a subfile row template stay put (they can't be
   reliably re-located by name across the sequential per-field edits a batch

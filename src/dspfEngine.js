@@ -178,8 +178,24 @@
     return m ? m[1].replace(/''/g, "'") : parameters.trim();
   }
 
+  /** MNUBARCHC(choice-id pulldown-record-name 'text') - note this is a field-level
+   *  keyword even though it describes the whole menu bar; a menu-bar field
+   *  typically has one MNUBARCHC per menu item. */
+  function parseMenubarChoice(parameters) {
+    var m = parameters.trim().match(/^(\d+)\s+(\S+)\s+'((?:[^']|'')*)'/);
+    if (m) return { id: m[1], pulldownRecord: m[2], text: m[3].replace(/''/g, "'") };
+    return { id: parameters.trim(), pulldownRecord: null, text: parameters.trim() };
+  }
+
   function widgetFromKeywords(field) {
     var names = field.keywords.map(function (k) { return k.name; });
+    if (names.indexOf('MNUBARCHC') !== -1) {
+      var menuChoices = field.keywords
+        .filter(function (k) { return k.name === 'MNUBARCHC'; })
+        .map(function (k) { return parseMenubarChoice(k.parameters); })
+        .sort(function (a, b) { return parseInt(a.id, 10) - parseInt(b.id, 10); }); // "displayed in ascending numeric order"
+      return { type: 'menubar', choices: menuChoices };
+    }
     if (names.indexOf('MLTCHCFLD') !== -1 || names.indexOf('SNGCHCFLD') !== -1) {
       var kind = names.indexOf('MLTCHCFLD') !== -1 ? 'checkbox' : 'radio';
       var choices = field.keywords
@@ -195,6 +211,11 @@
       return { type: 'button', label: label };
     }
     return null;
+  }
+
+  /** @returns {boolean} true if this record has the PULLDOWN keyword (an auto-sized, auto-bordered dropdown). */
+  function isPulldownRecord(record) {
+    return record.keywords.some(function (k) { return k.name === 'PULLDOWN'; });
   }
 
   // ---------------------------------------------------------------------
@@ -302,11 +323,22 @@
       var style = styleFromKeywords(field.keywords, activeIndicators);
       if (style.hidden) return;
 
-      // A choice/button widget needs room for its own content (one row per
-      // choice, or a minimum button width) rather than the raw field length.
+      // A choice/button/menubar widget needs room for its own content rather
+      // than the raw field length: radio/checkbox stack vertically (one row per
+      // choice), a menu bar lays its choices out horizontally on one line, and a
+      // button just needs to fit its label.
       var renderLength = len;
       var renderHeight = 1;
-      if (widget && widget.type !== 'button') {
+      if (widget && widget.type === 'menubar') {
+        var col = 0;
+        widget.choices.forEach(function (c) {
+          var w = c.text.length + 3; // padding between/around menu-bar items
+          c.colOffset = col;
+          c.width = w;
+          col += w;
+        });
+        renderLength = Math.max(len, col, 1);
+      } else if (widget && (widget.type === 'radio' || widget.type === 'checkbox')) {
         renderHeight = Math.max(widget.choices.length, 1);
         widget.choices.forEach(function (c) {
           renderLength = Math.max(renderLength, c.text.length + 4); // "( ) " / "[ ] " prefix
@@ -343,9 +375,13 @@
    * @param {object} dspfFile parsed model from dspfParser.parseDspf()
    * @param {string} recordName
    * @param {Set<string>} activeIndicators indicator numbers ("01".."99") currently ON
+   * @param {{pulldownRecord:string, line:number, col:number}|null} activePulldown
+   *   simulates a menu-bar choice being "clicked": renders the named PULLDOWN
+   *   record as an overlay anchored at line/col (the position just below/at the
+   *   menu-bar choice that triggered it).
    * @returns {{lines:number, columns:number, recordName:string, fields:object[]}}
    */
-  function resolveScreen(dspfFile, recordName, activeIndicators) {
+  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown) {
     activeIndicators = activeIndicators || new Set();
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords);
     var record = dspfFile.records.find(function (r) {
@@ -407,7 +443,37 @@
       resolved.push(f);
     });
 
-    return { lines: size.lines, columns: size.columns, recordName: recordName, fields: resolved, window: windowBox, subfile: sflInfo ? { pageRows: sflInfo.sflPag } : null };
+    // Pulldown overlay: rendered as a SEPARATE layer, not subject to the overlap
+    // resolution above, since a real pulldown genuinely draws on top of whatever
+    // is underneath it - it does not compete for cells with the base screen.
+    var pulldown = null;
+    if (activePulldown && activePulldown.pulldownRecord) {
+      var pdRecord = dspfFile.records.find(function (r) { return r.name === activePulldown.pulldownRecord; });
+      if (pdRecord) {
+        var pdLineOffset = activePulldown.line - 1;
+        var pdColOffset = activePulldown.col - 1;
+        var pdFields = resolveRecordFields(pdRecord, activeIndicators, pdLineOffset, pdColOffset, 'pulldown');
+        if (pdFields.length > 0) {
+          var maxLine = Math.max.apply(null, pdFields.map(function (f) { return f.line + (f.height || 1) - 1; }));
+          var maxCol = Math.max.apply(null, pdFields.map(function (f) { return f.column + f.length - 1; }));
+          pulldown = {
+            recordName: activePulldown.pulldownRecord,
+            fields: pdFields,
+            box: { line: activePulldown.line, col: activePulldown.col, height: maxLine - activePulldown.line + 2, width: maxCol - activePulldown.col + 2 },
+          };
+        }
+      }
+    }
+
+    return {
+      lines: size.lines,
+      columns: size.columns,
+      recordName: recordName,
+      fields: resolved,
+      window: windowBox,
+      subfile: sflInfo ? { pageRows: sflInfo.sflPag } : null,
+      pulldown: pulldown,
+    };
   }
 
   // ---------------------------------------------------------------------
@@ -425,6 +491,27 @@
     if (w.type === 'button') {
       return '<button type="button" class="dspf-widget-button" tabindex="-1">' + escapeHtml(w.label) + '</button>';
     }
+    if (w.type === 'menubar') {
+      return w.choices
+        .map(function (c) {
+          return (
+            '<span class="dspf-menubar-choice" style="width:' +
+            c.width +
+            'ch;" data-pulldown-record="' +
+            escapeHtml(c.pulldownRecord || '') +
+            '" data-choice-id="' +
+            escapeHtml(c.id) +
+            '" data-anchor-line="' +
+            (f.line + 1) +
+            '" data-anchor-col="' +
+            (f.column + c.colOffset) +
+            '">' +
+            escapeHtml(c.text) +
+            '</span>'
+          );
+        })
+        .join('');
+    }
     var glyph = w.type === 'radio' ? function (i) { return '( ' + (i === 0 ? '\u25CF' : ' ') + ' )'; } : function () { return '[ ]'; };
     var rows = w.choices.length > 0 ? w.choices : [{ id: '', text: '(no CHOICE entries)' }];
     return rows
@@ -434,57 +521,59 @@
       .join('');
   }
 
+  /** Builds one field's grid-positioned div. Shared by the base screen and the pulldown overlay layer. */
+  function renderFieldDiv(f) {
+    var classes = ['dspf-field', 'dspf-' + f.nameType.toLowerCase()];
+    if (f.style.hi) classes.push('dspf-hi');
+    if (f.style.reverse) classes.push('dspf-reverse');
+    if (f.style.underline) classes.push('dspf-underline');
+    if (f.style.blink) classes.push('dspf-blink');
+    if (f.style.protect) classes.push('dspf-protect');
+    if (f.widget) classes.push('dspf-widget-' + f.widget.type);
+    if (f.tag && f.tag.indexOf('subfile-row-') === 0) classes.push('dspf-subfile-row');
+    if (f.tag === 'pulldown') classes.push('dspf-pulldown-field');
+    var colorStyle = f.style.color ? 'color:' + f.style.color + ';' : '';
+    var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : ''));
+    var innerHtml = f.widget ? widgetInnerHtml(f) : escapeHtml(f.text);
+    var height = f.height || 1;
+    return (
+      '<div class="' +
+      classes.join(' ') +
+      '" style="grid-row:' +
+      f.line +
+      (height > 1 ? ' / span ' + height : '') +
+      ';grid-column:' +
+      f.column +
+      ' / span ' +
+      f.length +
+      ';' +
+      colorStyle +
+      '" title="' +
+      title +
+      '" data-field="' +
+      escapeHtml(f.name || '') +
+      '" data-line="' +
+      f.anchorLine +
+      '" data-column="' +
+      (f.anchorColumn != null ? f.anchorColumn : '') +
+      '" data-render-line="' +
+      f.line +
+      '" data-render-column="' +
+      f.column +
+      '" data-length="' +
+      f.length +
+      '" data-height="' +
+      height +
+      '" data-tag="' +
+      escapeHtml(f.tag || '') +
+      '">' +
+      innerHtml +
+      '</div>'
+    );
+  }
+
   function renderScreenHtml(screen) {
-    var fieldDivs = screen.fields
-      .map(function (f) {
-        var classes = ['dspf-field', 'dspf-' + f.nameType.toLowerCase()];
-        if (f.style.hi) classes.push('dspf-hi');
-        if (f.style.reverse) classes.push('dspf-reverse');
-        if (f.style.underline) classes.push('dspf-underline');
-        if (f.style.blink) classes.push('dspf-blink');
-        if (f.style.protect) classes.push('dspf-protect');
-        if (f.widget) classes.push('dspf-widget-' + f.widget.type);
-        if (f.tag && f.tag.indexOf('subfile-row-') === 0) classes.push('dspf-subfile-row');
-        var colorStyle = f.style.color ? 'color:' + f.style.color + ';' : '';
-        var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : ''));
-        var innerHtml = f.widget ? widgetInnerHtml(f) : escapeHtml(f.text);
-        var height = f.height || 1;
-        return (
-          '<div class="' +
-          classes.join(' ') +
-          '" style="grid-row:' +
-          f.line +
-          (height > 1 ? ' / span ' + height : '') +
-          ';grid-column:' +
-          f.column +
-          ' / span ' +
-          f.length +
-          ';' +
-          colorStyle +
-          '" title="' +
-          title +
-          '" data-field="' +
-          escapeHtml(f.name || '') +
-          '" data-line="' +
-          f.anchorLine +
-          '" data-column="' +
-          (f.anchorColumn != null ? f.anchorColumn : '') +
-          '" data-render-line="' +
-          f.line +
-          '" data-render-column="' +
-          f.column +
-          '" data-length="' +
-          f.length +
-          '" data-height="' +
-          height +
-          '" data-tag="' +
-          escapeHtml(f.tag || '') +
-          '">' +
-          innerHtml +
-          '</div>'
-        );
-      })
-      .join('\n');
+    var fieldDivs = screen.fields.map(renderFieldDiv).join('\n');
 
     var windowDiv = '';
     if (screen.window) {
@@ -504,6 +593,24 @@
         '</div>\n';
     }
 
+    var pulldownHtml = '';
+    if (screen.pulldown) {
+      var pd = screen.pulldown;
+      var pdFieldDivs = pd.fields.map(renderFieldDiv).join('\n');
+      pulldownHtml =
+        '<div class="dspf-window-border dspf-pulldown-border" style="grid-row:' +
+        pd.box.line +
+        ' / span ' +
+        pd.box.height +
+        ';grid-column:' +
+        pd.box.col +
+        ' / span ' +
+        pd.box.width +
+        ';"></div>\n' +
+        pdFieldDivs +
+        '\n';
+    }
+
     return (
       '<div class="dspf-screen" style="grid-template-columns:repeat(' +
       screen.columns +
@@ -512,6 +619,8 @@
       ',1.4em);">\n' +
       windowDiv +
       fieldDivs +
+      '\n' +
+      pulldownHtml +
       '\n</div>'
     );
   }
@@ -520,6 +629,7 @@
     conditionsSatisfied: conditionsSatisfied,
     resolveScreen: resolveScreen,
     renderScreenHtml: renderScreenHtml,
+    isPulldownRecord: isPulldownRecord,
     COLOR_HEX: COLOR_HEX,
     DEFAULT_COLOR: DEFAULT_COLOR,
   };

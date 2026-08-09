@@ -77,6 +77,15 @@ const htmlTemplate = `<!DOCTYPE html>
     border: 1px solid #3a5a45; border-radius: 3px; font-family: var(--mono);
     font-size: 12px; cursor: grab; padding: 2px 8px;
   }
+  .dspf-field.dspf-widget-menubar { display: flex; align-items: center; white-space: nowrap; background: #10231a; z-index: 1; }
+  .dspf-menubar-choice {
+    display: inline-block; padding: 0 4px; cursor: pointer; color: var(--ink);
+    box-sizing: border-box;
+  }
+  .dspf-menubar-choice:hover, .dspf-menubar-choice.dspf-menubar-open { background: var(--accent); color: #0a0f0c; }
+  .dspf-pulldown-border { z-index: 2; }
+  .dspf-pulldown-field { z-index: 3; }
+  .dspf-field.dspf-pulldown-field.dspf-widget-radio, .dspf-field.dspf-pulldown-field.dspf-widget-checkbox { background: #0a0f0c; }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
   button { background: #14261c; color: var(--accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
@@ -116,6 +125,8 @@ const htmlTemplate = `<!DOCTYPE html>
   let model = DspfParser.parseDspf(sourceText);
   let selectedKey = null;
   let suppressNextExternalUpdate = false;
+  let activePulldown = null; // { pulldownRecord, line, col, choiceKey } - simulates a clicked menu-bar choice
+  let pulldownCloserAttached = false;
   const active = new Set();
 
   const recordSelect = document.getElementById('recordSelect');
@@ -163,11 +174,13 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!recordName) { screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
     recordSelect.value = recordName;
 
-    const screen = DspfEngine.resolveScreen(model, recordName, active);
+    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
 
     screenOutput.querySelectorAll('.dspf-field').forEach((el) => {
+      if (el.getAttribute('data-tag') === 'pulldown') return; // read-only preview overlay, see below for its own click handling
+
       const name = el.getAttribute('data-field');
       const anchorLine = parseInt(el.getAttribute('data-line'), 10);
       const anchorColumn = el.getAttribute('data-column') === '' ? null : parseInt(el.getAttribute('data-column'), 10);
@@ -215,6 +228,38 @@ const htmlTemplate = `<!DOCTYPE html>
         }
       });
     });
+
+    // Menu-bar choices: clicking one simulates the real trigger, opening its
+    // linked PULLDOWN record as an overlay anchored just below the choice.
+    // Clicking the currently-open choice again, or clicking anywhere else on
+    // the screen background, closes it.
+    screenOutput.querySelectorAll('.dspf-menubar-choice').forEach((el) => {
+      const pulldownRecord = el.getAttribute('data-pulldown-record');
+      const choiceKey = pulldownRecord + '#' + el.getAttribute('data-choice-id');
+      if (activePulldown && activePulldown.choiceKey === choiceKey) el.classList.add('dspf-menubar-open');
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!pulldownRecord) return;
+        if (activePulldown && activePulldown.choiceKey === choiceKey) {
+          activePulldown = null;
+        } else {
+          activePulldown = {
+            pulldownRecord: pulldownRecord,
+            line: parseInt(el.getAttribute('data-anchor-line'), 10),
+            col: parseInt(el.getAttribute('data-anchor-col'), 10),
+            choiceKey: choiceKey,
+          };
+        }
+        render();
+      });
+    });
+
+    if (activePulldown && !pulldownCloserAttached) {
+      pulldownCloserAttached = true;
+      screenOutput.addEventListener('click', () => { activePulldown = null; pulldownCloserAttached = false; render(); }, { once: true });
+    }
+    if (!activePulldown) pulldownCloserAttached = false;
 
     renderProps(recordName);
   }
@@ -349,6 +394,7 @@ const htmlTemplate = `<!DOCTYPE html>
         selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
       }
 
+      activePulldown = null;
       suppressNextExternalUpdate = true;
       vscode.postMessage({ type: 'applyEdit', text: sourceText });
       render();
@@ -427,6 +473,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const rec = model.records.find((r) => r.name === recordName);
       const stillThere = rec && field.name && rec.fields.find((f) => f.name === field.name);
       selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
+      activePulldown = null;
       suppressNextExternalUpdate = true;
       vscode.postMessage({ type: 'applyEdit', text: sourceText });
       render();
@@ -446,7 +493,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   });
 
-  recordSelect.addEventListener('change', () => { selectedKey = null; render(); });
+  recordSelect.addEventListener('change', () => { selectedKey = null; activePulldown = null; render(); });
 
   render();
   vscode.postMessage({ type: 'ready' });
