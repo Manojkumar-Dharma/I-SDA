@@ -94,6 +94,11 @@ const htmlTemplate = `<!DOCTYPE html>
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
   .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
   .empty-state { color: var(--ink-dim); font-size: 13px; }
+  .help-entry-row {
+    background: #0d1310; border: 1px solid var(--panel-border); border-radius: 3px;
+    padding: 6px 8px; margin-bottom: 6px; font-size: 12px; cursor: pointer;
+  }
+  .help-entry-row:hover { border-color: var(--accent); }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 16px 0 8px; }
 </style>
 </head>
@@ -124,6 +129,7 @@ const htmlTemplate = `<!DOCTYPE html>
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
   let model = DspfParser.parseDspf(sourceText);
   let selectedKey = null;
+  let selectedHelpSourceLine = null;
   let suppressNextExternalUpdate = false;
   let activePulldown = null; // { pulldownRecord, line, col, choiceKey } - simulates a clicked menu-bar choice
   let pulldownCloserAttached = false;
@@ -133,6 +139,17 @@ const htmlTemplate = `<!DOCTYPE html>
   const indicatorList = document.getElementById('indicatorList');
   const screenOutput = document.getElementById('screenOutput');
   const propsBody = document.getElementById('propsBody');
+
+  // Clicking the screen background (not a field) deselects, returning the
+  // properties panel to record-level editing. Attached once since screenOutput
+  // itself persists across re-renders (only its innerHTML is replaced).
+  screenOutput.addEventListener('click', (e) => {
+    if (e.target === screenOutput || (e.target.classList && e.target.classList.contains('dspf-screen'))) {
+      selectedKey = null;
+      selectedHelpSourceLine = null;
+      render();
+    }
+  });
 
   function allIndicators() {
     const set = new Set();
@@ -212,7 +229,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const isSflRow = ownerRecord && ownerRecord.keywords.some((k) => k.name === 'SFL');
       const tag = el.getAttribute('data-tag');
 
-      el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; render(); });
+      el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; selectedHelpSourceLine = null; render(); });
       el.addEventListener('mousedown', (e) => {
         if (!editable) return;
         e.preventDefault();
@@ -411,12 +428,45 @@ const htmlTemplate = `<!DOCTYPE html>
     return null;
   }
 
+  function keywordEditorHtml(keywords) {
+    let html = '<div class="section-label">Keywords</div><div id="p-keywords">';
+    (keywords || []).forEach((k, idx) => { html += '<span class="keyword-chip">' + k.name + (k.parameters ? '(' + k.parameters + ')' : '') + '<button data-idx="' + idx + '" class="kw-remove">×</button></span>'; });
+    html += '</div><div class="two-col" style="margin-top:8px;"><input type="text" id="p-new-kw-name" placeholder="KEYWORD" /><input type="text" id="p-new-kw-params" placeholder="params" /></div>';
+    html += '<button id="p-add-kw" class="secondary" style="width:100%;margin-top:6px;">+ Add keyword</button>';
+    return html;
+  }
+
+  function wireKeywordEditor(keywords, onChange) {
+    propsBody.querySelectorAll('.kw-remove').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        const newKeywords = keywords.slice();
+        newKeywords.splice(idx, 1);
+        onChange(newKeywords);
+      });
+    });
+    const addBtn = document.getElementById('p-add-kw');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        const name = document.getElementById('p-new-kw-name').value.trim().toUpperCase();
+        const params = document.getElementById('p-new-kw-params').value.trim();
+        if (!name) return;
+        onChange(keywords.concat([{ name, parameters: params, conditions: [], raw: '', sourceLines: [] }]));
+      });
+    }
+  }
+
   function renderProps(recordName) {
-    if (!selectedKey) { propsBody.innerHTML = '<div class="empty-state">Select a field to edit it.</div>'; return; }
+    if (selectedKey) { renderFieldProps(recordName); return; }
+    if (selectedHelpSourceLine != null) { renderHelpProps(recordName); return; }
+    renderRecordProps(recordName);
+  }
+
+  function renderFieldProps(recordName) {
     const found = findFieldBySourceLine(selectedKey.sourceLine);
     const field = found && found.field;
     const ownerRecordName = found && found.record.name;
-    if (!field) { propsBody.innerHTML = '<div class="empty-state">Select a field to edit it.</div>'; return; }
+    if (!field) { selectedKey = null; renderRecordProps(recordName); return; }
 
     const editable = DspfWriter.isEditable(field);
     let html = '';
@@ -429,10 +479,7 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
       ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
     html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
-    html += '<div class="section-label">Keywords</div><div id="p-keywords">';
-    (field.keywords || []).forEach((k, idx) => { html += '<span class="keyword-chip">' + k.name + (k.parameters ? '(' + k.parameters + ')' : '') + '<button data-idx="' + idx + '" class="kw-remove">×</button></span>'; });
-    html += '</div><div class="two-col" style="margin-top:8px;"><input type="text" id="p-new-kw-name" placeholder="KEYWORD" /><input type="text" id="p-new-kw-params" placeholder="params" /></div>';
-    html += '<button id="p-add-kw" class="secondary" style="width:100%;margin-top:6px;">+ Add keyword</button>';
+    html += keywordEditorHtml(field.keywords);
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
     propsBody.innerHTML = html;
     if (!editable) return;
@@ -448,20 +495,57 @@ const htmlTemplate = `<!DOCTYPE html>
         usage: document.getElementById('p-usage').value || null,
       });
     });
-    propsBody.querySelectorAll('.kw-remove').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.getAttribute('data-idx'), 10);
-        const newKeywords = field.keywords.slice();
-        newKeywords.splice(idx, 1);
-        commitEdit(ownerRecordName, field, { keywords: newKeywords });
+    wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }));
+  }
+
+  function helpEntriesListHtml(rec) {
+    if (!rec.helpEntries || rec.helpEntries.length === 0) return '';
+    let html = '<div class="section-label">Help entries</div>';
+    rec.helpEntries.forEach((h, idx) => {
+      const summary = (h.keywords || []).map((k) => k.name).join(', ') || '(no keywords)';
+      html += '<div class="help-entry-row" data-source-line="' + h.sourceLine + '">' + (idx + 1) + '. ' + summary + '</div>';
+    });
+    return html;
+  }
+
+  function renderRecordProps(recordName) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) { propsBody.innerHTML = '<div class="empty-state">No record selected.</div>'; return; }
+
+    const editable = DspfWriter.isEditable(rec);
+    let html = '<div class="section-label">Record</div>';
+    html += '<div class="field-row"><label>Name</label><input type="text" value="' + rec.name + '" disabled title="Renaming isn\\'t supported - other keywords (SFLCTL, WINDOW, MNUBARCHC...) may reference this name by text and wouldn\\'t be updated." /></div>';
+    if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
+    html += keywordEditorHtml(rec.keywords);
+    html += helpEntriesListHtml(rec);
+    propsBody.innerHTML = html;
+
+    propsBody.querySelectorAll('.help-entry-row').forEach((el) => {
+      el.addEventListener('click', () => {
+        selectedHelpSourceLine = parseInt(el.getAttribute('data-source-line'), 10);
+        renderProps(recordName);
       });
     });
-    document.getElementById('p-add-kw').addEventListener('click', () => {
-      const name = document.getElementById('p-new-kw-name').value.trim().toUpperCase();
-      const params = document.getElementById('p-new-kw-params').value.trim();
-      if (!name) return;
-      commitEdit(ownerRecordName, field, { keywords: field.keywords.concat([{ name, parameters: params, conditions: [], raw: '', sourceLines: [] }]) });
-    });
+
+    if (!editable) return;
+    wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+  }
+
+  function renderHelpProps(recordName) {
+    const rec = model.records.find((r) => r.name === recordName);
+    const help = rec && rec.helpEntries.find((h) => h.sourceLine === selectedHelpSourceLine);
+    if (!help) { selectedHelpSourceLine = null; renderRecordProps(recordName); return; }
+
+    const editable = DspfWriter.isEditable(help);
+    let html = '<button id="p-back" class="secondary" style="width:100%;margin-bottom:12px;">&larr; Back to record</button>';
+    html += '<div class="section-label">Help entry</div>';
+    if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this help entry is disabled to avoid corrupting it. Edit the source directly.</div>';
+    html += keywordEditorHtml(help.keywords);
+    propsBody.innerHTML = html;
+
+    document.getElementById('p-back').addEventListener('click', () => { selectedHelpSourceLine = null; renderProps(recordName); });
+    if (!editable) return;
+    wireKeywordEditor(help.keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }));
   }
 
   function commitEdit(recordName, field, updates) {
@@ -482,6 +566,41 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   }
 
+  function commitRecordEdit(recordName, updates) {
+    try {
+      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      const rec = model.records.find((r) => r.name === recordName);
+      if (!rec) return;
+      const newLines = DspfWriter.applyRecordUpdate(rec, lines, updates);
+      sourceText = newLines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      activePulldown = null;
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
+  }
+
+  function commitHelpEdit(recordName, help, updates) {
+    try {
+      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      const newLines = DspfWriter.applyFieldUpdate(help, lines, updates);
+      sourceText = newLines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      // Help entries have no stable name to re-find by (unlike fields), so
+      // just return to the record view rather than guessing which entry to reselect.
+      selectedHelpSourceLine = null;
+      activePulldown = null;
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
+  }
+
   window.addEventListener('message', (event) => {
     const msg = event.data;
     if (msg.type === 'externalUpdate') {
@@ -493,7 +612,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   });
 
-  recordSelect.addEventListener('change', () => { selectedKey = null; activePulldown = null; render(); });
+  recordSelect.addEventListener('change', () => { selectedKey = null; selectedHelpSourceLine = null; activePulldown = null; render(); });
 
   render();
   vscode.postMessage({ type: 'ready' });

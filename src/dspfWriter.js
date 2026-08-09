@@ -100,14 +100,14 @@
     var condCols = serializeConditionCols(field); // 10 chars for cols 7-16
     for (var j = 0; j < 10; j++) chars[6 + j] = condCols[j];
 
-    // col17: name type (blank for FIELD/CONSTANT - HELP/RECORD not supported by the writer yet)
-    chars[16] = ' ';
+    // col17: name type - blank for FIELD/CONSTANT, 'H' for HELP.
+    chars[16] = field.nameType === 'HELP' ? 'H' : ' ';
 
     if (field.nameType === 'FIELD') {
       var name = padTo(field.name || '', 10);
       for (var n = 0; n < 10; n++) chars[18 + n] = name[n];
     }
-    // CONSTANT: name area (18-27, 0-based) stays blank.
+    // CONSTANT/HELP: name area (18-27, 0-based) stays blank.
 
     chars[28] = field.isReference ? 'R' : ' '; // col29
 
@@ -198,6 +198,90 @@
     return [firstLine].concat(rest);
   }
 
+  // ---------------------------------------------------------------------
+  // RECORD entries: a different shape than fields (no location/length/type -
+  // just a name, optional conditioning, and record-level keywords), so they
+  // get their own serialization path rather than forcing them through
+  // serializeFieldEntry's field-shaped assumptions.
+  // ---------------------------------------------------------------------
+
+  /** Returns [firstLine, lastLine] this record's OWN entry occupies - its R line
+   *  plus any keyword-only lines that appeared before the first field/help/constant
+   *  (record.keywords only ever contains lines from that window - see dspfParser.ts). */
+  function getRecordLineRange(record) {
+    var max = record.sourceLine;
+    (record.keywords || []).forEach(function (k) {
+      (k.sourceLines || []).forEach(function (ln) {
+        if (ln > max) max = ln;
+      });
+    });
+    return [record.sourceLine, max];
+  }
+
+  function serializeRecordPositionalCols(record, originalLine1to6) {
+    var chars = new Array(44).fill(' ');
+    var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
+    for (var i = 0; i < 6; i++) chars[i] = seqForm[i];
+
+    var condCols = serializeConditionCols(record); // works off record.conditions same as a field's
+    for (var j = 0; j < 10; j++) chars[6 + j] = condCols[j];
+
+    chars[16] = 'R'; // col17
+    var name = padTo(record.name || '', 10);
+    for (var n = 0; n < 10; n++) chars[18 + n] = name[n];
+
+    return chars.join('');
+  }
+
+  function buildRecordFunctionAreaText(record) {
+    return (record.keywords || [])
+      .map(function (k) {
+        return k.parameters ? k.name + '(' + k.parameters + ')' : k.name;
+      })
+      .join(' ');
+  }
+
+  function serializeRecordEntry(record, originalLine1to6) {
+    var posCols = serializeRecordPositionalCols(record, originalLine1to6);
+    var functionText = buildRecordFunctionAreaText(record);
+
+    if (functionText.length === 0) {
+      return [posCols.replace(/\s+$/, '') || posCols.slice(0, 6)];
+    }
+
+    var funcLines = serializeFunctionAreaLines(functionText);
+    var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+    return [firstLine].concat(funcLines.slice(1));
+  }
+
+  /**
+   * Applies `updates` (currently just { keywords }) to a record format's own
+   * entry line(s). Renaming isn't supported in v1 - other parts of the file
+   * (SFLCTL(name), WINDOW-linked records, MNUBARCHC(id name text), etc.) may
+   * reference a record by name and wouldn't be updated, so name is treated
+   * as read-only to avoid silently breaking those cross-references.
+   */
+  function applyRecordUpdate(record, sourceLines, updates) {
+    if (!isEditable(record)) {
+      throw new Error(
+        'This record has multi-group or >3-indicator conditioning that the editor cannot yet round-trip safely; edit the DDS source directly for this record.'
+      );
+    }
+
+    var updated = {
+      name: record.name,
+      conditions: record.conditions,
+      keywords: updates.keywords !== undefined ? updates.keywords : record.keywords,
+    };
+
+    var range = getRecordLineRange(record);
+    var originalFirstLine = sourceLines[range[0] - 1] || '';
+    var originalLine1to6 = originalFirstLine.slice(0, 6);
+
+    var newLines = serializeRecordEntry(updated, originalLine1to6);
+    return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
+  }
+
   /**
    * Applies `updates` (a partial field object - any of name/length/dataType/decimalPositions/
    * usage/location{line,column}/keywords) to a copy of `field`, regenerates its source lines,
@@ -246,5 +330,8 @@
     getFieldLineRange: getFieldLineRange,
     serializeFieldEntry: serializeFieldEntry,
     applyFieldUpdate: applyFieldUpdate,
+    getRecordLineRange: getRecordLineRange,
+    serializeRecordEntry: serializeRecordEntry,
+    applyRecordUpdate: applyRecordUpdate,
   };
 });

@@ -3,6 +3,32 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.4.0] - Unreleased
+
+### Added
+- Record-level property editing: the properties panel now shows the current
+  record's keywords (add/remove) whenever no field is selected, instead of
+  just a placeholder. Deselect a field by clicking the screen background to
+  get back to it.
+- Help entry (`H` specification) editing: each record's help entries are
+  listed and clickable from the record view, opening a keyword editor for
+  that specific entry (`HLPARA`, `HLPRCD`, `HLPTXT`, etc.).
+- Fixed a real gap in the writer: `HELP`-type entries previously couldn't be
+  serialized at all (`col 17` was hardcoded blank instead of `H`), so any
+  edit to a field would have silently corrupted help specifications
+  elsewhere in the file the next time the source was regenerated near them.
+  This is now correct.
+- Multiple record formats in one display file were already fully supported
+  (the record picker has always listed every format) - confirmed still
+  correct across the subfile/window/menu-bar fixtures, which all define
+  several record formats at once.
+
+### Known limitations
+- Record renaming isn't supported (see README).
+- Help-entry re-selection after an edit isn't preserved (help entries have
+  no stable name to re-find by, unlike fields) - editing one returns you to
+  the record view rather than keeping it open.
+
 ## [0.3.0] - Unreleased
 
 ### Added

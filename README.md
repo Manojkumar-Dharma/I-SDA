@@ -19,7 +19,7 @@ changed).
 |---|---|---|
 | Parser | `src/dspfParser.ts` / `src/dspfModel.ts` | Fixed-column DDS source → structured model (records, fields, keywords, conditioning indicators, continuation lines) |
 | Resolver / renderer | `src/dspfEngine.js` | Model + active indicators → resolved screen layout → HTML grid |
-| Writer | `src/dspfWriter.js` | Edited field data → regenerated fixed-column source lines, spliced back into the original text with everything else untouched |
+| Writer | `src/dspfWriter.js` | Edited field, record, or help-entry data → regenerated fixed-column source lines, spliced back into the original text with everything else untouched |
 | Extension host | `src/extension.ts` | Opens the webview, keeps it in sync with the real document in both directions via `WorkspaceEdit` |
 | Webview | `src/buildWebviewTemplate.js` → `src/webviewTemplate.ts` (generated) | Bakes the engine/writer/parser into one self-contained webview HTML string |
 
@@ -42,7 +42,7 @@ command palette, or click the preview icon in the editor title bar.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations (v0.2)
+## Known limitations (v0.3)
 
 - `WINDOW(*DEFINE ...)` named-window references aren't resolved yet (only
   the direct `WINDOW(line col height width)` form).
@@ -56,12 +56,14 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   unnamed constants within a subfile row template stay put (they can't be
   reliably re-located by name across the sequential per-field edits a batch
   move applies).
-- The interactive editor supports `FIELD`/`CONSTANT` entries only; `RECORD`
-  and `HELP` entries aren't editable through the UI yet.
+- Record renaming isn't supported (other keywords like `SFLCTL(name)`,
+  `MNUBARCHC(id name text)` reference records by name in plain text and
+  wouldn't be updated) - the record name field is intentionally read-only.
 - Fields with multi-group (OR'd) or more-than-3-indicator conditioning are
   intentionally locked read-only in the editor, to avoid corrupting
   conditioning the writer can't yet safely round-trip. Edit those directly
-  in the DDS source.
+  in the DDS source. The same guard applies to record formats and help
+  entries.
 - Display-length rules for signed/edited numerics are approximated.
 
 ## License
