@@ -76,7 +76,7 @@ function parseConditionGroup(line: string): DdsCondition | null {
     }
   }
 
-  return indicators.length > 0 ? { relation, indicators } : null;
+  return indicators.length > 0 ? { relation, indicators, sourceLines: [] } : null;
 }
 
 /** Parses a numeric-or-blank-or-signed-override positional field, e.g. length, decimal positions. */
@@ -381,9 +381,15 @@ export function parseDspf(source: string): DspfFile {
     const group = parseConditionGroup(entry.positionalLine);
     if (!group) return;
     if (group.relation === 'AND' && pendingConditions.length > 0) {
-      pendingConditions[pendingConditions.length - 1].indicators.push(...group.indicators);
+      const last = pendingConditions[pendingConditions.length - 1];
+      last.indicators.push(...group.indicators);
+      last.sourceLines.push(entry.sourceLine);
     } else {
-      pendingConditions.push({ relation: pendingConditions.length === 0 ? 'AND' : group.relation, indicators: group.indicators });
+      pendingConditions.push({
+        relation: pendingConditions.length === 0 ? 'AND' : group.relation,
+        indicators: group.indicators,
+        sourceLines: [entry.sourceLine],
+      });
     }
   };
 

@@ -40,47 +40,40 @@
   }
 
   /**
-   * A field is "safe to edit" in v1 if its conditioning is simple enough to
-   * round-trip through the single-line indicator slots (cols 8-16): zero or
-   * one AND-group of up to 3 indicators. Multi-group (OR'd) or >3-indicator
-   * conditioning is preserved on disk but the editor should refuse to touch
-   * it rather than silently dropping indicators.
+   * Splits a full conditions array (arbitrary number of OR'd groups, each with
+   * arbitrarily many indicators) into "chunks" of at most 3 indicators each -
+   * one chunk per physical source line's worth of indicator columns (7-16).
+   * The first chunk of a group carries that group's relation ('AND' for the
+   * very first group overall, 'OR' for every other group - which is exactly
+   * what the parser already normalizes group.relation to); every other chunk
+   * within the same group continues it (relation 'AND', i.e. blank/A in col 7).
    */
-  function isEditable(field) {
-    if (!field.conditions || field.conditions.length === 0) return true;
-    if (field.conditions.length > 1) return false;
-    return field.conditions[0].indicators.length <= 3;
-  }
-
-  /** Returns [firstLine, lastLine] (1-based, inclusive) of source lines this field's entry occupies. */
-  function getFieldLineRange(field) {
-    var max = field.sourceLine;
-    (field.keywords || []).forEach(function (k) {
-      (k.sourceLines || []).forEach(function (ln) {
-        if (ln > max) max = ln;
-      });
+  function buildConditionChunks(conditions) {
+    var chunks = [];
+    (conditions || []).forEach(function (group) {
+      var inds = group.indicators || [];
+      var lineCount = Math.max(1, Math.ceil(inds.length / 3));
+      for (var i = 0; i < lineCount; i++) {
+        chunks.push({
+          relation: i === 0 ? group.relation : 'AND',
+          indicators: inds.slice(i * 3, i * 3 + 3),
+        });
+      }
     });
-    return [field.sourceLine, max];
+    return chunks;
   }
 
-  function serializeConditionCols(field) {
-    // Returns the 16-char string for columns 1-16 EXCEPT columns 1-6 (seq+form),
-    // i.e. just columns 7-16 (indicator area). Caller combines with preserved 1-6.
-    var chars = new Array(10).fill(' '); // represents cols 7-16
-    var group = field.conditions && field.conditions[0];
-    if (group) {
-      var slots = [
-        [0, 1, 2], // cols 8,9,10 -> index 1,2 relative to col7=index0... see below
-      ];
-      // index within this 10-char string: col7=idx0, col8=idx1, col9=idx2, col10=idx3,
-      // col11=idx4, col12=idx5, col13=idx6, col14=idx7, col15=idx8, col16=idx9
-      chars[0] = group.relation === 'OR' ? 'O' : ' ';
+  /** Returns the 10-char string for columns 7-16 (indicator area) for ONE chunk (<=3 indicators). */
+  function serializeConditionCols(chunk) {
+    var chars = new Array(10).fill(' ');
+    if (chunk) {
+      chars[0] = chunk.relation === 'OR' ? 'O' : ' ';
       var positions = [
         { not: 1, digits: [2, 3] },
         { not: 4, digits: [5, 6] },
         { not: 7, digits: [8, 9] },
       ];
-      group.indicators.slice(0, 3).forEach(function (ind, i) {
+      (chunk.indicators || []).slice(0, 3).forEach(function (ind, i) {
         var pos = positions[i];
         if (ind.not) chars[pos.not] = 'N';
         var num = rightAlign(ind.number, 2);
@@ -91,13 +84,64 @@
     return chars.join('');
   }
 
+  /** Builds a full 80-col line carrying ONLY indicator columns (7-16) - used for every
+   *  condition chunk except the last, which instead merges into the content line itself. */
+  function serializeConditionOnlyLine(chunk, originalLine1to6) {
+    var chars = new Array(LINE_WIDTH).fill(' ');
+    var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
+    for (var i = 0; i < 6; i++) chars[i] = seqForm[i];
+    var condCols = serializeConditionCols(chunk);
+    for (var j = 0; j < 10; j++) chars[6 + j] = condCols[j];
+    return chars.join('').replace(/\s+$/, '');
+  }
+
+  /** All condition lines except the last chunk (which the caller merges into its own content line). */
+  function serializeConditionPrefixLines(conditions, originalLine1to6) {
+    var chunks = buildConditionChunks(conditions);
+    return chunks.slice(0, -1).map(function (chunk) {
+      return serializeConditionOnlyLine(chunk, originalLine1to6);
+    });
+  }
+
+  /** The chunk that belongs on the entity's own content line (its cols 7-16), or null if unconditioned. */
+  function lastConditionChunk(conditions) {
+    var chunks = buildConditionChunks(conditions);
+    return chunks.length > 0 ? chunks[chunks.length - 1] : null;
+  }
+
+  /** Returns [firstLine, lastLine] (1-based, inclusive) of source lines this field's entry occupies -
+   *  including any pure indicator-only lines that PRECEDE its own content line (multi-group/multi-line
+   *  conditioning), which field.sourceLine/keywords[].sourceLines alone wouldn't capture. */
+  function getFieldLineRange(field) {
+    var min = field.sourceLine;
+    var max = field.sourceLine;
+    (field.conditions || []).forEach(function (g) {
+      (g.sourceLines || []).forEach(function (ln) {
+        if (ln < min) min = ln;
+        if (ln > max) max = ln;
+      });
+    });
+    (field.keywords || []).forEach(function (k) {
+      (k.sourceLines || []).forEach(function (ln) {
+        if (ln > max) max = ln;
+      });
+      (k.conditions || []).forEach(function (g) {
+        (g.sourceLines || []).forEach(function (ln) {
+          if (ln < min) min = ln;
+          if (ln > max) max = ln;
+        });
+      });
+    });
+    return [min, max];
+  }
+
   /** Builds columns 1-44 for a field's positional line. Columns 1-6 are preserved from the original line. */
   function serializePositionalCols(field, originalLine1to6) {
     var chars = new Array(44).fill(' ');
     var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
     for (var i = 0; i < 6; i++) chars[i] = seqForm[i];
 
-    var condCols = serializeConditionCols(field); // 10 chars for cols 7-16
+    var condCols = serializeConditionCols(lastConditionChunk(field.conditions)); // 10 chars for cols 7-16
     for (var j = 0; j < 10; j++) chars[6 + j] = condCols[j];
 
     // col17: name type - blank for FIELD/CONSTANT, 'H' for HELP.
@@ -142,21 +186,67 @@
     return chars.join('');
   }
 
-  /** Builds the full function-area text (unwrapped) for a field: implicit constant literal + keywords, space-separated. */
-  function buildFunctionAreaText(field) {
+  /** Builds the full function-area text (unwrapped) for a field: implicit constant literal + the given
+   *  keyword list, space-separated. Callers pass only the UNCONDITIONED keywords here - conditioned
+   *  keywords get their own dedicated line(s) via serializeConditionedKeywordLines instead, since a
+   *  keyword's condition lives on lines that precede just that keyword, not the whole field. */
+  function buildFunctionAreaText(field, keywords) {
     var parts = [];
     if (field.nameType === 'CONSTANT' && field.constantValue != null) {
-      var hasDft = (field.keywords || []).some(function (k) {
+      var hasDft = (keywords || []).some(function (k) {
         return k.name === 'DFT';
       });
       if (!hasDft) {
         parts.push("'" + String(field.constantValue).replace(/'/g, "''") + "'");
       }
     }
-    (field.keywords || []).forEach(function (k) {
+    (keywords || []).forEach(function (k) {
       parts.push(k.parameters ? k.name + '(' + k.parameters + ')' : k.name);
     });
     return parts.join(' ');
+  }
+
+  function conditionsEqual(a, b) {
+    return JSON.stringify(a || []) === JSON.stringify(b || []);
+  }
+
+  /** Groups keywords into runs that share identical conditions (preserving order), so keywords
+   *  conditioned together end up back on the same line group they'd naturally occupy. */
+  function groupKeywordsByCondition(keywords) {
+    var groups = [];
+    (keywords || []).forEach(function (k) {
+      var last = groups[groups.length - 1];
+      if (last && conditionsEqual(last.conditions, k.conditions)) {
+        last.keywords.push(k);
+      } else {
+        groups.push({ conditions: k.conditions || [], keywords: [k] });
+      }
+    });
+    return groups;
+  }
+
+  /** Serializes one or more keywords that share the same (non-empty) condition: the condition's
+   *  prefix chunks as indicator-only lines, then a final line combining the last chunk's indicator
+   *  columns with the keyword text itself (wrapped via continuation if it doesn't fit one line). */
+  function serializeConditionedKeywordLines(conditions, keywords, originalLine1to6) {
+    var text = keywords
+      .map(function (k) {
+        return k.parameters ? k.name + '(' + k.parameters + ')' : k.name;
+      })
+      .join(' ');
+    if (text.length === 0) return serializeConditionPrefixLines(conditions, originalLine1to6).concat([serializeConditionOnlyLine(lastConditionChunk(conditions), originalLine1to6)]);
+
+    var prefixLines = serializeConditionPrefixLines(conditions, originalLine1to6);
+    var condCols = serializeConditionCols(lastConditionChunk(conditions));
+    var posChars = new Array(44).fill(' ');
+    var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
+    for (var i = 0; i < 6; i++) posChars[i] = seqForm[i];
+    for (var j = 0; j < 10; j++) posChars[6 + j] = condCols[j];
+    var posCols = posChars.join('');
+
+    var funcLines = serializeFunctionAreaLines(text);
+    var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+    return prefixLines.concat([firstLine], funcLines.slice(1));
   }
 
   /** Wraps function-area text into 80-col lines with +/- continuation, cols 1-44 blank (except 'A' in col 6). */
@@ -183,19 +273,34 @@
     });
   }
 
-  /** Serializes a full field entry (positional line + any continuation lines) from current field state. */
+  /** Serializes a full field entry from current field state: the field's OWN condition prefix
+   *  lines (if field.conditions spans multiple groups/lines), its content line(s) built from
+   *  unconditioned keywords, then each run of identically-conditioned keywords as their own
+   *  dedicated line(s) - preserving per-keyword conditioning instead of silently dropping it. */
   function serializeFieldEntry(field, originalLine1to6) {
-    var posCols = serializePositionalCols(field, originalLine1to6);
-    var functionText = buildFunctionAreaText(field);
+    var allKeywords = field.keywords || [];
+    var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
+    var conditioned = allKeywords.filter(function (k) { return k.conditions && k.conditions.length > 0; });
 
+    var fieldPrefixLines = serializeConditionPrefixLines(field.conditions, originalLine1to6);
+    var posCols = serializePositionalCols(field, originalLine1to6);
+    var functionText = buildFunctionAreaText(field, unconditioned);
+
+    var contentLines;
     if (functionText.length === 0) {
-      return [padTo(posCols, LINE_WIDTH).replace(/\s+$/, '') || posCols.slice(0, 6)];
+      contentLines = [padTo(posCols, LINE_WIDTH).replace(/\s+$/, '') || posCols.slice(0, 6)];
+    } else {
+      var funcLines = serializeFunctionAreaLines(functionText);
+      var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+      contentLines = [firstLine].concat(funcLines.slice(1));
     }
 
-    var funcLines = serializeFunctionAreaLines(functionText);
-    var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
-    var rest = funcLines.slice(1);
-    return [firstLine].concat(rest);
+    var keywordLines = [];
+    groupKeywordsByCondition(conditioned).forEach(function (g) {
+      keywordLines = keywordLines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, originalLine1to6));
+    });
+
+    return fieldPrefixLines.concat(contentLines, keywordLines);
   }
 
   // ---------------------------------------------------------------------
@@ -207,15 +312,29 @@
 
   /** Returns [firstLine, lastLine] this record's OWN entry occupies - its R line
    *  plus any keyword-only lines that appeared before the first field/help/constant
-   *  (record.keywords only ever contains lines from that window - see dspfParser.ts). */
+   *  (record.keywords only ever contains lines from that window - see dspfParser.ts),
+   *  plus any pure indicator-only lines preceding it (multi-group/multi-line conditioning). */
   function getRecordLineRange(record) {
+    var min = record.sourceLine;
     var max = record.sourceLine;
+    (record.conditions || []).forEach(function (g) {
+      (g.sourceLines || []).forEach(function (ln) {
+        if (ln < min) min = ln;
+        if (ln > max) max = ln;
+      });
+    });
     (record.keywords || []).forEach(function (k) {
       (k.sourceLines || []).forEach(function (ln) {
         if (ln > max) max = ln;
       });
+      (k.conditions || []).forEach(function (g) {
+        (g.sourceLines || []).forEach(function (ln) {
+          if (ln < min) min = ln;
+          if (ln > max) max = ln;
+        });
+      });
     });
-    return [record.sourceLine, max];
+    return [min, max];
   }
 
   function serializeRecordPositionalCols(record, originalLine1to6) {
@@ -223,7 +342,7 @@
     var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
     for (var i = 0; i < 6; i++) chars[i] = seqForm[i];
 
-    var condCols = serializeConditionCols(record); // works off record.conditions same as a field's
+    var condCols = serializeConditionCols(lastConditionChunk(record.conditions)); // works off record.conditions same as a field's
     for (var j = 0; j < 10; j++) chars[6 + j] = condCols[j];
 
     chars[16] = 'R'; // col17
@@ -233,25 +352,39 @@
     return chars.join('');
   }
 
-  function buildRecordFunctionAreaText(record) {
-    return (record.keywords || [])
+  function buildRecordFunctionAreaText(keywords) {
+    return (keywords || [])
       .map(function (k) {
         return k.parameters ? k.name + '(' + k.parameters + ')' : k.name;
       })
       .join(' ');
   }
 
+  /** Same per-keyword-conditioning treatment as serializeFieldEntry, applied to a record's own keywords. */
   function serializeRecordEntry(record, originalLine1to6) {
-    var posCols = serializeRecordPositionalCols(record, originalLine1to6);
-    var functionText = buildRecordFunctionAreaText(record);
+    var allKeywords = record.keywords || [];
+    var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
+    var conditioned = allKeywords.filter(function (k) { return k.conditions && k.conditions.length > 0; });
 
+    var recordPrefixLines = serializeConditionPrefixLines(record.conditions, originalLine1to6);
+    var posCols = serializeRecordPositionalCols(record, originalLine1to6);
+    var functionText = buildRecordFunctionAreaText(unconditioned);
+
+    var contentLines;
     if (functionText.length === 0) {
-      return [posCols.replace(/\s+$/, '') || posCols.slice(0, 6)];
+      contentLines = [posCols.replace(/\s+$/, '') || posCols.slice(0, 6)];
+    } else {
+      var funcLines = serializeFunctionAreaLines(functionText);
+      var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+      contentLines = [firstLine].concat(funcLines.slice(1));
     }
 
-    var funcLines = serializeFunctionAreaLines(functionText);
-    var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
-    return [firstLine].concat(funcLines.slice(1));
+    var keywordLines = [];
+    groupKeywordsByCondition(conditioned).forEach(function (g) {
+      keywordLines = keywordLines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, originalLine1to6));
+    });
+
+    return recordPrefixLines.concat(contentLines, keywordLines);
   }
 
   /**
@@ -261,13 +394,21 @@
    * reference a record by name and wouldn't be updated, so name is treated
    * as read-only to avoid silently breaking those cross-references.
    */
-  function applyRecordUpdate(record, sourceLines, updates) {
-    if (!isEditable(record)) {
-      throw new Error(
-        'This record has multi-group or >3-indicator conditioning that the editor cannot yet round-trip safely; edit the DDS source directly for this record.'
-      );
-    }
+  /** Preserves each ORIGINAL line's own sequence-number/form prefix (cols 1-6) at its position
+   *  within the regenerated lines, rather than blanket-applying the first line's prefix to every
+   *  line - keeps diffs minimal when an edit doesn't change the line count. Lines beyond the
+   *  original range (genuinely new lines the edit introduced) keep their default prefix. */
+  function restampSequenceNumbers(newLines, originalRangeLines) {
+    return newLines.map(function (line, i) {
+      var orig = originalRangeLines[i];
+      if (orig == null) return line;
+      var origPrefix = padTo(orig.slice(0, 6), 6);
+      var rest = padTo(line, LINE_WIDTH).slice(6);
+      return (origPrefix + rest).replace(/\s+$/, '');
+    });
+  }
 
+  function applyRecordUpdate(record, sourceLines, updates) {
     var updated = {
       name: record.name,
       conditions: record.conditions,
@@ -275,10 +416,11 @@
     };
 
     var range = getRecordLineRange(record);
-    var originalFirstLine = sourceLines[range[0] - 1] || '';
-    var originalLine1to6 = originalFirstLine.slice(0, 6);
+    var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
+    var originalLine1to6 = (originalRangeLines[0] || '').slice(0, 6);
 
     var newLines = serializeRecordEntry(updated, originalLine1to6);
+    newLines = restampSequenceNumbers(newLines, originalRangeLines);
     return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
   }
 
@@ -289,12 +431,6 @@
    * with index 0 = line 1). Returns the new array of source lines; does not mutate the input.
    */
   function applyFieldUpdate(field, sourceLines, updates) {
-    if (!isEditable(field)) {
-      throw new Error(
-        'This field has multi-group or >3-indicator conditioning that the editor cannot yet round-trip safely; edit the DDS source directly for this field.'
-      );
-    }
-
     var updated = JSON.parse(JSON.stringify(field));
     if (updates.name !== undefined) updated.name = updates.name;
     if (updates.length !== undefined) {
@@ -316,13 +452,25 @@
     if (updates.constantValue !== undefined) updated.constantValue = updates.constantValue;
 
     var range = getFieldLineRange(field);
-    var originalFirstLine = sourceLines[range[0] - 1] || '';
-    var originalLine1to6 = originalFirstLine.slice(0, 6);
+    var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
+    var originalLine1to6 = (originalRangeLines[0] || '').slice(0, 6);
 
     var newLines = serializeFieldEntry(updated, originalLine1to6);
+    newLines = restampSequenceNumbers(newLines, originalRangeLines);
 
     var result = sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
     return result;
+  }
+
+  /**
+   * Kept for API stability - callers (the webview) use this to decide whether
+   * to show a "locked" state. Full multi-group, multi-indicator conditioning
+   * (both entity-level and per-keyword) is now round-tripped correctly via
+   * buildConditionChunks/serializeConditionedKeywordLines, so everything is
+   * editable; nothing needs to be locked out anymore.
+   */
+  function isEditable() {
+    return true;
   }
 
   return {

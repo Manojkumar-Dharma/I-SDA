@@ -42,7 +42,7 @@ command palette, or click the preview icon in the editor title bar.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations (v0.5)
+## Known limitations (v0.6)
 
 - `WINDOW` positions that depend on a runtime value - `*DFT` (system
   positions it relative to the cursor) or a program-to-system field name -
@@ -65,11 +65,6 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   `MNUBARCHC(id name text)`, `WINDOW(record-format-name)` reference records
   by name in plain text and wouldn't be updated) - the record name field is
   intentionally read-only.
-- Fields with multi-group (OR'd) or more-than-3-indicator conditioning are
-  intentionally locked read-only in the editor, to avoid corrupting
-  conditioning the writer can't yet safely round-trip. Edit those directly
-  in the DDS source. The same guard applies to record formats and help
-  entries.
 - Display-length rules for signed/edited numerics are approximated.
 
 ## License

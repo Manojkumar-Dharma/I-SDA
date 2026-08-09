@@ -22,6 +22,11 @@ export interface DdsCondition {
   /** 'AND' (default / blank / 'A') or 'OR' ('O') relationship to the previous group */
   relation: 'AND' | 'OR';
   indicators: DdsIndicator[];
+  /** Source line(s) that contributed to this group - a group can span multiple lines
+   *  (indicator continuation via 'A' in position 7 when a group has more than 3 indicators).
+   *  Needed so a write-back can find and replace ALL of a condition's lines, including
+   *  ones that precede the field/record's own content line - see dspfWriter.js. */
+  sourceLines: number[];
 }
 
 export type DdsNameType = 'RECORD' | 'HELP' | 'FIELD' | 'CONSTANT';

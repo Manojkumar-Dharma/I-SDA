@@ -3,6 +3,41 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.0] - Unreleased
+
+### Added
+- Full multi-group and >3-indicator conditioning is now editable, at every
+  level (field, record, help entry, *and* individual keyword) - the
+  "locked, edit the source directly" restriction is gone entirely.
+  `buildConditionChunks` splits an arbitrary conditions array (any number of
+  OR'd groups, each with any number of indicators) into the right sequence
+  of indicator-only prefix lines plus a final line carrying the last chunk's
+  indicator columns together with the actual content.
+
+### Fixed
+- **Real, silent data-loss bug**: editing any field that had a *keyword*
+  with its own conditioning (e.g. a conditionally-applied `DSPATR(HI)`) -
+  even when the field itself had no field-level conditions and so wasn't
+  locked - would regenerate that keyword as unconditional, discarding its
+  indicators with no warning. Per-keyword conditioning is now correctly
+  preserved and independently editable; keywords are grouped by identical
+  conditions and each group gets its own line(s), matching real DDS layout.
+- **Real bug in line-range detection**: pure indicator-only lines that
+  *precede* a field/record's own content line (needed whenever conditioning
+  spans more than one line) were never included in
+  `getFieldLineRange`/`getRecordLineRange`, since neither `field.sourceLine`
+  nor any keyword's `sourceLines` captured them. An edit would regenerate a
+  correct new prefix line while leaving the stale original one untouched,
+  and re-parsing would then merge the two into one group with duplicated
+  indicators. Fixed by tracking `sourceLines` on `DdsCondition` itself
+  (parser change) and including those in the range calculation (writer
+  change). Caught via round-trip testing before it shipped.
+- Sequence numbers on lines that don't otherwise change are now preserved
+  from the original source instead of being overwritten with the entry's
+  first line's prefix - keeps diffs minimal (a length-only edit on a
+  multi-line conditioned field/keyword now touches exactly one line, not
+  every line the entry spans).
+
 ## [0.5.0] - Unreleased
 
 ### Added
