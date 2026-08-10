@@ -1,5 +1,7 @@
 # iSDA — Interactive Screen Design Aid
 
+<img src="images/icon.png" alt="iSDA logo" width="120" />
+
 A VS Code extension that replaces IBM i's traditional 5250 Screen Design Aid
 (`STRSDA`) with a modern, file-backed, fully interactive DDS display-file
 editor: parse the fixed-column DDS source, preview it as a live 5250-style
