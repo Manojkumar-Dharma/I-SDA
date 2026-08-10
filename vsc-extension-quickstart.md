@@ -39,13 +39,26 @@ source, then either:
 
 ## Tests
 
-There's no formal test runner wired up yet; verification so far has been
-via targeted Node scripts:
+```bash
+npm test
+```
+
+Runs `src/test/extension.test.js` - exercises `activate()` and the
+`CustomTextEditorProvider` (including the echo-suppression logic that
+prevents infinite webview↔document sync loops) against a minimal mock of the
+`vscode` module (`src/test/vscode-mock.js`), since there's no real VS Code
+instance available outside the editor itself. Not exhaustive, but it catches
+wrong-API-assumption bugs a plain "does it compile" check wouldn't.
+
+Other verification so far has been via targeted Node scripts, not yet a
+formal suite:
 - `src/fixtures/smoketest.js` — parses the generated fixture and prints the
   resolved model for manual inspection.
-- Round-trip checks (parse → edit via `dspfWriter` → re-parse → diff) were
-  run ad hoc during development; worth formalizing into a real test suite
-  (Jest, or Node's built-in `node:test`) as a next step.
+- Round-trip checks (parse → edit via `dspfWriter` → re-parse → diff) and
+  full webview interaction checks (via `jsdom`, actually executing the
+  generated webview JS) were run ad hoc during development; worth
+  consolidating into `npm test` alongside the extension-host test as a next
+  step.
 
 ## Packaging
 

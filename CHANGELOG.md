@@ -6,6 +6,31 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Migrated from a plain `WebviewPanel` to `CustomTextEditorProvider`
+  (`dspfDesigner.editor`, registered with `priority: "option"` so it doesn't
+  replace normal text editing by default). The designer's webview tab is now
+  a real editor from VS Code's perspective: its own dirty dot, a proper
+  "save changes before closing?" prompt, and `Ctrl+Z`/`Ctrl+Y` routed to it
+  when focused - none of which a plain `WebviewPanel` gets for free, even
+  though document-content undo/redo already worked either way (that's a
+  property of editing via `WorkspaceEdit`, not of the panel type).
+  `dspfDesigner.openPreview` now opens it via the standard `vscode.openWith`
+  command instead of manually managing a `Map` of open panels -
+  `supportsMultipleEditorsPerDocument: false` gives the same
+  reveal-existing-instance behavior for free.
+- A real regression test for the extension host (`src/test/extension.test.js`,
+  run via `npm test`): exercises `activate()` and
+  `resolveCustomTextEditor()` - including the echo-suppression logic that
+  prevents infinite webview↔document sync loops - against a minimal mock of
+  the `vscode` module (`src/test/vscode-mock.js`), since there's no real VS
+  Code instance available in this environment. Verified all three cases:
+  our own in-flight edit is correctly suppressed, a genuinely external
+  change after it settles correctly propagates, and changes to unrelated
+  documents are correctly ignored.
+
+## [0.7.0] - Unreleased
+
+### Added
 - **"Create New Display File" command** (`dspfDesigner.createNewDspf`):
   prompts for a filename, primary record format name, and screen title, then
   writes a minimal, verified-correct DDS boilerplate (`DSPSIZ`, one record

@@ -31,6 +31,17 @@ const DDS_LANGUAGE_SELECTOR: vscode.DocumentSelector = [
 ];
 
 export function activate(context: vscode.ExtensionContext): void {
+  const provider = new DspfDesignerEditorProvider();
+  context.subscriptions.push(
+    vscode.window.registerCustomEditorProvider(DspfDesignerEditorProvider.viewType, provider, {
+      webviewOptions: { retainContextWhenHidden: true },
+      // Text-backed documents: VS Code owns save/revert/undo entirely through the
+      // normal TextDocument mechanism once we edit via WorkspaceEdit, so there's
+      // no custom backup/serialization to implement here.
+      supportsMultipleEditorsPerDocument: false,
+    })
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand('dspfDesigner.openPreview', () => {
       const editor = vscode.window.activeTextEditor;
@@ -38,11 +49,11 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage('Open a DDS display file source (.dspf) first.');
         return;
       }
-      openDesigner(context, editor.document);
+      openDesigner(editor.document.uri);
     })
   );
 
-  context.subscriptions.push(vscode.commands.registerCommand('dspfDesigner.createNewDspf', (targetUri?: vscode.Uri) => createNewDspf(context, targetUri)));
+  context.subscriptions.push(vscode.commands.registerCommand('dspfDesigner.createNewDspf', (targetUri?: vscode.Uri) => createNewDspf(targetUri)));
 
   // Convenience: an editor title button when the active file looks like a DSPF source.
   context.subscriptions.push(
@@ -68,58 +79,66 @@ function isLikelyDisplayFile(document: vscode.TextDocument): boolean {
   return /^.{16}R\s+\S/m.test(text) || /DSPSIZ\(/i.test(text);
 }
 
-const openPanels = new Map<string, vscode.WebviewPanel>();
+/** Opens the visual designer beside the current editor via the standard "open with a
+ *  specific custom editor" command, rather than a plain WebviewPanel - see
+ *  DspfDesignerEditorProvider for why: this way our webview participates as a real
+ *  editor (dirty dot on its own tab, close-with-unsaved-changes prompt, Ctrl+Z/Y
+ *  routed to it when focused) instead of being a second-class companion panel.
+ *  supportsMultipleEditorsPerDocument:false above means a second call for the same
+ *  URI reveals the existing instance rather than opening a duplicate. */
+function openDesigner(uri: vscode.Uri): void {
+  vscode.commands.executeCommand('vscode.openWith', uri, DspfDesignerEditorProvider.viewType, vscode.ViewColumn.Beside);
+}
 
-function openDesigner(context: vscode.ExtensionContext, document: vscode.TextDocument): void {
-  const key = document.uri.toString();
-  const existing = openPanels.get(key);
-  if (existing) {
-    existing.reveal(vscode.ViewColumn.Beside);
-    return;
+/**
+ * CustomTextEditorProvider for the visual designer. The underlying vscode.TextDocument
+ * remains the single source of truth throughout: this class only ever reads it (to
+ * build the initial/refreshed webview HTML) and writes to it via WorkspaceEdit (via
+ * the same 'applyEdit' message handling the plain-WebviewPanel version used) - it never
+ * holds its own separate copy of "the real state" the way a binary CustomEditorProvider
+ * document model would.
+ */
+class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
+  static readonly viewType = 'dspfDesigner.editor';
+
+  resolveCustomTextEditor(document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): void {
+    webviewPanel.webview.options = { enableScripts: true };
+
+    const nonce = getNonce();
+    const fileName = document.fileName.split(/[\\/]/).pop() || '';
+    webviewPanel.webview.html = getWebviewHtml(webviewPanel.webview.cspSource, nonce, document.getText(), fileName);
+
+    // Scoped per editor instance (resolveCustomTextEditor runs once per opened tab),
+    // same echo-suppression pattern as before: ignore the onDidChangeTextDocument
+    // event our OWN applyEdit call below produces, so we don't immediately re-push
+    // the just-applied text back into the webview as if it were an external change.
+    let applyingFromWebview = false;
+
+    const changeSub = vscode.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.uri.toString() !== document.uri.toString()) return;
+      if (applyingFromWebview) return;
+      webviewPanel.webview.postMessage({ type: 'externalUpdate', text: e.document.getText() });
+    });
+
+    const messageSub = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
+      if (msg.type === 'applyEdit') {
+        const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(document.uri, fullRange, msg.text);
+        applyingFromWebview = true;
+        await vscode.workspace.applyEdit(edit);
+        applyingFromWebview = false;
+      } else if (msg.type === 'error') {
+        vscode.window.showErrorMessage('iSDA: ' + msg.message);
+      }
+      // 'ready' needs no response; initial content was already embedded in the HTML.
+    });
+
+    webviewPanel.onDidDispose(() => {
+      changeSub.dispose();
+      messageSub.dispose();
+    });
   }
-
-  const panel = vscode.window.createWebviewPanel(
-    'dspfDesigner',
-    'iSDA: ' + document.fileName.split(/[\\/]/).pop(),
-    vscode.ViewColumn.Beside,
-    { enableScripts: true, retainContextWhenHidden: true }
-  );
-  openPanels.set(key, panel);
-
-  const nonce = getNonce();
-  panel.webview.html = getWebviewHtml(panel.webview.cspSource, nonce, document.getText(), document.fileName.split(/[\\/]/).pop() || '');
-
-  // Text-editor -> webview: reflect external edits (typing in the source, git checkout, etc.)
-  let applyingFromWebview = false;
-  const changeSub = vscode.workspace.onDidChangeTextDocument((e) => {
-    if (e.document.uri.toString() !== key) return;
-    if (applyingFromWebview) return; // avoid echoing our own edit back in
-    panel.webview.postMessage({ type: 'externalUpdate', text: e.document.getText() });
-  });
-
-  // Webview -> text-editor: apply designer edits as a real WorkspaceEdit.
-  const messageSub = panel.webview.onDidReceiveMessage(async (msg) => {
-    if (msg.type === 'applyEdit') {
-      const doc = await vscode.workspace.openTextDocument(document.uri);
-      const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
-      const edit = new vscode.WorkspaceEdit();
-      edit.replace(doc.uri, fullRange, msg.text);
-      applyingFromWebview = true;
-      await vscode.workspace.applyEdit(edit);
-      applyingFromWebview = false;
-    } else if (msg.type === 'error') {
-      vscode.window.showErrorMessage('iSDA: ' + msg.message);
-    }
-    // 'ready' needs no response; initial content was already embedded in the HTML.
-  });
-
-  panel.onDidDispose(() => {
-    changeSub.dispose();
-    messageSub.dispose();
-    openPanels.delete(key);
-  });
-
-  context.subscriptions.push(panel);
 }
 
 function getNonce(): string {
@@ -198,7 +217,7 @@ function validateDdsName(value: string): string | null {
   return null;
 }
 
-async function createNewDspf(context: vscode.ExtensionContext, targetUri?: vscode.Uri): Promise<void> {
+async function createNewDspf(targetUri?: vscode.Uri): Promise<void> {
   let folderUri = targetUri;
   if (folderUri) {
     const stat = await vscode.workspace.fs.stat(folderUri);
@@ -268,7 +287,7 @@ async function createNewDspf(context: vscode.ExtensionContext, targetUri?: vscod
     await vscode.workspace.fs.writeFile(fileUri, Buffer.from(source, 'utf8'));
     const doc = await vscode.workspace.openTextDocument(fileUri);
     await vscode.window.showTextDocument(doc);
-    openDesigner(context, doc);
+    openDesigner(doc.uri);
   } catch (err) {
     vscode.window.showErrorMessage(`iSDA: failed to create display file: ${err}`);
   }
