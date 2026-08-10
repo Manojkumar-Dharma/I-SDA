@@ -36,9 +36,15 @@ npm run compile   # regenerates src/webviewTemplate.ts, src/fixtures/sample.dspf
 ```
 
 Then open this folder in VS Code and press **F5** to launch an Extension
-Development Host. Open a `.dspf` (or `.pf`) file containing DDS display-file
-source and run **"iSDA: Open Screen Design Preview"** from the
-command palette, or click the preview icon in the editor title bar.
+Development Host. Either:
+- Open an existing `.dspf`/`.dspf38` file (local, or a remote IBM i source
+  member/streamfile via [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi))
+  containing DDS display-file source, and run **"iSDA: Open Screen Design
+  Preview"** from the command palette or click the preview icon in the
+  editor title bar, or
+- Run **"iSDA: Create New Display File"** from the command palette (or
+  right-click a folder in the Explorer) to generate a starter display file
+  and open it directly in the designer.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 

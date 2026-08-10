@@ -3,6 +3,46 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- **"Create New Display File" command** (`dspfDesigner.createNewDspf`):
+  prompts for a filename, primary record format name, and screen title, then
+  writes a minimal, verified-correct DDS boilerplate (`DSPSIZ`, one record
+  format, a title constant, one sample output field) and opens it straight
+  into the designer. Available from the command palette and from
+  right-clicking a folder in the Explorer. The generated source is parsed
+  with iSDA's own parser *before* being written, as a safety net against
+  any bug in the boilerplate itself.
+- Remote IBM i source members and IFS streamfiles (opened via the Code for i
+  extension's `member:`/`streamfile:` URI schemes) are now recognized for
+  the editor-title preview button and the CodeLens, not just local `.dspf`
+  files. Verified the actual scheme names and the `dds.dspf` language ID
+  (assigned by the optional companion "IBMi Languages" extension
+  specifically to display-file source - `.pf`/`.dds` map to `dds.pf`,
+  physical files, which is a different thing) against their real
+  `package.json` before wiring this up, rather than assuming.
+
+### Fixed
+- The editor-title button's `when` clause previously also matched `.pf`/`.PF`
+  (physical file DDS - database field definitions, not screen layouts) -
+  narrowed to just display-file extensions (`.dspf`/`.DSPF`/`.dspf38`).
+- Dropped the `workspaceContains:**/*.dspf` activation event (forces a full
+  workspace file-tree scan on startup) in favor of `onLanguage:dds.dspf` -
+  command-based activation is automatic in modern VS Code and didn't need
+  an explicit activation event at all.
+
+### Reviewed, already correct
+- The CSP (`script-src 'nonce-...'`) is already the right pattern for this
+  extension's architecture: the webview inlines `dspfEngine.js`,
+  `dspfWriter.js`, and the bundled parser directly as `<script nonce="...">`
+  content rather than loading external files, so there's nothing to grant
+  `asWebviewUri()` permissions for.
+- `jsdom` is a devDependency used only by this project's own verification
+  scripts (never imported by anything under `dist/` or embedded into the
+  generated webview) - confirmed via a repo-wide search before writing this
+  down rather than just asserting it.
+
 ## [0.6.0] - Unreleased
 
 ### Added

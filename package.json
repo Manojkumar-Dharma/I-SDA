@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "publisher": "Manojkumar-IBMi",
   "engines": {
     "vscode": "^1.85.0"
@@ -16,8 +16,7 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onLanguage:dds",
-    "workspaceContains:**/*.dspf"
+    "onLanguage:dds.dspf"
   ],
   "contributes": {
     "commands": [
@@ -25,14 +24,31 @@
         "command": "dspfDesigner.openPreview",
         "title": "iSDA: Open Screen Design Preview",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "dspfDesigner.createNewDspf",
+        "title": "iSDA: Create New Display File",
+        "icon": "$(file-add)"
       }
     ],
     "menus": {
       "editor/title": [
         {
           "command": "dspfDesigner.openPreview",
-          "when": "resourceExtname =~ /\\.(dspf|DSPF|pf|PF)$/",
+          "when": "resourceExtname =~ /\\.(dspf|DSPF|dspf38)$/ || resourceLangId == dds.dspf || resourceScheme == member || resourceScheme == streamfile",
           "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "dspfDesigner.createNewDspf",
+          "when": "explorerResourceIsFolder",
+          "group": "2_workspace"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "dspfDesigner.createNewDspf"
         }
       ]
     }
