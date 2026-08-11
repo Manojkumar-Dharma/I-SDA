@@ -703,6 +703,7 @@
     resolveScreen: resolveScreen,
     renderScreenHtml: renderScreenHtml,
     isPulldownRecord: isPulldownRecord,
+    findSflPairing: findSflPairing,
     COLOR_HEX: COLOR_HEX,
     DEFAULT_COLOR: DEFAULT_COLOR,
   };

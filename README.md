@@ -50,7 +50,7 @@ Development Host. Either:
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations (v0.6)
+## Known limitations (v0.8)
 
 - `WINDOW` positions that depend on a runtime value - `*DFT` (system
   positions it relative to the cursor) or a program-to-system field name -
@@ -73,6 +73,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   `MNUBARCHC(id name text)`, `WINDOW(record-format-name)` reference records
   by name in plain text and wouldn't be updated) - the record name field is
   intentionally read-only.
+- "Create New Display File" only writes to local workspace folders - it
+  can't create a new source member directly on a remote IBM i system
+  (that would mean integrating with Code for i's own member-creation APIs,
+  not yet done). You can still preview/edit an already-existing remote
+  member once it's open.
 - Display-length rules for signed/edited numerics are approximated.
 
 ## License

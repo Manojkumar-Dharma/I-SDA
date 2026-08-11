@@ -152,10 +152,33 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   });
 
-  function allIndicators() {
+  /** Indicators relevant to the CURRENTLY PREVIEWED context only - the primary record,
+   *  plus its paired SFL/SFLCTL record if this is a subfile (indicators used there
+   *  render together with the primary record, so toggling them needs to be possible
+   *  from here), plus the active pulldown's record if one is open. Previously this
+   *  collected indicators from every record in the whole file, which buried the
+   *  handful actually relevant to what's on screen under everything else in the file. */
+  function indicatorsForContext(recordName) {
     const set = new Set();
     const collect = (conds) => (conds || []).forEach((g) => g.indicators.forEach((i) => set.add(i.number)));
-    model.records.forEach((r) => { collect(r.conditions); r.fields.forEach((f) => { collect(f.conditions); f.keywords.forEach((k) => collect(k.conditions)); }); });
+    const collectRecord = (rec) => {
+      if (!rec) return;
+      collect(rec.conditions);
+      rec.fields.forEach((f) => { collect(f.conditions); f.keywords.forEach((k) => collect(k.conditions)); });
+    };
+
+    collectRecord(model.records.find((r) => r.name === recordName));
+
+    const sflInfo = DspfEngine.findSflPairing(model, recordName);
+    if (sflInfo) {
+      collectRecord(sflInfo.sflRecord);
+      collectRecord(sflInfo.sflCtlRecord);
+    }
+
+    if (activePulldown && activePulldown.pulldownRecord) {
+      collectRecord(model.records.find((r) => r.name === activePulldown.pulldownRecord));
+    }
+
     return Array.from(set).sort();
   }
 
@@ -170,9 +193,14 @@ const htmlTemplate = `<!DOCTYPE html>
     if (model.records.some((r) => r.name === prev)) recordSelect.value = prev;
   }
 
-  function rebuildIndicatorList() {
+  function rebuildIndicatorList(recordName) {
     indicatorList.innerHTML = '';
-    allIndicators().forEach((num) => {
+    const indicators = indicatorsForContext(recordName);
+    if (indicators.length === 0) {
+      indicatorList.innerHTML = '<div class="empty-state" style="font-size:11px;">None used on this screen</div>';
+      return;
+    }
+    indicators.forEach((num) => {
       const label = document.createElement('label');
       label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:12px;';
       label.innerHTML = '<input type="checkbox" ' + (active.has(num) ? 'checked' : '') + ' /> <span>Ind ' + num + '</span>';
@@ -186,11 +214,11 @@ const htmlTemplate = `<!DOCTYPE html>
 
   function render() {
     rebuildRecordSelect();
-    rebuildIndicatorList();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) { screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
+    if (!recordName) { indicatorList.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
     recordSelect.value = recordName;
+    rebuildIndicatorList(recordName);
 
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }

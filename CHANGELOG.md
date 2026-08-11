@@ -5,6 +5,19 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Indicator sidebar scoping bug**: the "Conditioning indicators" list
+  previously collected indicators from every record format in the entire
+  file, so a DSPF with several records buried the handful actually relevant
+  to what's on screen under everything else in the file. Now scoped to just
+  the currently-previewed record, correctly extended to also include a
+  paired `SFL`/`SFLCTL` record's indicators (since those genuinely render
+  together as one screen) and the active pulldown's record when one is
+  open. Verified with a two-record fixture using disjoint indicator sets -
+  each record now shows only its own.
+
+## [0.8.0] - Unreleased
+
 ### Added
 - Migrated from a plain `WebviewPanel` to `CustomTextEditorProvider`
   (`dspfDesigner.editor`, registered with `priority: "option"` so it doesn't
