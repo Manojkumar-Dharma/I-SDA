@@ -30,6 +30,15 @@
           { "filenamePattern": "*.dspf38" }
         ],
         "priority": "option"
+      },
+      {
+        "viewType": "dspfDesigner.menuEditor",
+        "displayName": "iSDA Menu Design",
+        "selector": [
+          { "filenamePattern": "*.mnudds" },
+          { "filenamePattern": "*.MNUDDS" }
+        ],
+        "priority": "option"
       }
     ],
     "commands": [
@@ -37,6 +46,11 @@
         "command": "dspfDesigner.openPreview",
         "title": "iSDA: Open Screen Design Preview",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "dspfDesigner.openMenuPreview",
+        "title": "iSDA: Open Menu Design Preview",
+        "icon": "$(list-selection)"
       },
       {
         "command": "dspfDesigner.createNewDspf",
@@ -49,6 +63,11 @@
         {
           "command": "dspfDesigner.openPreview",
           "when": "resourceExtname =~ /\\.(dspf|DSPF|dspf38)$/ || resourceLangId == dds.dspf || resourceScheme == member || resourceScheme == streamfile",
+          "group": "navigation"
+        },
+        {
+          "command": "dspfDesigner.openMenuPreview",
+          "when": "resourceExtname =~ /\\.(mnudds|MNUDDS)$/ || resourceScheme == member || resourceScheme == streamfile",
           "group": "navigation"
         }
       ],
@@ -67,8 +86,8 @@
     }
   },
   "scripts": {
-    "test": "node src/test/extension.test.js",
-    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js",
+    "test": "node src/test/extension.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js",
+    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js",
     "compile": "npm run build:webview-assets && tsc -p ."
   },
   "devDependencies": {

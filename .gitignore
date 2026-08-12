@@ -9,6 +9,7 @@ dist/
 # pipeline - run them individually when needed) but were committed by mistake
 # in an earlier session; ignoring them now, same treatment as sample.dspf.
 src/webviewTemplate.ts
+src/menuWebviewTemplate.ts
 src/fixtures/sample.dspf
 src/fixtures/sample-widgets.dspf
 src/fixtures/sample-menubar.dspf

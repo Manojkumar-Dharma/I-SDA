@@ -47,6 +47,32 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   own `WINDOW`/subfile-preview) without the single-record overlap
   resolution, since comparison mode is for eyeballing multiple formats,
   not simulating one specific runtime state.
+- **Menu design tool (MNUDDS)**, a first minimal vertical slice: a new
+  `dspfDesigner.menuEditor` custom editor (opened via **"iSDA: Open Menu
+  Design Preview"** or a CodeLens that appears on menu-shaped source)
+  previews an IBM i SDA-style menu's screen layout - reusing the existing
+  `dspfParser.ts`/`dspfEngine.js` as-is, since a MNUDDS member is plain DDS -
+  and lets you edit which command each numbered option runs. Confirmed
+  against IBM i documentation/community sources that a menu is really two
+  source members (MNUDDS for layout, a companion "MNUCMD" member
+  conventionally named `<menu>QQ` mapping option numbers to commands, see
+  https://wiki.midrange.com/index.php/Create_Menu_Message_FIle_(UTMNUMSGF));
+  a new `src/mnuCmdEngine.js` (plain dependency-free JS, same UMD style as
+  `dspfEngine.js`/`dspfWriter.js` so the identical code runs in Node and the
+  webview) parses and round-trips that member. Only works for a MNUDDS
+  member opened as a remote IBM i source member via Code for i - see README
+  "Known limitations" for this and what's intentionally out of scope for v0
+  (adding brand-new options on the screen itself, live sync back into an
+  already-open `QQ` editor tab, `CRTMNU` compile integration).
+- `src/test/menu.test.js`: exercises `mnuCmdEngine.js`'s parse/write logic
+  directly, then `MenuDesignerEditorProvider` against the `vscode` mock
+  (extended with `workspace.fs.readFile` and per-viewType custom editor
+  provider tracking, since the mock previously only ever dealt with one).
+- `src/test/menuWebview.test.js`: an end-to-end check that actually
+  *executes* the generated menu webview's client-side script in jsdom,
+  rather than only asserting on the HTML string - catches bugs in the
+  option-extraction regex, DOM wiring, or the `postMessage` payload shape
+  that string-contains checks can't.
 
 Verified via jsdom: `SFL` viewed directly renders once and drags fields
 independently by default (confirmed `ROWAMT` stays put while dragging

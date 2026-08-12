@@ -35,14 +35,30 @@ async function run() {
   console.log('activate()');
   const context = { subscriptions: [] };
   ext.activate(context);
-  check('registers both commands', Object.keys(vscodeMock.__registeredCommands).length === 2);
+  check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 3);
   check('registers openPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openPreview'] === 'function');
+  check('registers openMenuPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openMenuPreview'] === 'function');
   check('registers createNewDspf command', typeof vscodeMock.__registeredCommands['dspfDesigner.createNewDspf'] === 'function');
   check('registers a CodeLens provider', vscodeMock.__registeredCodeLensProviders.length === 1);
   const providerEntry = vscodeMock.__registeredCustomEditorProvider;
   check('registers the custom editor provider under the right viewType', providerEntry && providerEntry.viewType === 'dspfDesigner.editor');
+  check('also registers the menu editor provider', !!vscodeMock.__registeredCustomEditorProviders['dspfDesigner.menuEditor']);
   check('custom editor keeps webview context when hidden', providerEntry.options.webviewOptions.retainContextWhenHidden === true);
   check('custom editor is single-instance per document', providerEntry.options.supportsMultipleEditorsPerDocument === false);
+
+  console.log('\nCodeLens provider (screen design vs. menu design)');
+  const lensProvider = vscodeMock.__registeredCodeLensProviders[0].provider;
+  const plainDspfDoc = vscodeMock.__mockDocument('     A          R MENU\n');
+  const plainLenses = lensProvider.provideCodeLenses(plainDspfDoc);
+  check('plain DSPF gets only the screen design lens', plainLenses.length === 1 && plainLenses[0].command.command === 'dspfDesigner.openPreview');
+  const menuDoc = vscodeMock.__mockDocument(
+    "     A          R MENU\n" +
+    "     A            10 20'1. Display current library'\n" +
+    "     A            11 20'2. Change current library'\n"
+  );
+  const menuLenses = lensProvider.provideCodeLenses(menuDoc);
+  check('a menu-shaped DSPF gets both lenses', menuLenses.length === 2);
+  check('one of them opens the menu designer', menuLenses.some((l) => l.command.command === 'dspfDesigner.openMenuPreview'));
 
   console.log('\nresolveCustomTextEditor()');
   const doc = vscodeMock.__mockDocument('     A          R MENU\n');

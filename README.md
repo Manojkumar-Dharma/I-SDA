@@ -24,17 +24,37 @@ changed).
 | Writer | `src/dspfWriter.js` | Edited field, record, or help-entry data → regenerated fixed-column source lines, spliced back into the original text with everything else untouched |
 | Extension host | `src/extension.ts` | `CustomTextEditorProvider` for the designer webview, keeping it in sync with the real document in both directions via `WorkspaceEdit` |
 | Webview | `src/buildWebviewTemplate.js` → `src/webviewTemplate.ts` (generated) | Bakes the engine/writer/parser into one self-contained webview HTML string |
+| Menu options engine | `src/mnuCmdEngine.js` | Parses/writes the companion "MNUCMD" source (option number → command mapping) of an SDA-style menu |
+| Menu webview | `src/buildMenuWebviewTemplate.js` → `src/menuWebviewTemplate.ts` (generated) | Same baking approach, for the menu designer |
 
 The parser is TypeScript (compiled twice: once to CommonJS for Node/tests,
 once bundled to a browser IIFE via esbuild for the webview). The
-engine/writer are plain dependency-free JS so the exact same code runs in
-Node (for testing) and in the webview (no bundler needed for those two).
+engine/writer/mnuCmdEngine are plain dependency-free JS so the exact same
+code runs in Node (for testing) and in the webview (no bundler needed for
+those).
+
+### Menu design (MNUDDS)
+
+An IBM i SDA-style menu is really two source members working together:
+- The **MNUDDS** member is plain DDS - CRTMNU compiles it into a `*DSPF`
+  like any other display file - so it's parsed and rendered by the exact
+  same `dspfParser.ts`/`dspfEngine.js` the screen designer uses. iSDA treats
+  any DDS constant shaped like `'1. Do a thing'` as a menu option.
+- The **MNUCMD** member (conventionally named `<menu>QQ`, same source file
+  and library) maps each option number to the command it runs. This is what
+  `dspfDesigner.menuEditor` (opened via **"iSDA: Open Menu Design Preview"**,
+  or the CodeLens on a menu-shaped source) lets you edit: pick an option,
+  type the command, and it's written straight back to the `QQ` member.
+
+This currently only works for a MNUDDS member opened as a remote IBM i
+source member through [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi)
+(`member:` scheme) - see Known limitations below.
 
 ## Getting started
 
 ```bash
 npm install
-npm run compile   # regenerates src/webviewTemplate.ts, src/fixtures/sample.dspf, and dist/
+npm run compile   # regenerates src/webviewTemplate.ts, src/menuWebviewTemplate.ts, src/fixtures/sample.dspf, and dist/
 ```
 
 Then open this folder in VS Code and press **F5** to launch an Extension
@@ -44,6 +64,8 @@ Development Host. Either:
   containing DDS display-file source, and run **"iSDA: Open Screen Design
   Preview"** from the command palette or click the preview icon in the
   editor title bar, or
+- Open an existing MNUDDS source member (remote, via Code for i) and run
+  **"iSDA: Open Menu Design Preview"**, or
 - Run **"iSDA: Create New Display File"** from the command palette (or
   right-click a folder in the Explorer) to generate a starter display file
   and open it directly in the designer.
@@ -86,6 +108,32 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   not yet done). You can still preview/edit an already-existing remote
   member once it's open.
 - Display-length rules for signed/edited numerics are approximated.
+
+### Menu design (v0.9 - new, minimal)
+
+- Only works for a MNUDDS member opened via Code for i's `member:` scheme
+  (matches how these are actually edited in practice - SDA menus are IBM i
+  source members, not local files). Opening a local `.mnudds` file shows the
+  designer with the screen preview, but the options panel reports "unsupported"
+  since there's no equivalent local-workspace convention for where the
+  companion `QQ` member would live.
+- Only *existing* numbered options (constants already shaped like `'N. text'`
+  on the screen) get a row in the options panel and can have their command
+  edited or cleared. Adding a brand-new option - placing a new numbered
+  constant on the screen itself - isn't supported yet; add it as DDS source
+  first (or with the screen designer, once it also recognizes menu option
+  constants as regular editable fields - it already does, since a MNUDDS
+  member is plain DDS), then reopen the menu designer to map it to a command.
+- The companion `QQ` member is written directly via `workspace.fs.writeFile`,
+  not a `WorkspaceEdit` against an open document (that document, unlike the
+  MNUDDS one, generally isn't open in an editor tab at all). This means: no
+  dirty-dot/save prompt for that member, and if it *does* happen to also be
+  open in its own text editor tab, that tab won't reflect the change until
+  reloaded.
+- No `CRTMNU`/compile integration - iSDA edits the two source members; you
+  still compile the menu the normal way (`CRTMNU` from the IBM i side, or a
+  Code for i compile action, once one is set up for MNUDDS/MNUCMD source
+  types).
 
 ## License
 

@@ -11,20 +11,23 @@
  */
 import * as vscode from 'vscode';
 import { getWebviewHtml } from './webviewTemplate';
+import { getMenuWebviewHtml, MenuCommandSourceStatus } from './menuWebviewTemplate';
 import { parseDspf } from './dspfParser';
 
-// Matches local .dspf files by extension/language, PLUS remote IBM i source
-// members and IFS streamfiles opened through Code for i (scheme 'member' /
-// 'streamfile' - see https://codefori.github.io/docs/dev/examples/). Those
-// don't reliably carry a matching resourceExtname in every case, so the
-// scheme match is intentionally broader; isLikelyDisplayFile() below is the
-// actual content-based filter that keeps the CodeLens itself precise.
+// Matches local .dspf/.mnudds files by extension/language, PLUS remote IBM i
+// source members and IFS streamfiles opened through Code for i (scheme
+// 'member' / 'streamfile' - see https://codefori.github.io/docs/dev/examples/).
+// Those don't reliably carry a matching resourceExtname in every case, so the
+// scheme match is intentionally broader; isLikelyDisplayFile()/isLikelyMenuFile()
+// below are the actual content-based filters that keep each CodeLens precise.
 // 'dds.dspf' is the language ID the (optional) companion "IBMi Languages"
 // extension assigns to display-file source specifically - verified against
 // its package.json rather than assumed, since e.g. plain '.pf'/'.dds' map to
 // 'dds.pf' (physical files, not display files) and would be the wrong match.
+// A MNUDDS member is *also* plain DDS (see isLikelyMenuFile), so it's matched
+// by 'dds.dspf' too when the IBMi Languages extension is present.
 const DDS_LANGUAGE_SELECTOR: vscode.DocumentSelector = [
-  { scheme: 'file', pattern: '**/*.{dspf,DSPF,dspf38}' },
+  { scheme: 'file', pattern: '**/*.{dspf,DSPF,dspf38,mnudds,MNUDDS}' },
   { language: 'dds.dspf' },
   { scheme: 'member' },
   { scheme: 'streamfile' },
@@ -42,6 +45,14 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  const menuProvider = new MenuDesignerEditorProvider();
+  context.subscriptions.push(
+    vscode.window.registerCustomEditorProvider(MenuDesignerEditorProvider.viewType, menuProvider, {
+      webviewOptions: { retainContextWhenHidden: true },
+      supportsMultipleEditorsPerDocument: false,
+    })
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand('dspfDesigner.openPreview', () => {
       const editor = vscode.window.activeTextEditor;
@@ -53,20 +64,49 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('dspfDesigner.openMenuPreview', () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage('Open a menu source (MNUDDS) first.');
+        return;
+      }
+      vscode.commands.executeCommand(
+        'vscode.openWith',
+        editor.document.uri,
+        MenuDesignerEditorProvider.viewType,
+        vscode.ViewColumn.Beside
+      );
+    })
+  );
+
   context.subscriptions.push(vscode.commands.registerCommand('dspfDesigner.createNewDspf', (targetUri?: vscode.Uri) => createNewDspf(targetUri)));
 
-  // Convenience: an editor title button when the active file looks like a DSPF source.
+  // Convenience: an editor title button when the active file looks like a DSPF or
+  // MNUDDS source. Both lenses can appear together - a menu source IS a display
+  // file (see isLikelyMenuFile), so offering both designers is intentional, not a bug.
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(DDS_LANGUAGE_SELECTOR, {
       provideCodeLenses(document) {
-        if (!isLikelyDisplayFile(document)) return [];
         const range = new vscode.Range(0, 0, 0, 0);
-        return [
-          new vscode.CodeLens(range, {
-            title: '$(open-preview) Open Screen Design',
-            command: 'dspfDesigner.openPreview',
-          }),
-        ];
+        const lenses: vscode.CodeLens[] = [];
+        if (isLikelyDisplayFile(document)) {
+          lenses.push(
+            new vscode.CodeLens(range, {
+              title: '$(open-preview) Open Screen Design',
+              command: 'dspfDesigner.openPreview',
+            })
+          );
+        }
+        if (isLikelyMenuFile(document)) {
+          lenses.push(
+            new vscode.CodeLens(range, {
+              title: '$(list-selection) Open Menu Design',
+              command: 'dspfDesigner.openMenuPreview',
+            })
+          );
+        }
+        return lenses;
       },
     })
   );
@@ -77,6 +117,49 @@ function isLikelyDisplayFile(document: vscode.TextDocument): boolean {
   // cheap heuristic rather than a full parse just to decide whether to show the CodeLens.
   const text = document.getText();
   return /^.{16}R\s+\S/m.test(text) || /DSPSIZ\(/i.test(text);
+}
+
+/**
+ * An IBM i SDA-style menu (MNUDDS source) is *plain DDS* - CRTMNU just compiles
+ * it into a *DSPF like any other display file - so there's no structural marker
+ * that says "this is a menu" the way e.g. a MSGF source would declare its type.
+ * The one thing that reliably distinguishes a menu screen is that it lays its
+ * options out as constants shaped like "1. Do a thing" / "12) Do a thing" -
+ * each of those numbers is what the companion MNUCMD member's option-to-command
+ * mapping keys off of (see mnuCmdEngine.js). Two or more such constants is a
+ * good enough signal to offer the menu designer without false-triggering on
+ * ordinary numbered lists that occasionally show up on non-menu screens.
+ * Also trusts a '.mnudds' extension outright, local or remote (member/streamfile
+ * URIs carry the IBM i source type as the path's extension, not a real file
+ * extension - see getMemberUri in codefori/vscode-ibmi).
+ */
+function isLikelyMenuFile(document: vscode.TextDocument): boolean {
+  if (/\.mnudds$/i.test(document.uri.path)) return true;
+  if (!isLikelyDisplayFile(document)) return false;
+  const matches = document.getText().match(/'\s*\d{1,2}[.)]\s+\S/g);
+  return !!matches && matches.length >= 2;
+}
+
+/**
+ * SDA stores a menu's option-to-command mapping in a companion source member
+ * named "<menu>QQ", type MNUCMD, in the SAME source file/library as the MNUDDS
+ * member (see https://wiki.midrange.com/index.php/Create_Menu_Message_FIle_(UTMNUMSGF)
+ * and CHANGELOG for how this was confirmed). Only meaningful for remote IBM i
+ * members opened through Code for i (scheme 'member' - see DDS_LANGUAGE_SELECTOR
+ * above); returns null for anything else, which callers treat as "nowhere to
+ * save option commands for this document" rather than guessing a local sibling
+ * file, since there's no equivalent local-workspace convention to fall back to.
+ */
+function getMenuCommandMemberUri(uri: vscode.Uri): vscode.Uri | null {
+  if (uri.scheme !== 'member') return null;
+  const segments = uri.path.split('/').filter(Boolean);
+  if (segments.length < 3) return null; // not a well-formed .../LIBRARY/FILE/NAME.TYPE member path
+  const last = segments[segments.length - 1];
+  const dot = last.lastIndexOf('.');
+  if (dot <= 0) return null; // no source type to key off of
+  const name = last.slice(0, dot);
+  const newSegments = segments.slice(0, -1).concat(`${name}QQ.MNUCMD`);
+  return uri.with({ path: '/' + newSegments.join('/') });
 }
 
 /** Opens the visual designer beside the current editor via the standard "open with a
@@ -132,6 +215,98 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       }
       // 'ready' needs no response; initial content was already embedded in the HTML.
+    });
+
+    webviewPanel.onDidDispose(() => {
+      changeSub.dispose();
+      messageSub.dispose();
+    });
+  }
+}
+
+/**
+ * CustomTextEditorProvider for the menu designer. The MNUDDS document itself
+ * follows the exact same single-source-of-truth / WorkspaceEdit pattern as
+ * DspfDesignerEditorProvider (it IS a DSPF, reusing the same parser/engine in
+ * the webview - see menuWebviewTemplate.ts). The companion MNUCMD member is
+ * different: it's a *separate* document that usually isn't open in any editor,
+ * so rather than requiring it be open to edit (as WorkspaceEdit would), this
+ * writes to it directly via vscode.workspace.fs - the same approach
+ * createNewDspf() below already uses to create a brand-new file. Known
+ * limitation of that choice: if the companion member also happens to be open
+ * in its own text editor tab, this won't update that buffer or go through its
+ * undo stack - documented in the README rather than solved here, since
+ * reconciling two independently-open documents that describe the same object
+ * is a bigger problem than this vertical slice needs to take on yet.
+ */
+class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
+  static readonly viewType = 'dspfDesigner.menuEditor';
+
+  async resolveCustomTextEditor(document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): Promise<void> {
+    webviewPanel.webview.options = { enableScripts: true };
+
+    const nonce = getNonce();
+    const fileName = document.fileName.split(/[\\/]/).pop() || '';
+    const commandUri = getMenuCommandMemberUri(document.uri);
+    const commandFileName = commandUri ? commandUri.path.split('/').pop() || '' : '';
+
+    let commandSource = '';
+    let commandStatus: MenuCommandSourceStatus = 'unsupported';
+    if (commandUri) {
+      try {
+        const bytes = await vscode.workspace.fs.readFile(commandUri);
+        commandSource = Buffer.from(bytes).toString('utf8');
+        commandStatus = 'loaded';
+      } catch {
+        commandStatus = 'missing'; // no MNUCMD member yet - created on first edit
+      }
+    }
+
+    webviewPanel.webview.html = getMenuWebviewHtml(
+      webviewPanel.webview.cspSource,
+      nonce,
+      document.getText(),
+      commandSource,
+      fileName,
+      commandFileName,
+      commandStatus
+    );
+
+    // Same echo-suppression pattern as DspfDesignerEditorProvider, scoped to this
+    // editor instance's own applyEdit calls against the MNUDDS document. The
+    // companion MNUCMD write below deliberately does NOT participate in this -
+    // see the class doc comment on why it's a separate, simpler write path.
+    let applyingFromWebview = false;
+
+    const changeSub = vscode.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.uri.toString() !== document.uri.toString()) return;
+      if (applyingFromWebview) return;
+      webviewPanel.webview.postMessage({ type: 'externalUpdate', text: e.document.getText() });
+    });
+
+    const messageSub = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
+      if (msg.type === 'applyEdit') {
+        const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(document.uri, fullRange, msg.text);
+        applyingFromWebview = true;
+        await vscode.workspace.applyEdit(edit);
+        applyingFromWebview = false;
+      } else if (msg.type === 'applyMenuCmdEdit') {
+        if (!commandUri) {
+          vscode.window.showErrorMessage(
+            'iSDA: this menu was not opened from an IBM i source member, so there is nowhere to save option-to-command mappings.'
+          );
+          return;
+        }
+        try {
+          await vscode.workspace.fs.writeFile(commandUri, Buffer.from(msg.text, 'utf8'));
+        } catch (err) {
+          vscode.window.showErrorMessage(`iSDA: failed to save menu commands to ${commandUri.path}: ${err}`);
+        }
+      } else if (msg.type === 'error') {
+        vscode.window.showErrorMessage('iSDA: ' + msg.message);
+      }
     });
 
     webviewPanel.onDidDispose(() => {

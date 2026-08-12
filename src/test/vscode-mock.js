@@ -3,7 +3,7 @@
 // so we can catch wrong-API-assumption bugs before shipping, not just syntax errors.
 const registeredCommands = {};
 const registeredCodeLensProviders = [];
-let registeredCustomEditorProvider = null;
+const registeredCustomEditorProviders = {}; // keyed by viewType, since the extension now registers more than one
 
 class Range {
   constructor(startLine, startChar, endLine, endChar) {
@@ -24,11 +24,20 @@ class CodeLens {
 class Uri {
   static file(p) { return new Uri('file', p); }
   static joinPath(base, ...segments) { return new Uri(base.scheme, base.path + '/' + segments.join('/')); }
-  constructor(scheme, path) { this.scheme = scheme; this.path = path; }
+  constructor(scheme, path, query) { this.scheme = scheme; this.path = path; this.query = query || ''; }
+  with(changes) {
+    return new Uri(
+      changes && changes.scheme !== undefined ? changes.scheme : this.scheme,
+      changes && changes.path !== undefined ? changes.path : this.path,
+      changes && changes.query !== undefined ? changes.query : this.query
+    );
+  }
   toString() { return this.scheme + '://' + this.path; }
 }
 
 let lastAppliedEdit = null;
+let lastWrittenFile = null;
+const mockFiles = {}; // uri.toString() -> text content, for workspace.fs.readFile in tests
 
 const vscodeMock = {
   Range,
@@ -45,7 +54,7 @@ const vscodeMock = {
     showWorkspaceFolderPick: () => Promise.resolve(undefined),
     showTextDocument: () => Promise.resolve(undefined),
     registerCustomEditorProvider: (viewType, provider, options) => {
-      registeredCustomEditorProvider = { viewType, provider, options };
+      registeredCustomEditorProviders[viewType] = { viewType, provider, options };
       return { dispose: () => {} };
     },
   },
@@ -69,7 +78,18 @@ const vscodeMock = {
     workspaceFolders: [{ uri: new Uri('file', '/workspace') }],
     fs: {
       stat: () => Promise.reject(new Error('not found')),
-      writeFile: () => Promise.resolve(),
+      writeFile: (uri, bytes) => {
+        lastWrittenFile = { uri, text: Buffer.isBuffer(bytes) ? bytes.toString('utf8') : Buffer.from(bytes).toString('utf8') };
+        mockFiles[uri.toString()] = lastWrittenFile.text;
+        return Promise.resolve();
+      },
+      readFile: (uri) => {
+        const key = uri.toString();
+        if (Object.prototype.hasOwnProperty.call(mockFiles, key)) {
+          return Promise.resolve(Buffer.from(mockFiles[key], 'utf8'));
+        }
+        return Promise.reject(new Error('ENOENT: no such file, ' + key));
+      },
     },
     openTextDocument: () => Promise.resolve(mockDocument('')),
     applyEdit: (edit) => { lastAppliedEdit = edit; return Promise.resolve(true); },
@@ -77,14 +97,21 @@ const vscodeMock = {
   },
   __registeredCommands: registeredCommands,
   __registeredCodeLensProviders: registeredCodeLensProviders,
-  get __registeredCustomEditorProvider() { return registeredCustomEditorProvider; },
+  __registeredCustomEditorProviders: registeredCustomEditorProviders,
+  // Back-compat for the original (pre-menu-editor) test suite, which only ever
+  // dealt with one registered custom editor provider.
+  get __registeredCustomEditorProvider() { return registeredCustomEditorProviders['dspfDesigner.editor']; },
   get __lastAppliedEdit() { return lastAppliedEdit; },
+  get __lastWrittenFile() { return lastWrittenFile; },
+  __setMockFile: (uri, text) => { mockFiles[uri.toString()] = text; },
+  __clearMockFiles: () => { Object.keys(mockFiles).forEach((k) => delete mockFiles[k]); },
 };
 
-function mockDocument(text) {
+function mockDocument(text, uri) {
+  const docUri = uri || new Uri('file', '/workspace/TEST.dspf');
   return {
-    uri: new Uri('file', '/workspace/TEST.dspf'),
-    fileName: '/workspace/TEST.dspf',
+    uri: docUri,
+    fileName: docUri.path,
     getText: () => text,
     positionAt: (offset) => ({ line: 0, character: offset }),
     lineAt: (n) => ({ text: '' }),
