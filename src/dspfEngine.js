@@ -438,6 +438,42 @@
   }
 
   /**
+   * The subfile detail area, rendered as a PROTECTED, non-interactive reference layer -
+   * only when `record` is itself the control (SFLCTL) side. Matches real SDA: when
+   * designing the control record, the subfile area shows for visual context but isn't
+   * individually editable there; switch to the SFL record itself to edit row layout.
+   * Deliberately one-directional (unlike the old findSflPairing, which resolved from
+   * either side) - viewing the SFL record directly now shows just its own fields, once,
+   * fully editable, with no automatic merging in either direction.
+   */
+  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset) {
+    var sflCtlKw = record.keywords.find(function (k) { return k.name === 'SFLCTL'; });
+    if (!sflCtlKw) return null;
+    var sflName = sflCtlKw.parameters.trim();
+    var sflRecord = dspfFile.records.find(function (r) { return r.name === sflName; });
+    if (!sflRecord || sflRecord.fields.length === 0) return null;
+
+    var sflPag = 5; // sensible fallback if SFLPAG is missing or non-numeric (e.g. driven by a variable)
+    var pagKw = record.keywords.find(function (k) { return k.name === 'SFLPAG'; });
+    if (pagKw) {
+      var n = parseInt(pagKw.parameters.trim(), 10);
+      if (!Number.isNaN(n)) sflPag = n;
+    }
+
+    var sflLines = sflRecord.fields
+      .map(function (f) { return f.location.line != null ? f.location.line : 1; })
+      .filter(function (n2) { return n2 != null; });
+    var rowHeight = sflLines.length > 0 ? Math.max.apply(null, sflLines) - Math.min.apply(null, sflLines) + 1 : 1;
+
+    var fields = [];
+    for (var row = 0; row < sflPag; row++) {
+      var rowOffset = lineOffset + row * rowHeight;
+      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-preview-row-' + row));
+    }
+    return { sflRecordName: sflRecord.name, pageRows: sflPag, fields: fields };
+  }
+
+  /**
    * @param {object} dspfFile parsed model from dspfParser.parseDspf()
    * @param {string} recordName
    * @param {Set<string>} activeIndicators indicator numbers ("01".."99") currently ON
@@ -445,9 +481,18 @@
    *   simulates a menu-bar choice being "clicked": renders the named PULLDOWN
    *   record as an overlay anchored at line/col (the position just below/at the
    *   menu-bar choice that triggered it).
+   * @param {boolean} [previewMultipleRows] when `recordName` is itself an SFL
+   *   (detail) record, repeat its fields SFLPAG times (resolved from the paired
+   *   SFLCTL record, if any - falls back to 5) for a realistic multi-row preview
+   *   while still editing the template directly. Off by default (renders the row
+   *   once) - unlike the SFLCTL-side preview, these rows are NOT protected: they
+   *   ARE the template being edited, just shown repeated for visual context, so
+   *   dragging one field moves every field in that same row instance together
+   *   (see startGroupDrag/commitGroupEdit in the webview) since they all still
+   *   correspond to the one template that actually exists in the DDS source.
    * @returns {{lines:number, columns:number, recordName:string, fields:object[]}}
    */
-  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown) {
+  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows) {
     activeIndicators = activeIndicators || new Set();
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords);
     var record = dspfFile.records.find(function (r) {
@@ -464,22 +509,25 @@
     var lineOffset = windowBox ? windowBox.line - 1 : 0;
     var colOffset = windowBox ? windowBox.col - 1 : 0;
 
-    var candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null);
+    var isSflRecord = record.keywords.some(function (k) { return k.name === 'SFL'; });
+    var previewRowCount = null;
+    var candidates;
 
-    // Subfile: append repeated rows from the paired SFL record, if this record
-    // participates in a subfile pairing (either side - SFL or SFLCTL).
-    var sflInfo = findSflPairing(dspfFile, recordName);
-    if (sflInfo && sflInfo.sflRecord.fields.length > 0) {
-      var sflLines = sflInfo.sflRecord.fields
+    if (isSflRecord && previewMultipleRows) {
+      var pairing = findSflPairing(dspfFile, recordName);
+      var sflPag = pairing ? pairing.sflPag : 5; // fallback matches resolveSubfilePreview's own default
+      var ownLines = record.fields
         .map(function (f) { return f.location.line != null ? f.location.line : 1; })
         .filter(function (n) { return n != null; });
-      var rowHeight = sflLines.length > 0 ? Math.max.apply(null, sflLines) - Math.min.apply(null, sflLines) + 1 : 1;
+      var rowHeight = ownLines.length > 0 ? Math.max.apply(null, ownLines) - Math.min.apply(null, ownLines) + 1 : 1;
 
-      for (var row = 0; row < sflInfo.sflPag; row++) {
-        var rowOffset = lineOffset + row * rowHeight;
-        var rowCandidates = resolveRecordFields(sflInfo.sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-row-' + row);
-        candidates = candidates.concat(rowCandidates);
+      candidates = [];
+      for (var row = 0; row < sflPag; row++) {
+        candidates = candidates.concat(resolveRecordFields(record, activeIndicators, lineOffset + row * rowHeight, colOffset, 'subfile-edit-row-' + row));
       }
+      previewRowCount = sflPag;
+    } else {
+      candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null);
     }
 
     // Position-sequence overlap resolution: process in (line, column) order; the
@@ -509,6 +557,10 @@
       resolved.push(f);
     });
 
+    // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
+    // like the pulldown overlay below, it doesn't compete for cells with the base screen.
+    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset);
+
     // Pulldown overlay: rendered as a SEPARATE layer, not subject to the overlap
     // resolution above, since a real pulldown genuinely draws on top of whatever
     // is underneath it - it does not compete for cells with the base screen.
@@ -537,9 +589,49 @@
       recordName: recordName,
       fields: resolved,
       window: windowBox,
-      subfile: sflInfo ? { pageRows: sflInfo.sflPag } : null,
+      subfilePreview: subfilePreview,
       pulldown: pulldown,
+      isSflRecord: isSflRecord,
+      previewRowCount: previewRowCount,
     };
+  }
+
+  /**
+   * Read-only combined preview of SEVERAL record formats at once - the opt-in
+   * "display mode" for comparing/eyeballing multiple formats together (not just
+   * automatic subfile pairing). No overlap resolution: every selected record's
+   * fields are all shown even if they'd occupy the same cells, since this mode is
+   * for comparison, not simulating one specific runtime state. Each field carries
+   * `.sourceRecord` so the UI can show which record format it came from.
+   */
+  function resolveMultiScreen(dspfFile, recordNames, activeIndicators) {
+    activeIndicators = activeIndicators || new Set();
+    var size = screenSizeFromFileKeywords(dspfFile.fileKeywords);
+    var allFields = [];
+    var windows = [];
+
+    recordNames.forEach(function (recordName) {
+      var record = dspfFile.records.find(function (r) { return r.name === recordName; });
+      if (!record) return;
+      if (!conditionsSatisfied(record.conditions, activeIndicators)) return;
+
+      var windowBox = resolveWindow(record, dspfFile);
+      var lineOffset = windowBox ? windowBox.line - 1 : 0;
+      var colOffset = windowBox ? windowBox.col - 1 : 0;
+
+      var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null);
+      fields.forEach(function (f) { f.sourceRecord = recordName; });
+      allFields = allFields.concat(fields);
+      if (windowBox) windows.push(Object.assign({ recordName: recordName }, windowBox));
+
+      var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset);
+      if (preview) {
+        preview.fields.forEach(function (f) { f.sourceRecord = recordName; });
+        allFields = allFields.concat(preview.fields);
+      }
+    });
+
+    return { lines: size.lines, columns: size.columns, fields: allFields, windows: windows };
   }
 
   // ---------------------------------------------------------------------
@@ -596,10 +688,11 @@
     if (f.style.blink) classes.push('dspf-blink');
     if (f.style.protect) classes.push('dspf-protect');
     if (f.widget) classes.push('dspf-widget-' + f.widget.type);
-    if (f.tag && f.tag.indexOf('subfile-row-') === 0) classes.push('dspf-subfile-row');
+    if (f.tag && f.tag.indexOf('subfile-preview-row-') === 0) classes.push('dspf-subfile-preview');
     if (f.tag === 'pulldown') classes.push('dspf-pulldown-field');
+    var recordLabel = f.sourceRecord ? ' [' + f.sourceRecord + ']' : '';
     var colorStyle = f.style.color ? 'color:' + f.style.color + ';' : '';
-    var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : ''));
+    var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : '') + recordLabel);
     var innerHtml = f.widget ? widgetInnerHtml(f) : escapeHtml(f.text);
     var height = f.height || 1;
     return (
@@ -641,29 +734,44 @@
   function renderScreenHtml(screen) {
     var fieldDivs = screen.fields.map(renderFieldDiv).join('\n');
 
-    var windowDiv = '';
-    if (screen.window) {
-      var w = screen.window;
-      var titleParts = [];
-      if (w.title) titleParts.push(w.title);
-      if (w.positionIsDefault) titleParts.push('position set at runtime');
-      if (w.inheritedFrom) titleParts.push('window shared with ' + w.inheritedFrom);
-      var titleHtml = titleParts.length > 0 ? '<div class="dspf-window-title">' + escapeHtml(titleParts.join(' \u00b7 ')) + '</div>' : '';
-      var windowClasses = 'dspf-window-border' + (w.positionIsDefault ? ' dspf-window-default-position' : '');
-      windowDiv =
-        '<div class="' +
-        windowClasses +
-        '" style="grid-row:' +
-        w.line +
-        ' / span ' +
-        w.height +
-        ';grid-column:' +
-        w.col +
-        ' / span ' +
-        w.width +
-        ';">' +
-        titleHtml +
-        '</div>\n';
+    // Support both the single-record `window` (backward compatible) and the
+    // multi-record `windows` array (display-comparison mode) with one code path.
+    var windowList = screen.windows || (screen.window ? [screen.window] : []);
+    var windowDiv = windowList
+      .map(function (w) {
+        var titleParts = [];
+        if (w.recordName) titleParts.push(w.recordName);
+        if (w.title) titleParts.push(w.title);
+        if (w.positionIsDefault) titleParts.push('position set at runtime');
+        if (w.inheritedFrom) titleParts.push('window shared with ' + w.inheritedFrom);
+        var titleHtml = titleParts.length > 0 ? '<div class="dspf-window-title">' + escapeHtml(titleParts.join(' \u00b7 ')) + '</div>' : '';
+        var windowClasses = 'dspf-window-border' + (w.positionIsDefault ? ' dspf-window-default-position' : '');
+        return (
+          '<div class="' +
+          windowClasses +
+          '" style="grid-row:' +
+          w.line +
+          ' / span ' +
+          w.height +
+          ';grid-column:' +
+          w.col +
+          ' / span ' +
+          w.width +
+          ';">' +
+          titleHtml +
+          '</div>'
+        );
+      })
+      .join('\n');
+
+    // Subfile preview: a PROTECTED, non-interactive reference layer - shown when
+    // viewing the SFLCTL (control) record, matching real SDA where the subfile
+    // detail area is visible but not individually editable from that view. See
+    // resolveSubfilePreview() - callers must not wire click/drag for these fields.
+    var subfilePreviewHtml = '';
+    if (screen.subfilePreview) {
+      var sfp = screen.subfilePreview;
+      subfilePreviewHtml = sfp.fields.map(renderFieldDiv).join('\n') + '\n';
     }
 
     var pulldownHtml = '';
@@ -693,6 +801,7 @@
       windowDiv +
       fieldDivs +
       '\n' +
+      subfilePreviewHtml +
       pulldownHtml +
       '\n</div>'
     );
@@ -701,6 +810,7 @@
   return {
     conditionsSatisfied: conditionsSatisfied,
     resolveScreen: resolveScreen,
+    resolveMultiScreen: resolveMultiScreen,
     renderScreenHtml: renderScreenHtml,
     isPulldownRecord: isPulldownRecord,
     findSflPairing: findSflPairing,

@@ -57,7 +57,13 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-blink { animation: dspf-blink 1s steps(1) infinite; }
   .dspf-protect { opacity: 0.65; }
   @keyframes dspf-blink { 50% { opacity: 0; } }
-  .dspf-subfile-row { background: rgba(51,255,102,0.04); }
+  .dspf-subfile-preview {
+    background: repeating-linear-gradient(45deg, rgba(255,138,92,0.06), rgba(255,138,92,0.06) 4px, transparent 4px, transparent 8px);
+    border: 1px dashed rgba(255,138,92,0.35) !important;
+    cursor: not-allowed !important; pointer-events: none;
+  }
+  .dspf-field[data-tag^="subfile-edit-row-"] { border-color: rgba(51,255,102,0.15); }
+  .dspf-field[data-tag^="subfile-edit-row-"]:hover { border-color: var(--accent); background: rgba(51,255,102,0.06); }
   .dspf-window-border {
     position: relative; border: 2px solid #3a5a45; background: #0a0f0c; border-radius: 2px;
     box-shadow: 3px 3px 0 rgba(0,0,0,0.5); pointer-events: none; z-index: 0;
@@ -101,6 +107,12 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .help-entry-row:hover { border-color: var(--accent); }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 16px 0 8px; }
+  .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
+  .compare-toggle input { accent-color: var(--warn); }
+  #compareRecordList { margin-top: 8px; }
+  #compareRecordList.hidden { display: none; }
+  .compare-record-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; cursor: pointer; }
+  .hint-readonly { color: var(--warn); }
 </style>
 </head>
 <body>
@@ -108,6 +120,9 @@ const htmlTemplate = `<!DOCTYPE html>
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
+  <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Compare multiple formats (read-only)</label>
+  <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
+  <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
   <div class="section-label">File</div>
@@ -115,7 +130,7 @@ const htmlTemplate = `<!DOCTYPE html>
 </aside>
 <main>
   <div class="screen-frame"><div id="screenOutput"></div></div>
-  <div class="status">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
+  <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
 </main>
 <div class="props-panel" id="propsPanel">
   <h2 style="font-size:13px;">Properties</h2>
@@ -134,12 +149,40 @@ const htmlTemplate = `<!DOCTYPE html>
   let suppressNextExternalUpdate = false;
   let activePulldown = null; // { pulldownRecord, line, col, choiceKey } - simulates a clicked menu-bar choice
   let pulldownCloserAttached = false;
+  let compareMode = false;
+  const compareSelectedRecords = new Set();
+  let previewMultipleRows = false;
   const active = new Set();
 
   const recordSelect = document.getElementById('recordSelect');
   const indicatorList = document.getElementById('indicatorList');
   const screenOutput = document.getElementById('screenOutput');
   const propsBody = document.getElementById('propsBody');
+  const compareModeToggle = document.getElementById('compareModeToggle');
+  const compareRecordList = document.getElementById('compareRecordList');
+  const mainHint = document.getElementById('mainHint');
+  const previewRowsRow = document.getElementById('previewRowsRow');
+  const previewRowsToggle = document.getElementById('previewRowsToggle');
+
+  previewRowsToggle.addEventListener('change', () => {
+    previewMultipleRows = previewRowsToggle.checked;
+    selectedKey = null;
+    selectedHelpSourceLine = null;
+    render();
+  });
+
+  compareModeToggle.addEventListener('change', () => {
+    compareMode = compareModeToggle.checked;
+    recordSelect.disabled = compareMode;
+    compareRecordList.classList.toggle('hidden', !compareMode);
+    if (compareMode && compareSelectedRecords.size === 0 && recordSelect.value) {
+      compareSelectedRecords.add(recordSelect.value); // seed with whatever was being edited, a reasonable starting point
+    }
+    selectedKey = null;
+    selectedHelpSourceLine = null;
+    activePulldown = null;
+    render();
+  });
 
   // Clicking the screen background (not a field) deselects, returning the
   // properties panel to record-level editing. Attached once since screenOutput
@@ -194,8 +237,11 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function rebuildIndicatorList(recordName) {
+    rebuildIndicatorListFromSet(indicatorsForContext(recordName));
+  }
+
+  function rebuildIndicatorListFromSet(indicators) {
     indicatorList.innerHTML = '';
-    const indicators = indicatorsForContext(recordName);
     if (indicators.length === 0) {
       indicatorList.innerHTML = '<div class="empty-state" style="font-size:11px;">None used on this screen</div>';
       return;
@@ -212,7 +258,60 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  /** Read-only comparison mode: preview several record formats together, purely
+   *  for visual reference. No click/drag/select wiring at all - editing an
+   *  arbitrary combination of independently-defined records is ambiguous (which
+   *  record does an edit belong to?), so this mode deliberately doesn't support it;
+   *  switch back to single-record mode to make an actual edit. */
+  function renderCompareMode() {
+    previewRowsRow.classList.add('hidden');
+    // Rebuild the checkbox list every render so it reflects the current model
+    // (e.g. after the user renamed... well, records can't be renamed, but new
+    // records could appear from an external text edit).
+    const prevScroll = compareRecordList.scrollTop;
+    compareRecordList.innerHTML = '';
+    model.records.forEach((r) => {
+      const row = document.createElement('label');
+      row.className = 'compare-record-row';
+      row.innerHTML = '<input type="checkbox" ' + (compareSelectedRecords.has(r.name) ? 'checked' : '') + ' /> ' + r.name;
+      row.querySelector('input').addEventListener('change', (e) => {
+        if (e.target.checked) compareSelectedRecords.add(r.name); else compareSelectedRecords.delete(r.name);
+        render();
+      });
+      compareRecordList.appendChild(row);
+    });
+    compareRecordList.scrollTop = prevScroll;
+
+    mainHint.textContent = 'Read-only comparison of multiple record formats - switch off "Compare" to edit.';
+    mainHint.classList.add('hint-readonly');
+
+    const selected = Array.from(compareSelectedRecords).filter((name) => model.records.some((r) => r.name === name));
+    if (selected.length === 0) {
+      screenOutput.innerHTML = '<div class="empty-state">Check one or more record formats above to compare them.</div>';
+      indicatorList.innerHTML = '';
+      propsBody.innerHTML = '<div class="empty-state">Read-only comparison mode - no properties to edit.</div>';
+      return;
+    }
+
+    const screen = DspfEngine.resolveMultiScreen(model, selected, active);
+    screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
+    // Deliberately no per-field event wiring here - every field in this mode is inert.
+
+    const indSet = new Set();
+    selected.forEach((name) => {
+      const rec = model.records.find((r) => r.name === name);
+      if (rec) indicatorsForContext(name).forEach((n) => indSet.add(n));
+    });
+    rebuildIndicatorListFromSet(Array.from(indSet).sort());
+
+    propsBody.innerHTML = '<div class="empty-state">Read-only comparison mode - no properties to edit.</div>';
+  }
+
   function render() {
+    if (compareMode) { renderCompareMode(); return; }
+    mainHint.classList.remove('hint-readonly');
+    mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
+
     rebuildRecordSelect();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
@@ -220,12 +319,18 @@ const htmlTemplate = `<!DOCTYPE html>
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
 
-    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown);
+    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }
+    previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
+    if (!screen.isSflRecord && previewMultipleRows) { previewMultipleRows = false; previewRowsToggle.checked = false; }
+    if (screen.isSflRecord && screen.previewRowCount) {
+      mainHint.textContent = 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
+    }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
 
     screenOutput.querySelectorAll('.dspf-field').forEach((el) => {
       if (el.getAttribute('data-tag') === 'pulldown') return; // read-only preview overlay, see below for its own click handling
+      if ((el.getAttribute('data-tag') || '').indexOf('subfile-preview-row-') === 0) return; // protected: switch to the SFL record itself to edit rows
 
       const name = el.getAttribute('data-field');
       const anchorLine = parseInt(el.getAttribute('data-line'), 10);
@@ -254,19 +359,19 @@ const htmlTemplate = `<!DOCTYPE html>
       if (!editable) el.classList.add('locked');
       if (selectedKey && selectedKey.sourceLine === underlying.sourceLine) el.classList.add('selected');
 
+      const tag = el.getAttribute('data-tag') || '';
+      const isEditableSflPreviewRow = tag.indexOf('subfile-edit-row-') === 0;
       const ownerRecord = model.records.find((r) => r.name === ownerRecordName);
-      const isSflRow = ownerRecord && ownerRecord.keywords.some((k) => k.name === 'SFL');
-      const tag = el.getAttribute('data-tag');
 
       el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; selectedHelpSourceLine = null; render(); });
       el.addEventListener('mousedown', (e) => {
         if (!editable) return;
         e.preventDefault();
-        if (isSflRow && tag) {
-          // Whole-row drag: every field visible in this rendered row instance moves
-          // together, and every NAMED field of the SFL template record is batch-committed
-          // together (that's the one row definition that actually exists in the DDS
-          // source - constants in the row are left in place, see commitGroupEdit).
+        if (isEditableSflPreviewRow && ownerRecord) {
+          // Multi-row SFLPAG preview (explicitly opted into via the "Preview SFLPAG
+          // rows" toggle): every rendered row instance is the SAME template, so every
+          // field visible in THIS row instance moves together, and every NAMED field
+          // of the record is batch-committed together - see commitGroupEdit.
           const siblingEls = Array.from(screenOutput.querySelectorAll('[data-tag="' + tag.replace(/"/g, '\\\\"') + '"]'));
           startGroupDrag(siblingEls, ownerRecord.fields.filter((f) => f.name), ownerRecordName);
         } else {
@@ -365,8 +470,10 @@ const htmlTemplate = `<!DOCTYPE html>
     window.addEventListener('mouseup', onUp);
   }
 
-  // Whole-row subfile drag: moves every field of the SFL template record by the
-  // same delta, visually together and as one batched source edit.
+  // Multi-row SFLPAG preview drag: moves every field of the record by the same
+  // delta, visually together and as one batched source edit - every rendered row
+  // instance corresponds to the SAME template, so this is really just "move the
+  // template" with N visual copies following along, not N independent edits.
   function startGroupDrag(els, fields, recordName) {
     const { rect, colWidth, rowHeight } = gridMetrics();
     const originals = els.map((el) => ({
@@ -641,7 +748,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   });
 
-  recordSelect.addEventListener('change', () => { selectedKey = null; selectedHelpSourceLine = null; activePulldown = null; render(); });
+  recordSelect.addEventListener('change', () => { selectedKey = null; selectedHelpSourceLine = null; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; render(); });
 
   render();
   vscode.postMessage({ type: 'ready' });

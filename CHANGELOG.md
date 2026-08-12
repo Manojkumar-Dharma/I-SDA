@@ -3,20 +3,67 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.9.0] - Unreleased
 
-### Fixed
-- **Indicator sidebar scoping bug**: the "Conditioning indicators" list
-  previously collected indicators from every record format in the entire
-  file, so a DSPF with several records buried the handful actually relevant
-  to what's on screen under everything else in the file. Now scoped to just
-  the currently-previewed record, correctly extended to also include a
-  paired `SFL`/`SFLCTL` record's indicators (since those genuinely render
-  together as one screen) and the active pulldown's record when one is
-  open. Verified with a two-record fixture using disjoint indicator sets -
-  each record now shows only its own.
+### Changed
+- **Subfile editing redesigned to match real SDA behavior.** Previously,
+  selecting the `SFLCTL` record automatically merged in the paired `SFL`
+  record's rows (repeated `SFLPAG` times) as editable content, and dragging
+  any field in a rendered row moved every named field of that row together
+  via a batched "whole-row drag" - regardless of which record you'd
+  actually selected. This conflated two independently-defined record
+  formats into one editable view: an edit made while "in" `SFLCTL` could
+  actually write to the other record, which was both surprising and
+  inconsistent with how every other field/record edits (independently).
+  - Selecting `SFL` directly now renders it once (not repeated) by default,
+    as a normal, independently-editable record.
+  - Selecting `SFLCTL` shows the subfile detail area for visual reference
+    (repeated `SFLPAG` times, correctly positioned) as a **protected,
+    non-interactive overlay** - matching real SDA, where the control
+    record's design view shows the subfile area but doesn't let you edit
+    individual row fields from there. Only the control record's own fields
+    (headers, footers, its own keywords) are editable in that view.
 
-## [0.8.0] - Unreleased
+### Added
+- **"Preview SFLPAG rows" toggle**: when viewing the `SFL` record directly,
+  an opt-in toggle repeats it `SFLPAG` times (resolved from the paired
+  `SFLCTL` record) for a realistic multi-row preview *while still editing
+  the template*. Unlike the `SFLCTL`-side protected overlay, these rows
+  ARE the template - dragging any field in any row instance moves every
+  field of that row together (group-drag, reinstated specifically for this
+  opt-in case), since every visible row instance corresponds to the one
+  template that actually exists in the DDS source. Off by default (single
+  row, ordinary independent per-field editing - see "Changed" above).
+- **Compare mode**: a separate opt-in, explicitly read-only way to preview
+  *several* record formats together at once (not just automatic subfile
+  pairing) - check any combination of record formats to see them layered
+  on the same grid, each field tagged with its source record. No
+  click/drag/select wiring at all in this mode, by design: editing an
+  arbitrary combination of independently-defined records is ambiguous
+  (which record would an edit belong to?). Switch off "Compare" to return
+  to normal single-record editing.
+- `DspfEngine.resolveMultiScreen()`: the engine-level primitive behind
+  compare mode - resolves several records' fields (respecting each one's
+  own `WINDOW`/subfile-preview) without the single-record overlap
+  resolution, since comparison mode is for eyeballing multiple formats,
+  not simulating one specific runtime state.
+
+Verified via jsdom: `SFL` viewed directly renders once and drags fields
+independently by default (confirmed `ROWAMT` stays put while dragging
+`ROWNAME`); enabling "Preview SFLPAG rows" correctly resolves the row count
+from the paired `SFLCTL` even though `SFLCTL` isn't the record being
+viewed, renders all 4 rows editable, and correctly group-drags both
+`ROWNAME` and `ROWAMT` together by the identical delta; `SFLCTL` viewed
+directly shows its own fields as editable plus an 8-field protected
+overlay (4 rows × 2 fields) that correctly rejects a drag attempt (zero
+messages posted); the preview-rows toggle correctly hides for non-SFL
+records, resets when switching records, and stays hidden in compare mode;
+compare mode correctly disables the record picker, combines multiple
+records' fields, and rejects field interaction; toggling compare mode back
+off correctly restores normal single-record editing. Full regression suite
+across every fixture re-run clean.
+
+## [0.8.1] - Unreleased
 
 ### Added
 - Migrated from a plain `WebviewPanel` to `CustomTextEditorProvider`

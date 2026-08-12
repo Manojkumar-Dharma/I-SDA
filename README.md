@@ -50,7 +50,7 @@ Development Host. Either:
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations (v0.8)
+## Known limitations (v0.9)
 
 - `WINDOW` positions that depend on a runtime value - `*DFT` (system
   positions it relative to the cursor) or a program-to-system field name -
@@ -62,13 +62,20 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - The pulldown-overlay preview (menu bar → clicked choice → dropdown) is
   read-only: you can't drag or edit fields while a pulldown is showing.
   Switch to previewing the `PULLDOWN` record directly to edit it.
+- The subfile detail area is read-only when previewing the `SFLCTL`
+  (control) record, matching real SDA - switch to previewing the `SFL`
+  record itself to edit row layout. When previewing `SFL` with "Preview
+  SFLPAG rows" enabled, dragging any field moves every *named* field of the
+  row together; unnamed constants in the row template stay put (can't be
+  reliably re-located by name across the sequential per-field edits a
+  batch move applies).
 - `CHCCTL` (per-choice runtime field-setting logic within a pulldown) has no
   visual representation, since it's a logic construct rather than a layout
   one.
-- Whole-row subfile drag moves every *named* field of the row together;
-  unnamed constants within a subfile row template stay put (they can't be
-  reliably re-located by name across the sequential per-field edits a batch
-  move applies).
+- Compare mode (previewing several record formats together) is read-only by
+  design - editing an arbitrary combination of independently-defined
+  records is ambiguous (which record would an edit belong to?). Switch back
+  to single-record mode to make an actual edit.
 - Record renaming isn't supported (other keywords like `SFLCTL(name)`,
   `MNUBARCHC(id name text)`, `WINDOW(record-format-name)` reference records
   by name in plain text and wouldn't be updated) - the record name field is
