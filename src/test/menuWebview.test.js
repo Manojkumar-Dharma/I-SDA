@@ -72,6 +72,36 @@ setTimeout(() => {
   check('the regenerated source is well-formed and includes the new mapping', last && last.text === '0001 DSPLIBL\n0002 CHGCURLIB\n0010 SIGNOFF\n');
   check('the original two options are untouched in the regenerated source', last && last.text.includes('0001 DSPLIBL') && last.text.includes('0002 CHGCURLIB'));
 
+  console.log('\nadding a brand-new option in the browser');
+  const numInput = doc.getElementById('addOptionNum');
+  const labelInput = doc.getElementById('addOptionLabel');
+  const addBtn = doc.getElementById('addOptionBtn');
+  const errorEl = doc.getElementById('addOptionError');
+
+  console.log('  validation: rejects a missing number');
+  numInput.value = '';
+  labelInput.value = 'Sign off';
+  addBtn.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  check('shows a validation error and does not post applyEdit', errorEl.textContent.length > 0 && !posted.some((m) => m.type === 'applyEdit'));
+
+  console.log('  validation: rejects a duplicate option number');
+  numInput.value = '1';
+  labelInput.value = 'Duplicate of option 1';
+  addBtn.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  check('rejects option 1 (already exists) without posting applyEdit', /already exists/.test(errorEl.textContent) && !posted.some((m) => m.type === 'applyEdit'));
+
+  console.log('  happy path: adds option 20 with a fresh label');
+  const postedBefore = posted.length;
+  numInput.value = '20';
+  labelInput.value = 'Reindex files';
+  addBtn.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  const applyEditMsg = posted.slice(postedBefore).find((m) => m.type === 'applyEdit');
+  check('posts applyEdit with the DDS source containing the new constant', applyEditMsg && applyEditMsg.text.includes("'20. Reindex files'"));
+  check('clears the form inputs after a successful add', numInput.value === '' && labelInput.value === '');
+
+  const newRows = doc.querySelectorAll('.option-row');
+  check('the new option now appears in the rendered options panel', newRows.length === 4 && Array.from(newRows).some((r) => r.querySelector('.option-label').textContent === 'Reindex files'));
+
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
 }, 100);

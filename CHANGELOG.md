@@ -3,6 +3,31 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.1] - Unreleased
+
+### Added
+- **"+ Add option" in the menu designer**: previously the options panel could
+  only edit or clear the command for a numbered option that already existed
+  as a constant on the screen. Now you can add a brand-new option directly -
+  enter a number and label text, and it inserts a correctly-formatted DDS
+  constant onto the screen (`DspfWriter.insertField()`, a new writer
+  primitive: builds a field entry from scratch and splices it in, unlike
+  `applyFieldUpdate` which only repositions/edits an existing one - handles
+  column alignment and long-label line-continuation the same way the rest of
+  the writer does) at a sensible default position (one row below the last
+  option in that record, same column - or row 6/col 5 as a documented guess
+  if the record has no options yet to anchor on). This closes the "adding a
+  brand-new option ... isn't supported yet" limitation called out in 0.9.0 -
+  reposition afterward with the screen designer if the guessed spot doesn't
+  fit your layout. Duplicate option numbers are rejected with an inline
+  message rather than silently overwritten.
+- `src/test/dspfWriter.test.js`: direct coverage for `insertField()` -
+  column formatting, placement with/without existing fields, long-label
+  continuation wrapping and round-trip fidelity.
+- `menuWebview.test.js` extended to exercise the "+ Add option" form
+  end-to-end in jsdom: validation (missing number, duplicate option),
+  the happy path, and the resulting DOM/postMessage output.
+
 ## [0.9.0] - Unreleased
 
 ### Changed

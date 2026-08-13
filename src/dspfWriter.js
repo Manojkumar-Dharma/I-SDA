@@ -473,11 +473,58 @@
     return true;
   }
 
+  /**
+   * Inserts a brand-new field (or constant) into a record and splices its
+   * serialized lines into `sourceLines`. Placement: right after the last line
+   * of the record's last existing field entry, or right after the record's
+   * own header lines if it has none yet - i.e. always appended at the bottom
+   * of the record's field list, never mid-file. `newField` needs at minimum
+   * `nameType` ('FIELD'|'CONSTANT'|'HELP'), `location: {line, column}`, and
+   * either `constantValue` (CONSTANT) or `name`/`length`/`dataType` (FIELD);
+   * `keywords`/`conditions` default to none. There's no original line to
+   * preserve columns 1-6 from (this field didn't exist yet), so it gets a
+   * plain 'A' in column 6 like any other freshly-typed DDS line.
+   */
+  function insertField(record, sourceLines, newField) {
+    var existingFields = record.fields || [];
+    var insertAfterLine;
+    if (existingFields.length > 0) {
+      var maxEnd = -Infinity;
+      existingFields.forEach(function (f) {
+        var r = getFieldLineRange(f);
+        if (r[1] > maxEnd) maxEnd = r[1];
+      });
+      insertAfterLine = maxEnd;
+    } else {
+      insertAfterLine = getRecordLineRange(record)[1];
+    }
+
+    var field = {
+      nameType: newField.nameType,
+      name: newField.name || null,
+      constantValue: newField.constantValue != null ? newField.constantValue : null,
+      length: newField.length != null ? newField.length : null,
+      lengthRaw: newField.length != null ? String(newField.length) : null,
+      dataType: newField.dataType || null,
+      decimalPositions: newField.decimalPositions != null ? newField.decimalPositions : null,
+      decimalPositionsRaw: newField.decimalPositions != null ? String(newField.decimalPositions) : null,
+      usage: newField.usage || null,
+      isReference: !!newField.isReference,
+      location: { line: newField.location.line, column: newField.location.column, relativeColumnOffset: null },
+      keywords: newField.keywords || [],
+      conditions: newField.conditions || [],
+    };
+
+    var newLines = serializeFieldEntry(field, '     A');
+    return sourceLines.slice(0, insertAfterLine).concat(newLines, sourceLines.slice(insertAfterLine));
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
     serializeFieldEntry: serializeFieldEntry,
     applyFieldUpdate: applyFieldUpdate,
+    insertField: insertField,
     getRecordLineRange: getRecordLineRange,
     serializeRecordEntry: serializeRecordEntry,
     applyRecordUpdate: applyRecordUpdate,

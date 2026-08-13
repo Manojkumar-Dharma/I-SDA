@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const engineJs = fs.readFileSync(path.join(__dirname, 'dspfEngine.js'), 'utf8');
+const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
 const mnuCmdEngineJs = fs.readFileSync(path.join(__dirname, 'mnuCmdEngine.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
 
@@ -65,6 +66,14 @@ const htmlTemplate = `<!DOCTYPE html>
   .option-label { font-size: 12px; color: var(--ink); margin-bottom: 6px; overflow-wrap: anywhere; }
   .option-cmd { width: 100%; background: #0d1310; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
   .option-cmd:focus { border-color: var(--accent); outline: none; }
+  .add-option { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--panel-border); }
+  .add-option-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .add-option-num { flex: 0 0 46px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 6px; font-family: var(--mono); font-size: 12px; }
+  .add-option-label { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .add-option-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--panel-border); padding: 7px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .add-option-btn:hover { border-color: var(--accent); }
+  .add-option-btn:disabled { opacity: 0.5; cursor: default; }
+  .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
 </style>
 </head>
 <body>
@@ -84,10 +93,20 @@ const htmlTemplate = `<!DOCTYPE html>
 <div class="options-panel">
   <h2 style="font-size:13px;">Options → Commands</h2>
   <div id="optionsBody"></div>
+  <div class="add-option">
+    <div class="section-label">Add a new option</div>
+    <div class="add-option-row">
+      <input type="text" class="add-option-num" id="addOptionNum" placeholder="#" inputmode="numeric" />
+      <input type="text" class="add-option-label" id="addOptionLabel" placeholder="Option text, e.g. Sign off" />
+    </div>
+    <button class="add-option-btn" id="addOptionBtn">+ Add option</button>
+    <div class="add-option-error" id="addOptionError"></div>
+  </div>
 </div>
 
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
+<script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${mnuCmdEngineJs}</script>
 <script nonce="${NONCE_TOKEN}">
   const vscode = acquireVsCodeApi();
@@ -102,6 +121,10 @@ const htmlTemplate = `<!DOCTYPE html>
   const screenOutput = document.getElementById('screenOutput');
   const optionsBody = document.getElementById('optionsBody');
   const cmdStatusEl = document.getElementById('cmdStatus');
+  const addOptionNumInput = document.getElementById('addOptionNum');
+  const addOptionLabelInput = document.getElementById('addOptionLabel');
+  const addOptionBtn = document.getElementById('addOptionBtn');
+  const addOptionError = document.getElementById('addOptionError');
 
   // A menu option is any DDS constant shaped like "1. Do a thing" or "12) Do a thing" -
   // that's the one thing that distinguishes menu-option text from any other constant
@@ -121,6 +144,9 @@ const htmlTemplate = `<!DOCTYPE html>
           numberValue: parseInt(match[1], 10),
           optionNumber: MnuCmdEngine.padOptionNumber(match[1]),
           label: match[2].trim(),
+          recordName: record.name,
+          line: f.location && f.location.line != null ? f.location.line : null,
+          column: f.location && f.location.column != null ? f.location.column : null,
         });
       });
     });
@@ -200,6 +226,64 @@ const htmlTemplate = `<!DOCTYPE html>
     renderOptions();
   }
 
+  // Placement for a brand-new option: one row below the last existing option
+  // in the target record (same column) - the common case for a stacked menu
+  // list. With no existing options in that record yet to anchor on, this is
+  // a guess (row 6, col 5); reposition it afterwards with the screen
+  // designer (dspfDesigner.editor) if it doesn't fit your layout - see
+  // README "Known limitations".
+  function addNewOption() {
+    addOptionError.textContent = '';
+    const numRaw = addOptionNumInput.value.trim();
+    const label = addOptionLabelInput.value.trim();
+    if (!/^[0-9]{1,4}$/.test(numRaw)) {
+      addOptionError.textContent = 'Enter an option number (1-9999).';
+      return;
+    }
+    if (!label) {
+      addOptionError.textContent = 'Enter the option text.';
+      return;
+    }
+    const numberValue = parseInt(numRaw, 10);
+    const existing = extractMenuOptions(model);
+    if (existing.some((o) => o.numberValue === numberValue)) {
+      addOptionError.textContent = 'Option ' + numberValue + ' already exists - edit its command above, or its text via the screen designer.';
+      return;
+    }
+
+    const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+    const record = model.records.find((r) => r.name === recordName);
+    if (!record) {
+      addOptionError.textContent = 'No record format selected.';
+      return;
+    }
+
+    const inThisRecord = existing.filter((o) => o.recordName === recordName && o.line != null);
+    let line = 6;
+    let column = 5;
+    if (inThisRecord.length > 0) {
+      const last = inThisRecord.reduce((a, b) => (b.line > a.line ? b : a));
+      line = last.line + 1;
+      column = last.column != null ? last.column : 5;
+    }
+
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.insertField(record, lines, {
+      nameType: 'CONSTANT',
+      constantValue: numberValue + '. ' + label,
+      location: { line: line, column: column },
+    });
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+
+    addOptionNumInput.value = '';
+    addOptionLabelInput.value = '';
+    renderAll();
+  }
+
+  addOptionBtn.addEventListener('click', addNewOption);
+
   if (cmdStatusEl) {
     if (commandStatus === 'loaded') cmdStatusEl.textContent = 'Commands: ' + commandFileName;
     else if (commandStatus === 'missing') cmdStatusEl.textContent = 'Commands: ' + commandFileName + ' (will be created on first edit)';
@@ -234,7 +318,7 @@ const htmlTemplate = `<!DOCTYPE html>
  * the `vscode` module.
  */
 const output = `// GENERATED FILE - do not edit directly. Run \`npm run build:webview-assets\` to regenerate
-// (source: buildMenuWebviewTemplate.js, dspfEngine.js, mnuCmdEngine.js, dist/dspfParser.browser.js).
+// (source: buildMenuWebviewTemplate.js, dspfEngine.js, dspfWriter.js, mnuCmdEngine.js, dist/dspfParser.browser.js).
 const MNU_TEMPLATE: string = ${JSON.stringify(htmlTemplate)};
 
 export type MenuCommandSourceStatus = 'loaded' | 'missing' | 'unsupported';

@@ -109,7 +109,7 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   member once it's open.
 - Display-length rules for signed/edited numerics are approximated.
 
-### Menu design (v0.9 - new, minimal)
+### Menu design (v0.9, updated v0.9.1)
 
 - Only works for a MNUDDS member opened via Code for i's `member:` scheme
   (matches how these are actually edited in practice - SDA menus are IBM i
@@ -117,13 +117,10 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   designer with the screen preview, but the options panel reports "unsupported"
   since there's no equivalent local-workspace convention for where the
   companion `QQ` member would live.
-- Only *existing* numbered options (constants already shaped like `'N. text'`
-  on the screen) get a row in the options panel and can have their command
-  edited or cleared. Adding a brand-new option - placing a new numbered
-  constant on the screen itself - isn't supported yet; add it as DDS source
-  first (or with the screen designer, once it also recognizes menu option
-  constants as regular editable fields - it already does, since a MNUDDS
-  member is plain DDS), then reopen the menu designer to map it to a command.
+- New in v0.9.1: you can add a brand-new numbered option directly from the
+  options panel (see Architecture above) - it's placed at a sensible default
+  position, not a chosen one, so double-check it against your screen layout
+  and reposition via the screen designer's drag-to-move if needed.
 - The companion `QQ` member is written directly via `workspace.fs.writeFile`,
   not a `WorkspaceEdit` against an open document (that document, unlike the
   MNUDDS one, generally isn't open in an editor tab at all). This means: no
