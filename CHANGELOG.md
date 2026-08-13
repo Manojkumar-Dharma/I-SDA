@@ -3,6 +3,48 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.3] - Unreleased
+
+### Added
+- **"Compile Menu (CRTMNU)"** for the menu designer - a command
+  (`dspfDesigner.compileMenu`, also a button in the designer's sidebar) that
+  runs the real IBM i compile sequence via Code for i's
+  `code-for-ibmi.runCommand` API (https://codefori.github.io/docs/dev/examples/#running-commands-with-the-user-library-list):
+  `CRTDSPF`, then rebuilds the message file (`DLTMSGF`/`CRTMSGF` - deleted
+  and recreated fresh each time rather than diffed against whatever message
+  IDs already happen to exist, same reasoning as 0.9.1's DSPF constants),
+  one `ADDMSGD` per option using the `USRnnnn` message-ID format that
+  `TYPE(*DSPF)` menus expect (confirmed against an IBM support document -
+  see README), then `CRTMNU`. Only `TYPE(*DSPF)` menus are handled - not
+  `TYPE(*UIM)` menus, a different source format entirely.
+  Guards before anything runs: requires the document to be a `member:`-scheme
+  MNUDDS source, requires the Code for i extension to be installed, and
+  requires the DDS record format to be named exactly the same as the menu
+  member (a real `CRTMNU TYPE(*DSPF)` requirement) - with an actionable
+  error naming what it found instead of a cryptic IBM failure three steps
+  in. Saves any dirty buffers (the MNUDDS document, and the companion
+  MNUCMD document if it's open) before compiling, since the compile reads
+  from the saved server-side member, not the live editor buffer. Stops at
+  the first failing step and surfaces the real IBM i error text verbatim
+  rather than a generic "compile failed." Warns (with a "Compile Anyway" /
+  "Cancel" prompt) if there are no option-to-command mappings yet, since
+  every option would show "not correct" when selected.
+- `src/test/compileMenu.test.js`: covers every guard condition, the exact
+  CL command sequence and parameter values for a full compile, the
+  no-mappings warning's cancel/proceed paths, and stopping at the first
+  failing step with the real error text preserved. In the course of writing
+  it, caught two real bugs the manual testing so far had missed: the
+  compiled `dist/extension.js` couldn't find `mnuCmdEngine.js` at runtime
+  (the build script now copies it into `dist/` alongside the compiled
+  output), and the registered command handler wasn't returning its promise,
+  so nothing - including this test - could actually await compilation
+  finishing before checking the result.
+- `vscode` test mock extended: `extensions.getExtension`, a configurable
+  `code-for-ibmi.runCommand` handler via `commands.executeCommand`,
+  `window.withProgress`/`ProgressLocation`, `showInformationMessage`, a
+  configurable `showWarningMessage` response (for the Compile Anyway/Cancel
+  prompt), and `TextDocument.isDirty`/`.save()`.
+
 ## [0.9.2] - Unreleased
 
 ### Added

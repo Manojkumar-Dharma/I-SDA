@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -56,6 +56,11 @@
         "command": "dspfDesigner.createNewDspf",
         "title": "iSDA: Create New Display File",
         "icon": "$(file-add)"
+      },
+      {
+        "command": "dspfDesigner.compileMenu",
+        "title": "iSDA: Compile Menu (CRTMNU)",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -81,13 +86,17 @@
       "commandPalette": [
         {
           "command": "dspfDesigner.createNewDspf"
+        },
+        {
+          "command": "dspfDesigner.compileMenu",
+          "when": "resourceScheme == member"
         }
       ]
     }
   },
   "scripts": {
-    "test": "node src/test/extension.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js",
-    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js",
+    "test": "node src/test/extension.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js && node src/test/compileMenu.test.js",
+    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});require('fs').copyFileSync('src/mnuCmdEngine.js','dist/mnuCmdEngine.js')\"",
     "compile": "npm run build:webview-assets && tsc -p ."
   },
   "devDependencies": {

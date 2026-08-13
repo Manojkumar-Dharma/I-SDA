@@ -40,6 +40,11 @@ let lastWrittenFile = null;
 const mockFiles = {}; // uri.toString() -> text content, for workspace.fs.readFile in tests
 const changeListeners = []; // every registered workspace.onDidChangeTextDocument handler
 const openTextDocuments = []; // simulates vscode.workspace.textDocuments
+const executedCommands = []; // every vscode.commands.executeCommand call, for assertions
+let runCommandHandler = null; // test-supplied handler for 'code-for-ibmi.runCommand'
+// Simulates the Code for i extension being installed by default (the common
+// case) - tests that need "not installed" delete this entry first.
+const mockExtensions = { 'halcyontechltd.code-for-ibmi': { id: 'halcyontechltd.code-for-ibmi' } };
 
 const vscodeMock = {
   Range,
@@ -50,23 +55,43 @@ const vscodeMock = {
   FileType: { Directory: 2, File: 1 },
   window: {
     activeTextEditor: null,
-    showWarningMessage: (msg) => { vscodeMock.__lastWarning = msg; return Promise.resolve(undefined); },
+    showWarningMessage: (msg, ...buttons) => {
+      vscodeMock.__lastWarning = msg;
+      const resp = vscodeMock.__mockWarningResponse;
+      return Promise.resolve(typeof resp === 'function' ? resp(msg, buttons) : resp);
+    },
     showErrorMessage: (msg) => { vscodeMock.__lastError = msg; return Promise.resolve(undefined); },
+    showInformationMessage: (msg) => { vscodeMock.__lastInformation = msg; return Promise.resolve(undefined); },
     showInputBox: () => Promise.resolve(undefined),
     showWorkspaceFolderPick: () => Promise.resolve(undefined),
     showTextDocument: () => Promise.resolve(undefined),
+    withProgress: (options, task) => task({ report: () => {} }, { isCancellationRequested: false }),
     registerCustomEditorProvider: (viewType, provider, options) => {
       registeredCustomEditorProviders[viewType] = { viewType, provider, options };
       return { dispose: () => {} };
     },
+  },
+  ProgressLocation: { Notification: 15 },
+  extensions: {
+    getExtension: (id) => (Object.prototype.hasOwnProperty.call(mockExtensions, id) ? mockExtensions[id] : undefined),
   },
   commands: {
     registerCommand: (id, handler) => {
       registeredCommands[id] = handler;
       return { dispose: () => {} };
     },
+    // Simulates 'code-for-ibmi.runCommand' (and any other command an
+    // extension might executeCommand out to) via a test-supplied handler -
+    // see __setRunCommandHandler. Everything else no-ops successfully, same
+    // as before this was extended for the compile-menu feature.
     executeCommand: (id, ...args) => {
-      vscodeMock.__lastExecutedCommand = { id, args };
+      const call = { id, args };
+      executedCommands.push(call);
+      vscodeMock.__lastExecutedCommand = call;
+      if (id === 'code-for-ibmi.runCommand' && runCommandHandler) {
+        const result = runCommandHandler(args[0]);
+        return result && typeof result.then === 'function' ? result : Promise.resolve(result);
+      }
       return Promise.resolve();
     },
   },
@@ -112,6 +137,12 @@ const vscodeMock = {
   __setMockFile: (uri, text) => { mockFiles[uri.toString()] = text; },
   __clearMockFiles: () => { Object.keys(mockFiles).forEach((k) => delete mockFiles[k]); },
   __setOpenTextDocuments: (docs) => { openTextDocuments.length = 0; openTextDocuments.push(...docs); },
+  get __executedCommands() { return executedCommands; },
+  __setRunCommandHandler: (fn) => { runCommandHandler = fn; },
+  __setMockExtension: (id, ext) => { mockExtensions[id] = ext; },
+  __removeMockExtension: (id) => { delete mockExtensions[id]; },
+  __setWarningResponse: (respOrFn) => { vscodeMock.__mockWarningResponse = respOrFn; },
+  get __lastInformationMessage() { return vscodeMock.__lastInformation; },
   // Fires every currently-registered onDidChangeTextDocument listener with the
   // given event, same as VS Code notifying every subscriber - NOT just the
   // most recently registered one (earlier versions of this mock only tracked
@@ -120,14 +151,19 @@ const vscodeMock = {
   get __changeListener() { return (event) => { changeListeners.slice().forEach((h) => h(event)); }; },
 };
 
-function mockDocument(text, uri) {
+function mockDocument(text, uri, options) {
   const docUri = uri || new Uri('file', '/workspace/TEST.dspf');
+  const opts = options || {};
+  let saveCount = 0;
   return {
     uri: docUri,
     fileName: docUri.path,
     getText: () => text,
     positionAt: (offset) => ({ line: 0, character: offset }),
     lineAt: (n) => ({ text: '' }),
+    isDirty: !!opts.isDirty,
+    save: () => { saveCount++; return Promise.resolve(true); },
+    get saveCount() { return saveCount; },
   };
 }
 

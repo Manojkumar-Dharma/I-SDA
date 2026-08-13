@@ -13,6 +13,10 @@ import * as vscode from 'vscode';
 import { getWebviewHtml } from './webviewTemplate';
 import { getMenuWebviewHtml, MenuCommandSourceStatus } from './menuWebviewTemplate';
 import { parseDspf } from './dspfParser';
+// Plain dependency-free JS (see its own file header) - required directly
+// rather than ported to TS, so the exact same parsing logic the webview uses
+// client-side also runs here on the extension host for the compile command.
+const MnuCmdEngine: { parseMnuCmd(text: string): { options: Array<{ optionNumber: string; numberValue: number; command: string }> } } = require('./mnuCmdEngine.js');
 
 // Matches local .dspf/.mnudds files by extension/language, PLUS remote IBM i
 // source members and IFS streamfiles opened through Code for i (scheme
@@ -77,6 +81,17 @@ export function activate(context: vscode.ExtensionContext): void {
         MenuDesignerEditorProvider.viewType,
         vscode.ViewColumn.Beside
       );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('dspfDesigner.compileMenu', (targetUri?: vscode.Uri) => {
+      const uri = targetUri || vscode.window.activeTextEditor?.document.uri;
+      if (!uri) {
+        vscode.window.showWarningMessage('Open a menu source (MNUDDS) first.');
+        return;
+      }
+      return compileMenu(uri);
     })
   );
 
@@ -160,6 +175,151 @@ function getMenuCommandMemberUri(uri: vscode.Uri): vscode.Uri | null {
   const name = last.slice(0, dot);
   const newSegments = segments.slice(0, -1).concat(`${name}QQ.MNUCMD`);
   return uri.with({ path: '/' + newSegments.join('/') });
+}
+
+/**
+ * Breaks a `member:` scheme URI's path (`/LIBRARY/FILE/NAME.TYPE`, or with a
+ * leading ASP name) into its parts, for building CL commands. See
+ * getMemberUri in codefori/vscode-ibmi for the URI shape this mirrors.
+ */
+function parseMemberUri(uri: vscode.Uri): { library: string; file: string; name: string; extension: string } | null {
+  if (uri.scheme !== 'member') return null;
+  const segments = uri.path.split('/').filter(Boolean);
+  if (segments.length < 3) return null;
+  const last = segments[segments.length - 1];
+  const dot = last.lastIndexOf('.');
+  if (dot <= 0) return null;
+  const file = segments[segments.length - 2];
+  const library = segments[segments.length - 3];
+  if (!file || !library) return null;
+  return { library, file, name: last.slice(0, dot), extension: last.slice(dot + 1) };
+}
+
+/**
+ * Compiles an SDA-style menu (CRTMNU) from the two source members iSDA edits.
+ * Uses Code for i's `code-for-ibmi.runCommand` API (see
+ * https://codefori.github.io/docs/dev/examples/#running-commands-with-the-user-library-list) -
+ * NOT a shipped IBM utility for the display-file -> message-file step (there
+ * isn't a universally-installed one; UTMNUMSGF, sometimes mentioned for this,
+ * is a third-party MidrangeWiki tool most shops won't have) - instead it
+ * rebuilds the message file directly with ADDMSGD, one message per option,
+ * using the `USRnnnn` message ID format that TYPE(*DSPF) menus expect
+ * (confirmed against an IBM support document - see README/CHANGELOG). The
+ * message file is deleted and recreated each compile rather than diffed
+ * against whatever IDs already happen to exist there, since idempotent
+ * beats clever for a "compile" button. Every step's real IBM i error text is
+ * surfaced verbatim (via CommandResult.stderr/stdout) rather than swallowed
+ * or reworded, and the whole thing stops at the first failing step.
+ */
+async function compileMenu(uri: vscode.Uri): Promise<void> {
+  const parsed = parseMemberUri(uri);
+  if (!parsed) {
+    vscode.window.showErrorMessage('iSDA: Compile Menu only works for a MNUDDS member opened from an IBM i connection (Code for i).');
+    return;
+  }
+  if (!vscode.extensions.getExtension('halcyontechltd.code-for-ibmi')) {
+    vscode.window.showErrorMessage(
+      'iSDA: Compile Menu requires the Code for IBM i extension (halcyontechltd.code-for-ibmi) to be installed and connected.'
+    );
+    return;
+  }
+
+  // Compiles read from the SAVED member on the IBM i, not this editor's live
+  // buffer - save first (both source members, if open/dirty) so the compile
+  // picks up whatever's currently showing in the designer, not stale content.
+  const openDoc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
+  if (openDoc?.isDirty) await openDoc.save();
+  const commandUri = getMenuCommandMemberUri(uri);
+  const openCommandDoc = commandUri ? vscode.workspace.textDocuments.find((d) => d.uri.toString() === commandUri.toString()) : undefined;
+  if (openCommandDoc?.isDirty) await openCommandDoc.save();
+
+  // CRTMNU TYPE(*DSPF) requires the display file's own record format to be
+  // named the same as the menu object - a hard IBM requirement, not an iSDA
+  // choice, so this is checked up front with an actionable message rather
+  // than left to fail cryptically partway through the compile sequence.
+  const sourceText = openDoc ? openDoc.getText() : Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+  const model = parseDspf(sourceText);
+  const objectName = parsed.name;
+  const hasMatchingRecord = model.records.some((r) => r.name.toUpperCase() === objectName.toUpperCase());
+  if (!hasMatchingRecord) {
+    vscode.window.showErrorMessage(
+      `iSDA: CRTMNU requires a record format named exactly "${objectName.toUpperCase()}" (same as the menu member) - found: ${
+        model.records.map((r) => r.name).join(', ') || '(none)'
+      }. Rename the record format (or the member) and try again.`
+    );
+    return;
+  }
+
+  let commandSource = '';
+  if (commandUri) {
+    try {
+      commandSource = openCommandDoc ? openCommandDoc.getText() : Buffer.from(await vscode.workspace.fs.readFile(commandUri)).toString('utf8');
+    } catch {
+      commandSource = '';
+    }
+  }
+  const commands = MnuCmdEngine.parseMnuCmd(commandSource).options;
+  if (commands.length === 0) {
+    const proceed = await vscode.window.showWarningMessage(
+      'iSDA: no option-to-command mappings found for this menu - every option will show "not correct" when selected. Compile anyway?',
+      'Compile Anyway',
+      'Cancel'
+    );
+    if (proceed !== 'Compile Anyway') return;
+  }
+
+  const library = parsed.library;
+  const srcFile = parsed.file;
+
+  async function run(command: string, label: string): Promise<{ ok: boolean; message: string }> {
+    try {
+      const result: any = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command, environment: 'ile' });
+      if (result && typeof result.code === 'number' && result.code !== 0) {
+        return { ok: false, message: `${label} failed:\n${result.stderr || result.stdout || 'unknown error'}` };
+      }
+      return { ok: true, message: '' };
+    } catch (err) {
+      return { ok: false, message: `${label} failed: ${err}` };
+    }
+  }
+
+  await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `iSDA: Compiling menu ${library}/${objectName}` }, async (progress) => {
+    progress.report({ message: 'Creating display file (CRTDSPF)...' });
+    let step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
+    if (!step.ok) {
+      vscode.window.showErrorMessage('iSDA: ' + step.message);
+      return;
+    }
+
+    progress.report({ message: 'Rebuilding message file...' });
+    // Deleting first is expected to "fail" harmlessly on the very first
+    // compile (nothing to delete yet) - not treated as an error.
+    await run(`DLTMSGF MSGF(${library}/${objectName})`, 'DLTMSGF');
+    step = await run(`CRTMSGF MSGF(${library}/${objectName})`, 'CRTMSGF');
+    if (!step.ok) {
+      vscode.window.showErrorMessage('iSDA: ' + step.message);
+      return;
+    }
+
+    for (const opt of commands) {
+      const msgId = 'USR' + opt.optionNumber; // USRnnnn - the format TYPE(*DSPF) menus expect
+      const escapedCommand = opt.command.replace(/'/g, "''");
+      step = await run(`ADDMSGD MSGID(${msgId}) MSGF(${library}/${objectName}) MSG('${escapedCommand}') SEV(00)`, `ADDMSGD for option ${opt.numberValue}`);
+      if (!step.ok) {
+        vscode.window.showErrorMessage('iSDA: ' + step.message);
+        return;
+      }
+    }
+
+    progress.report({ message: 'Creating menu object (CRTMNU)...' });
+    step = await run(`CRTMNU MENU(${library}/${objectName}) TYPE(*DSPF) DSPF(${library}/${objectName}) MSGF(${library}/${objectName}) REPLACE(*YES)`, 'CRTMNU');
+    if (!step.ok) {
+      vscode.window.showErrorMessage('iSDA: ' + step.message);
+      return;
+    }
+
+    vscode.window.showInformationMessage(`iSDA: Menu ${library}/${objectName} compiled. Try it with GO ${library}/${objectName}.`);
+  });
 }
 
 /** Opens the visual designer beside the current editor via the standard "open with a
@@ -337,6 +497,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         } catch (err) {
           vscode.window.showErrorMessage(`iSDA: failed to save menu commands to ${commandUri.path}: ${err}`);
         }
+      } else if (msg.type === 'compileMenu') {
+        await compileMenu(document.uri);
       } else if (msg.type === 'error') {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       }

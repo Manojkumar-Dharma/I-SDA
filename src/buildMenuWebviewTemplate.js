@@ -74,6 +74,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .add-option-btn:hover { border-color: var(--accent); }
   .add-option-btn:disabled { opacity: 0.5; cursor: default; }
   .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
+  .compile-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--accent); padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .compile-btn:hover { background: #1b2c22; }
 </style>
 </head>
 <body>
@@ -85,6 +87,8 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="section-label" style="margin-top:20px;">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="status" id="cmdStatus" style="margin-top:6px;"></div>
+  <button class="compile-btn" id="compileBtn" style="margin-top:20px;">Compile Menu (CRTMNU)</button>
+  <div class="status" style="margin-top:6px;">Runs CRTDSPF, rebuilds the message file, then CRTMNU on your connected IBM i. Requires Code for i.</div>
 </aside>
 <main>
   <div class="screen-frame"><div id="screenOutput"></div></div>
@@ -283,6 +287,11 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   addOptionBtn.addEventListener('click', addNewOption);
+
+  const compileBtn = document.getElementById('compileBtn');
+  compileBtn.addEventListener('click', () => {
+    vscode.postMessage({ type: 'compileMenu' });
+  });
 
   if (cmdStatusEl) {
     if (commandStatus === 'loaded') cmdStatusEl.textContent = 'Commands: ' + commandFileName;

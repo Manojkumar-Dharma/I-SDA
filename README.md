@@ -48,7 +48,12 @@ An IBM i SDA-style menu is really two source members working together:
 
 This currently only works for a MNUDDS member opened as a remote IBM i
 source member through [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi)
-(`member:` scheme) - see Known limitations below.
+(`member:` scheme) - see Known limitations below. **"Compile Menu
+(CRTMNU)"** (added v0.9.3) runs the real compile sequence via Code for i's
+`code-for-ibmi.runCommand` API - `CRTDSPF`, a from-scratch rebuild of the
+message file (`ADDMSGD` per option, using the `USRnnnn` message-ID format
+`TYPE(*DSPF)` menus expect - see [IBM's own note on adding a menu
+option](https://www.ibm.com/support/pages/node/7267003)), then `CRTMNU`.
 
 ## Getting started
 
@@ -109,7 +114,7 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   member once it's open.
 - Display-length rules for signed/edited numerics are approximated.
 
-### Menu design (v0.9, updated v0.9.1)
+### Menu design (v0.9, updated v0.9.1-0.9.3)
 
 - Only works for a MNUDDS member opened via Code for i's `member:` scheme
   (matches how these are actually edited in practice - SDA menus are IBM i
@@ -126,10 +131,18 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   write, and external edits to it are echoed into the options panel). Two
   menu designer instances racing to write the same `QQ` member at once is
   still unhandled - a rarer case than "the plain text member is also open".
-- No `CRTMNU`/compile integration - iSDA edits the two source members; you
-  still compile the menu the normal way (`CRTMNU` from the IBM i side, or a
-  Code for i compile action, once one is set up for MNUDDS/MNUCMD source
-  types).
+- New in v0.9.3: **"Compile Menu (CRTMNU)"**, a command and sidebar button
+  that runs `CRTDSPF`, rebuilds the message file (`DLTMSGF`/`CRTMSGF` +
+  `ADDMSGD` per option, `USRnnnn` message IDs), and `CRTMNU` on your
+  connected IBM i via [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi)'s
+  `code-for-ibmi.runCommand` API. Requires the DDS record format to be
+  named exactly the same as the menu member (CRTMNU's own requirement, not
+  iSDA's) - you'll get an actionable error rather than a cryptic IBM one if
+  it isn't. Only handles `TYPE(*DSPF)` menus (the kind SDA/this tool
+  builds) - not `TYPE(*UIM)` menus, an unrelated source format. The message
+  file is rebuilt from scratch every compile rather than incrementally
+  diffed, so any message IDs you added to it by hand outside of iSDA won't
+  survive a compile from here.
 
 ## License
 
