@@ -229,15 +229,18 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
  * follows the exact same single-source-of-truth / WorkspaceEdit pattern as
  * DspfDesignerEditorProvider (it IS a DSPF, reusing the same parser/engine in
  * the webview - see menuWebviewTemplate.ts). The companion MNUCMD member is
- * different: it's a *separate* document that usually isn't open in any editor,
- * so rather than requiring it be open to edit (as WorkspaceEdit would), this
- * writes to it directly via vscode.workspace.fs - the same approach
- * createNewDspf() below already uses to create a brand-new file. Known
- * limitation of that choice: if the companion member also happens to be open
- * in its own text editor tab, this won't update that buffer or go through its
- * undo stack - documented in the README rather than solved here, since
- * reconciling two independently-open documents that describe the same object
- * is a bigger problem than this vertical slice needs to take on yet.
+ * different: it's a *separate* document that usually isn't open in any
+ * editor, so this writes to it directly via vscode.workspace.fs by default -
+ * the same approach createNewDspf() below already uses to create a brand-new
+ * file - EXCEPT when that member happens to already be open in its own
+ * editor tab, in which case it's edited via WorkspaceEdit against that
+ * document instead (keeping its buffer, dirty-dot, and undo stack correct),
+ * and external edits to it are echoed back into the options panel the same
+ * way external edits to the MNUDDS document already are. What's still not
+ * handled: reconciling the companion member being open in a *second* menu
+ * designer at the same time (two designer instances racing to write it) -
+ * a genuinely rarer case than "someone has the plain text member open",
+ * left for later.
  */
 class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
   static readonly viewType = 'dspfDesigner.menuEditor';
@@ -273,16 +276,29 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     );
 
     // Same echo-suppression pattern as DspfDesignerEditorProvider, scoped to this
-    // editor instance's own applyEdit calls against the MNUDDS document. The
-    // companion MNUCMD write below deliberately does NOT participate in this -
-    // see the class doc comment on why it's a separate, simpler write path.
+    // editor instance's own applyEdit calls against the MNUDDS document.
     let applyingFromWebview = false;
+    // Same idea, scoped to our own writes to the companion MNUCMD document -
+    // only meaningful when that document is actually open (see below).
+    let applyingCommandFromWebview = false;
 
     const changeSub = vscode.workspace.onDidChangeTextDocument((e) => {
       if (e.document.uri.toString() !== document.uri.toString()) return;
       if (applyingFromWebview) return;
       webviewPanel.webview.postMessage({ type: 'externalUpdate', text: e.document.getText() });
     });
+
+    // If someone edits the companion MNUCMD member directly (its own editor
+    // tab, another extension, etc.) while this menu designer is open, reflect
+    // that back into the options panel - the same "stay in sync with the real
+    // document" contract the MNUDDS side already has via changeSub above.
+    const commandChangeSub = commandUri
+      ? vscode.workspace.onDidChangeTextDocument((e) => {
+          if (!commandUri || e.document.uri.toString() !== commandUri.toString()) return;
+          if (applyingCommandFromWebview) return;
+          webviewPanel.webview.postMessage({ type: 'externalCommandUpdate', text: e.document.getText() });
+        })
+      : undefined;
 
     const messageSub = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'applyEdit') {
@@ -299,8 +315,25 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
           );
           return;
         }
+        // If the companion member is ALSO open in its own editor tab, edit
+        // that document directly (WorkspaceEdit) rather than writing the file
+        // out from under it - keeps that tab's buffer, dirty-dot, and undo
+        // stack correct instead of silently going stale until reloaded (the
+        // gap called out in the 0.9.0/0.9.1 README notes). Otherwise, same
+        // direct workspace.fs.writeFile as before - there's no buffer to keep
+        // in sync with in that case.
+        const openCommandDoc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === commandUri!.toString());
         try {
-          await vscode.workspace.fs.writeFile(commandUri, Buffer.from(msg.text, 'utf8'));
+          if (openCommandDoc) {
+            const fullRange = new vscode.Range(openCommandDoc.positionAt(0), openCommandDoc.positionAt(openCommandDoc.getText().length));
+            const edit = new vscode.WorkspaceEdit();
+            edit.replace(openCommandDoc.uri, fullRange, msg.text);
+            applyingCommandFromWebview = true;
+            await vscode.workspace.applyEdit(edit);
+            applyingCommandFromWebview = false;
+          } else {
+            await vscode.workspace.fs.writeFile(commandUri, Buffer.from(msg.text, 'utf8'));
+          }
         } catch (err) {
           vscode.window.showErrorMessage(`iSDA: failed to save menu commands to ${commandUri.path}: ${err}`);
         }
@@ -311,6 +344,7 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.onDidDispose(() => {
       changeSub.dispose();
+      commandChangeSub?.dispose();
       messageSub.dispose();
     });
   }

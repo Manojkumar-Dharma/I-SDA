@@ -298,6 +298,13 @@ const htmlTemplate = `<!DOCTYPE html>
       sourceText = msg.text;
       model = DspfParser.parseDspf(sourceText);
       renderAll();
+    } else if (msg.type === 'externalCommandUpdate') {
+      // The companion MNUCMD member changed outside this designer (its own
+      // editor tab, another tool) - re-render just the options panel against
+      // the new mapping. The screen itself is untouched by this.
+      commandText = msg.text;
+      cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
+      renderOptions();
     }
   });
 

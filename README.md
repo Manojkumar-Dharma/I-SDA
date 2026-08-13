@@ -121,12 +121,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   options panel (see Architecture above) - it's placed at a sensible default
   position, not a chosen one, so double-check it against your screen layout
   and reposition via the screen designer's drag-to-move if needed.
-- The companion `QQ` member is written directly via `workspace.fs.writeFile`,
-  not a `WorkspaceEdit` against an open document (that document, unlike the
-  MNUDDS one, generally isn't open in an editor tab at all). This means: no
-  dirty-dot/save prompt for that member, and if it *does* happen to also be
-  open in its own text editor tab, that tab won't reflect the change until
-  reloaded.
+- New in v0.9.1: the companion `QQ` member stays in sync if it's also open
+  in its own editor tab (edited via `WorkspaceEdit` instead of a raw file
+  write, and external edits to it are echoed into the options panel). Two
+  menu designer instances racing to write the same `QQ` member at once is
+  still unhandled - a rarer case than "the plain text member is also open".
 - No `CRTMNU`/compile integration - iSDA edits the two source members; you
   still compile the menu the normal way (`CRTMNU` from the IBM i side, or a
   Code for i compile action, once one is set up for MNUDDS/MNUCMD source

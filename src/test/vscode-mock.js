@@ -38,6 +38,8 @@ class Uri {
 let lastAppliedEdit = null;
 let lastWrittenFile = null;
 const mockFiles = {}; // uri.toString() -> text content, for workspace.fs.readFile in tests
+const changeListeners = []; // every registered workspace.onDidChangeTextDocument handler
+const openTextDocuments = []; // simulates vscode.workspace.textDocuments
 
 const vscodeMock = {
   Range,
@@ -93,7 +95,11 @@ const vscodeMock = {
     },
     openTextDocument: () => Promise.resolve(mockDocument('')),
     applyEdit: (edit) => { lastAppliedEdit = edit; return Promise.resolve(true); },
-    onDidChangeTextDocument: (handler) => { vscodeMock.__changeListener = handler; return { dispose: () => {} }; },
+    onDidChangeTextDocument: (handler) => {
+      changeListeners.push(handler);
+      return { dispose: () => { const i = changeListeners.indexOf(handler); if (i >= 0) changeListeners.splice(i, 1); } };
+    },
+    get textDocuments() { return openTextDocuments; },
   },
   __registeredCommands: registeredCommands,
   __registeredCodeLensProviders: registeredCodeLensProviders,
@@ -105,6 +111,13 @@ const vscodeMock = {
   get __lastWrittenFile() { return lastWrittenFile; },
   __setMockFile: (uri, text) => { mockFiles[uri.toString()] = text; },
   __clearMockFiles: () => { Object.keys(mockFiles).forEach((k) => delete mockFiles[k]); },
+  __setOpenTextDocuments: (docs) => { openTextDocuments.length = 0; openTextDocuments.push(...docs); },
+  // Fires every currently-registered onDidChangeTextDocument listener with the
+  // given event, same as VS Code notifying every subscriber - NOT just the
+  // most recently registered one (earlier versions of this mock only tracked
+  // a single listener, which silently broke once the extension started
+  // registering more than one at a time).
+  get __changeListener() { return (event) => { changeListeners.slice().forEach((h) => h(event)); }; },
 };
 
 function mockDocument(text, uri) {

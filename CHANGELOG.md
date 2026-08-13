@@ -3,6 +3,27 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.2] - Unreleased
+
+### Added
+- **Companion MNUCMD member kept in sync when it's already open elsewhere**:
+  previously, saving option-command edits always wrote the `QQ` member
+  directly to disk via `workspace.fs`, which meant an already-open editor
+  tab for that same member wouldn't reflect the change (or worse, could
+  overwrite it back on save) - a limitation called out in 0.9.0. Now, if
+  that document is open, edits go through a normal `WorkspaceEdit` against
+  it instead (correct dirty-dot/undo/save behavior), and edits made to it
+  from elsewhere (that tab, another tool) are echoed back into the options
+  panel the same way external edits to the MNUDDS document already were.
+- `menu.test.js` extended to cover the open-companion-document sync path:
+  edits routed through `WorkspaceEdit` instead of `writeFile` when that
+  document is open, and external changes to it echoed back to the webview
+  (the `vscode` mock's `workspace.onDidChangeTextDocument` now supports
+  multiple concurrent listeners and a `workspace.textDocuments` list,
+  since it previously only ever tracked one subscriber).
+- `menuWebview.test.js` extended to cover `externalCommandUpdate` re-rendering
+  the options panel in a real DOM without touching the screen preview.
+
 ## [0.9.1] - Unreleased
 
 ### Added

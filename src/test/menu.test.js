@@ -109,6 +109,46 @@ function run() {
         vscodeMock.__lastWrittenFile.text === '0001 DSPLIBL\n0002 CHGCURLIB\n'
     );
 
+    console.log('\nresolveCustomTextEditor() - companion MNUCMD member ALSO open in its own editor tab');
+    const openCompanionUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENUQQ.MNUCMD');
+    const openCompanionDoc = vscodeMock.__mockDocument('0001 DSPLIBL\n', openCompanionUri);
+    vscodeMock.__setOpenTextDocuments([openCompanionDoc]);
+
+    let htmlSet4 = null;
+    let messageHandler4 = null;
+    const postedToWebview4 = [];
+    const fakeWebviewPanel4 = {
+      webview: {
+        cspSource: 'vscode-webview://fake',
+        options: null,
+        set html(v) { htmlSet4 = v; },
+        get html() { return htmlSet4; },
+        onDidReceiveMessage: (h) => { messageHandler4 = h; return { dispose: () => {} }; },
+        postMessage: (m) => { postedToWebview4.push(m); },
+      },
+      onDidDispose: () => {},
+    };
+    await menuProviderEntry.provider.resolveCustomTextEditor(doc, fakeWebviewPanel4, {});
+
+    const writtenFileBefore = vscodeMock.__lastWrittenFile;
+    await messageHandler4({ type: 'applyMenuCmdEdit', text: '0001 DSPLIBL\n0002 CHGCURLIB\n' });
+    const applied = vscodeMock.__lastAppliedEdit;
+    check(
+      'edits the OPEN companion document via WorkspaceEdit instead of writeFile',
+      applied &&
+        applied.edits.length > 0 &&
+        applied.edits[applied.edits.length - 1].uri.toString() === openCompanionUri.toString() &&
+        applied.edits[applied.edits.length - 1].newText === '0001 DSPLIBL\n0002 CHGCURLIB\n'
+    );
+    check('does NOT fall back to workspace.fs.writeFile when the document is open', vscodeMock.__lastWrittenFile === writtenFileBefore);
+
+    console.log('\nexternal edit to the open companion document -> echoed into the options panel');
+    vscodeMock.__changeListener({ document: vscodeMock.__mockDocument('0001 DSPLIBL\n0002 CALL PGM2\n', openCompanionUri) });
+    const externalMsg = postedToWebview4.find((m) => m.type === 'externalCommandUpdate');
+    check('posts externalCommandUpdate with the new command source', externalMsg && externalMsg.text === '0001 DSPLIBL\n0002 CALL PGM2\n');
+
+    vscodeMock.__setOpenTextDocuments([]); // reset for the scenarios below, which assume no open companion doc
+
     console.log('\nresolveCustomTextEditor() - member with NO companion MNUCMD yet');
     vscodeMock.__clearMockFiles();
     let htmlSet2 = null;

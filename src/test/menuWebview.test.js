@@ -102,6 +102,15 @@ setTimeout(() => {
   const newRows = doc.querySelectorAll('.option-row');
   check('the new option now appears in the rendered options panel', newRows.length === 4 && Array.from(newRows).some((r) => r.querySelector('.option-label').textContent === 'Reindex files'));
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\nexternalCommandUpdate message -> re-renders options without touching the screen');
+  const screenBefore = doc.getElementById('screenOutput').innerHTML;
+  dom.window.postMessage({ type: 'externalCommandUpdate', text: '0001 DSPLIBL\n0002 CALL PGM2\n' }, '*');
+  setTimeout(() => {
+    const rows = doc.querySelectorAll('.option-row');
+    check('option 2 now shows the externally-updated command', rows[1].querySelector('.option-cmd').value === 'CALL PGM2');
+    check('the screen preview itself is untouched by a command-only update', doc.getElementById('screenOutput').innerHTML === screenBefore);
+
+    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+    process.exit(failures === 0 ? 0 : 1);
+  }, 50);
 }, 100);
