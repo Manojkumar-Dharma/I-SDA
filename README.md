@@ -114,7 +114,7 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   member once it's open.
 - Display-length rules for signed/edited numerics are approximated.
 
-### Menu design (v0.9, updated v0.9.1-0.9.3)
+### Menu design (v0.9, updated v0.9.1-0.9.4)
 
 - Only works for a MNUDDS member opened via Code for i's `member:` scheme
   (matches how these are actually edited in practice - SDA menus are IBM i
@@ -143,7 +143,16 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   file is rebuilt from scratch every compile rather than incrementally
   diffed, so any message IDs you added to it by hand outside of iSDA won't
   survive a compile from here.
+- New in v0.9.4: option label text is editable directly in the options
+  panel (not just the command); you can **drag one option row onto another
+  to swap them** - label and command trade places between the two option
+  numbers, numbers stay at their own screen position; and the record format
+  itself can be **renamed** from the sidebar. Renaming only rewrites the
+  record's own line - it scans the rest of the file for anything that looks
+  like it references the old name (`SFLCTL`, `WINDOW`, `MNUBARCHC`) and
+  warns with line numbers if it finds any, but doesn't rewrite them for you.
 
 ## License
 
 MIT — see `LICENSE`.
+

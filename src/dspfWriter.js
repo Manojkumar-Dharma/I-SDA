@@ -425,6 +425,34 @@
   }
 
   /**
+   * Renames a record format's own R-line - deliberately a SEPARATE function
+   * from applyRecordUpdate rather than an extra field on it, so that
+   * function's existing "name is read-only" contract (see its own comment)
+   * stays exactly as-is for every other caller. This is scoped specifically
+   * for the menu designer, where the record format name has one legitimate
+   * reason to change: CRTMNU TYPE(*DSPF) requires it to match the menu
+   * member's own name (see compileMenu's pre-flight check in extension.ts).
+   * Does NOT rewrite any cross-reference to the OLD name elsewhere in the
+   * file (SFLCTL(name), WINDOW(... name ...), MNUBARCHC(id name text), a
+   * HELP record's own conditioning, etc.) - same reasoning applyRecordUpdate
+   * already gives for treating this as genuinely risky to automate. Callers
+   * are expected to scan for likely references to the old name themselves
+   * and warn the user before calling this - see the menu webview's
+   * findLikelyNameReferences() for the one this ships with.
+   */
+  function renameRecordFormat(record, sourceLines, newName) {
+    var updated = { name: newName, conditions: record.conditions, keywords: record.keywords };
+
+    var range = getRecordLineRange(record);
+    var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
+    var originalLine1to6 = (originalRangeLines[0] || '').slice(0, 6);
+
+    var newLines = serializeRecordEntry(updated, originalLine1to6);
+    newLines = restampSequenceNumbers(newLines, originalRangeLines);
+    return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
+  }
+
+  /**
    * Applies `updates` (a partial field object - any of name/length/dataType/decimalPositions/
    * usage/location{line,column}/keywords) to a copy of `field`, regenerates its source lines,
    * and splices them into `sourceLines` (array of original line strings, 1 per array index
@@ -528,5 +556,6 @@
     getRecordLineRange: getRecordLineRange,
     serializeRecordEntry: serializeRecordEntry,
     applyRecordUpdate: applyRecordUpdate,
+    renameRecordFormat: renameRecordFormat,
   };
 });

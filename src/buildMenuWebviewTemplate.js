@@ -60,10 +60,13 @@ const htmlTemplate = `<!DOCTYPE html>
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
   .empty-state { color: var(--ink-dim); font-size: 13px; line-height: 1.5; }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 0 0 10px; }
-  .option-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--panel-border); }
+  .option-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--panel-border); cursor: grab; }
+  .option-row.drag-over { background: rgba(51,255,102,0.08); border-top: 1px dashed var(--accent); }
+  .option-row.dragging { opacity: 0.4; }
   .option-num { flex: 0 0 26px; color: var(--accent); font-weight: 600; font-size: 15px; text-align: right; padding-top: 4px; }
   .option-body { flex: 1; min-width: 0; }
-  .option-label { font-size: 12px; color: var(--ink); margin-bottom: 6px; overflow-wrap: anywhere; }
+  .option-label-input { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; margin-bottom: 6px; }
+  .option-label-input:focus { border-color: var(--accent); outline: none; }
   .option-cmd { width: 100%; background: #0d1310; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
   .option-cmd:focus { border-color: var(--accent); outline: none; }
   .add-option { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--panel-border); }
@@ -76,6 +79,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
   .compile-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--accent); padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
   .compile-btn:hover { background: #1b2c22; }
+  .rename-row { display: flex; gap: 6px; margin-top: 8px; }
+  .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .rename-btn:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -84,6 +91,11 @@ const htmlTemplate = `<!DOCTYPE html>
   <h2>Menu Design</h2>
   <div class="section-label">Record</div>
   <select id="recordSelect"></select>
+  <div class="rename-row">
+    <input type="text" class="rename-input" id="recordNameInput" />
+    <button class="rename-btn" id="recordRenameBtn">Rename</button>
+  </div>
+  <div class="add-option-error" id="recordRenameError"></div>
   <div class="section-label" style="margin-top:20px;">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="status" id="cmdStatus" style="margin-top:6px;"></div>
@@ -129,6 +141,9 @@ const htmlTemplate = `<!DOCTYPE html>
   const addOptionLabelInput = document.getElementById('addOptionLabel');
   const addOptionBtn = document.getElementById('addOptionBtn');
   const addOptionError = document.getElementById('addOptionError');
+  const recordNameInput = document.getElementById('recordNameInput');
+  const recordRenameBtn = document.getElementById('recordRenameBtn');
+  const recordRenameError = document.getElementById('recordRenameError');
 
   // A menu option is any DDS constant shaped like "1. Do a thing" or "12) Do a thing" -
   // that's the one thing that distinguishes menu-option text from any other constant
@@ -168,6 +183,22 @@ const htmlTemplate = `<!DOCTYPE html>
     return found ? found.command : '';
   }
 
+  // Fresh lookup by option number (not a name - CONSTANT fields don't have
+  // one) against a given model, rather than reusing a field reference from
+  // before an edit - the same "re-fetch after each edit, don't trust a
+  // stale reference" discipline the screen designer's group-drag uses,
+  // since editing one field can shift source line numbers for others.
+  function findOptionField(m, numberValue) {
+    for (const record of m.records) {
+      for (const f of record.fields) {
+        if (f.nameType !== 'CONSTANT' || f.constantValue == null) continue;
+        const match = OPTION_RE.exec(f.constantValue);
+        if (match && parseInt(match[1], 10) === numberValue) return f;
+      }
+    }
+    return null;
+  }
+
   function escapeHtml(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
   function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
 
@@ -180,6 +211,7 @@ const htmlTemplate = `<!DOCTYPE html>
       recordSelect.appendChild(opt);
     });
     if (model.records.some((r) => r.name === prev)) recordSelect.value = prev;
+    if (recordNameInput) recordNameInput.value = recordSelect.value || '';
   }
 
   function renderScreen() {
@@ -192,6 +224,82 @@ const htmlTemplate = `<!DOCTYPE html>
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
   }
 
+  function updateOptionLabel(numberValue, newLabel) {
+    const field = findOptionField(model, numberValue);
+    if (!field) return;
+    const label = newLabel.trim();
+    if (!label) return; // an empty label would leave a dangling "N. " - just ignore, same as leaving it unedited
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.applyFieldUpdate(field, lines, { constantValue: MnuCmdEngine.padOptionNumber(numberValue).replace(/^0+(?=\\d)/, '') + '. ' + label });
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    renderAll();
+  }
+
+  // Swaps what's shown at two option NUMBERS - label text AND command -
+  // while each number stays at its own screen position. This is what
+  // actually reorders visibly in the options panel (which always lists by
+  // number): dragging option 1 onto option 10 makes option 1's row show
+  // what option 10 used to show, and vice versa. The alternative - swapping
+  // which screen position holds which number - would leave the panel
+  // looking identical (still sorted 1, 2, 10 either way) with the only
+  // visible change buried in the screen preview, which isn't what dragging
+  // items in a list is expected to do.
+  function swapOptions(numberA, numberB) {
+    if (numberA === numberB) return;
+    const fieldA = findOptionField(model, numberA);
+    const fieldB = findOptionField(model, numberB);
+    if (!fieldA || !fieldB) return;
+    const matchA = OPTION_RE.exec(fieldA.constantValue);
+    const matchB = OPTION_RE.exec(fieldB.constantValue);
+    if (!matchA || !matchB) return;
+    const labelA = matchA[2].trim();
+    const labelB = matchB[2].trim();
+
+    if (commandStatus === 'unsupported') {
+      vscode.postMessage({ type: 'error', message: 'This menu was not opened from an IBM i source member (Code for i), so there is nowhere to save the swapped commands.' });
+      return;
+    }
+
+    const paddedA = String(numberA);
+    const paddedB = String(numberB);
+
+    // Later-in-file edit first, same reasoning as elsewhere (commitGroupEdit
+    // in the screen designer, addNewOption above): editing the earlier
+    // field first would shift source line numbers out from under the
+    // second lookup.
+    const aIsLater = (fieldA.location.line || 0) >= (fieldB.location.line || 0);
+    const firstNum = aIsLater ? numberA : numberB;
+    const firstValue = aIsLater ? paddedA + '. ' + labelB : paddedB + '. ' + labelA;
+    const secondNum = aIsLater ? numberB : numberA;
+    const secondValue = aIsLater ? paddedB + '. ' + labelA : paddedA + '. ' + labelB;
+
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    let currentModel = model;
+
+    let f = findOptionField(currentModel, firstNum);
+    lines = DspfWriter.applyFieldUpdate(f, lines, { constantValue: firstValue });
+    currentModel = DspfParser.parseDspf(lines.join('\\n'));
+
+    f = findOptionField(currentModel, secondNum);
+    lines = DspfWriter.applyFieldUpdate(f, lines, { constantValue: secondValue });
+    currentModel = DspfParser.parseDspf(lines.join('\\n'));
+
+    sourceText = lines.join('\\n');
+    model = currentModel;
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+
+    const commandA = commandFor(numberA);
+    const commandB = commandFor(numberB);
+    commandText = MnuCmdEngine.applyOptionCommand(commandText, numberA, commandB);
+    commandText = MnuCmdEngine.applyOptionCommand(commandText, numberB, commandA);
+    cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
+    vscode.postMessage({ type: 'applyMenuCmdEdit', text: commandText });
+
+    renderAll();
+  }
+
   function renderOptions() {
     const options = extractMenuOptions(model);
     optionsBody.innerHTML = '';
@@ -202,14 +310,19 @@ const htmlTemplate = `<!DOCTYPE html>
     options.forEach((opt) => {
       const row = document.createElement('div');
       row.className = 'option-row';
+      row.draggable = true;
       const command = commandFor(opt.numberValue);
       const numLabel = String(opt.numberValue);
       row.innerHTML =
         '<div class="option-num">' + numLabel + '</div>' +
         '<div class="option-body">' +
-        '<div class="option-label">' + escapeHtml(opt.label || '(no label text)') + '</div>' +
+        '<input type="text" class="option-label-input" value="' + escapeAttr(opt.label) + '" placeholder="Option text" />' +
         '<input type="text" class="option-cmd" value="' + escapeAttr(command) + '" placeholder="Command to run, e.g. CALL PGM1" />' +
         '</div>';
+
+      const labelInput = row.querySelector('.option-label-input');
+      labelInput.addEventListener('change', () => updateOptionLabel(opt.numberValue, labelInput.value));
+
       const input = row.querySelector('.option-cmd');
       input.addEventListener('change', () => {
         if (commandStatus === 'unsupported') {
@@ -221,6 +334,25 @@ const htmlTemplate = `<!DOCTYPE html>
         cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
         vscode.postMessage({ type: 'applyMenuCmdEdit', text: commandText });
       });
+
+      // Drag-to-swap: drop this row onto another to swap their (number +
+      // label) screen positions - see swapOptions() above. Dragging starts
+      // from anywhere on the row EXCEPT the two text inputs, so selecting
+      // text to edit it doesn't accidentally start a drag.
+      row.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', String(opt.numberValue));
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => row.classList.remove('dragging'));
+      row.addEventListener('dragover', (e) => { e.preventDefault(); row.classList.add('drag-over'); });
+      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        row.classList.remove('drag-over');
+        const draggedNumber = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        if (!isNaN(draggedNumber)) swapOptions(draggedNumber, opt.numberValue);
+      });
+
       optionsBody.appendChild(row);
     });
   }
@@ -287,6 +419,88 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   addOptionBtn.addEventListener('click', addNewOption);
+
+  // Best-effort advisory scan for other lines that might reference this
+  // record by name (SFLCTL(name), WINDOW(... name ...), MNUBARCHC(id name
+  // text), etc.) - renameRecordFormat() only rewrites the record's OWN
+  // R-line, same reasoning DspfWriter.applyRecordUpdate already documents
+  // for treating a rename as genuinely risky to fully automate. \\b treats
+  // only [A-Za-z0-9_] as word characters, so a name starting/ending with
+  // $/#/@ won't match as precisely - good enough for an advisory warning,
+  // not a hard guarantee.
+  function isDdsWordChar(ch) {
+    return /[A-Z0-9_]/.test(ch);
+  }
+
+  // Deliberately not a dynamically-built regex - the name being searched for
+  // is itself the variable part, and there's no need to fight regex
+  // metacharacter escaping (DDS names can contain $#@) when a plain
+  // case-insensitive substring scan with a manual word-boundary check does
+  // the same job with nothing to get wrong.
+  function findLikelyNameReferences(text, name, excludeLineRange) {
+    if (!name) return [];
+    const upperName = name.toUpperCase();
+    const lines = text.split(/\\r\\n|\\r|\\n/);
+    const hits = [];
+    lines.forEach((line, idx) => {
+      const lineNo = idx + 1;
+      if (excludeLineRange && lineNo >= excludeLineRange[0] && lineNo <= excludeLineRange[1]) return;
+      const upperLine = line.toUpperCase();
+      let searchFrom = 0;
+      while (true) {
+        const pos = upperLine.indexOf(upperName, searchFrom);
+        if (pos === -1) break;
+        const before = pos > 0 ? upperLine[pos - 1] : '';
+        const after = pos + upperName.length < upperLine.length ? upperLine[pos + upperName.length] : '';
+        if (!isDdsWordChar(before) && !isDdsWordChar(after)) {
+          hits.push(lineNo);
+          break;
+        }
+        searchFrom = pos + 1;
+      }
+    });
+    return hits;
+  }
+
+  recordRenameBtn.addEventListener('click', () => {
+    recordRenameError.textContent = '';
+    const oldName = recordSelect.value;
+    const newName = (recordNameInput.value || '').trim().toUpperCase();
+    if (!oldName) return;
+    if (!newName) {
+      recordRenameError.textContent = 'Enter a record format name.';
+      return;
+    }
+    if (newName === oldName) return;
+    if (!/^[A-Z$#@][A-Z0-9$#@_]{0,9}$/.test(newName)) {
+      recordRenameError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).';
+      return;
+    }
+    if (model.records.some((r) => r.name === newName)) {
+      recordRenameError.textContent = 'A record format named ' + newName + ' already exists.';
+      return;
+    }
+
+    const record = model.records.find((r) => r.name === oldName);
+    if (!record) return;
+    const ownRange = DspfWriter.getRecordLineRange(record);
+    const references = findLikelyNameReferences(sourceText, oldName, ownRange);
+    if (references.length > 0) {
+      vscode.postMessage({
+        type: 'error',
+        message:
+          'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might reference "' + oldName +
+          '" (SFLCTL, WINDOW, MNUBARCHC, etc.) - renaming only updates the record\\'s own line. Review those manually after renaming.',
+      });
+    }
+
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.renameRecordFormat(record, lines, newName);
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    renderAll();
+  });
 
   const compileBtn = document.getElementById('compileBtn');
   compileBtn.addEventListener('click', () => {

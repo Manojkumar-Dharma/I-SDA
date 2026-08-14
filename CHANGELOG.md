@@ -3,6 +3,52 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.4] - Unreleased
+
+### Added
+- **Editable option label text**: the options panel's label field (previously
+  read-only display text) is now an input - editing it rewrites the DDS
+  constant's text in place via `DspfWriter.applyFieldUpdate({ constantValue })`,
+  which already supported this (no new writer code needed - only the UI was
+  missing). The option number stays fixed; only the label portion changes.
+- **Drag-to-swap options**: drag one option row onto another to swap what's
+  shown at each option NUMBER - label text and command together. Numbers
+  stay put at their own screen position (so the options panel, which always
+  lists by number, visibly shows the swap); MNUCMD is updated too, since the
+  command is meant to follow its label. Dropping a row onto itself is a
+  no-op. (An earlier version of this swapped which screen position held
+  which number instead - technically well-defined, but invisible in a list
+  that's always sorted by number, so not what "drag to reorder" should feel
+  like; reworked before shipping.)
+- **Rename a record format** (the menu's own name, which `CRTMNU
+  TYPE(*DSPF)` requires to match the member name - see 0.9.3's compile
+  guard): a new "Rename" control next to the record picker, backed by a new
+  `DspfWriter.renameRecordFormat()`. Deliberately a SEPARATE function from
+  the existing `applyRecordUpdate` rather than extending it - that function
+  explicitly treats renaming as unsupported (see its own comment) because
+  other parts of a file can reference a record by name (`SFLCTL(name)`,
+  `WINDOW(... name ...)`, `MNUBARCHC(id name text)`) and wouldn't be
+  updated by a blind rename. This still doesn't rewrite those references,
+  but now scans the rest of the source for anything that looks like one and
+  warns with the specific line numbers before proceeding, rather than
+  silently leaving them dangling. Validates the new name is well-formed DDS
+  (1-10 chars, starts with a letter or `$#@`) and not already in use.
+- `src/test/dspfWriter.test.js` extended: `renameRecordFormat()` - renames
+  correctly, preserves column alignment and every other line untouched.
+- `menuWebview.test.js` extended: editable label (DOM round-trip + DDS
+  output), drag-to-swap (both `applyEdit` and `applyMenuCmdEdit` fire, the
+  right content ends up at the right number, self-drop is a no-op), record
+  rename (happy path + validation), and a dedicated second-fixture scenario
+  proving the cross-reference warning actually fires for a real `SFLCTL`
+  reference and still applies the rename anyway (advisory, not a block).
+- In the course of building this, found and fixed a genuine escaping bug in
+  a dynamically-built regex (`name.replace(/\$/g, ...)` silently lost its
+  backslashes when hand-typed inside the outer build-script template
+  literal - the same class of bug hit twice earlier in this project, this
+  time for `\$`/`\b` rather than `\r`/`\n`). Fixed by removing the dynamic
+  regex construction entirely in favor of a plain substring scan with a
+  manual word-boundary check, rather than fighting the escaping further.
+
 ## [0.9.3] - Unreleased
 
 ### Added

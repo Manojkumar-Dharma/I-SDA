@@ -83,5 +83,26 @@ console.log('\nDspfWriter.insertField() - long label wraps with continuation, ro
   check('the wrapped constant reparses back to the exact original text', fields[1].constantValue === longLabel);
 }
 
+console.log('\nDspfWriter.renameRecordFormat() - renames the R-line, preserves everything else');
+{
+  const src =
+    [
+      "     A                                      DSPSIZ(24 80 *DS3)",
+      "     A          R OLDNAME",
+      "     A                                  1  2'MAIN MENU'",
+      "     A                                  3  5'1. Display library list'",
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'OLDNAME');
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.renameRecordFormat(record, lines, 'NEWNAME');
+  check('column 17 still carries the record-type R, matching every other record line', newLines.find((l) => l.includes('NEWNAME'))[16] === 'R');
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('renames the record', reparsed.records.length === 1 && reparsed.records[0].name === 'NEWNAME');
+  check('preserves the DSPSIZ keyword line untouched', newLines[0].includes('DSPSIZ(24 80 *DS3)'));
+  check("preserves the record's fields untouched", reparsed.records[0].fields.length === 2 && reparsed.records[0].fields[0].constantValue === 'MAIN MENU');
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
