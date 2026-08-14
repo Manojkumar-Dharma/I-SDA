@@ -114,7 +114,7 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   member once it's open.
 - Display-length rules for signed/edited numerics are approximated.
 
-### Menu design (v0.9, updated v0.9.1-0.9.4)
+### Menu design (v0.9, updated v0.9.1-0.9.5)
 
 - Only works for a MNUDDS member opened via Code for i's `member:` scheme
   (matches how these are actually edited in practice - SDA menus are IBM i

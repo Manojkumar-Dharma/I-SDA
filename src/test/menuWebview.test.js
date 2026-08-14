@@ -214,7 +214,137 @@ function runCrossReferenceWarningScenario() {
     check('still applies the rename despite the warning (advisory, not a hard block)', refPosted.some((m) => m.type === 'applyEdit' && m.text.includes('R RENAMED')));
     check("does NOT rewrite the SFLCTL reference itself (the documented gap)", refPosted.some((m) => m.type === 'applyEdit' && m.text.includes('SFLCTL(MENU)')));
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    runSplitConstantScenario();
+  }, 100);
+}
+
+/**
+ * A real SDA layout pattern: the option number and its label text as two
+ * SEPARATE DDS constants on the same line (e.g. "1." at col 7, the label
+ * at col 10), rather than one combined "1. Label" constant. Earlier
+ * versions of extractMenuOptions() only recognized the combined form - a
+ * split-form option's number marker matched with an empty captured label,
+ * so the real label text was invisible in the panel, and editing it
+ * overwrote the number marker instead of the actual label constant.
+ */
+function runSplitConstantScenario() {
+  console.log('\nsplit-constant options (number and label as two separate DDS constants on the same line)');
+  const splitSource =
+    [
+      "     A          R MENU",
+      "     A                                  5  7'1.'",
+      "     A                                  5 10'Display current library list'",
+      "     A                                  6  7'2. Change current library'",
+    ].join('\n') + '\n';
+  const splitHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce3', splitSource, '', 'SPLIT.MNUDDS', 'SPLITQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const splitPosted = [];
+  const splitDom = new JSDOM(splitHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => splitPosted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const splitDoc = splitDom.window.document;
+    const rows = Array.from(splitDoc.querySelectorAll('.option-row'));
+    check('finds both options despite the split-constant form', rows.length === 2);
+    const row1 = rows.find((r) => r.querySelector('.option-num').textContent === '1');
+    check('option 1s label comes from the SEPARATE label constant, not left blank', row1 && row1.querySelector('.option-label-input').value === 'Display current library list');
+    const row2 = rows.find((r) => r.querySelector('.option-num').textContent === '2');
+    check('a combined-form option in the same file still works too', row2 && row2.querySelector('.option-label-input').value === 'Change current library');
+
+    console.log('  editing a split-constant option writes the label constant, not the number marker');
+    const labelInput = row1.querySelector('.option-label-input');
+    labelInput.value = 'Show libraries';
+    labelInput.dispatchEvent(new splitDom.window.Event('change', { bubbles: true }));
+    const editMsg = splitPosted.find((m) => m.type === 'applyEdit');
+    check('the number marker constant is untouched', editMsg && editMsg.text.includes("'1.'"));
+    check('the label constant is updated, verbatim, with no number prefix', editMsg && editMsg.text.includes("'Show libraries'") && !editMsg.text.includes("'1. Show libraries'"));
+
+    runScreenSpaceScenario();
+  }, 100);
+}
+
+/**
+ * "+ Add option" used to always place a new option one row below the last
+ * one with no bounds checking at all, which could push it past the
+ * screen's own DSPSIZ row limit, or land it directly on top of an
+ * already-occupied row (a "Selection or command" prompt, function-key
+ * text, etc.), silently corrupting the layout either way.
+ */
+function runScreenSpaceScenario() {
+  console.log('\n"+ Add option" respects DSPSIZ and does not overwrite an occupied row');
+
+  console.log('  skips an occupied row and lands on the next free one');
+  const roomySource =
+    [
+      "     A                                      DSPSIZ(24 80 *DS3)",
+      "     A          R MENU",
+      "     A                                 22  5'1. Display library list'",
+      "     A  10        CMDLINE       80   B 23  2",
+    ].join('\n') + '\n';
+  const roomyHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce4', roomySource, '', 'ROOMY.MNUDDS', 'ROOMYQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const roomyPosted = [];
+  const roomyDom = new JSDOM(roomyHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => roomyPosted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const roomyDoc = roomyDom.window.document;
+    roomyDoc.getElementById('addOptionNum').value = '2';
+    roomyDoc.getElementById('addOptionLabel').value = 'Change current library';
+    roomyDoc.getElementById('addOptionBtn').dispatchEvent(new roomyDom.window.Event('click', { bubbles: true }));
+    const roomyMsg = roomyPosted.find((m) => m.type === 'applyEdit');
+    check('places the new option on row 24, skipping occupied row 23', roomyMsg && /24\s+5'2\. Change current library'/.test(roomyMsg.text));
+    check('does not touch the occupied CMDLINE row', roomyMsg && roomyMsg.text.includes('CMDLINE'));
+
+    console.log('  refuses to add an option when there is genuinely no room left');
+    const fullSource =
+      [
+        "     A                                      DSPSIZ(24 80 *DS3)",
+        "     A          R MENU",
+        "     A                                 22  5'1. Display library list'",
+        "     A  10        CMDLINE       80   B 23  2",
+        "     A                                 24  2'F3=Exit'",
+      ].join('\n') + '\n';
+    const fullHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce5', fullSource, '', 'FULL.MNUDDS', 'FULLQQ.MNUCMD', 'missing').replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const fullPosted = [];
+    const fullDom = new JSDOM(fullHtml, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ postMessage: (m) => fullPosted.push(m) });
+      },
+    });
+
+    setTimeout(() => {
+      const fullDoc = fullDom.window.document;
+      fullDoc.getElementById('addOptionNum').value = '2';
+      fullDoc.getElementById('addOptionLabel').value = 'Change current library';
+      fullDoc.getElementById('addOptionBtn').dispatchEvent(new fullDom.window.Event('click', { bubbles: true }));
+      check('shows a "no room" error naming the DSPSIZ/occupied-row cause', /no room|DSPSIZ/i.test(fullDoc.getElementById('addOptionError').textContent));
+      check('does NOT post applyEdit when there is no room', !fullPosted.some((m) => m.type === 'applyEdit'));
+
+      console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+      process.exit(failures === 0 ? 0 : 1);
+    }, 100);
   }, 100);
 }
