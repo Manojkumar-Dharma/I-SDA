@@ -3,6 +3,56 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.5] - Unreleased
+
+### Fixed
+- **Split-constant option text wasn't recognized, and editing it overwrote
+  the number marker instead.** A real SDA layout pattern lays out a menu
+  option's number and its label text as two SEPARATE DDS constants on the
+  same line (e.g. `1.` at column 7, the label text at column 10 - for
+  consistent column alignment across every option), not always as one
+  combined `1. Label` constant. `extractMenuOptions()` only ever recognized
+  the combined form; a split-form option's number marker matched with an
+  empty captured label, so its real label text (sitting in the other
+  constant) never showed up in the options panel, and editing the
+  (apparently blank) label field overwrote the NUMBER marker's text
+  instead of the actual label - silent data corruption on save. Now
+  detects both forms: a number-only constant (`1.` with nothing else on
+  it) is paired with the next constant to its right on the same source
+  line, if one exists. Reading, editing, swapping, and the record-rename
+  scan all go through the same option model either way, so every editing
+  path in the designer treats both forms identically and correctly - only
+  the exact constant that actually holds the label text ever gets
+  rewritten. (A number marker with genuinely no paired constant yet - just
+  `1.` with nothing to its right anywhere on the line - now inserts a new
+  label constant next to it on first edit, rather than having nowhere to
+  write the label at all.)
+- **"+ Add option" could push a new option past the screen size, or land it
+  directly on top of an existing field.** Previously it always placed a new
+  option exactly one row below the last existing one, with no check against
+  the screen's own `DSPSIZ` row limit or whether that row was already used
+  by something else (a "Selection or command" prompt, function-key text,
+  another field placed there for any reason) - silently producing an
+  off-screen field or two DDS entries overlapping the same row/column
+  either way. Now scans forward from that starting row for the first
+  actually-free row, bounded by `DSPSIZ`'s row count (record-level keyword
+  first, then file-level, defaulting to 24 if neither is present or
+  parseable) - and if there's genuinely no room left before hitting that
+  limit, shows an inline error explaining why and adds nothing, rather
+  than corrupting the layout.
+- Along the way, found (and ruled out as a false alarm after empirical
+  verification) a suspected third instance of the recurring
+  hand-typed-regex-escaping bug class - see 0.9.4's entry for the real
+  one. Worth calling out because the investigation is a good example of
+  why this project trusts test output and direct runtime verification
+  over reasoning about the build pipeline's multiple re-parsing stages
+  from first principles.
+- `menuWebview.test.js` extended with dedicated fixtures for both: a
+  split-constant menu (finds both options, edits the correct constant,
+  leaves the number marker untouched) and a screen-space scenario (skips
+  an occupied row and lands on the next free one; refuses outright, with
+  no `applyEdit`, when there's genuinely no room left).
+
 ## [0.9.4] - Unreleased
 
 ### Added

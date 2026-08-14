@@ -149,26 +149,82 @@ const htmlTemplate = `<!DOCTYPE html>
 
   // A menu option is any DDS constant shaped like "1. Do a thing" or "12) Do a thing" -
   // that's the one thing that distinguishes menu-option text from any other constant
-  // on the screen (there's no dedicated DDS keyword for it - SDA menus are plain DDS
-  // plus a convention). See isLikelyMenuFile() in extension.ts for the same pattern
-  // used to decide whether to offer this designer at all.
-  const OPTION_RE = /^\\s*(\\d{1,2})[.\\)]\\s*(.*)$/;
+  // A menu option's NUMBER is a constant shaped like "1." or "12)" - by
+  // itself when the number and label are two separate DDS constants (SDA
+  // commonly lays out menus this way, e.g. one constant at col 7 for "1."
+  // and a second one at col 10 for the label text, for consistent column
+  // alignment across every option), or with the label text right on the
+  // same constant ("1. Do a thing") when it isn't. NUMBER_ONLY_RE detects
+  // the split form's number marker; COMBINED_RE detects the single-constant
+  // form. Earlier versions of this file only recognized the combined form -
+  // a split-form option's number marker matched COMBINED_RE too (with an
+  // empty captured label), so its real label text sitting in a SEPARATE
+  // constant was invisible to the options panel, and editing it overwrote
+  // the number marker instead of the actual label. Fixed by detecting both
+  // forms and pairing a number-only marker with the next constant to its
+  // right on the same source line.
+  const NUMBER_ONLY_RE = /^\\s*(\\d{1,2})[.\\)]\\s*$/;
+  const COMBINED_RE = /^\\s*(\\d{1,2})[.\\)]\\s*(\\S.*)$/;
+  const OPTION_RE = COMBINED_RE; // kept as an alias - existing add/rename code only ever needs the combined shape
 
+  /**
+   * Scans every CONSTANT field in the model for menu options in either
+   * form. Returns one entry per option number with enough to both render
+   * and edit correctly regardless of which form it's in:
+   *   - numberField: the constant holding "N." or "N. label"
+   *   - labelField: the constant holding the label text - same object as
+   *     numberField for the combined form, a separate constant for the
+   *     split form, or null if a number marker has no paired text at all
+   *     (a bare "1." with nothing else on that line to its right)
+   *   - label: the resolved label text either way
+   */
   function extractMenuOptions(m) {
     const options = [];
     m.records.forEach((record) => {
+      // Group this record's constants by source line, sorted left-to-right,
+      // so a number-only marker can look for "the next constant on this
+      // line" without a second pass over the whole record.
+      const byLine = new Map();
       record.fields.forEach((f) => {
         if (f.nameType !== 'CONSTANT' || f.constantValue == null) return;
-        const match = OPTION_RE.exec(f.constantValue);
-        if (!match) return;
-        options.push({
-          numberValue: parseInt(match[1], 10),
-          optionNumber: MnuCmdEngine.padOptionNumber(match[1]),
-          label: match[2].trim(),
-          recordName: record.name,
-          line: f.location && f.location.line != null ? f.location.line : null,
-          column: f.location && f.location.column != null ? f.location.column : null,
-        });
+        if (!f.location || f.location.line == null) return;
+        if (!byLine.has(f.location.line)) byLine.set(f.location.line, []);
+        byLine.get(f.location.line).push(f);
+      });
+      byLine.forEach((lineFields) => lineFields.sort((a, b) => (a.location.column || 0) - (b.location.column || 0)));
+
+      record.fields.forEach((f) => {
+        if (f.nameType !== 'CONSTANT' || f.constantValue == null) return;
+        const combined = COMBINED_RE.exec(f.constantValue);
+        if (combined) {
+          options.push({
+            numberValue: parseInt(combined[1], 10),
+            optionNumber: MnuCmdEngine.padOptionNumber(combined[1]),
+            label: combined[2].trim(),
+            recordName: record.name,
+            line: f.location.line,
+            column: f.location.column,
+            numberField: f,
+            labelField: f,
+          });
+          return;
+        }
+        const numberOnly = NUMBER_ONLY_RE.exec(f.constantValue);
+        if (numberOnly) {
+          const siblings = byLine.get(f.location.line) || [];
+          const myCol = f.location.column || 0;
+          const labelField = siblings.find((s) => s !== f && (s.location.column || 0) > myCol) || null;
+          options.push({
+            numberValue: parseInt(numberOnly[1], 10),
+            optionNumber: MnuCmdEngine.padOptionNumber(numberOnly[1]),
+            label: labelField ? labelField.constantValue.trim() : '',
+            recordName: record.name,
+            line: f.location.line,
+            column: f.location.column,
+            numberField: f,
+            labelField: labelField,
+          });
+        }
       });
     });
     options.sort((a, b) => a.numberValue - b.numberValue);
@@ -190,15 +246,42 @@ const htmlTemplate = `<!DOCTYPE html>
   // before an edit - the same "re-fetch after each edit, don't trust a
   // stale reference" discipline the screen designer's group-drag uses,
   // since editing one field can shift source line numbers for others.
-  function findOptionField(m, numberValue) {
-    for (const record of m.records) {
-      for (const f of record.fields) {
-        if (f.nameType !== 'CONSTANT' || f.constantValue == null) continue;
-        const match = OPTION_RE.exec(f.constantValue);
-        if (match && parseInt(match[1], 10) === numberValue) return f;
-      }
+  function findOption(m, numberValue) {
+    return extractMenuOptions(m).find((o) => o.numberValue === numberValue) || null;
+  }
+
+  /**
+   * Writes a new label for an option, in whichever form it's actually in -
+   * combined ("N. label", rewrite the one constant with the number prefix
+   * kept), split with an existing label constant (rewrite just that
+   * constant, verbatim, no number prefix - the number lives in its own
+   * constant untouched), or split with NO label constant yet (insert a new
+   * one right after the number marker on the same line, rather than
+   * silently doing nothing).
+   */
+  function writeOptionLabel(currentLines, currentModel, option, newLabel) {
+    const label = newLabel.trim();
+    // Blank out silently ignored across every form, rather than leaving a
+    // dangling "N. " (combined form) or an empty-string constant (split
+    // form) - editing a label isn't how you clear one.
+    if (!label) return currentLines;
+    if (option.labelField === option.numberField) {
+      return DspfWriter.applyFieldUpdate(option.numberField, currentLines, { constantValue: String(option.numberValue) + '. ' + label });
     }
-    return null;
+    if (option.labelField) {
+      return DspfWriter.applyFieldUpdate(option.labelField, currentLines, { constantValue: label });
+    }
+    const numberField = option.numberField;
+    const gapColumn = (numberField.location.column || 1) + numberField.constantValue.length + 2;
+    return DspfWriter.insertField(
+      recordOfOption(currentModel, option),
+      currentLines,
+      { nameType: 'CONSTANT', constantValue: label, location: { line: option.line, column: gapColumn } }
+    );
+  }
+
+  function recordOfOption(currentModel, option) {
+    return currentModel.records.find((r) => r.name === option.recordName);
   }
 
   // DspfEngine.escapeHtml already escapes quotes as well as &/</>, so it
@@ -223,12 +306,10 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function updateOptionLabel(numberValue, newLabel) {
-    const field = findOptionField(model, numberValue);
-    if (!field) return;
-    const label = newLabel.trim();
-    if (!label) return; // an empty label would leave a dangling "N. " - just ignore, same as leaving it unedited
+    const option = findOption(model, numberValue);
+    if (!option) return;
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.applyFieldUpdate(field, lines, { constantValue: MnuCmdEngine.padOptionNumber(numberValue).replace(/^0+(?=\\d)/, '') + '. ' + label });
+    lines = writeOptionLabel(lines, model, option, newLabel);
     sourceText = lines.join('\\n');
     model = DspfParser.parseDspf(sourceText);
     vscode.postMessage({ type: 'applyEdit', text: sourceText });
@@ -244,44 +325,42 @@ const htmlTemplate = `<!DOCTYPE html>
   // looking identical (still sorted 1, 2, 10 either way) with the only
   // visible change buried in the screen preview, which isn't what dragging
   // items in a list is expected to do.
+  //
+  // Each side keeps its OWN form (combined vs. split constants) - only the
+  // label text moves between them, via writeOptionLabel(), which already
+  // knows how to write into either shape correctly.
   function swapOptions(numberA, numberB) {
     if (numberA === numberB) return;
-    const fieldA = findOptionField(model, numberA);
-    const fieldB = findOptionField(model, numberB);
-    if (!fieldA || !fieldB) return;
-    const matchA = OPTION_RE.exec(fieldA.constantValue);
-    const matchB = OPTION_RE.exec(fieldB.constantValue);
-    if (!matchA || !matchB) return;
-    const labelA = matchA[2].trim();
-    const labelB = matchB[2].trim();
+    const optionA = findOption(model, numberA);
+    const optionB = findOption(model, numberB);
+    if (!optionA || !optionB) return;
+    const labelA = optionA.label;
+    const labelB = optionB.label;
 
     if (commandStatus === 'unsupported') {
       vscode.postMessage({ type: 'error', message: 'This menu was not opened from an IBM i source member (Code for i), so there is nowhere to save the swapped commands.' });
       return;
     }
 
-    const paddedA = String(numberA);
-    const paddedB = String(numberB);
-
     // Later-in-file edit first, same reasoning as elsewhere (commitGroupEdit
     // in the screen designer, addNewOption above): editing the earlier
     // field first would shift source line numbers out from under the
     // second lookup.
-    const aIsLater = (fieldA.location.line || 0) >= (fieldB.location.line || 0);
+    const aIsLater = (optionA.line || 0) >= (optionB.line || 0);
     const firstNum = aIsLater ? numberA : numberB;
-    const firstValue = aIsLater ? paddedA + '. ' + labelB : paddedB + '. ' + labelA;
+    const firstNewLabel = aIsLater ? labelB : labelA;
     const secondNum = aIsLater ? numberB : numberA;
-    const secondValue = aIsLater ? paddedB + '. ' + labelA : paddedA + '. ' + labelB;
+    const secondNewLabel = aIsLater ? labelA : labelB;
 
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
     let currentModel = model;
 
-    let f = findOptionField(currentModel, firstNum);
-    lines = DspfWriter.applyFieldUpdate(f, lines, { constantValue: firstValue });
+    let opt = findOption(currentModel, firstNum);
+    lines = writeOptionLabel(lines, currentModel, opt, firstNewLabel);
     currentModel = DspfParser.parseDspf(lines.join('\\n'));
 
-    f = findOptionField(currentModel, secondNum);
-    lines = DspfWriter.applyFieldUpdate(f, lines, { constantValue: secondValue });
+    opt = findOption(currentModel, secondNum);
+    lines = writeOptionLabel(lines, currentModel, opt, secondNewLabel);
     currentModel = DspfParser.parseDspf(lines.join('\\n'));
 
     sourceText = lines.join('\\n');
@@ -366,6 +445,43 @@ const htmlTemplate = `<!DOCTYPE html>
   // a guess (row 6, col 5); reposition it afterwards with the screen
   // designer (dspfDesigner.editor) if it doesn't fit your layout - see
   // README "Known limitations".
+  // DSPSIZ(rows cols *DSxx [rows2 cols2 *DSyy ...]) - record-level keyword
+  // takes priority over file-level (rare but valid DDS to override per
+  // record); the first numeric pair is the primary/default size. Falls
+  // back to 24 (the universal 5250 minimum) if DSPSIZ isn't present or
+  // doesn't parse, rather than assuming unlimited room.
+  function getScreenRowLimit(currentModel, record) {
+    const sources = (record.keywords || []).concat(currentModel.fileKeywords || []);
+    const dspsiz = sources.find((k) => k.name === 'DSPSIZ');
+    if (dspsiz) {
+      const nums = dspsiz.parameters.match(/\\d+/g);
+      if (nums && nums.length >= 1) {
+        const rows = parseInt(nums[0], 10);
+        if (!isNaN(rows) && rows > 0) return rows;
+      }
+    }
+    return 24;
+  }
+
+  // Finds the first row at or after startRow that isn't already occupied by
+  // ANY field in the record (function-key text, a "Selection or command"
+  // prompt, another option, etc.) and doesn't run past the screen's own row
+  // limit. Returns null if there's no room, so the caller can tell the user
+  // rather than silently placing a new option off-screen or on top of
+  // something that's already there - the two symptoms this was written to
+  // fix (see CHANGELOG).
+  function findSafeOptionRow(currentModel, record, startRow) {
+    const maxRows = getScreenRowLimit(currentModel, record);
+    const occupiedRows = new Set();
+    (record.fields || []).forEach((f) => {
+      if (f.location && f.location.line != null) occupiedRows.add(f.location.line);
+    });
+    for (let row = startRow; row <= maxRows; row++) {
+      if (!occupiedRows.has(row)) return row;
+    }
+    return null;
+  }
+
   function addNewOption() {
     addOptionError.textContent = '';
     const numRaw = addOptionNumInput.value.trim();
@@ -393,12 +509,21 @@ const htmlTemplate = `<!DOCTYPE html>
     }
 
     const inThisRecord = existing.filter((o) => o.recordName === recordName && o.line != null);
-    let line = 6;
+    let startRow = 6;
     let column = 5;
     if (inThisRecord.length > 0) {
       const last = inThisRecord.reduce((a, b) => (b.line > a.line ? b : a));
-      line = last.line + 1;
+      startRow = last.line + 1;
       column = last.column != null ? last.column : 5;
+    }
+
+    const line = findSafeOptionRow(model, record, startRow);
+    if (line == null) {
+      addOptionError.textContent =
+        'No room left on this screen for a new option - row ' + startRow + ' and below are either already used by another field ' +
+        '(a "Selection or command" prompt, function-key text, etc.) or past the screen size (DSPSIZ). Reposition something first, ' +
+        'or add it manually via the screen designer.';
+      return;
     }
 
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
