@@ -54,18 +54,93 @@
 
   // ---------------------------------------------------------------------
   // Display-size (DSPSIZ) handling
+  //
+  // DSPSIZ can declare ONE size ("DSPSIZ(24 80)" or "DSPSIZ(24 80 *DS3)") or
+  // TWO, when the same display file supports both a normal and a large
+  // terminal ("DSPSIZ(24 80 *DS3 27 132 *DS4)") - the actual size used at
+  // runtime depends on the terminal/device the program runs on. When two are
+  // present, callers (the webview's size toggle) can ask for either by index;
+  // index 0 (the first-declared size) is the default everywhere else in the
+  // engine, matching the previous single-size behavior exactly.
   // ---------------------------------------------------------------------
 
-  function screenSizeFromFileKeywords(fileKeywords) {
+  /** Walks the raw DSPSIZ parameter text and pulls out every "lines cols
+   *  [*qualifier]" triple it finds, in declaration order. */
+  function parseScreenSizes(paramText) {
+    var tokens = paramText.trim().split(/\s+/).filter(Boolean);
+    var sizes = [];
+    var i = 0;
+    while (i < tokens.length) {
+      var t1 = tokens[i];
+      var t2 = tokens[i + 1];
+      if (/^\d+$/.test(t1) && t2 && /^\d+$/.test(t2)) {
+        var name = null;
+        var next = tokens[i + 2];
+        if (next && next.charAt(0) === '*') {
+          name = next;
+          i += 3;
+        } else {
+          i += 2;
+        }
+        sizes.push({ lines: parseInt(t1, 10), columns: parseInt(t2, 10), name: name });
+      } else {
+        i++;
+      }
+    }
+    return sizes;
+  }
+
+  /**
+   * @param {number} [sizeIndex] which declared size to resolve to (0 = first,
+   *   the previous always-used behavior). Ignored/clamped if out of range.
+   * @returns {{lines:number, columns:number, name:?string, sizes:object[]}}
+   *   `sizes` is every size DSPSIZ declared (length 1 in the common case),
+   *   so callers can tell whether a size toggle is even worth showing.
+   */
+  function screenSizeFromFileKeywords(fileKeywords, sizeIndex) {
     var dspsiz = fileKeywords.find(function (k) {
       return k.name === 'DSPSIZ';
     });
-    if (!dspsiz) return { lines: DEFAULT_LINES, columns: DEFAULT_COLUMNS };
-    // e.g. "27 132 *LARGE 24 80 *NORMAL" or "*DS4 *DS3" - take the first numeric pair if present.
-    var m = dspsiz.parameters.match(/(\d+)\s+(\d+)/);
-    if (m) return { lines: parseInt(m[1], 10), columns: parseInt(m[2], 10) };
-    if (/\*DS4/.test(dspsiz.parameters)) return { lines: 27, columns: 132 };
-    return { lines: DEFAULT_LINES, columns: DEFAULT_COLUMNS };
+    var fallback = { lines: DEFAULT_LINES, columns: DEFAULT_COLUMNS, name: null };
+    if (!dspsiz) return { lines: fallback.lines, columns: fallback.columns, name: fallback.name, sizes: [fallback] };
+
+    var sizes = parseScreenSizes(dspsiz.parameters);
+    if (sizes.length === 0) {
+      // No numeric pair at all - e.g. a bare "*DS4" referencing a system
+      // default size by name only. *DS4 is the one well-known case worth a
+      // fallback for; anything else falls through to the 24x80 default.
+      sizes = [/\*DS4/.test(dspsiz.parameters) ? { lines: 27, columns: 132, name: '*DS4' } : fallback];
+    }
+
+    var idx = (typeof sizeIndex === 'number' && sizeIndex >= 0 && sizeIndex < sizes.length) ? sizeIndex : 0;
+    var chosen = sizes[idx];
+    return { lines: chosen.lines, columns: chosen.columns, name: chosen.name, sizes: sizes };
+  }
+
+  /**
+   * Public helper for callers (the webview's size toggle) that just need to
+   * know what sizes exist without resolving a whole screen - e.g. to decide
+   * whether to show a size picker at all.
+   */
+  function availableScreenSizes(dspfFile) {
+    return screenSizeFromFileKeywords(dspfFile.fileKeywords).sizes;
+  }
+
+  /**
+   * How many subfile rows can actually fit between `startLine` and the
+   * bottom of the display's working area (`totalLines`), given each row is
+   * `rowHeight` lines tall. Always at least 1 - the template row itself has
+   * to render somewhere even if the file's declared SFLPAG doesn't fit,
+   * which is the "SFLSIZ(9999)-style" case this exists to guard against:
+   * SFLPAG (or a large fallback) is what page size actually means, but
+   * nothing previously stopped a large SFLPAG from rendering rows past the
+   * bottom of the screen.
+   */
+  function maxRowsWithinWorkArea(startLine, rowHeight, totalLines) {
+    if (rowHeight <= 0) return 1;
+    var available = totalLines - startLine + 1;
+    if (available < rowHeight) return 1;
+    return Math.floor(available / rowHeight);
   }
 
   // ---------------------------------------------------------------------
@@ -445,32 +520,46 @@
    * Deliberately one-directional (unlike the old findSflPairing, which resolved from
    * either side) - viewing the SFL record directly now shows just its own fields, once,
    * fully editable, with no automatic merging in either direction.
+   *
+   * `totalLines` is the working area's line count for whichever DSPSIZ the
+   * caller currently has selected - rendered rows are capped to what
+   * actually fits above the bottom of the screen (see maxRowsWithinWorkArea),
+   * rather than trusting SFLPAG (or its 5-row fallback) unconditionally. A
+   * declared SFLPAG far larger than the screen (e.g. SFLPAG driven by
+   * SFLSIZ-style "virtually unlimited" values) previously rendered straight
+   * past the bottom of the screen instead of stopping at it.
    */
-  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset) {
+  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines) {
     var sflCtlKw = record.keywords.find(function (k) { return k.name === 'SFLCTL'; });
     if (!sflCtlKw) return null;
     var sflName = sflCtlKw.parameters.trim();
     var sflRecord = dspfFile.records.find(function (r) { return r.name === sflName; });
     if (!sflRecord || sflRecord.fields.length === 0) return null;
 
-    var sflPag = 5; // sensible fallback if SFLPAG is missing or non-numeric (e.g. driven by a variable)
+    var declaredSflPag = 5; // sensible fallback if SFLPAG is missing or non-numeric (e.g. driven by a variable)
     var pagKw = record.keywords.find(function (k) { return k.name === 'SFLPAG'; });
     if (pagKw) {
       var n = parseInt(pagKw.parameters.trim(), 10);
-      if (!Number.isNaN(n)) sflPag = n;
+      if (!Number.isNaN(n)) declaredSflPag = n;
     }
 
     var sflLines = sflRecord.fields
       .map(function (f) { return f.location.line != null ? f.location.line : 1; })
       .filter(function (n2) { return n2 != null; });
-    var rowHeight = sflLines.length > 0 ? Math.max.apply(null, sflLines) - Math.min.apply(null, sflLines) + 1 : 1;
+    var firstFieldLine = sflLines.length > 0 ? Math.min.apply(null, sflLines) : 1;
+    var rowHeight = sflLines.length > 0 ? Math.max.apply(null, sflLines) - firstFieldLine + 1 : 1;
+
+    var sflPag = declaredSflPag;
+    if (totalLines != null) {
+      sflPag = Math.min(declaredSflPag, maxRowsWithinWorkArea(lineOffset + firstFieldLine, rowHeight, totalLines));
+    }
 
     var fields = [];
     for (var row = 0; row < sflPag; row++) {
       var rowOffset = lineOffset + row * rowHeight;
       fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-preview-row-' + row));
     }
-    return { sflRecordName: sflRecord.name, pageRows: sflPag, fields: fields };
+    return { sflRecordName: sflRecord.name, pageRows: sflPag, declaredPageRows: declaredSflPag, fields: fields };
   }
 
   /**
@@ -490,19 +579,25 @@
    *   dragging one field moves every field in that same row instance together
    *   (see startGroupDrag/commitGroupEdit in the webview) since they all still
    *   correspond to the one template that actually exists in the DDS source.
+   *   Rendered rows are capped to what fits within the working area for the
+   *   selected DSPSIZ (see maxRowsWithinWorkArea) - a declared SFLPAG larger
+   *   than the screen no longer renders past the bottom of it.
+   * @param {number} [sizeIndex] which DSPSIZ-declared size to use when the
+   *   file declares more than one (0 = first/default, matching every
+   *   existing caller that doesn't pass this).
    * @returns {{lines:number, columns:number, recordName:string, fields:object[]}}
    */
-  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows) {
+  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex) {
     activeIndicators = activeIndicators || new Set();
-    var size = screenSizeFromFileKeywords(dspfFile.fileKeywords);
+    var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
     var record = dspfFile.records.find(function (r) {
       return r.name === recordName;
     });
     if (!record) {
-      return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], error: 'Record not found: ' + recordName };
+      return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], error: 'Record not found: ' + recordName, availableSizes: size.sizes };
     }
     if (!conditionsSatisfied(record.conditions, activeIndicators)) {
-      return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], suppressed: true };
+      return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], suppressed: true, availableSizes: size.sizes };
     }
 
     var windowBox = resolveWindow(record, dspfFile);
@@ -511,21 +606,25 @@
 
     var isSflRecord = record.keywords.some(function (k) { return k.name === 'SFL'; });
     var previewRowCount = null;
+    var declaredPreviewRowCount = null;
     var candidates;
 
     if (isSflRecord && previewMultipleRows) {
       var pairing = findSflPairing(dspfFile, recordName);
-      var sflPag = pairing ? pairing.sflPag : 5; // fallback matches resolveSubfilePreview's own default
+      var declaredSflPag = pairing ? pairing.sflPag : 5; // fallback matches resolveSubfilePreview's own default
       var ownLines = record.fields
         .map(function (f) { return f.location.line != null ? f.location.line : 1; })
         .filter(function (n) { return n != null; });
-      var rowHeight = ownLines.length > 0 ? Math.max.apply(null, ownLines) - Math.min.apply(null, ownLines) + 1 : 1;
+      var firstFieldLine = ownLines.length > 0 ? Math.min.apply(null, ownLines) : 1;
+      var rowHeight = ownLines.length > 0 ? Math.max.apply(null, ownLines) - firstFieldLine + 1 : 1;
+      var sflPag = Math.min(declaredSflPag, maxRowsWithinWorkArea(lineOffset + firstFieldLine, rowHeight, size.lines));
 
       candidates = [];
       for (var row = 0; row < sflPag; row++) {
         candidates = candidates.concat(resolveRecordFields(record, activeIndicators, lineOffset + row * rowHeight, colOffset, 'subfile-edit-row-' + row));
       }
       previewRowCount = sflPag;
+      declaredPreviewRowCount = declaredSflPag;
     } else {
       candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null);
     }
@@ -559,7 +658,7 @@
 
     // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
     // like the pulldown overlay below, it doesn't compete for cells with the base screen.
-    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset);
+    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines);
 
     // Pulldown overlay: rendered as a SEPARATE layer, not subject to the overlap
     // resolution above, since a real pulldown genuinely draws on top of whatever
@@ -586,6 +685,8 @@
     return {
       lines: size.lines,
       columns: size.columns,
+      sizeName: size.name,
+      availableSizes: size.sizes,
       recordName: recordName,
       fields: resolved,
       window: windowBox,
@@ -593,6 +694,7 @@
       pulldown: pulldown,
       isSflRecord: isSflRecord,
       previewRowCount: previewRowCount,
+      declaredPreviewRowCount: declaredPreviewRowCount,
     };
   }
 
@@ -603,10 +705,11 @@
    * fields are all shown even if they'd occupy the same cells, since this mode is
    * for comparison, not simulating one specific runtime state. Each field carries
    * `.sourceRecord` so the UI can show which record format it came from.
+   * @param {number} [sizeIndex] which DSPSIZ-declared size to use - see resolveScreen.
    */
-  function resolveMultiScreen(dspfFile, recordNames, activeIndicators) {
+  function resolveMultiScreen(dspfFile, recordNames, activeIndicators, sizeIndex) {
     activeIndicators = activeIndicators || new Set();
-    var size = screenSizeFromFileKeywords(dspfFile.fileKeywords);
+    var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
     var allFields = [];
     var windows = [];
 
@@ -624,14 +727,14 @@
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName }, windowBox));
 
-      var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset);
+      var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines);
       if (preview) {
         preview.fields.forEach(function (f) { f.sourceRecord = recordName; });
         allFields = allFields.concat(preview.fields);
       }
     });
 
-    return { lines: size.lines, columns: size.columns, fields: allFields, windows: windows };
+    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows };
   }
 
   // ---------------------------------------------------------------------
@@ -814,6 +917,8 @@
     renderScreenHtml: renderScreenHtml,
     isPulldownRecord: isPulldownRecord,
     findSflPairing: findSflPairing,
+    escapeHtml: escapeHtml,
+    availableScreenSizes: availableScreenSizes,
     COLOR_HEX: COLOR_HEX,
     DEFAULT_COLOR: DEFAULT_COLOR,
   };

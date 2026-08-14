@@ -3,6 +3,7 @@ const path = require('path');
 
 const engineJs = fs.readFileSync(path.join(__dirname, 'dspfEngine.js'), 'utf8');
 const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
+const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
 
 // Build the full HTML at Node build time with plain-text placeholder tokens for the
@@ -110,7 +111,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
   .compare-toggle input { accent-color: var(--warn); }
   #compareRecordList { margin-top: 8px; }
-  #compareRecordList.hidden { display: none; }
+  .hidden { display: none; }
   .compare-record-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; cursor: pointer; }
   .hint-readonly { color: var(--warn); }
 </style>
@@ -120,6 +121,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
+  <div class="field-row hidden" id="sizeSelectRow"><label>Screen size</label><select id="sizeSelect"></select></div>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Compare multiple formats (read-only)</label>
   <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
   <div id="compareRecordList" class="hidden"></div>
@@ -140,6 +142,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
+<script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
 <script nonce="${NONCE_TOKEN}">
   const vscode = acquireVsCodeApi();
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
@@ -152,6 +155,7 @@ const htmlTemplate = `<!DOCTYPE html>
   let compareMode = false;
   const compareSelectedRecords = new Set();
   let previewMultipleRows = false;
+  let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
   const active = new Set();
 
   const recordSelect = document.getElementById('recordSelect');
@@ -163,9 +167,18 @@ const htmlTemplate = `<!DOCTYPE html>
   const mainHint = document.getElementById('mainHint');
   const previewRowsRow = document.getElementById('previewRowsRow');
   const previewRowsToggle = document.getElementById('previewRowsToggle');
+  const sizeSelectRow = document.getElementById('sizeSelectRow');
+  const sizeSelect = document.getElementById('sizeSelect');
 
   previewRowsToggle.addEventListener('change', () => {
     previewMultipleRows = previewRowsToggle.checked;
+    selectedKey = null;
+    selectedHelpSourceLine = null;
+    render();
+  });
+
+  sizeSelect.addEventListener('change', () => {
+    selectedSizeIndex = parseInt(sizeSelect.value, 10) || 0;
     selectedKey = null;
     selectedHelpSourceLine = null;
     render();
@@ -226,14 +239,33 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function rebuildRecordSelect() {
-    const prev = recordSelect.value;
-    recordSelect.innerHTML = '';
-    model.records.forEach((r) => {
+    WebviewClientHelpers.rebuildRecordSelect(recordSelect, model.records);
+  }
+
+  /**
+   * Shows/populates the screen-size picker only when the file actually
+   * declares more than one DSPSIZ size (the common case is one, where the
+   * picker stays hidden and selectedSizeIndex is just always 0). Preserves
+   * the current selection across re-renders where possible, same pattern as
+   * rebuildRecordSelect.
+   */
+  function rebuildSizeSelect() {
+    const sizes = DspfEngine.availableScreenSizes(model);
+    if (sizes.length <= 1) {
+      sizeSelectRow.classList.add('hidden');
+      selectedSizeIndex = 0;
+      return;
+    }
+    sizeSelectRow.classList.remove('hidden');
+    if (selectedSizeIndex >= sizes.length) selectedSizeIndex = 0;
+    sizeSelect.innerHTML = '';
+    sizes.forEach((s, i) => {
       const opt = document.createElement('option');
-      opt.value = r.name; opt.textContent = r.name;
-      recordSelect.appendChild(opt);
+      opt.value = String(i);
+      opt.textContent = s.lines + ' x ' + s.columns + (s.name ? ' (' + s.name + ')' : '');
+      sizeSelect.appendChild(opt);
     });
-    if (model.records.some((r) => r.name === prev)) recordSelect.value = prev;
+    sizeSelect.value = String(selectedSizeIndex);
   }
 
   function rebuildIndicatorList(recordName) {
@@ -265,6 +297,7 @@ const htmlTemplate = `<!DOCTYPE html>
    *  switch back to single-record mode to make an actual edit. */
   function renderCompareMode() {
     previewRowsRow.classList.add('hidden');
+    rebuildSizeSelect();
     // Rebuild the checkbox list every render so it reflects the current model
     // (e.g. after the user renamed... well, records can't be renamed, but new
     // records could appear from an external text edit).
@@ -293,7 +326,7 @@ const htmlTemplate = `<!DOCTYPE html>
       return;
     }
 
-    const screen = DspfEngine.resolveMultiScreen(model, selected, active);
+    const screen = DspfEngine.resolveMultiScreen(model, selected, active, selectedSizeIndex);
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     // Deliberately no per-field event wiring here - every field in this mode is inert.
 
@@ -313,18 +346,21 @@ const htmlTemplate = `<!DOCTYPE html>
     mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
 
     rebuildRecordSelect();
+    rebuildSizeSelect();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     if (!recordName) { indicatorList.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
 
-    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows);
+    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }
     previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
     if (!screen.isSflRecord && previewMultipleRows) { previewMultipleRows = false; previewRowsToggle.checked = false; }
     if (screen.isSflRecord && screen.previewRowCount) {
-      mainHint.textContent = 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
+      mainHint.textContent = screen.previewRowCount < screen.declaredPreviewRowCount
+        ? 'Previewing ' + screen.previewRowCount + ' of ' + screen.declaredPreviewRowCount + ' SFLPAG rows (capped to fit the ' + screen.lines + '-line screen). Drag any field to move the whole row - they all come from the same template.'
+        : 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
 

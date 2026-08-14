@@ -4,6 +4,7 @@ const path = require('path');
 const engineJs = fs.readFileSync(path.join(__dirname, 'dspfEngine.js'), 'utf8');
 const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
 const mnuCmdEngineJs = fs.readFileSync(path.join(__dirname, 'mnuCmdEngine.js'), 'utf8');
+const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
 
 // Same JSON-string-constant + token-substitution approach as buildWebviewTemplate.js,
@@ -124,6 +125,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${mnuCmdEngineJs}</script>
+<script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
 <script nonce="${NONCE_TOKEN}">
   const vscode = acquireVsCodeApi();
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
@@ -199,19 +201,15 @@ const htmlTemplate = `<!DOCTYPE html>
     return null;
   }
 
-  function escapeHtml(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
-  function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+  // DspfEngine.escapeHtml already escapes quotes as well as &/</>, so it
+  // covers both text-node and attribute-value contexts - escapeAttr is kept
+  // as a name (existing call sites use it) but no longer needs its own regex.
+  function escapeHtml(s) { return DspfEngine.escapeHtml(s); }
+  function escapeAttr(s) { return DspfEngine.escapeHtml(s); }
 
   function rebuildRecordSelect() {
-    const prev = recordSelect.value;
-    recordSelect.innerHTML = '';
-    model.records.forEach((r) => {
-      const opt = document.createElement('option');
-      opt.value = r.name; opt.textContent = r.name;
-      recordSelect.appendChild(opt);
-    });
-    if (model.records.some((r) => r.name === prev)) recordSelect.value = prev;
-    if (recordNameInput) recordNameInput.value = recordSelect.value || '';
+    const value = WebviewClientHelpers.rebuildRecordSelect(recordSelect, model.records);
+    if (recordNameInput) recordNameInput.value = value;
   }
 
   function renderScreen() {
