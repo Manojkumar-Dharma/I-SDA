@@ -3,6 +3,31 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.7] - Unreleased
+
+### Changed
+- **Redesigned the menu designer's options panel for readability.** Feedback
+  was that the right-side panel (options, commands, keyword text) felt
+  disorganized. Each option is now its own card (rounded, bordered,
+  distinct background) rather than a flat row separated only by a hairline,
+  with:
+  - A number badge (small circle) instead of plain right-aligned text.
+  - A persistent "Option text" label above the label field, and a `CMD>`
+    prompt before the command field - previously both fields only had
+    placeholder text, which disappears once you type, so there was no way
+    to tell which field was which at a glance once populated.
+  - A drag-handle glyph (⣿) as a visual affordance for the existing
+    drag-to-swap gesture, with a tooltip explaining what it does.
+  - An option count badge and a one-line hint in the panel header.
+  - The "+ Add option" section restyled to match (dashed card border,
+    consistent input/button corner radius).
+  Purely visual/structural - no change to the underlying read/write logic
+  (`extractMenuOptions`, `writeOptionLabel`, `swapOptions`, etc. from
+  0.9.4/0.9.5 are untouched). `menuWebview.test.js`'s selectors updated for
+  the renamed `.option-num` → `.option-num-badge` class; all other
+  assertions unchanged and still pass, confirming the redesign didn't
+  alter behavior.
+
 ## [0.9.6] - Unreleased
 
 ### Added

@@ -36,7 +36,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .options-panel { border-right: none; border-left: 1px solid var(--panel-border); }
   h1 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 4px; }
   h2 { font-size: 16px; margin: 0 0 14px; color: var(--accent); font-weight: 600; }
-  select { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 13px; }
+  select { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 13px; }
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; }
@@ -61,28 +61,59 @@ const htmlTemplate = `<!DOCTYPE html>
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
   .empty-state { color: var(--ink-dim); font-size: 13px; line-height: 1.5; }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 0 0 10px; }
-  .option-row { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--panel-border); cursor: grab; }
-  .option-row.drag-over { background: rgba(51,255,102,0.08); border-top: 1px dashed var(--accent); }
+
+  /* Options panel */
+  .options-panel { display: flex; flex-direction: column; padding: 16px 14px; }
+  .options-panel-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .options-panel-header h2 { margin: 0; }
+  .option-count { font-size: 10px; color: var(--ink-dim); background: #0d1310; border: 1px solid var(--panel-border); border-radius: 10px; padding: 2px 9px; white-space: nowrap; }
+  .options-hint { font-size: 11px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 14px; }
+  .options-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+  .option-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: #0d1310; border: 1px solid var(--panel-border); border-radius: 6px;
+    padding: 9px 10px 9px 6px; cursor: grab;
+    transition: border-color 0.12s ease, background-color 0.12s ease;
+  }
+  .option-row:hover { border-color: #33553f; }
+  .option-row.drag-over { border-color: var(--accent); background: rgba(51,255,102,0.07); }
   .option-row.dragging { opacity: 0.4; }
-  .option-num { flex: 0 0 26px; color: var(--accent); font-weight: 600; font-size: 15px; text-align: right; padding-top: 4px; }
-  .option-body { flex: 1; min-width: 0; }
-  .option-label-input { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; margin-bottom: 6px; }
+  .option-drag-handle { flex: 0 0 12px; color: var(--ink-dim); font-size: 12px; line-height: 1.6; padding-top: 5px; user-select: none; text-align: center; letter-spacing: -1px; }
+  .option-num-badge {
+    flex: 0 0 26px; height: 26px; border-radius: 50%; background: #142018; border: 1px solid #2c4335;
+    color: var(--accent); font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;
+  }
+  .option-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+  .option-field-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); }
+  .option-label-input {
+    width: 100%; background: #050705; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 3px;
+    padding: 5px 7px; font-family: var(--mono); font-size: 12px;
+  }
   .option-label-input:focus { border-color: var(--accent); outline: none; }
-  .option-cmd { width: 100%; background: #0d1310; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .option-cmd-row { display: flex; align-items: center; gap: 6px; }
+  .option-cmd-prompt { color: var(--ink-dim); font-size: 10px; flex: 0 0 auto; letter-spacing: 0.03em; }
+  .option-cmd {
+    flex: 1; min-width: 0; background: #050705; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 3px;
+    padding: 5px 7px; font-family: var(--mono); font-size: 12px;
+  }
   .option-cmd:focus { border-color: var(--accent); outline: none; }
-  .add-option { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--panel-border); }
-  .add-option-row { display: flex; gap: 6px; margin-bottom: 6px; }
-  .add-option-num { flex: 0 0 46px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 6px; font-family: var(--mono); font-size: 12px; }
-  .add-option-label { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
-  .add-option-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--panel-border); padding: 7px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .option-cmd::placeholder { color: #3d5346; }
+
+  .add-option { border: 1px dashed var(--panel-border); border-radius: 6px; padding: 12px; }
+  .add-option-header { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin-bottom: 10px; }
+  .add-option-row { display: flex; gap: 6px; margin-bottom: 8px; }
+  .add-option-num { flex: 0 0 46px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 6px; font-family: var(--mono); font-size: 12px; }
+  .add-option-label { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .add-option-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 7px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
   .add-option-btn:hover { border-color: var(--accent); }
   .add-option-btn:disabled { opacity: 0.5; cursor: default; }
   .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
-  .compile-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--accent); padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .compile-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
   .compile-btn:hover { background: #1b2c22; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
-  .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
-  .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
   .rename-btn:hover { border-color: var(--accent); }
 </style>
 </head>
@@ -108,10 +139,14 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="status">This is the menu layout as it will appear on the 5250 screen. Edit which command each numbered option runs in the panel on the right.</div>
 </main>
 <div class="options-panel">
-  <h2 style="font-size:13px;">Options → Commands</h2>
-  <div id="optionsBody"></div>
+  <div class="options-panel-header">
+    <h2 style="font-size:13px;">Options</h2>
+    <span class="option-count" id="optionCount"></span>
+  </div>
+  <div class="options-hint">Each option's number, text, and command. Drag ⣿ to swap two options.</div>
+  <div class="options-list" id="optionsBody"></div>
   <div class="add-option">
-    <div class="section-label">Add a new option</div>
+    <div class="add-option-header">+ Add a new option</div>
     <div class="add-option-row">
       <input type="text" class="add-option-num" id="addOptionNum" placeholder="#" inputmode="numeric" />
       <input type="text" class="add-option-label" id="addOptionLabel" placeholder="Option text, e.g. Sign off" />
@@ -138,6 +173,7 @@ const htmlTemplate = `<!DOCTYPE html>
   const recordSelect = document.getElementById('recordSelect');
   const screenOutput = document.getElementById('screenOutput');
   const optionsBody = document.getElementById('optionsBody');
+  const optionCountEl = document.getElementById('optionCount');
   const cmdStatusEl = document.getElementById('cmdStatus');
   const addOptionNumInput = document.getElementById('addOptionNum');
   const addOptionLabelInput = document.getElementById('addOptionLabel');
@@ -380,6 +416,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function renderOptions() {
     const options = extractMenuOptions(model);
     optionsBody.innerHTML = '';
+    if (optionCountEl) optionCountEl.textContent = options.length === 1 ? '1 option' : options.length + ' options';
     if (options.length === 0) {
       optionsBody.innerHTML = '<div class="empty-state">No numbered options found on this screen yet. iSDA looks for constants shaped like "1. Do a thing" to build this list - add one in the DDS source, then reopen this designer.</div>';
       return;
@@ -391,10 +428,15 @@ const htmlTemplate = `<!DOCTYPE html>
       const command = commandFor(opt.numberValue);
       const numLabel = String(opt.numberValue);
       row.innerHTML =
-        '<div class="option-num">' + numLabel + '</div>' +
-        '<div class="option-body">' +
+        '<div class="option-drag-handle" title="Drag onto another option to swap them">\u28FF</div>' +
+        '<div class="option-num-badge">' + numLabel + '</div>' +
+        '<div class="option-fields">' +
+        '<div class="option-field-label">Option text</div>' +
         '<input type="text" class="option-label-input" value="' + escapeAttr(opt.label) + '" placeholder="Option text" />' +
+        '<div class="option-cmd-row">' +
+        '<span class="option-cmd-prompt">CMD&gt;</span>' +
         '<input type="text" class="option-cmd" value="' + escapeAttr(command) + '" placeholder="Command to run, e.g. CALL PGM1" />' +
+        '</div>' +
         '</div>';
 
       const labelInput = row.querySelector('.option-label-input');
