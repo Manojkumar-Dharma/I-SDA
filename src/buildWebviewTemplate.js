@@ -737,55 +737,62 @@ const htmlTemplate = `<!DOCTYPE html>
   // name (e.g. a subfile record referencing one of its own fields
   // elsewhere) - same "caller's responsibility" stance rename takes for
   // cross-references.
-  function commitDelete(field) {
+  // Shared commit skeleton for every DDS source edit made from this webview:
+  // split into lines, let transform() produce the new lines from a DspfWriter
+  // call, join/reparse, tell the extension host, then let afterReparse() (if
+  // given) update local selection/UI state using the FRESH model before the
+  // final render(). Previously four separate functions
+  // (commitDelete/commitEdit/commitRecordEdit/commitHelpEdit) each
+  // duplicated this exact split/transform/reparse/post/render skeleton,
+  // differing only in which DspfWriter call they made and how they picked
+  // what to reselect afterward - this is that skeleton, written once.
+  // transform() returning null/undefined is treated as "nothing to do"
+  // (e.g. the record wasn't found) - no message is posted, no re-render.
+  function commitSourceChange(transform, afterReparse) {
     try {
       const lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      const newLines = DspfWriter.deleteField(field, lines);
+      const newLines = transform(lines);
+      if (!newLines) return;
       sourceText = newLines.join('\\n');
       model = DspfParser.parseDspf(sourceText);
-      selectedKey = null;
       activePulldown = null;
       suppressNextExternalUpdate = true;
       vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      if (afterReparse) afterReparse();
       render();
     } catch (err) {
       vscode.postMessage({ type: 'error', message: err.message });
     }
+  }
+
+  // No confirmation prompt - deleting is a normal WorkspaceEdit like every
+  // other change here, so Ctrl+Z undoes it the same way. Doesn't try to
+  // clean up other keywords/records that might reference this field by
+  // name (e.g. a subfile record referencing one of its own fields
+  // elsewhere) - same "caller's responsibility" stance rename takes for
+  // cross-references.
+  function commitDelete(field) {
+    commitSourceChange(
+      (lines) => DspfWriter.deleteField(field, lines),
+      () => { selectedKey = null; }
+    );
   }
 
   function commitEdit(recordName, field, updates) {
-    try {
-      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      const newLines = DspfWriter.applyFieldUpdate(field, lines, updates);
-      sourceText = newLines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
-      const rec = model.records.find((r) => r.name === recordName);
-      const stillThere = rec && field.name && rec.fields.find((f) => f.name === field.name);
-      selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
-      activePulldown = null;
-      suppressNextExternalUpdate = true;
-      vscode.postMessage({ type: 'applyEdit', text: sourceText });
-      render();
-    } catch (err) {
-      vscode.postMessage({ type: 'error', message: err.message });
-    }
+    commitSourceChange(
+      (lines) => DspfWriter.applyFieldUpdate(field, lines, updates),
+      () => {
+        const rec = model.records.find((r) => r.name === recordName);
+        const stillThere = rec && field.name && rec.fields.find((f) => f.name === field.name);
+        selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
+      }
+    );
   }
 
   function commitRecordEdit(recordName, updates) {
-    try {
-      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      const rec = model.records.find((r) => r.name === recordName);
-      if (!rec) return;
-      const newLines = DspfWriter.applyRecordUpdate(rec, lines, updates);
-      sourceText = newLines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
-      activePulldown = null;
-      suppressNextExternalUpdate = true;
-      vscode.postMessage({ type: 'applyEdit', text: sourceText });
-      render();
-    } catch (err) {
-      vscode.postMessage({ type: 'error', message: err.message });
-    }
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+    commitSourceChange((lines) => DspfWriter.applyRecordUpdate(rec, lines, updates));
   }
 
   // Same validation/advisory-scan approach as the menu designer's own record
@@ -810,54 +817,41 @@ const htmlTemplate = `<!DOCTYPE html>
       return;
     }
 
-    try {
-      const rec = model.records.find((r) => r.name === oldName);
-      if (!rec) return;
-      const ownRange = DspfWriter.getRecordLineRange(rec);
-      const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
+    const rec = model.records.find((r) => r.name === oldName);
+    if (!rec) return;
+    const ownRange = DspfWriter.getRecordLineRange(rec);
+    const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
 
-      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      const newLines = DspfWriter.renameRecordFormat(rec, lines, newName);
-      sourceText = newLines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
-      suppressNextExternalUpdate = true;
-      vscode.postMessage({ type: 'applyEdit', text: sourceText });
-      if (references.length > 0) {
-        vscode.postMessage({
-          type: 'error',
-          message:
-            'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might reference "' + oldName +
-            '" (SFLCTL, WINDOW, MNUBARCHC, etc.) - renaming only updates the record\\'s own line. Review those manually after renaming.',
-        });
+    commitSourceChange(
+      (lines) => DspfWriter.renameRecordFormat(rec, lines, newName),
+      () => {
+        if (references.length > 0) {
+          vscode.postMessage({
+            type: 'error',
+            message:
+              'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might reference "' + oldName +
+              '" (SFLCTL, WINDOW, MNUBARCHC, etc.) - renaming only updates the record\\'s own line. Review those manually after renaming.',
+          });
+        }
+        // Explicitly select the renamed record before render() re-derives its
+        // own idea of "current record" from recordSelect.value - render()'s own
+        // rebuildRecordSelect() call preserves whatever value is already set
+        // here (since newName now exists in the freshly-reparsed model),
+        // rather than falling back to the browser's default first-option pick.
+        recordSelect.value = newName;
       }
-      // Explicitly select the renamed record before render() re-derives its
-      // own idea of "current record" from recordSelect.value - render()'s own
-      // rebuildRecordSelect() call preserves whatever value is already set
-      // here (since newName now exists in the freshly-reparsed model),
-      // rather than falling back to the browser's default first-option pick.
-      recordSelect.value = newName;
-      render();
-    } catch (err) {
-      vscode.postMessage({ type: 'error', message: err.message });
-    }
+    );
   }
 
   function commitHelpEdit(recordName, help, updates) {
-    try {
-      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      const newLines = DspfWriter.applyFieldUpdate(help, lines, updates);
-      sourceText = newLines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
-      // Help entries have no stable name to re-find by (unlike fields), so
-      // just return to the record view rather than guessing which entry to reselect.
-      selectedHelpSourceLine = null;
-      activePulldown = null;
-      suppressNextExternalUpdate = true;
-      vscode.postMessage({ type: 'applyEdit', text: sourceText });
-      render();
-    } catch (err) {
-      vscode.postMessage({ type: 'error', message: err.message });
-    }
+    commitSourceChange(
+      (lines) => DspfWriter.applyFieldUpdate(help, lines, updates),
+      () => {
+        // Help entries have no stable name to re-find by (unlike fields), so
+        // just return to the record view rather than guessing which entry to reselect.
+        selectedHelpSourceLine = null;
+      }
+    );
   }
 
   // Delete/Backspace deletes the currently-selected field or constant.

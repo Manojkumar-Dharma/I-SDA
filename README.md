@@ -77,94 +77,59 @@ Development Host. Either:
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations (v0.9)
+## Known limitations
 
-- `WINDOW` positions that depend on a runtime value - `*DFT` (system
-  positions it relative to the cursor) or a program-to-system field name -
-  can't be known at design time by definition, so they render at a
-  placeholder position with a dashed border and a "position set at runtime"
-  label rather than their real runtime position. `WINDOW(record-format-name)`
-  (inheriting another record's geometry) is fully resolved, including
-  through the inherited record's own `*DFT`/field-name cases.
+### DSPF (screen) designer
+
+- `WINDOW` positions that depend on a runtime value (`*DFT`, or a
+  program-to-system field name) render at a placeholder position with a
+  dashed border, since they can't be known at design time.
+  `WINDOW(record-format-name)` (inheriting another record's geometry) is
+  fully resolved.
 - The pulldown-overlay preview (menu bar → clicked choice → dropdown) is
-  read-only: you can't drag or edit fields while a pulldown is showing.
-  Switch to previewing the `PULLDOWN` record directly to edit it.
+  read-only. Switch to previewing the `PULLDOWN` record directly to edit
+  it.
 - The subfile detail area is read-only when previewing the `SFLCTL`
-  (control) record, matching real SDA - switch to previewing the `SFL`
-  record itself to edit row layout. When previewing `SFL` with "Preview
-  SFLPAG rows" enabled, dragging any field moves every *named* field of the
-  row together; unnamed constants in the row template stay put (can't be
-  reliably re-located by name across the sequential per-field edits a
-  batch move applies).
-- `CHCCTL` (per-choice runtime field-setting logic within a pulldown) has no
-  visual representation, since it's a logic construct rather than a layout
-  one.
-- Compare mode (previewing several record formats together) is read-only by
-  design - editing an arbitrary combination of independently-defined
-  records is ambiguous (which record would an edit belong to?). Switch back
-  to single-record mode to make an actual edit.
-- Record renaming and field/constant deletion are both supported in the
-  DSPF designer (rename via the Properties panel, delete via Delete/
-  Backspace on a selected field) and in the menu designer (rename via the
-  sidebar, delete via the × on each option row - removing its command
-  mapping too). Neither one rewrites other keywords that reference a record
-  or field by name in plain text (`SFLCTL(name)`, `MNUBARCHC(id name
-  text)`, `WINDOW(record-format-name)`, etc.) - a rename shows an advisory
-  warning naming any line that looks like it might reference the old name;
-  a delete doesn't scan for references at all. Review those manually
-  afterward. Neither action has a confirmation prompt - both go through the
-  same `WorkspaceEdit` as every other change here, so Ctrl+Z undoes them
-  the same way.
-- A file declaring two `DSPSIZ` sizes (e.g. `24 80` and `27 132`) shows a
-  screen-size picker, but this only changes the visible *working area* -
-  field positions in DDS are absolute, so there's no such thing as "a
-  field's position for the large size" distinct from its normal-size
-  position. Use the picker to check whether your layout still makes sense
-  at the other size, not to maintain two independent layouts.
+  (control) record - switch to the `SFL` record to edit row layout. With
+  "Preview SFLPAG rows" enabled, dragging a field moves every *named*
+  field of that row together; unnamed constants in the row template stay
+  put.
+- `CHCCTL` (per-choice runtime field-setting logic) has no visual
+  representation - it's a logic construct, not a layout one.
+- Compare mode (previewing several record formats together) is read-only.
+  Switch back to single-record mode to edit.
+- A file declaring two `DSPSIZ` sizes shows a screen-size picker, but this
+  only changes the visible working area - field positions in DDS are
+  absolute, so there's no such thing as "a field's position for the large
+  size." Use the picker to check your layout at the other size, not to
+  maintain two independent layouts.
+- Rename and delete (record format / field / constant) don't rewrite other
+  keywords that reference the old name by text (`SFLCTL`, `WINDOW`,
+  `MNUBARCHC`, etc.) - rename shows an advisory warning naming any line
+  that looks like a reference; delete doesn't scan for references at all.
+  Review those manually.
 - "Create New Display File" only writes to local workspace folders - it
-  can't create a new source member directly on a remote IBM i system
-  (that would mean integrating with Code for i's own member-creation APIs,
-  not yet done). You can still preview/edit an already-existing remote
-  member once it's open.
+  can't create a source member directly on a remote IBM i system.
 - Display-length rules for signed/edited numerics are approximated.
 
-### Menu design (v0.9, updated v0.9.1-0.9.5)
+### Menu designer
 
-- Only works for a MNUDDS member opened via Code for i's `member:` scheme
-  (matches how these are actually edited in practice - SDA menus are IBM i
-  source members, not local files). Opening a local `.mnudds` file shows the
-  designer with the screen preview, but the options panel reports "unsupported"
-  since there's no equivalent local-workspace convention for where the
-  companion `QQ` member would live.
-- New in v0.9.1: you can add a brand-new numbered option directly from the
-  options panel (see Architecture above) - it's placed at a sensible default
-  position, not a chosen one, so double-check it against your screen layout
-  and reposition via the screen designer's drag-to-move if needed.
-- New in v0.9.1: the companion `QQ` member stays in sync if it's also open
-  in its own editor tab (edited via `WorkspaceEdit` instead of a raw file
-  write, and external edits to it are echoed into the options panel). Two
-  menu designer instances racing to write the same `QQ` member at once is
-  still unhandled - a rarer case than "the plain text member is also open".
-- New in v0.9.3: **"Compile Menu (CRTMNU)"**, a command and sidebar button
-  that runs `CRTDSPF`, rebuilds the message file (`DLTMSGF`/`CRTMSGF` +
-  `ADDMSGD` per option, `USRnnnn` message IDs), and `CRTMNU` on your
-  connected IBM i via [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi)'s
-  `code-for-ibmi.runCommand` API. Requires the DDS record format to be
-  named exactly the same as the menu member (CRTMNU's own requirement, not
-  iSDA's) - you'll get an actionable error rather than a cryptic IBM one if
-  it isn't. Only handles `TYPE(*DSPF)` menus (the kind SDA/this tool
-  builds) - not `TYPE(*UIM)` menus, an unrelated source format. The message
-  file is rebuilt from scratch every compile rather than incrementally
-  diffed, so any message IDs you added to it by hand outside of iSDA won't
+- Only works for a MNUDDS member opened via Code for i's `member:` scheme.
+  A local `.mnudds` file shows the screen preview, but the options panel
+  reports "unsupported" (no local-workspace convention for where the
+  companion `QQ` member would live).
+- A brand-new option is placed at a default position, not a chosen one -
+  reposition it via the screen designer's drag-to-move if it doesn't fit.
+- The companion `QQ` member stays in sync if it's open in its own editor
+  tab. Two menu designer instances racing to write it at once is
+  unhandled.
+- **Compile Menu (CRTMNU)** requires the DDS record format to be named
+  exactly the same as the menu member (CRTMNU's own requirement). Only
+  handles `TYPE(*DSPF)` menus. The message file is rebuilt from scratch
+  every compile, so message IDs added to it by hand outside iSDA won't
   survive a compile from here.
-- New in v0.9.4: option label text is editable directly in the options
-  panel (not just the command); you can **drag one option row onto another
-  to swap them** - label and command trade places between the two option
-  numbers, numbers stay at their own screen position; and the record format
-  itself can be **renamed** from the sidebar. Renaming only rewrites the
-  record's own line - it scans the rest of the file for anything that looks
-  like it references the old name (`SFLCTL`, `WINDOW`, `MNUBARCHC`) and
-  warns with line numbers if it finds any, but doesn't rewrite them for you.
+- Rename and delete share the same caveat as the DSPF designer above:
+  cross-references aren't rewritten (rename warns, delete doesn't scan).
 
 ## License
 

@@ -6,110 +6,54 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.8] - Unreleased
 
 ### Added
-- **Record format rename, now in the DSPF/screen designer too.** Previously
-  only the menu designer could rename a record format (added in 0.9.4) - the
-  DSPF designer's Properties panel had a permanently-disabled name field.
-  Both designers now share the same rename implementation: a syntax check
-  (1-10 chars, starts with a letter or `$`/`#`/`@`), a collision check
-  against other record names in the file, and a best-effort advisory scan
-  for lines elsewhere that look like they might reference the old name in
-  plain text (`SFLCTL`, `WINDOW`, `MNUBARCHC`, etc.) - shown as a warning,
-  since only the record's own line is ever rewritten.
-- **Delete a field or constant** in the DSPF/screen designer: select it,
-  press Delete or Backspace. Guarded against firing while typing in the
-  Properties panel's own text inputs, and against firing mid-drag.
-- **Delete a menu option** in the menu designer: a × button on each option
-  row removes both its DDS constant(s) (the number-marker and, for the
-  split-constant layout, the separate label constant too) *and* its
-  MNUCMD command mapping in one action. Sits on the same option card the
-  0.9.7 redesign introduced.
-- Neither delete action prompts for confirmation - like every other edit
-  here, it's a normal `WorkspaceEdit`, so Ctrl+Z undoes it the same way.
+- Record format rename in the DSPF/screen designer (Properties panel) -
+  previously menu-designer only. Validates the name, checks for collisions,
+  and warns (without rewriting) if other lines look like they reference the
+  old name (`SFLCTL`, `WINDOW`, `MNUBARCHC`, etc.).
+- Delete a field/constant in the DSPF designer via Delete/Backspace on the
+  current selection.
+- Delete a menu option via a × button per row - removes its DDS constant(s)
+  and MNUCMD command mapping together.
+- No confirmation prompts for delete - like every edit here, it's a
+  `WorkspaceEdit`, so Ctrl+Z undoes it.
 
 ### Fixed
-- **A wrapped multi-line constant (e.g. a long menu option label) got
-  corrupted when edited.** `DdsFieldBase` had no record of which physical
-  source lines a *bare, keyword-less* literal constant's continuation lines
-  occupied - only the field's own keywords tracked their line ranges, and
-  an implicit quoted literal isn't kept as a keyword at all. Editing such a
-  field (e.g. dragging a long label, or via the properties panel) correctly
-  wrote the new text but never removed the *old* continuation lines,
-  leaving them behind as orphaned garbage a few lines later in the file.
-  Found while building the delete feature above - deleting on the same
-  buggy line-range logic would have made deletion corrupt files the same
-  way. Fixed at the model level (`entrySourceLines` on every field, from
-  the parser's already-tracked continuation-line list), with a regression
-  test proving an edit no longer changes the file's line count when it
-  shouldn't.
-- Minor de-duplication: the menu designer's record-rename validation and
-  cross-reference scan moved into `webviewClientHelpers.js` so the new DSPF
-  designer rename UI could reuse them verbatim instead of a third copy.
+- Editing a wrapped multi-line constant (e.g. a long menu label) left
+  orphaned duplicate lines behind instead of removing the old ones - the
+  model didn't track a bare literal's continuation lines. Fixed via
+  `entrySourceLines` on `DdsFieldBase`; found while building delete above,
+  since deleting on the same bug would have corrupted files too.
+- De-duplicated the menu designer's rename validation/cross-reference scan
+  into `webviewClientHelpers.js`, shared by both designers now.
+- De-duplicated four near-identical "apply this DDS edit" functions in the
+  DSPF designer into one `commitSourceChange` helper.
 
 ## [0.9.7] - Unreleased
 
 ### Changed
-- **Redesigned the menu designer's options panel for readability.** Feedback
-  was that the right-side panel (options, commands, keyword text) felt
-  disorganized. Each option is now its own card (rounded, bordered,
-  distinct background) rather than a flat row separated only by a hairline,
-  with:
-  - A number badge (small circle) instead of plain right-aligned text.
-  - A persistent "Option text" label above the label field, and a `CMD>`
-    prompt before the command field - previously both fields only had
-    placeholder text, which disappears once you type, so there was no way
-    to tell which field was which at a glance once populated.
-  - A drag-handle glyph (⣿) as a visual affordance for the existing
-    drag-to-swap gesture, with a tooltip explaining what it does.
-  - An option count badge and a one-line hint in the panel header.
-  - The "+ Add option" section restyled to match (dashed card border,
-    consistent input/button corner radius).
-  Purely visual/structural - no change to the underlying read/write logic
-  (`extractMenuOptions`, `writeOptionLabel`, `swapOptions`, etc. from
-  0.9.4/0.9.5 are untouched). `menuWebview.test.js`'s selectors updated for
-  the renamed `.option-num` → `.option-num-badge` class; all other
-  assertions unchanged and still pass, confirming the redesign didn't
-  alter behavior.
+- Redesigned the menu designer's options panel: card layout, number badges,
+  persistent field labels (`Option text` / `CMD>`), drag-handle glyph,
+  option count header. Purely visual - read/write logic unchanged; tests
+  updated for the renamed `.option-num` → `.option-num-badge` selector.
 
 ## [0.9.6] - Unreleased
 
 ### Added
-- **A screen-size toggle for display files that declare two `DSPSIZ` sizes.**
-  `DSPSIZ` can declare both a normal and a large-terminal size in the same
-  file (e.g. `DSPSIZ(24 80 *DS3 27 132 *DS4)`) - the DSPF designer only ever
-  read the first one and silently discarded the second. When a file declares
-  more than one size, a "Screen size" picker now appears in the sidebar (both
-  the DSPF designer and the compare-mode preview); with only one declared
-  size, as in the overwhelming majority of files, the picker stays hidden and
-  behaves exactly as before. Field positions are absolute in DDS, so
-  switching sizes changes the visible working area, not per-size field
-  layout - see "Known limitations" below.
+- Screen-size picker for display files that declare two `DSPSIZ` sizes
+  (e.g. `DSPSIZ(24 80 *DS3 27 132 *DS4)`) - previously only the first was
+  read. Hidden when a file declares only one size (the common case).
+  Changes the visible working area only - field positions stay absolute.
 
 ### Fixed
-- **A large `SFLPAG` (or a `SFLSIZ`-driven "virtually unlimited" pattern like
-  `SFLSIZ(9999)`) could render subfile preview rows straight past the bottom
-  of the screen.** Both the `SFLCTL`-side protected preview and the `SFL`
-  record's own "Preview SFLPAG rows" mode now cap the number of rendered
-  rows to what actually fits within the display's working area for the
-  current screen size, rather than trusting the declared `SFLPAG` value
-  unconditionally. The status hint now says so explicitly when capping
-  happens (e.g. "Previewing 22 of 9999 SFLPAG rows (capped to fit the
-  24-line screen)").
-- **The menu designer's "+ Add option" screen-space bound (added in 0.9.5)
-  didn't actually read a file's real `DSPSIZ`.** Its row-limit regex
-  (`/\\d+/g`, doubly-escaped) never matched a digit, so `getScreenRowLimit`
-  silently fell back to the hardcoded 24-row default for every file
-  regardless of its declared size - invisible in the 0.9.5 fixtures because
-  they all happened to use a 24-line `DSPSIZ` already, which is exactly what
-  the broken fallback also produced. Now delegates to the same centralized,
-  tested `DSPSIZ` parser the DSPF designer's screen-size toggle uses
-  (`DspfEngine.screenLinesForRecord`), which also correctly implements
-  record-level-overrides-file-level precedence per real DDS semantics.
-- Minor de-duplication: the DSPF designer's and menu designer's webviews
-  shared two near-identical pieces of client-side code (`rebuildRecordSelect`
-  and HTML-escaping) - now both call one shared implementation
-  (`webviewClientHelpers.js` and `DspfEngine.escapeHtml` respectively) rather
-  than keeping their own copies, directly addressing a bug class the project
-  had hit twice before (see 0.9.4).
+- A large `SFLPAG` (or a `SFLSIZ(9999)`-style "unlimited" pattern) could
+  render subfile rows past the bottom of the screen - now capped to the
+  working area, with the status hint noting when capping occurs.
+- The menu designer's "+ Add option" screen-space bound (0.9.5) never
+  actually read `DSPSIZ` - a doubly-escaped regex (`/\\d+/g`) never matched
+  a digit, so it silently used a 24-row fallback for every file. Now shares
+  the same tested `DSPSIZ` parser as the screen-size picker.
+- De-duplicated `rebuildRecordSelect` and HTML-escaping between the two
+  webviews into `webviewClientHelpers.js` / `DspfEngine.escapeHtml`.
 
 ## [0.9.5] - Unreleased
 
