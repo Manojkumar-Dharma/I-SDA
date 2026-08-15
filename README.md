@@ -109,9 +109,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - Rename auto-rewrites `SFLCTL(name)`, `WINDOW(record-format-name)`, and
   `MNUBARCHC(id record-name 'text')` references to the old record name
   elsewhere in the file, and warns (without rewriting) about anything else
-  that looks like a reference but isn't one of those three shapes. Delete
-  (field/constant) doesn't scan for references at all - review manually
-  after deleting a field something else might point to.
+  that looks like a reference but isn't one of those three shapes.
+  Deleting a *named* field warns the same way (e.g. a `REFFLD(name)`
+  reference) but never auto-fixes, since there's nothing to rewrite a
+  deleted field's reference TO - review those manually. A bare, unnamed
+  constant has nothing to search for, so deleting one never warns.
 - "Create New Display File" only writes to local workspace folders - it
   can't create a source member directly on a remote IBM i system.
 - Display-length rules for signed/edited numerics are approximated.

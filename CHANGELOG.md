@@ -3,6 +3,16 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.11] - Unreleased
+
+### Added
+- Deleting a named field now warns if something elsewhere looks like it
+  still references it by name (e.g. `REFFLD(name)`) - same advisory scan
+  rename already used, applied on delete. No auto-fix (there's nothing
+  sensible to rewrite a deleted field's reference TO), just a heads-up.
+  Doesn't apply to menu options - those are always unnamed constants, so
+  there's nothing to search for.
+
 ## [0.9.10] - Unreleased
 
 ### Added

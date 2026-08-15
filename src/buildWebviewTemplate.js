@@ -731,12 +731,6 @@ const htmlTemplate = `<!DOCTYPE html>
     wireKeywordEditor(help.keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }));
   }
 
-  // No confirmation prompt - deleting is a normal WorkspaceEdit like every
-  // other change here, so Ctrl+Z undoes it the same way. Doesn't try to
-  // clean up other keywords/records that might reference this field by
-  // name (e.g. a subfile record referencing one of its own fields
-  // elsewhere) - same "caller's responsibility" stance rename takes for
-  // cross-references.
   // Shared commit skeleton for every DDS source edit made from this webview:
   // split into lines, let transform() produce the new lines from a DspfWriter
   // call, join/reparse, tell the extension host, then let afterReparse() (if
@@ -766,15 +760,29 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   // No confirmation prompt - deleting is a normal WorkspaceEdit like every
-  // other change here, so Ctrl+Z undoes it the same way. Doesn't try to
-  // clean up other keywords/records that might reference this field by
-  // name (e.g. a subfile record referencing one of its own fields
-  // elsewhere) - same "caller's responsibility" stance rename takes for
-  // cross-references.
+  // other change here, so Ctrl+Z undoes it the same way. Unlike rename,
+  // there's no auto-fix target for a deleted field's references (nothing
+  // sensible to rewrite them TO), so this only scans and warns - using the
+  // same advisory findLikelyNameReferences scan rename falls back on. Only
+  // runs for a genuinely named field (REFFLD and similar keywords reference
+  // fields by name); a bare, unnamed constant has nothing to search for.
   function commitDelete(field) {
+    const references = field.name
+      ? WebviewClientHelpers.findLikelyNameReferences(sourceText, field.name, DspfWriter.getFieldLineRange(field))
+      : [];
     commitSourceChange(
       (lines) => DspfWriter.deleteField(field, lines),
-      () => { selectedKey = null; }
+      () => {
+        selectedKey = null;
+        if (references.length > 0) {
+          vscode.postMessage({
+            type: 'error',
+            message:
+              'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + field.name +
+              '" (e.g. REFFLD) - deleting a field never rewrites other keywords that reference it. Review those manually.',
+          });
+        }
+      }
     );
   }
 

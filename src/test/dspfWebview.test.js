@@ -11,6 +11,7 @@
  */
 const { JSDOM } = require('jsdom');
 const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
+const { buildLine } = require('../fixtures/lineBuilder');
 
 let failures = 0;
 function check(label, condition) {
@@ -155,7 +156,45 @@ setTimeout(() => {
     check('auto-rewrites the WINDOW(BASE) reference to WINDOW(RENAMED)', applyEdit && applyEdit.text.includes('WINDOW(RENAMED)') && !applyEdit.text.includes('WINDOW(BASE)'));
     check('does not warn, since the reference was auto-fixed', !refPosted.some((m) => m.type === 'error'));
 
+    runDeleteWarningScenario();
+  }, 0);
+}, 0);
+
+function runDeleteWarningScenario() {
+  console.log('\ndeleting a named field warns if something else looks like it references it (e.g. REFFLD)');
+  const delSource =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'SRCFLD', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+      buildLine({ seq: '00030', name: 'OTHFLD', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2', func: 'REFFLD(SRCFLD)' }),
+    ].join('\n') + '\n';
+  const delHtml = getWebviewHtml('vscode-webview://fake', 'testnonce3', delSource, 'DELTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const delPosted = [];
+  const delDom = new JSDOM(delHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => delPosted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const delDoc = delDom.window.document;
+    const target = Array.from(delDoc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('SRCFLD'));
+    check('setup: the target field is present', !!target);
+    target.dispatchEvent(new delDom.window.Event('click', { bubbles: true }));
+    delDoc.body.dispatchEvent(new delDom.window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+
+    const applyEdit = delPosted.find((m) => m.type === 'applyEdit');
+    check('deletes the field', applyEdit && !applyEdit.text.includes('SRCFLD    10A'));
+    check('warns that REFFLD(SRCFLD) still looks like a reference', delPosted.some((m) => m.type === 'error' && /REFFLD/.test(m.message) && /SRCFLD/.test(m.message)));
+    check('does not rewrite the REFFLD reference itself (delete only warns, never auto-fixes)', applyEdit && applyEdit.text.includes('REFFLD(SRCFLD)'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
-}, 0);
+}
