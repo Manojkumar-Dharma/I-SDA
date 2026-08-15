@@ -106,11 +106,12 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   shared across every declared size, per DDS - not a limitation. Not yet
   checked: an unconditioned field's position must fit within the smaller
   declared size - iSDA doesn't warn if it doesn't.
-- Rename and delete (record format / field / constant) don't rewrite other
-  keywords that reference the old name by text (`SFLCTL`, `WINDOW`,
-  `MNUBARCHC`, etc.) - rename shows an advisory warning naming any line
-  that looks like a reference; delete doesn't scan for references at all.
-  Review those manually.
+- Rename auto-rewrites `SFLCTL(name)`, `WINDOW(record-format-name)`, and
+  `MNUBARCHC(id record-name 'text')` references to the old record name
+  elsewhere in the file, and warns (without rewriting) about anything else
+  that looks like a reference but isn't one of those three shapes. Delete
+  (field/constant) doesn't scan for references at all - review manually
+  after deleting a field something else might point to.
 - "Create New Display File" only writes to local workspace folders - it
   can't create a source member directly on a remote IBM i system.
 - Display-length rules for signed/edited numerics are approximated.
@@ -131,8 +132,9 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   handles `TYPE(*DSPF)` menus. The message file is rebuilt from scratch
   every compile, so message IDs added to it by hand outside iSDA won't
   survive a compile from here.
-- Rename and delete share the same caveat as the DSPF designer above:
-  cross-references aren't rewritten (rename warns, delete doesn't scan).
+- Rename shares the same auto-rewrite/advisory-warning behavior as the
+  DSPF designer above. Deleting an option doesn't scan for other
+  references to it either.
 
 ## License
 

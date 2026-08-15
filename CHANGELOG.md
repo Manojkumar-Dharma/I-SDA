@@ -3,6 +3,21 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.10] - Unreleased
+
+### Added
+- **Record rename now auto-rewrites the cross-references it can safely
+  identify**, instead of only warning about them. `SFLCTL(name)`,
+  `WINDOW(record-format-name)`, and `MNUBARCHC(id record-name 'text')` are
+  rewritten to the new name automatically - using the same structural
+  parsing logic `dspfEngine.js` already relies on to resolve these
+  keywords at render time, not a heuristic text scan, so it can't misfire
+  on a comment or a constant's display text that happens to share the same
+  characters. Anything outside those three shapes still gets the existing
+  advisory warning, now shown only for what's genuinely left over after
+  the auto-fix. New `DspfWriter.renameRecordReferences()`, wired into both
+  designers' rename flow.
+
 ## [0.9.9] - Unreleased
 
 ### Fixed
