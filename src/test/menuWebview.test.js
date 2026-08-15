@@ -60,7 +60,7 @@ setTimeout(() => {
   check('option 1 shows its label from the DDS constant', rows[0].querySelector('.option-label-input').value === 'Display library list');
   check('option 1 shows its command from the MNUCMD source', rows[0].querySelector('.option-cmd').value === 'DSPLIBL');
   check('option 2 cross-references correctly too', rows[1].querySelector('.option-cmd').value === 'CHGCURLIB');
-  check('option 10 (two-digit) parses correctly and has no command yet', rows[2].querySelector('.option-num').textContent === '10' && rows[2].querySelector('.option-cmd').value === '');
+  check('option 10 (two-digit) parses correctly and has no command yet', rows[2].querySelector('.option-num-badge').textContent === '10' && rows[2].querySelector('.option-cmd').value === '');
   check('renders the actual 5250 screen text, not just the options panel', doc.getElementById('screenOutput').textContent.includes('MAIN MENU'));
 
   console.log('\nediting a command in the browser');
@@ -111,7 +111,7 @@ setTimeout(() => {
     check('the screen preview itself is untouched by a command-only update', doc.getElementById('screenOutput').innerHTML === screenBefore);
 
     function rowForNumber(n) {
-      return Array.from(doc.querySelectorAll('.option-row')).find((r) => r.querySelector('.option-num').textContent === String(n));
+      return Array.from(doc.querySelectorAll('.option-row')).find((r) => r.querySelector('.option-num-badge').textContent === String(n));
     }
 
     console.log('\nediting an option label in the browser');
@@ -278,9 +278,9 @@ function runSplitConstantScenario() {
     const splitDoc = splitDom.window.document;
     const rows = Array.from(splitDoc.querySelectorAll('.option-row'));
     check('finds both options despite the split-constant form', rows.length === 2);
-    const row1 = rows.find((r) => r.querySelector('.option-num').textContent === '1');
+    const row1 = rows.find((r) => r.querySelector('.option-num-badge').textContent === '1');
     check('option 1s label comes from the SEPARATE label constant, not left blank', row1 && row1.querySelector('.option-label-input').value === 'Display current library list');
-    const row2 = rows.find((r) => r.querySelector('.option-num').textContent === '2');
+    const row2 = rows.find((r) => r.querySelector('.option-num-badge').textContent === '2');
     check('a combined-form option in the same file still works too', row2 && row2.querySelector('.option-label-input').value === 'Change current library');
 
     console.log('  editing a split-constant option writes the label constant, not the number marker');
