@@ -40,11 +40,20 @@
   // Indicator evaluation
   // ---------------------------------------------------------------------
 
-  /** @param {{relation:string, indicators:{number:string, not:boolean}[]}[]} conditions */
-  function conditionsSatisfied(conditions, activeIndicators) {
+  /** @param {{relation:string, indicators:{number:string, not:boolean}[], displaySizeCondition:{name:string,not:boolean}|null}[]} conditions
+   *  @param {?string} activeSizeName the CURRENTLY SELECTED DSPSIZ size's own name (e.g. "*DS4"),
+   *    if it has one - see screenSizeFromFileKeywords. A display-size-conditioned group is
+   *    evaluated against this instead of activeIndicators; the two condition kinds are mutually
+   *    exclusive per group (see dspfParser.ts's parseConditionGroup), so a group is always
+   *    entirely one or the other, never a mix. */
+  function conditionsSatisfied(conditions, activeIndicators, activeSizeName) {
     if (!conditions || conditions.length === 0) return true;
     // OR across groups; AND within a group.
     return conditions.some(function (group) {
+      if (group.displaySizeCondition) {
+        var matches = !!activeSizeName && group.displaySizeCondition.name.toUpperCase() === activeSizeName.toUpperCase();
+        return group.displaySizeCondition.not ? !matches : matches;
+      }
       return group.indicators.every(function (ind) {
         var isOn = activeIndicators.has(ind.number);
         return ind.not ? !isOn : isOn;
@@ -221,10 +230,10 @@
   // Keyword-derived styling
   // ---------------------------------------------------------------------
 
-  function styleFromKeywords(keywords, activeIndicators) {
+  function styleFromKeywords(keywords, activeIndicators, activeSizeName) {
     var style = { color: null, hi: false, reverse: false, underline: false, blink: false, hidden: false, protect: false };
     keywords.forEach(function (kw) {
-      if (!conditionsSatisfied(kw.conditions, activeIndicators)) return;
+      if (!conditionsSatisfied(kw.conditions, activeIndicators, activeSizeName)) return;
       if (kw.name === 'COLOR') {
         var c = kw.parameters.trim().toUpperCase();
         if (COLOR_HEX[c]) style.color = COLOR_HEX[c];
@@ -455,12 +464,12 @@
    * windowed, subfile rows - are merged). lineOffset/colOffset let callers place
    * a record's fields relative to a window origin or a repeated subfile row.
    */
-  function resolveRecordFields(record, activeIndicators, lineOffset, colOffset, tag) {
+  function resolveRecordFields(record, activeIndicators, lineOffset, colOffset, tag, activeSizeName) {
     var candidates = [];
     var previousColumnEnd = 1;
 
     record.fields.forEach(function (field) {
-      if (!conditionsSatisfied(field.conditions, activeIndicators)) return;
+      if (!conditionsSatisfied(field.conditions, activeIndicators, activeSizeName)) return;
       if (field.usage === 'H' || field.usage === 'P') return; // hidden / program-to-system: not drawn
 
       var widget = widgetFromKeywords(field);
@@ -477,7 +486,7 @@
       previousColumnEnd = startCol + len;
       startCol += colOffset;
 
-      var style = styleFromKeywords(field.keywords, activeIndicators);
+      var style = styleFromKeywords(field.keywords, activeIndicators, activeSizeName);
       if (style.hidden) return;
 
       // A choice/button/menubar widget needs room for its own content rather
@@ -545,7 +554,7 @@
    * SFLSIZ-style "virtually unlimited" values) previously rendered straight
    * past the bottom of the screen instead of stopping at it.
    */
-  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines) {
+  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines, activeSizeName) {
     var sflCtlKw = record.keywords.find(function (k) { return k.name === 'SFLCTL'; });
     if (!sflCtlKw) return null;
     var sflName = sflCtlKw.parameters.trim();
@@ -573,7 +582,7 @@
     var fields = [];
     for (var row = 0; row < sflPag; row++) {
       var rowOffset = lineOffset + row * rowHeight;
-      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-preview-row-' + row));
+      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-preview-row-' + row, activeSizeName));
     }
     return { sflRecordName: sflRecord.name, pageRows: sflPag, declaredPageRows: declaredSflPag, fields: fields };
   }
@@ -612,7 +621,7 @@
     if (!record) {
       return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], error: 'Record not found: ' + recordName, availableSizes: size.sizes };
     }
-    if (!conditionsSatisfied(record.conditions, activeIndicators)) {
+    if (!conditionsSatisfied(record.conditions, activeIndicators, size.name)) {
       return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], suppressed: true, availableSizes: size.sizes };
     }
 
@@ -637,12 +646,12 @@
 
       candidates = [];
       for (var row = 0; row < sflPag; row++) {
-        candidates = candidates.concat(resolveRecordFields(record, activeIndicators, lineOffset + row * rowHeight, colOffset, 'subfile-edit-row-' + row));
+        candidates = candidates.concat(resolveRecordFields(record, activeIndicators, lineOffset + row * rowHeight, colOffset, 'subfile-edit-row-' + row, size.name));
       }
       previewRowCount = sflPag;
       declaredPreviewRowCount = declaredSflPag;
     } else {
-      candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null);
+      candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name);
     }
 
     // Position-sequence overlap resolution: process in (line, column) order; the
@@ -674,7 +683,7 @@
 
     // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
     // like the pulldown overlay below, it doesn't compete for cells with the base screen.
-    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines);
+    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name);
 
     // Pulldown overlay: rendered as a SEPARATE layer, not subject to the overlap
     // resolution above, since a real pulldown genuinely draws on top of whatever
@@ -685,7 +694,7 @@
       if (pdRecord) {
         var pdLineOffset = activePulldown.line - 1;
         var pdColOffset = activePulldown.col - 1;
-        var pdFields = resolveRecordFields(pdRecord, activeIndicators, pdLineOffset, pdColOffset, 'pulldown');
+        var pdFields = resolveRecordFields(pdRecord, activeIndicators, pdLineOffset, pdColOffset, 'pulldown', size.name);
         if (pdFields.length > 0) {
           var maxLine = Math.max.apply(null, pdFields.map(function (f) { return f.line + (f.height || 1) - 1; }));
           var maxCol = Math.max.apply(null, pdFields.map(function (f) { return f.column + f.length - 1; }));
@@ -732,18 +741,18 @@
     recordNames.forEach(function (recordName) {
       var record = dspfFile.records.find(function (r) { return r.name === recordName; });
       if (!record) return;
-      if (!conditionsSatisfied(record.conditions, activeIndicators)) return;
+      if (!conditionsSatisfied(record.conditions, activeIndicators, size.name)) return;
 
       var windowBox = resolveWindow(record, dspfFile);
       var lineOffset = windowBox ? windowBox.line - 1 : 0;
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 
-      var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null);
+      var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name);
       fields.forEach(function (f) { f.sourceRecord = recordName; });
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName }, windowBox));
 
-      var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines);
+      var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name);
       if (preview) {
         preview.fields.forEach(function (f) { f.sourceRecord = recordName; });
         allFields = allFields.concat(preview.fields);

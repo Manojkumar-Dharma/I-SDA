@@ -3,6 +3,57 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.9] - Unreleased
+
+### Fixed
+- **Display-size condition names (`*DS3`/`*DS4`, or a user-defined name like
+  `*LARGE`) were silently misparsed into garbage indicators, making any
+  field conditioned this way invisible in the preview regardless of which
+  screen size was selected.** Per IBM's own DDS reference, a display-size
+  condition name occupies the SAME columns as regular indicator
+  conditioning (positions 8-16) - a different interpretation of that
+  space, not a separate column range - and the parser only ever understood
+  the indicator interpretation. A field conditioned like:
+  ```
+       A  *DS4                            2 90'WIDE SCREEN ONLY'
+  ```
+  got read as two bogus pseudo-indicators (`"*D"` and `"04"`) instead of a
+  display-size condition, which - since no real indicator is ever literally
+  named `"*D"` - meant the field's condition could never be satisfied, in
+  either screen size. Verified directly against the parser before fixing.
+  Now recognized (detected by position 9 being `*`) and threaded through
+  the whole rendering pipeline: `resolveScreen`/`resolveMultiScreen` pass
+  the currently-selected size's own name (already exposed as `screen.sizeName`
+  from the 0.9.6 dual-`DSPSIZ` work) down through `conditionsSatisfied` and
+  `styleFromKeywords`, so a size-conditioned field or keyword now correctly
+  shows only when its screen size is the active one - independent of, and
+  alongside, ordinary indicator conditioning. Writer round-trips it
+  correctly too (editing/dragging a size-conditioned field preserves its
+  condition exactly, verified with a real edit-and-reparse test).
+  - Handles the `N*DS4` (NOT) form and user-defined condition names
+    (`*LARGE`/`*NORMAL`-style), not just the built-in `*DS3`/`*DS4`.
+  - **Not yet covered**: boundary validation - IBM's guidance that an
+    *unconditioned* field's position must fit within the smaller of the
+    declared sizes (24x80 is the universal minimum) isn't checked or
+    warned about; an oversized unconditioned field just renders wherever
+    its coordinates say, same as before this fix. This would need webview
+    UI work (a warning surfaced somewhere in the screen designer) that
+    felt like a separate, smaller follow-up rather than bundling it into
+    this fix, especially since that file is shared with active work from
+    another session.
+- `src/test/dspfParser.test.js` (new): direct parser coverage - the exact
+  bug case (constant text unaffected, condition correctly recognized as
+  `displaySizeCondition` not indicators), the NOT form, a user-defined
+  name, confirms regular indicator conditioning is unaffected, and a
+  writer round-trip through an edit.
+- `dspfEngine.test.js` extended: a field/keyword shown only in one of two
+  declared sizes renders correctly in both directions (present in one,
+  absent in the other, and vice versa for an `N*DS4`-conditioned one), and
+  a `DSPATR` keyword conditioned by size applies its style only when active.
+- `src/fixtures/lineBuilder.js` extended with a `sizeCondition` option
+  (e.g. `sizeCondition: '*DS4'` or `'N*DS4'`) for building test fixture
+  lines - purely additive, existing `ind1`/`ind2`/`ind3` usage unchanged.
+
 ## [0.9.8] - Unreleased
 
 ### Added

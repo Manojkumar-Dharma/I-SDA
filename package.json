@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -95,7 +95,7 @@
     }
   },
   "scripts": {
-    "test": "node src/test/extension.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js && node src/test/dspfEngine.test.js && node src/test/dspfWebview.test.js && node src/test/compileMenu.test.js",
+    "test": "node src/test/extension.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js && node src/test/dspfParser.test.js && node src/test/dspfEngine.test.js && node src/test/dspfWebview.test.js && node src/test/compileMenu.test.js",
     "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});require('fs').copyFileSync('src/mnuCmdEngine.js','dist/mnuCmdEngine.js')\"",
     "compile": "npm run build:webview-assets && tsc -p ."
   },

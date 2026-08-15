@@ -14,14 +14,29 @@ export interface DdsIndicator {
   not: boolean;
 }
 
+/** A display-size condition name, e.g. *DS3/*DS4 or a user-defined name like *LARGE. */
+export interface DdsDisplaySizeCondition {
+  /** The name as written, e.g. "*DS4" or "*LARGE" - matched against the name a
+   *  DSPSIZ size entry declares for itself (see dspfEngine.js's screenSizeFromFileKeywords). */
+  name: string;
+  /** True if this size must NOT be the active one (N prefix) for the condition to be true */
+  not: boolean;
+}
+
 /**
- * One AND-group of up to 3 indicators (positions 8-16).
+ * One AND-group of up to 3 indicators (positions 8-16), OR - mutually exclusive
+ * per DDS rules - a single display-size condition name occupying that same
+ * column span. A condition line is one or the other, never both, and a
+ * display-size condition can't be combined with anything else via AND/OR
+ * continuation - see parseConditionGroup in dspfParser.ts.
  * Multiple groups on separate lines joined by 'O' in position 7 form an OR relationship.
  */
 export interface DdsCondition {
   /** 'AND' (default / blank / 'A') or 'OR' ('O') relationship to the previous group */
   relation: 'AND' | 'OR';
   indicators: DdsIndicator[];
+  /** Non-null when this group is a display-size condition instead of indicators - `indicators` is always empty in that case. */
+  displaySizeCondition: DdsDisplaySizeCondition | null;
   /** Source line(s) that contributed to this group - a group can span multiple lines
    *  (indicator continuation via 'A' in position 7 when a group has more than 3 indicators).
    *  Needed so a write-back can find and replace ALL of a condition's lines, including

@@ -41,45 +41,61 @@
 
   /**
    * Splits a full conditions array (arbitrary number of OR'd groups, each with
-   * arbitrarily many indicators) into "chunks" of at most 3 indicators each -
-   * one chunk per physical source line's worth of indicator columns (7-16).
-   * The first chunk of a group carries that group's relation ('AND' for the
-   * very first group overall, 'OR' for every other group - which is exactly
-   * what the parser already normalizes group.relation to); every other chunk
-   * within the same group continues it (relation 'AND', i.e. blank/A in col 7).
+   * arbitrarily many indicators, OR a single display-size condition name) into
+   * "chunks" of at most 3 indicators each (or exactly 1 chunk for a
+   * display-size condition, which DDS never lets span multiple lines or
+   * combine with anything else) - one chunk per physical source line's worth
+   * of conditioning columns (7-16). The first chunk of a group carries that
+   * group's relation ('AND' for the very first group overall, 'OR' for every
+   * other group - which is exactly what the parser already normalizes
+   * group.relation to); every other chunk within the same group continues it
+   * (relation 'AND', i.e. blank/A in col 7).
    */
   function buildConditionChunks(conditions) {
     var chunks = [];
     (conditions || []).forEach(function (group) {
+      if (group.displaySizeCondition) {
+        chunks.push({ relation: group.relation, indicators: [], displaySizeCondition: group.displaySizeCondition });
+        return;
+      }
       var inds = group.indicators || [];
       var lineCount = Math.max(1, Math.ceil(inds.length / 3));
       for (var i = 0; i < lineCount; i++) {
         chunks.push({
           relation: i === 0 ? group.relation : 'AND',
           indicators: inds.slice(i * 3, i * 3 + 3),
+          displaySizeCondition: null,
         });
       }
     });
     return chunks;
   }
 
-  /** Returns the 10-char string for columns 7-16 (indicator area) for ONE chunk (<=3 indicators). */
+  /** Returns the 10-char string for columns 7-16 (indicator area) for ONE chunk -
+   *  either up to 3 indicators, or a display-size condition name (position 9 onward,
+   *  N-flag at position 8) - see parseConditionGroup in dspfParser.ts for the read side. */
   function serializeConditionCols(chunk) {
     var chars = new Array(10).fill(' ');
     if (chunk) {
       chars[0] = chunk.relation === 'OR' ? 'O' : ' ';
-      var positions = [
-        { not: 1, digits: [2, 3] },
-        { not: 4, digits: [5, 6] },
-        { not: 7, digits: [8, 9] },
-      ];
-      (chunk.indicators || []).slice(0, 3).forEach(function (ind, i) {
-        var pos = positions[i];
-        if (ind.not) chars[pos.not] = 'N';
-        var num = rightAlign(ind.number, 2);
-        chars[pos.digits[0]] = num[0];
-        chars[pos.digits[1]] = num[1];
-      });
+      if (chunk.displaySizeCondition) {
+        if (chunk.displaySizeCondition.not) chars[1] = 'N';
+        var name = padTo(chunk.displaySizeCondition.name, 8).slice(0, 8);
+        for (var i = 0; i < 8; i++) chars[2 + i] = name[i];
+      } else {
+        var positions = [
+          { not: 1, digits: [2, 3] },
+          { not: 4, digits: [5, 6] },
+          { not: 7, digits: [8, 9] },
+        ];
+        (chunk.indicators || []).slice(0, 3).forEach(function (ind, i) {
+          var pos = positions[i];
+          if (ind.not) chars[pos.not] = 'N';
+          var num = rightAlign(ind.number, 2);
+          chars[pos.digits[0]] = num[0];
+          chars[pos.digits[1]] = num[1];
+        });
+      }
     }
     return chars.join('');
   }

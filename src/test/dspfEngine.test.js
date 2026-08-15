@@ -161,6 +161,49 @@ console.log('screenLinesForRecord: falls back to 24 when DSPSIZ is absent entire
   check('no DSPSIZ anywhere -> the documented 24-line default', DspfEngine.screenLinesForRecord(model, record) === 24);
 }
 
+console.log('\ndisplay-size conditioning: a field shown only in one of two declared sizes');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Always here'" }),
+    buildLine({ seq: '00040', line: '2', col: '90', func: "'Wide only'", sizeCondition: '*DS4' }),
+    buildLine({ seq: '00050', line: '2', col: '5', func: "'Normal only'", sizeCondition: 'N*DS4' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const atNormal = DspfEngine.resolveScreen(model, 'MENU', new Set(), null, false, 0);
+  check('resolves to the *DS3 size (24x80) at index 0', atNormal.lines === 24 && atNormal.columns === 80);
+  check('reports sizeName for the active size', atNormal.sizeName === '*DS3');
+  check('unconditioned field always shows', atNormal.fields.some((f) => f.text === 'Always here'));
+  check('the *DS4-only field is hidden at *DS3', !atNormal.fields.some((f) => f.text === 'Wide only'));
+  check('the N*DS4 ("not wide") field shows at *DS3', atNormal.fields.some((f) => f.text === 'Normal only'));
+
+  const atWide = DspfEngine.resolveScreen(model, 'MENU', new Set(), null, false, 1);
+  check('resolves to the *DS4 size (27x132) at index 1', atWide.lines === 27 && atWide.columns === 132);
+  check('reports sizeName for the active size', atWide.sizeName === '*DS4');
+  check('unconditioned field still shows', atWide.fields.some((f) => f.text === 'Always here'));
+  check('the *DS4-only field now shows', atWide.fields.some((f) => f.text === 'Wide only'));
+  check('the N*DS4 field is now hidden', !atWide.fields.some((f) => f.text === 'Normal only'));
+}
+
+console.log('\ndisplay-size conditioning: a DSPATR keyword conditioned by size (styleFromKeywords path)');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Text'" }),
+    buildLine({ seq: '00040', sizeCondition: '*DS4', func: 'DSPATR(HI)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const atNormal = DspfEngine.resolveScreen(model, 'MENU', new Set(), null, false, 0);
+  check('DSPATR(HI) not applied at *DS3 (the condition is not satisfied)', atNormal.fields[0].style.hi === false);
+
+  const atWide = DspfEngine.resolveScreen(model, 'MENU', new Set(), null, false, 1);
+  check('DSPATR(HI) applied at *DS4 (the condition is satisfied)', atWide.fields[0].style.hi === true);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);
