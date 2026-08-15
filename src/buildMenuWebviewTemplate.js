@@ -445,22 +445,12 @@ const htmlTemplate = `<!DOCTYPE html>
   // a guess (row 6, col 5); reposition it afterwards with the screen
   // designer (dspfDesigner.editor) if it doesn't fit your layout - see
   // README "Known limitations".
-  // DSPSIZ(rows cols *DSxx [rows2 cols2 *DSyy ...]) - record-level keyword
-  // takes priority over file-level (rare but valid DDS to override per
-  // record); the first numeric pair is the primary/default size. Falls
-  // back to 24 (the universal 5250 minimum) if DSPSIZ isn't present or
-  // doesn't parse, rather than assuming unlimited room.
+  // Delegates to DspfEngine.screenLinesForRecord for the actual DSPSIZ
+  // parsing/precedence (record-level overrides file-level, falls back to
+  // 24) - shared with the DSPF designer's own screen-size resolution rather
+  // than this file keeping a second, separate DSPSIZ parser.
   function getScreenRowLimit(currentModel, record) {
-    const sources = (record.keywords || []).concat(currentModel.fileKeywords || []);
-    const dspsiz = sources.find((k) => k.name === 'DSPSIZ');
-    if (dspsiz) {
-      const nums = dspsiz.parameters.match(/\\d+/g);
-      if (nums && nums.length >= 1) {
-        const rows = parseInt(nums[0], 10);
-        if (!isNaN(rows) && rows > 0) return rows;
-      }
-    }
-    return 24;
+    return DspfEngine.screenLinesForRecord(currentModel, record);
   }
 
   // Finds the first row at or after startRow that isn't already occupied by

@@ -123,6 +123,44 @@ console.log('SFLPAG: small declared page size is left untouched (no clamping nee
   check('declaredPageRows matches pageRows when nothing was capped', screen.subfilePreview.declaredPageRows === screen.subfilePreview.pageRows);
 }
 
+console.log('screenLinesForRecord: respects a non-24 DSPSIZ (regression - a broken /\\\\d+/g regex once made this always fall back to 24 silently)');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(27 132 *DS4)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Menu'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'MENU');
+
+  check('a 27-line DSPSIZ is read as 27, not the 24-line fallback', DspfEngine.screenLinesForRecord(model, record) === 27);
+}
+
+console.log('screenLinesForRecord: record-level DSPSIZ overrides file-level');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'MENU', func: 'DSPSIZ(27 132 *DS4)' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Menu'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'MENU');
+
+  check('the record-level DSPSIZ (27) wins over the file-level one (24)', DspfEngine.screenLinesForRecord(model, record) === 27);
+}
+
+console.log('screenLinesForRecord: falls back to 24 when DSPSIZ is absent entirely');
+{
+  const src = [
+    buildLine({ seq: '00020', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Menu'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'MENU');
+
+  check('no DSPSIZ anywhere -> the documented 24-line default', DspfEngine.screenLinesForRecord(model, record) === 24);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);

@@ -127,6 +127,22 @@
   }
 
   /**
+   * Row limit (line count) for a specific record, respecting DDS's actual
+   * DSPSIZ precedence: a record-level DSPSIZ overrides the file-level one
+   * (rare but valid - a record can specify its own display size), falling
+   * back to file-level, then to the 24-line default if neither is present.
+   * Centralizes the "how many rows does this record actually have to work
+   * with" question so screen-space-bounds logic (the menu designer's
+   * "+ Add option" placement, subfile row clamping, etc.) has one correct
+   * DSPSIZ parser to go through instead of each keeping its own copy.
+   */
+  function screenLinesForRecord(dspfFile, record) {
+    var recordHasDspsiz = (record.keywords || []).some(function (k) { return k.name === 'DSPSIZ'; });
+    var keywords = recordHasDspsiz ? record.keywords : (dspfFile.fileKeywords || []);
+    return screenSizeFromFileKeywords(keywords).lines;
+  }
+
+  /**
    * How many subfile rows can actually fit between `startLine` and the
    * bottom of the display's working area (`totalLines`), given each row is
    * `rowHeight` lines tall. Always at least 1 - the template row itself has
@@ -919,6 +935,7 @@
     findSflPairing: findSflPairing,
     escapeHtml: escapeHtml,
     availableScreenSizes: availableScreenSizes,
+    screenLinesForRecord: screenLinesForRecord,
     COLOR_HEX: COLOR_HEX,
     DEFAULT_COLOR: DEFAULT_COLOR,
   };

@@ -3,6 +3,47 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.6] - Unreleased
+
+### Added
+- **A screen-size toggle for display files that declare two `DSPSIZ` sizes.**
+  `DSPSIZ` can declare both a normal and a large-terminal size in the same
+  file (e.g. `DSPSIZ(24 80 *DS3 27 132 *DS4)`) - the DSPF designer only ever
+  read the first one and silently discarded the second. When a file declares
+  more than one size, a "Screen size" picker now appears in the sidebar (both
+  the DSPF designer and the compare-mode preview); with only one declared
+  size, as in the overwhelming majority of files, the picker stays hidden and
+  behaves exactly as before. Field positions are absolute in DDS, so
+  switching sizes changes the visible working area, not per-size field
+  layout - see "Known limitations" below.
+
+### Fixed
+- **A large `SFLPAG` (or a `SFLSIZ`-driven "virtually unlimited" pattern like
+  `SFLSIZ(9999)`) could render subfile preview rows straight past the bottom
+  of the screen.** Both the `SFLCTL`-side protected preview and the `SFL`
+  record's own "Preview SFLPAG rows" mode now cap the number of rendered
+  rows to what actually fits within the display's working area for the
+  current screen size, rather than trusting the declared `SFLPAG` value
+  unconditionally. The status hint now says so explicitly when capping
+  happens (e.g. "Previewing 22 of 9999 SFLPAG rows (capped to fit the
+  24-line screen)").
+- **The menu designer's "+ Add option" screen-space bound (added in 0.9.5)
+  didn't actually read a file's real `DSPSIZ`.** Its row-limit regex
+  (`/\\d+/g`, doubly-escaped) never matched a digit, so `getScreenRowLimit`
+  silently fell back to the hardcoded 24-row default for every file
+  regardless of its declared size - invisible in the 0.9.5 fixtures because
+  they all happened to use a 24-line `DSPSIZ` already, which is exactly what
+  the broken fallback also produced. Now delegates to the same centralized,
+  tested `DSPSIZ` parser the DSPF designer's screen-size toggle uses
+  (`DspfEngine.screenLinesForRecord`), which also correctly implements
+  record-level-overrides-file-level precedence per real DDS semantics.
+- Minor de-duplication: the DSPF designer's and menu designer's webviews
+  shared two near-identical pieces of client-side code (`rebuildRecordSelect`
+  and HTML-escaping) - now both call one shared implementation
+  (`webviewClientHelpers.js` and `DspfEngine.escapeHtml` respectively) rather
+  than keeping their own copies, directly addressing a bug class the project
+  had hit twice before (see 0.9.4).
+
 ## [0.9.5] - Unreleased
 
 ### Fixed

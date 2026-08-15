@@ -107,6 +107,12 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   `MNUBARCHC(id name text)`, `WINDOW(record-format-name)` reference records
   by name in plain text and wouldn't be updated) - the record name field is
   intentionally read-only.
+- A file declaring two `DSPSIZ` sizes (e.g. `24 80` and `27 132`) shows a
+  screen-size picker, but this only changes the visible *working area* -
+  field positions in DDS are absolute, so there's no such thing as "a
+  field's position for the large size" distinct from its normal-size
+  position. Use the picker to check whether your layout still makes sense
+  at the other size, not to maintain two independent layouts.
 - "Create New Display File" only writes to local workspace folders - it
   can't create a new source member directly on a remote IBM i system
   (that would mean integrating with Code for i's own member-creation APIs,
