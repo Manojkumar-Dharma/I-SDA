@@ -456,6 +456,89 @@
     return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
   }
 
+  // Each entry locates the record-name TOKEN within a keyword's own
+  // `parameters` text for one specific, well-known DDS keyword shape - not
+  // a heuristic guess, the same parsing logic dspfEngine.js already uses to
+  // resolve these keywords at render time (resolveWindow, findSflPairing,
+  // parseMenubarChoice). Returns the token string if this occurrence
+  // genuinely references a record name, or null if it doesn't (e.g. WINDOW
+  // with inline geometry instead of a record reference).
+  var RECORD_REFERENCE_EXTRACTORS = {
+    SFLCTL: function (params) {
+      var name = params.trim();
+      return name || null;
+    },
+    WINDOW: function (params) {
+      var parts = params.trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') {
+        return parts[0];
+      }
+      return null;
+    },
+    MNUBARCHC: function (params) {
+      var m = params.trim().match(/^(\d+)\s+(\S+)\s+'/);
+      return m ? m[2] : null;
+    },
+  };
+
+  // A regex per keyword, scoped to that keyword's own invocation, that
+  // captures the record-name token as group 2 - used only to locate and
+  // replace that exact token within the physical line(s) a keyword we've
+  // ALREADY confirmed (via the extractor above) references `oldName`
+  // occupies. Anchored to the keyword name and, for MNUBARCHC, to the
+  // digits-then-token-then-quote shape, so it can never touch the quoted
+  // display text or another keyword's parameters sharing the same line.
+  var RECORD_REFERENCE_LOCATORS = {
+    SFLCTL: /(\bSFLCTL\(\s*)(\S+?)(\s*\))/i,
+    WINDOW: /(\bWINDOW\(\s*)(\S+)(\s*\))/i,
+    MNUBARCHC: /(\bMNUBARCHC\(\s*\d+\s+)(\S+)(\s+')/i,
+  };
+
+  /**
+   * Rewrites every keyword occurrence elsewhere in the file that
+   * structurally references `oldName` as a record-format name -
+   * `SFLCTL(name)`, `WINDOW(record-format-name)`, and
+   * `MNUBARCHC(id record-name 'text')` - to reference `newName` instead.
+   * Unlike renameRecordFormat (which only ever touches the renamed
+   * record's own R-line), this scans every OTHER record's and field's
+   * keywords (MNUBARCHC is field-level) for an exact structural match in
+   * one of those three positions, using the same parsing logic
+   * dspfEngine.js already relies on to resolve them - so it can't misfire
+   * on a comment or a constant's display text that happens to contain the
+   * same characters. Anything NOT one of these three shapes (an unusual
+   * keyword, or a reference inside a comment) is outside what this can
+   * find - callers still need their own advisory scan
+   * (findLikelyNameReferences in webviewClientHelpers.js) as a fallback for
+   * those.
+   */
+  function renameRecordReferences(dspfFile, sourceLines, oldName, newName) {
+    var edits = [];
+    function scanKeyword(kw) {
+      var extractor = RECORD_REFERENCE_EXTRACTORS[kw.name];
+      if (!extractor) return;
+      var ref = extractor(kw.parameters);
+      if (!ref || ref.toUpperCase() !== oldName.toUpperCase()) return;
+      edits.push({ name: kw.name, sourceLines: kw.sourceLines });
+    }
+    dspfFile.records.forEach(function (record) {
+      record.keywords.forEach(scanKeyword);
+      record.fields.forEach(function (f) { f.keywords.forEach(scanKeyword); });
+    });
+
+    var result = sourceLines.slice();
+    edits.forEach(function (edit) {
+      var locator = RECORD_REFERENCE_LOCATORS[edit.name];
+      edit.sourceLines.some(function (lineNo) {
+        var idx = lineNo - 1;
+        var m = result[idx].match(locator);
+        if (!m) return false;
+        result[idx] = result[idx].slice(0, m.index + m[1].length) + newName + result[idx].slice(m.index + m[1].length + m[2].length);
+        return true;
+      });
+    });
+    return result;
+  }
+
   /**
    * Applies `updates` (a partial field object - any of name/length/dataType/decimalPositions/
    * usage/location{line,column}/keywords) to a copy of `field`, regenerates its source lines,
@@ -599,5 +682,6 @@
     serializeRecordEntry: serializeRecordEntry,
     applyRecordUpdate: applyRecordUpdate,
     renameRecordFormat: renameRecordFormat,
+    renameRecordReferences: renameRecordReferences,
   };
 });

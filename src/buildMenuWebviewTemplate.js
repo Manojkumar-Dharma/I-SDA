@@ -630,22 +630,30 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const record = model.records.find((r) => r.name === oldName);
     if (!record) return;
-    const ownRange = DspfWriter.getRecordLineRange(record);
-    const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
-    if (references.length > 0) {
-      vscode.postMessage({
-        type: 'error',
-        message:
-          'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might reference "' + oldName +
-          '" (SFLCTL, WINDOW, MNUBARCHC, etc.) - renaming only updates the record\\'s own line. Review those manually after renaming.',
-      });
-    }
 
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.renameRecordReferences(model, lines, oldName, newName);
     lines = DspfWriter.renameRecordFormat(record, lines, newName);
     sourceText = lines.join('\\n');
     model = DspfParser.parseDspf(sourceText);
     vscode.postMessage({ type: 'applyEdit', text: sourceText });
+
+    // Re-scan AFTER both rewrites: anything findLikelyNameReferences still
+    // finds genuinely couldn't be auto-fixed (not one of the SFLCTL/WINDOW/
+    // MNUBARCHC shapes renameRecordReferences recognizes, or a reference
+    // sitting inside a comment) and needs a manual look.
+    const renamed = model.records.find((r) => r.name === newName);
+    const ownRange = renamed ? DspfWriter.getRecordLineRange(renamed) : null;
+    const remaining = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
+    if (remaining.length > 0) {
+      vscode.postMessage({
+        type: 'error',
+        message:
+          'iSDA: line(s) ' + remaining.join(', ') + ' in this source still look like they might reference "' + oldName +
+          '" - not one of the SFLCTL/WINDOW/MNUBARCHC shapes this can auto-fix. Review those manually.',
+      });
+    }
+
     renderAll();
   });
 

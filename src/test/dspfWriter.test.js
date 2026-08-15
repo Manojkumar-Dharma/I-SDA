@@ -198,5 +198,54 @@ console.log('\nDspfWriter.deleteFields() - removes multiple fields (e.g. a split
     rec2.fields.some((f) => f.constantValue === 'Change current library'));
 }
 
+console.log('\nDspfWriter.renameRecordReferences() - auto-rewrites SFLCTL/WINDOW/MNUBARCHC references');
+{
+  const src = [
+    '     A          R MENU',
+    "     A                                  1  2'MAIN MENU'",
+    '     A            OPT       2A  B  3  5',
+    "     A                                      MNUBARCHC(1 PULLDN1 'File')",
+    '     A          R PULLDN1',
+    "     A                                  1  2'Open'",
+    '     A          R DETAIL',
+    '     A                                      WINDOW(PULLDN1)',
+    '     A          R SFLCTL1',
+    '     A                                      SFLCTL(PULLDN1)',
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+
+  const rewritten = DspfWriter.renameRecordReferences(model, lines, 'PULLDN1', 'PULLNEW');
+  const reparsed = DspfParser.parseDspf(rewritten.join('\n'));
+  check('re-parses with no errors', reparsed.errors.length === 0);
+
+  const detailRec = reparsed.records.find((r) => r.name === 'DETAIL');
+  check('WINDOW(name) reference rewritten', detailRec.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === 'PULLNEW');
+
+  const sflctlRec = reparsed.records.find((r) => r.name === 'SFLCTL1');
+  check('SFLCTL(name) reference rewritten', sflctlRec.keywords.find((k) => k.name === 'SFLCTL').parameters.trim() === 'PULLNEW');
+
+  const menuRec = reparsed.records.find((r) => r.name === 'MENU');
+  const mnubarchc = menuRec.fields.find((f) => f.name === 'OPT').keywords.find((k) => k.name === 'MNUBARCHC');
+  check("MNUBARCHC(id name 'text') reference rewritten, text left untouched", mnubarchc.parameters.trim() === "1 PULLNEW 'File'");
+
+  check('the renamed record itself is untouched by this function (that is renameRecordFormat\'s job)', reparsed.records.some((r) => r.name === 'PULLDN1'));
+}
+
+console.log('\nDspfWriter.renameRecordReferences() - does not touch an unrelated field/constant that merely contains the same text');
+{
+  const src = [
+    '     A          R MENU',
+    "     A                                  1  2'See PULLDN1 for details'",
+    '     A          R PULLDN1',
+    "     A                                  1  2'Open'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+
+  const rewritten = DspfWriter.renameRecordReferences(model, lines, 'PULLDN1', 'PULLNEW');
+  check('display text mentioning the name coincidentally is left exactly as-is', rewritten.join('\n').includes('See PULLDN1 for details'));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

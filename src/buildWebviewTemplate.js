@@ -795,12 +795,12 @@ const htmlTemplate = `<!DOCTYPE html>
     commitSourceChange((lines) => DspfWriter.applyRecordUpdate(rec, lines, updates));
   }
 
-  // Same validation/advisory-scan approach as the menu designer's own record
-  // rename (see buildMenuWebviewTemplate.js) via the shared
-  // WebviewClientHelpers - renameRecordFormat() only ever rewrites the
-  // record's own R-line, never text references to it elsewhere (SFLCTL,
-  // WINDOW, MNUBARCHC...), so those are flagged as an advisory warning
-  // rather than blocked or auto-fixed.
+  // First auto-rewrites every structurally-recognized reference to the old
+  // name (SFLCTL/WINDOW/MNUBARCHC - see DspfWriter.renameRecordReferences),
+  // then renames the record's own R-line, then re-scans what's left with
+  // the advisory-only findLikelyNameReferences - anything reported at that
+  // point genuinely couldn't be auto-fixed (an unusual keyword shape, or a
+  // reference sitting inside a comment) and needs a manual look.
   function commitRecordRename(oldName) {
     const errorEl = document.getElementById('p-record-rename-error');
     const nameInput = document.getElementById('p-record-name');
@@ -819,18 +819,22 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const rec = model.records.find((r) => r.name === oldName);
     if (!rec) return;
-    const ownRange = DspfWriter.getRecordLineRange(rec);
-    const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
 
     commitSourceChange(
-      (lines) => DspfWriter.renameRecordFormat(rec, lines, newName),
+      (lines) => {
+        const withRefs = DspfWriter.renameRecordReferences(model, lines, oldName, newName);
+        return DspfWriter.renameRecordFormat(rec, withRefs, newName);
+      },
       () => {
-        if (references.length > 0) {
+        const renamed = model.records.find((r) => r.name === newName);
+        const ownRange = renamed ? DspfWriter.getRecordLineRange(renamed) : null;
+        const remaining = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
+        if (remaining.length > 0) {
           vscode.postMessage({
             type: 'error',
             message:
-              'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might reference "' + oldName +
-              '" (SFLCTL, WINDOW, MNUBARCHC, etc.) - renaming only updates the record\\'s own line. Review those manually after renaming.',
+              'iSDA: line(s) ' + remaining.join(', ') + ' in this source still look like they might reference "' + oldName +
+              '" - not one of the SFLCTL/WINDOW/MNUBARCHC shapes this can auto-fix. Review those manually.',
           });
         }
         // Explicitly select the renamed record before render() re-derives its

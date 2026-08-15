@@ -118,6 +118,44 @@ setTimeout(() => {
     check('the field is still present', Array.from(doc.querySelectorAll('.dspf-field')).some((el) => el.textContent.includes('MAIN SCREEN')));
   }
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\nrecord rename auto-rewrites a WINDOW(record-name) cross-reference');
+  const refSource =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R BASE',
+      "     A                                  1  2'Main screen text'",
+      '     A          R POPUP',
+      '     A                                      WINDOW(BASE)',
+      "     A                                  1  2'Popup'",
+    ].join('\n') + '\n';
+  const refHtml = getWebviewHtml('vscode-webview://fake', 'testnonce', refSource, 'REFTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const refPosted = [];
+  const refDom = new JSDOM(refHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => refPosted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const refDoc = refDom.window.document;
+    refDoc.getElementById('recordSelect').value = 'BASE';
+    refDoc.getElementById('recordSelect').dispatchEvent(new refDom.window.Event('change', { bubbles: true }));
+    const nameInput = refDoc.getElementById('p-record-name');
+    nameInput.value = 'RENAMED';
+    refDoc.getElementById('p-record-rename').dispatchEvent(new refDom.window.Event('click', { bubbles: true }));
+
+    const applyEdit = refPosted.find((m) => m.type === 'applyEdit' && m.text.includes('R RENAMED'));
+    check('renames the record', !!applyEdit);
+    check('auto-rewrites the WINDOW(BASE) reference to WINDOW(RENAMED)', applyEdit && applyEdit.text.includes('WINDOW(RENAMED)') && !applyEdit.text.includes('WINDOW(BASE)'));
+    check('does not warn, since the reference was auto-fixed', !refPosted.some((m) => m.type === 'error'));
+
+    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+    process.exit(failures === 0 ? 0 : 1);
+  }, 0);
 }, 0);

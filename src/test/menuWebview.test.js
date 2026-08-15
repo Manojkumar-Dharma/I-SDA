@@ -204,13 +204,15 @@ setTimeout(() => {
  * warning rather than silently leaving the SFLCTL reference dangling.
  */
 function runCrossReferenceWarningScenario() {
-  console.log('\nrecord rename cross-reference warning (separate fixture with a real SFLCTL reference)');
+  console.log('\nrecord rename: auto-rewrites recognized cross-references, still warns about the rest');
   const refSource =
     [
       "     A          R MENU",
       "     A                                  1  2'MAIN SCREEN'",
       "     A          R OTHERFMT",
       "     A                                      SFLCTL(MENU)",
+      "     A          R THIRDFMT",
+      "     A                                  1  2'See MENU for details'",
     ].join('\n') + '\n';
   const refHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce2', refSource, '', 'REFTEST.MNUDDS', 'REFTESTQQ.MNUCMD', 'missing').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
@@ -233,10 +235,12 @@ function runCrossReferenceWarningScenario() {
     nameInput.value = 'RENAMED';
     refDoc.getElementById('recordRenameBtn').dispatchEvent(new refDom.window.Event('click', { bubbles: true }));
 
-    check('warns about the SFLCTL cross-reference before renaming', refPosted.some((m) => m.type === 'error' && /SFLCTL/i.test(m.message)));
-    check('names the actual line the reference is on', refPosted.some((m) => m.type === 'error' && /line\(s\) 4\b/.test(m.message)));
-    check('still applies the rename despite the warning (advisory, not a hard block)', refPosted.some((m) => m.type === 'applyEdit' && m.text.includes('R RENAMED')));
-    check("does NOT rewrite the SFLCTL reference itself (the documented gap)", refPosted.some((m) => m.type === 'applyEdit' && m.text.includes('SFLCTL(MENU)')));
+    const applyEdit = refPosted.find((m) => m.type === 'applyEdit' && m.text.includes('R RENAMED'));
+    check('renames the record', !!applyEdit);
+    check('auto-rewrites the recognized SFLCTL(MENU) reference to SFLCTL(RENAMED)', applyEdit && applyEdit.text.includes('SFLCTL(RENAMED)') && !applyEdit.text.includes('SFLCTL(MENU)'));
+    check('does NOT warn about the SFLCTL line - it was fixed, not just flagged', !refPosted.some((m) => m.type === 'error' && /line\(s\) 4\b/.test(m.message)));
+    check("leaves an unrelated constant's text alone (never rewrites arbitrary display text)", applyEdit && applyEdit.text.includes('See MENU for details'));
+    check('still warns about that constant, since it is not one of the auto-fixable keyword shapes', refPosted.some((m) => m.type === 'error' && /SFLCTL\/WINDOW\/MNUBARCHC/.test(m.message) && /line\(s\) 6\b/.test(m.message)));
 
     runSplitConstantScenario();
   }, 100);
