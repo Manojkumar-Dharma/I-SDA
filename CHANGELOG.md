@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.7] - Unreleased
+## [0.9.8] - Unreleased
 
 ### Added
 - **Record format rename, now in the DSPF/screen designer too.** Previously
@@ -21,33 +21,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Delete a menu option** in the menu designer: a × button on each option
   row removes both its DDS constant(s) (the number-marker and, for the
   split-constant layout, the separate label constant too) *and* its
-  MNUCMD command mapping in one action.
+  MNUCMD command mapping in one action. Sits on the same option card the
+  0.9.7 redesign introduced.
 - Neither delete action prompts for confirmation - like every other edit
   here, it's a normal `WorkspaceEdit`, so Ctrl+Z undoes it the same way.
-
-### Changed
-- **Redesigned the menu designer's options panel for readability.** Feedback
-  was that the right-side panel (options, commands, keyword text) felt
-  disorganized. Each option is now its own card (rounded, bordered,
-  distinct background) rather than a flat row separated only by a hairline,
-  with:
-  - A number badge (small circle) instead of plain right-aligned text.
-  - A persistent "Option text" label above the label field, and a `CMD>`
-    prompt before the command field - previously both fields only had
-    placeholder text, which disappears once you type, so there was no way
-    to tell which field was which at a glance once populated.
-  - A drag-handle glyph (⣿) as a visual affordance for the existing
-    drag-to-swap gesture, with a tooltip explaining what it does.
-  - An option count badge and a one-line hint in the panel header.
-  - The new delete (×) button folded into the same card layout.
-  - The "+ Add option" section restyled to match (dashed card border,
-    consistent input/button corner radius).
-  Purely visual/structural - no change to the underlying read/write logic
-  (`extractMenuOptions`, `writeOptionLabel`, `swapOptions`, etc. from
-  0.9.4/0.9.5 are untouched). `menuWebview.test.js`'s selectors updated for
-  the renamed `.option-num` → `.option-num-badge` class; all other
-  assertions unchanged and still pass, confirming the redesign didn't
-  alter behavior.
 
 ### Fixed
 - **A wrapped multi-line constant (e.g. a long menu option label) got
@@ -67,6 +44,31 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Minor de-duplication: the menu designer's record-rename validation and
   cross-reference scan moved into `webviewClientHelpers.js` so the new DSPF
   designer rename UI could reuse them verbatim instead of a third copy.
+
+## [0.9.7] - Unreleased
+
+### Changed
+- **Redesigned the menu designer's options panel for readability.** Feedback
+  was that the right-side panel (options, commands, keyword text) felt
+  disorganized. Each option is now its own card (rounded, bordered,
+  distinct background) rather than a flat row separated only by a hairline,
+  with:
+  - A number badge (small circle) instead of plain right-aligned text.
+  - A persistent "Option text" label above the label field, and a `CMD>`
+    prompt before the command field - previously both fields only had
+    placeholder text, which disappears once you type, so there was no way
+    to tell which field was which at a glance once populated.
+  - A drag-handle glyph (⣿) as a visual affordance for the existing
+    drag-to-swap gesture, with a tooltip explaining what it does.
+  - An option count badge and a one-line hint in the panel header.
+  - The "+ Add option" section restyled to match (dashed card border,
+    consistent input/button corner radius).
+  Purely visual/structural - no change to the underlying read/write logic
+  (`extractMenuOptions`, `writeOptionLabel`, `swapOptions`, etc. from
+  0.9.4/0.9.5 are untouched). `menuWebview.test.js`'s selectors updated for
+  the renamed `.option-num` → `.option-num-badge` class; all other
+  assertions unchanged and still pass, confirming the redesign didn't
+  alter behavior.
 
 ## [0.9.6] - Unreleased
 
