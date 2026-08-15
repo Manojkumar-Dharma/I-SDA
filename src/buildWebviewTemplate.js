@@ -96,6 +96,12 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-field.dspf-pulldown-field.dspf-widget-radio, .dspf-field.dspf-pulldown-field.dspf-widget-checkbox { background: #0a0f0c; }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
+  .rename-row { display: flex; gap: 6px; margin-top: 8px; }
+  .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .rename-btn:hover { border-color: var(--accent); }
+  .rename-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
+  .delete-hint { color: var(--ink-dim); font-size: 11px; margin-top: 10px; }
   button { background: #14261c; color: var(--accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
@@ -653,6 +659,7 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
     html += keywordEditorHtml(field.keywords);
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
+    html += '<div class="delete-hint">Press Delete or Backspace to remove this field.</div>';
     propsBody.innerHTML = html;
     if (!editable) return;
 
@@ -686,11 +693,15 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const editable = DspfWriter.isEditable(rec);
     let html = '<div class="section-label">Record</div>';
-    html += '<div class="field-row"><label>Name</label><input type="text" value="' + rec.name + '" disabled title="Renaming isn\\'t supported - other keywords (SFLCTL, WINDOW, MNUBARCHC...) may reference this name by text and wouldn\\'t be updated." /></div>';
+    html += '<div class="field-row"><label>Name</label>' +
+      '<div class="rename-row"><input type="text" class="rename-input" id="p-record-name" value="' + rec.name + '" /><button class="rename-btn" id="p-record-rename">Rename</button></div>' +
+      '<div class="rename-error" id="p-record-rename-error"></div></div>';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
     html += keywordEditorHtml(rec.keywords);
     html += helpEntriesListHtml(rec);
     propsBody.innerHTML = html;
+
+    document.getElementById('p-record-rename').addEventListener('click', () => commitRecordRename(recordName));
 
     propsBody.querySelectorAll('.help-entry-row').forEach((el) => {
       el.addEventListener('click', () => {
@@ -718,6 +729,28 @@ const htmlTemplate = `<!DOCTYPE html>
     document.getElementById('p-back').addEventListener('click', () => { selectedHelpSourceLine = null; renderProps(recordName); });
     if (!editable) return;
     wireKeywordEditor(help.keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }));
+  }
+
+  // No confirmation prompt - deleting is a normal WorkspaceEdit like every
+  // other change here, so Ctrl+Z undoes it the same way. Doesn't try to
+  // clean up other keywords/records that might reference this field by
+  // name (e.g. a subfile record referencing one of its own fields
+  // elsewhere) - same "caller's responsibility" stance rename takes for
+  // cross-references.
+  function commitDelete(field) {
+    try {
+      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      const newLines = DspfWriter.deleteField(field, lines);
+      sourceText = newLines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      selectedKey = null;
+      activePulldown = null;
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
   }
 
   function commitEdit(recordName, field, updates) {
@@ -755,6 +788,60 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   }
 
+  // Same validation/advisory-scan approach as the menu designer's own record
+  // rename (see buildMenuWebviewTemplate.js) via the shared
+  // WebviewClientHelpers - renameRecordFormat() only ever rewrites the
+  // record's own R-line, never text references to it elsewhere (SFLCTL,
+  // WINDOW, MNUBARCHC...), so those are flagged as an advisory warning
+  // rather than blocked or auto-fixed.
+  function commitRecordRename(oldName) {
+    const errorEl = document.getElementById('p-record-rename-error');
+    const nameInput = document.getElementById('p-record-name');
+    if (errorEl) errorEl.textContent = '';
+    const newName = (nameInput.value || '').trim().toUpperCase();
+    if (!newName) { if (errorEl) errorEl.textContent = 'Enter a record format name.'; return; }
+    if (newName === oldName) return;
+    if (!WebviewClientHelpers.isValidDdsName(newName)) {
+      if (errorEl) errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).';
+      return;
+    }
+    if (model.records.some((r) => r.name === newName)) {
+      if (errorEl) errorEl.textContent = 'A record format named ' + newName + ' already exists.';
+      return;
+    }
+
+    try {
+      const rec = model.records.find((r) => r.name === oldName);
+      if (!rec) return;
+      const ownRange = DspfWriter.getRecordLineRange(rec);
+      const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
+
+      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      const newLines = DspfWriter.renameRecordFormat(rec, lines, newName);
+      sourceText = newLines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      if (references.length > 0) {
+        vscode.postMessage({
+          type: 'error',
+          message:
+            'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might reference "' + oldName +
+            '" (SFLCTL, WINDOW, MNUBARCHC, etc.) - renaming only updates the record\\'s own line. Review those manually after renaming.',
+        });
+      }
+      // Explicitly select the renamed record before render() re-derives its
+      // own idea of "current record" from recordSelect.value - render()'s own
+      // rebuildRecordSelect() call preserves whatever value is already set
+      // here (since newName now exists in the freshly-reparsed model),
+      // rather than falling back to the browser's default first-option pick.
+      recordSelect.value = newName;
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
+  }
+
   function commitHelpEdit(recordName, help, updates) {
     try {
       const lines = sourceText.split(/\\r\\n|\\r|\\n/);
@@ -772,6 +859,22 @@ const htmlTemplate = `<!DOCTYPE html>
       vscode.postMessage({ type: 'error', message: err.message });
     }
   }
+
+  // Delete/Backspace deletes the currently-selected field or constant.
+  // Guarded against firing while typing in ANY text input/select in the
+  // props panel (Backspace while editing a Name/Length/etc. field must not
+  // also delete the field it's attached to) and against firing mid-drag.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+    if (dragState) return;
+    const tag = (e.target && e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (!selectedKey) return;
+    const found = findFieldBySourceLine(selectedKey.sourceLine);
+    if (!found) return;
+    e.preventDefault();
+    commitDelete(found.field);
+  });
 
   window.addEventListener('message', (event) => {
     const msg = event.data;

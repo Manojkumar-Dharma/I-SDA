@@ -103,10 +103,18 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   design - editing an arbitrary combination of independently-defined
   records is ambiguous (which record would an edit belong to?). Switch back
   to single-record mode to make an actual edit.
-- Record renaming isn't supported (other keywords like `SFLCTL(name)`,
-  `MNUBARCHC(id name text)`, `WINDOW(record-format-name)` reference records
-  by name in plain text and wouldn't be updated) - the record name field is
-  intentionally read-only.
+- Record renaming and field/constant deletion are both supported in the
+  DSPF designer (rename via the Properties panel, delete via Delete/
+  Backspace on a selected field) and in the menu designer (rename via the
+  sidebar, delete via the × on each option row - removing its command
+  mapping too). Neither one rewrites other keywords that reference a record
+  or field by name in plain text (`SFLCTL(name)`, `MNUBARCHC(id name
+  text)`, `WINDOW(record-format-name)`, etc.) - a rename shows an advisory
+  warning naming any line that looks like it might reference the old name;
+  a delete doesn't scan for references at all. Review those manually
+  afterward. Neither action has a confirmation prompt - both go through the
+  same `WorkspaceEdit` as every other change here, so Ctrl+Z undoes them
+  the same way.
 - A file declaring two `DSPSIZ` sizes (e.g. `24 80` and `27 132`) shows a
   screen-size picker, but this only changes the visible *working area* -
   field positions in DDS are absolute, so there's no such thing as "a

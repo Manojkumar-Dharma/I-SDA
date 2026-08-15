@@ -115,6 +115,10 @@
   function getFieldLineRange(field) {
     var min = field.sourceLine;
     var max = field.sourceLine;
+    (field.entrySourceLines || []).forEach(function (ln) {
+      if (ln < min) min = ln;
+      if (ln > max) max = ln;
+    });
     (field.conditions || []).forEach(function (g) {
       (g.sourceLines || []).forEach(function (ln) {
         if (ln < min) min = ln;
@@ -547,12 +551,50 @@
     return sourceLines.slice(0, insertAfterLine).concat(newLines, sourceLines.slice(insertAfterLine));
   }
 
+  /**
+   * Removes one field or constant's physical DDS lines entirely (its
+   * positional line and every continuation line - see getFieldLineRange /
+   * DdsFieldBase.entrySourceLines), leaving everything else byte-for-byte
+   * untouched. Doesn't try to be smart about other keywords/records that
+   * might reference this field by name (e.g. a subfile record referencing
+   * one of its own fields elsewhere) - same "caller's responsibility"
+   * stance renameRecordFormat already documents for cross-references.
+   */
+  function deleteField(field, sourceLines) {
+    var range = getFieldLineRange(field);
+    return sourceLines.slice(0, range[0] - 1).concat(sourceLines.slice(range[1]));
+  }
+
+  /**
+   * Removes several fields/constants in one pass - e.g. a menu option's
+   * number-marker AND label constants when they're two separate DDS entries
+   * (the split-constant form - see extractMenuOptions in
+   * buildMenuWebviewTemplate.js). Line ranges for every field are computed
+   * up front, then removed bottom-to-top, so deleting one never shifts the
+   * line numbers of another range still waiting to be removed - unlike
+   * commitGroupEdit's per-field reparse loop (needed there because an EDIT's
+   * resulting line count isn't known ahead of time), a deletion's line
+   * range is already fully known before anything is removed, so a single
+   * up-front pass is both simpler and enough.
+   */
+  function deleteFields(fields, sourceLines) {
+    var ranges = fields.map(function (f) { return getFieldLineRange(f); });
+    ranges.sort(function (a, b) { return b[0] - a[0]; });
+    var result = sourceLines.slice();
+    ranges.forEach(function (range) {
+      result = result.slice(0, range[0] - 1).concat(result.slice(range[1]));
+    });
+    return result;
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
     serializeFieldEntry: serializeFieldEntry,
     applyFieldUpdate: applyFieldUpdate,
     insertField: insertField,
+    deleteField: deleteField,
+    deleteFields: deleteFields,
     getRecordLineRange: getRecordLineRange,
     serializeRecordEntry: serializeRecordEntry,
     applyRecordUpdate: applyRecordUpdate,

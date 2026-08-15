@@ -66,6 +66,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .option-row.dragging { opacity: 0.4; }
   .option-num { flex: 0 0 26px; color: var(--accent); font-weight: 600; font-size: 15px; text-align: right; padding-top: 4px; }
   .option-body { flex: 1; min-width: 0; }
+  .option-delete-btn { flex: 0 0 auto; align-self: flex-start; background: #1a1010; color: var(--warn); border: 1px solid var(--panel-border); padding: 4px 8px; font-family: var(--mono); font-size: 13px; cursor: pointer; line-height: 1; }
+  .option-delete-btn:hover { border-color: var(--warn); }
   .option-label-input { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; margin-bottom: 6px; }
   .option-label-input:focus { border-color: var(--accent); outline: none; }
   .option-cmd { width: 100%; background: #0d1310; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
@@ -316,6 +318,34 @@ const htmlTemplate = `<!DOCTYPE html>
     renderAll();
   }
 
+  // Deletes an option entirely: both its DDS constant(s) (the number-marker
+  // and, for the split-constant form, the separate label constant too - see
+  // extractMenuOptions) AND its MNUCMD command mapping if one exists. No
+  // confirmation prompt and no renumbering of other options - deleting is a
+  // normal WorkspaceEdit like every other change here, so Ctrl+Z undoes it
+  // the same way.
+  function deleteOption(numberValue) {
+    const option = findOption(model, numberValue);
+    if (!option) return;
+
+    const fields = option.labelField && option.labelField !== option.numberField
+      ? [option.numberField, option.labelField]
+      : [option.numberField];
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.deleteFields(fields, lines);
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+
+    if (commandStatus !== 'unsupported' && commandFor(numberValue)) {
+      commandText = MnuCmdEngine.applyOptionCommand(commandText, numberValue, '');
+      cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
+      vscode.postMessage({ type: 'applyMenuCmdEdit', text: commandText });
+    }
+
+    renderAll();
+  }
+
   // Swaps what's shown at two option NUMBERS - label text AND command -
   // while each number stays at its own screen position. This is what
   // actually reorders visibly in the options panel (which always lists by
@@ -395,7 +425,11 @@ const htmlTemplate = `<!DOCTYPE html>
         '<div class="option-body">' +
         '<input type="text" class="option-label-input" value="' + escapeAttr(opt.label) + '" placeholder="Option text" />' +
         '<input type="text" class="option-cmd" value="' + escapeAttr(command) + '" placeholder="Command to run, e.g. CALL PGM1" />' +
-        '</div>';
+        '</div>' +
+        '<button type="button" class="option-delete-btn" title="Delete option ' + numLabel + '">&times;</button>';
+
+      const deleteBtn = row.querySelector('.option-delete-btn');
+      deleteBtn.addEventListener('click', () => deleteOption(opt.numberValue));
 
       const labelInput = row.querySelector('.option-label-input');
       labelInput.addEventListener('change', () => updateOptionLabel(opt.numberValue, labelInput.value));
@@ -533,48 +567,6 @@ const htmlTemplate = `<!DOCTYPE html>
 
   addOptionBtn.addEventListener('click', addNewOption);
 
-  // Best-effort advisory scan for other lines that might reference this
-  // record by name (SFLCTL(name), WINDOW(... name ...), MNUBARCHC(id name
-  // text), etc.) - renameRecordFormat() only rewrites the record's OWN
-  // R-line, same reasoning DspfWriter.applyRecordUpdate already documents
-  // for treating a rename as genuinely risky to fully automate. \\b treats
-  // only [A-Za-z0-9_] as word characters, so a name starting/ending with
-  // $/#/@ won't match as precisely - good enough for an advisory warning,
-  // not a hard guarantee.
-  function isDdsWordChar(ch) {
-    return /[A-Z0-9_]/.test(ch);
-  }
-
-  // Deliberately not a dynamically-built regex - the name being searched for
-  // is itself the variable part, and there's no need to fight regex
-  // metacharacter escaping (DDS names can contain $#@) when a plain
-  // case-insensitive substring scan with a manual word-boundary check does
-  // the same job with nothing to get wrong.
-  function findLikelyNameReferences(text, name, excludeLineRange) {
-    if (!name) return [];
-    const upperName = name.toUpperCase();
-    const lines = text.split(/\\r\\n|\\r|\\n/);
-    const hits = [];
-    lines.forEach((line, idx) => {
-      const lineNo = idx + 1;
-      if (excludeLineRange && lineNo >= excludeLineRange[0] && lineNo <= excludeLineRange[1]) return;
-      const upperLine = line.toUpperCase();
-      let searchFrom = 0;
-      while (true) {
-        const pos = upperLine.indexOf(upperName, searchFrom);
-        if (pos === -1) break;
-        const before = pos > 0 ? upperLine[pos - 1] : '';
-        const after = pos + upperName.length < upperLine.length ? upperLine[pos + upperName.length] : '';
-        if (!isDdsWordChar(before) && !isDdsWordChar(after)) {
-          hits.push(lineNo);
-          break;
-        }
-        searchFrom = pos + 1;
-      }
-    });
-    return hits;
-  }
-
   recordRenameBtn.addEventListener('click', () => {
     recordRenameError.textContent = '';
     const oldName = recordSelect.value;
@@ -585,7 +577,7 @@ const htmlTemplate = `<!DOCTYPE html>
       return;
     }
     if (newName === oldName) return;
-    if (!/^[A-Z$#@][A-Z0-9$#@_]{0,9}$/.test(newName)) {
+    if (!WebviewClientHelpers.isValidDdsName(newName)) {
       recordRenameError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).';
       return;
     }
@@ -597,7 +589,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const record = model.records.find((r) => r.name === oldName);
     if (!record) return;
     const ownRange = DspfWriter.getRecordLineRange(record);
-    const references = findLikelyNameReferences(sourceText, oldName, ownRange);
+    const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
     if (references.length > 0) {
       vscode.postMessage({
         type: 'error',

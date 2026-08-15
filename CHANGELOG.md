@@ -3,6 +3,47 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.7] - Unreleased
+
+### Added
+- **Record format rename, now in the DSPF/screen designer too.** Previously
+  only the menu designer could rename a record format (added in 0.9.4) - the
+  DSPF designer's Properties panel had a permanently-disabled name field.
+  Both designers now share the same rename implementation: a syntax check
+  (1-10 chars, starts with a letter or `$`/`#`/`@`), a collision check
+  against other record names in the file, and a best-effort advisory scan
+  for lines elsewhere that look like they might reference the old name in
+  plain text (`SFLCTL`, `WINDOW`, `MNUBARCHC`, etc.) - shown as a warning,
+  since only the record's own line is ever rewritten.
+- **Delete a field or constant** in the DSPF/screen designer: select it,
+  press Delete or Backspace. Guarded against firing while typing in the
+  Properties panel's own text inputs, and against firing mid-drag.
+- **Delete a menu option** in the menu designer: a × button on each option
+  row removes both its DDS constant(s) (the number-marker and, for the
+  split-constant layout, the separate label constant too) *and* its
+  MNUCMD command mapping in one action.
+- Neither delete action prompts for confirmation - like every other edit
+  here, it's a normal `WorkspaceEdit`, so Ctrl+Z undoes it the same way.
+
+### Fixed
+- **A wrapped multi-line constant (e.g. a long menu option label) got
+  corrupted when edited.** `DdsFieldBase` had no record of which physical
+  source lines a *bare, keyword-less* literal constant's continuation lines
+  occupied - only the field's own keywords tracked their line ranges, and
+  an implicit quoted literal isn't kept as a keyword at all. Editing such a
+  field (e.g. dragging a long label, or via the properties panel) correctly
+  wrote the new text but never removed the *old* continuation lines,
+  leaving them behind as orphaned garbage a few lines later in the file.
+  Found while building the delete feature above - deleting on the same
+  buggy line-range logic would have made deletion corrupt files the same
+  way. Fixed at the model level (`entrySourceLines` on every field, from
+  the parser's already-tracked continuation-line list), with a regression
+  test proving an edit no longer changes the file's line count when it
+  shouldn't.
+- Minor de-duplication: the menu designer's record-rename validation and
+  cross-reference scan moved into `webviewClientHelpers.js` so the new DSPF
+  designer rename UI could reuse them verbatim instead of a third copy.
+
 ## [0.9.6] - Unreleased
 
 ### Added

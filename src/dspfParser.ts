@@ -352,6 +352,7 @@ function buildFieldBase(entry: LogicalEntry, nameType: DdsNameType, conditions: 
     keywords,
     constantValue,
     sourceLine: entry.sourceLine,
+    entrySourceLines: entry.functionSourceLines,
   };
 }
 

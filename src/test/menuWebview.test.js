@@ -168,6 +168,30 @@ setTimeout(() => {
     recordRenameBtn.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
     check('rejects an invalid DDS name without posting applyEdit', doc.getElementById('recordRenameError').textContent.length > 0 && posted.length === postedBeforeInvalidRename);
 
+    console.log('\ndeleting an option removes its DDS constant AND its command mapping');
+    const postedBeforeDelete = posted.length;
+    const rowsBeforeDelete = doc.querySelectorAll('.option-row').length;
+    const option2Row = rowForNumber(2);
+    check('setup: option 2 currently has a command mapped', option2Row.querySelector('.option-cmd').value === 'CALL PGM2');
+    option2Row.querySelector('.option-delete-btn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    const deleteMsgs = posted.slice(postedBeforeDelete);
+    const deleteApplyEdit = deleteMsgs.find((m) => m.type === 'applyEdit');
+    const deleteCmdEdit = deleteMsgs.find((m) => m.type === 'applyMenuCmdEdit');
+    check('posts applyEdit with the option\'s DDS constant removed', deleteApplyEdit && !deleteApplyEdit.text.includes('Change current library'));
+    check('posts applyMenuCmdEdit with the command mapping removed', deleteCmdEdit && !deleteCmdEdit.text.includes('CALL PGM2') && !deleteCmdEdit.text.includes('0002'));
+    check('the other options survive untouched', deleteApplyEdit && deleteApplyEdit.text.includes('Sign off') && deleteApplyEdit.text.includes('Reindex files'));
+    check('the option row disappears from the panel', doc.querySelectorAll('.option-row').length === rowsBeforeDelete - 1);
+    check('option 2 no longer appears at all', !rowForNumber(2));
+
+    console.log('\ndeleting an option with no command mapping does not post a spurious applyMenuCmdEdit');
+    const postedBeforeDelete2 = posted.length;
+    const option1Row = rowForNumber(1); // 'Sign off', no command (per the earlier swap)
+    check('setup: option 1 currently has no command mapped', option1Row.querySelector('.option-cmd').value === '');
+    option1Row.querySelector('.option-delete-btn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    const deleteMsgs2 = posted.slice(postedBeforeDelete2);
+    check('posts applyEdit removing the constant', deleteMsgs2.some((m) => m.type === 'applyEdit' && !m.text.includes('Sign off')));
+    check('does not post applyMenuCmdEdit when there was nothing to remove', !deleteMsgs2.some((m) => m.type === 'applyMenuCmdEdit'));
+
     runCrossReferenceWarningScenario();
   }, 50);
 }, 100);

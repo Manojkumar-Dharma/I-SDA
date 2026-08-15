@@ -81,6 +81,16 @@ export interface DdsFieldBase {
   constantValue: string | null;
   /** 1-based line number(s) in the original source this entry's positional part came from */
   sourceLine: number;
+  /**
+   * Every physical source line this entry's own positional/function-area text spans,
+   * including continuation lines (e.g. a long quoted constant that wraps with a
+   * trailing '+'). For an implicit bare-literal constant, that literal text is folded
+   * into `constantValue` rather than kept as a keyword, so its continuation lines
+   * would otherwise be invisible to line-range logic (getFieldLineRange in
+   * dspfWriter.js) that only walks keywords[].sourceLines - always includes at least
+   * `sourceLine` itself.
+   */
+  entrySourceLines: number[];
 }
 
 export interface DdsRecordFormat {
