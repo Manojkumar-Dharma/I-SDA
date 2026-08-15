@@ -98,11 +98,14 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   representation - it's a logic construct, not a layout one.
 - Compare mode (previewing several record formats together) is read-only.
   Switch back to single-record mode to edit.
-- A file declaring two `DSPSIZ` sizes shows a screen-size picker, but this
-  only changes the visible working area - field positions in DDS are
-  absolute, so there's no such thing as "a field's position for the large
-  size." Use the picker to check your layout at the other size, not to
-  maintain two independent layouts.
+- A file declaring two `DSPSIZ` sizes shows a screen-size picker. A field
+  or keyword conditioned on a display-size condition name (`*DS3`/`*DS4`,
+  or a user-defined name) now shows only for its own size (fixed in
+  0.9.9 - previously misparsed into garbage indicators and never rendered
+  in either size). An unconditioned field's position stays absolute and
+  shared across every declared size, per DDS - not a limitation. Not yet
+  checked: an unconditioned field's position must fit within the smaller
+  declared size - iSDA doesn't warn if it doesn't.
 - Rename and delete (record format / field / constant) don't rewrite other
   keywords that reference the old name by text (`SFLCTL`, `WINDOW`,
   `MNUBARCHC`, etc.) - rename shows an advisory warning naming any line

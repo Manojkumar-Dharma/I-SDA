@@ -21,18 +21,31 @@ function buildLine(spec) {
     return chars.join('').replace(/\s+$/, '');
   }
   put(7, spec.relation === 'OR' ? 'O' : ' ');
-  const putIndicator = (notCol, digitCol, value) => {
-    if (!value) return;
-    if (value.startsWith('N')) {
-      put(notCol, 'N');
-      put(digitCol, value.slice(1));
-    } else {
-      put(digitCol, value);
+  if (spec.sizeCondition) {
+    // A display-size condition name (e.g. "*DS4", or "N*DS4" for NOT) occupies
+    // the SAME columns as the three indicator slots below - mutually exclusive
+    // with them per DDS rules, so this branch and the indicator one below never
+    // both apply to the same line.
+    let sc = spec.sizeCondition;
+    if (sc.startsWith('N')) {
+      put(8, 'N');
+      sc = sc.slice(1);
     }
-  };
-  putIndicator(8, 9, spec.ind1); // e.g. "N01" -> N at 8, 01 at 9-10; "01" -> 01 at 9-10
-  putIndicator(11, 12, spec.ind2);
-  putIndicator(14, 15, spec.ind3);
+    put(9, sc);
+  } else {
+    const putIndicator = (notCol, digitCol, value) => {
+      if (!value) return;
+      if (value.startsWith('N')) {
+        put(notCol, 'N');
+        put(digitCol, value.slice(1));
+      } else {
+        put(digitCol, value);
+      }
+    };
+    putIndicator(8, 9, spec.ind1); // e.g. "N01" -> N at 8, 01 at 9-10; "01" -> 01 at 9-10
+    putIndicator(11, 12, spec.ind2);
+    putIndicator(14, 15, spec.ind3);
+  }
   put(17, spec.nameType ?? ' '); // R / H / blank
   put(19, spec.name ?? '');
   put(29, spec.ref ?? '');

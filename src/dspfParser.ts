@@ -56,10 +56,25 @@ function isBlank(s: string): boolean {
   return s.trim().length === 0;
 }
 
-/** Parses positions 7-16 into a single DdsCondition (one AND-group). Returns null if no indicators present. */
+/**
+ * Parses positions 7-16 into a single DdsCondition: either one AND-group of
+ * up to 3 indicators, OR - mutually exclusive per DDS rules - a single
+ * display-size condition name occupying that same column span (position 9
+ * onward). Detected by position 9 being '*': every display-size condition
+ * name in IBM's own DDS reference - built-in *DS3/*DS4 and user-defined
+ * names like *LARGE/*NORMAL alike - starts with '*', and a real indicator
+ * number never can, so there's no ambiguity. Returns null if the
+ * conditioning columns are blank.
+ */
 function parseConditionGroup(line: string): DdsCondition | null {
   const relationChar = col(line, 7, 7);
   const relation: 'AND' | 'OR' = relationChar.toUpperCase() === 'O' ? 'OR' : 'AND';
+
+  if (col(line, 9, 9) === '*') {
+    const notFlag = col(line, 8, 8).toUpperCase() === 'N';
+    const name = col(line, 9, 16).trim();
+    return { relation, indicators: [], displaySizeCondition: { name, not: notFlag }, sourceLines: [] };
+  }
 
   const slots: Array<[number, number, number]> = [
     [8, 9, 10],
@@ -76,7 +91,7 @@ function parseConditionGroup(line: string): DdsCondition | null {
     }
   }
 
-  return indicators.length > 0 ? { relation, indicators, sourceLines: [] } : null;
+  return indicators.length > 0 ? { relation, indicators, displaySizeCondition: null, sourceLines: [] } : null;
 }
 
 /** Parses a numeric-or-blank-or-signed-override positional field, e.g. length, decimal positions. */
@@ -381,7 +396,20 @@ export function parseDspf(source: string): DspfFile {
   const accumulateConditions = (entry: LogicalEntry): void => {
     const group = parseConditionGroup(entry.positionalLine);
     if (!group) return;
-    if (group.relation === 'AND' && pendingConditions.length > 0) {
+    // A display-size condition is always a complete, standalone condition -
+    // DDS doesn't allow combining it with indicators/other names via AND/OR
+    // continuation - so it always starts its own new pending group rather
+    // than merging into whatever indicator group came before it.
+    if (group.displaySizeCondition) {
+      pendingConditions.push({
+        relation: pendingConditions.length === 0 ? 'AND' : group.relation,
+        indicators: [],
+        displaySizeCondition: group.displaySizeCondition,
+        sourceLines: [entry.sourceLine],
+      });
+      return;
+    }
+    if (group.relation === 'AND' && pendingConditions.length > 0 && !pendingConditions[pendingConditions.length - 1].displaySizeCondition) {
       const last = pendingConditions[pendingConditions.length - 1];
       last.indicators.push(...group.indicators);
       last.sourceLines.push(entry.sourceLine);
@@ -389,6 +417,7 @@ export function parseDspf(source: string): DspfFile {
       pendingConditions.push({
         relation: pendingConditions.length === 0 ? 'AND' : group.relation,
         indicators: group.indicators,
+        displaySizeCondition: null,
         sourceLines: [entry.sourceLine],
       });
     }
