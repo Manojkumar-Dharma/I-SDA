@@ -24,6 +24,7 @@ class CodeLens {
 class Uri {
   static file(p) { return new Uri('file', p); }
   static joinPath(base, ...segments) { return new Uri(base.scheme, base.path + '/' + segments.join('/')); }
+  static from(components) { return new Uri(components.scheme, components.path, components.query); }
   constructor(scheme, path, query) { this.scheme = scheme; this.path = path; this.query = query || ''; }
   with(changes) {
     return new Uri(
@@ -52,6 +53,11 @@ const vscodeMock = {
   CodeLens,
   Uri,
   ViewColumn: { Beside: -2, One: 1 },
+  extensions: {
+    // Simulates "Code for i not installed" by default; tests can override this
+    // (vscodeMock.extensions.getExtension = () => ({...})) to simulate a connection.
+    getExtension: () => undefined,
+  },
   FileType: { Directory: 2, File: 1 },
   window: {
     activeTextEditor: null,
@@ -63,6 +69,7 @@ const vscodeMock = {
     showErrorMessage: (msg) => { vscodeMock.__lastError = msg; return Promise.resolve(undefined); },
     showInformationMessage: (msg) => { vscodeMock.__lastInformation = msg; return Promise.resolve(undefined); },
     showInputBox: () => Promise.resolve(undefined),
+    showQuickPick: () => Promise.resolve(undefined),
     showWorkspaceFolderPick: () => Promise.resolve(undefined),
     showTextDocument: () => Promise.resolve(undefined),
     withProgress: (options, task) => task({ report: () => {} }, { isCancellationRequested: false }),

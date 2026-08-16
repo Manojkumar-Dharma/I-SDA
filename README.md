@@ -114,8 +114,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   reference) but never auto-fixes, since there's nothing to rewrite a
   deleted field's reference TO - review those manually. A bare, unnamed
   constant has nothing to search for, so deleting one never warns.
-- "Create New Display File" only writes to local workspace folders - it
-  can't create a source member directly on a remote IBM i system.
+- "Create New Display File" can now create a source member directly on a
+  connected IBM i system (via Code for i's `ADDPFM`), but only into an
+  *existing* source physical file - it won't create the source physical
+  file itself if it doesn't exist yet (that's `CRTSRCPF`, deliberately out
+  of scope - see CHANGELOG for why).
 - Display-length rules for signed/edited numerics are approximated.
 
 ### Menu designer
