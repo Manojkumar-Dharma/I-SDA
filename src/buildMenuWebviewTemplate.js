@@ -107,6 +107,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .add-option-row { display: flex; gap: 6px; margin-bottom: 8px; }
   .add-option-num { flex: 0 0 46px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 6px; font-family: var(--mono); font-size: 12px; }
   .add-option-label { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .add-option-pos { flex: 1; min-width: 0; background: #0d1310; color: var(--ink-dim); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
+  .add-option-pos:focus { color: var(--ink); border-color: var(--accent); outline: none; }
   .add-option-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 7px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
   .add-option-btn:hover { border-color: var(--accent); }
   .add-option-btn:disabled { opacity: 0.5; cursor: default; }
@@ -153,6 +155,10 @@ const htmlTemplate = `<!DOCTYPE html>
       <input type="text" class="add-option-num" id="addOptionNum" placeholder="#" inputmode="numeric" />
       <input type="text" class="add-option-label" id="addOptionLabel" placeholder="Option text, e.g. Sign off" />
     </div>
+    <div class="add-option-row">
+      <input type="text" class="add-option-pos" id="addOptionRow" placeholder="Row" inputmode="numeric" title="Screen row - pre-filled with a suggested spot, edit to choose your own" />
+      <input type="text" class="add-option-pos" id="addOptionCol" placeholder="Col" inputmode="numeric" title="Screen column - pre-filled with a suggested spot, edit to choose your own" />
+    </div>
     <button class="add-option-btn" id="addOptionBtn">+ Add option</button>
     <div class="add-option-error" id="addOptionError"></div>
   </div>
@@ -179,6 +185,8 @@ const htmlTemplate = `<!DOCTYPE html>
   const cmdStatusEl = document.getElementById('cmdStatus');
   const addOptionNumInput = document.getElementById('addOptionNum');
   const addOptionLabelInput = document.getElementById('addOptionLabel');
+  const addOptionRowInput = document.getElementById('addOptionRow');
+  const addOptionColInput = document.getElementById('addOptionCol');
   const addOptionBtn = document.getElementById('addOptionBtn');
   const addOptionError = document.getElementById('addOptionError');
   const recordNameInput = document.getElementById('recordNameInput');
@@ -447,6 +455,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const options = extractMenuOptions(model);
     optionsBody.innerHTML = '';
     if (optionCountEl) optionCountEl.textContent = options.length === 1 ? '1 option' : options.length + ' options';
+    refreshAddOptionDefaults();
     if (options.length === 0) {
       optionsBody.innerHTML = '<div class="empty-state">No numbered options found on this screen yet. iSDA looks for constants shaped like "1. Do a thing" to build this list - add one in the DDS source, then reopen this designer.</div>';
       return;
@@ -548,6 +557,56 @@ const htmlTemplate = `<!DOCTYPE html>
     return null;
   }
 
+  // The starting point for "+ Add option" - one row below the last existing
+  // option in this record, same column (or row 6/col 5 as a guess with no
+  // options yet to anchor on). Shared between the pre-filled Row/Col inputs
+  // and validating whatever the user actually submits, so both always agree
+  // on what "the suggested spot" means.
+  function computeDefaultPlacement(recordName) {
+    const record = model.records.find((r) => r.name === recordName);
+    if (!record) return null;
+    const existing = extractMenuOptions(model).filter((o) => o.recordName === recordName && o.line != null);
+    let startRow = 6;
+    let column = 5;
+    if (existing.length > 0) {
+      const last = existing.reduce((a, b) => (b.line > a.line ? b : a));
+      startRow = last.line + 1;
+      column = last.column != null ? last.column : 5;
+    } else {
+      // No options in this record yet - start right after whatever content
+      // it already has (a title, header lines, a divider, etc.) instead of
+      // a fixed guess that might land on top of that content or leave an
+      // unnecessarily large gap below it. findSafeOptionRow() below still
+      // searches forward from here regardless, so this can't make things
+      // worse than the old fixed guess - it just makes the STARTING guess a
+      // much better one for the common case (a menu record already has a
+      // title before its first option is ever added).
+      const occupiedLines = (record.fields || [])
+        .map((f) => (f.location ? f.location.line : null))
+        .filter((n) => n != null);
+      if (occupiedLines.length > 0) startRow = Math.max.apply(null, occupiedLines) + 1;
+    }
+    return { line: findSafeOptionRow(model, record, startRow), column: column, startRow: startRow };
+  }
+
+  // Pre-fills the Row/Col inputs with the suggested spot - but only while
+  // they're empty, so this never clobbers a value the user already typed in
+  // (e.g. after a mid-form edit elsewhere triggers a re-render).
+  function refreshAddOptionDefaults() {
+    const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+    if (!recordName) return;
+    const placement = computeDefaultPlacement(recordName);
+    if (!placement) return;
+    if (!addOptionRowInput.value && placement.line != null) addOptionRowInput.value = String(placement.line);
+    if (!addOptionColInput.value) addOptionColInput.value = String(placement.column);
+  }
+
+  function isRowAvailable(currentModel, record, row) {
+    const maxRows = getScreenRowLimit(currentModel, record);
+    if (!Number.isInteger(row) || row < 1 || row > maxRows) return false;
+    return !(record.fields || []).some((f) => f.location && f.location.line === row);
+  }
+
   function addNewOption() {
     addOptionError.textContent = '';
     const numRaw = addOptionNumInput.value.trim();
@@ -574,35 +633,43 @@ const htmlTemplate = `<!DOCTYPE html>
       return;
     }
 
-    const inThisRecord = existing.filter((o) => o.recordName === recordName && o.line != null);
-    let startRow = 6;
-    let column = 5;
-    if (inThisRecord.length > 0) {
-      const last = inThisRecord.reduce((a, b) => (b.line > a.line ? b : a));
-      startRow = last.line + 1;
-      column = last.column != null ? last.column : 5;
-    } else {
-      // No options in this record yet - start right after whatever content
-      // it already has (a title, header lines, a divider, etc.) instead of
-      // a fixed guess that might land on top of that content or leave an
-      // unnecessarily large gap below it. findSafeOptionRow() below still
-      // searches forward from here regardless, so this can't make things
-      // worse than the old fixed guess - it just makes the STARTING guess a
-      // much better one for the common case (a menu record already has a
-      // title before its first option is ever added).
-      const occupiedLines = (record.fields || [])
-        .map((f) => (f.location ? f.location.line : null))
-        .filter((n) => n != null);
-      if (occupiedLines.length > 0) startRow = Math.max.apply(null, occupiedLines) + 1;
+    const placement = computeDefaultPlacement(recordName);
+    const rowRaw = addOptionRowInput.value.trim();
+    const colRaw = addOptionColInput.value.trim();
+    const column = colRaw ? parseInt(colRaw, 10) : placement ? placement.column : 5;
+    if (!Number.isInteger(column) || column < 1) {
+      addOptionError.textContent = 'Enter a valid column number.';
+      return;
     }
 
-    const line = findSafeOptionRow(model, record, startRow);
-    if (line == null) {
-      addOptionError.textContent =
-        'No room left on this screen for a new option - row ' + startRow + ' and below are either already used by another field ' +
-        '(a "Selection or command" prompt, function-key text, etc.) or past the screen size (DSPSIZ). Reposition something first, ' +
-        'or add it manually via the screen designer.';
-      return;
+    let line;
+    if (rowRaw) {
+      // A row the user typed in themselves (whether they edited the
+      // pre-filled suggestion or left it as-is) - validate it specifically,
+      // naming the exact reason it doesn't work rather than silently
+      // searching for a different spot instead of the one they asked for.
+      line = parseInt(rowRaw, 10);
+      if (!Number.isInteger(line) || line < 1) {
+        addOptionError.textContent = 'Enter a valid row number.';
+        return;
+      }
+      if (!isRowAvailable(model, record, line)) {
+        const maxRows = getScreenRowLimit(model, record);
+        addOptionError.textContent =
+          line > maxRows
+            ? 'Row ' + line + ' is past this screen\\'s size (' + maxRows + ' rows). Choose a smaller row, or add it manually via the screen designer.'
+            : 'Row ' + line + ' is already used by another field on this screen. Choose a different row.';
+        return;
+      }
+    } else {
+      // Fields were cleared (or never pre-filled, e.g. no record selected
+      // yet at the time) - fall back to the same auto-search as before.
+      line = findSafeOptionRow(model, record, placement ? placement.startRow : 6);
+      if (line == null) {
+        addOptionError.textContent =
+          'No room left on this screen for a new option - reposition something first, or add it manually via the screen designer.';
+        return;
+      }
     }
 
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
@@ -617,6 +684,8 @@ const htmlTemplate = `<!DOCTYPE html>
 
     addOptionNumInput.value = '';
     addOptionLabelInput.value = '';
+    addOptionRowInput.value = '';
+    addOptionColInput.value = '';
     renderAll();
   }
 

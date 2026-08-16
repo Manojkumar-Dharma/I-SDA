@@ -124,13 +124,12 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   member (and its paired commands member) created some other way. Would
   need to generate both paired members together, unlike a display file's
   single-member case.
-- A brand-new option is placed at a default position, not a chosen one.
-  It starts right after the record's existing content (last option, or -
-  if there are no options yet - the last title/header line) and searches
-  forward for a free, in-bounds row, so it won't land on top of existing
-  content or off the declared screen size - but it's still a guess, not a
-  position you picked. Reposition it via the screen designer's
-  drag-to-move if it doesn't fit where you'd actually want it.
+- As of v0.9.19, a brand-new option's Row/Col are shown and editable before
+  adding it - pre-filled with a smart default (right after the record's
+  existing content: the last option, or the last title/header line if
+  there are no options yet). Choosing an occupied row or one past the
+  screen size is rejected with the specific reason. Leaving the fields
+  untouched places it exactly where the old auto-placement would have.
 - The companion commands file (`QQ` member, or local sibling) stays in
   sync if it's open in its own editor tab. Two menu designer instances
   racing to write it at once is unhandled.

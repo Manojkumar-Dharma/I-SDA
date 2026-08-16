@@ -436,8 +436,81 @@ function runFirstOptionPlacementScenario() {
       const emptyMsg = emptyPosted.find((m) => m.type === 'applyEdit');
       check('an empty record still uses the original row 6 default (unchanged behavior)', emptyMsg && /6\s+5'1\. Sign off'/.test(emptyMsg.text));
 
-      console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-      process.exit(failures === 0 ? 0 : 1);
+      runChosenPlacementScenario();
     }, 100);
+  }, 100);
+}
+
+/**
+ * "+ Add option" previously always computed its own placement with no way
+ * to choose - the Row/Col inputs let the user override the pre-filled
+ * suggestion (or leave it as-is for the same behavior as before).
+ */
+function runChosenPlacementScenario() {
+  console.log('\n"+ Add option" Row/Col fields: pre-filled, editable, validated');
+  const src =
+    [
+      "     A                                      DSPSIZ(24 80 *DS3)",
+      "     A          R MENU",
+      "     A                                  3  5'1. Display library list'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce6', src, '', 'PLACE.MNUDDS', 'PLACEQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    check('pre-fills the suggested row (one below the last option)', doc.getElementById('addOptionRow').value === '4');
+    check('pre-fills the suggested column (matching the last option)', doc.getElementById('addOptionCol').value === '5');
+
+    console.log('  leaving the pre-filled defaults untouched still works');
+    doc.getElementById('addOptionNum').value = '2';
+    doc.getElementById('addOptionLabel').value = 'Default placed';
+    doc.getElementById('addOptionBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    const defaultMsg = posted.find((m) => m.type === 'applyEdit');
+    check('places it at the pre-filled row/col when left as-is', defaultMsg && /4\s+5'2\. Default placed'/.test(defaultMsg.text));
+    check('clears then immediately re-suggests fresh row/col for the next option', doc.getElementById('addOptionRow').value === '5' && doc.getElementById('addOptionCol').value === '5');
+
+    console.log('  overriding the row/col places the option where the user actually chose');
+    doc.getElementById('addOptionNum').value = '3';
+    doc.getElementById('addOptionLabel').value = 'Custom placed';
+    doc.getElementById('addOptionRow').value = '10';
+    doc.getElementById('addOptionCol').value = '20';
+    doc.getElementById('addOptionBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    const chosenMsg = posted[posted.length - 1];
+    check('honors the user-chosen row and column exactly', chosenMsg && chosenMsg.type === 'applyEdit' && /10 20'3\. Custom placed'/.test(chosenMsg.text));
+
+    console.log('  choosing an already-occupied row is rejected with a specific error');
+    doc.getElementById('addOptionNum').value = '4';
+    doc.getElementById('addOptionLabel').value = 'Collides';
+    doc.getElementById('addOptionRow').value = '10';
+    doc.getElementById('addOptionCol').value = '5';
+    const postedBeforeCollision = posted.length;
+    doc.getElementById('addOptionBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    check('names the specific occupied row rather than a generic "no room" message', /row 10 is already used/i.test(doc.getElementById('addOptionError').textContent));
+    check('does not post applyEdit for the rejected collision', posted.length === postedBeforeCollision);
+
+    console.log('  choosing a row past the screen size is rejected');
+    doc.getElementById('addOptionNum').value = '5';
+    doc.getElementById('addOptionLabel').value = 'Off screen';
+    doc.getElementById('addOptionRow').value = '99';
+    doc.getElementById('addOptionCol').value = '5';
+    const postedBeforeOffscreen = posted.length;
+    doc.getElementById('addOptionBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    check('names the screen-size reason rather than a generic message', /past this screen's size/i.test(doc.getElementById('addOptionError').textContent));
+    check('does not post applyEdit for the rejected off-screen row', posted.length === postedBeforeOffscreen);
+
+    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+    process.exit(failures === 0 ? 0 : 1);
   }, 100);
 }
