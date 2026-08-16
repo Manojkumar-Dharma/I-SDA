@@ -3,6 +3,24 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.18] - Unreleased
+
+### Fixed
+- **"+ Add option" now picks a smarter starting row for the FIRST option
+  in a record.** Previously the first option always started its
+  free-row search at a fixed row 6, regardless of what the record
+  already contained - a taller title/header block (a common real layout:
+  a title, a couple of info lines, a divider) could push the actual
+  first free row well past 6, or the search would simply skip forward
+  over occupied rows to find one that worked, landing wherever that
+  happened to be rather than naturally right after the existing content.
+  Now starts the search right after the record's own highest occupied
+  row (falling back to the original row 6 only for a genuinely empty
+  record, unchanged from before). The existing forward-search-for-a-
+  free-row and DSPSIZ-bounds behavior (added in 0.9.5/0.9.9) already
+  meant this was never a correctness bug - a field was never actually
+  overwritten - just a worse starting guess than necessary.
+
 ## [0.9.17] - Unreleased
 
 ### Fixed

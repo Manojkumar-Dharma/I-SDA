@@ -371,6 +371,71 @@ function runScreenSpaceScenario() {
       check('shows a "no room" error naming the DSPSIZ/occupied-row cause', /no room|DSPSIZ/i.test(fullDoc.getElementById('addOptionError').textContent));
       check('does NOT post applyEdit when there is no room', !fullPosted.some((m) => m.type === 'applyEdit'));
 
+      runFirstOptionPlacementScenario();
+    }, 100);
+  }, 100);
+}
+
+function runFirstOptionPlacementScenario() {
+  console.log('\n"+ Add option" for the FIRST option in a record starts after existing content, not a fixed row 6');
+
+  console.log('  a record with a title/header (no options yet) - starts right after the last content row');
+  const titledSource =
+    [
+      "     A                                      DSPSIZ(24 80 *DS3)",
+      "     A          R MENU",
+      "     A                                  1 20'*** MAIN MENU ***'",
+      "     A                                  3 10'Company: Acme Corp'",
+      "     A                                  4 10'System:  Production'",
+      "     A                                  6 10'------------------------------'",
+    ].join('\n') + '\n';
+  const titledHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce6', titledSource, '', 'TITLED.MNUDDS', 'TITLEDQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const titledPosted = [];
+  const titledDom = new JSDOM(titledHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => titledPosted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const titledDoc = titledDom.window.document;
+    titledDoc.getElementById('addOptionNum').value = '1';
+    titledDoc.getElementById('addOptionLabel').value = 'Display library list';
+    titledDoc.getElementById('addOptionBtn').dispatchEvent(new titledDom.window.Event('click', { bubbles: true }));
+    const titledMsg = titledPosted.find((m) => m.type === 'applyEdit');
+    check('lands on row 7, right after the divider on row 6 (not the old fixed row 6, which would have collided)', titledMsg && /7\s+5'1\. Display library list'/.test(titledMsg.text));
+    check('does not touch the existing title/header content', titledMsg && titledMsg.text.includes('MAIN MENU') && titledMsg.text.includes('Company: Acme Corp'));
+
+    console.log('  a genuinely empty record (no content at all) - still falls back to the original row 6');
+    const emptySource = ["     A                                      DSPSIZ(24 80 *DS3)", "     A          R MENU"].join('\n') + '\n';
+    const emptyHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce7', emptySource, '', 'EMPTY.MNUDDS', 'EMPTYQQ.MNUCMD', 'missing').replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const emptyPosted = [];
+    const emptyDom = new JSDOM(emptyHtml, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ postMessage: (m) => emptyPosted.push(m) });
+      },
+    });
+
+    setTimeout(() => {
+      const emptyDoc = emptyDom.window.document;
+      emptyDoc.getElementById('addOptionNum').value = '1';
+      emptyDoc.getElementById('addOptionLabel').value = 'Sign off';
+      emptyDoc.getElementById('addOptionBtn').dispatchEvent(new emptyDom.window.Event('click', { bubbles: true }));
+      const emptyMsg = emptyPosted.find((m) => m.type === 'applyEdit');
+      check('an empty record still uses the original row 6 default (unchanged behavior)', emptyMsg && /6\s+5'1\. Sign off'/.test(emptyMsg.text));
+
       console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
       process.exit(failures === 0 ? 0 : 1);
     }, 100);

@@ -124,8 +124,13 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   member (and its paired commands member) created some other way. Would
   need to generate both paired members together, unlike a display file's
   single-member case.
-- A brand-new option is placed at a default position, not a chosen one -
-  reposition it via the screen designer's drag-to-move if it doesn't fit.
+- A brand-new option is placed at a default position, not a chosen one.
+  It starts right after the record's existing content (last option, or -
+  if there are no options yet - the last title/header line) and searches
+  forward for a free, in-bounds row, so it won't land on top of existing
+  content or off the declared screen size - but it's still a guess, not a
+  position you picked. Reposition it via the screen designer's
+  drag-to-move if it doesn't fit where you'd actually want it.
 - The companion commands file (`QQ` member, or local sibling) stays in
   sync if it's open in its own editor tab. Two menu designer instances
   racing to write it at once is unhandled.

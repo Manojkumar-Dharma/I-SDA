@@ -581,6 +581,19 @@ const htmlTemplate = `<!DOCTYPE html>
       const last = inThisRecord.reduce((a, b) => (b.line > a.line ? b : a));
       startRow = last.line + 1;
       column = last.column != null ? last.column : 5;
+    } else {
+      // No options in this record yet - start right after whatever content
+      // it already has (a title, header lines, a divider, etc.) instead of
+      // a fixed guess that might land on top of that content or leave an
+      // unnecessarily large gap below it. findSafeOptionRow() below still
+      // searches forward from here regardless, so this can't make things
+      // worse than the old fixed guess - it just makes the STARTING guess a
+      // much better one for the common case (a menu record already has a
+      // title before its first option is ever added).
+      const occupiedLines = (record.fields || [])
+        .map((f) => (f.location ? f.location.line : null))
+        .filter((n) => n != null);
+      if (occupiedLines.length > 0) startRow = Math.max.apply(null, occupiedLines) + 1;
     }
 
     const line = findSafeOptionRow(model, record, startRow);
