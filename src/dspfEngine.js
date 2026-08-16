@@ -184,17 +184,38 @@
     return 'X';
   }
 
+  // Real, IBM-documented DATFMT display lengths (consistent across the DDS,
+  // RPG, and CL references) - *JOB is a special case: it ALWAYS reserves 10
+  // screen positions even though the format it resolves to at runtime
+  // (*MDY/*DMY/*YMD = 8 chars, *JUL = 6) displays fewer. No DATFMT keyword
+  // at all defaults to *ISO (10) - same as explicitly writing DATFMT(*ISO).
+  var DATFMT_LENGTHS = {
+    '*ISO': 10, '*USA': 10, '*EUR': 10, '*JIS': 10, '*JOB': 10,
+    '*MDY': 8, '*DMY': 8, '*YMD': 8,
+    '*JUL': 6,
+  };
+
+  function dateFieldLength(field) {
+    var kw = (field.keywords || []).find(function (k) { return k.name === 'DATFMT'; });
+    if (!kw) return DATFMT_LENGTHS['*ISO']; // unspecified anywhere defaults to *ISO
+    var name = kw.parameters.trim().toUpperCase();
+    return DATFMT_LENGTHS[name] != null ? DATFMT_LENGTHS[name] : DATFMT_LENGTHS['*ISO'];
+  }
+
   function displayLength(field) {
-    // Approximation of "display length" rules (position 35 + decimals can add
-    // positions for sign/decimal point/exponent - see DDS position-35 reference).
-    // TODO: refine per exact keyboard-shift rules once the editor needs pixel-exact widths.
+    // Approximation of "display length" rules for numeric edit codes/words
+    // (EDTCDE/EDTWRD can insert commas, currency symbols, and sign
+    // positions in ways too varied to safely approximate without a live
+    // system to verify against - see position-35 reference).
+    // TODO: refine per exact EDTCDE/EDTWRD rules once the editor needs
+    // pixel-exact widths for edited numerics specifically.
     var len = field.length || 0;
     var t = (field.dataType || '').toUpperCase();
     if (t === 'F') return len + 7;
-    if (t === 'L') return 10; // *ISO default; TODO honor DATFMT
-    if (t === 'T') return 8;
+    if (t === 'L') return dateFieldLength(field); // honors the field's own DATFMT keyword
+    if (t === 'T') return 8; // every TIMFMT value is 8 chars, including the *ISO default - already exact
     if (t === 'Z') return 26;
-    if ((t === 'S' || t === 'N' || t === 'I' || t === '' ) && field.usage === 'I' && (field.decimalPositions || 0) > 0) {
+    if ((t === 'S' || t === 'N' || t === 'I' || t === '') && (field.usage === 'I' || field.usage === 'B') && (field.decimalPositions || 0) > 0) {
       return len + 1;
     }
     return len;

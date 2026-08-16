@@ -245,6 +245,59 @@ console.log('validateSizeBounds: a field explicitly conditioned to only the size
   check('the *DS4-only field is not flagged, since it never renders at the smaller size', problems.length === 0);
 }
 
+console.log('date (L) field display length honors the field\'s own DATFMT keyword');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'NODFMT', dataType: 'L', usage: 'B', line: '1', col: '2' }),
+    buildLine({ seq: '00030', name: 'ISOFLD', dataType: 'L', usage: 'B', line: '2', col: '2', func: 'DATFMT(*ISO)' }),
+    buildLine({ seq: '00040', name: 'USAFLD', dataType: 'L', usage: 'B', line: '3', col: '2', func: 'DATFMT(*USA)' }),
+    buildLine({ seq: '00050', name: 'EURFLD', dataType: 'L', usage: 'B', line: '4', col: '2', func: 'DATFMT(*EUR)' }),
+    buildLine({ seq: '00060', name: 'JISFLD', dataType: 'L', usage: 'B', line: '5', col: '2', func: 'DATFMT(*JIS)' }),
+    buildLine({ seq: '00070', name: 'MDYFLD', dataType: 'L', usage: 'B', line: '6', col: '2', func: 'DATFMT(*MDY)' }),
+    buildLine({ seq: '00080', name: 'DMYFLD', dataType: 'L', usage: 'B', line: '7', col: '2', func: 'DATFMT(*DMY)' }),
+    buildLine({ seq: '00090', name: 'YMDFLD', dataType: 'L', usage: 'B', line: '8', col: '2', func: 'DATFMT(*YMD)' }),
+    buildLine({ seq: '00100', name: 'JULFLD', dataType: 'L', usage: 'B', line: '9', col: '2', func: 'DATFMT(*JUL)' }),
+    buildLine({ seq: '00110', name: 'JOBFLD', dataType: 'L', usage: 'B', line: '10', col: '2', func: 'DATFMT(*JOB)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const lengthOf = (name) => screen.fields.find((f) => f.name === name).length;
+
+  check('no DATFMT specified -> *ISO default (10)', lengthOf('NODFMT') === 10);
+  check('*ISO -> 10', lengthOf('ISOFLD') === 10);
+  check('*USA -> 10', lengthOf('USAFLD') === 10);
+  check('*EUR -> 10', lengthOf('EURFLD') === 10);
+  check('*JIS -> 10', lengthOf('JISFLD') === 10);
+  check('*MDY -> 8', lengthOf('MDYFLD') === 8);
+  check('*DMY -> 8', lengthOf('DMYFLD') === 8);
+  check('*YMD -> 8', lengthOf('YMDFLD') === 8);
+  check('*JUL -> 6', lengthOf('JULFLD') === 6);
+  check('*JOB -> always reserves 10, even though it may display as fewer characters at runtime', lengthOf('JOBFLD') === 10);
+}
+
+console.log('time (T) field display length is always 8, unaffected by TIMFMT (already exact - regression check)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'TMFLD', dataType: 'T', usage: 'B', line: '1', col: '2', func: 'TIMFMT(*USA)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('time field is 8 chars regardless of TIMFMT', screen.fields[0].length === 8);
+}
+
+console.log('numeric decimal-point width rule now also covers usage B (both), not just I (input-only)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'NUMB', length: '5', dataType: 'S', decimals: '2', usage: 'B', line: '1', col: '2' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('usage B numeric field with decimals gets +1 for the decimal point', screen.fields[0].length === 6);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);

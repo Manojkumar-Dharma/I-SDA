@@ -118,7 +118,14 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   *existing* source physical file - it won't create the source physical
   file itself if it doesn't exist yet (that's `CRTSRCPF`, deliberately out
   of scope - see CHANGELOG for why).
-- Display-length rules for signed/edited numerics are approximated.
+- Date (`L`) fields honor their own `DATFMT` keyword for display width
+  (`*ISO`/`*USA`/`*EUR`/`*JIS` = 10, `*MDY`/`*DMY`/`*YMD` = 8, `*JUL` = 6,
+  `*JOB` always reserves 10 even though it displays fewer at runtime) -
+  record- or file-level `DATFMT` inheritance isn't read yet, only a
+  `DATFMT` keyword on the field itself. Numeric fields with an `EDTCDE` or
+  `EDTWRD` edit code (commas, currency symbols, sign positions) still use
+  an approximated width - real edit-code formatting is too varied to
+  safely approximate without a live system to verify every case against.
 
 ### Menu designer
 

@@ -3,6 +3,22 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.13] - Unreleased
+
+### Fixed
+- **Date (`L`) field display width now honors the field's own `DATFMT`
+  keyword**, instead of always assuming 10 characters (correct for the
+  `*ISO`/`*USA`/`*EUR`/`*JIS`/`*JOB` formats, but wrong for `*MDY`/`*DMY`/
+  `*YMD` at 8 characters and `*JUL` at 6 - verified against IBM's own DDS/
+  RPG/CL date-format references before implementing). This directly feeds
+  the size-bounds validation added in 0.9.12 - a misjudged date field
+  width could previously produce a wrong bounds warning (or miss a real
+  one). Record- and file-level `DATFMT` inheritance isn't read yet, only
+  a `DATFMT` keyword on the field itself.
+- The decimal-point width rule for numeric fields (an extra position for
+  a keyable decimal point) now also covers `usage(B)` fields, not just
+  `usage(I)` - both are keyable, only `usage(O)` (output-only) isn't.
+
 ## [0.9.12] - Unreleased
 
 ### Added
