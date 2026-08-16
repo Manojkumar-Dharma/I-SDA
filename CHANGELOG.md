@@ -3,6 +3,38 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- **Remote member creation for "Create New Display File"** - the command
+  that could previously only write to local workspace folders now offers a
+  destination choice (local workspace / connected IBM i system) whenever
+  Code for i is installed and connected. The remote path prompts for
+  library (blank uses the library list, `*LIBL`) and source physical file,
+  runs `ADDPFM FILE(lib/file) MBR(member) SRCTYPE(DSPF)` via Code for i's
+  `instance.getConnection().runCommand()`, then writes the generated
+  boilerplate into the new member via its `member:` scheme URI and opens it
+  straight into the designer - reusing the exact same `openDesigner()` path
+  as local files, since the `CustomTextEditorProvider` doesn't care whether
+  the underlying URI is `file:` or `member:`.
+  - Deliberately scoped to **not** auto-create the source physical file
+    (`CRTSRCPF`) if it doesn't exist - `ADDPFM` requires it to already
+    exist, confirmed against IBM's own command reference before
+    implementing rather than guessing, and inventing `CRTSRCPF` parameters
+    (record length, etc.) I hadn't verified felt like the wrong kind of
+    risk for a command that writes to a real, sometimes-shared IBM i
+    system. `ADDPFM`'s real failure message is surfaced verbatim instead.
+  - Access to Code for i's extension API (`vscode.extensions.getExtension('halcyontechltd.code-for-ibmi')`)
+    is deliberately loosely-typed rather than taking a hard dependency on
+    `@halcyontech/vscode-ibmi-types`, so the feature degrades gracefully
+    (falls straight through to local creation, no behavior change) when
+    Code for i isn't installed or isn't connected - verified via a new
+    test file, `src/test/createNewDspf.test.js` (20 checks): the
+    no-Code-for-i fallback, ADDPFM command construction (with and without
+    an explicit library), the `member:` URI shape, ADDPFM failure handling
+    (real CPF error surfaced, nothing written), and respecting an explicit
+    "local" choice even when Code for i is connected.
+
 ## [0.9.11] - Unreleased
 
 ### Added

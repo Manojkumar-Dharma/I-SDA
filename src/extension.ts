@@ -589,6 +589,72 @@ function validateDdsName(value: string): string | null {
 }
 
 async function createNewDspf(targetUri?: vscode.Uri): Promise<void> {
+  const codeForIBMi = getConnectedCodeForIBMi();
+
+  let destination: 'local' | 'remote' = 'local';
+  if (codeForIBMi) {
+    const choice = await vscode.window.showQuickPick(
+      [
+        { label: '$(folder) Local workspace', value: 'local' as const },
+        { label: '$(server) Connected IBM i system', value: 'remote' as const, description: 'Adds a member via ADDPFM' },
+      ],
+      { placeHolder: 'Where should the new display file be created?' }
+    );
+    if (!choice) return;
+    destination = choice.value;
+  }
+
+  const recordInfo = await promptForRecordInfo(destination === 'remote' ? 'SCREEN1' : 'SCREEN1');
+  if (!recordInfo) return;
+  const { source, baseName } = recordInfo;
+
+  if (destination === 'remote') {
+    await createRemoteMember(codeForIBMi!, baseName, source);
+  } else {
+    await createLocalFile(targetUri, baseName, source);
+  }
+}
+
+/** Prompts for member/file name, record name, and title; returns the built,
+ *  self-validated boilerplate source (parsed with our own parser before being
+ *  handed back, so a boilerplate bug fails loudly here rather than shipping a
+ *  broken starter file either locally or - worse - as a real member on the IBM i). */
+async function promptForRecordInfo(defaultBaseName: string): Promise<{ baseName: string; source: string } | undefined> {
+  const nameInput = await vscode.window.showInputBox({
+    prompt: 'Display file / member name',
+    placeHolder: defaultBaseName,
+    value: defaultBaseName,
+    validateInput: (value) => validateDdsName(value.trim().replace(/\.dspf$/i, '')),
+  });
+  if (!nameInput) return undefined;
+  const baseName = nameInput.trim().replace(/\.dspf$/i, '').toUpperCase();
+
+  const recordName = await vscode.window.showInputBox({
+    prompt: 'Primary record format name',
+    placeHolder: 'RECORD1',
+    value: 'RECORD1',
+    validateInput: validateDdsName,
+  });
+  if (!recordName) return undefined;
+
+  const titleText = (await vscode.window.showInputBox({
+    prompt: 'Screen title (shown as a constant on the first line)',
+    placeHolder: baseName,
+    value: baseName,
+  })) ?? baseName;
+
+  const source = buildBoilerplateDspf(recordName.trim().toUpperCase(), titleText);
+
+  const parsed = parseDspf(source);
+  if (parsed.errors.length > 0) {
+    vscode.window.showErrorMessage('iSDA: generated boilerplate failed to parse - not writing anything. This is a bug in iSDA itself, please report it.');
+    return undefined;
+  }
+
+  return { baseName, source };
+}
+
+async function createLocalFile(targetUri: vscode.Uri | undefined, baseName: string, source: string): Promise<void> {
   let folderUri = targetUri;
   if (folderUri) {
     const stat = await vscode.workspace.fs.stat(folderUri);
@@ -608,43 +674,7 @@ async function createNewDspf(targetUri?: vscode.Uri): Promise<void> {
     if (!folderUri) return; // user cancelled the folder pick
   }
 
-  const fileNameInput = await vscode.window.showInputBox({
-    prompt: 'Display file name',
-    placeHolder: 'SCREEN1.dspf',
-    value: 'SCREEN1.dspf',
-    validateInput: (value) => {
-      const base = value.trim().replace(/\.dspf$/i, '');
-      return validateDdsName(base);
-    },
-  });
-  if (!fileNameInput) return;
-  const baseName = fileNameInput.trim().replace(/\.dspf$/i, '');
   const fileName = baseName + '.dspf';
-
-  const recordName = await vscode.window.showInputBox({
-    prompt: 'Primary record format name',
-    placeHolder: 'RECORD1',
-    value: 'RECORD1',
-    validateInput: validateDdsName,
-  });
-  if (!recordName) return;
-
-  const titleText = (await vscode.window.showInputBox({
-    prompt: 'Screen title (shown as a constant on the first line)',
-    placeHolder: baseName,
-    value: baseName,
-  })) ?? baseName;
-
-  const source = buildBoilerplateDspf(recordName.trim().toUpperCase(), titleText);
-
-  // Belt-and-suspenders: parse what we're about to write before writing it, so a
-  // boilerplate bug fails loudly here rather than shipping a broken starter file.
-  const parsed = parseDspf(source);
-  if (parsed.errors.length > 0) {
-    vscode.window.showErrorMessage('iSDA: generated boilerplate failed to parse - not writing the file. This is a bug in iSDA itself, please report it.');
-    return;
-  }
-
   const fileUri = vscode.Uri.joinPath(folderUri, fileName);
   try {
     await vscode.workspace.fs.stat(fileUri);
@@ -661,6 +691,65 @@ async function createNewDspf(targetUri?: vscode.Uri): Promise<void> {
     openDesigner(doc.uri);
   } catch (err) {
     vscode.window.showErrorMessage(`iSDA: failed to create display file: ${err}`);
+  }
+}
+
+/**
+ * Minimal, loosely-typed access to the Code for i extension's API - deliberately not
+ * importing @halcyontech/vscode-ibmi-types, since this integration must degrade
+ * gracefully (no hard dependency) when Code for i isn't installed or isn't connected,
+ * and the API surface is explicitly documented as subject to change between versions.
+ * See https://codefori.github.io/docs/dev/api/ and .../dev/examples/.
+ */
+function getConnectedCodeForIBMi(): { runCommand: (info: { command: string; environment: string }) => Promise<{ code: number; stdout: string; stderr: string }> } | undefined {
+  const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
+  if (!ext || !ext.isActive || !ext.exports) return undefined;
+  const instance = ext.exports.instance;
+  const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
+  if (!connection || typeof connection.runCommand !== 'function') return undefined;
+  return connection;
+}
+
+async function createRemoteMember(connection: { runCommand: (info: { command: string; environment: string }) => Promise<{ code: number; stdout: string; stderr: string }> }, memberName: string, source: string): Promise<void> {
+  const library = (await vscode.window.showInputBox({
+    prompt: 'Library (blank uses the library list, *LIBL)',
+    placeHolder: '*LIBL',
+  })) ?? '';
+
+  const sourceFile = await vscode.window.showInputBox({
+    prompt: 'Source physical file (must already exist - ADDPFM does not create it)',
+    placeHolder: 'QDDSSRC',
+    validateInput: validateDdsName,
+  });
+  if (!sourceFile) return;
+
+  const qualifiedFile = library.trim() ? `${library.trim().toUpperCase()}/${sourceFile.trim().toUpperCase()}` : sourceFile.trim().toUpperCase();
+  const command = `ADDPFM FILE(${qualifiedFile}) MBR(${memberName}) SRCTYPE(DSPF) TEXT('Generated by iSDA')`;
+
+  let result: { code: number; stdout: string; stderr: string };
+  try {
+    result = await connection.runCommand({ command, environment: 'ile' });
+  } catch (err) {
+    vscode.window.showErrorMessage(`iSDA: failed to run ADDPFM: ${err}`);
+    return;
+  }
+  if (result.code !== 0) {
+    vscode.window.showErrorMessage(`iSDA: ADDPFM failed - ${(result.stderr || result.stdout || 'unknown error').trim()}`);
+    return;
+  }
+
+  const memberPath = library.trim()
+    ? `/${library.trim().toUpperCase()}/${sourceFile.trim().toUpperCase()}/${memberName}.dspf`
+    : `/${sourceFile.trim().toUpperCase()}/${memberName}.dspf`;
+  const memberUri = vscode.Uri.from({ scheme: 'member', path: memberPath });
+
+  try {
+    await vscode.workspace.fs.writeFile(memberUri, Buffer.from(source, 'utf8'));
+    const doc = await vscode.workspace.openTextDocument(memberUri);
+    await vscode.window.showTextDocument(doc);
+    openDesigner(doc.uri);
+  } catch (err) {
+    vscode.window.showErrorMessage(`iSDA: member ${memberName} was created via ADDPFM but writing its content failed: ${err}`);
   }
 }
 
