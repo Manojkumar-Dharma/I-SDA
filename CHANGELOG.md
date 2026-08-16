@@ -34,6 +34,22 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     an explicit library), the `member:` URI shape, ADDPFM failure handling
     (real CPF error surfaced, nothing written), and respecting an explicit
     "local" choice even when Code for i is connected.
+- **Warns when an unconditioned field won't fit every declared `DSPSIZ`
+  size.** Real DDS: a field's position is absolute and shared across every
+  declared size unless it's explicitly display-size-conditioned, so a
+  layout that compiles/renders fine at one size can silently fail to
+  compile (or misrender) at the other - nothing in iSDA warned about this
+  until now. The DSPF designer shows a warning banner under the
+  screen-size picker (only for files that declare more than one size),
+  checked against ALL declared sizes regardless of which one is currently
+  being viewed, via a new `DspfEngine.validateSizeBounds()` that reuses
+  `resolveScreen`'s own field-position resolution rather than re-deriving
+  it - a field explicitly conditioned to one size only is naturally
+  excluded from sizes it never renders at. Along the way, fixed a related
+  latent inaccuracy this surfaced: the resolved field object's `.length`
+  is a placeholder (clamped to 1) for a bare `CONSTANT`, since constants
+  have no declared DDS `LENGTH` column - `validateSizeBounds` now uses the
+  real rendered text length for those.
 
 ## [0.9.11] - Unreleased
 

@@ -100,12 +100,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   Switch back to single-record mode to edit.
 - A file declaring two `DSPSIZ` sizes shows a screen-size picker. A field
   or keyword conditioned on a display-size condition name (`*DS3`/`*DS4`,
-  or a user-defined name) now shows only for its own size (fixed in
-  0.9.9 - previously misparsed into garbage indicators and never rendered
-  in either size). An unconditioned field's position stays absolute and
-  shared across every declared size, per DDS - not a limitation. Not yet
-  checked: an unconditioned field's position must fit within the smaller
-  declared size - iSDA doesn't warn if it doesn't.
+  or a user-defined name) shows only for its own size. An unconditioned
+  field's position stays absolute and shared across every declared size,
+  per DDS - not a limitation, but iSDA warns if that position doesn't fit
+  within every size the field is actually active for, checked against ALL
+  declared sizes regardless of which one is currently being viewed.
 - Rename auto-rewrites `SFLCTL(name)`, `WINDOW(record-format-name)`, and
   `MNUBARCHC(id record-name 'text')` references to the old record name
   elsewhere in the file, and warns (without rewriting) about anything else
