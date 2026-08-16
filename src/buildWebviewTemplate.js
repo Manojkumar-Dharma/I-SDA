@@ -96,6 +96,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-field.dspf-pulldown-field.dspf-widget-radio, .dspf-field.dspf-pulldown-field.dspf-widget-checkbox { background: #0a0f0c; }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
+  #sizeBoundsWarning { white-space: pre-line; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
   .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
@@ -128,6 +129,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <h2>Screen Design</h2>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
   <div class="field-row hidden" id="sizeSelectRow"><label>Screen size</label><select id="sizeSelect"></select></div>
+  <div class="warn hidden" id="sizeBoundsWarning"></div>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Compare multiple formats (read-only)</label>
   <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
   <div id="compareRecordList" class="hidden"></div>
@@ -175,6 +177,7 @@ const htmlTemplate = `<!DOCTYPE html>
   const previewRowsToggle = document.getElementById('previewRowsToggle');
   const sizeSelectRow = document.getElementById('sizeSelectRow');
   const sizeSelect = document.getElementById('sizeSelect');
+  const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
 
   previewRowsToggle.addEventListener('change', () => {
     previewMultipleRows = previewRowsToggle.checked;
@@ -274,6 +277,31 @@ const htmlTemplate = `<!DOCTYPE html>
     sizeSelect.value = String(selectedSizeIndex);
   }
 
+  /**
+   * Checks the CURRENT record against every declared DSPSIZ size (not just
+   * the one being viewed) and shows a warning banner if any field's
+   * position exceeds one of the sizes it's actually active for. Real DDS:
+   * a field position is absolute and shared across every size unless it's
+   * explicitly display-size-conditioned, so a layout that looks fine at
+   * the size you're currently viewing can still fail to compile (or render
+   * wrong) for the OTHER declared size - this is the only way to surface
+   * that without switching the picker back and forth and eyeballing it.
+   * No-op (and stays hidden) for a file that only declares one size.
+   */
+  function updateSizeBoundsWarning(recordName) {
+    const problems = DspfEngine.validateSizeBounds(model, recordName, active);
+    if (problems.length === 0) {
+      sizeBoundsWarning.classList.add('hidden');
+      sizeBoundsWarning.textContent = '';
+      return;
+    }
+    sizeBoundsWarning.classList.remove('hidden');
+    const lines = problems.map((p) => '\\u2022 ' + p.message);
+    sizeBoundsWarning.textContent =
+      problems.length + (problems.length === 1 ? ' field position ' : ' field positions ') +
+      "won't fit every declared screen size:\\n" + lines.join('\\n');
+  }
+
   function rebuildIndicatorList(recordName) {
     rebuildIndicatorListFromSet(indicatorsForContext(recordName));
   }
@@ -358,6 +386,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!recordName) { indicatorList.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
+    updateSizeBoundsWarning(recordName);
 
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }

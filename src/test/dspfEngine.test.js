@@ -204,6 +204,47 @@ console.log('\ndisplay-size conditioning: a DSPATR keyword conditioned by size (
   check('DSPATR(HI) applied at *DS4 (the condition is satisfied)', atWide.fields[0].style.hi === true);
 }
 
+console.log('validateSizeBounds: single-size file has nothing to compare, always empty');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00030', line: '25', col: '2', func: "'Off-screen, but only one size declared'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const problems = DspfEngine.validateSizeBounds(model, 'SCR1', new Set());
+  check('no problems reported for a single declared size', problems.length === 0);
+}
+
+console.log('validateSizeBounds: an unconditioned field that does not fit within the smaller declared size');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Fits fine'" }),
+    buildLine({ seq: '00040', line: '25', col: '2', func: "'Too far down for 24 lines'" }),
+    buildLine({ seq: '00050', line: '5', col: '75', func: "'Too far right for 80 cols'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const problems = DspfEngine.validateSizeBounds(model, 'SCR1', new Set());
+  check('reports exactly the two out-of-bounds fields', problems.length === 2);
+  check('all problems are against the smaller *DS3 (24x80) size', problems.every((p) => p.sizeName === '*DS3'));
+  check('none against the larger *DS4 size, which both fields fit within', !problems.some((p) => p.sizeName === '*DS4'));
+}
+
+console.log('validateSizeBounds: a field explicitly conditioned to only the size it fits within is not flagged');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Fits fine'" }),
+    buildLine({ seq: '00040', sizeCondition: '*DS4', line: '25', col: '2', func: "'Only shows at DS4, fits fine there'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const problems = DspfEngine.validateSizeBounds(model, 'SCR1', new Set());
+  check('the *DS4-only field is not flagged, since it never renders at the smaller size', problems.length === 0);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);

@@ -724,6 +724,54 @@
   }
 
   /**
+   * For a file that declares more than one DSPSIZ size, resolves the
+   * record at EVERY declared size and checks whether any field's occupied
+   * region extends past that size's own working area. Real DDS: an
+   * unconditioned field's position is absolute and shared across every
+   * declared size (see the screen-size picker's own doc comment) - the
+   * SAME field position that compiles fine for the larger size can be
+   * rejected by CRTDSPF for the smaller one, and nothing in iSDA warned
+   * about that until now. A field explicitly conditioned to one size only
+   * (see the 0.9.9 display-size-condition work) is naturally excluded from
+   * a size it never renders at, since resolveScreen already wouldn't
+   * include it there.
+   * Deliberately reuses resolveScreen's own field resolution (position math
+   * for relative-column chains, hidden fields, widgets, etc.) rather than
+   * re-deriving it, so this can never disagree with what's actually shown.
+   * @returns {{sizeIndex:number, sizeName:?string, fieldName:string, sourceLine:number, message:string}[]}
+   */
+  function validateSizeBounds(dspfFile, recordName, activeIndicators) {
+    var sizes = availableScreenSizes(dspfFile);
+    if (sizes.length < 2) return [];
+    var problems = [];
+    sizes.forEach(function (size, idx) {
+      var screen = resolveScreen(dspfFile, recordName, activeIndicators, null, false, idx);
+      if (screen.error || screen.suppressed) return;
+      screen.fields.forEach(function (f) {
+        // f.length is a placeholder (clamped to 1) for a bare CONSTANT -
+        // constants have no declared DDS LENGTH column, so their real
+        // occupied width is implicit from the quoted text itself. Use
+        // whichever is larger so a named field's real declared length
+        // (which f.length already reflects correctly) isn't second-guessed.
+        var occupiedWidth = Math.max(f.length, f.text ? f.text.length : 0);
+        var bottom = f.line + f.height - 1;
+        var right = f.column + occupiedWidth - 1;
+        if (bottom > screen.lines || right > screen.columns) {
+          problems.push({
+            sizeIndex: idx,
+            sizeName: size.name,
+            fieldName: f.name || f.text || '(unnamed constant)',
+            sourceLine: f.sourceLine,
+            message: (f.name || f.text || 'This field') + ' extends past the ' + size.lines + 'x' + size.columns +
+              (size.name ? ' (' + size.name + ')' : '') + ' working area (line ' + f.line + ', col ' + f.column + ').',
+          });
+        }
+      });
+    });
+    return problems;
+  }
+
+  /**
    * Read-only combined preview of SEVERAL record formats at once - the opt-in
    * "display mode" for comparing/eyeballing multiple formats together (not just
    * automatic subfile pairing). No overlap resolution: every selected record's
@@ -944,6 +992,7 @@
     findSflPairing: findSflPairing,
     escapeHtml: escapeHtml,
     availableScreenSizes: availableScreenSizes,
+    validateSizeBounds: validateSizeBounds,
     screenLinesForRecord: screenLinesForRecord,
     COLOR_HEX: COLOR_HEX,
     DEFAULT_COLOR: DEFAULT_COLOR,

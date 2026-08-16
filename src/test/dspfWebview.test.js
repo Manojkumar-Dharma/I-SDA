@@ -194,6 +194,49 @@ function runDeleteWarningScenario() {
     check('warns that REFFLD(SRCFLD) still looks like a reference', delPosted.some((m) => m.type === 'error' && /REFFLD/.test(m.message) && /SRCFLD/.test(m.message)));
     check('does not rewrite the REFFLD reference itself (delete only warns, never auto-fixes)', applyEdit && applyEdit.text.includes('REFFLD(SRCFLD)'));
 
+    runSizeBoundsScenario();
+  }, 0);
+}
+
+function runSizeBoundsScenario() {
+  console.log('\ndual-DSPSIZ: warns when an unconditioned field does not fit within every declared size');
+  const boundsSource =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', line: '1', col: '2', func: "'Fits fine'" }),
+      buildLine({ seq: '00040', line: '25', col: '2', func: "'Too far down for the 24-line size'" }),
+    ].join('\n') + '\n';
+  const boundsHtml = getWebviewHtml('vscode-webview://fake', 'testnonce4', boundsSource, 'BOUNDSTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const boundsDom = new JSDOM(boundsHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const boundsDoc = boundsDom.window.document;
+    const banner = boundsDoc.getElementById('sizeBoundsWarning');
+    check('the warning banner is shown', banner && !banner.classList.contains('hidden'));
+    check('names the offending field and the size it does not fit', /Too far down/.test(banner.textContent) && /24x80/.test(banner.textContent));
+    check('does not complain about the *DS4 (27x132) size, which it fits within', !/27x132/.test(banner.textContent));
+
+    // Switching the size picker itself doesn't change which sizes get
+    // checked - the warning is about ALL declared sizes, not just the one
+    // being viewed, so it should still show after switching to the size
+    // where this field DOES fit.
+    const sizeSelect = boundsDoc.getElementById('sizeSelect');
+    sizeSelect.value = '1';
+    sizeSelect.dispatchEvent(new boundsDom.window.Event('change', { bubbles: true }));
+    const bannerAfter = boundsDoc.getElementById('sizeBoundsWarning');
+    check('still warns after switching to the size the field fits within (checks ALL sizes, not just the active one)', bannerAfter && !bannerAfter.classList.contains('hidden'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
