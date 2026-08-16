@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.9.12] - Unreleased
 
 ### Added
 - **Remote member creation for "Create New Display File"** - the command
