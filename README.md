@@ -87,12 +87,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
 - `WINDOW` positions that depend on a runtime value (`*DFT`, or a
   program-to-system field name) can't be known at design time, so they
-  render at a fixed placeholder position with a dashed border. If more
-  than one such window shows at once (compare mode), each is staggered
-  from the others so they don't render exactly on top of one another -
-  single-record preview always uses the same fixed spot, since only one
-  window is ever on screen there. `WINDOW(record-format-name)`
-  (inheriting another record's geometry) is fully resolved.
+  render at a fixed placeholder position with a dashed border (staggered
+  from other placeholder windows in compare mode, so multiple ones don't
+  render on top of each other - but the position itself is still a
+  placeholder). `WINDOW(record-format-name)` (inheriting another record's
+  geometry) is fully resolved.
 - The pulldown-overlay preview (menu bar → clicked choice → dropdown) is
   read-only. Switch to previewing the `PULLDOWN` record directly to edit
   it.
@@ -105,43 +104,21 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   representation - it's a logic construct, not a layout one.
 - Compare mode (previewing several record formats together) is read-only.
   Switch back to single-record mode to edit.
-- A file declaring two `DSPSIZ` sizes shows a screen-size picker. A field
-  or keyword conditioned on a display-size condition name (`*DS3`/`*DS4`,
-  or a user-defined name) shows only for its own size. An unconditioned
-  field's position stays absolute and shared across every declared size,
-  per DDS - not a limitation, but iSDA warns if that position doesn't fit
-  within every size the field is actually active for, checked against ALL
-  declared sizes regardless of which one is currently being viewed.
-- Rename auto-rewrites `SFLCTL(name)`, `WINDOW(record-format-name)`, and
-  `MNUBARCHC(id record-name 'text')` references to the old record name
-  elsewhere in the file, and warns (without rewriting) about anything else
-  that looks like a reference but isn't one of those three shapes.
-  Deleting a *named* field warns the same way (e.g. a `REFFLD(name)`
-  reference) but never auto-fixes, since there's nothing to rewrite a
-  deleted field's reference TO - review those manually. A bare, unnamed
-  constant has nothing to search for, so deleting one never warns.
-- "Create New Display File" can now create a source member directly on a
-  connected IBM i system (via Code for i's `ADDPFM`), but only into an
-  *existing* source physical file - it won't create the source physical
-  file itself if it doesn't exist yet (that's `CRTSRCPF`, deliberately out
-  of scope - see CHANGELOG for why).
-- Date (`L`) fields honor `DATFMT`, checking the field's own keyword first,
-  then the record's, then the file's, defaulting to `*ISO` (10) if none is
-  specified anywhere - matching real DDS precedence
-  (`*ISO`/`*USA`/`*EUR`/`*JIS` = 10, `*MDY`/`*DMY`/`*YMD` = 8, `*JUL` = 6,
-  `*JOB` always reserves 10 even though it displays fewer at runtime).
-  Numeric fields with an `EDTCDE` or `EDTWRD` edit code (commas, currency
-  symbols, sign positions) still use an approximated width - real
+- Deleting a field only warns (never rewrites) if something else looks
+  like it references it by name - unlike rename, there's nothing sensible
+  to auto-fix a deleted field's reference TO. Only named fields are
+  checked; deleting an unnamed constant never warns, since there's
+  nothing to search for.
+- "Create New Display File" won't create the source physical file itself
+  if it doesn't exist yet (`CRTSRCPF`) - only adds a member to one that
+  already exists.
+- Numeric fields with an `EDTCDE` or `EDTWRD` edit code (commas, currency
+  symbols, sign positions) use an approximated display width - real
   edit-code formatting is too varied to safely approximate without a live
   system to verify every case against.
 
 ### Menu designer
 
-- As of v0.9.15, the options panel works for a local `.mnudds` file too,
-  not just a remote Code for i member - a local file derives its
-  companion commands file as a sibling `<basename>QQ.mnucmd` in the same
-  directory. `Compile Menu` still requires a real IBM i connection
-  (Code for i) regardless, since compiling genuinely needs one.
 - No "Create New Menu" equivalent to the DSPF designer's "Create New
   Display File" - starting a new menu still requires an existing MNUDDS
   member (and its paired commands member) created some other way. Would
@@ -154,12 +131,9 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   racing to write it at once is unhandled.
 - **Compile Menu (CRTMNU)** requires the DDS record format to be named
   exactly the same as the menu member (CRTMNU's own requirement). Only
-  handles `TYPE(*DSPF)` menus. As of v0.9.14, the message file is updated
-  in place rather than rebuilt from scratch - message IDs added to it by
-  hand outside iSDA now survive a compile from here.
-- Rename shares the same auto-rewrite/advisory-warning behavior as the
-  DSPF designer above. Deleting an option doesn't scan for other
-  references to it either.
+  handles `TYPE(*DSPF)` menus.
+- Deleting an option doesn't scan for other references to it (unlike
+  rename, which does).
 
 ## License
 
