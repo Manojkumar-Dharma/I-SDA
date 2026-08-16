@@ -46,14 +46,18 @@ An IBM i SDA-style menu is really two source members working together:
   or the CodeLens on a menu-shaped source) lets you edit: pick an option,
   type the command, and it's written straight back to the `QQ` member.
 
-This currently only works for a MNUDDS member opened as a remote IBM i
-source member through [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi)
-(`member:` scheme) - see Known limitations below. **"Compile Menu
-(CRTMNU)"** (added v0.9.3) runs the real compile sequence via Code for i's
-`code-for-ibmi.runCommand` API - `CRTDSPF`, a from-scratch rebuild of the
-message file (`ADDMSGD` per option, using the `USRnnnn` message-ID format
-`TYPE(*DSPF)` menus expect - see [IBM's own note on adding a menu
-option](https://www.ibm.com/support/pages/node/7267003)), then `CRTMNU`.
+Works for a MNUDDS member opened as a remote IBM i source member through
+[Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi)
+(`member:` scheme), or a local `.mnudds` file (as of v0.9.15, deriving a
+sibling `<basename>QQ.mnucmd` file instead) - see Known limitations below.
+**"Compile Menu (CRTMNU)"** (added v0.9.3) runs the real compile sequence
+via Code for i's `code-for-ibmi.runCommand` API - `CRTDSPF`, updating the
+message file in place (`ADDMSGD` per option, falling back to `CHGMSGD` for
+one that's already there - see v0.9.14; the `USRnnnn` message-ID format
+`TYPE(*DSPF)` menus expect is documented in [IBM's own note on adding a
+menu option](https://www.ibm.com/support/pages/node/7267003)), then
+`CRTMNU`. Compiling itself still requires a real, connected IBM i member,
+regardless of how the menu was opened for editing.
 
 ## Getting started
 
@@ -129,15 +133,16 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
 ### Menu designer
 
-- Only works for a MNUDDS member opened via Code for i's `member:` scheme.
-  A local `.mnudds` file shows the screen preview, but the options panel
-  reports "unsupported" (no local-workspace convention for where the
-  companion `QQ` member would live).
+- As of v0.9.15, the options panel works for a local `.mnudds` file too,
+  not just a remote Code for i member - a local file derives its
+  companion commands file as a sibling `<basename>QQ.mnucmd` in the same
+  directory. `Compile Menu` still requires a real IBM i connection
+  (Code for i) regardless, since compiling genuinely needs one.
 - A brand-new option is placed at a default position, not a chosen one -
   reposition it via the screen designer's drag-to-move if it doesn't fit.
-- The companion `QQ` member stays in sync if it's open in its own editor
-  tab. Two menu designer instances racing to write it at once is
-  unhandled.
+- The companion commands file (`QQ` member, or local sibling) stays in
+  sync if it's open in its own editor tab. Two menu designer instances
+  racing to write it at once is unhandled.
 - **Compile Menu (CRTMNU)** requires the DDS record format to be named
   exactly the same as the menu member (CRTMNU's own requirement). Only
   handles `TYPE(*DSPF)` menus. As of v0.9.14, the message file is updated

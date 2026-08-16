@@ -166,8 +166,9 @@ function run() {
     await menuProviderEntry.provider.resolveCustomTextEditor(doc, fakeWebviewPanel2, {});
     check("reports the command source as 'missing' rather than erroring", htmlSet2.includes('"missing"'));
 
-    console.log('\nresolveCustomTextEditor() - local file (no Code for i member scheme -> unsupported)');
+    console.log('\nresolveCustomTextEditor() - local file (no companion sibling file yet)');
     let htmlSet3 = null;
+    let messageHandler3 = null;
     const localDoc = vscodeMock.__mockDocument(menuSource, vscodeMock.Uri.file('/workspace/MYMENU.mnudds'));
     const fakeWebviewPanel3 = {
       webview: {
@@ -175,13 +176,61 @@ function run() {
         options: null,
         set html(v) { htmlSet3 = v; },
         get html() { return htmlSet3; },
-        onDidReceiveMessage: () => ({ dispose: () => {} }),
+        onDidReceiveMessage: (h) => { messageHandler3 = h; return { dispose: () => {} }; },
         postMessage: () => {},
       },
       onDidDispose: () => {},
     };
     await menuProviderEntry.provider.resolveCustomTextEditor(localDoc, fakeWebviewPanel3, {});
-    check("reports the command source as 'unsupported' for a local file", htmlSet3.includes('"unsupported"'));
+    check(
+      "local .mnudds files are supported now (0.9.15) - reports 'missing', not 'unsupported'",
+      htmlSet3.includes('"missing"') && !htmlSet3.includes('"unsupported"')
+    );
+    check('embeds the derived local companion filename (MYMENUQQ.mnucmd)', htmlSet3.includes('MYMENUQQ.mnucmd'));
+
+    console.log('  editing an option on a local file writes the sibling MYMENUQQ.mnucmd file');
+    await messageHandler3({ type: 'applyMenuCmdEdit', text: '0001 DSPLIBL\n' });
+    check(
+      'writes to the sibling file in the same directory, lowercase .mnucmd extension',
+      vscodeMock.__lastWrittenFile &&
+        vscodeMock.__lastWrittenFile.uri.path === '/workspace/MYMENUQQ.mnucmd' &&
+        vscodeMock.__lastWrittenFile.text === '0001 DSPLIBL\n'
+    );
+
+    console.log('\nresolveCustomTextEditor() - local file WITH an existing companion sibling file');
+    vscodeMock.__setMockFile(vscodeMock.Uri.file('/workspace/MYMENUQQ.mnucmd'), '0001 DSPLIBL\n0002 CHGCURLIB\n');
+    let htmlSetLocalExisting = null;
+    const fakeWebviewPanelLocalExisting = {
+      webview: {
+        cspSource: 'vscode-webview://fake',
+        options: null,
+        set html(v) { htmlSetLocalExisting = v; },
+        get html() { return htmlSetLocalExisting; },
+        onDidReceiveMessage: () => ({ dispose: () => {} }),
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    await menuProviderEntry.provider.resolveCustomTextEditor(localDoc, fakeWebviewPanelLocalExisting, {});
+    check("reports 'loaded' when the local sibling file already exists", htmlSetLocalExisting.includes('"loaded"'));
+    check('embeds the existing local companion content', htmlSetLocalExisting.includes('DSPLIBL') && htmlSetLocalExisting.includes('CHGCURLIB'));
+
+    console.log('\nresolveCustomTextEditor() - a scheme with no companion convention at all (e.g. streamfile) still reports unsupported');
+    let htmlSetStreamfile = null;
+    const streamfileDoc = vscodeMock.__mockDocument(menuSource, new vscodeMock.Uri('streamfile', '/home/user/MYMENU.mnudds'));
+    const fakeWebviewPanelStreamfile = {
+      webview: {
+        cspSource: 'vscode-webview://fake',
+        options: null,
+        set html(v) { htmlSetStreamfile = v; },
+        get html() { return htmlSetStreamfile; },
+        onDidReceiveMessage: () => ({ dispose: () => {} }),
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    await menuProviderEntry.provider.resolveCustomTextEditor(streamfileDoc, fakeWebviewPanelStreamfile, {});
+    check("a scheme with no known companion convention (streamfile) still reports 'unsupported'", htmlSetStreamfile.includes('"unsupported"'));
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);

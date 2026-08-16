@@ -159,22 +159,37 @@ function isLikelyMenuFile(document: vscode.TextDocument): boolean {
  * SDA stores a menu's option-to-command mapping in a companion source member
  * named "<menu>QQ", type MNUCMD, in the SAME source file/library as the MNUDDS
  * member (see https://wiki.midrange.com/index.php/Create_Menu_Message_FIle_(UTMNUMSGF)
- * and CHANGELOG for how this was confirmed). Only meaningful for remote IBM i
- * members opened through Code for i (scheme 'member' - see DDS_LANGUAGE_SELECTOR
- * above); returns null for anything else, which callers treat as "nowhere to
- * save option commands for this document" rather than guessing a local sibling
- * file, since there's no equivalent local-workspace convention to fall back to.
+ * and CHANGELOG for how this was confirmed). For a remote `member:` scheme
+ * document that's a literal derivation of the real IBM i naming convention.
+ * For a local `file:` scheme document there's no equivalent IBM i convention
+ * to derive from, so this uses the closest local analogue instead: a sibling
+ * file in the same directory named `<basename>QQ.mnucmd` (lowercase, matching
+ * how `.mnudds` itself is used locally) - e.g. `MYMENU.mnudds` pairs with
+ * `MYMENUQQ.mnucmd` next to it. Returns null for anything else (there's no
+ * equivalent local-workspace convention for other schemes), which callers
+ * treat as "nowhere to save option commands for this document".
  */
 function getMenuCommandMemberUri(uri: vscode.Uri): vscode.Uri | null {
-  if (uri.scheme !== 'member') return null;
-  const segments = uri.path.split('/').filter(Boolean);
-  if (segments.length < 3) return null; // not a well-formed .../LIBRARY/FILE/NAME.TYPE member path
-  const last = segments[segments.length - 1];
-  const dot = last.lastIndexOf('.');
-  if (dot <= 0) return null; // no source type to key off of
-  const name = last.slice(0, dot);
-  const newSegments = segments.slice(0, -1).concat(`${name}QQ.MNUCMD`);
-  return uri.with({ path: '/' + newSegments.join('/') });
+  if (uri.scheme === 'member') {
+    const segments = uri.path.split('/').filter(Boolean);
+    if (segments.length < 3) return null; // not a well-formed .../LIBRARY/FILE/NAME.TYPE member path
+    const last = segments[segments.length - 1];
+    const dot = last.lastIndexOf('.');
+    if (dot <= 0) return null; // no source type to key off of
+    const name = last.slice(0, dot);
+    const newSegments = segments.slice(0, -1).concat(`${name}QQ.MNUCMD`);
+    return uri.with({ path: '/' + newSegments.join('/') });
+  }
+  if (uri.scheme === 'file') {
+    const lastSlash = uri.path.lastIndexOf('/');
+    const dir = uri.path.slice(0, lastSlash + 1);
+    const fileName = uri.path.slice(lastSlash + 1);
+    const dot = fileName.lastIndexOf('.');
+    if (dot <= 0) return null; // no extension to key off of
+    const base = fileName.slice(0, dot);
+    return uri.with({ path: dir + base + 'QQ.mnucmd' });
+  }
+  return null;
 }
 
 /**

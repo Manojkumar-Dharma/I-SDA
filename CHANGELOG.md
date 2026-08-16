@@ -3,6 +3,29 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.15] - Unreleased
+
+### Added
+- **Local `.mnudds` files now support the options panel**, not just remote
+  IBM i members via Code for i. Previously opening a local `.mnudds` file
+  showed the screen preview but the options panel reported "unsupported" -
+  there was no local equivalent of the `<name>QQ` remote member
+  convention. Now derives a local companion file the same way: a sibling
+  file in the same directory named `<basename>QQ.mnucmd` (lowercase,
+  matching how `.mnudds` itself is used locally) - e.g. `MYMENU.mnudds`
+  pairs with `MYMENUQQ.mnucmd` next to it. Every existing options-panel
+  code path (read, edit, external-edit echo, create-on-first-write) was
+  already gated purely on whether a companion URI could be derived at
+  all, with no other scheme-specific logic anywhere else - so deriving a
+  valid local URI was the entire fix; nothing else needed to change.
+  `dspfDesigner.compileMenu` deliberately stays remote-only (compiling
+  genuinely requires a live IBM i connection) and is unaffected.
+- `menu.test.js` extended: a local file with no companion sibling yet
+  (reports "missing", not "unsupported"), editing an option writes the
+  correct sibling path, a local file with an existing companion sibling
+  loads its content, and a scheme with no known companion convention at
+  all (e.g. a Code for i streamfile) still correctly reports "unsupported".
+
 ## [0.9.14] - Unreleased
 
 ### Fixed

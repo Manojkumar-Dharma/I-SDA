@@ -404,7 +404,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const labelB = optionB.label;
 
     if (commandStatus === 'unsupported') {
-      vscode.postMessage({ type: 'error', message: 'This menu was not opened from an IBM i source member (Code for i), so there is nowhere to save the swapped commands.' });
+      vscode.postMessage({ type: 'error', message: 'This document has no known companion-file convention (not a local .mnudds file or an IBM i member via Code for i), so there is nowhere to save the swapped commands.' });
       return;
     }
 
@@ -479,7 +479,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const input = row.querySelector('.option-cmd');
       input.addEventListener('change', () => {
         if (commandStatus === 'unsupported') {
-          vscode.postMessage({ type: 'error', message: 'This menu was not opened from an IBM i source member (Code for i), so there is nowhere to save option-to-command mappings.' });
+          vscode.postMessage({ type: 'error', message: 'This document has no known companion-file convention (not a local .mnudds file or an IBM i member via Code for i), so there is nowhere to save option-to-command mappings.' });
           input.value = command;
           return;
         }
@@ -665,7 +665,7 @@ const htmlTemplate = `<!DOCTYPE html>
   if (cmdStatusEl) {
     if (commandStatus === 'loaded') cmdStatusEl.textContent = 'Commands: ' + commandFileName;
     else if (commandStatus === 'missing') cmdStatusEl.textContent = 'Commands: ' + commandFileName + ' (will be created on first edit)';
-    else cmdStatusEl.textContent = 'Commands: unsupported - open the MNUDDS member from Code for i to edit options';
+    else cmdStatusEl.textContent = 'Commands: unsupported for this document type - open a local .mnudds file or an IBM i member (Code for i) to edit options';
   }
 
   recordSelect.addEventListener('change', renderAll);
