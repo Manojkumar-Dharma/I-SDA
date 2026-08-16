@@ -3,6 +3,18 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.17] - Unreleased
+
+### Fixed
+- **Date (`L`) field width now also honors record- and file-level
+  `DATFMT`**, not just a `DATFMT` keyword on the field itself - closing
+  the gap explicitly flagged as remaining when field-level `DATFMT`
+  support was added (0.9.13). Follows real DDS precedence: field keyword,
+  then record keyword, then file keyword, then the `*ISO` default if none
+  is specified anywhere. Required threading `dspfFile` through
+  `resolveRecordFields()` (5 call sites, all already had it in scope) so
+  `displayLength()` could check all three levels.
+
 ## [0.9.16] - Unreleased
 
 ### Fixed

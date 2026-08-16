@@ -195,14 +195,26 @@
     '*JUL': 6,
   };
 
-  function dateFieldLength(field) {
-    var kw = (field.keywords || []).find(function (k) { return k.name === 'DATFMT'; });
-    if (!kw) return DATFMT_LENGTHS['*ISO']; // unspecified anywhere defaults to *ISO
-    var name = kw.parameters.trim().toUpperCase();
+  function dateFieldLength(field, record, dspfFile) {
+    // DDS DATFMT precedence: field-level keyword, then record-level, then
+    // file-level, then the *ISO system default if none is specified
+    // anywhere - same precedence order already established for WINDOW's
+    // own SFLCTL/WINDOW keyword lookups elsewhere in this file.
+    var fieldKw = (field.keywords || []).find(function (k) { return k.name === 'DATFMT'; });
+    if (fieldKw) return datfmtLength(fieldKw.parameters);
+    var recordKw = record ? (record.keywords || []).find(function (k) { return k.name === 'DATFMT'; }) : null;
+    if (recordKw) return datfmtLength(recordKw.parameters);
+    var fileKw = dspfFile ? (dspfFile.fileKeywords || []).find(function (k) { return k.name === 'DATFMT'; }) : null;
+    if (fileKw) return datfmtLength(fileKw.parameters);
+    return DATFMT_LENGTHS['*ISO']; // unspecified anywhere defaults to *ISO
+  }
+
+  function datfmtLength(paramText) {
+    var name = paramText.trim().toUpperCase();
     return DATFMT_LENGTHS[name] != null ? DATFMT_LENGTHS[name] : DATFMT_LENGTHS['*ISO'];
   }
 
-  function displayLength(field) {
+  function displayLength(field, record, dspfFile) {
     // Approximation of "display length" rules for numeric edit codes/words
     // (EDTCDE/EDTWRD can insert commas, currency symbols, and sign
     // positions in ways too varied to safely approximate without a live
@@ -212,7 +224,7 @@
     var len = field.length || 0;
     var t = (field.dataType || '').toUpperCase();
     if (t === 'F') return len + 7;
-    if (t === 'L') return dateFieldLength(field); // honors the field's own DATFMT keyword
+    if (t === 'L') return dateFieldLength(field, record, dspfFile); // honors DATFMT: field, then record, then file level
     if (t === 'T') return 8; // every TIMFMT value is 8 chars, including the *ISO default - already exact
     if (t === 'Z') return 26;
     if ((t === 'S' || t === 'N' || t === 'I' || t === '') && (field.usage === 'I' || field.usage === 'B') && (field.decimalPositions || 0) > 0) {
@@ -501,7 +513,7 @@
    * windowed, subfile rows - are merged). lineOffset/colOffset let callers place
    * a record's fields relative to a window origin or a repeated subfile row.
    */
-  function resolveRecordFields(record, activeIndicators, lineOffset, colOffset, tag, activeSizeName) {
+  function resolveRecordFields(record, activeIndicators, lineOffset, colOffset, tag, activeSizeName, dspfFile) {
     var candidates = [];
     var previousColumnEnd = 1;
 
@@ -510,7 +522,7 @@
       if (field.usage === 'H' || field.usage === 'P') return; // hidden / program-to-system: not drawn
 
       var widget = widgetFromKeywords(field);
-      var len = displayLength(field);
+      var len = displayLength(field, record, dspfFile);
       var line = (field.location.line != null ? field.location.line : 1) + lineOffset;
       var startCol;
       if (field.location.column != null) {
@@ -619,7 +631,7 @@
     var fields = [];
     for (var row = 0; row < sflPag; row++) {
       var rowOffset = lineOffset + row * rowHeight;
-      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-preview-row-' + row, activeSizeName));
+      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-preview-row-' + row, activeSizeName, dspfFile));
     }
     return { sflRecordName: sflRecord.name, pageRows: sflPag, declaredPageRows: declaredSflPag, fields: fields };
   }
@@ -683,12 +695,12 @@
 
       candidates = [];
       for (var row = 0; row < sflPag; row++) {
-        candidates = candidates.concat(resolveRecordFields(record, activeIndicators, lineOffset + row * rowHeight, colOffset, 'subfile-edit-row-' + row, size.name));
+        candidates = candidates.concat(resolveRecordFields(record, activeIndicators, lineOffset + row * rowHeight, colOffset, 'subfile-edit-row-' + row, size.name, dspfFile));
       }
       previewRowCount = sflPag;
       declaredPreviewRowCount = declaredSflPag;
     } else {
-      candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name);
+      candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);
     }
 
     // Position-sequence overlap resolution: process in (line, column) order; the
@@ -731,7 +743,7 @@
       if (pdRecord) {
         var pdLineOffset = activePulldown.line - 1;
         var pdColOffset = activePulldown.col - 1;
-        var pdFields = resolveRecordFields(pdRecord, activeIndicators, pdLineOffset, pdColOffset, 'pulldown', size.name);
+        var pdFields = resolveRecordFields(pdRecord, activeIndicators, pdLineOffset, pdColOffset, 'pulldown', size.name, dspfFile);
         if (pdFields.length > 0) {
           var maxLine = Math.max.apply(null, pdFields.map(function (f) { return f.line + (f.height || 1) - 1; }));
           var maxCol = Math.max.apply(null, pdFields.map(function (f) { return f.column + f.length - 1; }));
@@ -832,7 +844,7 @@
       var lineOffset = windowBox ? windowBox.line - 1 : 0;
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 
-      var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name);
+      var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);
       fields.forEach(function (f) { f.sourceRecord = recordName; });
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName }, windowBox));

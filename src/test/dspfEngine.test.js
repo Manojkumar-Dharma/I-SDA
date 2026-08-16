@@ -276,6 +276,26 @@ console.log('date (L) field display length honors the field\'s own DATFMT keywor
   check('*JOB -> always reserves 10, even though it may display as fewer characters at runtime', lengthOf('JOBFLD') === 10);
 }
 
+console.log('date (L) field display length falls back to record-level, then file-level DATFMT');
+{
+  const src = [
+    buildLine({ seq: '00005', func: 'DATFMT(*USA)' }),
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'FILEDFLT', dataType: 'L', usage: 'B', line: '1', col: '2' }),
+    buildLine({ seq: '00030', nameType: 'R', name: 'SCR2', func: 'DATFMT(*MDY)' }),
+    buildLine({ seq: '00040', name: 'RECDFLT', dataType: 'L', usage: 'B', line: '1', col: '2' }),
+    buildLine({ seq: '00050', name: 'FLDOVER', dataType: 'L', usage: 'B', line: '2', col: '2', func: 'DATFMT(*JUL)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const s1 = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('no field or record DATFMT -> inherits file-level *USA (10)', s1.fields.find((f) => f.name === 'FILEDFLT').length === 10);
+
+  const s2 = DspfEngine.resolveScreen(model, 'SCR2', new Set());
+  check('no field DATFMT, but record has one -> inherits record-level *MDY (8), NOT the file-level *USA', s2.fields.find((f) => f.name === 'RECDFLT').length === 8);
+  check('a field with its own DATFMT overrides the record-level one', s2.fields.find((f) => f.name === 'FLDOVER').length === 6);
+}
+
 console.log('time (T) field display length is always 8, unaffected by TIMFMT (already exact - regression check)');
 {
   const src = [
