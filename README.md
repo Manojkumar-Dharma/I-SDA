@@ -140,9 +140,9 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   unhandled.
 - **Compile Menu (CRTMNU)** requires the DDS record format to be named
   exactly the same as the menu member (CRTMNU's own requirement). Only
-  handles `TYPE(*DSPF)` menus. The message file is rebuilt from scratch
-  every compile, so message IDs added to it by hand outside iSDA won't
-  survive a compile from here.
+  handles `TYPE(*DSPF)` menus. As of v0.9.14, the message file is updated
+  in place rather than rebuilt from scratch - message IDs added to it by
+  hand outside iSDA now survive a compile from here.
 - Rename shares the same auto-rewrite/advisory-warning behavior as the
   DSPF designer above. Deleting an option doesn't scan for other
   references to it either.

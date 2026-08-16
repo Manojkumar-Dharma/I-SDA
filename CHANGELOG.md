@@ -3,6 +3,28 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.14] - Unreleased
+
+### Fixed
+- **"Compile Menu" no longer destructively rebuilds the message file on
+  every compile.** Picked as the highest-priority remaining menu-designer
+  gap - a real data-loss risk in the core compile workflow: any message ID
+  added to the `QQ`-derived `*MSGF` by hand outside iSDA (or by another
+  tool) was silently wiped on the next compile, since the previous
+  implementation deleted and recreated the file from scratch every time.
+  Now creates the message file only if it doesn't exist yet (tolerating an
+  "already exists" failure rather than treating it as fatal), and updates
+  each option's message in place - `ADDMSGD` first, falling back to
+  `CHGMSGD` when that message ID is already there from a previous compile.
+  Nothing outside the `USRnnnn` IDs iSDA actually writes is ever touched; a
+  stale ID left behind after an option is deleted in the designer stays in
+  the file, unused but harmless, rather than the whole file being wiped to
+  remove it.
+- `compileMenu.test.js` updated for the shorter, non-destructive command
+  sequence, plus new coverage: `CRTMSGF` "already exists" is tolerated
+  rather than fatal, and a failing `ADDMSGD` correctly falls back to
+  `CHGMSGD` without failing the whole compile.
+
 ## [0.9.13] - Unreleased
 
 ### Fixed
