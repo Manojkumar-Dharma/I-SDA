@@ -138,6 +138,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   companion commands file as a sibling `<basename>QQ.mnucmd` in the same
   directory. `Compile Menu` still requires a real IBM i connection
   (Code for i) regardless, since compiling genuinely needs one.
+- No "Create New Menu" equivalent to the DSPF designer's "Create New
+  Display File" - starting a new menu still requires an existing MNUDDS
+  member (and its paired commands member) created some other way. Would
+  need to generate both paired members together, unlike a display file's
+  single-member case.
 - A brand-new option is placed at a default position, not a chosen one -
   reposition it via the screen designer's drag-to-move if it doesn't fit.
 - The companion commands file (`QQ` member, or local sibling) stays in
