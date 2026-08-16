@@ -3,6 +3,23 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.16] - Unreleased
+
+### Fixed
+- **Multiple runtime-positioned `WINDOW`s (`*DFT`, or a program-to-system
+  field name) no longer render exactly on top of each other in compare
+  mode.** The actual runtime position genuinely can't be known at design
+  time - that's not fixable - but every such window previously fell back
+  to the identical fixed placeholder spot, so comparing two or more of
+  them together made them visually indistinguishable, stacked precisely
+  on top of one another. Each is now staggered from the others when more
+  than one shows at once. Single-record preview (only one window ever on
+  screen there) is completely unchanged - verified only the compare-mode
+  code path was touched. Confirmed by tracing the actual drag/edit
+  coordinate math (a delta-based commit that cancels out the window
+  offset) before making any change - editing fields inside a
+  placeholder-positioned window was already correct and untouched by this.
+
 ## [0.9.15] - Unreleased
 
 ### Added

@@ -298,6 +298,41 @@ console.log('numeric decimal-point width rule now also covers usage B (both), no
   check('usage B numeric field with decimals gets +1 for the decimal point', screen.fields[0].length === 6);
 }
 
+console.log('runtime-positioned WINDOW placeholder: single-record mode is unchanged (always the same fixed spot)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(*DFT 5 20)' }),
+    buildLine({ seq: '00020', line: '1', col: '2', func: "'Window 1'" }),
+    buildLine({ seq: '00030', nameType: 'R', name: 'WIN2', func: 'WINDOW(*DFT 5 20)' }),
+    buildLine({ seq: '00040', line: '1', col: '2', func: "'Window 2'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const win1 = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const win2 = DspfEngine.resolveScreen(model, 'WIN2', new Set());
+  check('WIN1 alone is at the original fixed placeholder (2,2)', win1.window.line === 2 && win1.window.col === 2);
+  check('WIN2 alone is ALSO at (2,2) - no meaningful stagger with only one window ever visible at a time', win2.window.line === 2 && win2.window.col === 2);
+}
+
+console.log('runtime-positioned WINDOW placeholder: compare mode staggers multiple placeholder windows so they do not render on top of each other');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(*DFT 5 20)' }),
+    buildLine({ seq: '00020', line: '1', col: '2', func: "'Window 1'" }),
+    buildLine({ seq: '00030', nameType: 'R', name: 'WIN2', func: 'WINDOW(*DFT 5 20)' }),
+    buildLine({ seq: '00040', line: '1', col: '2', func: "'Window 2'" }),
+    buildLine({ seq: '00050', nameType: 'R', name: 'WIN3', func: 'WINDOW(10 30 5 20)' }),
+    buildLine({ seq: '00060', line: '1', col: '2', func: "'Window 3 - literal position'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const multi = DspfEngine.resolveMultiScreen(model, ['WIN1', 'WIN2', 'WIN3'], new Set());
+  const byName = Object.fromEntries(multi.windows.map((w) => [w.recordName, w]));
+
+  check('the first placeholder window keeps the original spot (2,2)', byName.WIN1.line === 2 && byName.WIN1.col === 2);
+  check('the second placeholder window is staggered to a different spot', byName.WIN2.line !== byName.WIN1.line || byName.WIN2.col !== byName.WIN1.col);
+  check('both placeholder windows are still flagged positionIsDefault', byName.WIN1.positionIsDefault === true && byName.WIN2.positionIsDefault === true);
+  check('a literally-positioned window (WIN3) is completely unaffected by staggering', byName.WIN3.line === 10 && byName.WIN3.col === 30 && byName.WIN3.positionIsDefault === false);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);

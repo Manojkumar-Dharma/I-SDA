@@ -86,10 +86,13 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 ### DSPF (screen) designer
 
 - `WINDOW` positions that depend on a runtime value (`*DFT`, or a
-  program-to-system field name) render at a placeholder position with a
-  dashed border, since they can't be known at design time.
-  `WINDOW(record-format-name)` (inheriting another record's geometry) is
-  fully resolved.
+  program-to-system field name) can't be known at design time, so they
+  render at a fixed placeholder position with a dashed border. If more
+  than one such window shows at once (compare mode), each is staggered
+  from the others so they don't render exactly on top of one another -
+  single-record preview always uses the same fixed spot, since only one
+  window is ever on screen there. `WINDOW(record-format-name)`
+  (inheriting another record's geometry) is fully resolved.
 - The pulldown-overlay preview (menu bar → clicked choice → dropdown) is
   read-only. Switch to previewing the `PULLDOWN` record directly to edit
   it.

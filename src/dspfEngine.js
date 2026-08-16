@@ -363,6 +363,13 @@
 
   var PLACEHOLDER_WINDOW_LINE = 2;
   var PLACEHOLDER_WINDOW_COL = 2;
+  // How far successive placeholder-positioned windows are staggered from each
+  // other (see the `placeholderIndex` param below) so they don't render
+  // exactly on top of one another when more than one shows at once - compare
+  // mode is the case this matters for; a single previewed record only ever
+  // has one window on screen, so staggering isn't meaningful there.
+  var PLACEHOLDER_WINDOW_STAGGER_LINE = 2;
+  var PLACEHOLDER_WINDOW_STAGGER_COL = 4;
 
   function resolveWindowTitle(record) {
     var titleKw = record.keywords.find(function (k) { return k.name === 'WDWTITLE'; });
@@ -371,8 +378,16 @@
     return m ? m[1].replace(/''/g, "'") : null;
   }
 
-  /** @returns {{line:number, col:number, height:number, width:number, title:string|null, positionIsDefault:boolean, inheritedFrom:string|null}|null} */
-  function resolveWindow(record, dspfFile, depth) {
+  /**
+   * @param {number} [placeholderIndex] when this window's position can't be
+   *   known at design time (*DFT or a field name - see below), which "slot"
+   *   to stagger it into so it doesn't land exactly on top of another
+   *   placeholder-positioned window shown at the same time (compare mode).
+   *   0 (the default) is the original single fixed spot - every existing
+   *   caller that doesn't pass this keeps the prior behavior exactly.
+   * @returns {{line:number, col:number, height:number, width:number, title:string|null, positionIsDefault:boolean, inheritedFrom:string|null}|null}
+   */
+  function resolveWindow(record, dspfFile, depth, placeholderIndex) {
     depth = depth || 0;
     if (depth > 5) return null; // guard against a reference cycle between records
 
@@ -386,7 +401,7 @@
     if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') {
       var refRecord = dspfFile && dspfFile.records.find(function (r) { return r.name === parts[0]; });
       if (!refRecord) return null;
-      var inherited = resolveWindow(refRecord, dspfFile, depth + 1);
+      var inherited = resolveWindow(refRecord, dspfFile, depth + 1, placeholderIndex);
       if (!inherited) return null;
       // WDWTITLE, if present, is still read from THIS record, not the referenced one.
       var ownTitle = resolveWindowTitle(record);
@@ -413,9 +428,10 @@
     if (Number.isNaN(height) || Number.isNaN(width)) return null;
 
     var line, col, positionIsDefault;
+    var stagger = placeholderIndex || 0;
     if (isDftPosition) {
-      line = PLACEHOLDER_WINDOW_LINE;
-      col = PLACEHOLDER_WINDOW_COL;
+      line = PLACEHOLDER_WINDOW_LINE + stagger * PLACEHOLDER_WINDOW_STAGGER_LINE;
+      col = PLACEHOLDER_WINDOW_COL + stagger * PLACEHOLDER_WINDOW_STAGGER_COL;
       positionIsDefault = true;
     } else {
       var lineNum = parseInt(parts[0], 10);
@@ -427,8 +443,8 @@
       } else {
         // A field name (program-to-system field) instead of a literal - its
         // runtime value isn't knowable at design time.
-        line = PLACEHOLDER_WINDOW_LINE;
-        col = PLACEHOLDER_WINDOW_COL;
+        line = PLACEHOLDER_WINDOW_LINE + stagger * PLACEHOLDER_WINDOW_STAGGER_LINE;
+        col = PLACEHOLDER_WINDOW_COL + stagger * PLACEHOLDER_WINDOW_STAGGER_COL;
         positionIsDefault = true;
       }
     }
@@ -807,12 +823,12 @@
     var allFields = [];
     var windows = [];
 
-    recordNames.forEach(function (recordName) {
+    recordNames.forEach(function (recordName, index) {
       var record = dspfFile.records.find(function (r) { return r.name === recordName; });
       if (!record) return;
       if (!conditionsSatisfied(record.conditions, activeIndicators, size.name)) return;
 
-      var windowBox = resolveWindow(record, dspfFile);
+      var windowBox = resolveWindow(record, dspfFile, 0, index);
       var lineOffset = windowBox ? windowBox.line - 1 : 0;
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 
