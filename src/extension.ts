@@ -291,12 +291,16 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
       return;
     }
 
-    progress.report({ message: 'Rebuilding message file...' });
-    // Deleting first is expected to "fail" harmlessly on the very first
-    // compile (nothing to delete yet) - not treated as an error.
-    await run(`DLTMSGF MSGF(${library}/${objectName})`, 'DLTMSGF');
+    progress.report({ message: 'Updating message file...' });
+    // Previously deleted and recreated the message file from scratch on every
+    // compile - simple, but genuinely destructive: any message ID a user (or
+    // another tool) added to it by hand outside iSDA would be silently wiped
+    // on the next compile from here. Now creates it only if it doesn't exist
+    // yet, and updates messages in place (ADDMSGD, falling back to CHGMSGD
+    // when that message ID is already there) - nothing outside the option
+    // numbers iSDA is actually writing is ever touched.
     step = await run(`CRTMSGF MSGF(${library}/${objectName})`, 'CRTMSGF');
-    if (!step.ok) {
+    if (!step.ok && !/already exist/i.test(step.message)) {
       vscode.window.showErrorMessage('iSDA: ' + step.message);
       return;
     }
@@ -304,10 +308,15 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
     for (const opt of commands) {
       const msgId = 'USR' + opt.optionNumber; // USRnnnn - the format TYPE(*DSPF) menus expect
       const escapedCommand = opt.command.replace(/'/g, "''");
-      step = await run(`ADDMSGD MSGID(${msgId}) MSGF(${library}/${objectName}) MSG('${escapedCommand}') SEV(00)`, `ADDMSGD for option ${opt.numberValue}`);
-      if (!step.ok) {
-        vscode.window.showErrorMessage('iSDA: ' + step.message);
-        return;
+      const addStep = await run(`ADDMSGD MSGID(${msgId}) MSGF(${library}/${objectName}) MSG('${escapedCommand}') SEV(00)`, `ADDMSGD for option ${opt.numberValue}`);
+      if (!addStep.ok) {
+        // Most likely means this message ID already exists from a previous
+        // compile - update it in place instead of treating that as fatal.
+        const changeStep = await run(`CHGMSGD MSGID(${msgId}) MSGF(${library}/${objectName}) MSG('${escapedCommand}') SEV(00)`, `CHGMSGD for option ${opt.numberValue}`);
+        if (!changeStep.ok) {
+          vscode.window.showErrorMessage(`iSDA: ${addStep.message}\n\nAlso tried CHGMSGD: ${changeStep.message}`);
+          return;
+        }
       }
     }
 

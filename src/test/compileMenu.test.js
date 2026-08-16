@@ -79,7 +79,7 @@ async function run() {
     check('runs no CL commands', vscodeMock.__executedCommands.filter((c) => c.id === 'code-for-ibmi.runCommand').length === 0);
   }
 
-  console.log('\nhappy path: full CRTDSPF -> DLTMSGF -> CRTMSGF -> ADDMSGD... -> CRTMNU sequence');
+  console.log('\nhappy path: CRTDSPF -> CRTMSGF -> ADDMSGD... -> CRTMNU sequence (no destructive rebuild)');
   {
     const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
     const doc = vscodeMock.__mockDocument(menuSource, uri, { isDirty: true });
@@ -96,14 +96,60 @@ async function run() {
 
     check('saves the dirty MNUDDS document before compiling', doc.saveCount === 1);
     check('saves the dirty companion MNUCMD document before compiling', commandDoc.saveCount === 1);
-    check('runs exactly 6 CL commands (CRTDSPF, DLTMSGF, CRTMSGF, 2x ADDMSGD, CRTMNU)', calls.length === 6);
+    check('runs exactly 5 CL commands (CRTDSPF, CRTMSGF, 2x ADDMSGD, CRTMNU) - no DLTMSGF', calls.length === 5);
     check('CRTDSPF references the right file/library/member', /^CRTDSPF FILE\(MYLIB\/MYMENU\) SRCFILE\(MYLIB\/QDDSSRC\) SRCMBR\(MYMENU\)/.test(calls[0]));
-    check('rebuilds the message file (DLTMSGF then CRTMSGF)', calls[1].startsWith('DLTMSGF MSGF(MYLIB/MYMENU)') && calls[2].startsWith('CRTMSGF MSGF(MYLIB/MYMENU)'));
-    check('adds one ADDMSGD per option using the USRnnnn message ID format', calls[3].includes('MSGID(USR0001)') && calls[3].includes("MSG('DSPLIBL')") && calls[4].includes('MSGID(USR0002)') && calls[4].includes("MSG('CHGCURLIB')"));
-    check('CRTMNU ties the DSPF and MSGF together as TYPE(*DSPF)', calls[5].includes('CRTMNU MENU(MYLIB/MYMENU)') && calls[5].includes('TYPE(*DSPF)') && calls[5].includes('DSPF(MYLIB/MYMENU)') && calls[5].includes('MSGF(MYLIB/MYMENU)'));
+    check('never deletes the message file', !calls.some((c) => c.startsWith('DLTMSGF')));
+    check('creates the message file (tolerates it already existing)', calls[1].startsWith('CRTMSGF MSGF(MYLIB/MYMENU)'));
+    check('adds one ADDMSGD per option using the USRnnnn message ID format', calls[2].includes('MSGID(USR0001)') && calls[2].includes("MSG('DSPLIBL')") && calls[3].includes('MSGID(USR0002)') && calls[3].includes("MSG('CHGCURLIB')"));
+    check('CRTMNU ties the DSPF and MSGF together as TYPE(*DSPF)', calls[4].includes('CRTMNU MENU(MYLIB/MYMENU)') && calls[4].includes('TYPE(*DSPF)') && calls[4].includes('DSPF(MYLIB/MYMENU)') && calls[4].includes('MSGF(MYLIB/MYMENU)'));
     check('shows a success message mentioning the compiled object', /MYLIB\/MYMENU/.test(vscodeMock.__lastInformation || ''));
 
     vscodeMock.__setOpenTextDocuments([]);
+  }
+
+  console.log('\nCRTMSGF already existing is tolerated, not treated as a failure');
+  {
+    const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
+    vscodeMock.__clearMockFiles();
+    vscodeMock.__setMockFile(uri, menuSource);
+    const commandUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENUQQ.MNUCMD');
+    vscodeMock.__setMockFile(commandUri, '0001 DSPLIBL\n0002 CHGCURLIB\n');
+
+    const calls = [];
+    vscodeMock.__setRunCommandHandler((args) => {
+      calls.push(args.command);
+      if (args.command.startsWith('CRTMSGF')) return { code: -1, stdout: '', stderr: 'CPF2issue: Message file already exists in library MYLIB.' };
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    vscodeMock.__lastError = undefined;
+
+    const compileMenu = freshContext();
+    await compileMenu(uri);
+    check('proceeds past the "already exists" CRTMSGF failure to ADDMSGD/CRTMNU', calls.some((c) => c.startsWith('ADDMSGD')) && calls.some((c) => c.startsWith('CRTMNU')));
+    check('does not show an error for the tolerated already-exists case', !vscodeMock.__lastError);
+  }
+
+  console.log('\nADDMSGD failing (message ID already there from a previous compile) falls back to CHGMSGD');
+  {
+    const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
+    vscodeMock.__clearMockFiles();
+    vscodeMock.__setMockFile(uri, menuSource);
+    const commandUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENUQQ.MNUCMD');
+    vscodeMock.__setMockFile(commandUri, '0001 DSPLIBL\n0002 CHGCURLIB\n');
+
+    const calls = [];
+    vscodeMock.__setRunCommandHandler((args) => {
+      calls.push(args.command);
+      if (args.command.startsWith('ADDMSGD') && args.command.includes('USR0001')) return { code: -1, stdout: '', stderr: 'CPF2431: Message description already exists.' };
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    vscodeMock.__lastInformation = undefined;
+
+    const compileMenu = freshContext();
+    await compileMenu(uri);
+    check('retries the failed option with CHGMSGD instead of failing the whole compile', calls.some((c) => c.startsWith('CHGMSGD') && c.includes('USR0001')));
+    check('option 2 still just uses ADDMSGD (it succeeded first try)', calls.some((c) => c.startsWith('ADDMSGD') && c.includes('USR0002')) && !calls.some((c) => c.startsWith('CHGMSGD') && c.includes('USR0002')));
+    check('compile still completes successfully overall', /MYLIB\/MYMENU/.test(vscodeMock.__lastInformation || ''));
   }
 
   console.log('\nno option-to-command mappings yet -> warns and requires confirmation');
@@ -124,7 +170,7 @@ async function run() {
     vscodeMock.__setWarningResponse('Compile Anyway');
     compileMenu = freshContext();
     await compileMenu(uri);
-    check('proceeds with CRTDSPF/DLTMSGF/CRTMSGF/CRTMNU but no ADDMSGD', calls.length === 4 && !calls.some((c) => c.startsWith('ADDMSGD')));
+    check('proceeds with CRTDSPF/CRTMSGF/CRTMNU but no ADDMSGD', calls.length === 3 && !calls.some((c) => c.startsWith('ADDMSGD')));
     vscodeMock.__setWarningResponse(undefined);
   }
 
