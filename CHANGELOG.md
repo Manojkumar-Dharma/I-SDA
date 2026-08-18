@@ -3,6 +3,25 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.19] - Unreleased
+
+### Added
+- **"+ Add option" now lets you choose where a new option lands**, instead
+  of only ever computing its own position. Two new Row/Col fields sit below
+  the option number and text - pre-filled with the same smart default the
+  auto-placement logic already computed (unchanged if you leave them as-is),
+  editable if you want it somewhere else. Choosing an occupied row or one
+  past the screen's own `DSPSIZ` size is rejected with a specific reason
+  (which row, and why) rather than a generic "no room" message, reusing the
+  same bounds-checking `findSafeOptionRow`/`screenLinesForRecord` already
+  relies on - no new placement logic, just a new front door to the existing
+  validation.
+- `menuWebview.test.js` extended: the Row/Col fields pre-fill correctly,
+  leaving them untouched still places the option the same way as before,
+  an explicit override is honored exactly, and both rejection cases (an
+  occupied row, a row past the screen size) show the right specific error
+  and post no edit.
+
 ## [0.9.18] - Unreleased
 
 ### Fixed
