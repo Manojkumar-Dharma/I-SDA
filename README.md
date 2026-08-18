@@ -139,6 +139,89 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - Deleting an option doesn't scan for other references to it (unlike
   rename, which does).
 
+### Planned / not yet built (prioritized, Aug 2026 parity audit)
+
+Audited against a full SDA-parity feature list. Split into **Common**
+(engine/writer work in `dspfEngine.js` / `dspfWriter.js` that both designers
+share - build once, both webviews benefit) and designer-specific gaps that
+only make sense in one context. Within each list, roughly highest-value/most
+requested first.
+
+#### Common (shared engine/writer - do these once, not twice)
+
+1. **Copy field/constant** - no `copyField`-style primitive exists yet in
+   `dspfWriter.js`; both designers need it (DSPF: copy within/across
+   records; Menu: duplicating an option's constant shape).
+2. **Create / copy / delete whole record formats** - `dspfWriter.js` has no
+   record-insert or record-delete primitive at all today, only
+   `applyRecordUpdate`/`renameRecordFormat` for an *existing* record's own
+   keywords/name.
+3. **Assign command keys (CAxx/CFxx)**, with the file-level/record-level
+   cross-exclusion (a key already used at one level can't be reused at the
+   other) - both DSPF screens and MNUDDS menus use command keys constantly.
+4. **Add Display Size (\*DS3/\*DS4)** - the size picker only switches
+   between sizes a file *already* declares (`DSPSIZ`); there's no "add a
+   second size to a single-size file" writer action. Shared DSPSIZ
+   parsing/writing, useful for both file types.
+5. **Function-key legend** (F3/F12 etc., showing every CAxx/CFxx available
+   to the record being previewed, active/inactive styling) - a pure
+   `dspfEngine.js` resolution addition (file-level + record-level keys +
+   current indicator state), rendered by both preview surfaces.
+6. **File-level attributes panel** - `fileKeywords` are parsed but never
+   shown or editable in either webview's sidebar today.
+7. **Sort elements** within a record (constants/fields reordering) - low
+   priority; UI-only once a stable sort key convention is picked.
+
+#### Display (DSPF) designer only
+
+1. **Field/constant indicator conditioning UI** - `field.conditions` /
+   `record.conditions` round-trip correctly through the parser/writer
+   (including >3-ANDed and OR'd groups), but there's no UI to actually
+   add/remove/change them - today's Properties panel only edits
+   `keywords`, not the entity's own conditions.
+2. **"+ Field" / "+ Constant" click-to-place buttons** on the preview
+   canvas - `DspfWriter.insertField` already exists and is used by the menu
+   designer's "+ Add option", but the DSPF designer has no equivalent
+   entry point yet.
+3. **Window resize handles**, aware of every declared display size at
+   once - today a window can only be dragged (moved), never resized, from
+   the preview.
+4. **Change Window Title** by clicking it directly on the preview (`WDWTITLE`
+   is read/rendered already; editing it means hand-typing the keyword).
+5. **Center field/constant on screen** - no such action exists; position
+   is only settable via explicit Row/Col or drag.
+6. **Fill constant with characters** - no such action exists.
+7. **Dedicated colors/attributes editor** (`COLOR`/`DSPATR` picker) -
+   today these are only reachable via the generic "add any keyword by
+   name/params" box.
+8. **Dedicated validity-check / editing-keyword / error-message helpers**
+   (`RANGE`/`COMP`/`VALUES`, `EDTCDE`/`EDTWRD`, `ERRMSG`) - same generic-
+   keyword-box limitation as colors/attributes above.
+9. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
+   a referenced field's real type/length/decimals from a connected IBM i.
+   Not implemented anywhere in the DSPF designer today (Code for i is
+   currently only used by the menu designer's Compile Menu command).
+10. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
+    chars/line) - not implemented in `dspfEngine.js`.
+11. **`ERRMSG` on a window's own reserved message line** (its last content
+    row, unless `*NOMSGLIN`) - not implemented; nothing renders `ERRMSG`
+    specially yet.
+12. **True dimmed-overlay compare** (one record drawn dimmed behind the one
+    being edited) - today's "Compare multiple formats" is a read-only,
+    side-by-side multi-select, not an editable-record-plus-dimmed-backdrop
+    view.
+
+#### Menu designer only
+
+1. **Indicator conditioning UI for options** - same underlying gap as the
+   DSPF designer's field/constant conditions; a menu option is a DDS
+   constant and can be conditioned the same way, with no UI for it today.
+2. **"Create New Menu"** equivalent to "Create New Display File" - still
+   needs an existing MNUDDS member (+ paired commands member) created some
+   other way; would need to generate both together.
+3. Everything under **Common** above (command keys, function-key legend,
+   copy option/constant, etc.) applies equally here once built.
+
 ## License
 
 MIT — see `LICENSE`.
