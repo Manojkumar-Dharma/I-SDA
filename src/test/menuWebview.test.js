@@ -286,6 +286,7 @@ function runSplitConstantScenario() {
     check('option 1s label comes from the SEPARATE label constant, not left blank', row1 && row1.querySelector('.option-label-input').value === 'Display current library list');
     const row2 = rows.find((r) => r.querySelector('.option-num-badge').textContent === '2');
     check('a combined-form option in the same file still works too', row2 && row2.querySelector('.option-label-input').value === 'Change current library');
+    check('the label input has a title attribute with the full text (visible on hover, since the input box itself can be too narrow to show long text)', row1.querySelector('.option-label-input').title === 'Display current library list');
 
     console.log('  editing a split-constant option writes the label constant, not the number marker');
     const labelInput = row1.querySelector('.option-label-input');
@@ -309,12 +310,13 @@ function runSplitConstantScenario() {
 function runScreenSpaceScenario() {
   console.log('\n"+ Add option" respects DSPSIZ and does not overwrite an occupied row');
 
-  console.log('  skips an occupied row and lands on the next free one');
+  console.log('  skips an occupied row and stays above the command-line prompt (never places an option below it)');
   const roomySource =
     [
       "     A                                      DSPSIZ(24 80 *DS3)",
       "     A          R MENU",
-      "     A                                 22  5'1. Display library list'",
+      "     A                                 20  5'1. Display library list'",
+      "     A                                 21  2'---divider---'",
       "     A  10        CMDLINE       80   B 23  2",
     ].join('\n') + '\n';
   const roomyHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce4', roomySource, '', 'ROOMY.MNUDDS', 'ROOMYQQ.MNUCMD', 'missing').replace(
@@ -337,17 +339,16 @@ function runScreenSpaceScenario() {
     roomyDoc.getElementById('addOptionLabel').value = 'Change current library';
     roomyDoc.getElementById('addOptionBtn').dispatchEvent(new roomyDom.window.Event('click', { bubbles: true }));
     const roomyMsg = roomyPosted.find((m) => m.type === 'applyEdit');
-    check('places the new option on row 24, skipping occupied row 23', roomyMsg && /24\s+5'2\. Change current library'/.test(roomyMsg.text));
-    check('does not touch the occupied CMDLINE row', roomyMsg && roomyMsg.text.includes('CMDLINE'));
+    check('skips the occupied divider row (21) and lands on row 22, the last free row above CMDLINE', roomyMsg && /22\s+5'2\. Change current library'/.test(roomyMsg.text));
+    check('does NOT place the option at or below row 23 (the command-line prompt)', roomyMsg && !/2[34]\s+\d+'2\. Change current library'/.test(roomyMsg.text));
 
-    console.log('  refuses to add an option when there is genuinely no room left');
+    console.log('  refuses to add an option when there is genuinely no room left above the command-line prompt');
     const fullSource =
       [
         "     A                                      DSPSIZ(24 80 *DS3)",
         "     A          R MENU",
-        "     A                                 22  5'1. Display library list'",
-        "     A  10        CMDLINE       80   B 23  2",
-        "     A                                 24  2'F3=Exit'",
+        "     A                                 21  5'1. Display library list'",
+        "     A  10        CMDLINE       80   B 22  2",
       ].join('\n') + '\n';
     const fullHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce5', fullSource, '', 'FULL.MNUDDS', 'FULLQQ.MNUCMD', 'missing').replace(
       /<meta http-equiv="Content-Security-Policy"[^>]*>/,

@@ -462,7 +462,7 @@ const htmlTemplate = `<!DOCTYPE html>
         '<div class="option-num-badge">' + numLabel + '</div>' +
         '<div class="option-fields">' +
         '<div class="option-field-label">Option text</div>' +
-        '<input type="text" class="option-label-input" value="' + escapeAttr(opt.label) + '" placeholder="Option text" />' +
+        '<input type="text" class="option-label-input" value="' + escapeAttr(opt.label) + '" title="' + escapeAttr(opt.label) + '" placeholder="Option text" />' +
         '<div class="option-cmd-row">' +
         '<span class="option-cmd-prompt">CMD&gt;</span>' +
         '<input type="text" class="option-cmd" value="' + escapeAttr(command) + '" placeholder="Command to run, e.g. CALL PGM1" />' +
@@ -529,15 +529,42 @@ const htmlTemplate = `<!DOCTYPE html>
     return DspfEngine.screenLinesForRecord(currentModel, record);
   }
 
+  // The record's own DSPSIZ bound is a hard ceiling, but a real menu's
+  // interactive area effectively ends well above that: the numbered
+  // options are always followed by a "Selection or command" prompt (and
+  // its input field) as the LAST interactive element, with the remaining
+  // rows down to the bottom of the screen typically left blank for visual
+  // framing. Those blank rows are technically free and within DSPSIZ, but
+  // placing a new option there would put it below the prompt a user
+  // actually types into - invisible in practice even though nothing
+  // occupies that space. DDS has no keyword that specifically marks "the
+  // command line prompt", so this uses the same structural signal a real
+  // menu always has instead of matching on prompt text (fragile, and
+  // wouldn't generalize past English): the record's own lowest
+  // INPUT-CAPABLE field (usage I or B) - in a real menu that's virtually
+  // always the command-line input itself, since nothing interactive
+  // legitimately sits below it. A record with no input-capable field at
+  // all (unusual for a menu, but not impossible) falls back to the plain
+  // DSPSIZ bound, unchanged from before.
+  function effectiveRowLimit(currentModel, record) {
+    const dspsizLimit = getScreenRowLimit(currentModel, record);
+    const inputRows = (record.fields || [])
+      .filter((f) => (f.usage === 'I' || f.usage === 'B') && f.location && f.location.line != null)
+      .map((f) => f.location.line);
+    if (inputRows.length === 0) return dspsizLimit;
+    return Math.min(dspsizLimit, Math.min.apply(null, inputRows) - 1);
+  }
+
   // Finds the first row at or after startRow that isn't already occupied by
   // ANY field in the record (function-key text, a "Selection or command"
-  // prompt, another option, etc.) and doesn't run past the screen's own row
-  // limit. Returns null if there's no room, so the caller can tell the user
-  // rather than silently placing a new option off-screen or on top of
-  // something that's already there - the two symptoms this was written to
-  // fix (see CHANGELOG).
+  // prompt, another option, etc.) and doesn't run past the effective row
+  // limit (see effectiveRowLimit above). Returns null if there's no room,
+  // so the caller can tell the user rather than silently placing a new
+  // option off-screen, on top of something that's already there, or below
+  // the command-line prompt - the symptoms this was written to fix (see
+  // CHANGELOG).
   function findSafeOptionRow(currentModel, record, startRow) {
-    const maxRows = getScreenRowLimit(currentModel, record);
+    const maxRows = effectiveRowLimit(currentModel, record);
     const occupiedRows = new Set();
     (record.fields || []).forEach((f) => {
       if (f.location && f.location.line != null) occupiedRows.add(f.location.line);

@@ -92,7 +92,7 @@ setTimeout(() => {
     check('setup: the target constant is present before deleting', !!constantEl);
 
     constantEl.dispatchEvent(new Event('click', { bubbles: true }));
-    check('clicking selects it (props panel switches to field view)', doc.getElementById('p-name') !== null);
+    check('clicking selects it (props panel switches to field view)', doc.getElementById('p-const-text') !== null);
 
     const beforeCount = doc.querySelectorAll('.dspf-field').length;
     doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
@@ -110,7 +110,7 @@ setTimeout(() => {
     const target = currentFieldEls.find((el) => el.textContent.includes('MAIN SCREEN'));
     target.dispatchEvent(new Event('click', { bubbles: true }));
 
-    const nameInput = doc.getElementById('p-name');
+    const nameInput = doc.getElementById('p-const-text');
     check('setup: a text input is present and focusable in the props panel', !!nameInput);
     // Dispatch Backspace with the input itself as the event target, the way
     // a real keypress while focused in that field would.
@@ -236,6 +236,49 @@ function runSizeBoundsScenario() {
     sizeSelect.dispatchEvent(new boundsDom.window.Event('change', { bubbles: true }));
     const bannerAfter = boundsDoc.getElementById('sizeBoundsWarning');
     check('still warns after switching to the size the field fits within (checks ALL sizes, not just the active one)', bannerAfter && !bannerAfter.classList.contains('hidden'));
+
+    runConstantTextEditScenario();
+  }, 0);
+}
+
+function runConstantTextEditScenario() {
+  console.log('\nediting a constant\'s literal text via the props panel');
+  const src =
+    [
+      '     A          R SCR1',
+      "     A                                  1  2'Old text'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce5', src, 'CONSTEDIT.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const constantEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('Old text'));
+    check('setup: the constant is present', !!constantEl);
+    constantEl.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+
+    const textInput = doc.getElementById('p-const-text');
+    check('the props panel shows a Text input pre-filled with the constant\'s current value', textInput && textInput.value === 'Old text');
+    check('there is no Name/Length/Data type input for a constant (none of those apply to one)', !doc.getElementById('p-name') && !doc.getElementById('p-length') && !doc.getElementById('p-type'));
+
+    textInput.value = "It's updated";
+    doc.getElementById('p-apply').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+
+    const applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts applyEdit with the new text, apostrophe correctly doubled for DDS', applyEdit && applyEdit.text.includes("It''s updated"));
+    check('the old text is gone', applyEdit && !applyEdit.text.includes('Old text'));
+    check('the screen re-renders showing the new text', Array.from(doc.querySelectorAll('.dspf-field')).some((el) => el.textContent.includes("It's updated")));
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);

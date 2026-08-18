@@ -104,6 +104,37 @@ console.log('SFLPAG: capped to the display working area (not left to overflow pa
   check('cap is stable/deterministic across calls', largerScreen.previewRowCount === sflScreen.previewRowCount);
 }
 
+console.log('SFLPAG: hidden/program-to-system fields (usage H/P) with no explicit position do not inflate row height');
+{
+  // Regression for a real-world pattern: hidden helper fields (H_LIBNAME,
+  // H_SEQNO, H_ERR - usage H, no line/col of their own) declared BEFORE the
+  // row's visible fields. Previously these fell back to "line 1" for row-
+  // height purposes, and since the visible fields sit at line 9, that
+  // computed an 8-line-too-tall row height (9 - 1 + 1 = 9 instead of 1),
+  // spacing every subfile preview row 9 lines apart instead of stacking
+  // them immediately below one another.
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFL01', func: 'SFL' }),
+    buildLine({ seq: '00110', name: 'H_LIBNAME', length: '10', dataType: 'A', usage: 'H' }),
+    buildLine({ seq: '00120', name: 'H_SEQNO', length: '4', dataType: 'Y', decimals: '0', usage: 'H' }),
+    buildLine({ seq: '00130', name: 'S1SEQNO', length: '4', dataType: 'Y', decimals: '0', usage: 'B', line: '9', col: '4' }),
+    buildLine({ seq: '00140', name: 'S1LIBNAME', length: '10', dataType: 'A', usage: 'B', line: '9', col: '12' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTL01', func: 'SFLCTL(SFL01)' }),
+    buildLine({ seq: '00210', func: 'SFLSIZ(9999)' }),
+    buildLine({ seq: '00220', func: 'SFLPAG(0039)' }),
+    buildLine({ seq: '00230', func: 'SFLDSP' }),
+    buildLine({ seq: '00240', func: 'SFLDSPCTL' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTL01', new Set());
+
+  const seqFields = screen.subfilePreview.fields.filter((f) => f.name === 'S1SEQNO');
+  check('renders more than the old buggy 2-row result (16 rows fit in a 24-line screen starting at line 9)', screen.subfilePreview.pageRows === 16);
+  check('consecutive preview rows are exactly 1 line apart, not 9', seqFields[1].line - seqFields[0].line === 1);
+  check('rows stack starting right at the declared line 9, not shifted down to line 1 + 9', seqFields[0].line === 9);
+}
+
 console.log('SFLPAG: small declared page size is left untouched (no clamping needed)');
 {
   const src = [
@@ -351,6 +382,52 @@ console.log('runtime-positioned WINDOW placeholder: compare mode staggers multip
   check('the second placeholder window is staggered to a different spot', byName.WIN2.line !== byName.WIN1.line || byName.WIN2.col !== byName.WIN1.col);
   check('both placeholder windows are still flagged positionIsDefault', byName.WIN1.positionIsDefault === true && byName.WIN2.positionIsDefault === true);
   check('a literally-positioned window (WIN3) is completely unaffected by staggering', byName.WIN3.line === 10 && byName.WIN3.col === 30 && byName.WIN3.positionIsDefault === false);
+}
+
+console.log("a bare constant's resolved width reflects its real text length, not a 1-char placeholder");
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', line: '1', col: '15', func: "'Metadata Building Process'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check("width matches the literal text's real length (25 chars)", screen.fields[0].length === 'Metadata Building Process'.length);
+}
+
+console.log('two indicator-conditioned constants at the identical position: exactly one shows, switching correctly with the indicator');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', ind1: 'N77', line: '1', col: '15', func: "'Metadata Building Process'" }),
+    buildLine({ seq: '00030', ind1: '77', line: '1', col: '15', func: "'Refresh Metadata Process'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const off = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('indicator 77 off: shows the N77-conditioned constant', off.fields.length === 1 && off.fields[0].text === 'Metadata Building Process');
+
+  const on = DspfEngine.resolveScreen(model, 'SCR1', new Set(['77']));
+  check('indicator 77 on: shows the 77-conditioned constant instead', on.fields.length === 1 && on.fields[0].text === 'Refresh Metadata Process');
+}
+
+console.log("an under-counted constant width no longer shifts a LATER field's relative-column position on the same line");
+{
+  // The second field's column is relative (+N = N columns after where the
+  // PREVIOUS field ends) - if the constant's own width were wrongly treated
+  // as ~0/1 char instead of its real 6-char length, this field would land
+  // several columns too far left.
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', line: '1', col: '1', func: "'Label:'" }),
+    buildLine({ seq: '00030', name: 'AFTER', length: '5', dataType: 'A', usage: 'B', line: '1', col: '+3' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const label = screen.fields.find((f) => f.text === 'Label:');
+  const after = screen.fields.find((f) => f.name === 'AFTER');
+  check("the constant's own resolved width is its real 6-char length", label.length === 6);
+  check('the relatively-positioned field lands 3 cols after the constant actually ends (col 1 + 6 + 3 = 10)', after.column === 10);
 }
 
 if (failures > 0) {

@@ -523,6 +523,17 @@
 
       var widget = widgetFromKeywords(field);
       var len = displayLength(field, record, dspfFile);
+      // A bare CONSTANT has no declared DDS LENGTH column - displayLength()
+      // falls through to 0 for one, since that column simply isn't there to
+      // read. Its real occupied width is implicit from the quoted literal
+      // text itself. This isn't just a rendering-width nuance: `len` also
+      // drives `previousColumnEnd` below, which the NEXT field's relative
+      // column position (location.relativeColumnOffset) is computed from -
+      // an under-counted constant width here would silently shift every
+      // later relatively-positioned field on the same line too.
+      if (field.nameType === 'CONSTANT' && field.constantValue) {
+        len = Math.max(len, field.constantValue.length);
+      }
       var line = (field.location.line != null ? field.location.line : 1) + lineOffset;
       var startCol;
       if (field.location.column != null) {
@@ -617,7 +628,18 @@
       if (!Number.isNaN(n)) declaredSflPag = n;
     }
 
+    // Only fields that actually occupy a VISIBLE row position count toward
+    // row height - hidden/program-to-system fields (usage H/P, matching the
+    // same exclusion resolveRecordFields uses when deciding what to draw at
+    // all) commonly have no explicit line/col of their own (declared before
+    // the row's visible fields, as helper/work fields), which would
+    // otherwise fall back to line 1 and badly inflate rowHeight to whatever
+    // the gap between line 1 and the row's real (later) line is - e.g. a
+    // real row template only 1 line tall would wrongly compute as many
+    // lines tall, spacing every preview row far apart instead of stacking
+    // them immediately below one another.
     var sflLines = sflRecord.fields
+      .filter(function (f) { return f.usage !== 'H' && f.usage !== 'P'; })
       .map(function (f) { return f.location.line != null ? f.location.line : 1; })
       .filter(function (n2) { return n2 != null; });
     var firstFieldLine = sflLines.length > 0 ? Math.min.apply(null, sflLines) : 1;
@@ -686,7 +708,11 @@
     if (isSflRecord && previewMultipleRows) {
       var pairing = findSflPairing(dspfFile, recordName);
       var declaredSflPag = pairing ? pairing.sflPag : 5; // fallback matches resolveSubfilePreview's own default
+      // Same exclusion as resolveSubfilePreview above - hidden/program-to-
+      // system fields (usage H/P) with no explicit position would otherwise
+      // fall back to line 1 and badly inflate the computed row height.
       var ownLines = record.fields
+        .filter(function (f) { return f.usage !== 'H' && f.usage !== 'P'; })
         .map(function (f) { return f.location.line != null ? f.location.line : 1; })
         .filter(function (n) { return n != null; });
       var firstFieldLine = ownLines.length > 0 ? Math.min.apply(null, ownLines) : 1;
@@ -797,14 +823,11 @@
       var screen = resolveScreen(dspfFile, recordName, activeIndicators, null, false, idx);
       if (screen.error || screen.suppressed) return;
       screen.fields.forEach(function (f) {
-        // f.length is a placeholder (clamped to 1) for a bare CONSTANT -
-        // constants have no declared DDS LENGTH column, so their real
-        // occupied width is implicit from the quoted text itself. Use
-        // whichever is larger so a named field's real declared length
-        // (which f.length already reflects correctly) isn't second-guessed.
-        var occupiedWidth = Math.max(f.length, f.text ? f.text.length : 0);
+        // f.length is now the real occupied width for every field type,
+        // including bare constants (resolveRecordFields computes it from
+        // the constant's own text - see the fix there).
         var bottom = f.line + f.height - 1;
-        var right = f.column + occupiedWidth - 1;
+        var right = f.column + f.length - 1;
         if (bottom > screen.lines || right > screen.columns) {
           problems.push({
             sizeIndex: idx,

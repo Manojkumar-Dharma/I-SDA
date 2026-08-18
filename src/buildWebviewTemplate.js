@@ -676,16 +676,28 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!field) { selectedKey = null; renderRecordProps(recordName); return; }
 
     const editable = DspfWriter.isEditable(field);
+    const isConstant = field.nameType === 'CONSTANT';
     let html = '';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this field is disabled to avoid corrupting it. Edit the source directly.</div>';
-    html += '<div class="field-row"><label>Name</label><input type="text" id="p-name" value="' + (field.name || '') + '" ' + (field.nameType === 'CONSTANT' ? 'disabled' : '') + ' /></div>';
-    html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-length" value="' + (field.length != null ? field.length : '') + '" /></div>';
-    html += '<div class="field-row"><label>Decimals</label><input type="number" id="p-dec" value="' + (field.decimalPositions != null ? field.decimalPositions : '') + '" /></div></div>';
+    if (isConstant) {
+      // A constant has no name/length/data type/usage of its own - its whole
+      // identity IS its literal text, which was previously not editable
+      // here at all (only its position, via drag). DspfWriter.applyFieldUpdate
+      // already supported writing back a new constantValue; only the input
+      // to drive it was missing.
+      html += '<div class="field-row"><label>Text</label><input type="text" id="p-const-text" value="' + DspfEngine.escapeHtml(field.constantValue || '') + '" /></div>';
+    } else {
+      html += '<div class="field-row"><label>Name</label><input type="text" id="p-name" value="' + (field.name || '') + '" /></div>';
+      html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-length" value="' + (field.length != null ? field.length : '') + '" /></div>';
+      html += '<div class="field-row"><label>Decimals</label><input type="number" id="p-dec" value="' + (field.decimalPositions != null ? field.decimalPositions : '') + '" /></div></div>';
+    }
     html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-line" value="' + (field.location.line != null ? field.location.line : '') + '" /></div>';
     html += '<div class="field-row"><label>Column</label><input type="number" id="p-col" value="' + (field.location.column != null ? field.location.column : '') + '" /></div></div>';
-    html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
-      ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
-    html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
+    if (!isConstant) {
+      html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
+        ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
+      html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
+    }
     html += keywordEditorHtml(field.keywords);
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
     html += '<div class="delete-hint">Press Delete or Backspace to remove this field.</div>';
@@ -693,15 +705,20 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!editable) return;
 
     document.getElementById('p-apply').addEventListener('click', () => {
-      commitEdit(ownerRecordName, field, {
-        name: document.getElementById('p-name').value.trim().toUpperCase(),
-        length: document.getElementById('p-length').value === '' ? null : parseInt(document.getElementById('p-length').value, 10),
-        decimalPositions: document.getElementById('p-dec').value === '' ? null : parseInt(document.getElementById('p-dec').value, 10),
+      const updates = {
         line: document.getElementById('p-line').value === '' ? null : parseInt(document.getElementById('p-line').value, 10),
         column: document.getElementById('p-col').value === '' ? null : parseInt(document.getElementById('p-col').value, 10),
-        dataType: document.getElementById('p-type').value || null,
-        usage: document.getElementById('p-usage').value || null,
-      });
+      };
+      if (isConstant) {
+        updates.constantValue = document.getElementById('p-const-text').value;
+      } else {
+        updates.name = document.getElementById('p-name').value.trim().toUpperCase();
+        updates.length = document.getElementById('p-length').value === '' ? null : parseInt(document.getElementById('p-length').value, 10);
+        updates.decimalPositions = document.getElementById('p-dec').value === '' ? null : parseInt(document.getElementById('p-dec').value, 10);
+        updates.dataType = document.getElementById('p-type').value || null;
+        updates.usage = document.getElementById('p-usage').value || null;
+      }
+      commitEdit(ownerRecordName, field, updates);
     });
     wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }));
   }
