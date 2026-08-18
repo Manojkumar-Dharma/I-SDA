@@ -372,7 +372,39 @@ function runScreenSpaceScenario() {
       check('shows a "no room" error naming the DSPSIZ/occupied-row cause', /no room|DSPSIZ/i.test(fullDoc.getElementById('addOptionError').textContent));
       check('does NOT post applyEdit when there is no room', !fullPosted.some((m) => m.type === 'applyEdit'));
 
-      runFirstOptionPlacementScenario();
+      console.log('  a MANUALLY typed row below the command-line prompt is rejected too, not just the auto-placed default');
+      const overrideSource =
+        [
+          "     A                                      DSPSIZ(24 80 *DS3)",
+          "     A          R MENU",
+          "     A                                 21  5'1. Display library list'",
+          "     A  10        CMDLINE       80   B 23  2",
+        ].join('\n') + '\n';
+      const overrideHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce6b', overrideSource, '', 'OVERRIDE.MNUDDS', 'OVERRIDEQQ.MNUCMD', 'missing').replace(
+        /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+        ''
+      );
+      const overridePosted = [];
+      const overrideDom = new JSDOM(overrideHtml, {
+        runScripts: 'dangerously',
+        resources: 'usable',
+        pretendToBeVisual: true,
+        beforeParse(window) {
+          window.acquireVsCodeApi = () => ({ postMessage: (m) => overridePosted.push(m) });
+        },
+      });
+
+      setTimeout(() => {
+        const overrideDoc = overrideDom.window.document;
+        overrideDoc.getElementById('addOptionNum').value = '2';
+        overrideDoc.getElementById('addOptionLabel').value = 'Change current library';
+        overrideDoc.getElementById('addOptionRow').value = '24'; // below CMDLINE at row 23 - user override
+        overrideDoc.getElementById('addOptionBtn').dispatchEvent(new overrideDom.window.Event('click', { bubbles: true }));
+        check('rejects the manual override, naming the usable-area reason', /usable area/i.test(overrideDoc.getElementById('addOptionError').textContent));
+        check('does NOT post applyEdit for the rejected manual override', !overridePosted.some((m) => m.type === 'applyEdit'));
+
+        runFirstOptionPlacementScenario();
+      }, 100);
     }, 100);
   }, 100);
 }
@@ -508,7 +540,7 @@ function runChosenPlacementScenario() {
     doc.getElementById('addOptionCol').value = '5';
     const postedBeforeOffscreen = posted.length;
     doc.getElementById('addOptionBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
-    check('names the screen-size reason rather than a generic message', /past this screen's size/i.test(doc.getElementById('addOptionError').textContent));
+    check('names the screen-size/usable-area reason rather than a generic message', /past this screen's usable area/i.test(doc.getElementById('addOptionError').textContent));
     check('does not post applyEdit for the rejected off-screen row', posted.length === postedBeforeOffscreen);
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

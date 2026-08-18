@@ -629,7 +629,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function isRowAvailable(currentModel, record, row) {
-    const maxRows = getScreenRowLimit(currentModel, record);
+    const maxRows = effectiveRowLimit(currentModel, record);
     if (!Number.isInteger(row) || row < 1 || row > maxRows) return false;
     return !(record.fields || []).some((f) => f.location && f.location.line === row);
   }
@@ -681,10 +681,10 @@ const htmlTemplate = `<!DOCTYPE html>
         return;
       }
       if (!isRowAvailable(model, record, line)) {
-        const maxRows = getScreenRowLimit(model, record);
+        const maxRows = effectiveRowLimit(model, record);
         addOptionError.textContent =
           line > maxRows
-            ? 'Row ' + line + ' is past this screen\\'s size (' + maxRows + ' rows). Choose a smaller row, or add it manually via the screen designer.'
+            ? 'Row ' + line + ' is past this screen\\'s usable area (row ' + maxRows + ' or above only - past that is either the screen size limit or the Selection-or-command prompt). Choose a smaller row, or add it manually via the screen designer.'
             : 'Row ' + line + ' is already used by another field on this screen. Choose a different row.';
         return;
       }

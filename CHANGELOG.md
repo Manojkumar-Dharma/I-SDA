@@ -3,6 +3,53 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.20] - Unreleased
+
+### Fixed
+Investigated 5 issues reported against a real production DDS file,
+reproducing each empirically before changing anything.
+
+- **A bare `CONSTANT`'s resolved width was clamped to a 1-character
+  placeholder instead of its real text length.** This wasn't just a
+  rendering-width nuance - the same value drives the column position of
+  any LATER field on the same line using relative-column syntax, so an
+  under-counted constant could silently shift where a subsequent field
+  actually lands. Root-caused and fixed in `resolveRecordFields` directly
+  (removed the narrower workaround added in 0.9.12 only for
+  `validateSizeBounds`, no longer needed there). This is what actually
+  caused "two indicator-conditioned fields at the same screen position,
+  neither one renders" - the underlying condition-evaluation logic was
+  already correct once tested with correctly-typed indicator values.
+- **Subfile preview rows spaced far apart instead of stacking
+  immediately below one another.** Hidden/program-to-system fields
+  (`usage(H)`/`usage(P)`) with no explicit position - a common real
+  pattern, e.g. helper fields declared before a row's visible fields -
+  fell back to "line 1" in the row-height calculation, badly inflating
+  it. Reproduced directly against a real SFLCTL/SFL pair: rows landed 9
+  lines apart instead of 1. Fixed in both places this row-height logic
+  was duplicated (the SFLCTL-side preview and the SFL-side "Preview
+  SFLPAG rows" mode).
+- **The DSPF designer's Properties panel had no way to edit a
+  constant's literal text at all** - only its position, via drag. The
+  writer already fully supported it (`DspfWriter.applyFieldUpdate`'s
+  `constantValue` handling); only the UI input was missing. Added a
+  Text field for constants, replacing the Name/Length/Data type/Usage
+  inputs that don't apply to one.
+- **Menu options could be placed below the "Selection or command"
+  prompt.** DDS has no keyword that specifically marks that prompt, so
+  this uses the structural signal a real menu always has instead: the
+  record's own lowest input-capable field (`usage(I)`/`usage(B)`) -
+  virtually always the command-line input itself. New-option placement
+  (both the auto-computed default AND a manually-typed row override) is
+  now capped above that row, not just the raw `DSPSIZ` bound.
+- Confirmed the reported "option text gets truncated in the sidebar" is
+  **not a data bug** - the input's underlying value was always the full,
+  correct text; only the visible box was too narrow for long labels.
+  Added a `title` attribute so hovering reveals the full text.
+
+15 new/updated tests across `dspfEngine.test.js`, `dspfWebview.test.js`,
+and `menuWebview.test.js`. 309 assertions total, 0 failures.
+
 ## [0.9.19] - Unreleased
 
 ### Added
