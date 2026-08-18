@@ -48,8 +48,10 @@ An IBM i SDA-style menu is really two source members working together:
 
 Works for a MNUDDS member opened as a remote IBM i source member through
 [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi)
-(`member:` scheme), or a local `.mnudds` file (as of v0.9.15, deriving a
-sibling `<basename>QQ.mnucmd` file instead) - see Known limitations below.
+(`member:` scheme), a local `.mnudds` file (as of v0.9.15, deriving a
+sibling `<basename>QQ.mnucmd` file instead), or an IFS streamfile opened
+through Code for i (`streamfile:` scheme, same sibling-file convention as a
+local file) - see Known limitations below.
 **"Compile Menu (CRTMNU)"** (added v0.9.3) runs the real compile sequence
 via Code for i's `code-for-ibmi.runCommand` API - `CRTDSPF`, updating the
 message file in place (`ADDMSGD` per option, falling back to `CHGMSGD` for
@@ -130,9 +132,9 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   there are no options yet). Choosing an occupied row or one past the
   screen size is rejected with the specific reason. Leaving the fields
   untouched places it exactly where the old auto-placement would have.
-- The companion commands file (`QQ` member, or local sibling) stays in
-  sync if it's open in its own editor tab. Two menu designer instances
-  racing to write it at once is unhandled.
+- The companion commands file (`QQ` member, or local/streamfile sibling)
+  stays in sync if it's open in its own editor tab. Two menu designer
+  instances racing to write it at once is unhandled.
 - **Compile Menu (CRTMNU)** requires the DDS record format to be named
   exactly the same as the menu member (CRTMNU's own requirement). Only
   handles `TYPE(*DSPF)` menus.

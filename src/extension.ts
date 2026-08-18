@@ -161,13 +161,17 @@ function isLikelyMenuFile(document: vscode.TextDocument): boolean {
  * member (see https://wiki.midrange.com/index.php/Create_Menu_Message_FIle_(UTMNUMSGF)
  * and CHANGELOG for how this was confirmed). For a remote `member:` scheme
  * document that's a literal derivation of the real IBM i naming convention.
- * For a local `file:` scheme document there's no equivalent IBM i convention
- * to derive from, so this uses the closest local analogue instead: a sibling
- * file in the same directory named `<basename>QQ.mnucmd` (lowercase, matching
- * how `.mnudds` itself is used locally) - e.g. `MYMENU.mnudds` pairs with
- * `MYMENUQQ.mnucmd` next to it. Returns null for anything else (there's no
- * equivalent local-workspace convention for other schemes), which callers
- * treat as "nowhere to save option commands for this document".
+ * For a local `file:` scheme document, or a Code for i IFS `streamfile:`
+ * scheme document, there's no equivalent IBM i source-member convention to
+ * derive from (streamfiles aren't source members - they don't have a
+ * companion "<n>QQ" member the way a MNUDDS source member does), so both use
+ * the closest local analogue instead: a sibling file in the same directory
+ * named `<basename>QQ.mnucmd` (lowercase, matching how `.mnudds` itself is
+ * used locally) - e.g. `MYMENU.mnudds` pairs with `MYMENUQQ.mnucmd` next to
+ * it. Returns null for anything else (there's no equivalent workspace
+ * convention for other schemes, e.g. `untitled:` has no directory to place a
+ * sibling in), which callers treat as "nowhere to save option commands for
+ * this document".
  */
 function getMenuCommandMemberUri(uri: vscode.Uri): vscode.Uri | null {
   if (uri.scheme === 'member') {
@@ -180,7 +184,14 @@ function getMenuCommandMemberUri(uri: vscode.Uri): vscode.Uri | null {
     const newSegments = segments.slice(0, -1).concat(`${name}QQ.MNUCMD`);
     return uri.with({ path: '/' + newSegments.join('/') });
   }
-  if (uri.scheme === 'file') {
+  if (uri.scheme === 'file' || uri.scheme === 'streamfile') {
+    // IFS streamfiles (Code for i's 'streamfile' scheme) are real files with a
+    // real path/extension, same shape as a local 'file' scheme URI - just
+    // backed by a different FileSystemProvider (vscode.workspace.fs already
+    // routes reads/writes through whichever provider owns the scheme, so no
+    // extra branching is needed below this function). No IBM i naming
+    // convention applies to streamfiles the way it does to source members, so
+    // this reuses the same local-analogue sibling-file convention as 'file'.
     const lastSlash = uri.path.lastIndexOf('/');
     const dir = uri.path.slice(0, lastSlash + 1);
     const fileName = uri.path.slice(lastSlash + 1);

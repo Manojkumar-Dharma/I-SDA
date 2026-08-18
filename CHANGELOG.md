@@ -5,6 +5,27 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.9.20] - Unreleased
 
+### Added
+- **Menu designer's Commands panel now works for IFS streamfiles**, not
+  just remote source members and local files. A MNUDDS opened as an IFS
+  streamfile through Code for i (`streamfile:` scheme) previously reported
+  `"unsupported"` and disabled option editing entirely, even though a
+  streamfile is just a real file with a real path - no different in shape
+  from the local `file:` scheme case already supported since 0.9.15. Reuses
+  that same sibling-file convention (`<basename>QQ.mnucmd` next to the
+  `.mnudds` streamfile, in the same IFS directory), routed through
+  `vscode.workspace.fs` so reads/writes go through Code for i's own
+  FileSystemProvider for that scheme - no new I/O path needed. The
+  remaining genuinely-unsupported case is a scheme with no sensible place
+  to derive a companion file at all (e.g. `untitled:` - an unsaved buffer
+  has no directory).
+- `menu.test.js` extended: an IFS streamfile with no companion sibling yet
+  reports `'missing'` (not `'unsupported'`) and derives the right filename;
+  editing an option writes the sibling file to the correct IFS path;
+  an existing sibling is picked up and reports `'loaded'`; and the
+  remaining-unsupported case is re-verified against `untitled:` instead of
+  `streamfile:`, since the latter is now a supported scheme.
+
 ### Fixed
 Investigated 5 issues reported against a real production DDS file,
 reproducing each empirically before changing anything.

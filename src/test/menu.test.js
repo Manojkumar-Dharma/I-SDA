@@ -215,8 +215,9 @@ function run() {
     check("reports 'loaded' when the local sibling file already exists", htmlSetLocalExisting.includes('"loaded"'));
     check('embeds the existing local companion content', htmlSetLocalExisting.includes('DSPLIBL') && htmlSetLocalExisting.includes('CHGCURLIB'));
 
-    console.log('\nresolveCustomTextEditor() - a scheme with no companion convention at all (e.g. streamfile) still reports unsupported');
+    console.log('\nresolveCustomTextEditor() - IFS streamfile (no companion sibling file yet)');
     let htmlSetStreamfile = null;
+    let messageHandlerStreamfile = null;
     const streamfileDoc = vscodeMock.__mockDocument(menuSource, new vscodeMock.Uri('streamfile', '/home/user/MYMENU.mnudds'));
     const fakeWebviewPanelStreamfile = {
       webview: {
@@ -224,13 +225,62 @@ function run() {
         options: null,
         set html(v) { htmlSetStreamfile = v; },
         get html() { return htmlSetStreamfile; },
-        onDidReceiveMessage: () => ({ dispose: () => {} }),
+        onDidReceiveMessage: (h) => { messageHandlerStreamfile = h; return { dispose: () => {} }; },
         postMessage: () => {},
       },
       onDidDispose: () => {},
     };
     await menuProviderEntry.provider.resolveCustomTextEditor(streamfileDoc, fakeWebviewPanelStreamfile, {});
-    check("a scheme with no known companion convention (streamfile) still reports 'unsupported'", htmlSetStreamfile.includes('"unsupported"'));
+    check(
+      "IFS streamfiles are supported now - reports 'missing', not 'unsupported'",
+      htmlSetStreamfile.includes('"missing"') && !htmlSetStreamfile.includes('"unsupported"')
+    );
+    check('embeds the derived streamfile companion filename (MYMENUQQ.mnucmd)', htmlSetStreamfile.includes('MYMENUQQ.mnucmd'));
+
+    console.log('  editing an option on a streamfile writes the sibling MYMENUQQ.mnucmd file');
+    await messageHandlerStreamfile({ type: 'applyMenuCmdEdit', text: '0001 DSPLIBL\n' });
+    check(
+      'writes to the sibling file in the same IFS directory, lowercase .mnucmd extension',
+      vscodeMock.__lastWrittenFile &&
+        vscodeMock.__lastWrittenFile.uri.path === '/home/user/MYMENUQQ.mnucmd' &&
+        vscodeMock.__lastWrittenFile.uri.scheme === 'streamfile' &&
+        vscodeMock.__lastWrittenFile.text === '0001 DSPLIBL\n'
+    );
+
+    console.log('\nresolveCustomTextEditor() - IFS streamfile WITH an existing companion sibling file');
+    vscodeMock.__setMockFile(new vscodeMock.Uri('streamfile', '/home/user/MYMENUQQ.mnucmd'), '0001 DSPLIBL\n0002 CHGCURLIB\n');
+    let htmlSetStreamfileExisting = null;
+    const fakeWebviewPanelStreamfileExisting = {
+      webview: {
+        cspSource: 'vscode-webview://fake',
+        options: null,
+        set html(v) { htmlSetStreamfileExisting = v; },
+        get html() { return htmlSetStreamfileExisting; },
+        onDidReceiveMessage: () => ({ dispose: () => {} }),
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    await menuProviderEntry.provider.resolveCustomTextEditor(streamfileDoc, fakeWebviewPanelStreamfileExisting, {});
+    check("reports 'loaded' when the streamfile sibling already exists", htmlSetStreamfileExisting.includes('"loaded"'));
+    check('embeds the existing streamfile companion content', htmlSetStreamfileExisting.includes('DSPLIBL') && htmlSetStreamfileExisting.includes('CHGCURLIB'));
+
+    console.log('\nresolveCustomTextEditor() - a scheme with no companion convention at all (e.g. untitled) still reports unsupported');
+    let htmlSetUntitled = null;
+    const untitledDoc = vscodeMock.__mockDocument(menuSource, new vscodeMock.Uri('untitled', 'Untitled-1'));
+    const fakeWebviewPanelUntitled = {
+      webview: {
+        cspSource: 'vscode-webview://fake',
+        options: null,
+        set html(v) { htmlSetUntitled = v; },
+        get html() { return htmlSetUntitled; },
+        onDidReceiveMessage: () => ({ dispose: () => {} }),
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    await menuProviderEntry.provider.resolveCustomTextEditor(untitledDoc, fakeWebviewPanelUntitled, {});
+    check("a scheme with no known companion convention (untitled) still reports 'unsupported'", htmlSetUntitled.includes('"unsupported"'));
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
