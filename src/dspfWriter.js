@@ -407,6 +407,166 @@
     return recordPrefixLines.concat(contentLines, keywordLines);
   }
 
+  // ---------------------------------------------------------------------
+  // FILE-level keywords: unlike a record or field, the file has no entry
+  // line of its own (no A-marker row, no name) - it's purely zero or more
+  // keyword-only lines that appear before the first record format. Reuses
+  // the same generic keyword-line serialization (serializeFunctionAreaLines,
+  // groupKeywordsByCondition, serializeConditionedKeywordLines) records
+  // already use for their own unconditioned/conditioned keyword lines - a
+  // file keyword's OWN conditions (k.conditions) behave identically, there's
+  // just no record-level conditions/positional line wrapping it.
+  // ---------------------------------------------------------------------
+
+  /** Returns [firstLine, lastLine] spanned by every fileKeywords entry, or null if the file
+   *  declares no file-level keywords at all (nothing to locate/replace - see applyFileKeywordsUpdate). */
+  function getFileKeywordsLineRange(dspfFile) {
+    var min = null;
+    var max = null;
+    (dspfFile.fileKeywords || []).forEach(function (k) {
+      (k.sourceLines || []).forEach(function (ln) {
+        if (min == null || ln < min) min = ln;
+        if (max == null || ln > max) max = ln;
+      });
+      (k.conditions || []).forEach(function (g) {
+        (g.sourceLines || []).forEach(function (ln) {
+          if (min == null || ln < min) min = ln;
+          if (max == null || ln > max) max = ln;
+        });
+      });
+    });
+    return min == null ? null : [min, max];
+  }
+
+  function serializeFileKeywordsEntry(fileKeywords, originalLine1to6) {
+    var unconditioned = (fileKeywords || []).filter(function (k) { return !k.conditions || k.conditions.length === 0; });
+    var conditioned = (fileKeywords || []).filter(function (k) { return k.conditions && k.conditions.length > 0; });
+
+    var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
+    var posChars = new Array(44).fill(' ');
+    for (var i = 0; i < 6; i++) posChars[i] = seqForm[i];
+    var posCols = posChars.join('');
+
+    var functionText = buildRecordFunctionAreaText(unconditioned); // generic keyword-list join, despite the name
+    var contentLines = [];
+    if (functionText.length > 0) {
+      var funcLines = serializeFunctionAreaLines(functionText);
+      var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+      contentLines = [firstLine].concat(funcLines.slice(1));
+    }
+
+    var keywordLines = [];
+    groupKeywordsByCondition(conditioned).forEach(function (g) {
+      keywordLines = keywordLines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, originalLine1to6));
+    });
+
+    return contentLines.concat(keywordLines);
+  }
+
+  /** Rewrites the file's own keyword block to `newKeywords` (a full replacement, same
+   *  convention as applyRecordUpdate's `{keywords}`). If the file currently has NO
+   *  file-level keywords, the new block is inserted at the very top of the source
+   *  instead of trying to locate a range that doesn't exist. */
+  function applyFileKeywordsUpdate(dspfFile, sourceLines, newKeywords) {
+    var range = getFileKeywordsLineRange(dspfFile);
+    if (range) {
+      var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
+      var originalLine1to6 = (originalRangeLines[0] || '').slice(0, 6);
+      var newLines = serializeFileKeywordsEntry(newKeywords, originalLine1to6);
+      newLines = restampSequenceNumbers(newLines, originalRangeLines);
+      return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
+    }
+    var freshLines = serializeFileKeywordsEntry(newKeywords, '     A');
+    return freshLines.concat(sourceLines);
+  }
+
+  // ---------------------------------------------------------------------
+  // Command keys (CAxx/CFxx): the key number (01-24) is encoded in the
+  // keyword NAME itself (CA01..CA24, CF01..CF24), not as a parameter -
+  // DDS lets a program-visible response indicator and a text label ride
+  // along as the keyword's parameters: CA03(03 'F3=Exit') or bare CA03
+  // (key active, no response indicator set, no on-screen text). A given
+  // key NUMBER may only be defined once per scope (can't be both CA03 and
+  // CF03 on the same record, or on both the file and one of its records at
+  // once) - see commandKeyNumbersInUse/availableCommandKeyNumbers, which
+  // the webview's key-assignment UI uses to grey out numbers already
+  // spoken for elsewhere.
+  // ---------------------------------------------------------------------
+
+  var COMMAND_KEY_RE = /^(CA|CF)(\d{2})$/;
+
+  function padKeyNumber(n) {
+    var s = String(parseInt(n, 10));
+    return s.length >= 2 ? s.slice(-2) : '0' + s;
+  }
+
+  /** Extracts every CAxx/CFxx keyword from a keyword list into a flat, easy-to-render shape. */
+  function parseCommandKeys(keywords) {
+    var result = [];
+    (keywords || []).forEach(function (k) {
+      var m = COMMAND_KEY_RE.exec(k.name);
+      if (!m) return;
+      var params = (k.parameters || '').trim();
+      var indicator = null;
+      var text = null;
+      if (params) {
+        var pm = /^(\d{1,2})(?:\s+'((?:[^']|'')*)')?/.exec(params);
+        if (pm) {
+          indicator = padKeyNumber(pm[1]);
+          if (pm[2] != null) text = pm[2].replace(/''/g, "'");
+        }
+      }
+      result.push({ type: m[1], number: m[2], indicator: indicator, text: text, keyword: k });
+    });
+    return result;
+  }
+
+  /** @returns {{[number:string]: 'file'|'record'}} which scope has already claimed each key number. */
+  function commandKeyNumbersInUse(fileKeywords, recordKeywords) {
+    var used = {};
+    parseCommandKeys(fileKeywords).forEach(function (k) { used[k.number] = 'file'; });
+    parseCommandKeys(recordKeywords).forEach(function (k) { used[k.number] = 'record'; });
+    return used;
+  }
+
+  /** Key numbers ("01".."24") not already claimed at either the file or the given record
+   *  level - what a new-key picker should offer, regardless of which scope it's adding to. */
+  function availableCommandKeyNumbers(fileKeywords, recordKeywords) {
+    var used = commandKeyNumbersInUse(fileKeywords, recordKeywords);
+    var available = [];
+    for (var n = 1; n <= 24; n++) {
+      var num = padKeyNumber(n);
+      if (!used[num]) available.push(num);
+    }
+    return available;
+  }
+
+  /** Returns a NEW keywords array with key `number` set to CAnn/CFnn(indicator 'text').
+   *  Any existing CA/CF keyword for that same number is removed first, so switching a
+   *  key's type (CA<->CF) or overwriting its indicator/text never leaves a duplicate. */
+  function setCommandKey(keywords, type, number, indicator, text) {
+    var paddedNumber = padKeyNumber(number);
+    var filtered = (keywords || []).filter(function (k) {
+      var m = COMMAND_KEY_RE.exec(k.name);
+      return !(m && m[2] === paddedNumber);
+    });
+    var params = '';
+    if (indicator != null && String(indicator).trim() !== '') {
+      params = padKeyNumber(indicator) + (text ? " '" + String(text).replace(/'/g, "''") + "'" : '');
+    }
+    filtered.push({ name: type.toUpperCase() + paddedNumber, parameters: params, conditions: [], raw: '', sourceLines: [] });
+    return filtered;
+  }
+
+  /** Returns a NEW keywords array with the CA/CF keyword for `number` removed (whichever type it is). */
+  function removeCommandKey(keywords, number) {
+    var paddedNumber = padKeyNumber(number);
+    return (keywords || []).filter(function (k) {
+      var m = COMMAND_KEY_RE.exec(k.name);
+      return !(m && m[2] === paddedNumber);
+    });
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -431,7 +591,7 @@
   function applyRecordUpdate(record, sourceLines, updates) {
     var updated = {
       name: record.name,
-      conditions: record.conditions,
+      conditions: updates.conditions !== undefined ? updates.conditions : record.conditions,
       keywords: updates.keywords !== undefined ? updates.keywords : record.keywords,
     };
 
@@ -581,6 +741,7 @@
     }
     if (updates.keywords !== undefined) updated.keywords = updates.keywords;
     if (updates.constantValue !== undefined) updated.constantValue = updates.constantValue;
+    if (updates.conditions !== undefined) updated.conditions = updates.conditions;
 
     var range = getFieldLineRange(field);
     var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
@@ -924,5 +1085,12 @@
     renameRecordReferences: renameRecordReferences,
     getFileKeywordLineRange: getFileKeywordLineRange,
     addDisplaySize: addDisplaySize,
+    getFileKeywordsLineRange: getFileKeywordsLineRange,
+    applyFileKeywordsUpdate: applyFileKeywordsUpdate,
+    parseCommandKeys: parseCommandKeys,
+    commandKeyNumbersInUse: commandKeyNumbersInUse,
+    availableCommandKeyNumbers: availableCommandKeyNumbers,
+    setCommandKey: setCommandKey,
+    removeCommandKey: removeCommandKey,
   };
 });

@@ -543,6 +543,72 @@ function runChosenPlacementScenario() {
     check('names the screen-size/usable-area reason rather than a generic message', /past this screen's usable area/i.test(doc.getElementById('addOptionError').textContent));
     check('does not post applyEdit for the rejected off-screen row', posted.length === postedBeforeOffscreen);
 
+    runCommandKeysAndConditioningScenario();
+  }, 100);
+}
+
+function runCommandKeysAndConditioningScenario() {
+  console.log('\ncommand keys (file+record) and per-option conditioning in the menu designer');
+  const src =
+    [
+      "     A          R MENU",
+      "     A                                  1  2'MAIN MENU'",
+      "     A                                  3  5'1. Display library list'",
+      "     A                                  4  5'2. Change current library'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce7', src, '', 'CMDKEYS.MNUDDS', 'CMDKEYSQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    console.log('  file-level command key: add one, legend updates');
+    check('legend starts empty', doc.getElementById('fkeyLegend').querySelectorAll('.fkey-chip').length === 0);
+    doc.querySelector('.cmdkey-type[data-prefix="file"]').value = 'CA';
+    doc.querySelector('.cmdkey-number[data-prefix="file"]').value = '12';
+    doc.querySelector('.cmdkey-indicator[data-prefix="file"]').value = '99';
+    doc.querySelector('.cmdkey-text[data-prefix="file"]').value = 'Cancel';
+    doc.querySelector('.cmdkey-add[data-prefix="file"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with the new CA12 file-level key', last && last.type === 'applyEdit' && /CA12\(99 'Cancel'\)/.test(last.text));
+    check('the legend now shows F12', /F12/.test(doc.getElementById('fkeyLegend').textContent));
+
+    console.log('  record-level command key: excludes 12 (already used at file level)');
+    const recordNumSel = doc.querySelector('.cmdkey-number[data-prefix="record"]');
+    check('key 12 excluded from the record-level picker', !Array.from(recordNumSel.options).some((o) => o.value === '12'));
+    recordNumSel.value = '03';
+    doc.querySelector('.cmdkey-type[data-prefix="record"]').value = 'CF';
+    doc.querySelector('.cmdkey-add[data-prefix="record"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with the new bare CF03 record-level key', last && /CF03\b/.test(last.text) && !/CF03\(/.test(last.text));
+    check('legend now shows both F3 and F12', /F3\b/.test(doc.getElementById('fkeyLegend').textContent) && /F12/.test(doc.getElementById('fkeyLegend').textContent));
+
+    console.log('  per-option conditioning: expand option 1, add a condition, mirrors onto both its number+label constants');
+    const toggle = doc.querySelector('.option-cond-toggle[data-num="1"]');
+    check('setup: option 1\'s conditioning toggle is present', !!toggle);
+    toggle.dispatchEvent(new Event('click', { bubbles: true }));
+    const addGroupBtn = doc.querySelector('.cond-add-group[data-prefix="opt1"]');
+    check('conditioning editor is now expanded for option 1', !!addGroupBtn);
+    addGroupBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit adding indicator 01 to option 1\'s number marker', last && last.type === 'applyEdit' && /01.*'1\. Display library list'/.test(last.text.replace(/\n/g, ' ')));
+
+    console.log('  option 2 is untouched by option 1\'s conditioning change');
+    const option2Line = last.text.split('\n').find((l) => l.includes('2. Change current library'));
+    check('option 2\'s own source line has no condition indicator added', !!option2Line && !/^\s*A\s+\d\d\s/.test(option2Line));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 100);

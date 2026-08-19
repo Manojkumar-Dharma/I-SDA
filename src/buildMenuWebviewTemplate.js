@@ -119,6 +119,25 @@ const htmlTemplate = `<!DOCTYPE html>
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
   .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
   .rename-btn:hover { border-color: var(--accent); }
+  .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
+  .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
+  .two-col { display: flex; gap: 6px; }
+  .two-col > * { flex: 1; min-width: 0; }
+  button.secondary { background: #142018; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; border-radius: 3px; }
+  button.secondary:hover { border-color: var(--accent); }
+  .cond-group { border: 1px solid var(--panel-border); border-radius: 3px; padding: 6px 8px; margin-bottom: 6px; }
+  .cond-group-label { font-size: 10px; color: var(--ink-dim); margin-bottom: 4px; }
+  .cond-add-row { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+  .cond-add-row label { font-size: 11px; display: flex; align-items: center; gap: 2px; }
+  .cond-add-row input.cond-ind-num { width: 36px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 3px 4px; font-family: var(--mono); font-size: 11px; }
+  .cond-group > button.cond-group-remove { display: block; margin-top: 6px; font-size: 11px; }
+  .fkey-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--panel-border); }
+  .fkey-chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--panel-border); border-radius: 3px; color: var(--ink-dim); }
+  .fkey-chip.fkey-active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
+  .option-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 2px; }
+  .option-cond-toggle:hover { color: var(--accent); }
+  .option-cond-body { margin-top: 6px; }
+  .cmdkeys-section { margin-top: 20px; }
 </style>
 </head>
 <body>
@@ -132,6 +151,8 @@ const htmlTemplate = `<!DOCTYPE html>
     <button class="rename-btn" id="recordRenameBtn">Rename</button>
   </div>
   <div class="add-option-error" id="recordRenameError"></div>
+  <div class="cmdkeys-section" id="fileCommandKeys"></div>
+  <div class="cmdkeys-section" id="recordCommandKeys"></div>
   <div class="section-label" style="margin-top:20px;">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="status" id="cmdStatus" style="margin-top:6px;"></div>
@@ -139,6 +160,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="status" style="margin-top:6px;">Runs CRTDSPF, rebuilds the message file, then CRTMNU on your connected IBM i. Requires Code for i.</div>
 </aside>
 <main>
+  <div id="fkeyLegend"></div>
   <div class="screen-frame"><div id="screenOutput"></div></div>
   <div class="status">This is the menu layout as it will appear on the 5250 screen. Edit which command each numbered option runs in the panel on the right.</div>
 </main>
@@ -192,6 +214,10 @@ const htmlTemplate = `<!DOCTYPE html>
   const recordNameInput = document.getElementById('recordNameInput');
   const recordRenameBtn = document.getElementById('recordRenameBtn');
   const recordRenameError = document.getElementById('recordRenameError');
+  const fileCommandKeysEl = document.getElementById('fileCommandKeys');
+  const recordCommandKeysEl = document.getElementById('recordCommandKeys');
+  const fkeyLegendEl = document.getElementById('fkeyLegend');
+  const expandedOptionConditioning = new Set(); // numberValues whose "Conditioning" panel is expanded - survives renderOptions() rebuilding all rows
 
   // A menu option is any DDS constant shaped like "1. Do a thing" or "12) Do a thing" -
   // that's the one thing that distinguishes menu-option text from any other constant
@@ -344,11 +370,51 @@ const htmlTemplate = `<!DOCTYPE html>
   function renderScreen() {
     rebuildRecordSelect();
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) { screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; return; }
+    if (!recordName) {
+      screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>';
+      fkeyLegendEl.innerHTML = '';
+      renderFileCommandKeys(null);
+      return;
+    }
     recordSelect.value = recordName;
+    const currentRecord = model.records.find((r) => r.name === recordName);
     const screen = DspfEngine.resolveScreen(model, recordName, new Set(), null);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + escapeHtml(screen.error) + '</div>'; return; }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
+    fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, new Set()));
+    renderFileCommandKeys(currentRecord);
+    renderRecordCommandKeys(currentRecord);
+  }
+
+  function renderFileCommandKeys(currentRecord) {
+    const recordKeywords = currentRecord ? currentRecord.keywords : [];
+    const available = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, recordKeywords);
+    fileCommandKeysEl.innerHTML = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, available, 'file');
+    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => {
+      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      lines = DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords);
+      sourceText = lines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      renderAll();
+    });
+  }
+
+  function renderRecordCommandKeys(currentRecord) {
+    if (!currentRecord) { recordCommandKeysEl.innerHTML = ''; return; }
+    const available = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, currentRecord.keywords);
+    recordCommandKeysEl.innerHTML = WebviewClientHelpers.commandKeysSectionHtml('this record', currentRecord.keywords, available, 'record');
+    WebviewClientHelpers.wireCommandKeysSection('record', currentRecord.keywords, (newKeywords) => {
+      const recordName = currentRecord.name;
+      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      const rec = model.records.find((r) => r.name === recordName);
+      if (!rec) return;
+      lines = DspfWriter.applyRecordUpdate(rec, lines, { keywords: newKeywords });
+      sourceText = lines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      renderAll();
+    });
   }
 
   function updateOptionLabel(numberValue, newLabel) {
@@ -361,6 +427,33 @@ const htmlTemplate = `<!DOCTYPE html>
     vscode.postMessage({ type: 'applyEdit', text: sourceText });
     renderAll();
   }
+
+  // A menu option is one or two DDS CONSTANTs (see extractMenuOptions) - conditioning
+  // "the option" means conditioning both of them identically, so the number marker and
+  // its label text always show/hide together rather than one lagging the other. Applied
+  // to numberField first, then labelField (re-fetched from the freshly-reparsed model,
+  // since the first edit shifts source line numbers for everything after it) only when
+  // it's a genuinely separate constant from numberField (the combined "1. Do a thing"
+  // form only has the one field to begin with).
+  function updateOptionConditions(numberValue, newConditions) {
+    const option = findOption(model, numberValue);
+    if (!option) return;
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { conditions: newConditions });
+    let currentModel = DspfParser.parseDspf(lines.join('\\n'));
+    if (option.labelField && option.labelField !== option.numberField) {
+      const fresh = findOption(currentModel, numberValue);
+      if (fresh && fresh.labelField) {
+        lines = DspfWriter.applyFieldUpdate(fresh.labelField, lines, { conditions: newConditions });
+        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      }
+    }
+    sourceText = lines.join('\\n');
+    model = currentModel;
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    renderAll();
+  }
+
 
   // Deletes an option entirely: both its DDS constant(s) (the number-marker
   // and, for the split-constant form, the separate label constant too - see
@@ -466,6 +559,9 @@ const htmlTemplate = `<!DOCTYPE html>
       row.draggable = true;
       const command = commandFor(opt.numberValue);
       const numLabel = String(opt.numberValue);
+      const isExpanded = expandedOptionConditioning.has(opt.numberValue);
+      const conditions = (opt.numberField && opt.numberField.conditions) || [];
+      const condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
       row.innerHTML =
         '<div class="option-drag-handle" title="Drag onto another option to swap them">\u28FF</div>' +
         '<div class="option-num-badge">' + numLabel + '</div>' +
@@ -476,8 +572,28 @@ const htmlTemplate = `<!DOCTYPE html>
         '<span class="option-cmd-prompt">CMD&gt;</span>' +
         '<input type="text" class="option-cmd" value="' + escapeAttr(command) + '" placeholder="Command to run, e.g. CALL PGM1" />' +
         '</div>' +
+        '<div class="option-cond-toggle" data-num="' + numLabel + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</div>' +
+        '<div class="option-cond-body' + (isExpanded ? '' : ' hidden') + '" id="opt-cond-body-' + numLabel + '"></div>' +
         '</div>' +
         '<button type="button" class="option-delete-btn" title="Delete option ' + numLabel + '">&times;</button>';
+
+      // Appended to the document BEFORE any wiring below - WebviewClientHelpers'
+      // conditions-editor wiring uses global document.querySelector (shared with
+      // the DSPF designer's props panel, which is always already attached), so a
+      // detached row element would leave its "+ OR condition"/remove buttons unwired.
+      optionsBody.appendChild(row);
+
+      const condToggle = row.querySelector('.option-cond-toggle');
+      const condBody = row.querySelector('.option-cond-body');
+      if (isExpanded) {
+        condBody.innerHTML = WebviewClientHelpers.conditionsEditorHtml(conditions, 'opt' + numLabel);
+        WebviewClientHelpers.wireConditionsEditor('opt' + numLabel, conditions, (newConditions) => updateOptionConditions(opt.numberValue, newConditions));
+      }
+      condToggle.addEventListener('click', () => {
+        if (expandedOptionConditioning.has(opt.numberValue)) expandedOptionConditioning.delete(opt.numberValue);
+        else expandedOptionConditioning.add(opt.numberValue);
+        renderOptions();
+      });
 
       const deleteBtn = row.querySelector('.option-delete-btn');
       deleteBtn.addEventListener('click', () => deleteOption(opt.numberValue));
@@ -514,8 +630,6 @@ const htmlTemplate = `<!DOCTYPE html>
         const draggedNumber = parseInt(e.dataTransfer.getData('text/plain'), 10);
         if (!isNaN(draggedNumber)) swapOptions(draggedNumber, opt.numberValue);
       });
-
-      optionsBody.appendChild(row);
     });
   }
 

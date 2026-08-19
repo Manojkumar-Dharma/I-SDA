@@ -883,6 +883,68 @@
   }
 
   // ---------------------------------------------------------------------
+  // Function-key legend: every CAxx/CFxx command key available to a record
+  // being previewed - its own record-level keys plus the file-level ones -
+  // each flagged active/inactive against the currently-simulated indicators,
+  // so the preview can show F3/F12/etc even when the key's own response
+  // indicator condition isn't currently met (so it's still visible as
+  // DEFINED), switching to a solid/active style only when it actually is.
+  // ---------------------------------------------------------------------
+
+  var COMMAND_KEY_RE = /^(CA|CF)(\d{2})$/;
+
+  /**
+   * @param {object} dspfFile parsed model
+   * @param {object|null} record the record currently being previewed (record-level
+   *   keys take precedence over a file-level key sharing the same number, matching
+   *   how the writer's own commandKeyNumbersInUse treats one number as single-scope)
+   * @param {Set<string>} activeIndicators currently-simulated indicator numbers
+   * @returns {{type:'CA'|'CF', number:string, indicator:?string, text:?string, active:boolean}[]}
+   *   sorted CA before CF, then by number.
+   */
+  function resolveFunctionKeyLegend(dspfFile, record, activeIndicators) {
+    activeIndicators = activeIndicators || new Set();
+    var seen = {};
+    var keys = [];
+
+    function collect(keywords) {
+      (keywords || []).forEach(function (k) {
+        var m = COMMAND_KEY_RE.exec(k.name);
+        if (!m) return;
+        if (seen[m[2]]) return; // a more-specific scope (record, collected first) already claimed this number
+        seen[m[2]] = true;
+
+        var params = (k.parameters || '').trim();
+        var indicator = null;
+        var text = null;
+        if (params) {
+          var pm = /^(\d{1,2})(?:\s+'((?:[^']|'')*)')?/.exec(params);
+          if (pm) {
+            indicator = pm[1].length < 2 ? '0' + pm[1] : pm[1];
+            if (pm[2] != null) text = pm[2].replace(/''/g, "'");
+          }
+        }
+        keys.push({
+          type: m[1],
+          number: m[2],
+          indicator: indicator,
+          text: text,
+          active: indicator == null || activeIndicators.has(indicator),
+        });
+      });
+    }
+
+    if (record) collect(record.keywords);
+    collect(dspfFile.fileKeywords);
+
+    keys.sort(function (a, b) {
+      if (a.type !== b.type) return a.type === 'CA' ? -1 : 1;
+      return a.number < b.number ? -1 : a.number > b.number ? 1 : 0;
+    });
+    return keys;
+  }
+
+  // ---------------------------------------------------------------------
   // renderScreenHtml: ScreenModel -> HTML string (positioned via CSS grid)
   // ---------------------------------------------------------------------
 
@@ -1066,6 +1128,7 @@
     availableScreenSizes: availableScreenSizes,
     validateSizeBounds: validateSizeBounds,
     screenLinesForRecord: screenLinesForRecord,
+    resolveFunctionKeyLegend: resolveFunctionKeyLegend,
     COLOR_HEX: COLOR_HEX,
     DEFAULT_COLOR: DEFAULT_COLOR,
   };

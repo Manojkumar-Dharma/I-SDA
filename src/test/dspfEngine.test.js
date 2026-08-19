@@ -430,6 +430,47 @@ console.log("an under-counted constant width no longer shifts a LATER field's re
   check('the relatively-positioned field lands 3 cols after the constant actually ends (col 1 + 6 + 3 = 10)', after.column === 10);
 }
 
+console.log('\nDspfEngine.resolveFunctionKeyLegend() - merges file-level and record-level CAxx/CFxx, record wins on a shared number, active flag tracks simulated indicators');
+{
+  const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
+
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', line: '1', col: '1', func: "'Hi'" }),
+    buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
+    buildLine({ seq: '00040', line: '1', col: '1', func: "'Bye'" }),
+  ].join('\n') + '\n';
+  let model = DspfParser.parseDspf(src);
+  let lines = src.split(/\r\n|\r|\n/);
+
+  // File-level CA03 (exit, indicator 90) + CA24 (help, no indicator - always active).
+  let fileKw = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 3, '90', 'Exit');
+  fileKw = DspfWriter.setCommandKey(fileKw, 'CA', 24, null, 'Help');
+  lines = DspfWriter.applyFileKeywordsUpdate(model, lines, fileKw);
+  model = DspfParser.parseDspf(lines.join('\n'));
+
+  // Record-level CF05 (indicator 91) on SCR1 only.
+  const scr1 = model.records.find((r) => r.name === 'SCR1');
+  const recKw = DspfWriter.setCommandKey(scr1.keywords, 'CF', 5, '91', 'Refresh');
+  lines = DspfWriter.applyRecordUpdate(scr1, lines, { keywords: recKw });
+  model = DspfParser.parseDspf(lines.join('\n'));
+
+  const scr1b = model.records.find((r) => r.name === 'SCR1');
+  const scr2b = model.records.find((r) => r.name === 'SCR2');
+
+  const legend1 = DspfEngine.resolveFunctionKeyLegend(model, scr1b, new Set());
+  check('SCR1 sees all 3 keys (its own CF05 plus both file-level ones)', legend1.length === 3);
+  check('sorted CA before CF', legend1[0].type === 'CA' && legend1[legend1.length - 1].type === 'CF');
+  check('CA24 (no indicator) is always active', legend1.find((k) => k.number === '24').active === true);
+  check('CA03 is inactive when its indicator (90) is not simulated on', legend1.find((k) => k.number === '03').active === false);
+
+  const legend2 = DspfEngine.resolveFunctionKeyLegend(model, scr2b, new Set());
+  check('SCR2 (no record-level keys of its own) still sees the 2 file-level keys, but not CF05', legend2.length === 2 && !legend2.some((k) => k.number === '05'));
+
+  const legend3 = DspfEngine.resolveFunctionKeyLegend(model, scr1b, new Set(['90', '91']));
+  check('simulating 90+91 flips both CA03 and CF05 active', legend3.find((k) => k.number === '03').active === true && legend3.find((k) => k.number === '05').active === true);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);
