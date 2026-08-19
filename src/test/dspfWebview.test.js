@@ -391,12 +391,12 @@ function runFileAttrsScenario() {
     check('setup: the File attributes button exists in the sidebar', !!fileAttrsBtn);
     fileAttrsBtn.dispatchEvent(new Event('click', { bubbles: true }));
     check('switches the props panel to the file-level view', doc.getElementById('p-file-back') !== null);
-    check('shows the existing DSPSIZ keyword as a chip', /DSPSIZ/.test(doc.getElementById('p-keywords').textContent));
+    check('shows the existing DSPSIZ keyword as a chip', /DSPSIZ/.test(doc.getElementById('kwed-file').textContent));
     check('no record-level Name/rename input in this view', doc.getElementById('p-record-name') === null);
 
     console.log('  adding a file-level keyword via the shared keyword editor');
-    doc.getElementById('p-new-kw-name').value = 'INDARA';
-    doc.getElementById('p-add-kw').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('file-new-kw-name').value = 'INDARA';
+    doc.querySelector('.kw-add[data-owner="file"]').dispatchEvent(new Event('click', { bubbles: true }));
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('posts applyEdit adding INDARA', applyEdit && /INDARA/.test(applyEdit.text));
     check('DSPSIZ is preserved alongside it', applyEdit && /DSPSIZ\(24 80 \*DS3\)/.test(applyEdit.text));
@@ -551,6 +551,57 @@ function runConditionsScenario() {
 
     doc.querySelector('.cond-group-remove[data-prefix="field"][data-group="0"]').dispatchEvent(new Event('click', { bubbles: true }));
     check('field is unconditioned again after removal', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
+
+    runPerKeywordConditioningScenario();
+  }, 0);
+}
+
+function runPerKeywordConditioningScenario() {
+  console.log('\nper-keyword indicator conditioning: condition ONE keyword on a field that has two, leaving the other and the field itself unconditioned');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'NAME', length: '10', dataType: 'A', usage: 'B', line: '1', col: '5', func: 'DSPATR(HI)' }),
+      buildLine({ seq: '00030', func: 'COLOR(BLU)' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce9', src, 'KWCONDTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    console.log('  select the field: two keyword chips, each with its own Conditioning toggle, neither expanded yet');
+    const fieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.getAttribute('data-field') === 'NAME');
+    check('setup: the field is present', !!fieldEl);
+    fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
+    const toggles = Array.from(doc.querySelectorAll('.kw-cond-toggle'));
+    check('two per-keyword Conditioning toggles are rendered (one per keyword)', toggles.length === 2);
+    check("the entity-level (whole-field) conditioning editor is still separately present", !!doc.querySelector('.cond-add-group[data-prefix="field"]'));
+
+    console.log("  expand DSPATR(HI)'s own Conditioning panel and add an OR condition to just that keyword");
+    const dspatrToggle = toggles.find((t) => t.getAttribute('data-idx') === '0');
+    check("setup: found the DSPATR keyword's own toggle (idx 0)", !!dspatrToggle);
+    const ownerKey = dspatrToggle.getAttribute('data-owner');
+    dspatrToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    const addGroupBtn = doc.querySelector('.cond-add-group[data-prefix="' + ownerKey + '-kw0"]');
+    check('expanding the toggle mounts a conditions editor scoped to that one keyword', !!addGroupBtn);
+    addGroupBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const last = posted[posted.length - 1];
+    check('posts applyEdit with indicator 01 conditioning JUST the DSPATR keyword line', last && last.type === 'applyEdit' && /01\s+DSPATR\(HI\)/.test(last.text));
+    check("the field's own NAME line stays unconditioned (no 01 before the name)", last && !/01\s+NAME/.test(last.text));
+    check('the second keyword (COLOR) has no indicator conditioning of its own (only one "A  01" conditioned line exists, for DSPATR)', last && (last.text.match(/A\s{2}01\s/g) || []).length === 1);
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);

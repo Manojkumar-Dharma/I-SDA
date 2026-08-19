@@ -609,6 +609,131 @@ function runCommandKeysAndConditioningScenario() {
     const option2Line = last.text.split('\n').find((l) => l.includes('2. Change current library'));
     check('option 2\'s own source line has no condition indicator added', !!option2Line && !/^\s*A\s+\d\d\s/.test(option2Line));
 
+    runCopyOptionScenario();
+  }, 100);
+}
+
+// Copy an option (combined "N. label" form) via the Copy button, which
+// reuses DspfWriter.copyField the same way the DSPF designer's own Copy
+// button does (see CHANGELOG "Copy field/constant"), then rewrites just the
+// copy's number to the next available one - two options can't share a
+// number the way two arbitrary duplicated constants could.
+function runCopyOptionScenario() {
+  console.log('\ncopy option (combined form): duplicates the constant, renumbers the copy, leaves the original untouched');
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce8', menuSource, commandSource, 'MYMENU.MNUDDS', 'MYMENUQQ.MNUCMD', 'loaded').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    console.log('  copy option 10 ("10. Sign off", the highest-numbered option in this fixture)');
+    const copyBtn = Array.from(doc.querySelectorAll('.option-row')).find((row) => row.querySelector('.option-num-badge').textContent === '10').querySelector('.option-copy-btn');
+    check('setup: found option 10\'s Copy button', !!copyBtn);
+    copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const last = posted[posted.length - 1];
+    check('posts applyEdit with a new option numbered 11 (highest existing + 1)', last && last.type === 'applyEdit' && /'11\. Sign off'/.test(last.text));
+    check('the original option 10 line is untouched', last && /'10\. Sign off'/.test(last.text));
+    check('option 10\'s own screen row/column is unchanged (still row 5)', last && / {2}5 {2}5'10\. Sign off'/.test(last.text));
+
+    runCopySplitOptionScenario();
+  }, 100);
+}
+
+// Same as runCopyOptionScenario, but for an option in the split-constant
+// form (number marker and label are two separate DDS constants) - the code
+// path that copies BOTH constants and re-aligns them onto the same new row.
+function runCopySplitOptionScenario() {
+  console.log('\ncopy option (split-constant form): duplicates BOTH the number marker and the separate label constant, keeping them aligned');
+  const splitSource =
+    [
+      "     A          R MENU",
+      "     A                                  5  7'1.'",
+      "     A                                  5 10'Display current library list'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce10', splitSource, '', 'SPLIT2.MNUDDS', 'SPLIT2QQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    const copyBtn = doc.querySelector('.option-copy-btn');
+    check('setup: found the split-form option\'s Copy button', !!copyBtn);
+    copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const last = posted[posted.length - 1];
+    check('posts applyEdit with a new option 2 number marker', last && last.type === 'applyEdit' && /'2\.'/.test(last.text));
+    check('the new option\'s label constant is a copy of the original label, unchanged', last && /'Display current library list'/.test(last.text));
+    check('the original option 1\'s number marker is untouched', last && /'1\.'/.test(last.text));
+    const line2 = last.text.split('\n').find((l) => l.includes("'2.'"));
+    check('the copied number marker landed on row 6 (one below the original\'s row 5)', !!line2 && / {2}6 {2}7'2\.'/.test(line2));
+
+    runCopyMenuFileAttrsScenario();
+  }, 100);
+}
+
+// File attributes panel (menu designer): the same shared keyword-chip
+// editor the DSPF designer's file/record/field panels use, reused here
+// rather than a second implementation (see README/CHANGELOG "File-level
+// attributes panel"/"Menu designer still lacks..."). Verifies the toggle,
+// the existing DSPSIZ keyword rendering, and adding a new file keyword.
+function runCopyMenuFileAttrsScenario() {
+  console.log('\nmenu designer file attributes panel: toggle open, shows existing DSPSIZ, add a new keyword');
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce9', menuSource, commandSource, 'MYMENU.MNUDDS', 'MYMENUQQ.MNUCMD', 'loaded').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    console.log('  collapsed by default');
+    check('file attributes body starts hidden', doc.getElementById('fileAttrsBody').classList.contains('hidden'));
+
+    console.log('  expand: shows the existing DSPSIZ keyword');
+    doc.getElementById('fileAttrsToggle').dispatchEvent(new Event('click', { bubbles: true }));
+    check('body is no longer hidden', !doc.getElementById('fileAttrsBody').classList.contains('hidden'));
+    check('shows the existing DSPSIZ keyword as a chip', /DSPSIZ/.test(doc.getElementById('kwed-file').textContent));
+
+    console.log('  add a new file-level keyword');
+    doc.getElementById('file-new-kw-name').value = 'INDARA';
+    doc.querySelector('.kw-add[data-owner="file"]').dispatchEvent(new Event('click', { bubbles: true }));
+    const last = posted[posted.length - 1];
+    check('posts applyEdit with the new file-level INDARA keyword', last && last.type === 'applyEdit' && /INDARA/.test(last.text));
+    check('the existing DSPSIZ keyword is preserved', last && /DSPSIZ/.test(last.text));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 100);

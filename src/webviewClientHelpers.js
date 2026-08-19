@@ -224,6 +224,99 @@
   }
 
   // -----------------------------------------------------------------------
+  // Generic keyword-chip editor (add/remove any KEYWORD(params) pair) -
+  // shared by the DSPF designer's field/record/file panels and the menu
+  // designer's file-attributes panel. Each keyword chip also gets a
+  // "Conditioning" toggle mounting the SAME conditionsEditorHtml/
+  // wireConditionsEditor pair above, but scoped to that one keyword's own
+  // `conditions` rather than the whole field/record/file (e.g. conditioning
+  // just one DSPATR while a field's other keywords stay unconditional) -
+  // the parser/writer already round-trip `keyword.conditions` correctly,
+  // this is just the second mount point the CHANGELOG's entity-level pass
+  // left as follow-up work.
+  //
+  // `ownerKey` must be unique per keyword LIST (e.g. "file",
+  // "field-<sourceLine>", "record-<name>") so multiple keyword editors on
+  // the same page (or across re-renders of different entities) don't
+  // collide on element ids/selectors - same convention `idPrefix` follows
+  // above. `expandedSet` is a caller-owned Set of "ownerKey:idx" strings
+  // that survives across re-renders (same convention as the menu
+  // designer's own expandedOptionConditioning), so the panel doesn't
+  // collapse itself every time an unrelated field also re-renders.
+  // `rerender` is called - never `onChange` - when a toggle flips, since
+  // that's pure UI state, not a document edit.
+  // -----------------------------------------------------------------------
+
+  function keywordEditorHtml(keywords, ownerKey, expandedSet) {
+    var list = keywords || [];
+    var html = '<div class="section-label">Keywords</div><div id="kwed-' + ownerKey + '">';
+    if (list.length === 0) {
+      html += '<div class="empty-state" style="margin-bottom:6px;">None defined.</div>';
+    }
+    list.forEach(function (k, idx) {
+      var conditions = k.conditions || [];
+      var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
+      var isExpanded = !!(expandedSet && expandedSet.has(ownerKey + ':' + idx));
+      html += '<div class="kw-row">';
+      html += '<div class="kw-row-main"><span class="keyword-chip">' + escapeHtml(k.name) +
+        (k.parameters ? '(' + escapeHtml(k.parameters) + ')' : '') +
+        '<button data-owner="' + ownerKey + '" data-idx="' + idx + '" class="kw-remove">\u00d7</button></span>' +
+        '<span class="kw-cond-toggle" data-owner="' + ownerKey + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span></div>';
+      if (isExpanded) {
+        html += '<div class="kw-cond-body">' + conditionsEditorHtml(conditions, ownerKey + '-kw' + idx) + '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div><div class="two-col" style="margin-top:8px;"><input type="text" id="' + ownerKey + '-new-kw-name" placeholder="KEYWORD" /><input type="text" id="' + ownerKey + '-new-kw-params" placeholder="params" /></div>';
+    html += '<button class="secondary kw-add" data-owner="' + ownerKey + '" style="width:100%;margin-top:6px;">+ Add keyword</button>';
+    return html;
+  }
+
+  function wireKeywordEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var list = keywords || [];
+
+    document.querySelectorAll('.kw-remove[data-owner="' + ownerKey + '"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(btn.getAttribute('data-idx'), 10);
+        var next = list.slice();
+        next.splice(idx, 1);
+        onChange(next);
+      });
+    });
+
+    document.querySelectorAll('.kw-cond-toggle[data-owner="' + ownerKey + '"]').forEach(function (btn) {
+      var idx = parseInt(btn.getAttribute('data-idx'), 10);
+      var expandKey = ownerKey + ':' + idx;
+      btn.addEventListener('click', function () {
+        if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+        else expandedSet.add(expandKey);
+        if (rerender) rerender();
+      });
+      if (expandedSet && expandedSet.has(expandKey) && list[idx]) {
+        wireConditionsEditor(ownerKey + '-kw' + idx, list[idx].conditions, function (newConditions) {
+          var next = list.map(function (k, i) {
+            if (i !== idx) return k;
+            return { name: k.name, parameters: k.parameters, conditions: newConditions, raw: k.raw, sourceLines: k.sourceLines };
+          });
+          onChange(next);
+        });
+      }
+    });
+
+    var addBtn = document.querySelector('.kw-add[data-owner="' + ownerKey + '"]');
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        var nameInput = document.getElementById(ownerKey + '-new-kw-name');
+        var paramsInput = document.getElementById(ownerKey + '-new-kw-params');
+        var name = (nameInput.value || '').trim().toUpperCase();
+        var params = (paramsInput.value || '').trim();
+        if (!name) return;
+        onChange(list.concat([{ name: name, parameters: params, conditions: [], raw: '', sourceLines: [] }]));
+      });
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Command keys (CAxx/CFxx) - shared list+add-form editor for both a
   // file's own keys and a single record's keys. `availableNumbers` (from
   // DspfWriter.availableCommandKeyNumbers) is computed by the caller since
@@ -300,6 +393,8 @@
     findLikelyNameReferences: findLikelyNameReferences,
     conditionsEditorHtml: conditionsEditorHtml,
     wireConditionsEditor: wireConditionsEditor,
+    keywordEditorHtml: keywordEditorHtml,
+    wireKeywordEditor: wireKeywordEditor,
     commandKeysSectionHtml: commandKeysSectionHtml,
     wireCommandKeysSection: wireCommandKeysSection,
     functionKeyLegendHtml: functionKeyLegendHtml,

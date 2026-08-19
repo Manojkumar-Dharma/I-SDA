@@ -3,6 +3,48 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.25] - Unreleased
+
+### Added
+- **Per-keyword indicator conditioning.** Every keyword chip (field,
+  record, file-attribute, and help-entry panels) now gets its own
+  "Conditioning" toggle mounting the same `conditionsEditorHtml`/
+  `wireConditionsEditor` pair the entity-level case already used, but
+  scoped to that ONE keyword - e.g. conditioning just a field's `DSPATR`
+  while its `COLOR` (and the field itself) stay unconditional. The
+  parser/writer already round-tripped `keyword.conditions` correctly;
+  this was purely the missing second mount point. `keywordEditorHtml`/
+  `wireKeywordEditor` moved from `buildWebviewTemplate.js` into the
+  shared `webviewClientHelpers.js` to carry this - same functions now
+  back all four DSPF-designer panels (field/record/file/help) plus the
+  menu designer's new file-attributes panel below. Toggle-expanded state
+  survives re-renders via a caller-owned `Set`, same convention the menu
+  designer's own per-option conditioning toggle already used.
+- **Menu designer: File attributes panel.** A collapsible "File
+  attributes" section in the sidebar (matching this designer's own
+  toggle convention rather than the DSPF designer's separate
+  properties-panel view, since there's no "click something, panel
+  swaps" mechanism here) exposing the file's `fileKeywords` (`DSPSIZ`,
+  `REF`, `PRINT`, etc.) via the same shared keyword-chip editor as
+  above - nothing menu-specific about these keywords, so no separate
+  primitive was needed.
+- **Menu designer: Copy option.** Each option row gets a Copy button
+  duplicating its underlying constant(s) via `DspfWriter.copyField` -
+  the exact primitive the DSPF designer's own field/constant Copy button
+  already used. Handles both option forms: a combined `"N. label"`
+  single constant, and the split form (separate number-marker and label
+  constants), copying and re-aligning both onto the same new row for the
+  split case. Since two options can't share a number the way two
+  arbitrary duplicated constants could, the copy's number is rewritten
+  afterward to (current highest option number) + 1 - copyField itself
+  doesn't need to know about that; it stays exactly what it already was.
+
+### Fixed
+- A handful of existing tests (`dspfWebview.test.js`) referenced the
+  keyword editor's old, un-namespaced element ids (`p-keywords`,
+  `p-add-kw`, etc.), which the shared-editor move above renamed to
+  `ownerKey`-scoped ones; updated to match.
+
 ## [0.9.24] - Unreleased
 
 ### Changed

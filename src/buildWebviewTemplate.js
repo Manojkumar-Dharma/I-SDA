@@ -108,6 +108,11 @@ const htmlTemplate = `<!DOCTYPE html>
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
   .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
+  .kw-row { margin-bottom: 4px; }
+  .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .kw-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; }
+  .kw-cond-toggle:hover { color: var(--accent); }
+  .kw-cond-body { margin: 4px 0 8px 0; padding-left: 8px; border-left: 2px solid var(--panel-border); }
   .empty-state { color: var(--ink-dim); font-size: 13px; }
   .help-entry-row {
     background: #0d1310; border: 1px solid var(--panel-border); border-radius: 3px;
@@ -191,6 +196,7 @@ const htmlTemplate = `<!DOCTYPE html>
   let previewMultipleRows = false;
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
   const active = new Set();
+  const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded - survives renderProps() rebuilding the panel, same convention as the menu designer's expandedOptionConditioning
 
   const recordSelect = document.getElementById('recordSelect');
   const indicatorList = document.getElementById('indicatorList');
@@ -690,34 +696,6 @@ const htmlTemplate = `<!DOCTYPE html>
     return null;
   }
 
-  function keywordEditorHtml(keywords) {
-    let html = '<div class="section-label">Keywords</div><div id="p-keywords">';
-    (keywords || []).forEach((k, idx) => { html += '<span class="keyword-chip">' + k.name + (k.parameters ? '(' + k.parameters + ')' : '') + '<button data-idx="' + idx + '" class="kw-remove">×</button></span>'; });
-    html += '</div><div class="two-col" style="margin-top:8px;"><input type="text" id="p-new-kw-name" placeholder="KEYWORD" /><input type="text" id="p-new-kw-params" placeholder="params" /></div>';
-    html += '<button id="p-add-kw" class="secondary" style="width:100%;margin-top:6px;">+ Add keyword</button>';
-    return html;
-  }
-
-  function wireKeywordEditor(keywords, onChange) {
-    propsBody.querySelectorAll('.kw-remove').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.getAttribute('data-idx'), 10);
-        const newKeywords = keywords.slice();
-        newKeywords.splice(idx, 1);
-        onChange(newKeywords);
-      });
-    });
-    const addBtn = document.getElementById('p-add-kw');
-    if (addBtn) {
-      addBtn.addEventListener('click', () => {
-        const name = document.getElementById('p-new-kw-name').value.trim().toUpperCase();
-        const params = document.getElementById('p-new-kw-params').value.trim();
-        if (!name) return;
-        onChange(keywords.concat([{ name, parameters: params, conditions: [], raw: '', sourceLines: [] }]));
-      });
-    }
-  }
-
   function renderProps(recordName) {
     if (showFileProps) { renderFileProps(); return; }
     if (selectedKey) { renderFieldProps(recordName); return; }
@@ -738,14 +716,14 @@ const htmlTemplate = `<!DOCTYPE html>
     let html = '<button id="p-file-back" class="secondary" style="width:100%;margin-bottom:12px;">&larr; Back to record</button>';
     html += '<div class="section-label">File-level attributes</div>';
     html += '<div class="status" style="margin-bottom:12px;">Keywords for the whole display file (DSPSIZ, REF, INDARA, PRINT, etc.) - not tied to any one record format. Command keys (CAxx/CFxx) have their own dedicated panel above and are best edited there.</div>';
-    html += keywordEditorHtml(model.fileKeywords);
+    html += WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning);
     propsBody.innerHTML = html;
 
     document.getElementById('p-file-back').addEventListener('click', () => {
       showFileProps = false;
       renderProps(recordSelect.value);
     });
-    wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
+    WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
   }
 
   function commitFileEdit(newKeywords) {
@@ -781,7 +759,7 @@ const htmlTemplate = `<!DOCTYPE html>
         ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
       html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
     }
-    html += keywordEditorHtml(field.keywords);
+    html += WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning);
     html += WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field');
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
     html += '<button id="p-copy" class="secondary" style="width:100%;margin-top:8px;">Copy ' + (isConstant ? 'constant' : 'field') + '</button>';
@@ -806,7 +784,7 @@ const htmlTemplate = `<!DOCTYPE html>
       commitEdit(ownerRecordName, field, updates);
     });
     document.getElementById('p-copy').addEventListener('click', () => commitCopy(ownerRecordName, field));
-    wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
   }
 
@@ -870,7 +848,7 @@ const htmlTemplate = `<!DOCTYPE html>
       '<div class="rename-row"><input type="text" class="rename-input" id="p-record-name" value="' + rec.name + '" /><button class="rename-btn" id="p-record-rename">Rename</button></div>' +
       '<div class="rename-error" id="p-record-rename-error"></div></div>';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
-    html += keywordEditorHtml(rec.keywords);
+    html += WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning);
     html += WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record');
     const availableForRecord = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, rec.keywords);
     html += WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
@@ -896,7 +874,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     if (!editable) return;
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
-    wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
   }
 
@@ -909,12 +887,12 @@ const htmlTemplate = `<!DOCTYPE html>
     let html = '<button id="p-back" class="secondary" style="width:100%;margin-bottom:12px;">&larr; Back to record</button>';
     html += '<div class="section-label">Help entry</div>';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this help entry is disabled to avoid corrupting it. Edit the source directly.</div>';
-    html += keywordEditorHtml(help.keywords);
+    html += WebviewClientHelpers.keywordEditorHtml(help.keywords, 'help-' + help.sourceLine, expandedKeywordConditioning);
     propsBody.innerHTML = html;
 
     document.getElementById('p-back').addEventListener('click', () => { selectedHelpSourceLine = null; renderProps(recordName); });
     if (!editable) return;
-    wireKeywordEditor(help.keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }));
+    WebviewClientHelpers.wireKeywordEditor(help.keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }), 'help-' + help.sourceLine, expandedKeywordConditioning, () => renderHelpProps(recordName));
   }
 
   // Shared commit skeleton for every DDS source edit made from this webview:

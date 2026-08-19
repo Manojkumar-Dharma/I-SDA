@@ -88,6 +88,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .option-field-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); }
   .option-delete-btn { flex: 0 0 auto; align-self: flex-start; background: #1a1010; color: var(--warn); border: 1px solid var(--panel-border); padding: 4px 8px; font-family: var(--mono); font-size: 13px; cursor: pointer; line-height: 1; }
   .option-delete-btn:hover { border-color: var(--warn); }
+  .option-copy-btn { flex: 0 0 auto; align-self: flex-start; background: #142018; color: var(--ink); border: 1px solid var(--panel-border); padding: 4px 8px; font-family: var(--mono); font-size: 13px; cursor: pointer; line-height: 1; }
+  .option-copy-btn:hover { border-color: var(--accent); }
   .option-label-input {
     width: 100%; background: #050705; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 3px;
     padding: 5px 7px; font-family: var(--mono); font-size: 12px;
@@ -138,6 +140,15 @@ const htmlTemplate = `<!DOCTYPE html>
   .option-cond-toggle:hover { color: var(--accent); }
   .option-cond-body { margin-top: 6px; }
   .cmdkeys-section { margin-top: 20px; }
+  .hidden { display: none; }
+  .kw-row { margin-bottom: 4px; }
+  .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .kw-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; }
+  .kw-cond-toggle:hover { color: var(--accent); }
+  .kw-cond-body { margin: 4px 0 8px 0; padding-left: 8px; border-left: 2px solid var(--panel-border); }
+  .file-attrs-toggle { font-size: 11px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 16px; }
+  .file-attrs-toggle:hover { color: var(--accent); }
+  .file-attrs-body { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -153,6 +164,8 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="add-option-error" id="recordRenameError"></div>
   <div class="cmdkeys-section" id="fileCommandKeys"></div>
   <div class="cmdkeys-section" id="recordCommandKeys"></div>
+  <div class="file-attrs-toggle" id="fileAttrsToggle">File attributes &#x25be;</div>
+  <div class="file-attrs-body hidden" id="fileAttrsBody"></div>
   <div class="section-label" style="margin-top:20px;">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="status" id="cmdStatus" style="margin-top:6px;"></div>
@@ -217,6 +230,10 @@ const htmlTemplate = `<!DOCTYPE html>
   const fileCommandKeysEl = document.getElementById('fileCommandKeys');
   const recordCommandKeysEl = document.getElementById('recordCommandKeys');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
+  const fileAttrsToggle = document.getElementById('fileAttrsToggle');
+  const fileAttrsBody = document.getElementById('fileAttrsBody');
+  let fileAttrsExpanded = false; // survives renderAll() rebuilding everything else, same convention as expandedOptionConditioning below
+  const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded, shared with the DSPF designer's own convention
   const expandedOptionConditioning = new Set(); // numberValues whose "Conditioning" panel is expanded - survives renderOptions() rebuilding all rows
 
   // A menu option is any DDS constant shaped like "1. Do a thing" or "12) Do a thing" -
@@ -417,6 +434,39 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  // File attributes (fileKeywords - DSPSIZ, REF, PRINT, etc.): a collapsible
+  // section rather than the DSPF designer's own dedicated properties-panel
+  // view, since this sidebar doesn't have a "click something, panel swaps
+  // to its properties" mechanism the way the DSPF designer's field/record
+  // click-to-select does - a toggle matches this file's own established UI
+  // language (see .option-cond-toggle) better than inventing a new pattern.
+  // Reuses the SAME keywordEditorHtml/wireKeywordEditor primitives the DSPF
+  // designer's file/record/field panels use, including their per-keyword
+  // Conditioning toggle - nothing menu-specific about DSPSIZ/REF/etc.
+  function renderFileAttrs() {
+    fileAttrsToggle.textContent = 'File attributes ' + (fileAttrsExpanded ? '\\u25b4' : '\\u25be');
+    if (!fileAttrsExpanded) {
+      fileAttrsBody.classList.add('hidden');
+      fileAttrsBody.innerHTML = '';
+      return;
+    }
+    fileAttrsBody.classList.remove('hidden');
+    fileAttrsBody.innerHTML = WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning);
+    WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => {
+      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      lines = DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords);
+      sourceText = lines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      renderAll();
+    }, 'file', expandedKeywordConditioning, renderFileAttrs);
+  }
+
+  fileAttrsToggle.addEventListener('click', () => {
+    fileAttrsExpanded = !fileAttrsExpanded;
+    renderFileAttrs();
+  });
+
   function updateOptionLabel(numberValue, newLabel) {
     const option = findOption(model, numberValue);
     if (!option) return;
@@ -480,6 +530,68 @@ const htmlTemplate = `<!DOCTYPE html>
       vscode.postMessage({ type: 'applyMenuCmdEdit', text: commandText });
     }
 
+    renderAll();
+  }
+
+  // Duplicates an option's underlying constant(s) via DspfWriter.copyField -
+  // the same primitive the DSPF designer's own field/constant Copy button
+  // uses (see CHANGELOG "Copy field/constant") - reused here rather than a
+  // second implementation, since an option's number-marker/label are plain
+  // DDS constants underneath. copyField's own default placement (one row
+  // below, same column) keeps the copy visually next to the original; the
+  // one thing it can't do generically is pick a fresh OPTION NUMBER (two
+  // options can't share one, unlike two arbitrary constants which can be
+  // identical), so this rewrites just the copy's number afterward via
+  // applyFieldUpdate - next-available is simply the current max + 1, same
+  // "append past the end" convention addNewOption's own placement guess
+  // uses elsewhere in this file.
+  function copyOption(numberValue) {
+    const option = findOption(model, numberValue);
+    if (!option) return;
+    const record = model.records.find((r) => r.name === option.recordName);
+    if (!record) return;
+
+    const existing = extractMenuOptions(model);
+    const nextNum = Math.max.apply(null, existing.map((o) => o.numberValue)) + 1;
+    if (nextNum > 9999) {
+      vscode.postMessage({ type: 'error', message: 'iSDA: no option numbers left under 9999 to copy "' + numberValue + '" into.' });
+      return;
+    }
+    const punctuation = /\\)\\s*$/.test(option.numberField.constantValue.trim()) ? ')' : '.';
+
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.copyField(record, lines, option.numberField, {});
+    let currentModel = DspfParser.parseDspf(lines.join('\\n'));
+    let freshRec = currentModel.records.find((r) => r.name === option.recordName);
+    const newNumberField = freshRec && freshRec.fields[freshRec.fields.length - 1];
+    if (!newNumberField) return;
+
+    const isCombined = !option.labelField || option.labelField === option.numberField;
+    const newNumberValue = isCombined ? nextNum + punctuation + ' ' + option.label : String(nextNum) + punctuation;
+    lines = DspfWriter.applyFieldUpdate(newNumberField, lines, { constantValue: newNumberValue });
+
+    if (!isCombined) {
+      // Split form: the label lives in its own constant - copy that one
+      // too, placed on the SAME row the number copy just landed on (rather
+      // than copyField's own default of "one row below ITS original"),
+      // same column the original label used, so the pair stays aligned as
+      // one visual option like the source did.
+      currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      freshRec = currentModel.records.find((r) => r.name === option.recordName);
+      const origLabelFresh = freshRec.fields.find(
+        (f) => f.location && f.location.line === option.line && f.location.column === option.labelField.location.column && f !== newNumberField
+      );
+      if (origLabelFresh) {
+        lines = DspfWriter.copyField(freshRec, lines, origLabelFresh, {
+          location: { line: newNumberField.location.line + 1, column: origLabelFresh.location.column },
+        });
+      }
+    }
+
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    expandedOptionConditioning.delete(nextNum);
     renderAll();
   }
 
@@ -575,6 +687,7 @@ const htmlTemplate = `<!DOCTYPE html>
         '<div class="option-cond-toggle" data-num="' + numLabel + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</div>' +
         '<div class="option-cond-body' + (isExpanded ? '' : ' hidden') + '" id="opt-cond-body-' + numLabel + '"></div>' +
         '</div>' +
+        '<button type="button" class="option-copy-btn" title="Copy option ' + numLabel + ' as a new option">&#x2398;</button>' +
         '<button type="button" class="option-delete-btn" title="Delete option ' + numLabel + '">&times;</button>';
 
       // Appended to the document BEFORE any wiring below - WebviewClientHelpers'
@@ -597,6 +710,9 @@ const htmlTemplate = `<!DOCTYPE html>
 
       const deleteBtn = row.querySelector('.option-delete-btn');
       deleteBtn.addEventListener('click', () => deleteOption(opt.numberValue));
+
+      const copyBtn = row.querySelector('.option-copy-btn');
+      copyBtn.addEventListener('click', () => copyOption(opt.numberValue));
 
       const labelInput = row.querySelector('.option-label-input');
       labelInput.addEventListener('change', () => updateOptionLabel(opt.numberValue, labelInput.value));
@@ -636,6 +752,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function renderAll() {
     renderScreen();
     renderOptions();
+    renderFileAttrs();
   }
 
   // Placement for a brand-new option: one row below the last existing option
