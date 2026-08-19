@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.20] - Unreleased
+## [0.9.21] - Unreleased
 
 ### Added
 - **`DspfWriter.addDisplaySize()`** - the writer action called out in the
