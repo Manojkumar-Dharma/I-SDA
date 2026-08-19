@@ -108,6 +108,9 @@ const htmlTemplate = `<!DOCTYPE html>
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
   .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
+  .attr-checks { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 12px; }
+  .attr-check { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-dim); }
+  .hint-small { font-size: 10px; color: var(--ink-dim); margin: 2px 0 10px; }
   .kw-row { margin-bottom: 4px; }
   .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .kw-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; }
@@ -200,6 +203,9 @@ const htmlTemplate = `<!DOCTYPE html>
   const compareSelectedRecords = new Set();
   let previewMultipleRows = false;
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
+  let lastScreen = null; // most recently resolved screen ({lines, columns, ...}) - kept around so the props
+                          // panel's "Center on screen" action knows the current record's width without
+                          // re-resolving it itself (render() already does that work every call).
   const active = new Set();
   const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded - survives renderProps() rebuilding the panel, same convention as the menu designer's expandedOptionConditioning
 
@@ -492,6 +498,7 @@ const htmlTemplate = `<!DOCTYPE html>
     renderFileCommandKeys(currentRecord);
 
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
+    lastScreen = screen;
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }
     previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
     if (!screen.isSflRecord && previewMultipleRows) { previewMultipleRows = false; previewRowsToggle.checked = false; }
@@ -789,6 +796,14 @@ const htmlTemplate = `<!DOCTYPE html>
       // already supported writing back a new constantValue; only the input
       // to drive it was missing.
       html += '<div class="field-row"><label>Text</label><input type="text" id="p-const-text" value="' + DspfEngine.escapeHtml(field.constantValue || '') + '" /></div>';
+      // "Fill constant with characters" - repeats a single character across a
+      // chosen length (e.g. a row of dashes as a visual divider). Populates
+      // the Text input above rather than committing on its own, so it lines
+      // up with "Center" below and the shared Apply changes button - one
+      // commit for whatever combination of position/text/fill was touched.
+      html += '<div class="two-col"><div class="field-row"><label>Fill character</label><input type="text" id="p-fill-char" maxlength="1" value="." /></div>';
+      html += '<div class="field-row"><label>Fill length</label><input type="number" id="p-fill-len" min="1" value="' + Math.max(1, (field.constantValue || '').length || 10) + '" /></div></div>';
+      html += '<button id="p-fill" class="secondary" style="width:100%;margin-bottom:12px;">Fill</button>';
     } else {
       html += '<div class="field-row"><label>Name</label><input type="text" id="p-name" value="' + (field.name || '') + '" /></div>';
       html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-length" value="' + (field.length != null ? field.length : '') + '" /></div>';
@@ -796,10 +811,20 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-line" value="' + (field.location.line != null ? field.location.line : '') + '" /></div>';
     html += '<div class="field-row"><label>Column</label><input type="number" id="p-col" value="' + (field.location.column != null ? field.location.column : '') + '" /></div></div>';
+    // "Center field/constant on screen" - fills the Column input above with
+    // the column that centers the current width within the record's screen,
+    // same populate-then-Apply pattern as Fill above (and for the same
+    // reason: centering AND retyping the text/length in the same visit
+    // should commit as one edit, not two).
+    html += '<button id="p-center" class="secondary" style="width:100%;margin-bottom:12px;">Center on screen</button>';
     if (!isConstant) {
       html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
         ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
       html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
+    }
+    html += WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
+    if (!isConstant) {
+      html += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine);
     }
     html += WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning);
     html += WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field');
@@ -828,6 +853,27 @@ const htmlTemplate = `<!DOCTYPE html>
     document.getElementById('p-copy').addEventListener('click', () => commitCopy(ownerRecordName, field));
     WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
+    WebviewClientHelpers.wireColorAttrEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    if (!isConstant) {
+      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    }
+
+    if (isConstant) {
+      document.getElementById('p-fill').addEventListener('click', () => {
+        const ch = (document.getElementById('p-fill-char').value || '.').slice(0, 1) || '.';
+        const len = Math.max(1, parseInt(document.getElementById('p-fill-len').value, 10) || 1);
+        document.getElementById('p-const-text').value = ch.repeat(len);
+      });
+    }
+
+    document.getElementById('p-center').addEventListener('click', () => {
+      const columns = (lastScreen && lastScreen.columns) || 80;
+      const width = isConstant
+        ? (document.getElementById('p-const-text').value || '').length
+        : Math.max(1, parseInt(document.getElementById('p-length').value, 10) || 1);
+      const col = Math.max(1, Math.floor((columns - width) / 2) + 1);
+      document.getElementById('p-col').value = String(col);
+    });
   }
 
   function helpEntriesListHtml(rec) {

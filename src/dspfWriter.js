@@ -567,6 +567,112 @@
     });
   }
 
+  // -----------------------------------------------------------------------
+  // Dedicated colors/attributes editor (COLOR/DSPATR), and dedicated
+  // validity-check / edit-keyword / error-message helpers (RANGE/COMP/
+  // VALUES, EDTCDE/EDTWRD, ERRMSG) - previously these were only reachable
+  // via the generic "add any keyword by name/params" box. Each pair below
+  // follows the same read/write shape as parseCommandKeys/setCommandKey:
+  // a getter that pulls the current state out of a keyword list for a panel
+  // to pre-fill itself with, and a setter that returns a NEW keyword list
+  // with the relevant keyword(s) replaced. Callers still have the generic
+  // keyword editor available underneath for anything these don't cover
+  // (conditioning either one, exotic COLOR/DSPATR combinations, etc.).
+  // -----------------------------------------------------------------------
+
+  /** Reads the current COLOR/DSPATR state off a field/record/constant's keyword
+   *  list - { color: string ('' if none), attrs: string[] (DSPATR values, e.g.
+   *  ['HI','UL']) } - for the colors/attributes editor to pre-fill its controls. */
+  function getColorAttr(keywords) {
+    var colorK = (keywords || []).find(function (k) { return k.name === 'COLOR'; });
+    var attrK = (keywords || []).find(function (k) { return k.name === 'DSPATR'; });
+    return {
+      color: colorK ? (colorK.parameters || '').trim().toUpperCase() : '',
+      attrs: attrK
+        ? (attrK.parameters || '').trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); })
+        : [],
+    };
+  }
+
+  /** Returns a NEW keywords array with COLOR/DSPATR replaced: `color` (a single
+   *  color name, e.g. "BLU", or '' to remove COLOR entirely) and `attrs` (array
+   *  of DSPATR attribute names, joined into ONE DSPATR keyword the way real DDS
+   *  allows multiple attributes per keyword - e.g. DSPATR(HI UL) - or omitted
+   *  entirely if `attrs` is empty). Both keywords are written unconditioned;
+   *  conditioning either one still goes through the generic keyword editor's
+   *  own Conditioning toggle. */
+  function setColorAttr(keywords, color, attrs) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'COLOR' && k.name !== 'DSPATR'; });
+    if (color) next = next.concat([{ name: 'COLOR', parameters: color, conditions: [], raw: '', sourceLines: [] }]);
+    if (attrs && attrs.length > 0) next = next.concat([{ name: 'DSPATR', parameters: attrs.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  var VALIDITY_CHECK_KEYWORDS = ['RANGE', 'COMP', 'VALUES'];
+
+  /** A field carries at most ONE validity-check keyword at a time, so this just
+   *  finds whichever of RANGE/COMP/VALUES is present - { kind: ''|'RANGE'|
+   *  'COMP'|'VALUES', parameters: string (the raw parenthesized argument text) }. */
+  function getValidityCheck(keywords) {
+    var k = (keywords || []).find(function (k) { return VALIDITY_CHECK_KEYWORDS.indexOf(k.name) >= 0; });
+    return k ? { kind: k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
+  }
+
+  /** Returns a NEW keywords array with any existing RANGE/COMP/VALUES removed
+   *  and, if `kind` is non-empty, one new keyword of that kind added with
+   *  `parameters` (e.g. "10 99" for RANGE, "GT 0" for COMP, "'A' 'B' 'C'" for
+   *  VALUES) - left as free text since the argument shapes differ too much per
+   *  kind to model individually here; the caller supplies it already-quoted
+   *  where DDS requires quoting. */
+  function setValidityCheck(keywords, kind, parameters) {
+    var next = (keywords || []).filter(function (k) { return VALIDITY_CHECK_KEYWORDS.indexOf(k.name) < 0; });
+    if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD'];
+
+  /** Same one-at-a-time rule as validity checks - a field can't carry both an
+   *  edit code and an edit word - { kind: ''|'EDTCDE'|'EDTWRD', parameters: string }. */
+  function getEditKeyword(keywords) {
+    var k = (keywords || []).find(function (k) { return EDIT_KEYWORDS.indexOf(k.name) >= 0; });
+    return k ? { kind: k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
+  }
+
+  /** Returns a NEW keywords array with any existing EDTCDE/EDTWRD removed and,
+   *  if `kind` is non-empty, one new keyword added with `parameters` (a bare
+   *  edit-code letter for EDTCDE, e.g. "J", or the full quoted substitution
+   *  string for EDTWRD, e.g. "'  DR  CR'" - the caller supplies quoting for
+   *  EDTWRD itself since its internal structure is meaningful). */
+  function setEditKeyword(keywords, kind, parameters) {
+    var next = (keywords || []).filter(function (k) { return EDIT_KEYWORDS.indexOf(k.name) < 0; });
+    if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** Plain-text getter for ERRMSG - unlike the generic keyword box (where the
+   *  user has to type the surrounding quotes themselves and hand-escape any
+   *  embedded ones), this hands back ordinary unquoted text. */
+  function getErrorMessageText(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'ERRMSG'; });
+    if (!k) return '';
+    var m = /^'((?:[^']|'')*)'/.exec((k.parameters || '').trim());
+    return m ? m[1].replace(/''/g, "'") : '';
+  }
+
+  /** Returns a NEW keywords array with ERRMSG set to `text` (auto-quoted, with
+   *  embedded single quotes doubled per DDS literal escaping - same convention
+   *  setCommandKey uses for a command key's on-screen text), or removed
+   *  entirely if `text` is blank. */
+  function setErrorMessageText(keywords, text) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'ERRMSG'; });
+    var trimmed = (text || '').trim();
+    if (trimmed) {
+      next = next.concat([{ name: 'ERRMSG', parameters: "'" + trimmed.replace(/'/g, "''") + "'", conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -1289,5 +1395,13 @@
     setCommandKey: setCommandKey,
     removeCommandKey: removeCommandKey,
     reorderFields: reorderFields,
+    getColorAttr: getColorAttr,
+    setColorAttr: setColorAttr,
+    getValidityCheck: getValidityCheck,
+    setValidityCheck: setValidityCheck,
+    getEditKeyword: getEditKeyword,
+    setEditKeyword: setEditKeyword,
+    getErrorMessageText: getErrorMessageText,
+    setErrorMessageText: setErrorMessageText,
   };
 });

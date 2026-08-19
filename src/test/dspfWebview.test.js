@@ -12,6 +12,7 @@
 const { JSDOM } = require('jsdom');
 const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
+const DspfParser = require('../../dist/dspfParser.js');
 
 let failures = 0;
 function check(label, condition) {
@@ -688,6 +689,115 @@ function runRecordCrudScenario() {
     doc.getElementById('p-record-name').value = 'ZFINAL';
     doc.getElementById('p-record-rename').dispatchEvent(new Event('click', { bubbles: true }));
     check('the renamed record (ZFINAL), not some other survivor, is now selected', recordSelect.value === 'ZFINAL');
+
+    runFieldPropertyHelpersScenario();
+  }, 0);
+}
+
+function runFieldPropertyHelpersScenario() {
+  console.log('\nfield-panel property helpers: Center on screen, Fill constant, Colors & attributes, Validity/Edit/Error message');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R SCR1',
+      "     A                                  1  2'A short label'",
+      '     A            AMOUNT         7Y 2B  5  5',
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'PROPHELP.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  Center on screen: a constant');
+    const constantEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('A short label'));
+    check('setup: the constant is present', !!constantEl);
+    constantEl.dispatchEvent(new Event('click', { bubbles: true }));
+    const colInput = doc.getElementById('p-col');
+    const centerBtn = doc.getElementById('p-center');
+    check('setup: Column input and Center button are both present', !!colInput && !!centerBtn);
+    colInput.value = '2';
+    centerBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    // 'A short label' is 13 chars, an 80-col screen: (80-13)/2 + 1 = 34 (floor)
+    check('Center fills the Column input with the midpoint for the current text width, screen is 80 cols wide', colInput.value === String(Math.floor((80 - 'A short label'.length) / 2) + 1));
+
+    console.log('  Fill constant with characters');
+    const fillChar = doc.getElementById('p-fill-char');
+    const fillLen = doc.getElementById('p-fill-len');
+    const fillBtn = doc.getElementById('p-fill');
+    check('setup: fill character/length inputs and Fill button are present for a constant', !!fillChar && !!fillLen && !!fillBtn);
+    fillChar.value = '-';
+    fillLen.value = '5';
+    fillBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('Fill overwrites the Text input with the repeated character', doc.getElementById('p-const-text').value === '-----');
+
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('applying commits the filled text and the centered column together', applyEdit && applyEdit.text.includes("'-----'"));
+
+    console.log('  Colors & attributes on a named field');
+    posted.length = 0;
+    const amountEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('AMOUNT') || el.getAttribute('data-field') === 'AMOUNT');
+    check('setup: the AMOUNT field is present', !!amountEl);
+    amountEl.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const colorSelEl = doc.querySelector('select[id$="-color"]');
+    check('setup: the dedicated Color select is present (not just the generic keyword box)', !!colorSelEl);
+    const fieldKey = colorSelEl.id.replace(/-color$/, '');
+    const colorSel = colorSelEl;
+    colorSel.value = 'RED';
+    colorSel.dispatchEvent(new Event('change', { bubbles: true }));
+    let colorEdit = posted.find((m) => m.type === 'applyEdit');
+    check('picking a color commits immediately, without needing Apply changes', colorEdit && colorEdit.text.includes('COLOR(RED)'));
+
+    posted.length = 0;
+    const hiCheck = doc.querySelector('.' + fieldKey + '-attr[value="HI"]');
+    check('setup: the HI attribute checkbox is present', !!hiCheck);
+    hiCheck.checked = true;
+    hiCheck.dispatchEvent(new Event('change', { bubbles: true }));
+    let attrEdit = posted.find((m) => m.type === 'applyEdit');
+    check('checking an attribute commits DSPATR immediately', attrEdit && attrEdit.text.includes('DSPATR(HI)'));
+    check('the earlier COLOR choice survives (both were set on the same field)', attrEdit && attrEdit.text.includes('COLOR(RED)'));
+
+    console.log('  Validity check / Edit code / Error message on a named field');
+    posted.length = 0;
+    // Re-select: the color/attribute edits above re-rendered the panel, so
+    // earlier element references for this field are stale.
+    const amountEl2 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    check('setup: AMOUNT is still findable after re-render', !!amountEl2);
+    amountEl2.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const vcKindId = fieldKey + '-vc-kind';
+    const vcKind = doc.getElementById(vcKindId);
+    check('setup: the Validity check kind select is present', !!vcKind);
+    vcKind.value = 'RANGE';
+    doc.getElementById(fieldKey + '-vc-params').value = '0 999';
+    doc.getElementById(fieldKey + '-ec-kind').value = 'EDTCDE';
+    doc.getElementById(fieldKey + '-ec-params').value = 'J';
+    doc.getElementById(fieldKey + '-errmsg').value = "Amount can't be negative";
+    doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+
+    const vcEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts RANGE with the entered bounds', vcEdit && vcEdit.text.includes('RANGE(0 999)'));
+    check('posts EDTCDE with the chosen code', vcEdit && vcEdit.text.includes('EDTCDE(J)'));
+    // ERRMSG's own text is long enough to line-wrap with a continuation '+'
+    // (same convention as TEXT), so check the round-tripped MODEL rather than
+    // raw source text.
+    const reparsedAmount = DspfParser.parseDspf(vcEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT');
+    const errKw = reparsedAmount && reparsedAmount.keywords.find((k) => k.name === 'ERRMSG');
+    check("posts ERRMSG with the text, apostrophe correctly doubled", errKw && errKw.parameters === "'Amount can''t be negative'");
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
