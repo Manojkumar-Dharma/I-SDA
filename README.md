@@ -161,10 +161,10 @@ requested first.
 3. **Assign command keys (CAxx/CFxx)**, with the file-level/record-level
    cross-exclusion (a key already used at one level can't be reused at the
    other) - both DSPF screens and MNUDDS menus use command keys constantly.
-4. **Add Display Size (\*DS3/\*DS4)** - the size picker only switches
-   between sizes a file *already* declares (`DSPSIZ`); there's no "add a
-   second size to a single-size file" writer action. Shared DSPSIZ
-   parsing/writing, useful for both file types.
+4. ~~**Add Display Size (\*DS3/\*DS4)**~~ - done: `DspfWriter.addDisplaySize()`
+   adds a second size to a file that only declares one (or none), shared
+   between both designers. Still open: no UI action to trigger it from the
+   size-picker row - it's currently a backend-only primitive.
 5. **Function-key legend** (F3/F12 etc., showing every CAxx/CFxx available
    to the record being previewed, active/inactive styling) - a pure
    `dspfEngine.js` resolution addition (file-level + record-level keys +

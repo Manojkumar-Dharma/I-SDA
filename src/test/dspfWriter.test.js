@@ -8,6 +8,7 @@
  */
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
+const DspfEngine = require(path.join(__dirname, '../dspfEngine.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 
 let failures = 0;
@@ -245,6 +246,81 @@ console.log('\nDspfWriter.renameRecordReferences() - does not touch an unrelated
 
   const rewritten = DspfWriter.renameRecordReferences(model, lines, 'PULLDN1', 'PULLNEW');
   check('display text mentioning the name coincidentally is left exactly as-is', rewritten.join('\n').includes('See PULLDN1 for details'));
+}
+
+console.log('\nDspfWriter.addDisplaySize() - adds a second, named size to a file that already names its first');
+{
+  const src = [
+    '     A                                      DSPSIZ(24 80 *DS3)',
+    '     A          R MENU',
+    "     A                                  1  2'MAIN MENU'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132, name: '*DS4' });
+  check('line count unchanged (single-line DSPSIZ stays single-line)', newLines.length === lines.length);
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('now declares two sizes', sizes.length === 2);
+  check('first size preserved exactly', sizes[0].lines === 24 && sizes[0].columns === 80 && sizes[0].name === '*DS3');
+  check('second size added exactly as requested', sizes[1].lines === 27 && sizes[1].columns === 132 && sizes[1].name === '*DS4');
+  check('the record and its field are untouched', reparsed.records[0].fields[0].constantValue === 'MAIN MENU');
+}
+
+console.log('\nDspfWriter.addDisplaySize() - names an existing UNQUALIFIED single size before adding the second');
+{
+  const src = ['     A                                      DSPSIZ(24 80)', '     A          R MENU'].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132 }); // no name -> defaults to *DS4
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('the previously-unqualified first size is now named *DS3', sizes[0].name === '*DS3');
+  check('the new size defaults to *DS4 when no name is given', sizes[1].name === '*DS4');
+}
+
+console.log('\nDspfWriter.addDisplaySize() - inserts a brand-new DSPSIZ when the file declares none at all');
+{
+  const src = ['     A          R MENU', "     A                                  1  2'MAIN MENU'"].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132, name: '*DS4' });
+  check('inserts the new keyword line before the first record', newLines[0].includes('DSPSIZ') && newLines.findIndex((l) => l.includes(' R MENU')) === 1);
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('the implicit 24x80 default is named *DS3', sizes[0].lines === 24 && sizes[0].columns === 80 && sizes[0].name === '*DS3');
+  check('the requested size is added as *DS4', sizes[1].lines === 27 && sizes[1].columns === 132 && sizes[1].name === '*DS4');
+  check("the record's field is untouched", reparsed.records[0].fields[0].constantValue === 'MAIN MENU');
+}
+
+console.log('\nDspfWriter.addDisplaySize() - refuses to add a third size');
+{
+  const src = ['     A                                      DSPSIZ(24 80 *DS3 27 132 *DS4)', '     A          R MENU'].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  let threw = false;
+  try {
+    DspfWriter.addDisplaySize(model, lines, { lines: 32, columns: 160, name: '*DS5' });
+  } catch (e) {
+    threw = true;
+  }
+  check('throws rather than writing an invalid third size', threw);
+}
+
+console.log('\nDspfWriter.addDisplaySize() - long DSPSIZ text wraps with continuation and round-trips exactly');
+{
+  const src = ['     A                                      DSPSIZ(24 80 *VERYLONGNAME3)', '     A          R MENU'].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132, name: '*ANOTHERVERYLONGNAME4' });
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('re-parses with no errors', reparsed.errors.length === 0);
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('both sizes (including their original/new long names) round-trip exactly', sizes.length === 2 && sizes[0].name === '*VERYLONGNAME3' && sizes[1].name === '*ANOTHERVERYLONGNAME4');
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

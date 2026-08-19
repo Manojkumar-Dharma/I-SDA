@@ -686,6 +686,157 @@
     return result;
   }
 
+  // ---------------------------------------------------------------------
+  // DSPSIZ (display size): shared between the DSPF and Menu designers,
+  // since both edit plain DDS files that can each declare their own
+  // DSPSIZ. DDS supports AT MOST TWO sizes per DSPSIZ keyword; this is
+  // specifically the "add a second size to a single-size (or no-DSPSIZ)
+  // file" writer action called out in the README's known limitations -
+  // toggling BETWEEN sizes a file already declares is DspfEngine's job
+  // (screenSizeFromFileKeywords/availableScreenSizes); this is the one
+  // writer-side action that changes how many sizes exist.
+  // ---------------------------------------------------------------------
+
+  /** Same "lines cols [*qualifier]" triple-parsing as
+   *  DspfEngine.screenSizeFromFileKeywords's own parseScreenSizes -
+   *  duplicated (not required-in) rather than shared via require(), since
+   *  this file is dropped into the webview as a plain <script> with no
+   *  bundler (see file header) and can't assume a module loader is
+   *  present there. Keep the two in sync if DSPSIZ's grammar ever changes. */
+  function parseDisplaySizeTriples(paramText) {
+    var tokens = (paramText || '').trim().split(/\s+/).filter(Boolean);
+    var sizes = [];
+    var i = 0;
+    while (i < tokens.length) {
+      var t1 = tokens[i];
+      var t2 = tokens[i + 1];
+      if (/^\d+$/.test(t1) && t2 && /^\d+$/.test(t2)) {
+        var name = null;
+        var next = tokens[i + 2];
+        if (next && next.charAt(0) === '*') {
+          name = next;
+          i += 3;
+        } else {
+          i += 2;
+        }
+        sizes.push({ lines: parseInt(t1, 10), columns: parseInt(t2, 10), name: name });
+      } else {
+        i++;
+      }
+    }
+    return sizes;
+  }
+
+  function serializeDisplaySizes(sizes) {
+    return sizes
+      .map(function (s) {
+        return s.name ? s.lines + ' ' + s.columns + ' ' + s.name : s.lines + ' ' + s.columns;
+      })
+      .join(' ');
+  }
+
+  /** Same shape as getRecordLineRange, but for a single stand-alone
+   *  file-level keyword (no record/field container to anchor on - see
+   *  dspfParser.ts's fileKeywords). */
+  function getFileKeywordLineRange(keyword) {
+    var lines = keyword.sourceLines || [];
+    var min = lines.length ? lines[0] : 1;
+    var max = lines.length ? lines[lines.length - 1] : min;
+    (keyword.conditions || []).forEach(function (g) {
+      (g.sourceLines || []).forEach(function (ln) {
+        if (ln < min) min = ln;
+        if (ln > max) max = ln;
+      });
+    });
+    return [min, max];
+  }
+
+  /** Serializes ONE unconditioned file-level keyword (DSPSIZ never carries
+   *  its own conditioning in practice - it's what OTHER conditions test
+   *  against, see DdsDisplaySizeCondition) as its own line(s), positional
+   *  columns 1-44 blank apart from the original/default sequence+form
+   *  prefix, keyword text starting in the function area (col 45+). Mirrors
+   *  serializeRecordEntry's unconditioned-keyword path minus the R-line. */
+  function serializeFileKeywordEntry(keyword, originalLine1to6) {
+    var text = keyword.parameters ? keyword.name + '(' + keyword.parameters + ')' : keyword.name;
+    var posChars = new Array(44).fill(' ');
+    var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : '     A', 6);
+    for (var i = 0; i < 6; i++) posChars[i] = seqForm[i];
+    var posCols = posChars.join('');
+    var funcLines = serializeFunctionAreaLines(text);
+    var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+    return [firstLine].concat(funcLines.slice(1));
+  }
+
+  /**
+   * Adds a second DSPSIZ size to a file, writing a brand-new DSPSIZ keyword
+   * if none exists yet, or replacing the existing one if it currently
+   * declares just one. Throws if it already declares two - DDS's DSPSIZ
+   * keyword never supports more than that, so there's no third size to add.
+   *
+   * `newSize` is `{ lines, columns, name }` - `name` is the qualifier
+   * (e.g. "*DS4") the new size will be selectable by; defaults to "*DS4"
+   * since that's the conventional "large" companion to "*DS3". DDS requires
+   * a name on every size once there's more than one (so conditions/toggles
+   * can address either one) - if the file's existing single size has no
+   * name of its own (a plain `DSPSIZ(24 80)`), it's given the conventional
+   * "*DS3" here so both sizes end up addressable. A file with no DSPSIZ at
+   * all is treated as an implicit, unqualified 24x80 default (DDS's own
+   * fallback - see DEFAULT_LINES/DEFAULT_COLUMNS in dspfEngine.js) before
+   * the same "name the first one *DS3" step runs.
+   *
+   * Only handles the file level - a record-level DSPSIZ override (rare,
+   * see screenLinesForRecord's precedence note) is left alone; callers
+   * wanting to add a size to one of those can pass a record's own keywords
+   * array through the same shape this reads from dspfFile.fileKeywords.
+   */
+  function addDisplaySize(dspfFile, sourceLines, newSize) {
+    if (!newSize || !(newSize.lines > 0) || !(newSize.columns > 0)) {
+      throw new Error('addDisplaySize requires newSize.lines and newSize.columns to be positive numbers.');
+    }
+    var newName = newSize.name || '*DS4';
+
+    var existing = (dspfFile.fileKeywords || []).find(function (k) {
+      return k.name === 'DSPSIZ';
+    });
+    var sizes = existing ? parseDisplaySizeTriples(existing.parameters) : [];
+    if (sizes.length === 0) {
+      sizes = [{ lines: 24, columns: 80, name: null }];
+    }
+    if (sizes.length >= 2) {
+      throw new Error('DSPSIZ already declares two sizes - DDS does not support a third.');
+    }
+    if (!sizes[0].name) {
+      sizes[0] = { lines: sizes[0].lines, columns: sizes[0].columns, name: '*DS3' };
+    }
+    var allSizes = sizes.concat([{ lines: newSize.lines, columns: newSize.columns, name: newName }]);
+    var newKeyword = { name: 'DSPSIZ', parameters: serializeDisplaySizes(allSizes) };
+
+    if (existing) {
+      var range = getFileKeywordLineRange(existing);
+      var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
+      var originalLine1to6 = (originalRangeLines[0] || '').slice(0, 6);
+      var newLines = serializeFileKeywordEntry(newKeyword, originalLine1to6);
+      newLines = restampSequenceNumbers(newLines, originalRangeLines);
+      return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
+    }
+
+    // No DSPSIZ keyword exists yet - insert a brand-new one. File-level
+    // keywords always precede every record (see dspfParser.ts), so anchor
+    // after the last existing one if there is one, else right before the
+    // first record, else at the very top for a record-less file.
+    var insertAfterLine = 0;
+    (dspfFile.fileKeywords || []).forEach(function (k) {
+      var r = getFileKeywordLineRange(k);
+      if (r[1] > insertAfterLine) insertAfterLine = r[1];
+    });
+    if (insertAfterLine === 0 && dspfFile.records && dspfFile.records.length > 0) {
+      insertAfterLine = getRecordLineRange(dspfFile.records[0])[0] - 1;
+    }
+    var brandNewLines = serializeFileKeywordEntry(newKeyword, '     A');
+    return sourceLines.slice(0, insertAfterLine).concat(brandNewLines, sourceLines.slice(insertAfterLine));
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
@@ -699,5 +850,7 @@
     applyRecordUpdate: applyRecordUpdate,
     renameRecordFormat: renameRecordFormat,
     renameRecordReferences: renameRecordReferences,
+    getFileKeywordLineRange: getFileKeywordLineRange,
+    addDisplaySize: addDisplaySize,
   };
 });

@@ -6,6 +6,20 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.20] - Unreleased
 
 ### Added
+- **`DspfWriter.addDisplaySize()`** - the writer action called out in the
+  README's known limitations: the size picker could only switch BETWEEN
+  sizes a file already declared via `DSPSIZ`, with no way to add a second
+  one to a single-size (or no-`DSPSIZ`) file. Shared between the DSPF and
+  Menu designers (both already call into `dspfWriter.js`), since DDS's
+  `DSPSIZ` keyword works identically in either file type and supports at
+  most two sizes. Replaces an existing single-size `DSPSIZ` line in place;
+  writes a brand-new one (anchored before the first record) when the file
+  declares none at all; names a previously-unqualified single size `*DS3`
+  so both sizes stay addressable (DDS requires a name once there's more
+  than one); and throws rather than writing an invalid third size. Covered
+  by 5 new cases in `dspfWriter.test.js`. UI wiring (an "Add size" action
+  in the size-picker row) is not included yet - this is the backend
+  primitive the README specifically flagged as missing.
 - **Menu designer's Commands panel now works for IFS streamfiles**, not
   just remote source members and local files. A MNUDDS opened as an IFS
   streamfile through Code for i (`streamfile:` scheme) previously reported
