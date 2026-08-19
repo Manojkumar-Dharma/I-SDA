@@ -700,7 +700,8 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     html += keywordEditorHtml(field.keywords);
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
-    html += '<div class="delete-hint">Press Delete or Backspace to remove this field.</div>';
+    html += '<button id="p-copy" class="secondary" style="width:100%;margin-top:8px;">Copy ' + (isConstant ? 'constant' : 'field') + '</button>';
+    html += '<div class="delete-hint">Press Delete or Backspace to remove this field. Press Ctrl+D to copy it.</div>';
     propsBody.innerHTML = html;
     if (!editable) return;
 
@@ -720,6 +721,7 @@ const htmlTemplate = `<!DOCTYPE html>
       }
       commitEdit(ownerRecordName, field, updates);
     });
+    document.getElementById('p-copy').addEventListener('click', () => commitCopy(ownerRecordName, field));
     wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }));
   }
 
@@ -832,6 +834,26 @@ const htmlTemplate = `<!DOCTYPE html>
     );
   }
 
+  // Duplicates the selected field/constant via DspfWriter.copyField (default
+  // placement: one row below, same column - the same "drag it into place
+  // afterward" expectation insertField's own doc comment sets). The copy
+  // always lands at the bottom of the record's field array (insertField's
+  // placement rule), so it's picked back up the same way regardless of
+  // whether it's a named field or an unnamed constant, then selected so the
+  // user can immediately drag it where it actually belongs.
+  function commitCopy(recordName, field) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+    commitSourceChange(
+      (lines) => DspfWriter.copyField(rec, lines, field, {}),
+      () => {
+        const freshRec = model.records.find((r) => r.name === recordName);
+        const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
+        selectedKey = newField ? { sourceLine: newField.sourceLine } : null;
+      }
+    );
+  }
+
   function commitEdit(recordName, field, updates) {
     commitSourceChange(
       (lines) => DspfWriter.applyFieldUpdate(field, lines, updates),
@@ -912,12 +934,16 @@ const htmlTemplate = `<!DOCTYPE html>
     );
   }
 
-  // Delete/Backspace deletes the currently-selected field or constant.
-  // Guarded against firing while typing in ANY text input/select in the
-  // props panel (Backspace while editing a Name/Length/etc. field must not
-  // also delete the field it's attached to) and against firing mid-drag.
+  // Delete/Backspace deletes the currently-selected field or constant;
+  // Ctrl+D (Cmd+D on macOS) copies it - same guards as delete (not while
+  // typing in a props-panel input, not mid-drag). Ctrl+D is the OS/browser's
+  // own "bookmark this page" shortcut, but there's no bookmark bar inside a
+  // VS Code webview for it to conflict with, so it's safe to claim here the
+  // same way Delete/Backspace already are.
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+    const isCopyShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd';
+    const isDeleteShortcut = e.key === 'Delete' || e.key === 'Backspace';
+    if (!isCopyShortcut && !isDeleteShortcut) return;
     if (dragState) return;
     const tag = (e.target && e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -925,7 +951,8 @@ const htmlTemplate = `<!DOCTYPE html>
     const found = findFieldBySourceLine(selectedKey.sourceLine);
     if (!found) return;
     e.preventDefault();
-    commitDelete(found.field);
+    if (isCopyShortcut) commitCopy(found.record.name, found.field);
+    else commitDelete(found.field);
   });
 
   window.addEventListener('message', (event) => {

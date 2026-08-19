@@ -151,9 +151,14 @@ requested first.
 
 #### Common (shared engine/writer - do these once, not twice)
 
-1. **Copy field/constant** - no `copyField`-style primitive exists yet in
-   `dspfWriter.js`; both designers need it (DSPF: copy within/across
-   records; Menu: duplicating an option's constant shape).
+1. ~~**Copy field/constant**~~ - **done** (0.9.20): `DspfWriter.copyField`
+   duplicates a field/constant (keywords/conditions/length/type included),
+   auto-generating a distinct name for named fields (`nextAvailableFieldName`)
+   since constants have none to collide on. Wired into the DSPF designer's
+   Properties panel (Copy button + Ctrl+D) - the copy lands one row below
+   the original, selected and ready to drag into place. The writer
+   primitive is generic enough for the menu designer to reuse for
+   duplicating an option's constant(s), but that UI wiring isn't done yet.
 2. **Create / copy / delete whole record formats** - `dspfWriter.js` has no
    record-insert or record-delete primitive at all today, only
    `applyRecordUpdate`/`renameRecordFormat` for an *existing* record's own

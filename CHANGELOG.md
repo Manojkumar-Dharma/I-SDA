@@ -25,6 +25,36 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   an existing sibling is picked up and reports `'loaded'`; and the
   remaining-unsupported case is re-verified against `untitled:` instead of
   `streamfile:`, since the latter is now a supported scheme.
+- **Copy field/constant**, from the Aug 2026 SDA-parity audit's Common
+  backlog (item 1 - "build once, both webviews benefit"). New
+  `DspfWriter.copyField(record, sourceLines, field, options)` primitive:
+  duplicates a field or constant with its length/type/decimals/usage/
+  keywords/conditions intact, via the existing `insertField` placement
+  rule (appended at the bottom of the record's field list). A named
+  `FIELD` needs a distinct name - DDS doesn't allow two same-named fields
+  in one record format - so a new `nextAvailableFieldName(record,
+  baseName)` helper generates one (`CUSTNAME` -> `CUSTNAME2` ->
+  `CUSTNAME3`, truncating to stay within the 10-char DDS name limit); a
+  `CONSTANT` copies straight across since it has no name to collide on.
+  `options.name`/`options.location` let a caller override either; the
+  default location is one row below the original, same column - a
+  starting point to drag from, not a placement guarantee (no collision/
+  bounds checking, consistent with `insertField` itself).
+  Wired into the DSPF designer's Properties panel: a "Copy field"/"Copy
+  constant" button next to Apply changes, plus a Ctrl+D (Cmd+D on macOS)
+  keyboard shortcut alongside the existing Delete/Backspace handler (same
+  guards: not while typing in a props-panel input, not mid-drag). The
+  copy is selected immediately after so it can be dragged into place. The
+  menu designer doesn't consume this yet (duplicating an option means
+  copying its number-marker *and* label constants together with a fresh
+  option number, not a single field/constant copy) - left as future work,
+  noted in the backlog.
+  Tests: `dspfWriter.test.js` covers `copyField` directly (named-field
+  auto-naming, explicit name/location overrides, back-to-back copies not
+  colliding with each other, constant copying, and
+  `nextAvailableFieldName`'s truncation); `dspfWebview.test.js` runs the
+  actual generated client-side script in jsdom to cover the Copy button,
+  the Ctrl+D shortcut, and the input-guard against firing while typing.
 
 ### Fixed
 Investigated 5 issues reported against a real production DDS file,

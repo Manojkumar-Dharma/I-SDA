@@ -686,12 +686,84 @@
     return result;
   }
 
+  /**
+   * Picks a field name that isn't already used by any field in `record`,
+   * starting from `baseName` with a numeric suffix (baseNAME2, baseNAME3,
+   * ...) - truncating baseName as needed to stay within DDS's 10-char field
+   * name limit. Scoped to `record.fields` only, same "caller's/UI's
+   * responsibility" stance as elsewhere in this file (e.g. deleteField's
+   * doc comment) - doesn't scan other record formats in the file for a
+   * same-named field, since DDS doesn't actually forbid that (field names
+   * are scoped per record format, not file-wide) and I-SDA has no
+   * cross-record model reference to check against here anyway.
+   */
+  function nextAvailableFieldName(record, baseName) {
+    var MAX_LEN = 10;
+    var used = {};
+    (record.fields || []).forEach(function (f) {
+      if (f.name) used[f.name.toUpperCase()] = true;
+    });
+    var n = 2;
+    while (true) {
+      var suffix = String(n);
+      var truncated = String(baseName || 'FLD').slice(0, Math.max(1, MAX_LEN - suffix.length));
+      var candidate = (truncated + suffix).toUpperCase();
+      if (!used[candidate]) return candidate;
+      n++;
+    }
+  }
+
+  /**
+   * Duplicates a field or constant into the same record: a new DDS entry
+   * with the same length/type/decimals/usage/keywords/conditions, appended
+   * at the bottom of the record's field list via insertField (same
+   * placement rule - drag it afterward to where it actually belongs on
+   * screen). A CONSTANT is copied as-is (constants have no name, so no
+   * collision is possible). A named FIELD needs a distinct name - DDS
+   * doesn't allow two same-named fields in one record format - so unless
+   * the caller passes `options.name` explicitly, one is generated via
+   * nextAvailableFieldName; the copy can always be renamed afterward from
+   * the Properties panel like any other field.
+   *
+   * `options.location` overrides where the copy lands (defaults to one row
+   * below the original, same column - purely a starting point the user
+   * repositions by dragging; no collision/bounds checking is done here,
+   * same as insertField itself).
+   */
+  function copyField(record, sourceLines, field, options) {
+    options = options || {};
+    var isNamedField = field.nameType === 'FIELD' && !!field.name;
+    var name = isNamedField ? (options.name || nextAvailableFieldName(record, field.name)) : '';
+    var location = options.location || {
+      line: field.location.line != null ? field.location.line + 1 : null,
+      column: field.location.column,
+    };
+    var newField = {
+      nameType: field.nameType,
+      name: name,
+      constantValue: field.constantValue,
+      length: field.length,
+      dataType: field.dataType,
+      decimalPositions: field.decimalPositions,
+      usage: field.usage,
+      isReference: field.isReference,
+      location: location,
+      keywords: (field.keywords || []).map(function (k) {
+        return { name: k.name, parameters: k.parameters, conditions: k.conditions || [], raw: '', sourceLines: [] };
+      }),
+      conditions: field.conditions || [],
+    };
+    return insertField(record, sourceLines, newField);
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
     serializeFieldEntry: serializeFieldEntry,
     applyFieldUpdate: applyFieldUpdate,
     insertField: insertField,
+    copyField: copyField,
+    nextAvailableFieldName: nextAvailableFieldName,
     deleteField: deleteField,
     deleteFields: deleteFields,
     getRecordLineRange: getRecordLineRange,
