@@ -114,6 +114,19 @@ const htmlTemplate = `<!DOCTYPE html>
     padding: 6px 8px; margin-bottom: 6px; font-size: 12px; cursor: pointer;
   }
   .help-entry-row:hover { border-color: var(--accent); }
+  .field-order-row {
+    display: flex; align-items: center; gap: 6px; background: #0d1310;
+    border: 1px solid var(--panel-border); border-radius: 3px;
+    padding: 4px 6px; margin-bottom: 4px; font-size: 12px;
+  }
+  .field-order-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .field-order-row button {
+    width: 22px; height: 22px; padding: 0; font-size: 12px; line-height: 1;
+    border: 1px solid var(--panel-border); background: var(--panel); color: var(--ink);
+    border-radius: 3px; cursor: pointer;
+  }
+  .field-order-row button:disabled { opacity: 0.35; cursor: default; }
+  .field-order-row button:not(:disabled):hover { border-color: var(--accent); }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 16px 0 8px; }
   .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
   .compare-toggle input { accent-color: var(--warn); }
@@ -137,6 +150,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div id="indicatorList"></div>
   <div class="section-label">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
+  <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
 </aside>
 <main>
   <div class="screen-frame"><div id="screenOutput"></div></div>
@@ -157,6 +171,7 @@ const htmlTemplate = `<!DOCTYPE html>
   let model = DspfParser.parseDspf(sourceText);
   let selectedKey = null;
   let selectedHelpSourceLine = null;
+  let showFileProps = false; // file-level (fileKeywords) view of the Properties panel, independent of any record/field/help selection
   let suppressNextExternalUpdate = false;
   let activePulldown = null; // { pulldownRecord, line, col, choiceKey } - simulates a clicked menu-bar choice
   let pulldownCloserAttached = false;
@@ -178,11 +193,20 @@ const htmlTemplate = `<!DOCTYPE html>
   const sizeSelectRow = document.getElementById('sizeSelectRow');
   const sizeSelect = document.getElementById('sizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
+  const fileAttrsBtn = document.getElementById('fileAttrsBtn');
+
+  fileAttrsBtn.addEventListener('click', () => {
+    showFileProps = true;
+    selectedKey = null;
+    selectedHelpSourceLine = null;
+    renderProps(recordSelect.value);
+  });
 
   previewRowsToggle.addEventListener('change', () => {
     previewMultipleRows = previewRowsToggle.checked;
     selectedKey = null;
     selectedHelpSourceLine = null;
+    showFileProps = false;
     render();
   });
 
@@ -190,6 +214,7 @@ const htmlTemplate = `<!DOCTYPE html>
     selectedSizeIndex = parseInt(sizeSelect.value, 10) || 0;
     selectedKey = null;
     selectedHelpSourceLine = null;
+    showFileProps = false;
     render();
   });
 
@@ -202,6 +227,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     selectedKey = null;
     selectedHelpSourceLine = null;
+    showFileProps = false;
     activePulldown = null;
     render();
   });
@@ -213,6 +239,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (e.target === screenOutput || (e.target.classList && e.target.classList.contains('dspf-screen'))) {
       selectedKey = null;
       selectedHelpSourceLine = null;
+      showFileProps = false;
       render();
     }
   });
@@ -434,7 +461,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const isEditableSflPreviewRow = tag.indexOf('subfile-edit-row-') === 0;
       const ownerRecord = model.records.find((r) => r.name === ownerRecordName);
 
-      el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; selectedHelpSourceLine = null; render(); });
+      el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; selectedHelpSourceLine = null; showFileProps = false; render(); });
       el.addEventListener('mousedown', (e) => {
         if (!editable) return;
         e.preventDefault();
@@ -664,9 +691,37 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function renderProps(recordName) {
+    if (showFileProps) { renderFileProps(); return; }
     if (selectedKey) { renderFieldProps(recordName); return; }
     if (selectedHelpSourceLine != null) { renderHelpProps(recordName); return; }
     renderRecordProps(recordName);
+  }
+
+  /**
+   * File-level keywords (DSPSIZ, REF, CAxx, INDARA, PRINT, etc.) - the ones
+   * that apply to the whole display file rather than any one record
+   * format. Reuses the same generic keyword-chip editor every other panel
+   * uses (keywordEditorHtml/wireKeywordEditor), applying immediately on
+   * add/remove via DspfWriter.applyFileUpdate - same "no separate Apply
+   * button, keywords commit themselves" pattern the Record and Help-entry
+   * panels already use (they have nothing else to Apply either).
+   */
+  function renderFileProps() {
+    let html = '<button id="p-file-back" class="secondary" style="width:100%;margin-bottom:12px;">&larr; Back to record</button>';
+    html += '<div class="section-label">File-level attributes</div>';
+    html += '<div class="status" style="margin-bottom:12px;">Keywords for the whole display file (DSPSIZ, REF, CAxx, INDARA, PRINT, etc.) - not tied to any one record format.</div>';
+    html += keywordEditorHtml(model.fileKeywords);
+    propsBody.innerHTML = html;
+
+    document.getElementById('p-file-back').addEventListener('click', () => {
+      showFileProps = false;
+      renderProps(recordSelect.value);
+    });
+    wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
+  }
+
+  function commitFileEdit(newKeywords) {
+    commitSourceChange((lines) => DspfWriter.applyFileUpdate(model, lines, { keywords: newKeywords }));
   }
 
   function renderFieldProps(recordName) {
@@ -735,6 +790,46 @@ const htmlTemplate = `<!DOCTYPE html>
     return html;
   }
 
+  /**
+   * Lists a record's fields/constants in their current DDS SOURCE order
+   * (top-to-bottom in the file - unrelated to their on-screen row/col,
+   * which this never touches), with Up/Down buttons to move one earlier
+   * or later in that order via DspfWriter.reorderFields. This IS the
+   * "stable sort key convention" the backlog note asked for: explicit,
+   * user-driven source order, one swap at a time - simpler and less
+   * error-prone than a full drag-and-drop reorder for a feature explicitly
+   * called low-priority/UI-only.
+   */
+  function fieldOrderListHtml(rec) {
+    if (!rec.fields || rec.fields.length < 2) return '';
+    let html = '<div class="section-label">Field order (source)</div>';
+    html += '<div id="p-field-order">';
+    rec.fields.forEach((f, idx) => {
+      const rawLabel = f.nameType === 'CONSTANT' ? (f.constantValue || '(constant)') : (f.name || '(field)');
+      const label = rawLabel.length > 26 ? rawLabel.slice(0, 26) + '…' : rawLabel;
+      html += '<div class="field-order-row" data-idx="' + idx + '">' +
+        '<span class="field-order-label" title="' + DspfEngine.escapeHtml(rawLabel) + '">' + DspfEngine.escapeHtml(label) + '</span>' +
+        '<button class="field-order-up" data-idx="' + idx + '" ' + (idx === 0 ? 'disabled' : '') + ' title="Move earlier in source order">&uarr;</button>' +
+        '<button class="field-order-down" data-idx="' + idx + '" ' + (idx === rec.fields.length - 1 ? 'disabled' : '') + ' title="Move later in source order">&darr;</button>' +
+        '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  /** Swaps the field at idx with its neighbor (idx+delta) in source order and commits via DspfWriter.reorderFields. */
+  function moveField(recordName, idx, delta) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+    const newIdx = idx + delta;
+    if (newIdx < 0 || newIdx >= rec.fields.length) return;
+    const order = rec.fields.map((f) => f.sourceLine);
+    const tmp = order[idx];
+    order[idx] = order[newIdx];
+    order[newIdx] = tmp;
+    commitSourceChange((lines) => DspfWriter.reorderFields(rec, lines, order));
+  }
+
   function renderRecordProps(recordName) {
     const rec = model.records.find((r) => r.name === recordName);
     if (!rec) { propsBody.innerHTML = '<div class="empty-state">No record selected.</div>'; return; }
@@ -747,6 +842,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
     html += keywordEditorHtml(rec.keywords);
     html += helpEntriesListHtml(rec);
+    html += fieldOrderListHtml(rec);
     propsBody.innerHTML = html;
 
     document.getElementById('p-record-rename').addEventListener('click', () => commitRecordRename(recordName));
@@ -756,6 +852,13 @@ const htmlTemplate = `<!DOCTYPE html>
         selectedHelpSourceLine = parseInt(el.getAttribute('data-source-line'), 10);
         renderProps(recordName);
       });
+    });
+
+    propsBody.querySelectorAll('.field-order-up').forEach((el) => {
+      el.addEventListener('click', () => moveField(recordName, parseInt(el.getAttribute('data-idx'), 10), -1));
+    });
+    propsBody.querySelectorAll('.field-order-down').forEach((el) => {
+      el.addEventListener('click', () => moveField(recordName, parseInt(el.getAttribute('data-idx'), 10), 1));
     });
 
     if (!editable) return;
@@ -966,7 +1069,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   });
 
-  recordSelect.addEventListener('change', () => { selectedKey = null; selectedHelpSourceLine = null; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; render(); });
+  recordSelect.addEventListener('change', () => { selectedKey = null; selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; render(); });
 
   render();
   vscode.postMessage({ type: 'ready' });

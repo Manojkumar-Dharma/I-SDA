@@ -3,7 +3,49 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.20] - Unreleased
+## [0.9.21] - Unreleased
+
+### Added
+- **File-level attributes panel** (DSPF designer). New
+  `DspfWriter.applyFileUpdate(dspfFile, sourceLines, updates)` writer
+  primitive - structurally the same "whole entity's keywords in, whole
+  entity's lines out" shape `applyRecordUpdate` already uses, just without
+  a name/positional line to preserve (a file has no such anchor when it
+  has zero file-level keywords yet, handled the same "no existing entry to
+  splice against" way `insertField` handles an empty record: the new
+  lines go at the very top of the file instead). A new "File attributes"
+  button in the sidebar opens a file-level keyword view in the Properties
+  panel, reusing the same keyword-chip editor every other panel already
+  has (add/remove commits immediately, no separate Apply button - same
+  pattern the Record and Help-entry panels use). `fileKeywords` (DSPSIZ,
+  REF, CAxx, INDARA, PRINT, etc.) were already parsed but had no UI at all
+  until now. The menu designer's sidebar doesn't get this view yet - noted
+  as remaining work in the README, same as Copy field/constant's
+  menu-designer gap from 0.9.20.
+- **Sort elements within a record** (DSPF designer): a record's
+  fields/constants can now be reordered in the DDS *source* (top-to-bottom
+  file order - not their on-screen row/col, which this never touches).
+  New `DspfWriter.reorderFields(record, sourceLines, orderedSourceLines)`
+  primitive moves each field's own physical lines as a whole verbatim
+  chunk (never regenerates them, so nothing about an individual field's
+  content changes) into the requested order; throws rather than silently
+  dropping a field if the given order isn't exactly a permutation of the
+  record's current fields. Any `HELP` entries interleaved among the
+  fields keep their own relative slot in the sequence rather than being
+  reordered themselves - a caller reordering fields has no reason to
+  expect help entries to move too. The "stable sort key convention" the
+  backlog note asked for: explicit source order, changed one swap at a
+  time via new Up/Down buttons in a "Field order (source)" list in the
+  Record properties panel - deliberately simpler than drag-and-drop for a
+  feature already flagged low-priority/UI-only.
+  Tests: `dspfWriter.test.js` covers both primitives directly (no-file-
+  keywords-yet, editing in place, clearing removes the block entirely,
+  HELP-entry interleaving, rejecting a bad permutation);
+  `dspfWebview.test.js` runs the actual generated client-side script in
+  jsdom to cover the File attributes button/panel/Back-to-record flow and
+  the Field order Up/Down buttons reordering the real DDS source text.
+
+## [0.9.20]
 
 ### Added
 - **Menu designer's Commands panel now works for IFS streamfiles**, not

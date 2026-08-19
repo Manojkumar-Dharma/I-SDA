@@ -9,6 +9,7 @@
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+const { buildLine } = require('../fixtures/lineBuilder');
 
 let failures = 0;
 function check(label, condition) {
@@ -167,6 +168,112 @@ console.log('\nDspfWriter.nextAvailableFieldName() - truncates to stay within th
   const name = DspfWriter.nextAvailableFieldName(record, 'LONGFLDNAME');
   check('name stays within 10 characters', name.length <= 10);
   check("truncates the base and appends '2'", name === 'LONGFLDNA2');
+}
+
+console.log('\nDspfWriter.applyFileUpdate() - adding a keyword when the file has none yet');
+{
+  const src = [buildLine({ seq: '00010', nameType: 'R', name: 'SCREEN1' }), buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" })].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  check('setup: no file-level keywords yet', model.fileKeywords.length === 0);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.applyFileUpdate(model, lines, {
+    keywords: [{ name: 'INDARA', parameters: '', conditions: [] }],
+  });
+  check('INDARA lands at the very top of the file, before the record', /^\s*A\s+INDARA/.test(newLines[0]));
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('reparses with the new file keyword', reparsed.fileKeywords.some((k) => k.name === 'INDARA'));
+  check('the record and its field are untouched', reparsed.records[0].name === 'SCREEN1' && reparsed.records[0].fields[0].constantValue === 'Hi');
+}
+
+console.log('\nDspfWriter.applyFileUpdate() - editing existing file keywords in place');
+{
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', func: 'INDARA' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'SCREEN1' }),
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  check('setup: two file-level keywords parsed', model.fileKeywords.length === 2);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.applyFileUpdate(model, lines, {
+    keywords: [{ name: 'DSPSIZ', parameters: '24 80 *DS3', conditions: [] }, { name: 'PRINT', parameters: '', conditions: [] }],
+  });
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('DSPSIZ preserved', reparsed.fileKeywords.some((k) => k.name === 'DSPSIZ' && k.parameters === '24 80 *DS3'));
+  check('INDARA removed, PRINT added', !reparsed.fileKeywords.some((k) => k.name === 'INDARA') && reparsed.fileKeywords.some((k) => k.name === 'PRINT'));
+  check('the record itself is untouched', reparsed.records[0].name === 'SCREEN1');
+}
+
+console.log('\nDspfWriter.applyFileUpdate() - clearing all keywords removes the block entirely, not just blanks it');
+{
+  const src = [buildLine({ seq: '00010', func: 'INDARA' }), buildLine({ seq: '00020', nameType: 'R', name: 'SCREEN1' })].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.applyFileUpdate(model, lines, { keywords: [] });
+  const nonBlank = newLines.filter((l) => l.trim().length > 0);
+  check('no dangling blank line left behind - only the record line remains', nonBlank.length === 1 && /R\s+SCREEN1/.test(nonBlank[0]));
+}
+
+console.log('\nDspfWriter.reorderFields() - swaps two fields\' source order, content moves as whole verbatim chunks');
+{
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCREEN1' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'First'" }),
+      buildLine({ seq: '00030', line: '2', col: '2', func: "'Second'" }),
+      buildLine({ seq: '00040', line: '3', col: '2', func: "'Third'" }),
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'SCREEN1');
+  const [first, second, third] = record.fields;
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.reorderFields(record, lines, [second.sourceLine, first.sourceLine, third.sourceLine]);
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const texts = reparsed.records[0].fields.map((f) => f.constantValue);
+  check('fields now appear in the requested order', texts[0] === 'Second' && texts[1] === 'First' && texts[2] === 'Third');
+  check('each field kept its original row/col (only source order changed, not layout)', reparsed.records[0].fields[0].location.line === 2 && reparsed.records[0].fields[1].location.line === 1);
+}
+
+console.log('\nDspfWriter.reorderFields() - a HELP entry interleaved between fields keeps its own slot, is not reordered itself');
+{
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCREEN1' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'First'" }),
+      buildLine({ seq: '00030', nameType: 'H', func: 'HELP(01)' }),
+      buildLine({ seq: '00040', line: '2', col: '2', func: "'Second'" }),
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'SCREEN1');
+  check('setup: one help entry parsed, interleaved between two fields', record.helpEntries.length === 1 && record.fields.length === 2);
+  const [first, second] = record.fields;
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.reorderFields(record, lines, [second.sourceLine, first.sourceLine]);
+  check('the HELP keyword line is still present, untouched', newLines.some((l) => /HELP\(01\)/.test(l)));
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('fields reordered correctly around the untouched help entry', reparsed.records[0].fields.map((f) => f.constantValue).join(',') === 'Second,First');
+  check('help entry count/content unaffected', reparsed.records[0].helpEntries.length === 1);
+}
+
+console.log('\nDspfWriter.reorderFields() - rejects an order that is not exactly a permutation of the current fields');
+{
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCREEN1' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'First'" }),
+      buildLine({ seq: '00030', line: '2', col: '2', func: "'Second'" }),
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'SCREEN1');
+  const lines = src.split(/\r\n|\r|\n/);
+  let threw = false;
+  try {
+    DspfWriter.reorderFields(record, lines, [record.fields[0].sourceLine]); // missing the second field
+  } catch (e) {
+    threw = true;
+  }
+  check('throws rather than silently dropping a field', threw);
 }
 
 console.log('\nDspfWriter.renameRecordFormat() - renames the R-line, preserves everything else');

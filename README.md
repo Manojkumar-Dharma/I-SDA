@@ -174,10 +174,25 @@ requested first.
    to the record being previewed, active/inactive styling) - a pure
    `dspfEngine.js` resolution addition (file-level + record-level keys +
    current indicator state), rendered by both preview surfaces.
-6. **File-level attributes panel** - `fileKeywords` are parsed but never
-   shown or editable in either webview's sidebar today.
-7. **Sort elements** within a record (constants/fields reordering) - low
-   priority; UI-only once a stable sort key convention is picked.
+6. ~~**File-level attributes panel**~~ - **done** (0.9.21, DSPF designer
+   only): new `DspfWriter.applyFileUpdate(dspfFile, sourceLines, updates)`
+   writer primitive (structurally the same "whole entity's keywords in,
+   lines out" shape `applyRecordUpdate` uses, minus a name/positional
+   line) plus a "File attributes" button in the sidebar opening a
+   file-level keyword view in the Properties panel, using the same
+   keyword-chip editor every other panel already has. The menu designer's
+   sidebar doesn't have this yet - noted as remaining work, same as
+   Copy field/constant's menu-designer gap above.
+7. ~~**Sort elements**~~ - **done** (0.9.21, DSPF designer only): new
+   `DspfWriter.reorderFields(record, sourceLines, orderedSourceLines)`
+   moves whole verbatim field/constant chunks around in source order
+   without regenerating them (any interleaved HELP entries keep their own
+   slot in the sequence, untouched). The "stable sort key convention"
+   picked: explicit DDS source order, changed one swap at a time via
+   Up/Down buttons in a new "Field order (source)" list in the Record
+   properties panel - simpler than drag-and-drop for a feature already
+   flagged low-priority/UI-only. Doesn't touch on-screen row/col at all,
+   only which order fields appear in the file.
 
 #### Display (DSPF) designer only
 

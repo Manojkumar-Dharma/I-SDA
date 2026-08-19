@@ -428,6 +428,116 @@
     });
   }
 
+  // ---------------------------------------------------------------------
+  // FILE-level keywords: the bare keyword-only lines (DSPSIZ, REF, CAxx,
+  // INDARA, PRINT, etc.) that appear before the first record format's own
+  // R-line. Structurally identical to a record's own unconditioned/
+  // conditioned keyword lines (serializeRecordEntry) minus the R-name
+  // positional line a record always has as an anchor - a file has no such
+  // anchor when it has zero file-level keywords yet, so that "nothing
+  // there yet" case needs its own branch (inserted at the very top of the
+  // file) the way insertField needs one for "record with no fields yet".
+  // ---------------------------------------------------------------------
+
+  /** Returns [firstLine, lastLine] the file's own keyword-only lines span, or null if there are none yet. */
+  function getFileKeywordsLineRange(dspfFile) {
+    var lines = [];
+    (dspfFile.fileKeywords || []).forEach(function (k) {
+      (k.sourceLines || []).forEach(function (ln) { lines.push(ln); });
+      (k.conditions || []).forEach(function (g) {
+        (g.sourceLines || []).forEach(function (ln) { lines.push(ln); });
+      });
+    });
+    if (lines.length === 0) return null;
+    return [Math.min.apply(null, lines), Math.max.apply(null, lines)];
+  }
+
+  function serializeFileEntry(keywords) {
+    var unconditioned = (keywords || []).filter(function (k) { return !k.conditions || k.conditions.length === 0; });
+    var conditioned = (keywords || []).filter(function (k) { return k.conditions && k.conditions.length > 0; });
+    var lines = [];
+    if (unconditioned.length > 0) {
+      lines = lines.concat(serializeFunctionAreaLines(buildRecordFunctionAreaText(unconditioned)));
+    }
+    groupKeywordsByCondition(conditioned).forEach(function (g) {
+      lines = lines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, null));
+    });
+    return lines;
+  }
+
+  /**
+   * Applies `updates` (currently just { keywords }) to the file's own
+   * keyword-only lines - the same "whole entity's worth of keywords in,
+   * whole entity's worth of lines out" shape applyRecordUpdate uses, just
+   * without a name/positional line to preserve. An empty resulting
+   * `keywords` array removes the block entirely rather than leaving a
+   * dangling blank 'A' line behind.
+   */
+  function applyFileUpdate(dspfFile, sourceLines, updates) {
+    var keywords = updates.keywords !== undefined ? updates.keywords : dspfFile.fileKeywords;
+    var newLines = serializeFileEntry(keywords);
+    var range = getFileKeywordsLineRange(dspfFile);
+    if (range) {
+      return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
+    }
+    // No file-level keywords existed yet - nothing to anchor a splice on,
+    // so the new lines go at the very top of the file, same "no existing
+    // entry to anchor to" reasoning insertField uses for an empty record.
+    return newLines.concat(sourceLines);
+  }
+
+  /**
+   * Reorders a record's fields/constants in the DDS source (their top-to-
+   * bottom source order - not their on-screen row/col, which is unrelated
+   * and untouched here). `orderedSourceLines` must be exactly the record's
+   * current field sourceLines, permuted into the desired order; each
+   * field's own physical lines are moved as a whole verbatim chunk (not
+   * regenerated), so nothing about an individual field's content changes,
+   * only which chunk comes before which.
+   *
+   * Any HELP entries interleaved among the fields keep their own relative
+   * SLOT in the sequence (the Nth non-help entry in source order becomes
+   * whatever field orderedSourceLines says goes in that Nth slot) rather
+   * than being reordered themselves or getting shuffled out of position -
+   * a caller reordering fields has no reason to expect help entries to
+   * move too.
+   */
+  function reorderFields(record, sourceLines, orderedSourceLines) {
+    var fieldEntries = (record.fields || []).map(function (f) {
+      return { type: 'field', item: f, range: getFieldLineRange(f) };
+    });
+    var helpEntries = (record.helpEntries || []).map(function (h) {
+      return { type: 'help', item: h, range: getFieldLineRange(h) };
+    });
+    var all = fieldEntries.concat(helpEntries).sort(function (a, b) { return a.range[0] - b.range[0]; });
+    if (all.length === 0) return sourceLines;
+
+    var providedSet = {};
+    (orderedSourceLines || []).forEach(function (ln) { providedSet[ln] = true; });
+    var sameSize = (orderedSourceLines || []).length === fieldEntries.length;
+    var sameMembers = sameSize && fieldEntries.every(function (e) { return providedSet[e.item.sourceLine]; });
+    if (!sameSize || !sameMembers) {
+      throw new Error("reorderFields: orderedSourceLines must be exactly the record's current field/constant source lines, reordered.");
+    }
+
+    var minStart = Math.min.apply(null, all.map(function (e) { return e.range[0]; }));
+    var maxEnd = Math.max.apply(null, all.map(function (e) { return e.range[1]; }));
+
+    var chunkByLine = {};
+    all.forEach(function (e) {
+      chunkByLine[e.item.sourceLine] = sourceLines.slice(e.range[0] - 1, e.range[1]);
+    });
+
+    var fieldQueue = orderedSourceLines.slice();
+    var resultChunks = [];
+    all.forEach(function (e) {
+      var chunk = e.type === 'field' ? chunkByLine[fieldQueue.shift()] : chunkByLine[e.item.sourceLine];
+      resultChunks = resultChunks.concat(chunk);
+    });
+
+    return sourceLines.slice(0, minStart - 1).concat(resultChunks, sourceLines.slice(maxEnd));
+  }
+
   function applyRecordUpdate(record, sourceLines, updates) {
     var updated = {
       name: record.name,
@@ -771,5 +881,8 @@
     applyRecordUpdate: applyRecordUpdate,
     renameRecordFormat: renameRecordFormat,
     renameRecordReferences: renameRecordReferences,
+    getFileKeywordsLineRange: getFileKeywordsLineRange,
+    applyFileUpdate: applyFileUpdate,
+    reorderFields: reorderFields,
   };
 });

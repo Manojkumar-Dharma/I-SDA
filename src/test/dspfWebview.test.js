@@ -353,6 +353,76 @@ function runCopyFieldScenario() {
       check('no applyEdit posted while Ctrl+D fires from inside a text input', !posted.some((m) => m.type === 'applyEdit'));
     }
 
+    runFileAttrsScenario();
+  }, 0);
+}
+
+function runFileAttrsScenario() {
+  console.log('\nFile attributes panel and field-order Up/Down');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', line: '1', col: '2', func: "'First'" }),
+      buildLine({ seq: '00040', line: '2', col: '2', func: "'Second'" }),
+      buildLine({ seq: '00050', line: '3', col: '2', func: "'Third'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'ATTRSTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  File attributes button opens the file-level keyword panel');
+    check('setup: no field/record is selected yet, so the record panel (with rename) shows by default', doc.getElementById('p-record-name') !== null);
+    const fileAttrsBtn = doc.getElementById('fileAttrsBtn');
+    check('setup: the File attributes button exists in the sidebar', !!fileAttrsBtn);
+    fileAttrsBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('switches the props panel to the file-level view', doc.getElementById('p-file-back') !== null);
+    check('shows the existing DSPSIZ keyword as a chip', /DSPSIZ/.test(doc.getElementById('p-keywords').textContent));
+    check('no record-level Name/rename input in this view', doc.getElementById('p-record-name') === null);
+
+    console.log('  adding a file-level keyword via the shared keyword editor');
+    doc.getElementById('p-new-kw-name').value = 'INDARA';
+    doc.getElementById('p-add-kw').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts applyEdit adding INDARA', applyEdit && /INDARA/.test(applyEdit.text));
+    check('DSPSIZ is preserved alongside it', applyEdit && /DSPSIZ\(24 80 \*DS3\)/.test(applyEdit.text));
+    check('stays in the file-level view after committing (does not bounce back to record view)', doc.getElementById('p-file-back') !== null);
+
+    console.log('  Back to record returns to the record-level view');
+    doc.getElementById('p-file-back').dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows the record panel again', doc.getElementById('p-record-name') !== null);
+
+    console.log('  Field order: Up/Down buttons reorder fields in the DDS source');
+    let rows = Array.from(doc.querySelectorAll('.field-order-row'));
+    check('setup: three field-order rows shown, in source order', rows.length === 3 && /First/.test(rows[0].textContent) && /Second/.test(rows[1].textContent) && /Third/.test(rows[2].textContent));
+    check('the first row\'s Up button is disabled (already first)', rows[0].querySelector('.field-order-up').disabled);
+    check('the last row\'s Down button is disabled (already last)', rows[2].querySelector('.field-order-down').disabled);
+
+    posted.length = 0;
+    rows[1].querySelector('.field-order-up').dispatchEvent(new Event('click', { bubbles: true })); // move "Second" up, ahead of "First"
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts applyEdit after moving a field up', !!applyEdit);
+    const secondIdx = applyEdit ? applyEdit.text.indexOf('Second') : -1;
+    const firstIdx = applyEdit ? applyEdit.text.indexOf('First') : -1;
+    check('Second now appears before First in the source text', secondIdx >= 0 && firstIdx >= 0 && secondIdx < firstIdx);
+
+    rows = Array.from(doc.querySelectorAll('.field-order-row'));
+    check('the on-screen list reflects the new order too', rows.length === 3 && /Second/.test(rows[0].textContent) && /First/.test(rows[1].textContent) && /Third/.test(rows[2].textContent));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
