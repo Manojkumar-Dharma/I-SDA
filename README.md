@@ -150,15 +150,17 @@ only make sense in one context. Within each list, roughly highest-value/most
 requested first. (Completed items from this audit - command keys, the
 function-key legend, indicator conditioning (both entity-level and now
 per-keyword), copy field/constant, Add Display Size, the file-attributes
-panel (now in both designers), and sort elements - have moved to
+panel (now in both designers), sort elements, and whole-record
+create/copy/delete (writer primitives + DSPF designer UI) - have moved to
 CHANGELOG.md rather than staying listed here as limitations.)
 
 #### Common (shared engine/writer - do these once, not twice)
 
-1. **Create / copy / delete whole record formats** - `dspfWriter.js` has no
-   record-insert or record-delete primitive at all today, only
-   `applyRecordUpdate`/`renameRecordFormat` for an *existing* record's own
-   keywords/name.
+1. **Menu designer still lacks a whole-record create/copy/delete UI** -
+   `DspfWriter.insertRecord`/`copyRecord`/`deleteRecord` already exist and
+   are wired into the DSPF designer's sidebar/Properties panel; the menu
+   designer has no equivalent entry point yet, even though the same
+   primitives would work as-is.
 
 #### Display (DSPF) designer only
 
@@ -199,8 +201,8 @@ CHANGELOG.md rather than staying listed here as limitations.)
 1. **"Create New Menu"** equivalent to "Create New Display File" - still
    needs an existing MNUDDS member (+ paired commands member) created some
    other way; would need to generate both together.
-2. Everything under **Common** above (create/copy/delete whole record
-   formats) applies equally here once built.
+2. Everything under **Common** above (whole-record create/copy/delete UI)
+   applies equally here once built.
 
 ## License
 

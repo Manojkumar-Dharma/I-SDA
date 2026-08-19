@@ -155,6 +155,11 @@ const htmlTemplate = `<!DOCTYPE html>
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
+  <div class="rename-row" style="margin-top:6px;">
+    <input type="text" class="rename-input" id="newRecordName" placeholder="New record name" maxlength="10" />
+    <button class="rename-btn" id="newRecordBtn">+ Add record</button>
+  </div>
+  <div class="rename-error" id="newRecordError"></div>
   <div class="field-row hidden" id="sizeSelectRow"><label>Screen size</label><select id="sizeSelect"></select></div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Compare multiple formats (read-only)</label>
@@ -213,12 +218,49 @@ const htmlTemplate = `<!DOCTYPE html>
   const fileAttrsBtn = document.getElementById('fileAttrsBtn');
   const fileCommandKeysEl = document.getElementById('fileCommandKeys');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
+  const newRecordName = document.getElementById('newRecordName');
+  const newRecordBtn = document.getElementById('newRecordBtn');
+  const newRecordError = document.getElementById('newRecordError');
 
   fileAttrsBtn.addEventListener('click', () => {
     showFileProps = true;
     selectedKey = null;
     selectedHelpSourceLine = null;
     renderProps(recordSelect.value);
+  });
+
+  // Creates a brand-new, empty record format (see DspfWriter.insertRecord's
+  // own doc comment for placement rules) and immediately selects it, same
+  // "land somewhere sensible, then let the user take it from there" spirit
+  // as commitCopy selecting a freshly-copied field. A name is required
+  // (unlike a field/constant copy, DDS record formats always have one) and
+  // must not already be used by another record in the file - checked here
+  // client-side against the CURRENT model rather than relying on the parser
+  // to reject a genuine duplicate R-line after the fact.
+  newRecordBtn.addEventListener('click', () => {
+    const name = newRecordName.value.trim().toUpperCase();
+    newRecordError.textContent = '';
+    if (!name) { newRecordError.textContent = 'Enter a name for the new record format.'; return; }
+    if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
+    if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
+    commitSourceChange(
+      (lines) => DspfWriter.insertRecord(model, lines, { name: name }),
+      () => {
+        newRecordName.value = '';
+        selectedKey = null;
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+      }
+    );
+    // Setting recordSelect.value to a name with no matching <option> yet is a
+    // silent no-op (it does NOT stick for rebuildRecordSelect to later pick up -
+    // see commitCopyRecord's own comment on this same gotcha), so this has to
+    // happen AFTER the commitSourceChange() call above returns - by then its own
+    // render() has already run once and genuinely created the new <option>.
+    if (model.records.some((r) => r.name === name)) {
+      recordSelect.value = name;
+      render();
+    }
   });
 
   previewRowsToggle.addEventListener('change', () => {
@@ -854,9 +896,13 @@ const htmlTemplate = `<!DOCTYPE html>
     html += WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
     html += helpEntriesListHtml(rec);
     html += fieldOrderListHtml(rec);
+    html += '<button id="p-record-copy" class="secondary" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled title="Multi-group or >3-indicator conditioning — copying this record is disabled to avoid corrupting it."') + '>Copy record</button>';
+    html += '<button id="p-record-delete" class="secondary" style="width:100%;margin-top:8px;color:var(--warn);">Delete record</button>';
     propsBody.innerHTML = html;
 
     document.getElementById('p-record-rename').addEventListener('click', () => commitRecordRename(recordName));
+    document.getElementById('p-record-copy').addEventListener('click', () => { if (editable) commitCopyRecord(recordName); });
+    document.getElementById('p-record-delete').addEventListener('click', () => commitDeleteRecord(recordName));
 
     propsBody.querySelectorAll('.help-entry-row').forEach((el) => {
       el.addEventListener('click', () => {
@@ -1029,12 +1075,83 @@ const htmlTemplate = `<!DOCTYPE html>
               '" - not one of the SFLCTL/WINDOW/MNUBARCHC shapes this can auto-fix. Review those manually.',
           });
         }
-        // Explicitly select the renamed record before render() re-derives its
-        // own idea of "current record" from recordSelect.value - render()'s own
-        // rebuildRecordSelect() call preserves whatever value is already set
-        // here (since newName now exists in the freshly-reparsed model),
-        // rather than falling back to the browser's default first-option pick.
-        recordSelect.value = newName;
+      }
+    );
+    // Setting recordSelect.value to newName here (before this commitSourceChange
+    // call has returned) would be a silent no-op - the <option> for newName
+    // doesn't exist until commitSourceChange's OWN render() call has rebuilt the
+    // dropdown, and assigning .value to a name with no matching <option> yet just
+    // leaves the select on whatever it already had selected instead of erroring
+    // or clearing (this previously only "worked" by coincidence in single-record
+    // files, where the freshly-rebuilt dropdown's own natural default happens to
+    // be its one remaining option). Has to happen out here, after the call above
+    // returns, same fix as commitCopyRecord/the "+ Add record" handler use.
+    if (model.records.some((r) => r.name === newName)) {
+      recordSelect.value = newName;
+      render();
+    }
+  }
+
+  // Duplicates the whole record via DspfWriter.copyRecord (own conditions/
+  // keywords + every field/constant/help entry, all under a fresh
+  // auto-generated name) and immediately selects the new record - same
+  // "land somewhere sensible, then let the user pick it up from there"
+  // spirit as commitCopy for a single field.
+  function commitCopyRecord(recordName) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+    let copiedName = null;
+    commitSourceChange(
+      (lines) => {
+        copiedName = DspfWriter.nextAvailableRecordName(model, rec.name);
+        return DspfWriter.copyRecord(model, lines, rec, { name: copiedName });
+      },
+      () => {
+        selectedKey = null;
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+      }
+    );
+    // Same gotcha as "+ Add record" above: recordSelect.value only "sticks" once
+    // the new <option> genuinely exists, which only happens after commitSourceChange's
+    // OWN render() call above has already run - so this has to happen out here,
+    // after that call returns, not inside the afterReparse callback passed into it.
+    if (copiedName && model.records.some((r) => r.name === copiedName)) {
+      recordSelect.value = copiedName;
+      render();
+    }
+  }
+
+  // No confirmation prompt - same "it's a normal WorkspaceEdit, Ctrl+Z
+  // undoes it" stance commitDelete already takes for a single field, just
+  // one level up. Doesn't scan for other keywords elsewhere in the file
+  // that might reference this record by name (SFLCTL/WINDOW/MNUBARCHC) -
+  // unlike a rename, there's no sensible auto-fix target for a deleted
+  // record's references, so this is the same "advisory scan only" gap
+  // commitDelete's own doc comment already documents for a deleted field;
+  // a genuinely thorough warning here would need the same
+  // findLikelyNameReferences-style scan run against the record's own name.
+  // After deletion, falls back to whichever record recordSelect's own
+  // rebuild picks as the new first option (or the empty-file state if that
+  // was the last record in the file).
+  function commitDeleteRecord(recordName) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+    const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, rec.name, DspfWriter.getFullRecordLineRange(rec));
+    commitSourceChange(
+      (lines) => DspfWriter.deleteRecord(rec, lines),
+      () => {
+        selectedKey = null;
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+        if (references.length > 0) {
+          vscode.postMessage({
+            type: 'error',
+            message:
+              'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + rec.name +
+              '" (e.g. SFLCTL, WINDOW, MNUBARCHC) - deleting a record never rewrites other keywords that reference it. Review those manually.',
+          });
+        }
       }
     );
   }
