@@ -3,6 +3,23 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.24] - Unreleased
+
+### Changed
+- **README's "Known limitations" section pruned to pending items only.**
+  Reviewed every entry against the actual code (command keys, the
+  function-key legend, indicator conditioning, `copyField`,
+  `addDisplaySize`, the file-attributes panel, and `reorderFields` all
+  verified as genuinely implemented and wired into the UI - not just
+  claimed) and removed the completed ones rather than leaving them
+  struck through; that history now lives only in CHANGELOG.md, where it
+  was already recorded in full. What remains in the README: whole-record
+  create/copy/delete, per-keyword indicator conditioning, the menu
+  designer's still-missing file-attributes/copy-field panels, and the
+  unchanged DSPF/menu-designer-only lists (window resize handles,
+  `CNTFLD(n)` wrapping, "Create New Menu", etc.) - all re-checked against
+  the code and still accurate as of this version.
+
 ## [0.9.23] - Unreleased
 
 ### Added

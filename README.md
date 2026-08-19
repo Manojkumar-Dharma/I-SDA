@@ -147,91 +147,27 @@ Audited against a full SDA-parity feature list. Split into **Common**
 (engine/writer work in `dspfEngine.js` / `dspfWriter.js` that both designers
 share - build once, both webviews benefit) and designer-specific gaps that
 only make sense in one context. Within each list, roughly highest-value/most
-requested first.
-
-#### Done (Aug 2026 - indicators & CAxx/CFxx pass)
-
-- **Assign command keys (CAxx/CFxx)**, at both file level and per-record,
-  with cross-scope exclusion (a key number used at one level is greyed out
-  at the other, and switching a key's type CA&harr;CF never leaves a
-  duplicate) - `DspfWriter.setCommandKey`/`removeCommandKey`/
-  `availableCommandKeyNumbers`, with a matching panel in both the DSPF and
-  menu designer sidebars.
-- **File-level keyword editing** - `dspfWriter.js` had no way to rewrite the
-  file's own keyword block at all before this; `getFileKeywordsLineRange`/
-  `applyFileKeywordsUpdate` now handle it (including inserting a fresh
-  block when a file has none yet). Currently only surfaced through the
-  Command keys panel, not a general file-attributes editor - see
-  "File-level attributes panel" below, now a smaller remaining gap.
-- **Function-key legend** - `DspfEngine.resolveFunctionKeyLegend` merges
-  file-level + record-level CAxx/CFxx (record wins on a shared number),
-  rendered as an F-key strip above the preview in both designers, active
-  (solid) styling driven by whichever indicators are currently simulated.
-- **Field/constant/record indicator conditioning UI** - `field.conditions`
-  and `record.conditions` were previously silently *ignored* by
-  `applyFieldUpdate`/`applyRecordUpdate` even though the parser/writer
-  round-tripped them correctly; both now accept a `conditions` update, and
-  a shared editor (add/remove OR'd groups, AND'd indicators up to DDS's
-  9-per-entity limit, NOT flag per indicator) is wired into the DSPF
-  designer's field and record Properties panels.
-- **Indicator conditioning UI for menu options** - a menu option is a DDS
-  constant under the hood, so it conditions the same way; each option row
-  has a "Conditioning" toggle using the same shared editor, applied to
-  both the option's number marker and its label text together so the
-  whole option shows/hides as one unit.
-- Scope cut made deliberately: this pass conditions the **entity itself**
-  (a field, constant, or record's own conditioning), not an individual
-  **keyword** on it (e.g. conditioning just one `DSPATR` while other
-  keywords on the same field stay unconditional). That per-keyword case
-  is real DDS and still has no UI - noted below.
+requested first. (Completed items from this audit - command keys, the
+function-key legend, indicator conditioning, copy field/constant, Add
+Display Size, the file-attributes panel, and sort elements - have moved to
+CHANGELOG.md rather than staying listed here as limitations.)
 
 #### Common (shared engine/writer - do these once, not twice)
 
-1. ~~**Copy field/constant**~~ - **done** (0.9.20): `DspfWriter.copyField`
-   duplicates a field/constant (keywords/conditions/length/type included),
-   auto-generating a distinct name for named fields (`nextAvailableFieldName`)
-   since constants have none to collide on. Wired into the DSPF designer's
-   Properties panel (Copy button + Ctrl+D) - the copy lands one row below
-   the original, selected and ready to drag into place. The writer
-   primitive is generic enough for the menu designer to reuse for
-   duplicating an option's constant(s), but that UI wiring isn't done yet.
-2. **Create / copy / delete whole record formats** - `dspfWriter.js` has no
+1. **Create / copy / delete whole record formats** - `dspfWriter.js` has no
    record-insert or record-delete primitive at all today, only
    `applyRecordUpdate`/`renameRecordFormat` for an *existing* record's own
    keywords/name.
-3. **Add Display Size (\*DS3/\*DS4)** - the size picker only switches
-   between sizes a file *already* declares (`DSPSIZ`); there's no "add a
-   second size to a single-size file" writer action. Shared DSPSIZ
-   parsing/writing, useful for both file types.
-4. ~~**File-level attributes panel**~~ - **done** (0.9.23, DSPF designer
-   only): a new "File attributes" button in the sidebar opens a file-level
-   keyword view in the Properties panel, reusing the same keyword-chip
-   editor every other panel already has (add/remove commits immediately,
-   same pattern the Record and Help-entry panels use) - built on top of
-   the `getFileKeywordsLineRange`/`applyFileKeywordsUpdate` primitives
-   from the command-keys pass above, rather than a separate primitive.
-   `fileKeywords` (`DSPSIZ`, `REF`, `PRINT`, etc.) were already parsed but
-   had no general-purpose UI until now; command keys (`CAxx`/`CFxx`) stay
-   on their own dedicated panel since that has purpose-built add/remove
-   controls the generic keyword editor doesn't. The menu designer's
-   sidebar doesn't have this view yet - noted as remaining work, same as
-   Copy field/constant's menu-designer gap above.
-5. ~~**Sort elements**~~ - **done** (0.9.23, DSPF designer only): new
-   `DspfWriter.reorderFields(record, sourceLines, orderedSourceLines)`
-   moves whole verbatim field/constant chunks around in source order
-   without regenerating them (any interleaved HELP entries keep their own
-   slot in the sequence, untouched). The "stable sort key convention"
-   picked: explicit DDS source order, changed one swap at a time via
-   Up/Down buttons in a new "Field order (source)" list in the Record
-   properties panel - simpler than drag-and-drop for a feature already
-   flagged low-priority/UI-only. Doesn't touch on-screen row/col at all,
-   only which order fields appear in the file.
-6. **Per-keyword indicator conditioning** - conditioning a single keyword
+2. **Per-keyword indicator conditioning** - conditioning a single keyword
    (e.g. one `DSPATR` or `COLOR` among several on the same field) rather
-   than the whole field/constant/record - see the scope-cut note above.
-   The parser/writer already round-trip `keyword.conditions` correctly;
-   only the UI is missing, and the shared conditions editor built for the
-   entity-level case above should mostly just need a second mount point.
+   than the whole field/constant/record. The parser/writer already
+   round-trip `keyword.conditions` correctly; only the UI is missing, and
+   the shared conditions editor built for the entity-level case (see
+   CHANGELOG) should mostly just need a second mount point.
+3. **Menu designer still lacks two panels the DSPF designer already has**:
+   a file-attributes view (`fileKeywords` editor) and Copy field/constant
+   UI (the `DspfWriter.copyField` primitive is generic enough to reuse for
+   an option's constant, but that wiring isn't done).
 
 #### Display (DSPF) designer only
 
@@ -272,9 +208,9 @@ requested first.
 1. **"Create New Menu"** equivalent to "Create New Display File" - still
    needs an existing MNUDDS member (+ paired commands member) created some
    other way; would need to generate both together.
-2. Everything under **Common** above (copy option/constant, create/copy/
-   delete records, Add Display Size, per-keyword conditioning, etc.)
-   applies equally here once built.
+2. Everything under **Common** above (create/copy/delete records,
+   per-keyword conditioning, the file-attributes/copy-field panels) applies
+   equally here once built.
 
 ## License
 
