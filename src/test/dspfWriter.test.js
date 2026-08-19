@@ -84,6 +84,92 @@ console.log('\nDspfWriter.insertField() - long label wraps with continuation, ro
   check('the wrapped constant reparses back to the exact original text', fields[1].constantValue === longLabel);
 }
 
+console.log('\nDspfWriter.copyField() - named field: auto-generates a distinct name, copies length/type/keywords, defaults to one row below');
+{
+  const src =
+    [
+      "     A                                      DSPSIZ(24 80 *DS3)",
+      "     A          R SCREEN1",
+      "     A            CUSTNAME      30A  B 10 15",
+      "     A                                      DSPATR(HI)",
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'SCREEN1');
+  const field = record.fields[0];
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.copyField(record, lines, field, {});
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const fields = reparsed.records.find((r) => r.name === 'SCREEN1').fields;
+  check('adds exactly one new field', fields.length === 2);
+  check('original field untouched', fields[0].name === 'CUSTNAME' && fields[0].location.line === 10 && fields[0].location.column === 15);
+  check("copy gets an auto-generated distinct name ('CUSTNAME2', within the 10-char limit)", fields[1].name === 'CUSTNAME2');
+  check('copy keeps the same length/type/usage', fields[1].length === 30 && fields[1].dataType === 'A' && fields[1].usage === 'B');
+  check('copy keeps the same keywords', fields[1].keywords.length === 1 && fields[1].keywords[0].name === 'DSPATR' && fields[1].keywords[0].parameters === 'HI');
+  check('copy defaults to one row below the original, same column', fields[1].location.line === 11 && fields[1].location.column === 15);
+}
+
+console.log('\nDspfWriter.copyField() - explicit name/location override the defaults');
+{
+  const src = ["     A          R SCREEN1", "     A            CUSTNAME      30A  B 10 15"].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'SCREEN1');
+  const field = record.fields[0];
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.copyField(record, lines, field, { name: 'CUSTNM2', location: { line: 20, column: 40 } });
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const fields = reparsed.records.find((r) => r.name === 'SCREEN1').fields;
+  check('uses the explicit name instead of auto-generating one', fields[1].name === 'CUSTNM2');
+  check('uses the explicit location instead of the default offset', fields[1].location.line === 20 && fields[1].location.column === 40);
+}
+
+console.log('\nDspfWriter.copyField() - copying twice avoids colliding with the first copy too');
+{
+  const src = ["     A          R SCREEN1", "     A            CUSTNAME      30A  B 10 15"].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'SCREEN1');
+  const field = record.fields[0];
+  let lines = src.split(/\r\n|\r|\n/);
+  lines = DspfWriter.copyField(record, lines, field, {});
+  let reparsed = DspfParser.parseDspf(lines.join('\n'));
+  let rec2 = reparsed.records.find((r) => r.name === 'SCREEN1');
+  lines = DspfWriter.copyField(rec2, lines, rec2.fields[0], {});
+  reparsed = DspfParser.parseDspf(lines.join('\n'));
+  const names = reparsed.records.find((r) => r.name === 'SCREEN1').fields.map((f) => f.name);
+  check('second copy gets a different auto-generated name than the first (CUSTNAME3, not CUSTNAME2 again)', names[0] === 'CUSTNAME' && names[1] === 'CUSTNAME2' && names[2] === 'CUSTNAME3');
+}
+
+console.log('\nDspfWriter.copyField() - constant: no name to collide, copies literal text and keywords as-is');
+{
+  const src =
+    [
+      "     A          R MENU",
+      "     A                                  3  5'1. Display library list'",
+      "     A                                      DSPATR(HI)",
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'MENU');
+  const field = record.fields[0];
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.copyField(record, lines, field, {});
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const fields = reparsed.records.find((r) => r.name === 'MENU').fields;
+  check('adds exactly one new field', fields.length === 2);
+  check('copy has no name (constants never do)', fields[1].name === '');
+  check('copy keeps the exact literal text', fields[1].constantValue === '1. Display library list');
+  check('copy keeps the DSPATR keyword', fields[1].keywords.length === 1 && fields[1].keywords[0].name === 'DSPATR');
+  check('copy defaults to one row below, same column', fields[1].location.line === 4 && fields[1].location.column === 5);
+}
+
+console.log('\nDspfWriter.nextAvailableFieldName() - truncates to stay within the 10-char DDS field name limit');
+{
+  const src = ["     A          R SCREEN1", "     A            LONGFLDNAME  10A  B  1  1"].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'SCREEN1');
+  const name = DspfWriter.nextAvailableFieldName(record, 'LONGFLDNAME');
+  check('name stays within 10 characters', name.length <= 10);
+  check("truncates the base and appends '2'", name === 'LONGFLDNA2');
+}
+
 console.log('\nDspfWriter.renameRecordFormat() - renames the R-line, preserves everything else');
 {
   const src =

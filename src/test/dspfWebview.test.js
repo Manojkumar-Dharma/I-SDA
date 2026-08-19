@@ -280,6 +280,79 @@ function runConstantTextEditScenario() {
     check('the old text is gone', applyEdit && !applyEdit.text.includes('Old text'));
     check('the screen re-renders showing the new text', Array.from(doc.querySelectorAll('.dspf-field')).some((el) => el.textContent.includes("It's updated")));
 
+    runCopyFieldScenario();
+  }, 0);
+}
+
+function runCopyFieldScenario() {
+  console.log('\ncopying a field via the Copy button, and a constant via Ctrl+D');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'CUSTNAME', length: '30', dataType: 'A', usage: 'B', line: '10', col: '15', func: 'DSPATR(HI)' }),
+      buildLine({ seq: '00030', line: '3', col: '5', func: "'Some label'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce6', src, 'COPYTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event, KeyboardEvent } = dom.window;
+
+    console.log('  Copy button on a named field');
+    const fieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME'));
+    check('setup: the target field is present', !!fieldEl);
+    fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
+    check('selecting it shows the Copy button', doc.getElementById('p-copy') !== null);
+
+    const beforeCount = doc.querySelectorAll('.dspf-field').length;
+    doc.getElementById('p-copy').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts applyEdit after clicking Copy', !!applyEdit);
+    check('the copy gets an auto-generated distinct name', applyEdit && /CUSTNAME2/.test(applyEdit.text));
+    check('the original field is untouched', applyEdit && /CUSTNAME\s+30A/.test(applyEdit.text));
+    check('the copy keeps the DSPATR keyword', applyEdit && (applyEdit.text.match(/DSPATR\(HI\)/g) || []).length === 2);
+    check('the screen re-renders with one more field', doc.querySelectorAll('.dspf-field').length === beforeCount + 1);
+    check('the new copy is selected (Name input shows the auto-generated name)', doc.getElementById('p-name') && doc.getElementById('p-name').value === 'CUSTNAME2');
+
+    console.log('  Ctrl+D on a constant');
+    posted.length = 0;
+    const constantEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('Some label'));
+    check('setup: the target constant is present', !!constantEl);
+    constantEl.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const beforeCount2 = doc.querySelectorAll('.dspf-field').length;
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true, cancelable: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts applyEdit after Ctrl+D', !!applyEdit);
+    check('the constant text is duplicated (appears twice)', applyEdit && (applyEdit.text.match(/Some label/g) || []).length === 2);
+    check('the screen re-renders with one more field', doc.querySelectorAll('.dspf-field').length === beforeCount2 + 1);
+
+    console.log('  Ctrl+D while typing in a text input must NOT copy the selected field');
+    posted.length = 0;
+    // Re-select a named field (the constant selected above has no #p-name -
+    // its props panel only has #p-const-text) so there's a text input to
+    // type Ctrl+D from.
+    const namedFieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME'));
+    namedFieldEl.dispatchEvent(new Event('click', { bubbles: true }));
+    const nameInput = doc.getElementById('p-name');
+    check('setup: the props panel has a Name input to type into', !!nameInput);
+    if (nameInput) {
+      nameInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true, cancelable: true }));
+      check('no applyEdit posted while Ctrl+D fires from inside a text input', !posted.some((m) => m.type === 'applyEdit'));
+    }
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
