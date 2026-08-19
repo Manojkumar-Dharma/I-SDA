@@ -3,6 +3,55 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.25] - Unreleased
+
+### Added
+- **Whole record format create/copy/delete** - the README's own "Common
+  backlog" item #1: `dspfWriter.js` previously had no way to insert or
+  remove a whole record format, only `applyRecordUpdate`/`renameRecordFormat`
+  for an *existing* record's own keywords/name. Adds `insertRecord` (a
+  brand-new, empty record, always appended after the last existing one -
+  or after the file-level keyword block, or at the very top of a genuinely
+  empty file), `copyRecord` (duplicates a record's own conditions/keywords
+  AND every field/constant/help entry it owns, verbatim, under a fresh
+  auto-generated name, inserted directly after the original), and
+  `deleteRecord` (removes a record's entire physical footprint - its own
+  header/keyword lines plus every field/constant/help line it contains).
+  `getFullRecordLineRange` and `nextAvailableRecordName` are the two new
+  supporting primitives (mirroring `nextAvailableFieldName`'s existing
+  10-char-DDS-name-limit convention, just scoped file-wide instead of
+  per-record). Covered by a new block of cases in `dspfWriter.test.js`
+  (empty files, last-record edge cases, name collisions/truncation) plus a
+  full jsdom scenario in `dspfWebview.test.js`.
+- **DSPF designer UI**: a "+ Add record" inline form next to the record
+  picker, and "Copy record"/"Delete record" buttons in the record
+  Properties panel, wired to the primitives above. Copy record is disabled
+  (same as every other record-editing action) when the record's own
+  conditioning is too complex to safely reserialize
+  (`DspfWriter.isEditable`); Delete record isn't, since it only slices out
+  a line range rather than regenerating anything. Neither auto-fixes
+  cross-references elsewhere in the file (`SFLCTL`/`WINDOW`/`MNUBARCHC`) -
+  Delete only warns, using the same advisory scan Delete field already
+  relies on.
+
+### Fixed
+- **Selecting a record right after creating/copying/renaming it silently
+  picked the wrong one** whenever the file had more than one record format.
+  `recordSelect.value = someNewName` is a silent no-op when that `<option>`
+  doesn't exist in the DOM yet (rather than clearing the selection or
+  erroring) - and the code was setting it inside `commitSourceChange`'s
+  `afterReparse` callback, which runs *before* that same call's own
+  `render()` has rebuilt the dropdown's actual `<option>` list. In a
+  single-record file this went unnoticed (a freshly-rebuilt `<select>`
+  with exactly one `<option>` auto-selects it regardless of what `.value`
+  was set to beforehand), which is exactly why the existing rename test
+  never caught it. Fixed in all three places (`renameRecordFormat`'s
+  commit function - the pre-existing case - plus the two new
+  copy/create-record handlers above) by moving the `.value` assignment to
+  after `commitSourceChange` returns (when the option genuinely exists)
+  and re-rendering once more. Added a regression test using a genuine
+  multi-record file, which fails without the fix.
+
 ## [0.9.24] - Unreleased
 
 ### Changed

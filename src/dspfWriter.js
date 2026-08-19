@@ -1126,6 +1126,139 @@
     return insertField(record, sourceLines, newField);
   }
 
+  // ---------------------------------------------------------------------
+  // Whole record formats: create / copy / delete. Everything above this
+  // point (applyRecordUpdate, renameRecordFormat) only ever touches a
+  // record format's OWN header/keyword lines (getRecordLineRange) - never
+  // its fields. Creating, copying, or deleting a whole record needs a
+  // range that includes every field/constant/help entry belonging to it
+  // too (getFullRecordLineRange), since those physically follow the
+  // record's own R-line in the source and have to move/disappear/get
+  // duplicated together with it.
+  // ---------------------------------------------------------------------
+
+  /** Same as getRecordLineRange, but widened to also cover every field, constant,
+   *  and help entry that belongs to the record - i.e. the record's ENTIRE physical
+   *  footprint in the source, not just its own header/keyword lines. */
+  function getFullRecordLineRange(record) {
+    var range = getRecordLineRange(record);
+    var min = range[0];
+    var max = range[1];
+    (record.fields || []).concat(record.helpEntries || []).forEach(function (f) {
+      var r = getFieldLineRange(f);
+      if (r[0] < min) min = r[0];
+      if (r[1] > max) max = r[1];
+    });
+    return [min, max];
+  }
+
+  /**
+   * Picks a record format name that isn't already used by any record in
+   * `dspfFile`, starting from `baseName` with a numeric suffix (baseNAME2,
+   * baseNAME3, ...) - same convention (and same 10-char DDS name limit) as
+   * nextAvailableFieldName, just scoped to record names (file-wide, unlike
+   * field names which are scoped per record format) instead of field names.
+   */
+  function nextAvailableRecordName(dspfFile, baseName) {
+    var MAX_LEN = 10;
+    var used = {};
+    (dspfFile.records || []).forEach(function (r) {
+      if (r.name) used[r.name.toUpperCase()] = true;
+    });
+    var n = 2;
+    while (true) {
+      var suffix = String(n);
+      var truncated = String(baseName || 'REC').slice(0, Math.max(1, MAX_LEN - suffix.length));
+      var candidate = (truncated + suffix).toUpperCase();
+      if (!used[candidate]) return candidate;
+      n++;
+    }
+  }
+
+  /**
+   * Creates a brand-new, empty record format (no fields/constants yet -
+   * add those afterward with insertField, same two-step flow the menu
+   * designer's "+ Add option" already relies on for its own new
+   * constants). Always appended after the LAST existing record's entire
+   * footprint (getFullRecordLineRange, not just its own header) - same
+   * "always append, never guess mid-file position" placement rule
+   * insertField uses for fields within a record, just one level up. If
+   * the file has no records yet, it's placed after the file-level
+   * keywords block (or at the very top if there's none of those either).
+   * `newRecord` needs at minimum `name`; `conditions`/`keywords` default
+   * to none, matching insertField's own defaults for a new field.
+   */
+  function insertRecord(dspfFile, sourceLines, newRecord) {
+    var records = dspfFile.records || [];
+    var insertAfterLine;
+    if (records.length > 0) {
+      var maxEnd = -Infinity;
+      records.forEach(function (r) {
+        var end = getFullRecordLineRange(r)[1];
+        if (end > maxEnd) maxEnd = end;
+      });
+      insertAfterLine = maxEnd;
+    } else {
+      var fileKwRange = getFileKeywordsLineRange(dspfFile);
+      insertAfterLine = fileKwRange ? fileKwRange[1] : 0;
+    }
+
+    var record = {
+      name: newRecord.name,
+      conditions: newRecord.conditions || [],
+      keywords: newRecord.keywords || [],
+    };
+    var newLines = serializeRecordEntry(record, '     A');
+    return sourceLines.slice(0, insertAfterLine).concat(newLines, sourceLines.slice(insertAfterLine));
+  }
+
+  /**
+   * Duplicates an entire record format - its own conditions/keywords AND
+   * every field/constant/help entry it contains - as a new record inserted
+   * directly after the original's full footprint (see
+   * getFullRecordLineRange), so the copy shows up right next to what it
+   * was copied from rather than at the bottom of the file. The record's
+   * own header/keyword lines are regenerated fresh (same as
+   * applyRecordUpdate/renameRecordFormat) since its NAME has to change -
+   * DDS doesn't allow two record formats with the same name in one file,
+   * so unless the caller passes `options.name` explicitly, one is
+   * generated via nextAvailableRecordName. Every field/constant/help line
+   * is copied byte-for-byte verbatim (not regenerated): field NAMES don't
+   * need to change, since DDS scopes field names per record format, not
+   * file-wide - a copy's fields keep exactly the same names as the
+   * original's, same as a fresh member starting from a template would.
+   */
+  function copyRecord(dspfFile, sourceLines, record, options) {
+    options = options || {};
+    var newName = options.name || nextAvailableRecordName(dspfFile, record.name);
+
+    var ownRange = getRecordLineRange(record);
+    var fullRange = getFullRecordLineRange(record);
+
+    var newHeaderLines = serializeRecordEntry({ name: newName, conditions: record.conditions, keywords: record.keywords }, '     A');
+    var fieldLines = sourceLines.slice(ownRange[1], fullRange[1]); // every field/constant/help line, copied verbatim
+    var newBlock = newHeaderLines.concat(fieldLines);
+
+    return sourceLines.slice(0, fullRange[1]).concat(newBlock, sourceLines.slice(fullRange[1]));
+  }
+
+  /**
+   * Removes an entire record format - its own header/keyword lines AND
+   * every field/constant/help entry belonging to it (getFullRecordLineRange)
+   * - leaving everything else byte-for-byte untouched. Same "caller's
+   * responsibility" stance as deleteField/renameRecordFormat for
+   * cross-references: doesn't scan for or warn about other keywords
+   * elsewhere in the file that might reference this record by name
+   * (SFLCTL(name), WINDOW(record-name), MNUBARCHC, a HELP record's own
+   * conditioning, etc.) - callers that care should scan first, the same
+   * way the menu webview's findLikelyNameReferences() already does before
+   * a rename.
+   */
+  function deleteRecord(record, sourceLines) {
+    var range = getFullRecordLineRange(record);
+    return sourceLines.slice(0, range[0] - 1).concat(sourceLines.slice(range[1]));
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
@@ -1137,10 +1270,15 @@
     deleteField: deleteField,
     deleteFields: deleteFields,
     getRecordLineRange: getRecordLineRange,
+    getFullRecordLineRange: getFullRecordLineRange,
     serializeRecordEntry: serializeRecordEntry,
     applyRecordUpdate: applyRecordUpdate,
     renameRecordFormat: renameRecordFormat,
     renameRecordReferences: renameRecordReferences,
+    nextAvailableRecordName: nextAvailableRecordName,
+    insertRecord: insertRecord,
+    copyRecord: copyRecord,
+    deleteRecord: deleteRecord,
     getFileKeywordLineRange: getFileKeywordLineRange,
     addDisplaySize: addDisplaySize,
     getFileKeywordsLineRange: getFileKeywordsLineRange,

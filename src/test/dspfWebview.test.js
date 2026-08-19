@@ -552,6 +552,92 @@ function runConditionsScenario() {
     doc.querySelector('.cond-group-remove[data-prefix="field"][data-group="0"]').dispatchEvent(new Event('click', { bubbles: true }));
     check('field is unconditioned again after removal', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
 
+    runRecordCrudScenario();
+  }, 0);
+}
+
+function runRecordCrudScenario() {
+  console.log('\nwhole-record create/copy/delete: "+ Add record" form, Copy record, Delete record buttons');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'MENU' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'MAIN MENU'" }),
+      buildLine({ seq: '00030', name: 'OPT', dataType: 'A', length: '2', usage: 'B', line: '3', col: '5' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'DETAIL' }),
+      buildLine({ seq: '00050', line: '1', col: '2', func: "'Detail'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce9', src, 'RECCRUD.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  "+ Add record" rejects an empty name without posting anything');
+    doc.getElementById('newRecordBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows an error for the empty name', /Enter a name/.test(doc.getElementById('newRecordError').textContent));
+    check('nothing was posted', posted.length === 0 || !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  "+ Add record" rejects a name that already exists');
+    doc.getElementById('newRecordName').value = 'MENU';
+    doc.getElementById('newRecordBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows a duplicate-name error', /already exists/.test(doc.getElementById('newRecordError').textContent));
+    check('still nothing posted', !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  "+ Add record" creates a new, empty record and selects it');
+    doc.getElementById('newRecordName').value = 'NEWSCR';
+    doc.getElementById('newRecordBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit containing the new record', last && last.type === 'applyEdit' && /R\s+NEWSCR/.test(last.text));
+    check('the new record is now selected in the picker', recordSelect.value === 'NEWSCR');
+    check('the input is cleared after a successful add', doc.getElementById('newRecordName').value === '');
+
+    console.log('  Copy record: switch to MENU, copy it, auto-named copy is selected');
+    recordSelect.value = 'MENU';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const copyBtn = doc.getElementById('p-record-copy');
+    check('setup: Copy record button is present and enabled', !!copyBtn && !copyBtn.disabled);
+    copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit containing the auto-named copy (MENU2)', last && last.type === 'applyEdit' && /R\s+MENU2/.test(last.text));
+    check("the copy's field (OPT) was carried over with the SAME name", /OPT/.test(last.text));
+    check('the original MENU record is still present and untouched', /R\s+MENU\b/.test(last.text) && /MAIN MENU/.test(last.text));
+    check('the new copy is now selected in the picker', recordSelect.value === 'MENU2');
+
+    console.log('  Delete record: delete DETAIL, picker no longer offers it');
+    recordSelect.value = 'DETAIL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById('p-record-delete').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('DETAIL is gone from the posted source', last && last.type === 'applyEdit' && !/R\s+DETAIL\b/.test(last.text));
+    check('DETAIL is no longer offered in the record picker', !Array.from(recordSelect.options).some((o) => o.value === 'DETAIL'));
+    check('every other record survives (MENU, MENU2, NEWSCR)', /R\s+MENU\b/.test(last.text) && /R\s+MENU2\b/.test(last.text) && /R\s+NEWSCR\b/.test(last.text));
+
+    console.log('  Rename regression check: renaming a record in a MULTI-record file selects the renamed one, not the alphabetically-first survivor');
+    // This is the case the old recordSelect.value-before-render() bug only ever
+    // showed up in - a single-record file "worked" by coincidence (a freshly
+    // rebuilt <select> with exactly one <option> auto-selects it regardless of
+    // what .value was set to beforehand). With MENU/MENU2/NEWSCR all present,
+    // renaming NEWSCR (last alphabetically) would previously have left MENU
+    // selected instead.
+    recordSelect.value = 'NEWSCR';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById('p-record-name').value = 'ZFINAL';
+    doc.getElementById('p-record-rename').dispatchEvent(new Event('click', { bubbles: true }));
+    check('the renamed record (ZFINAL), not some other survivor, is now selected', recordSelect.value === 'ZFINAL');
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

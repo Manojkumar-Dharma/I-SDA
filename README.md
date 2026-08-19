@@ -149,25 +149,24 @@ share - build once, both webviews benefit) and designer-specific gaps that
 only make sense in one context. Within each list, roughly highest-value/most
 requested first. (Completed items from this audit - command keys, the
 function-key legend, indicator conditioning, copy field/constant, Add
-Display Size, the file-attributes panel, and sort elements - have moved to
-CHANGELOG.md rather than staying listed here as limitations.)
+Display Size, the file-attributes panel, sort elements, and whole-record
+create/copy/delete - have moved to CHANGELOG.md rather than staying listed
+here as limitations.)
 
 #### Common (shared engine/writer - do these once, not twice)
 
-1. **Create / copy / delete whole record formats** - `dspfWriter.js` has no
-   record-insert or record-delete primitive at all today, only
-   `applyRecordUpdate`/`renameRecordFormat` for an *existing* record's own
-   keywords/name.
-2. **Per-keyword indicator conditioning** - conditioning a single keyword
+1. **Per-keyword indicator conditioning** - conditioning a single keyword
    (e.g. one `DSPATR` or `COLOR` among several on the same field) rather
    than the whole field/constant/record. The parser/writer already
    round-trip `keyword.conditions` correctly; only the UI is missing, and
    the shared conditions editor built for the entity-level case (see
    CHANGELOG) should mostly just need a second mount point.
-3. **Menu designer still lacks two panels the DSPF designer already has**:
-   a file-attributes view (`fileKeywords` editor) and Copy field/constant
-   UI (the `DspfWriter.copyField` primitive is generic enough to reuse for
-   an option's constant, but that wiring isn't done).
+2. **Menu designer still lacks panels the DSPF designer already has**:
+   a file-attributes view (`fileKeywords` editor), Copy field/constant UI
+   (the `DspfWriter.copyField` primitive is generic enough to reuse for an
+   option's constant, but that wiring isn't done), and whole-record
+   create/copy/delete (`DspfWriter.insertRecord`/`copyRecord`/`deleteRecord`
+   are all generic enough to reuse as-is, same story).
 
 #### Display (DSPF) designer only
 
@@ -208,9 +207,9 @@ CHANGELOG.md rather than staying listed here as limitations.)
 1. **"Create New Menu"** equivalent to "Create New Display File" - still
    needs an existing MNUDDS member (+ paired commands member) created some
    other way; would need to generate both together.
-2. Everything under **Common** above (create/copy/delete records,
-   per-keyword conditioning, the file-attributes/copy-field panels) applies
-   equally here once built.
+2. Everything under **Common** above (per-keyword conditioning, the
+   file-attributes/copy-field/record-CRUD panels) applies equally here once
+   built.
 
 ## License
 

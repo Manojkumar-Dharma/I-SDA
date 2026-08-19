@@ -572,5 +572,119 @@ console.log('\nDspfWriter.applyFieldUpdate() / applyRecordUpdate() - conditions 
   check("record.conditions was actually rewritten (applyRecordUpdate used to hardcode the record's ORIGINAL conditions)", reparsed2.records[0].conditions.length === 1 && reparsed2.records[0].conditions[0].indicators[0].number === '80');
 }
 
+console.log('\nDspfWriter.insertRecord() - creates a brand-new, empty record format');
+{
+  const { buildLine } = require('../fixtures/lineBuilder.js');
+
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00020', line: '1', col: '2', func: "'MAIN MENU'" }),
+    buildLine({ seq: '00030', nameType: 'R', name: 'DETAIL' }),
+    buildLine({ seq: '00040', line: '1', col: '2', func: "'Detail'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+
+  const afterInsert = DspfWriter.insertRecord(model, lines, { name: 'NEWREC' });
+  const reparsed = DspfParser.parseDspf(afterInsert.join('\n'));
+  check('new record is appended after every existing one, not inserted in the middle', reparsed.records.map((r) => r.name).join(',') === 'MENU,DETAIL,NEWREC');
+  check('new record starts with zero fields (a bare R-line only)', reparsed.records.find((r) => r.name === 'NEWREC').fields.length === 0);
+
+  const withKeywords = DspfWriter.insertRecord(model, lines, { name: 'WITHKW', keywords: [{ name: 'CA03', parameters: "90 'Exit'", conditions: [], raw: '', sourceLines: [] }] });
+  const reparsed2 = DspfParser.parseDspf(withKeywords.join('\n'));
+  check('an initial keyword list is honored', reparsed2.records.find((r) => r.name === 'WITHKW').keywords.some((k) => k.name === 'CA03'));
+
+  console.log('  inserting into a file with NO records yet still preserves its file-level keywords');
+  const noRecSrc = [buildLine({ seq: '00010', func: 'REF(PAYROLL)' })].join('\n') + '\n';
+  const noRecModel = DspfParser.parseDspf(noRecSrc);
+  check('setup: starts with zero records', noRecModel.records.length === 0);
+  const noRecLines = noRecSrc.split(/\r\n|\r|\n/);
+  const afterFirstInsert = DspfWriter.insertRecord(noRecModel, noRecLines, { name: 'FIRST' });
+  const reparsed3 = DspfParser.parseDspf(afterFirstInsert.join('\n'));
+  check('the new record was created', reparsed3.records.map((r) => r.name).join(',') === 'FIRST');
+  check('the pre-existing file-level REF keyword survives untouched', reparsed3.fileKeywords.some((k) => k.name === 'REF'));
+
+  console.log('  inserting into a genuinely empty file (no records, no file keywords)');
+  const emptyModel = DspfParser.parseDspf('');
+  const afterEmptyInsert = DspfWriter.insertRecord(emptyModel, [], { name: 'ONLY' });
+  const reparsed4 = DspfParser.parseDspf(afterEmptyInsert.join('\n'));
+  check('a record is created even starting from a totally empty file', reparsed4.records.map((r) => r.name).join(',') === 'ONLY');
+}
+
+console.log("\nDspfWriter.copyRecord() - duplicates a whole record format (own keywords + every field) under a new name");
+{
+  const { buildLine } = require('../fixtures/lineBuilder.js');
+
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00020', line: '1', col: '2', func: "'MAIN MENU'" }),
+    buildLine({ seq: '00030', name: 'OPT', dataType: 'A', length: '2', usage: 'B', line: '3', col: '5' }),
+    buildLine({ seq: '00040', nameType: 'R', name: 'DETAIL' }),
+    buildLine({ seq: '00050', line: '1', col: '2', func: "'Detail'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const menu = model.records.find((r) => r.name === 'MENU');
+
+  const afterCopy = DspfWriter.copyRecord(model, lines, menu);
+  const reparsed = DspfParser.parseDspf(afterCopy.join('\n'));
+  check('an auto-named copy (MENU2) is inserted right after the original, before DETAIL', reparsed.records.map((r) => r.name).join(',') === 'MENU,MENU2,DETAIL');
+
+  const copy = reparsed.records.find((r) => r.name === 'MENU2');
+  check('the copy has the same field COUNT as the original', copy.fields.length === menu.fields.length);
+  check("the copy's field keeps the SAME name as the original (field names are scoped per record, no rename needed)", copy.fields.some((f) => f.name === 'OPT'));
+  check('the original MENU record is completely untouched', reparsed.records.find((r) => r.name === 'MENU').fields.length === menu.fields.length);
+
+  console.log('  an explicit name is honored instead of auto-generating one');
+  const afterNamedCopy = DspfWriter.copyRecord(model, lines, menu, { name: 'MYCOPY' });
+  const reparsed2 = DspfParser.parseDspf(afterNamedCopy.join('\n'));
+  check('the explicit name was used', reparsed2.records.some((r) => r.name === 'MYCOPY'));
+
+  console.log('  copying the LAST record in the file (nothing physically after it) still works');
+  const lastRecModel = model;
+  const detail = lastRecModel.records.find((r) => r.name === 'DETAIL');
+  const afterLastCopy = DspfWriter.copyRecord(lastRecModel, lines, detail);
+  const reparsed3 = DspfParser.parseDspf(afterLastCopy.join('\n'));
+  check('DETAIL2 is appended after DETAIL, at the true end of the file', reparsed3.records.map((r) => r.name).join(',') === 'MENU,DETAIL,DETAIL2');
+}
+
+console.log('\nDspfWriter.deleteRecord() - removes a whole record format, including every field/constant it owns');
+{
+  const { buildLine } = require('../fixtures/lineBuilder.js');
+
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00020', line: '1', col: '2', func: "'MAIN MENU'" }),
+    buildLine({ seq: '00030', name: 'OPT', dataType: 'A', length: '2', usage: 'B', line: '3', col: '5' }),
+    buildLine({ seq: '00040', nameType: 'R', name: 'DETAIL' }),
+    buildLine({ seq: '00050', line: '1', col: '2', func: "'Detail'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const menu = model.records.find((r) => r.name === 'MENU');
+
+  const afterDelete = DspfWriter.deleteRecord(menu, lines);
+  const reparsed = DspfParser.parseDspf(afterDelete.join('\n'));
+  check('MENU and both its lines (own header + field) are gone', reparsed.records.map((r) => r.name).join(',') === 'DETAIL');
+  check('DETAIL, the untouched record, survives completely intact', reparsed.records[0].fields.length === 1 && reparsed.records[0].fields[0].constantValue === 'Detail');
+
+  console.log('  deleting the only record in a file leaves an empty (but valid) source');
+  const oneRecSrc = [buildLine({ seq: '00010', nameType: 'R', name: 'ONLY' }), buildLine({ seq: '00020', line: '1', col: '2', func: "'hi'" })].join('\n') + '\n';
+  const oneRecModel = DspfParser.parseDspf(oneRecSrc);
+  const afterOnlyDelete = DspfWriter.deleteRecord(oneRecModel.records[0], oneRecSrc.split(/\r\n|\r|\n/));
+  const reparsed2 = DspfParser.parseDspf(afterOnlyDelete.join('\n'));
+  check('zero records remain', reparsed2.records.length === 0);
+}
+
+console.log('\nDspfWriter.nextAvailableRecordName() - 10-char DDS name limit is respected, same as nextAvailableFieldName');
+{
+  const { buildLine } = require('../fixtures/lineBuilder.js');
+  const src = [buildLine({ seq: '00010', nameType: 'R', name: 'VERYLONGRC' })].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const name = DspfWriter.nextAvailableRecordName(model, 'VERYLONGRC');
+  check('candidate name is truncated to fit the 10-char DDS limit', name.length <= 10);
+  check('candidate name is genuinely unused', name !== 'VERYLONGRC');
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
