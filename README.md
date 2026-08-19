@@ -149,6 +149,42 @@ share - build once, both webviews benefit) and designer-specific gaps that
 only make sense in one context. Within each list, roughly highest-value/most
 requested first.
 
+#### Done (Aug 2026 - indicators & CAxx/CFxx pass)
+
+- **Assign command keys (CAxx/CFxx)**, at both file level and per-record,
+  with cross-scope exclusion (a key number used at one level is greyed out
+  at the other, and switching a key's type CA&harr;CF never leaves a
+  duplicate) - `DspfWriter.setCommandKey`/`removeCommandKey`/
+  `availableCommandKeyNumbers`, with a matching panel in both the DSPF and
+  menu designer sidebars.
+- **File-level keyword editing** - `dspfWriter.js` had no way to rewrite the
+  file's own keyword block at all before this; `getFileKeywordsLineRange`/
+  `applyFileKeywordsUpdate` now handle it (including inserting a fresh
+  block when a file has none yet). Currently only surfaced through the
+  Command keys panel, not a general file-attributes editor - see
+  "File-level attributes panel" below, now a smaller remaining gap.
+- **Function-key legend** - `DspfEngine.resolveFunctionKeyLegend` merges
+  file-level + record-level CAxx/CFxx (record wins on a shared number),
+  rendered as an F-key strip above the preview in both designers, active
+  (solid) styling driven by whichever indicators are currently simulated.
+- **Field/constant/record indicator conditioning UI** - `field.conditions`
+  and `record.conditions` were previously silently *ignored* by
+  `applyFieldUpdate`/`applyRecordUpdate` even though the parser/writer
+  round-tripped them correctly; both now accept a `conditions` update, and
+  a shared editor (add/remove OR'd groups, AND'd indicators up to DDS's
+  9-per-entity limit, NOT flag per indicator) is wired into the DSPF
+  designer's field and record Properties panels.
+- **Indicator conditioning UI for menu options** - a menu option is a DDS
+  constant under the hood, so it conditions the same way; each option row
+  has a "Conditioning" toggle using the same shared editor, applied to
+  both the option's number marker and its label text together so the
+  whole option shows/hides as one unit.
+- Scope cut made deliberately: this pass conditions the **entity itself**
+  (a field, constant, or record's own conditioning), not an individual
+  **keyword** on it (e.g. conditioning just one `DSPATR` while other
+  keywords on the same field stay unconditional). That per-keyword case
+  is real DDS and still has no UI - noted below.
+
 #### Common (shared engine/writer - do these once, not twice)
 
 1. ~~**Copy field/constant**~~ - **done** (0.9.20): `DspfWriter.copyField`
@@ -163,27 +199,24 @@ requested first.
    record-insert or record-delete primitive at all today, only
    `applyRecordUpdate`/`renameRecordFormat` for an *existing* record's own
    keywords/name.
-3. **Assign command keys (CAxx/CFxx)**, with the file-level/record-level
-   cross-exclusion (a key already used at one level can't be reused at the
-   other) - both DSPF screens and MNUDDS menus use command keys constantly.
-4. **Add Display Size (\*DS3/\*DS4)** - the size picker only switches
+3. **Add Display Size (\*DS3/\*DS4)** - the size picker only switches
    between sizes a file *already* declares (`DSPSIZ`); there's no "add a
    second size to a single-size file" writer action. Shared DSPSIZ
    parsing/writing, useful for both file types.
-5. **Function-key legend** (F3/F12 etc., showing every CAxx/CFxx available
-   to the record being previewed, active/inactive styling) - a pure
-   `dspfEngine.js` resolution addition (file-level + record-level keys +
-   current indicator state), rendered by both preview surfaces.
-6. ~~**File-level attributes panel**~~ - **done** (0.9.21, DSPF designer
-   only): new `DspfWriter.applyFileUpdate(dspfFile, sourceLines, updates)`
-   writer primitive (structurally the same "whole entity's keywords in,
-   lines out" shape `applyRecordUpdate` uses, minus a name/positional
-   line) plus a "File attributes" button in the sidebar opening a
-   file-level keyword view in the Properties panel, using the same
-   keyword-chip editor every other panel already has. The menu designer's
-   sidebar doesn't have this yet - noted as remaining work, same as
+4. ~~**File-level attributes panel**~~ - **done** (0.9.23, DSPF designer
+   only): a new "File attributes" button in the sidebar opens a file-level
+   keyword view in the Properties panel, reusing the same keyword-chip
+   editor every other panel already has (add/remove commits immediately,
+   same pattern the Record and Help-entry panels use) - built on top of
+   the `getFileKeywordsLineRange`/`applyFileKeywordsUpdate` primitives
+   from the command-keys pass above, rather than a separate primitive.
+   `fileKeywords` (`DSPSIZ`, `REF`, `PRINT`, etc.) were already parsed but
+   had no general-purpose UI until now; command keys (`CAxx`/`CFxx`) stay
+   on their own dedicated panel since that has purpose-built add/remove
+   controls the generic keyword editor doesn't. The menu designer's
+   sidebar doesn't have this view yet - noted as remaining work, same as
    Copy field/constant's menu-designer gap above.
-7. ~~**Sort elements**~~ - **done** (0.9.21, DSPF designer only): new
+5. ~~**Sort elements**~~ - **done** (0.9.23, DSPF designer only): new
    `DspfWriter.reorderFields(record, sourceLines, orderedSourceLines)`
    moves whole verbatim field/constant chunks around in source order
    without regenerating them (any interleaved HELP entries keep their own
@@ -193,56 +226,55 @@ requested first.
    properties panel - simpler than drag-and-drop for a feature already
    flagged low-priority/UI-only. Doesn't touch on-screen row/col at all,
    only which order fields appear in the file.
+6. **Per-keyword indicator conditioning** - conditioning a single keyword
+   (e.g. one `DSPATR` or `COLOR` among several on the same field) rather
+   than the whole field/constant/record - see the scope-cut note above.
+   The parser/writer already round-trip `keyword.conditions` correctly;
+   only the UI is missing, and the shared conditions editor built for the
+   entity-level case above should mostly just need a second mount point.
 
 #### Display (DSPF) designer only
 
-1. **Field/constant indicator conditioning UI** - `field.conditions` /
-   `record.conditions` round-trip correctly through the parser/writer
-   (including >3-ANDed and OR'd groups), but there's no UI to actually
-   add/remove/change them - today's Properties panel only edits
-   `keywords`, not the entity's own conditions.
-2. **"+ Field" / "+ Constant" click-to-place buttons** on the preview
+1. **"+ Field" / "+ Constant" click-to-place buttons** on the preview
    canvas - `DspfWriter.insertField` already exists and is used by the menu
    designer's "+ Add option", but the DSPF designer has no equivalent
    entry point yet.
-3. **Window resize handles**, aware of every declared display size at
+2. **Window resize handles**, aware of every declared display size at
    once - today a window can only be dragged (moved), never resized, from
    the preview.
-4. **Change Window Title** by clicking it directly on the preview (`WDWTITLE`
+3. **Change Window Title** by clicking it directly on the preview (`WDWTITLE`
    is read/rendered already; editing it means hand-typing the keyword).
-5. **Center field/constant on screen** - no such action exists; position
+4. **Center field/constant on screen** - no such action exists; position
    is only settable via explicit Row/Col or drag.
-6. **Fill constant with characters** - no such action exists.
-7. **Dedicated colors/attributes editor** (`COLOR`/`DSPATR` picker) -
+5. **Fill constant with characters** - no such action exists.
+6. **Dedicated colors/attributes editor** (`COLOR`/`DSPATR` picker) -
    today these are only reachable via the generic "add any keyword by
    name/params" box.
-8. **Dedicated validity-check / editing-keyword / error-message helpers**
+7. **Dedicated validity-check / editing-keyword / error-message helpers**
    (`RANGE`/`COMP`/`VALUES`, `EDTCDE`/`EDTWRD`, `ERRMSG`) - same generic-
    keyword-box limitation as colors/attributes above.
-9. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
+8. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
    a referenced field's real type/length/decimals from a connected IBM i.
    Not implemented anywhere in the DSPF designer today (Code for i is
    currently only used by the menu designer's Compile Menu command).
-10. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
-    chars/line) - not implemented in `dspfEngine.js`.
-11. **`ERRMSG` on a window's own reserved message line** (its last content
+9. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
+   chars/line) - not implemented in `dspfEngine.js`.
+10. **`ERRMSG` on a window's own reserved message line** (its last content
     row, unless `*NOMSGLIN`) - not implemented; nothing renders `ERRMSG`
     specially yet.
-12. **True dimmed-overlay compare** (one record drawn dimmed behind the one
+11. **True dimmed-overlay compare** (one record drawn dimmed behind the one
     being edited) - today's "Compare multiple formats" is a read-only,
     side-by-side multi-select, not an editable-record-plus-dimmed-backdrop
     view.
 
 #### Menu designer only
 
-1. **Indicator conditioning UI for options** - same underlying gap as the
-   DSPF designer's field/constant conditions; a menu option is a DDS
-   constant and can be conditioned the same way, with no UI for it today.
-2. **"Create New Menu"** equivalent to "Create New Display File" - still
+1. **"Create New Menu"** equivalent to "Create New Display File" - still
    needs an existing MNUDDS member (+ paired commands member) created some
    other way; would need to generate both together.
-3. Everything under **Common** above (command keys, function-key legend,
-   copy option/constant, etc.) applies equally here once built.
+2. Everything under **Common** above (copy option/constant, create/copy/
+   delete records, Add Display Size, per-keyword conditioning, etc.)
+   applies equally here once built.
 
 ## License
 

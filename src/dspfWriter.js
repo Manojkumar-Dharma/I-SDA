@@ -407,6 +407,166 @@
     return recordPrefixLines.concat(contentLines, keywordLines);
   }
 
+  // ---------------------------------------------------------------------
+  // FILE-level keywords: unlike a record or field, the file has no entry
+  // line of its own (no A-marker row, no name) - it's purely zero or more
+  // keyword-only lines that appear before the first record format. Reuses
+  // the same generic keyword-line serialization (serializeFunctionAreaLines,
+  // groupKeywordsByCondition, serializeConditionedKeywordLines) records
+  // already use for their own unconditioned/conditioned keyword lines - a
+  // file keyword's OWN conditions (k.conditions) behave identically, there's
+  // just no record-level conditions/positional line wrapping it.
+  // ---------------------------------------------------------------------
+
+  /** Returns [firstLine, lastLine] spanned by every fileKeywords entry, or null if the file
+   *  declares no file-level keywords at all (nothing to locate/replace - see applyFileKeywordsUpdate). */
+  function getFileKeywordsLineRange(dspfFile) {
+    var min = null;
+    var max = null;
+    (dspfFile.fileKeywords || []).forEach(function (k) {
+      (k.sourceLines || []).forEach(function (ln) {
+        if (min == null || ln < min) min = ln;
+        if (max == null || ln > max) max = ln;
+      });
+      (k.conditions || []).forEach(function (g) {
+        (g.sourceLines || []).forEach(function (ln) {
+          if (min == null || ln < min) min = ln;
+          if (max == null || ln > max) max = ln;
+        });
+      });
+    });
+    return min == null ? null : [min, max];
+  }
+
+  function serializeFileKeywordsEntry(fileKeywords, originalLine1to6) {
+    var unconditioned = (fileKeywords || []).filter(function (k) { return !k.conditions || k.conditions.length === 0; });
+    var conditioned = (fileKeywords || []).filter(function (k) { return k.conditions && k.conditions.length > 0; });
+
+    var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
+    var posChars = new Array(44).fill(' ');
+    for (var i = 0; i < 6; i++) posChars[i] = seqForm[i];
+    var posCols = posChars.join('');
+
+    var functionText = buildRecordFunctionAreaText(unconditioned); // generic keyword-list join, despite the name
+    var contentLines = [];
+    if (functionText.length > 0) {
+      var funcLines = serializeFunctionAreaLines(functionText);
+      var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+      contentLines = [firstLine].concat(funcLines.slice(1));
+    }
+
+    var keywordLines = [];
+    groupKeywordsByCondition(conditioned).forEach(function (g) {
+      keywordLines = keywordLines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, originalLine1to6));
+    });
+
+    return contentLines.concat(keywordLines);
+  }
+
+  /** Rewrites the file's own keyword block to `newKeywords` (a full replacement, same
+   *  convention as applyRecordUpdate's `{keywords}`). If the file currently has NO
+   *  file-level keywords, the new block is inserted at the very top of the source
+   *  instead of trying to locate a range that doesn't exist. */
+  function applyFileKeywordsUpdate(dspfFile, sourceLines, newKeywords) {
+    var range = getFileKeywordsLineRange(dspfFile);
+    if (range) {
+      var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
+      var originalLine1to6 = (originalRangeLines[0] || '').slice(0, 6);
+      var newLines = serializeFileKeywordsEntry(newKeywords, originalLine1to6);
+      newLines = restampSequenceNumbers(newLines, originalRangeLines);
+      return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
+    }
+    var freshLines = serializeFileKeywordsEntry(newKeywords, '     A');
+    return freshLines.concat(sourceLines);
+  }
+
+  // ---------------------------------------------------------------------
+  // Command keys (CAxx/CFxx): the key number (01-24) is encoded in the
+  // keyword NAME itself (CA01..CA24, CF01..CF24), not as a parameter -
+  // DDS lets a program-visible response indicator and a text label ride
+  // along as the keyword's parameters: CA03(03 'F3=Exit') or bare CA03
+  // (key active, no response indicator set, no on-screen text). A given
+  // key NUMBER may only be defined once per scope (can't be both CA03 and
+  // CF03 on the same record, or on both the file and one of its records at
+  // once) - see commandKeyNumbersInUse/availableCommandKeyNumbers, which
+  // the webview's key-assignment UI uses to grey out numbers already
+  // spoken for elsewhere.
+  // ---------------------------------------------------------------------
+
+  var COMMAND_KEY_RE = /^(CA|CF)(\d{2})$/;
+
+  function padKeyNumber(n) {
+    var s = String(parseInt(n, 10));
+    return s.length >= 2 ? s.slice(-2) : '0' + s;
+  }
+
+  /** Extracts every CAxx/CFxx keyword from a keyword list into a flat, easy-to-render shape. */
+  function parseCommandKeys(keywords) {
+    var result = [];
+    (keywords || []).forEach(function (k) {
+      var m = COMMAND_KEY_RE.exec(k.name);
+      if (!m) return;
+      var params = (k.parameters || '').trim();
+      var indicator = null;
+      var text = null;
+      if (params) {
+        var pm = /^(\d{1,2})(?:\s+'((?:[^']|'')*)')?/.exec(params);
+        if (pm) {
+          indicator = padKeyNumber(pm[1]);
+          if (pm[2] != null) text = pm[2].replace(/''/g, "'");
+        }
+      }
+      result.push({ type: m[1], number: m[2], indicator: indicator, text: text, keyword: k });
+    });
+    return result;
+  }
+
+  /** @returns {{[number:string]: 'file'|'record'}} which scope has already claimed each key number. */
+  function commandKeyNumbersInUse(fileKeywords, recordKeywords) {
+    var used = {};
+    parseCommandKeys(fileKeywords).forEach(function (k) { used[k.number] = 'file'; });
+    parseCommandKeys(recordKeywords).forEach(function (k) { used[k.number] = 'record'; });
+    return used;
+  }
+
+  /** Key numbers ("01".."24") not already claimed at either the file or the given record
+   *  level - what a new-key picker should offer, regardless of which scope it's adding to. */
+  function availableCommandKeyNumbers(fileKeywords, recordKeywords) {
+    var used = commandKeyNumbersInUse(fileKeywords, recordKeywords);
+    var available = [];
+    for (var n = 1; n <= 24; n++) {
+      var num = padKeyNumber(n);
+      if (!used[num]) available.push(num);
+    }
+    return available;
+  }
+
+  /** Returns a NEW keywords array with key `number` set to CAnn/CFnn(indicator 'text').
+   *  Any existing CA/CF keyword for that same number is removed first, so switching a
+   *  key's type (CA<->CF) or overwriting its indicator/text never leaves a duplicate. */
+  function setCommandKey(keywords, type, number, indicator, text) {
+    var paddedNumber = padKeyNumber(number);
+    var filtered = (keywords || []).filter(function (k) {
+      var m = COMMAND_KEY_RE.exec(k.name);
+      return !(m && m[2] === paddedNumber);
+    });
+    var params = '';
+    if (indicator != null && String(indicator).trim() !== '') {
+      params = padKeyNumber(indicator) + (text ? " '" + String(text).replace(/'/g, "''") + "'" : '');
+    }
+    filtered.push({ name: type.toUpperCase() + paddedNumber, parameters: params, conditions: [], raw: '', sourceLines: [] });
+    return filtered;
+  }
+
+  /** Returns a NEW keywords array with the CA/CF keyword for `number` removed (whichever type it is). */
+  function removeCommandKey(keywords, number) {
+    var paddedNumber = padKeyNumber(number);
+    return (keywords || []).filter(function (k) {
+      var m = COMMAND_KEY_RE.exec(k.name);
+      return !(m && m[2] === paddedNumber);
+    });
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -429,62 +589,10 @@
   }
 
   // ---------------------------------------------------------------------
-  // FILE-level keywords: the bare keyword-only lines (DSPSIZ, REF, CAxx,
-  // INDARA, PRINT, etc.) that appear before the first record format's own
-  // R-line. Structurally identical to a record's own unconditioned/
-  // conditioned keyword lines (serializeRecordEntry) minus the R-name
-  // positional line a record always has as an anchor - a file has no such
-  // anchor when it has zero file-level keywords yet, so that "nothing
-  // there yet" case needs its own branch (inserted at the very top of the
-  // file) the way insertField needs one for "record with no fields yet".
+  // Sorting a record's fields/constants: unlike file-level keywords above
+  // (upstream's getFileKeywordsLineRange/applyFileKeywordsUpdate), there is
+  // no existing primitive for this yet.
   // ---------------------------------------------------------------------
-
-  /** Returns [firstLine, lastLine] the file's own keyword-only lines span, or null if there are none yet. */
-  function getFileKeywordsLineRange(dspfFile) {
-    var lines = [];
-    (dspfFile.fileKeywords || []).forEach(function (k) {
-      (k.sourceLines || []).forEach(function (ln) { lines.push(ln); });
-      (k.conditions || []).forEach(function (g) {
-        (g.sourceLines || []).forEach(function (ln) { lines.push(ln); });
-      });
-    });
-    if (lines.length === 0) return null;
-    return [Math.min.apply(null, lines), Math.max.apply(null, lines)];
-  }
-
-  function serializeFileEntry(keywords) {
-    var unconditioned = (keywords || []).filter(function (k) { return !k.conditions || k.conditions.length === 0; });
-    var conditioned = (keywords || []).filter(function (k) { return k.conditions && k.conditions.length > 0; });
-    var lines = [];
-    if (unconditioned.length > 0) {
-      lines = lines.concat(serializeFunctionAreaLines(buildRecordFunctionAreaText(unconditioned)));
-    }
-    groupKeywordsByCondition(conditioned).forEach(function (g) {
-      lines = lines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, null));
-    });
-    return lines;
-  }
-
-  /**
-   * Applies `updates` (currently just { keywords }) to the file's own
-   * keyword-only lines - the same "whole entity's worth of keywords in,
-   * whole entity's worth of lines out" shape applyRecordUpdate uses, just
-   * without a name/positional line to preserve. An empty resulting
-   * `keywords` array removes the block entirely rather than leaving a
-   * dangling blank 'A' line behind.
-   */
-  function applyFileUpdate(dspfFile, sourceLines, updates) {
-    var keywords = updates.keywords !== undefined ? updates.keywords : dspfFile.fileKeywords;
-    var newLines = serializeFileEntry(keywords);
-    var range = getFileKeywordsLineRange(dspfFile);
-    if (range) {
-      return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
-    }
-    // No file-level keywords existed yet - nothing to anchor a splice on,
-    // so the new lines go at the very top of the file, same "no existing
-    // entry to anchor to" reasoning insertField uses for an empty record.
-    return newLines.concat(sourceLines);
-  }
 
   /**
    * Reorders a record's fields/constants in the DDS source (their top-to-
@@ -541,7 +649,7 @@
   function applyRecordUpdate(record, sourceLines, updates) {
     var updated = {
       name: record.name,
-      conditions: record.conditions,
+      conditions: updates.conditions !== undefined ? updates.conditions : record.conditions,
       keywords: updates.keywords !== undefined ? updates.keywords : record.keywords,
     };
 
@@ -691,6 +799,7 @@
     }
     if (updates.keywords !== undefined) updated.keywords = updates.keywords;
     if (updates.constantValue !== undefined) updated.constantValue = updates.constantValue;
+    if (updates.conditions !== undefined) updated.conditions = updates.conditions;
 
     var range = getFieldLineRange(field);
     var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
@@ -796,6 +905,157 @@
     return result;
   }
 
+  // ---------------------------------------------------------------------
+  // DSPSIZ (display size): shared between the DSPF and Menu designers,
+  // since both edit plain DDS files that can each declare their own
+  // DSPSIZ. DDS supports AT MOST TWO sizes per DSPSIZ keyword; this is
+  // specifically the "add a second size to a single-size (or no-DSPSIZ)
+  // file" writer action called out in the README's known limitations -
+  // toggling BETWEEN sizes a file already declares is DspfEngine's job
+  // (screenSizeFromFileKeywords/availableScreenSizes); this is the one
+  // writer-side action that changes how many sizes exist.
+  // ---------------------------------------------------------------------
+
+  /** Same "lines cols [*qualifier]" triple-parsing as
+   *  DspfEngine.screenSizeFromFileKeywords's own parseScreenSizes -
+   *  duplicated (not required-in) rather than shared via require(), since
+   *  this file is dropped into the webview as a plain <script> with no
+   *  bundler (see file header) and can't assume a module loader is
+   *  present there. Keep the two in sync if DSPSIZ's grammar ever changes. */
+  function parseDisplaySizeTriples(paramText) {
+    var tokens = (paramText || '').trim().split(/\s+/).filter(Boolean);
+    var sizes = [];
+    var i = 0;
+    while (i < tokens.length) {
+      var t1 = tokens[i];
+      var t2 = tokens[i + 1];
+      if (/^\d+$/.test(t1) && t2 && /^\d+$/.test(t2)) {
+        var name = null;
+        var next = tokens[i + 2];
+        if (next && next.charAt(0) === '*') {
+          name = next;
+          i += 3;
+        } else {
+          i += 2;
+        }
+        sizes.push({ lines: parseInt(t1, 10), columns: parseInt(t2, 10), name: name });
+      } else {
+        i++;
+      }
+    }
+    return sizes;
+  }
+
+  function serializeDisplaySizes(sizes) {
+    return sizes
+      .map(function (s) {
+        return s.name ? s.lines + ' ' + s.columns + ' ' + s.name : s.lines + ' ' + s.columns;
+      })
+      .join(' ');
+  }
+
+  /** Same shape as getRecordLineRange, but for a single stand-alone
+   *  file-level keyword (no record/field container to anchor on - see
+   *  dspfParser.ts's fileKeywords). */
+  function getFileKeywordLineRange(keyword) {
+    var lines = keyword.sourceLines || [];
+    var min = lines.length ? lines[0] : 1;
+    var max = lines.length ? lines[lines.length - 1] : min;
+    (keyword.conditions || []).forEach(function (g) {
+      (g.sourceLines || []).forEach(function (ln) {
+        if (ln < min) min = ln;
+        if (ln > max) max = ln;
+      });
+    });
+    return [min, max];
+  }
+
+  /** Serializes ONE unconditioned file-level keyword (DSPSIZ never carries
+   *  its own conditioning in practice - it's what OTHER conditions test
+   *  against, see DdsDisplaySizeCondition) as its own line(s), positional
+   *  columns 1-44 blank apart from the original/default sequence+form
+   *  prefix, keyword text starting in the function area (col 45+). Mirrors
+   *  serializeRecordEntry's unconditioned-keyword path minus the R-line. */
+  function serializeFileKeywordEntry(keyword, originalLine1to6) {
+    var text = keyword.parameters ? keyword.name + '(' + keyword.parameters + ')' : keyword.name;
+    var posChars = new Array(44).fill(' ');
+    var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : '     A', 6);
+    for (var i = 0; i < 6; i++) posChars[i] = seqForm[i];
+    var posCols = posChars.join('');
+    var funcLines = serializeFunctionAreaLines(text);
+    var firstLine = (posCols + funcLines[0].slice(44)).replace(/\s+$/, '');
+    return [firstLine].concat(funcLines.slice(1));
+  }
+
+  /**
+   * Adds a second DSPSIZ size to a file, writing a brand-new DSPSIZ keyword
+   * if none exists yet, or replacing the existing one if it currently
+   * declares just one. Throws if it already declares two - DDS's DSPSIZ
+   * keyword never supports more than that, so there's no third size to add.
+   *
+   * `newSize` is `{ lines, columns, name }` - `name` is the qualifier
+   * (e.g. "*DS4") the new size will be selectable by; defaults to "*DS4"
+   * since that's the conventional "large" companion to "*DS3". DDS requires
+   * a name on every size once there's more than one (so conditions/toggles
+   * can address either one) - if the file's existing single size has no
+   * name of its own (a plain `DSPSIZ(24 80)`), it's given the conventional
+   * "*DS3" here so both sizes end up addressable. A file with no DSPSIZ at
+   * all is treated as an implicit, unqualified 24x80 default (DDS's own
+   * fallback - see DEFAULT_LINES/DEFAULT_COLUMNS in dspfEngine.js) before
+   * the same "name the first one *DS3" step runs.
+   *
+   * Only handles the file level - a record-level DSPSIZ override (rare,
+   * see screenLinesForRecord's precedence note) is left alone; callers
+   * wanting to add a size to one of those can pass a record's own keywords
+   * array through the same shape this reads from dspfFile.fileKeywords.
+   */
+  function addDisplaySize(dspfFile, sourceLines, newSize) {
+    if (!newSize || !(newSize.lines > 0) || !(newSize.columns > 0)) {
+      throw new Error('addDisplaySize requires newSize.lines and newSize.columns to be positive numbers.');
+    }
+    var newName = newSize.name || '*DS4';
+
+    var existing = (dspfFile.fileKeywords || []).find(function (k) {
+      return k.name === 'DSPSIZ';
+    });
+    var sizes = existing ? parseDisplaySizeTriples(existing.parameters) : [];
+    if (sizes.length === 0) {
+      sizes = [{ lines: 24, columns: 80, name: null }];
+    }
+    if (sizes.length >= 2) {
+      throw new Error('DSPSIZ already declares two sizes - DDS does not support a third.');
+    }
+    if (!sizes[0].name) {
+      sizes[0] = { lines: sizes[0].lines, columns: sizes[0].columns, name: '*DS3' };
+    }
+    var allSizes = sizes.concat([{ lines: newSize.lines, columns: newSize.columns, name: newName }]);
+    var newKeyword = { name: 'DSPSIZ', parameters: serializeDisplaySizes(allSizes) };
+
+    if (existing) {
+      var range = getFileKeywordLineRange(existing);
+      var originalRangeLines = sourceLines.slice(range[0] - 1, range[1]);
+      var originalLine1to6 = (originalRangeLines[0] || '').slice(0, 6);
+      var newLines = serializeFileKeywordEntry(newKeyword, originalLine1to6);
+      newLines = restampSequenceNumbers(newLines, originalRangeLines);
+      return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
+    }
+
+    // No DSPSIZ keyword exists yet - insert a brand-new one. File-level
+    // keywords always precede every record (see dspfParser.ts), so anchor
+    // after the last existing one if there is one, else right before the
+    // first record, else at the very top for a record-less file.
+    var insertAfterLine = 0;
+    (dspfFile.fileKeywords || []).forEach(function (k) {
+      var r = getFileKeywordLineRange(k);
+      if (r[1] > insertAfterLine) insertAfterLine = r[1];
+    });
+    if (insertAfterLine === 0 && dspfFile.records && dspfFile.records.length > 0) {
+      insertAfterLine = getRecordLineRange(dspfFile.records[0])[0] - 1;
+    }
+    var brandNewLines = serializeFileKeywordEntry(newKeyword, '     A');
+    return sourceLines.slice(0, insertAfterLine).concat(brandNewLines, sourceLines.slice(insertAfterLine));
+  }
+
   /**
    * Picks a field name that isn't already used by any field in `record`,
    * starting from `baseName` with a numeric suffix (baseNAME2, baseNAME3,
@@ -881,8 +1141,15 @@
     applyRecordUpdate: applyRecordUpdate,
     renameRecordFormat: renameRecordFormat,
     renameRecordReferences: renameRecordReferences,
+    getFileKeywordLineRange: getFileKeywordLineRange,
+    addDisplaySize: addDisplaySize,
     getFileKeywordsLineRange: getFileKeywordsLineRange,
-    applyFileUpdate: applyFileUpdate,
+    applyFileKeywordsUpdate: applyFileKeywordsUpdate,
+    parseCommandKeys: parseCommandKeys,
+    commandKeyNumbersInUse: commandKeyNumbersInUse,
+    availableCommandKeyNumbers: availableCommandKeyNumbers,
+    setCommandKey: setCommandKey,
+    removeCommandKey: removeCommandKey,
     reorderFields: reorderFields,
   };
 });

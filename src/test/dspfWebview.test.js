@@ -423,6 +423,135 @@ function runFileAttrsScenario() {
     rows = Array.from(doc.querySelectorAll('.field-order-row'));
     check('the on-screen list reflects the new order too', rows.length === 3 && /Second/.test(rows[0].textContent) && /First/.test(rows[1].textContent) && /Third/.test(rows[2].textContent));
 
+    console.log('\n' + (failures === 0 ? 'FILE ATTRS / FIELD ORDER: ALL CHECKS PASSED SO FAR' : failures + ' CHECK(S) FAILED SO FAR'));
+    runCommandKeysScenario();
+  }, 0);
+}
+
+function runCommandKeysScenario() {
+  console.log('\ncommand keys (CAxx/CFxx): file-level add/remove, record-level add, cross-scope exclusion, function-key legend');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
+      buildLine({ seq: '00040', line: '1', col: '2', func: "'Bye'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce9', src, 'CMDKEYS.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    check('function-key legend starts empty (no keys defined yet)', doc.getElementById('fkeyLegend').querySelectorAll('.fkey-chip').length === 0);
+
+    console.log('  add a file-level key');
+    const fileTypeSel = doc.querySelector('.cmdkey-type[data-prefix="file"]');
+    const fileNumSel = doc.querySelector('.cmdkey-number[data-prefix="file"]');
+    check('the number picker offers all 24 keys before anything is assigned', fileNumSel.options.length === 24);
+    fileTypeSel.value = 'CA';
+    fileNumSel.value = '03';
+    doc.querySelector('.cmdkey-indicator[data-prefix="file"]').value = '90';
+    doc.querySelector('.cmdkey-text[data-prefix="file"]').value = 'Exit';
+    doc.querySelector('.cmdkey-add[data-prefix="file"]').dispatchEvent(new Event('click', { bubbles: true }));
+
+    let last = posted[posted.length - 1];
+    check('posts applyEdit containing the new CA03 file-level key', last && last.type === 'applyEdit' && /CA03\(90 'Exit'\)/.test(last.text));
+    check('the function-key legend now shows F3', /F3/.test(doc.getElementById('fkeyLegend').textContent));
+
+    console.log('  the record-level picker (on SCR1, currently selected) excludes 03');
+    const recordNumSel = doc.querySelector('.cmdkey-number[data-prefix="record"]');
+    check('key 03 is no longer offered at record level', !Array.from(recordNumSel.options).some((o) => o.value === '03'));
+    check('23 numbers remain available', recordNumSel.options.length === 23);
+
+    console.log('  add a record-level key on SCR1');
+    doc.querySelector('.cmdkey-type[data-prefix="record"]').value = 'CF';
+    recordNumSel.value = '05';
+    doc.querySelector('.cmdkey-add[data-prefix="record"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit containing the new bare CF05 record-level key', last && last.type === 'applyEdit' && /CF05\b/.test(last.text) && !/CF05\(/.test(last.text));
+    check('the legend now shows both F3 and F5 for SCR1', /F3/.test(doc.getElementById('fkeyLegend').textContent) && /F5/.test(doc.getElementById('fkeyLegend').textContent));
+
+    console.log('  switching to SCR2 (no record-level keys of its own) still shows the file-level F3, but not F5');
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.value = 'SCR2';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const legendText = doc.getElementById('fkeyLegend').textContent;
+    check('F3 still shown (file-level)', /F3/.test(legendText));
+    check('F5 not shown (that was SCR1-only)', !/F5/.test(legendText));
+
+    console.log('  remove the file-level key');
+    recordSelect.value = 'SCR1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.querySelector('.cmdkey-remove[data-prefix="file"][data-number="03"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('CA03 is gone after removal', last && !/CA03/.test(last.text));
+    check('the record-level CF05 survives the unrelated file-level removal', last && /CF05/.test(last.text));
+
+    runConditionsScenario();
+  }, 0);
+}
+
+function runConditionsScenario() {
+  console.log('\nindicator conditioning editor: add/remove an OR condition on a field, and on a record');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'NAME', length: '10', dataType: 'A', usage: 'B', line: '1', col: '5' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce8', src, 'CONDTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    console.log('  record conditioning: default view on load is the record props panel, starts unconditioned');
+    check('starts unconditioned', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
+    doc.querySelector('.cond-add-group[data-prefix="record"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit adding indicator 01 to the record itself', last && last.type === 'applyEdit' && /A\s+01\s+R\s+SCR1/.test(last.text));
+
+    console.log('  remove that condition, record is unconditioned again');
+    doc.querySelector('.cond-group-remove[data-prefix="record"][data-group="0"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('unconditioned again after removal', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
+
+    console.log('  field conditioning: select the field, starts unconditioned, add then remove an indicator');
+    const fieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.getAttribute('data-field') === 'NAME');
+    check('setup: the field is present', !!fieldEl);
+    fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
+    check('field starts unconditioned', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
+
+    doc.querySelector('.cond-add-group[data-prefix="field"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check("posts applyEdit adding indicator 01 as the field's condition", last && last.type === 'applyEdit' && /01.*NAME/.test(last.text.replace(/\n/g, ' ')));
+
+    doc.querySelector('.cond-group-remove[data-prefix="field"][data-group="0"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('field is unconditioned again after removal', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

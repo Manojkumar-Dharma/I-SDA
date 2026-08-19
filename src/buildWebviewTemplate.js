@@ -134,6 +134,15 @@ const htmlTemplate = `<!DOCTYPE html>
   .hidden { display: none; }
   .compare-record-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; cursor: pointer; }
   .hint-readonly { color: var(--warn); }
+  .cond-group { border: 1px solid var(--panel-border); border-radius: 3px; padding: 6px 8px; margin-bottom: 6px; }
+  .cond-group-label { font-size: 10px; color: var(--ink-dim); margin-bottom: 4px; }
+  .cond-add-row { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+  .cond-add-row label { font-size: 11px; display: flex; align-items: center; gap: 2px; }
+  .cond-add-row input.cond-ind-num { width: 36px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 3px 4px; font-family: var(--mono); font-size: 11px; }
+  .cond-group > button.cond-group-remove { display: block; margin-top: 6px; font-size: 11px; }
+  .fkey-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--panel-border); }
+  .fkey-chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--panel-border); border-radius: 3px; color: var(--ink-dim); }
+  .fkey-chip.fkey-active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
 </style>
 </head>
 <body>
@@ -148,11 +157,13 @@ const htmlTemplate = `<!DOCTYPE html>
   <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
+  <div id="fileCommandKeys"></div>
   <div class="section-label">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
 </aside>
 <main>
+  <div id="fkeyLegend"></div>
   <div class="screen-frame"><div id="screenOutput"></div></div>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
 </main>
@@ -194,6 +205,8 @@ const htmlTemplate = `<!DOCTYPE html>
   const sizeSelect = document.getElementById('sizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
   const fileAttrsBtn = document.getElementById('fileAttrsBtn');
+  const fileCommandKeysEl = document.getElementById('fileCommandKeys');
+  const fkeyLegendEl = document.getElementById('fkeyLegend');
 
   fileAttrsBtn.addEventListener('click', () => {
     showFileProps = true;
@@ -401,6 +414,17 @@ const htmlTemplate = `<!DOCTYPE html>
     propsBody.innerHTML = '<div class="empty-state">Read-only comparison mode - no properties to edit.</div>';
   }
 
+  function renderFileCommandKeys(currentRecord) {
+    const recordKeywords = currentRecord ? currentRecord.keywords : [];
+    const available = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, recordKeywords);
+    fileCommandKeysEl.innerHTML = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, available, 'file');
+    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileKeywordsEdit(newKeywords));
+  }
+
+  function commitFileKeywordsEdit(newKeywords) {
+    commitSourceChange((lines) => DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords));
+  }
+
   function render() {
     if (compareMode) { renderCompareMode(); return; }
     mainHint.classList.remove('hint-readonly');
@@ -410,10 +434,14 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildSizeSelect();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) { indicatorList.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
+    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; renderFileCommandKeys(null); screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
     updateSizeBoundsWarning(recordName);
+
+    const currentRecord = model.records.find((r) => r.name === recordName);
+    fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
+    renderFileCommandKeys(currentRecord);
 
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }
@@ -709,7 +737,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function renderFileProps() {
     let html = '<button id="p-file-back" class="secondary" style="width:100%;margin-bottom:12px;">&larr; Back to record</button>';
     html += '<div class="section-label">File-level attributes</div>';
-    html += '<div class="status" style="margin-bottom:12px;">Keywords for the whole display file (DSPSIZ, REF, CAxx, INDARA, PRINT, etc.) - not tied to any one record format.</div>';
+    html += '<div class="status" style="margin-bottom:12px;">Keywords for the whole display file (DSPSIZ, REF, INDARA, PRINT, etc.) - not tied to any one record format. Command keys (CAxx/CFxx) have their own dedicated panel above and are best edited there.</div>';
     html += keywordEditorHtml(model.fileKeywords);
     propsBody.innerHTML = html;
 
@@ -721,7 +749,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function commitFileEdit(newKeywords) {
-    commitSourceChange((lines) => DspfWriter.applyFileUpdate(model, lines, { keywords: newKeywords }));
+    commitSourceChange((lines) => DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords));
   }
 
   function renderFieldProps(recordName) {
@@ -754,6 +782,7 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
     }
     html += keywordEditorHtml(field.keywords);
+    html += WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field');
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
     html += '<button id="p-copy" class="secondary" style="width:100%;margin-top:8px;">Copy ' + (isConstant ? 'constant' : 'field') + '</button>';
     html += '<div class="delete-hint">Press Delete or Backspace to remove this field. Press Ctrl+D to copy it.</div>';
@@ -778,6 +807,7 @@ const htmlTemplate = `<!DOCTYPE html>
     });
     document.getElementById('p-copy').addEventListener('click', () => commitCopy(ownerRecordName, field));
     wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }));
+    WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
   }
 
   function helpEntriesListHtml(rec) {
@@ -841,6 +871,9 @@ const htmlTemplate = `<!DOCTYPE html>
       '<div class="rename-error" id="p-record-rename-error"></div></div>';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
     html += keywordEditorHtml(rec.keywords);
+    html += WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record');
+    const availableForRecord = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, rec.keywords);
+    html += WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
     html += helpEntriesListHtml(rec);
     html += fieldOrderListHtml(rec);
     propsBody.innerHTML = html;
@@ -862,7 +895,9 @@ const htmlTemplate = `<!DOCTYPE html>
     });
 
     if (!editable) return;
+    WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
   }
 
   function renderHelpProps(recordName) {

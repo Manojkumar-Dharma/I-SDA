@@ -8,6 +8,7 @@
  */
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
+const DspfEngine = require(path.join(__dirname, '../dspfEngine.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 const { buildLine } = require('../fixtures/lineBuilder');
 
@@ -168,51 +169,6 @@ console.log('\nDspfWriter.nextAvailableFieldName() - truncates to stay within th
   const name = DspfWriter.nextAvailableFieldName(record, 'LONGFLDNAME');
   check('name stays within 10 characters', name.length <= 10);
   check("truncates the base and appends '2'", name === 'LONGFLDNA2');
-}
-
-console.log('\nDspfWriter.applyFileUpdate() - adding a keyword when the file has none yet');
-{
-  const src = [buildLine({ seq: '00010', nameType: 'R', name: 'SCREEN1' }), buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" })].join('\n') + '\n';
-  const model = DspfParser.parseDspf(src);
-  check('setup: no file-level keywords yet', model.fileKeywords.length === 0);
-  const lines = src.split(/\r\n|\r|\n/);
-  const newLines = DspfWriter.applyFileUpdate(model, lines, {
-    keywords: [{ name: 'INDARA', parameters: '', conditions: [] }],
-  });
-  check('INDARA lands at the very top of the file, before the record', /^\s*A\s+INDARA/.test(newLines[0]));
-  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
-  check('reparses with the new file keyword', reparsed.fileKeywords.some((k) => k.name === 'INDARA'));
-  check('the record and its field are untouched', reparsed.records[0].name === 'SCREEN1' && reparsed.records[0].fields[0].constantValue === 'Hi');
-}
-
-console.log('\nDspfWriter.applyFileUpdate() - editing existing file keywords in place');
-{
-  const src =
-    [
-      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
-      buildLine({ seq: '00020', func: 'INDARA' }),
-      buildLine({ seq: '00030', nameType: 'R', name: 'SCREEN1' }),
-    ].join('\n') + '\n';
-  const model = DspfParser.parseDspf(src);
-  check('setup: two file-level keywords parsed', model.fileKeywords.length === 2);
-  const lines = src.split(/\r\n|\r|\n/);
-  const newLines = DspfWriter.applyFileUpdate(model, lines, {
-    keywords: [{ name: 'DSPSIZ', parameters: '24 80 *DS3', conditions: [] }, { name: 'PRINT', parameters: '', conditions: [] }],
-  });
-  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
-  check('DSPSIZ preserved', reparsed.fileKeywords.some((k) => k.name === 'DSPSIZ' && k.parameters === '24 80 *DS3'));
-  check('INDARA removed, PRINT added', !reparsed.fileKeywords.some((k) => k.name === 'INDARA') && reparsed.fileKeywords.some((k) => k.name === 'PRINT'));
-  check('the record itself is untouched', reparsed.records[0].name === 'SCREEN1');
-}
-
-console.log('\nDspfWriter.applyFileUpdate() - clearing all keywords removes the block entirely, not just blanks it');
-{
-  const src = [buildLine({ seq: '00010', func: 'INDARA' }), buildLine({ seq: '00020', nameType: 'R', name: 'SCREEN1' })].join('\n') + '\n';
-  const model = DspfParser.parseDspf(src);
-  const lines = src.split(/\r\n|\r|\n/);
-  const newLines = DspfWriter.applyFileUpdate(model, lines, { keywords: [] });
-  const nonBlank = newLines.filter((l) => l.trim().length > 0);
-  check('no dangling blank line left behind - only the record line remains', nonBlank.length === 1 && /R\s+SCREEN1/.test(nonBlank[0]));
 }
 
 console.log('\nDspfWriter.reorderFields() - swaps two fields\' source order, content moves as whole verbatim chunks');
@@ -438,6 +394,182 @@ console.log('\nDspfWriter.renameRecordReferences() - does not touch an unrelated
 
   const rewritten = DspfWriter.renameRecordReferences(model, lines, 'PULLDN1', 'PULLNEW');
   check('display text mentioning the name coincidentally is left exactly as-is', rewritten.join('\n').includes('See PULLDN1 for details'));
+}
+
+console.log('\nDspfWriter.addDisplaySize() - adds a second, named size to a file that already names its first');
+{
+  const src = [
+    '     A                                      DSPSIZ(24 80 *DS3)',
+    '     A          R MENU',
+    "     A                                  1  2'MAIN MENU'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132, name: '*DS4' });
+  check('line count unchanged (single-line DSPSIZ stays single-line)', newLines.length === lines.length);
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('now declares two sizes', sizes.length === 2);
+  check('first size preserved exactly', sizes[0].lines === 24 && sizes[0].columns === 80 && sizes[0].name === '*DS3');
+  check('second size added exactly as requested', sizes[1].lines === 27 && sizes[1].columns === 132 && sizes[1].name === '*DS4');
+  check('the record and its field are untouched', reparsed.records[0].fields[0].constantValue === 'MAIN MENU');
+}
+
+console.log('\nDspfWriter.addDisplaySize() - names an existing UNQUALIFIED single size before adding the second');
+{
+  const src = ['     A                                      DSPSIZ(24 80)', '     A          R MENU'].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132 }); // no name -> defaults to *DS4
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('the previously-unqualified first size is now named *DS3', sizes[0].name === '*DS3');
+  check('the new size defaults to *DS4 when no name is given', sizes[1].name === '*DS4');
+}
+
+console.log('\nDspfWriter.addDisplaySize() - inserts a brand-new DSPSIZ when the file declares none at all');
+{
+  const src = ['     A          R MENU', "     A                                  1  2'MAIN MENU'"].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132, name: '*DS4' });
+  check('inserts the new keyword line before the first record', newLines[0].includes('DSPSIZ') && newLines.findIndex((l) => l.includes(' R MENU')) === 1);
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('the implicit 24x80 default is named *DS3', sizes[0].lines === 24 && sizes[0].columns === 80 && sizes[0].name === '*DS3');
+  check('the requested size is added as *DS4', sizes[1].lines === 27 && sizes[1].columns === 132 && sizes[1].name === '*DS4');
+  check("the record's field is untouched", reparsed.records[0].fields[0].constantValue === 'MAIN MENU');
+}
+
+console.log('\nDspfWriter.addDisplaySize() - refuses to add a third size');
+{
+  const src = ['     A                                      DSPSIZ(24 80 *DS3 27 132 *DS4)', '     A          R MENU'].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  let threw = false;
+  try {
+    DspfWriter.addDisplaySize(model, lines, { lines: 32, columns: 160, name: '*DS5' });
+  } catch (e) {
+    threw = true;
+  }
+  check('throws rather than writing an invalid third size', threw);
+}
+
+console.log('\nDspfWriter.addDisplaySize() - long DSPSIZ text wraps with continuation and round-trips exactly');
+{
+  const src = ['     A                                      DSPSIZ(24 80 *VERYLONGNAME3)', '     A          R MENU'].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const newLines = DspfWriter.addDisplaySize(model, lines, { lines: 27, columns: 132, name: '*ANOTHERVERYLONGNAME4' });
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('re-parses with no errors', reparsed.errors.length === 0);
+  const sizes = DspfEngine.availableScreenSizes(reparsed);
+  check('both sizes (including their original/new long names) round-trip exactly', sizes.length === 2 && sizes[0].name === '*VERYLONGNAME3' && sizes[1].name === '*ANOTHERVERYLONGNAME4');
+}
+
+console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and record scope, cross-scope exclusion');
+{
+  const src = [
+    '     A          R MENU',
+    "     A                                  1  2'MAIN MENU'",
+    '     A          R DETAIL',
+    "     A                                  1  2'Detail'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+
+  check('no command keys defined yet', DspfWriter.parseCommandKeys(model.fileKeywords).length === 0);
+  check('all 24 key numbers available before anything is assigned', DspfWriter.availableCommandKeyNumbers(model.fileKeywords, model.records[0].keywords).length === 24);
+
+  // file-level CA03 with an indicator + text containing an apostrophe
+  const withFileKey = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 3, '90', "F3='Exit'");
+  const afterFileAdd = DspfWriter.applyFileKeywordsUpdate(model, lines, withFileKey);
+  const reparsed1 = DspfParser.parseDspf(afterFileAdd.join('\n'));
+  const parsed1 = DspfWriter.parseCommandKeys(reparsed1.fileKeywords);
+  check('CA03 round-trips at file level', parsed1.length === 1 && parsed1[0].type === 'CA' && parsed1[0].number === '03');
+  check('indicator round-trips', parsed1[0].indicator === '90');
+  check('text with an embedded apostrophe round-trips exactly', parsed1[0].text === "F3='Exit'");
+
+  // record-level CF12 on MENU (bare, no indicator/text)
+  const menuRec1 = reparsed1.records.find((r) => r.name === 'MENU');
+  const avail1 = DspfWriter.availableCommandKeyNumbers(reparsed1.fileKeywords, menuRec1.keywords);
+  check('key number already used at file level is excluded from the record-level picker', !avail1.includes('03') && avail1.length === 23);
+
+  const withRecKey = DspfWriter.setCommandKey(menuRec1.keywords, 'CF', 12, null, null);
+  const afterRecAdd = DspfWriter.applyRecordUpdate(menuRec1, afterFileAdd, { keywords: withRecKey });
+  const reparsed2 = DspfParser.parseDspf(afterRecAdd.join('\n'));
+  const menuRec2 = reparsed2.records.find((r) => r.name === 'MENU');
+  const detailRec2 = reparsed2.records.find((r) => r.name === 'DETAIL');
+  check('CF12 round-trips at record level, bare (no indicator/text)', menuRec2.keywords.some((k) => k.name === 'CF12' && k.parameters.trim() === ''));
+
+  const avail2File = DspfWriter.availableCommandKeyNumbers(reparsed2.fileKeywords, detailRec2.keywords);
+  check("a key used on ONE record does not block it on a DIFFERENT record (DETAIL still sees 12 as available)", avail2File.includes('12'));
+  const avail2SameRec = DspfWriter.availableCommandKeyNumbers(reparsed2.fileKeywords, menuRec2.keywords);
+  check('but that same record correctly excludes its own 12', !avail2SameRec.includes('12'));
+
+  // switching MENU's key 12 from CF to CA overwrites rather than duplicating
+  const switched = DspfWriter.setCommandKey(menuRec2.keywords, 'CA', 12, '55', 'Help');
+  const afterSwitch = DspfWriter.applyRecordUpdate(menuRec2, afterRecAdd, { keywords: switched });
+  const reparsed3 = DspfParser.parseDspf(afterSwitch.join('\n'));
+  const menuRec3 = reparsed3.records.find((r) => r.name === 'MENU');
+  const key12s = menuRec3.keywords.filter((k) => k.name === 'CA12' || k.name === 'CF12');
+  check('switching CF12->CA12 leaves exactly one key 12, not both', key12s.length === 1 && key12s[0].name === 'CA12');
+
+  // remove the file-level key entirely
+  const withoutFileKey = DspfWriter.removeCommandKey(reparsed3.fileKeywords, '03');
+  const afterFileRemove = DspfWriter.applyFileKeywordsUpdate(reparsed3, afterSwitch, withoutFileKey);
+  const reparsed4 = DspfParser.parseDspf(afterFileRemove.join('\n'));
+  check('file-level CA03 is fully removed', DspfWriter.parseCommandKeys(reparsed4.fileKeywords).length === 0);
+  check('record-level CA12 is untouched by removing the unrelated file-level key', reparsed4.records.find((r) => r.name === 'MENU').keywords.some((k) => k.name === 'CA12'));
+}
+
+console.log("\nDspfWriter.applyFileKeywordsUpdate() - inserts a fresh block at the top when the file has none yet");
+{
+  const src = [
+    '     A          R MENU',
+    "     A                                  1  2'Hi'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  check('setup: file starts with zero file-level keywords', model.fileKeywords.length === 0);
+  const lines = src.split(/\r\n|\r|\n/);
+
+  const withKey = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 24, '99', null);
+  const newLines = DspfWriter.applyFileKeywordsUpdate(model, lines, withKey);
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('new file-level key present after insert-from-nothing', DspfWriter.parseCommandKeys(reparsed.fileKeywords).length === 1);
+  check('the existing record is untouched', reparsed.records.length === 1 && reparsed.records[0].name === 'MENU');
+}
+
+console.log('\nDspfWriter.applyFieldUpdate() / applyRecordUpdate() - conditions can now actually be changed');
+{
+  const { buildLine } = require('../fixtures/lineBuilder.js');
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'MENU' }),
+    buildLine({ seq: '00020', ind1: '51', line: '1', col: '2', func: "'Conditioned'" }),
+    buildLine({ seq: '00030', name: 'OPT', dataType: 'A', length: '2', usage: 'B', line: '3', col: '5' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const rec = model.records[0];
+  const field = rec.fields.find((f) => f.constantValue === 'Conditioned');
+  check('setup: field starts conditioned on indicator 51', !!field && field.conditions.length === 1 && field.conditions[0].indicators[0].number === '51');
+
+  const newLines = DspfWriter.applyFieldUpdate(field, lines, { conditions: [{ relation: 'AND', indicators: [{ number: '62', not: true }] }] });
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const field2 = reparsed.records[0].fields.find((f) => f.constantValue === 'Conditioned');
+  check('field.conditions was actually rewritten (was silently ignored before this change)', field2.conditions.length === 1 && field2.conditions[0].indicators[0].number === '62' && field2.conditions[0].indicators[0].not === true);
+
+  const rec2Src = ['     A          R MENU', "     A                                  1  2'Hi'"].join('\n') + '\n';
+  const model2 = DspfParser.parseDspf(rec2Src);
+  const lines2 = rec2Src.split(/\r\n|\r|\n/);
+  check('setup: record starts unconditioned', model2.records[0].conditions.length === 0);
+  const newLines2 = DspfWriter.applyRecordUpdate(model2.records[0], lines2, { conditions: [{ relation: 'AND', indicators: [{ number: '80', not: false }] }] });
+  const reparsed2 = DspfParser.parseDspf(newLines2.join('\n'));
+  check("record.conditions was actually rewritten (applyRecordUpdate used to hardcode the record's ORIGINAL conditions)", reparsed2.records[0].conditions.length === 1 && reparsed2.records[0].conditions[0].indicators[0].number === '80');
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

@@ -102,9 +102,206 @@
     return hits;
   }
 
+  // -----------------------------------------------------------------------
+  // Indicator conditioning editor - renders/edits an entity's OWN `conditions`
+  // array (a field, constant, or record's conditioning - e.g. the "51" in a
+  // line prefixed "A  51 ..."), NOT a specific keyword's conditions. Shared
+  // by the DSPF designer's field/record Properties panel and the menu
+  // designer's per-option editor, since a menu option's number/label are
+  // just DDS constants and condition the same way. Every change is
+  // committed immediately via `onChange(newConditions)`, matching how
+  // keywordEditorHtml/wireKeywordEditor already behave elsewhere in both
+  // webviews - there's no separate "save" step.
+  //
+  // DDS allows up to 9 AND'd indicators per condition group (wrapping onto
+  // continuation lines 3-at-a-time - see dspfWriter's serializeConditionChunks),
+  // and any number of OR'd groups. A display-size condition (e.g. *DS4)
+  // occupies a whole group by itself, mutually exclusive with indicators in
+  // that same group - handled as its own read-only-shaped chip with just a
+  // remove button, since building one from scratch here isn't (yet) needed:
+  // this editor's own "+ OR condition" always adds an indicator group.
+  // -----------------------------------------------------------------------
+
+  function conditionsEditorHtml(conditions, idPrefix) {
+    var groups = conditions || [];
+    var html = '<div class="section-label">Conditioning indicators</div><div id="' + idPrefix + '-cond-groups">';
+    if (groups.length === 0) {
+      html += '<div class="empty-state" style="margin-bottom:6px;">Unconditioned - always shown.</div>';
+    }
+    groups.forEach(function (g, gi) {
+      html += '<div class="cond-group" data-group="' + gi + '">';
+      html += '<div class="cond-group-label">' + (gi === 0 ? 'IF' : 'OR IF') + '</div>';
+      if (g.displaySizeCondition) {
+        html += '<span class="keyword-chip">' + (g.displaySizeCondition.not ? 'NOT ' : '') + escapeHtml(g.displaySizeCondition.name) +
+          '<button class="cond-group-remove" data-prefix="' + idPrefix + '" data-group="' + gi + '">\u00d7</button></span>';
+      } else {
+        (g.indicators || []).forEach(function (ind, ii) {
+          html += '<span class="keyword-chip">' + (ind.not ? 'N' : '') + escapeHtml(ind.number) +
+            '<button class="cond-ind-remove" data-prefix="' + idPrefix + '" data-group="' + gi + '" data-idx="' + ii + '">\u00d7</button></span>';
+        });
+        var atLimit = (g.indicators || []).length >= 9;
+        html += '<div class="cond-add-row">' +
+          '<label><input type="checkbox" class="cond-ind-not" /> NOT</label>' +
+          '<input type="text" class="cond-ind-num" placeholder="nn" maxlength="2" ' + (atLimit ? 'disabled' : '') + ' />' +
+          '<button class="secondary cond-ind-add" data-prefix="' + idPrefix + '" data-group="' + gi + '" ' +
+          (atLimit ? 'disabled title="DDS allows at most 9 ANDed indicators per condition"' : '') + '>+ indicator</button>' +
+          '</div>';
+      }
+      html += '<button class="secondary cond-group-remove" data-prefix="' + idPrefix + '" data-group="' + gi + '">Remove this condition</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<button class="secondary cond-add-group" data-prefix="' + idPrefix + '" style="width:100%;">+ OR condition</button>';
+    return html;
+  }
+
+  function cloneConditionGroups(groups) {
+    return (groups || []).map(function (g) {
+      return {
+        relation: g.relation,
+        displaySizeCondition: g.displaySizeCondition || null,
+        indicators: (g.indicators || []).map(function (ind) { return { number: ind.number, not: !!ind.not }; }),
+      };
+    });
+  }
+
+  // Re-derives each group's `relation` from its position (group 0 is always
+  // the unconditional "AND" start of the whole condition, every later group
+  // is "OR") and drops empty groups - the client only ever manipulates
+  // indicators/groups through this editor's own add/remove actions, so
+  // relation never needs to be set explicitly by the caller.
+  function normalizeConditionGroups(groups) {
+    return groups
+      .filter(function (g) { return g.displaySizeCondition || (g.indicators && g.indicators.length > 0); })
+      .map(function (g, i) { return { relation: i === 0 ? 'AND' : 'OR', displaySizeCondition: g.displaySizeCondition, indicators: g.indicators }; });
+  }
+
+  function wireConditionsEditor(idPrefix, conditions, onChange) {
+    var groups = conditions || [];
+
+    document.querySelectorAll('.cond-ind-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var gi = parseInt(btn.getAttribute('data-group'), 10);
+        var ii = parseInt(btn.getAttribute('data-idx'), 10);
+        var next = cloneConditionGroups(groups);
+        next[gi].indicators.splice(ii, 1);
+        onChange(normalizeConditionGroups(next));
+      });
+    });
+
+    document.querySelectorAll('.cond-group-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var gi = parseInt(btn.getAttribute('data-group'), 10);
+        var next = cloneConditionGroups(groups);
+        next.splice(gi, 1);
+        onChange(normalizeConditionGroups(next));
+      });
+    });
+
+    document.querySelectorAll('.cond-ind-add[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var gi = parseInt(btn.getAttribute('data-group'), 10);
+        var container = btn.closest('.cond-group');
+        var numInput = container.querySelector('.cond-ind-num');
+        var notInput = container.querySelector('.cond-ind-not');
+        var num = (numInput.value || '').trim();
+        if (!/^\d{1,2}$/.test(num)) return;
+        var padded = num.length < 2 ? '0' + num : num;
+        var next = cloneConditionGroups(groups);
+        if (next[gi].indicators.length >= 9) return;
+        next[gi].indicators.push({ number: padded, not: !!(notInput && notInput.checked) });
+        onChange(normalizeConditionGroups(next));
+      });
+    });
+
+    var addGroupBtn = document.querySelector('.cond-add-group[data-prefix="' + idPrefix + '"]');
+    if (addGroupBtn) {
+      addGroupBtn.addEventListener('click', function () {
+        var next = cloneConditionGroups(groups).concat([{ relation: 'OR', displaySizeCondition: null, indicators: [{ number: '01', not: false }] }]);
+        onChange(normalizeConditionGroups(next));
+      });
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Command keys (CAxx/CFxx) - shared list+add-form editor for both a
+  // file's own keys and a single record's keys. `availableNumbers` (from
+  // DspfWriter.availableCommandKeyNumbers) is computed by the caller since
+  // it needs BOTH scopes at once (file keywords + the specific record's
+  // keywords) to enforce the cross-scope exclusion - this editor only
+  // renders/wires whichever single scope's own keyword list it was given.
+  // -----------------------------------------------------------------------
+
+  function commandKeysSectionHtml(scopeLabel, keywords, availableNumbers, idPrefix) {
+    var parsed = DspfWriter.parseCommandKeys(keywords);
+    var html = '<div class="section-label">Command keys' + (scopeLabel ? ' (' + escapeHtml(scopeLabel) + ')' : '') + '</div>';
+    html += '<div id="' + idPrefix + '-cmdkeys">';
+    if (parsed.length === 0) {
+      html += '<div class="empty-state" style="margin-bottom:6px;">None defined.</div>';
+    }
+    parsed.forEach(function (k) {
+      var label = 'F' + parseInt(k.number, 10) + ' = ' + k.type + k.number + (k.indicator ? ' (ind ' + k.indicator + ')' : '') + (k.text ? " '" + k.text + "'" : '');
+      html += '<span class="keyword-chip">' + escapeHtml(label) + '<button class="cmdkey-remove" data-prefix="' + idPrefix + '" data-number="' + k.number + '">\u00d7</button></span>';
+    });
+    html += '</div>';
+    html += '<div class="two-col" style="margin-top:6px;">' +
+      '<select class="cmdkey-type" data-prefix="' + idPrefix + '"><option value="CA">CA (attention)</option><option value="CF">CF (function)</option></select>' +
+      '<select class="cmdkey-number" data-prefix="' + idPrefix + '">' +
+      availableNumbers.map(function (n) { return '<option value="' + n + '">Key ' + n + '</option>'; }).join('') +
+      '</select></div>';
+    html += '<div class="two-col" style="margin-top:4px;">' +
+      '<input type="text" class="cmdkey-indicator" data-prefix="' + idPrefix + '" placeholder="indicator (opt)" maxlength="2" />' +
+      '<input type="text" class="cmdkey-text" data-prefix="' + idPrefix + '" placeholder="on-screen text (opt)" /></div>';
+    html += '<button class="secondary cmdkey-add" data-prefix="' + idPrefix + '" style="width:100%;margin-top:6px;" ' +
+      (availableNumbers.length === 0 ? 'disabled title="All 24 key numbers are already assigned"' : '') + '>+ Add command key</button>';
+    return html;
+  }
+
+  function wireCommandKeysSection(idPrefix, keywords, onChange) {
+    document.querySelectorAll('.cmdkey-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        onChange(DspfWriter.removeCommandKey(keywords, btn.getAttribute('data-number')));
+      });
+    });
+    var addBtn = document.querySelector('.cmdkey-add[data-prefix="' + idPrefix + '"]');
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        var type = document.querySelector('.cmdkey-type[data-prefix="' + idPrefix + '"]').value;
+        var numberSel = document.querySelector('.cmdkey-number[data-prefix="' + idPrefix + '"]');
+        var number = numberSel && numberSel.value;
+        if (!number) return;
+        var indicator = document.querySelector('.cmdkey-indicator[data-prefix="' + idPrefix + '"]').value.trim();
+        var text = document.querySelector('.cmdkey-text[data-prefix="' + idPrefix + '"]').value.trim();
+        onChange(DspfWriter.setCommandKey(keywords, type, number, indicator || null, text || null));
+      });
+    }
+  }
+
+  /** Renders DspfEngine.resolveFunctionKeyLegend()'s output as a row of F-key chips,
+   *  solid/active when the key's own response indicator (if any) is currently on. */
+  function functionKeyLegendHtml(entries) {
+    if (!entries || entries.length === 0) return '';
+    var html = '<div class="fkey-legend">';
+    entries.forEach(function (e) {
+      var label = 'F' + parseInt(e.number, 10) + (e.text ? '=' + e.text : '');
+      html += '<span class="fkey-chip' + (e.active ? ' fkey-active' : '') + '" title="' + escapeHtml(e.type + e.number) + '">' + escapeHtml(label) + '</span>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   return {
     rebuildRecordSelect: rebuildRecordSelect,
     isValidDdsName: isValidDdsName,
     findLikelyNameReferences: findLikelyNameReferences,
+    conditionsEditorHtml: conditionsEditorHtml,
+    wireConditionsEditor: wireConditionsEditor,
+    commandKeysSectionHtml: commandKeysSectionHtml,
+    wireCommandKeysSection: wireCommandKeysSection,
+    functionKeyLegendHtml: functionKeyLegendHtml,
   };
 });
