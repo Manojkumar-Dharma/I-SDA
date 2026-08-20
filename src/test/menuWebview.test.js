@@ -734,6 +734,89 @@ function runCopyMenuFileAttrsScenario() {
     check('posts applyEdit with the new file-level INDARA keyword', last && last.type === 'applyEdit' && /INDARA/.test(last.text));
     check('the existing DSPSIZ keyword is preserved', last && /DSPSIZ/.test(last.text));
 
+    runMenuRecordCrudScenario();
+  }, 100);
+}
+
+// Whole-record create/copy/delete (menu designer): reuses the exact same
+// DspfWriter.insertRecord/copyRecord/deleteRecord primitives the DSPF
+// designer's own "+ Add record"/Copy record/Delete record buttons already
+// use (see CHANGELOG) - this is just the menu designer's own entry point
+// for them, in its persistent sidebar rather than a separate properties
+// panel. Uses a dedicated multi-record fixture (menuSource above has only
+// one record) since the interesting case - the recordSelect.value-before-
+// render() gotcha the DSPF designer's own fix addressed - only ever shows
+// up with more than one record in the file.
+function runMenuRecordCrudScenario() {
+  console.log('\nmenu designer whole-record create/copy/delete: "+ Add record" form, Copy record, Delete record buttons');
+  const multiRecordSource =
+    [
+      "     A                                      DSPSIZ(24 80 *DS3)",
+      "     A          R MAINMENU",
+      "     A                                  1  2'MAIN MENU'",
+      "     A                                  3  5'1. Display library list'",
+      "     A          R SUBMENU",
+      "     A                                  1  2'SUB MENU'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce11', multiRecordSource, '', 'RECCRUD.MNUDDS', 'RECCRUDQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  "+ Add record" rejects an empty name without posting anything');
+    doc.getElementById('newRecordBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows an error for the empty name', /Enter a name/.test(doc.getElementById('newRecordError').textContent));
+    check('nothing was posted', !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  "+ Add record" rejects a name that already exists');
+    doc.getElementById('newRecordName').value = 'MAINMENU';
+    doc.getElementById('newRecordBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows a duplicate-name error', /already exists/.test(doc.getElementById('newRecordError').textContent));
+    check('still nothing posted', !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  "+ Add record" creates a new, empty record and selects it');
+    doc.getElementById('newRecordName').value = 'NEWSCR';
+    doc.getElementById('newRecordBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit containing the new record', last && last.type === 'applyEdit' && /R\s+NEWSCR/.test(last.text));
+    check('the new record is now selected in the picker', recordSelect.value === 'NEWSCR');
+    check('the input is cleared after a successful add', doc.getElementById('newRecordName').value === '');
+
+    console.log('  Copy record: switch to MAINMENU, copy it, auto-named copy is selected');
+    recordSelect.value = 'MAINMENU';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const copyBtn = doc.getElementById('recordCopyBtn');
+    check('setup: Copy record button is present and enabled', !!copyBtn && !copyBtn.disabled);
+    copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit containing the auto-named copy (MAINMENU2)', last && last.type === 'applyEdit' && /R\s+MAINMENU2/.test(last.text));
+    check("the copy's option constant was carried over verbatim", /1\. Display library list/.test(last.text));
+    check('the original MAINMENU record is still present and untouched', /R\s+MAINMENU\b/.test(last.text) && /MAIN MENU/.test(last.text));
+    check('the new copy is now selected in the picker', recordSelect.value === 'MAINMENU2');
+
+    console.log('  Delete record: delete SUBMENU, picker no longer offers it');
+    recordSelect.value = 'SUBMENU';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById('recordDeleteBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('SUBMENU is gone from the posted source', last && last.type === 'applyEdit' && !/R\s+SUBMENU\b/.test(last.text));
+    check('SUBMENU is no longer offered in the record picker', !Array.from(recordSelect.options).some((o) => o.value === 'SUBMENU'));
+    check('every other record survives (MAINMENU, MAINMENU2, NEWSCR)', /R\s+MAINMENU\b/.test(last.text) && /R\s+MAINMENU2\b/.test(last.text) && /R\s+NEWSCR\b/.test(last.text));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 100);

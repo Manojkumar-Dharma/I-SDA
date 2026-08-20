@@ -6,6 +6,34 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.25] - Unreleased
 
 ### Added
+## [0.9.27] - Unreleased
+
+### Added
+- **Menu designer: whole-record create/copy/delete UI.** The last
+  remaining "Common" item from the Aug 2026 parity audit - the writer
+  primitives (`DspfWriter.insertRecord`/`copyRecord`/`deleteRecord`) and
+  the DSPF designer's own UI for them already existed; this adds the
+  menu designer's equivalent entry point in its sidebar: a "+ Add
+  record" form (same empty-name/duplicate-name validation as the DSPF
+  designer's), and "Copy record"/"Delete record" buttons acting on
+  whichever record `recordSelect` currently has selected. Copy record
+  disables itself (mirroring the DSPF designer) when the record's own
+  conditioning is too complex to safely reserialize
+  (`DspfWriter.isEditable`); Delete only warns about other keywords that
+  might still reference the deleted record by name (`SFLCTL`/`WINDOW`/
+  `MNUBARCHC`), using the same advisory scan Rename already relies on.
+  After create/copy, the new/copied record is explicitly selected only
+  after `renderAll()` has rebuilt the `<select>`'s own `<option>` list -
+  the same fix the DSPF designer's own record-selection bug required,
+  applied here from the start rather than as a follow-up patch.
+- Covered by a new `runMenuRecordCrudScenario` in `menuWebview.test.js`
+  (empty/duplicate name rejection, create + auto-select, copy + carries
+  over the option's own constant, delete + every other record survives).
+
+With this, every item from the "Common" bucket of the Aug 2026 parity
+audit is done in both designers - see README "Known limitations",
+whose Common section is now empty.
+
 ## [0.9.26] - Unreleased
 
 ### Added

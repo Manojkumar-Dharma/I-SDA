@@ -162,6 +162,13 @@ const htmlTemplate = `<!DOCTYPE html>
     <button class="rename-btn" id="recordRenameBtn">Rename</button>
   </div>
   <div class="add-option-error" id="recordRenameError"></div>
+  <button id="recordCopyBtn" class="secondary" style="width:100%;margin-top:8px;">Copy record</button>
+  <button id="recordDeleteBtn" class="secondary" style="width:100%;margin-top:6px;color:var(--warn);">Delete record</button>
+  <div class="rename-row" style="margin-top:12px;">
+    <input type="text" class="rename-input" id="newRecordName" placeholder="New record name" maxlength="10" />
+    <button class="rename-btn" id="newRecordBtn">+ Add record</button>
+  </div>
+  <div class="add-option-error" id="newRecordError"></div>
   <div class="cmdkeys-section" id="fileCommandKeys"></div>
   <div class="cmdkeys-section" id="recordCommandKeys"></div>
   <div class="file-attrs-toggle" id="fileAttrsToggle">File attributes &#x25be;</div>
@@ -227,6 +234,11 @@ const htmlTemplate = `<!DOCTYPE html>
   const recordNameInput = document.getElementById('recordNameInput');
   const recordRenameBtn = document.getElementById('recordRenameBtn');
   const recordRenameError = document.getElementById('recordRenameError');
+  const recordCopyBtn = document.getElementById('recordCopyBtn');
+  const recordDeleteBtn = document.getElementById('recordDeleteBtn');
+  const newRecordName = document.getElementById('newRecordName');
+  const newRecordBtn = document.getElementById('newRecordBtn');
+  const newRecordError = document.getElementById('newRecordError');
   const fileCommandKeysEl = document.getElementById('fileCommandKeys');
   const recordCommandKeysEl = document.getElementById('recordCommandKeys');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
@@ -391,10 +403,16 @@ const htmlTemplate = `<!DOCTYPE html>
       screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>';
       fkeyLegendEl.innerHTML = '';
       renderFileCommandKeys(null);
+      recordCopyBtn.disabled = true;
+      recordDeleteBtn.disabled = true;
       return;
     }
     recordSelect.value = recordName;
     const currentRecord = model.records.find((r) => r.name === recordName);
+    const recordEditable = DspfWriter.isEditable(currentRecord);
+    recordCopyBtn.disabled = !recordEditable;
+    recordCopyBtn.title = recordEditable ? '' : 'Multi-group or >3-indicator conditioning - copying this record is disabled to avoid corrupting it.';
+    recordDeleteBtn.disabled = false;
     const screen = DspfEngine.resolveScreen(model, recordName, new Set(), null);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + escapeHtml(screen.error) + '</div>'; return; }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
@@ -991,6 +1009,98 @@ const htmlTemplate = `<!DOCTYPE html>
         message:
           'iSDA: line(s) ' + remaining.join(', ') + ' in this source still look like they might reference "' + oldName +
           '" - not one of the SFLCTL/WINDOW/MNUBARCHC shapes this can auto-fix. Review those manually.',
+      });
+    }
+
+    renderAll();
+  });
+
+  // Creates a brand-new, empty record format via DspfWriter.insertRecord
+  // and immediately selects it - same pattern the DSPF designer's own
+  // "+ Add record" uses. A name is required and must not collide with an
+  // existing record in the file, checked client-side against the current
+  // model first.
+  newRecordBtn.addEventListener('click', () => {
+    const name = (newRecordName.value || '').trim().toUpperCase();
+    newRecordError.textContent = '';
+    if (!name) { newRecordError.textContent = 'Enter a name for the new record format.'; return; }
+    if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
+    if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
+
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.insertRecord(model, lines, { name: name });
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    newRecordName.value = '';
+
+    // Setting recordSelect.value to a name with no matching <option> yet is
+    // a silent no-op (rebuildRecordSelect only "sticks" a value that's
+    // already an existing <option>), so this has to happen AFTER the model
+    // above has been reparsed and renderAll()'s own rebuildRecordSelect has
+    // had a chance to run once first - same two-step fix the DSPF
+    // designer's own record-selection bug required.
+    renderAll();
+    if (model.records.some((r) => r.name === name)) {
+      recordSelect.value = name;
+      renderAll();
+    }
+  });
+
+  // Duplicates the whole record via DspfWriter.copyRecord (own conditions/
+  // keywords + every field/constant/help entry it owns, verbatim, under a
+  // fresh auto-generated name) and immediately selects the new record -
+  // same primitive and "land on the copy, let the user pick it up from
+  // there" spirit as the DSPF designer's own Copy record button. Disabled
+  // (via renderScreen's own recordCopyBtn.disabled) when the record's own
+  // conditioning is too complex to safely reserialize.
+  recordCopyBtn.addEventListener('click', () => {
+    if (recordCopyBtn.disabled) return;
+    const recordName = recordSelect.value;
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+
+    const copiedName = DspfWriter.nextAvailableRecordName(model, rec.name);
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.copyRecord(model, lines, rec, { name: copiedName });
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+
+    // Same "select only after the new <option> genuinely exists" gotcha as
+    // "+ Add record" above.
+    renderAll();
+    if (model.records.some((r) => r.name === copiedName)) {
+      recordSelect.value = copiedName;
+      renderAll();
+    }
+  });
+
+  // No confirmation prompt - same "it's a normal WorkspaceEdit, Ctrl+Z
+  // undoes it" stance every other delete action in iSDA takes. Doesn't
+  // auto-fix other keywords elsewhere in the file that might reference this
+  // record by name (SFLCTL/WINDOW/MNUBARCHC) - only warns, using the same
+  // advisory findLikelyNameReferences scan Rename already relies on above.
+  // After deletion, falls back to whichever record rebuildRecordSelect's
+  // own default picks (or the empty-file state if it was the last one).
+  recordDeleteBtn.addEventListener('click', () => {
+    const recordName = recordSelect.value;
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+
+    const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, rec.name, DspfWriter.getFullRecordLineRange(rec));
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.deleteRecord(rec, lines);
+    sourceText = lines.join('\\n');
+    model = DspfParser.parseDspf(sourceText);
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+
+    if (references.length > 0) {
+      vscode.postMessage({
+        type: 'error',
+        message:
+          'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + rec.name +
+          '" (e.g. SFLCTL, WINDOW, MNUBARCHC) - deleting a record never rewrites other keywords that reference it. Review those manually.',
       });
     }
 
