@@ -260,6 +260,22 @@
   }
 
   // ---------------------------------------------------------------------
+  // CNTFLD (Continued-Entry Field): wraps one field's declared length over
+  // several screen lines, `lineWidth` characters per line (the field's own
+  // LENGTH need not divide evenly - the last line is just whatever remains).
+  // CNTFLD takes a single parameter, the characters-per-line count - see the
+  // DDS Reference's "CNTFLD (Continued-Entry Field) keyword" entry.
+  // ---------------------------------------------------------------------
+
+  function cntfldFromKeywords(field, len) {
+    var kw = (field.keywords || []).find(function (k) { return k.name === 'CNTFLD'; });
+    if (!kw) return null;
+    var lineWidth = parseInt(kw.parameters.trim(), 10);
+    if (Number.isNaN(lineWidth) || lineWidth <= 0) return null;
+    return { lineWidth: lineWidth, totalLines: Math.max(1, Math.ceil((len || 0) / lineWidth)) };
+  }
+
+  // ---------------------------------------------------------------------
   // Keyword-derived styling
   // ---------------------------------------------------------------------
 
@@ -416,6 +432,9 @@
       var inherited = resolveWindow(refRecord, dspfFile, depth + 1, placeholderIndex);
       if (!inherited) return null;
       // WDWTITLE, if present, is still read from THIS record, not the referenced one.
+      // *MSGLIN/*NOMSGLIN isn't an option this bare form can carry itself
+      // (there's no room for one alongside the single record-name token), so
+      // it's always inherited from the referenced window's own WINDOW keyword.
       var ownTitle = resolveWindowTitle(record);
       return {
         line: inherited.line,
@@ -425,8 +444,15 @@
         title: ownTitle != null ? ownTitle : inherited.title,
         positionIsDefault: inherited.positionIsDefault,
         inheritedFrom: parts[0],
+        msgLine: inherited.msgLine,
       };
     }
+
+    // *NOMSGLIN moves the message line out of the window entirely (to the
+    // bottom of the display, or MSGLOC's location) - default is *MSGLIN,
+    // which reserves the window's own last usable row for it. Can appear
+    // anywhere among the trailing option tokens, so just scan for it.
+    var msgLine = !parts.some(function (p) { return p.toUpperCase() === '*NOMSGLIN'; });
 
     var isDftPosition = parts[0].toUpperCase() === '*DFT';
     var height, width;
@@ -461,7 +487,7 @@
       }
     }
 
-    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record), positionIsDefault: positionIsDefault, inheritedFrom: null };
+    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record), positionIsDefault: positionIsDefault, inheritedFrom: null, msgLine: msgLine };
   }
 
   // ---------------------------------------------------------------------
@@ -534,6 +560,7 @@
       if (field.nameType === 'CONSTANT' && field.constantValue) {
         len = Math.max(len, field.constantValue.length);
       }
+      var cntfld = widget ? null : cntfldFromKeywords(field, len); // CNTFLD (named fields only) and a widget don't combine in practice
       var line = (field.location.line != null ? field.location.line : 1) + lineOffset;
       var startCol;
       if (field.location.column != null) {
@@ -571,6 +598,9 @@
         });
       } else if (widget && widget.type === 'button') {
         renderLength = Math.max(len, widget.label.length + 2);
+      } else if (cntfld) {
+        renderLength = cntfld.lineWidth;
+        renderHeight = cntfld.totalLines;
       }
 
       candidates.push({
@@ -584,6 +614,7 @@
         text: fieldDisplayText(field, len),
         style: style,
         widget: widget,
+        cntfld: cntfld,
         sourceLine: field.sourceLine,
         // Anchor coordinates: where an edit/drag should be written back to in the
         // DDS source, which may differ from rendered line/column for a repeated
@@ -683,6 +714,58 @@
    *   existing caller that doesn't pass this).
    * @returns {{lines:number, columns:number, recordName:string, fields:object[]}}
    */
+
+  // ---------------------------------------------------------------------
+  // ERRMSG: a field- (or record-) level keyword giving the message text to
+  // show when that field/record fails validity checking (or is otherwise
+  // flagged by the program). Inside a WINDOW, that message is shown on the
+  // window's own reserved message line - its last usable row - UNLESS the
+  // window specifies *NOMSGLIN (see resolveWindow), in which case the
+  // message is shown elsewhere on the display (out of scope here - this
+  // only renders the window's own message line).
+  // Like any other keyword, ERRMSG's OWN conditioning indicators (position
+  // 8-16 on its line) decide whether it's "active" right now, reusing the
+  // same conditionsSatisfied() every other conditioned keyword goes through
+  // - there's no live validity-check engine here to drive it any other way.
+  // ---------------------------------------------------------------------
+
+  function errMsgText(keywords, activeIndicators, activeSizeName) {
+    var kw = (keywords || []).find(function (k) {
+      return k.name === 'ERRMSG' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
+    });
+    if (!kw) return null;
+    var m = kw.parameters.match(/'((?:[^']|'')*)'/);
+    return m ? m[1].replace(/''/g, "'") : null;
+  }
+
+  /** Record-level ERRMSG wins first; otherwise the first field (in DDS source
+   *  order) carrying a currently-active ERRMSG. Fields conditioned off aren't
+   *  drawn at all, so their own ERRMSG can't be "the" active one either. */
+  function resolveWindowErrorMessage(record, activeIndicators, activeSizeName) {
+    var text = errMsgText(record.keywords, activeIndicators, activeSizeName);
+    if (text != null) return text;
+    for (var i = 0; i < record.fields.length; i++) {
+      var field = record.fields[i];
+      if (!conditionsSatisfied(field.conditions, activeIndicators, activeSizeName)) continue;
+      text = errMsgText(field.keywords, activeIndicators, activeSizeName);
+      if (text != null) return text;
+    }
+    return null;
+  }
+
+  /** @returns {{text:string, line:number, col:number, width:number}|null} */
+  function resolveWindowErrorMessageLine(record, windowBox, activeIndicators, activeSizeName) {
+    if (!windowBox || !windowBox.msgLine) return null;
+    var text = resolveWindowErrorMessage(record, activeIndicators, activeSizeName);
+    if (text == null) return null;
+    return {
+      text: text.length > windowBox.width ? text.slice(0, windowBox.width) : text,
+      line: windowBox.line + windowBox.height - 1,
+      col: windowBox.col,
+      width: windowBox.width,
+    };
+  }
+
   function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex) {
     activeIndicators = activeIndicators || new Set();
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
@@ -782,6 +865,9 @@
       }
     }
 
+    // ERRMSG on the window's own reserved message line - see resolveWindowErrorMessageLine.
+    var errorMessage = resolveWindowErrorMessageLine(record, windowBox, activeIndicators, size.name);
+
     return {
       lines: size.lines,
       columns: size.columns,
@@ -792,6 +878,7 @@
       window: windowBox,
       subfilePreview: subfilePreview,
       pulldown: pulldown,
+      errorMessage: errorMessage,
       isSflRecord: isSflRecord,
       previewRowCount: previewRowCount,
       declaredPreviewRowCount: declaredPreviewRowCount,
@@ -857,6 +944,7 @@
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
     var allFields = [];
     var windows = [];
+    var errorMessages = [];
 
     recordNames.forEach(function (recordName, index) {
       var record = dspfFile.records.find(function (r) { return r.name === recordName; });
@@ -877,9 +965,12 @@
         preview.fields.forEach(function (f) { f.sourceRecord = recordName; });
         allFields = allFields.concat(preview.fields);
       }
+
+      var errorMessage = resolveWindowErrorMessageLine(record, windowBox, activeIndicators, size.name);
+      if (errorMessage) errorMessages.push(Object.assign({ recordName: recordName }, errorMessage));
     });
 
-    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows };
+    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, errorMessages: errorMessages };
   }
 
   // ---------------------------------------------------------------------
@@ -989,6 +1080,24 @@
       .join('');
   }
 
+  /** CNTFLD's rendering: the field's full-length placeholder/display text, wrapped
+   *  every `lineWidth` characters onto its own row - one stacked row per line,
+   *  mirroring how widgetInnerHtml lays out radio/checkbox choices. */
+  function cntfldInnerHtml(f) {
+    var width = f.cntfld.lineWidth;
+    var text = f.text || '';
+    var rows = [];
+    for (var i = 0; i < text.length; i += width) {
+      rows.push(text.substr(i, width));
+    }
+    if (rows.length === 0) rows.push('');
+    return rows
+      .map(function (r) {
+        return '<div class="dspf-cntfld-line">' + escapeHtml(r) + '</div>';
+      })
+      .join('');
+  }
+
   /** Builds one field's grid-positioned div. Shared by the base screen and the pulldown overlay layer. */
   function renderFieldDiv(f) {
     var classes = ['dspf-field', 'dspf-' + f.nameType.toLowerCase()];
@@ -998,12 +1107,13 @@
     if (f.style.blink) classes.push('dspf-blink');
     if (f.style.protect) classes.push('dspf-protect');
     if (f.widget) classes.push('dspf-widget-' + f.widget.type);
+    if (f.cntfld) classes.push('dspf-cntfld');
     if (f.tag && f.tag.indexOf('subfile-preview-row-') === 0) classes.push('dspf-subfile-preview');
     if (f.tag === 'pulldown') classes.push('dspf-pulldown-field');
     var recordLabel = f.sourceRecord ? ' [' + f.sourceRecord + ']' : '';
     var colorStyle = f.style.color ? 'color:' + f.style.color + ';' : '';
     var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : '') + recordLabel);
-    var innerHtml = f.widget ? widgetInnerHtml(f) : escapeHtml(f.text);
+    var innerHtml = f.widget ? widgetInnerHtml(f) : (f.cntfld ? cntfldInnerHtml(f) : escapeHtml(f.text));
     var height = f.height || 1;
     return (
       '<div class="' +
@@ -1116,6 +1226,26 @@
         '\n';
     }
 
+    // ERRMSG on a window's own reserved message line - see resolveWindowErrorMessageLine.
+    // Support both the single-record `errorMessage` and the multi-record
+    // `errorMessages` array (display-comparison mode), same pattern as windowList above.
+    var errorMessageList = screen.errorMessages || (screen.errorMessage ? [screen.errorMessage] : []);
+    var errorMessageHtml = errorMessageList
+      .map(function (em) {
+        return (
+          '<div class="dspf-window-msgline" style="grid-row:' +
+          em.line +
+          ';grid-column:' +
+          em.col +
+          ' / span ' +
+          em.width +
+          ';" title="ERRMSG">' +
+          escapeHtml(em.text) +
+          '</div>'
+        );
+      })
+      .join('\n');
+
     return (
       '<div class="dspf-screen" style="grid-template-columns:repeat(' +
       screen.columns +
@@ -1127,6 +1257,7 @@
       '\n' +
       subfilePreviewHtml +
       pulldownHtml +
+      errorMessageHtml +
       '\n</div>'
     );
   }

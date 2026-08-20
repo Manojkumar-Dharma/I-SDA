@@ -3,6 +3,42 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.34] - Unreleased
+
+### Added
+- **`CNTFLD(n)` wrapping in the preview.** A field carrying `CNTFLD(n)`
+  now renders as `n` columns wide by `ceil(length/n)` rows tall instead
+  of one long single-line field, with its full display text wrapped
+  onto stacked `.dspf-cntfld-line` rows (same stacking approach the
+  radio/checkbox widgets already use for their own choice rows). The
+  underlying field length/text is untouched - only the rendered
+  width/height and the wrapping of the display text change. A length
+  that doesn't divide evenly by `n` still wraps correctly (the last
+  line is just shorter). `cntfldFromKeywords()`/`cntfldInnerHtml()` in
+  `dspfEngine.js`; new CSS in both `buildWebviewTemplate.js` and
+  `buildMenuWebviewTemplate.js`.
+- **`ERRMSG` on a window's own reserved message line.** A `WINDOW`
+  record's last usable row is reserved for error messages unless the
+  window specifies `*NOMSGLIN` (`resolveWindow()` now reads that option
+  off the `WINDOW` keyword's trailing tokens, inherited correctly
+  through the `WINDOW(record-format-name)` form). When any `ERRMSG`
+  keyword in the record - record-level first, then fields in DDS
+  source order - has its own conditioning indicators satisfied,
+  `resolveWindowErrorMessageLine()` renders that message on the
+  window's real last row (`window.line + window.height - 1`),
+  truncated to the window's width. No message renders when
+  `*NOMSGLIN` is set, when the record has no `WINDOW` keyword at all,
+  or when no `ERRMSG` keyword is currently active. Wired into both
+  `resolveScreen()` (single-record preview) and `resolveMultiScreen()`
+  (compare mode) via the same `errorMessage`/`errorMessages` pattern
+  the `window`/`windows` fields already use; rendered with a new
+  `.dspf-window-msgline` CSS class.
+- Covered by 9 new cases in `dspfEngine.test.js`: CNTFLD wrapping math,
+  an unevenly-dividing length, the no-CNTFLD regression case, ERRMSG
+  gated by its own conditioning indicator (on/off), message truncation
+  to the window's width, `*NOMSGLIN` suppression, record-level ERRMSG,
+  and a record with no `WINDOW` keyword never producing a message line.
+
 ## [0.9.33] - Unreleased
 
 ### Changed

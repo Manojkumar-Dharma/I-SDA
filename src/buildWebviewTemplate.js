@@ -96,6 +96,14 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .dspf-choice-row { display: flex; align-items: center; gap: 4px; line-height: 1.3em; }
   .dspf-choice-glyph { color: var(--ink-dim); font-family: var(--mono); }
+  .dspf-field.dspf-cntfld {
+    display: flex; flex-direction: column; white-space: normal; z-index: 1;
+  }
+  .dspf-cntfld-line { line-height: 1.4em; }
+  .dspf-window-msgline {
+    white-space: pre; color: var(--warn); background: rgba(255,138,92,0.1);
+    pointer-events: none; z-index: 1; overflow: hidden;
+  }
   .dspf-field.dspf-widget-button { background: transparent; z-index: 1; }
   .dspf-widget-button {
     width: 100%; height: 100%; background: #14261c; color: var(--accent);

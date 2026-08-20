@@ -153,10 +153,11 @@ per-keyword), copy field/constant, Add Display Size, the file-attributes
 panel, whole-record create/copy/delete, the Center/Fill/colors-
 attributes/validity-edit-error-message field-panel helpers, "+
 Field"/"+ Constant" click-to-place, window move/resize handles, Change
-Window Title, and true dimmed-overlay compare, all now in both designers
-where applicable, plus sort elements - have moved to CHANGELOG.md rather
-than staying listed here as limitations. No Common items are currently
-pending.)
+Window Title, true dimmed-overlay compare, all now in both designers
+where applicable, plus sort elements, `CNTFLD(n)` preview wrapping, and
+`ERRMSG` rendering on a window's own reserved message line - have moved
+to CHANGELOG.md rather than staying listed here as limitations. No
+Common items are currently pending.)
 
 #### Display (DSPF) designer only
 
@@ -164,11 +165,8 @@ pending.)
    a referenced field's real type/length/decimals from a connected IBM i.
    Not implemented anywhere in the DSPF designer today (Code for i is
    currently only used by the menu designer's Compile Menu command).
-2. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
-   chars/line) - not implemented in `dspfEngine.js`.
-3. **`ERRMSG` on a window's own reserved message line** (its last content
-   row, unless `*NOMSGLIN`) - not implemented; nothing renders `ERRMSG`
-   specially yet.
+
+No other Display-designer-only items are currently pending.
 
 #### Menu designer only
 

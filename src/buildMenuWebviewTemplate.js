@@ -49,6 +49,12 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-protect { opacity: 0.65; }
   @keyframes dspf-blink { 50% { opacity: 0; } }
   .dspf-subfile-row { background: rgba(51,255,102,0.04); }
+  .dspf-field.dspf-cntfld { display: flex; flex-direction: column; white-space: normal; z-index: 1; }
+  .dspf-cntfld-line { line-height: 1.4em; }
+  .dspf-window-msgline {
+    white-space: pre; color: var(--warn); background: rgba(255,138,92,0.1);
+    pointer-events: none; z-index: 1; overflow: hidden;
+  }
   .dspf-window-border {
     position: relative; border: 2px solid #3a5a45; background: #0a0f0c; border-radius: 2px;
     box-shadow: 3px 3px 0 rgba(0,0,0,0.5); pointer-events: none; z-index: 0;

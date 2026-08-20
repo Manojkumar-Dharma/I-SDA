@@ -521,6 +521,126 @@ console.log('\nWINDOW + SFL on the detail record itself (previewMultipleRows): t
   check('the first preview row is offset by the window origin (line 4+1-1=4), not the raw screen (line 1)', lines[0] === 4);
 }
 
+console.log('\nCNTFLD: a continued-entry field wraps over multiple lines at the declared line width');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'NOTES', length: '100', dataType: 'A', usage: 'B', line: '3', col: '2', func: 'CNTFLD(40)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const f = screen.fields.find((x) => x.name === 'NOTES');
+  check('field found', !!f);
+  check('render width is the CNTFLD line width (40), not the full 100-char length', f.length === 40);
+  check("render height is ceil(100/40) = 3 lines", f.height === 3);
+  check('the underlying text is still the full 100 characters (unwrapped)', f.text.length === 100);
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('the field gets the dspf-cntfld class', html.includes('dspf-cntfld'));
+  const lineMatches = html.match(/dspf-cntfld-line/g) || [];
+  check('three wrapped-line divs are rendered (one per CNTFLD row)', lineMatches.length === 3);
+}
+
+console.log('\nCNTFLD: a length that does not divide evenly still wraps (last line just shorter)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'NOTES', length: '75', dataType: 'A', usage: 'B', line: '3', col: '2', func: 'CNTFLD(30)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const f = screen.fields.find((x) => x.name === 'NOTES');
+  check('75 chars at 30/line -> ceil(75/30) = 3 lines', f.height === 3);
+}
+
+console.log('\nCNTFLD: a field with no CNTFLD keyword is unaffected (existing single-line behavior unchanged)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'NAME', length: '20', dataType: 'A', usage: 'B', line: '3', col: '2' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const f = screen.fields.find((x) => x.name === 'NAME');
+  check('height stays 1', f.height === 1);
+  check('length stays the field length (20)', f.length === 20);
+  check('cntfld is null', f.cntfld === null);
+}
+
+console.log('\nERRMSG: renders on a window\'s own reserved message line (last usable row), only when its own conditioning is satisfied');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(4 10 6 30)' }),
+    buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+    buildLine({ seq: '00030', ind1: '90', func: "ERRMSG('Invalid input' 91)" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const inactive = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('no message shown when the ERRMSG keyword\'s own conditioning indicator is off', inactive.errorMessage === null);
+
+  const active = DspfEngine.resolveScreen(model, 'WIN1', new Set(['90']));
+  check('message shown when the conditioning indicator is on', !!active.errorMessage);
+  check('message text matches ERRMSG\'s quoted text', active.errorMessage.text === 'Invalid input');
+  check('message renders on the window\'s LAST usable row (line 4 + height 6 - 1 = 9)', active.errorMessage.line === 9);
+  check('message starts at the window\'s own column (10)', active.errorMessage.col === 10);
+  check('message width matches the window\'s own width (30)', active.errorMessage.width === 30);
+
+  const html = DspfEngine.renderScreenHtml(active);
+  check('rendered HTML contains the message line div', html.includes('dspf-window-msgline'));
+  check('rendered HTML contains the escaped message text', html.includes('Invalid input'));
+}
+
+console.log('\nERRMSG: a message longer than the window width is truncated to fit');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(4 10 4 10)' }),
+    buildLine({ seq: '00020', name: 'FLD1', length: '5', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+    buildLine({ seq: '00030', func: "ERRMSG('This message is too long')" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('message text is truncated to the window\'s 10-column width', screen.errorMessage.text.length === 10);
+  check('truncation keeps the leading characters', screen.errorMessage.text === 'This messa');
+}
+
+console.log('\nERRMSG: *NOMSGLIN moves the message OUT of the window - nothing renders on the window\'s own message line');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN2', func: 'WINDOW(4 10 6 30 *NOMSGLIN)' }),
+    buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+    buildLine({ seq: '00030', func: "ERRMSG('Invalid input')" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN2', new Set());
+  check('no window message line is rendered when *NOMSGLIN is specified', screen.errorMessage === null);
+}
+
+console.log('\nERRMSG: a record-level ERRMSG is picked up too (not just field-level)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN3', func: 'WINDOW(4 10 5 20)' }),
+    buildLine({ seq: '00011', func: "ERRMSG('Record-level error')" }),
+    buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN3', new Set());
+  check('record-level ERRMSG text is used', screen.errorMessage && screen.errorMessage.text === 'Record-level error');
+}
+
+console.log('\nERRMSG: a record with no WINDOW keyword never gets a window message line (out of scope by definition)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+    buildLine({ seq: '00030', func: "ERRMSG('Invalid input')" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('no window -> no errorMessage', screen.errorMessage === null);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);
