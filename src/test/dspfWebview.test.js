@@ -892,6 +892,57 @@ function runClickToPlaceScenario() {
     check('Escape turns placement mode back off', !doc.querySelector('.dspf-screen.placing'));
     check('and nothing was committed', posted.length === 0);
 
+    runWindowTitleScenario();
+  }, 0);
+}
+
+function runWindowTitleScenario() {
+  console.log('\nChange Window Title by clicking it directly on the preview');
+  const src =
+    [
+      '     A          R WIN1',
+      '     A                                      WINDOW(3 10 8 30)',
+      "     A                                      WDWTITLE(('Old Title'))",
+      "     A                                  1  2'Hello'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce9', src, 'WINTITLE.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    const titleEl = doc.querySelector('.dspf-window-title');
+    check('setup: the window title is rendered on the preview', !!titleEl);
+    check('it is marked editable (cursor/click affordance)', titleEl.classList.contains('dspf-window-title-editable'));
+
+    titleEl.dispatchEvent(new Event('click', { bubbles: true }));
+    const titleInput = doc.getElementById('p-window-title');
+    check('clicking it opens the record Properties panel with a dedicated Window title field', !!titleInput);
+    check('...pre-filled with the current WDWTITLE text', titleInput.value === 'Old Title');
+    check('...and focused, ready to type', doc.activeElement === titleInput);
+
+    titleInput.value = "New title's here";
+    doc.getElementById('p-window-title-save').dispatchEvent(new Event('click', { bubbles: true }));
+
+    const applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('setup: an edit was posted', !!applyEdit);
+    const reparsed = DspfParser.parseDspf(applyEdit.text).records[0];
+    const wdwTitleKw = reparsed.keywords.find((k) => k.name === 'WDWTITLE');
+    check('WDWTITLE is updated with the new text, apostrophe correctly doubled', wdwTitleKw && wdwTitleKw.parameters.includes("New title''s here"));
+    check('the WINDOW keyword (position/size) is untouched', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 10 8 30');
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

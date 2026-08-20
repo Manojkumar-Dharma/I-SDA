@@ -73,7 +73,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-window-title {
     position: absolute; top: -1px; left: 8px; transform: translateY(-50%);
     background: #0a0f0c; padding: 0 6px; font-size: 11px; color: var(--ink-dim);
+    pointer-events: auto;
   }
+  .dspf-window-title.dspf-window-title-editable { cursor: pointer; }
+  .dspf-window-title.dspf-window-title-editable:hover { color: var(--accent); }
   .dspf-field.dspf-widget-radio, .dspf-field.dspf-widget-checkbox {
     display: flex; flex-direction: column; justify-content: center; white-space: normal; z-index: 1;
   }
@@ -651,6 +654,28 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!activePulldown) pulldownCloserAttached = false;
 
+    // "Change Window Title" by clicking it directly on the preview - WDWTITLE
+    // is read/rendered already (resolveWindowTitle), this just adds the
+    // click. Navigates to the record's own Properties panel (which is where
+    // the dedicated Window title field lives - see renderRecordProps) and
+    // focuses that input, rather than a true inline floating editor: the
+    // title div's rendered text is actually a mix of the record name, the
+    // WDWTITLE text, and status hints (see renderScreenHtml), so it isn't
+    // safe to edit that text directly in place.
+    screenOutput.querySelectorAll('.dspf-window-title').forEach((el) => {
+      el.classList.add('dspf-window-title-editable');
+      el.title = 'Click to edit the window title';
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedKey = null;
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+        render();
+        const input = document.getElementById('p-window-title');
+        if (input) { input.focus(); input.select(); }
+      });
+    });
+
     renderProps(recordName);
   }
 
@@ -1071,10 +1096,15 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!rec) { propsBody.innerHTML = '<div class="empty-state">No record selected.</div>'; return; }
 
     const editable = DspfWriter.isEditable(rec);
+    const hasWindow = rec.keywords.some((k) => k.name === 'WINDOW');
     let html = '<div class="section-label">Record</div>';
     html += '<div class="field-row"><label>Name</label>' +
       '<div class="rename-row"><input type="text" class="rename-input" id="p-record-name" value="' + rec.name + '" /><button class="rename-btn" id="p-record-rename">Rename</button></div>' +
       '<div class="rename-error" id="p-record-rename-error"></div></div>';
+    if (hasWindow) {
+      html += '<div class="field-row"><label>Window title</label>' +
+        '<div class="rename-row"><input type="text" class="rename-input" id="p-window-title" value="' + DspfEngine.escapeHtml(DspfWriter.getWindowTitleText(rec.keywords)) + '" /><button class="rename-btn" id="p-window-title-save">Save</button></div></div>';
+    }
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
     html += WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning);
     html += WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record');
@@ -1105,6 +1135,11 @@ const htmlTemplate = `<!DOCTYPE html>
     });
 
     if (!editable) return;
+    if (hasWindow) {
+      document.getElementById('p-window-title-save').addEventListener('click', () => {
+        commitRecordEdit(recordName, { keywords: DspfWriter.setWindowTitleText(rec.keywords, document.getElementById('p-window-title').value) });
+      });
+    }
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));

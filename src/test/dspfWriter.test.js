@@ -753,5 +753,27 @@ console.log('\nDspfWriter.getErrorMessageText()/setErrorMessageText() - ERRMSG a
   check('blank text removes ERRMSG entirely', !cleared.some((k) => k.name === 'ERRMSG'));
 }
 
+console.log('\nDspfWriter.getWindowTitleText()/setWindowTitleText() - WDWTITLE, preserving any other parameters (position modifiers etc.)');
+{
+  const none = DspfWriter.getWindowTitleText([]);
+  check('no WDWTITLE -> empty text', none === '');
+
+  const added = DspfWriter.setWindowTitleText([], 'My Window');
+  const addedKw = added.find((k) => k.name === 'WDWTITLE');
+  check('adding one where none existed writes just the quoted text', addedKw && addedKw.parameters === "'My Window'");
+  check('round-trips back to the original text', DspfWriter.getWindowTitleText(added) === 'My Window');
+
+  const existing = [{ name: 'WDWTITLE', parameters: "(*TEXT 'Old Title') (*TOP *CENTER)", conditions: [], raw: '', sourceLines: [] }];
+  check('reads the title out from among other parameters', DspfWriter.getWindowTitleText(existing) === 'Old Title');
+
+  const swapped = DspfWriter.setWindowTitleText(existing, "New Title's here");
+  const swappedKw = swapped.find((k) => k.name === 'WDWTITLE');
+  check('swaps only the quoted title text, preserving the surrounding position modifiers', swappedKw.parameters === "(*TEXT 'New Title''s here') (*TOP *CENTER)");
+  check('embedded apostrophe correctly doubled', DspfWriter.getWindowTitleText(swapped) === "New Title's here");
+
+  const cleared = DspfWriter.setWindowTitleText(existing, '');
+  check('blank text removes WDWTITLE entirely, even a multi-parameter one', !cleared.some((k) => k.name === 'WDWTITLE'));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

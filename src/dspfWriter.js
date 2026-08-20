@@ -673,6 +673,43 @@
     return next;
   }
 
+  /** Plain-text getter for WDWTITLE - same shape as getErrorMessageText, unlike
+   *  the generic keyword box where the user has to type the quotes themselves.
+   *  DspfEngine.resolveWindowTitle already does this same extraction for the
+   *  preview; this is the writer-side equivalent for the editor to pre-fill
+   *  its input with. */
+  function getWindowTitleText(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'WDWTITLE'; });
+    if (!k) return '';
+    var m = /'((?:[^']|'')*)'/.exec(k.parameters || '');
+    return m ? m[1].replace(/''/g, "'") : '';
+  }
+
+  /** Returns a NEW keywords array with WDWTITLE's quoted text replaced by
+   *  `text` (auto-quoted/escaped) - if WDWTITLE already exists, only its
+   *  quoted title portion is swapped, leaving any other parameters (e.g. a
+   *  *TOP/*BOTTOM or *LEFT/*CENTER/*RIGHT position modifier, or a color/
+   *  DSPATR that came after the title) exactly as they were; if it doesn't
+   *  exist yet, a new WDWTITLE is added with just the quoted text (DDS's
+   *  simplest valid form - position defaults to *TOP *CENTER). Removes
+   *  WDWTITLE entirely if `text` is blank. */
+  function setWindowTitleText(keywords, text) {
+    var trimmed = (text || '').trim();
+    if (!trimmed) return (keywords || []).filter(function (k) { return k.name !== 'WDWTITLE'; });
+
+    var quoted = "'" + trimmed.replace(/'/g, "''") + "'";
+    var found = false;
+    var next = (keywords || []).map(function (k) {
+      if (k.name !== 'WDWTITLE') return k;
+      found = true;
+      var params = k.parameters || '';
+      var newParams = /'((?:[^']|'')*)'/.test(params) ? params.replace(/'((?:[^']|'')*)'/, quoted) : (params.trim() + ' ' + quoted).trim();
+      return { name: 'WDWTITLE', parameters: newParams, conditions: k.conditions, raw: '', sourceLines: [] };
+    });
+    if (!found) next = next.concat([{ name: 'WDWTITLE', parameters: quoted, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -1403,5 +1440,7 @@
     setEditKeyword: setEditKeyword,
     getErrorMessageText: getErrorMessageText,
     setErrorMessageText: setErrorMessageText,
+    getWindowTitleText: getWindowTitleText,
+    setWindowTitleText: setWindowTitleText,
   };
 });
