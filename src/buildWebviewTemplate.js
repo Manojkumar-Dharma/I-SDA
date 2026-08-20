@@ -44,7 +44,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
-  .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; }
+  #screenOutput { position: relative; }
+  .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; z-index: 1; }
+  .dspf-screen-backdrop-layer { position: absolute; top: 0; left: 0; opacity: 0.32; filter: grayscale(0.5); pointer-events: none; z-index: 0; }
+  .dspf-screen-backdrop-layer .dspf-screen { z-index: 0; }
   .dspf-field { white-space: pre; color: var(--accent); cursor: grab; user-select: none; border: 1px solid transparent; }
   .dspf-field:hover { border-color: rgba(51,255,102,0.4); }
   .dspf-field.selected { border-color: var(--accent); background: rgba(51,255,102,0.08); }
@@ -188,7 +191,7 @@ const htmlTemplate = `<!DOCTYPE html>
     <button class="secondary" id="placeConstantBtn">+ Constant</button>
   </div>
   <div class="hint-readonly hidden" id="placementHint">Click anywhere on the screen preview to place it there (Esc to cancel).</div>
-  <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Compare multiple formats (read-only)</label>
+  <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Show other record(s) dimmed behind</label>
   <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
   <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
@@ -310,15 +313,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   compareModeToggle.addEventListener('change', () => {
     compareMode = compareModeToggle.checked;
-    recordSelect.disabled = compareMode;
     compareRecordList.classList.toggle('hidden', !compareMode);
-    if (compareMode && compareSelectedRecords.size === 0 && recordSelect.value) {
-      compareSelectedRecords.add(recordSelect.value); // seed with whatever was being edited, a reasonable starting point
-    }
-    selectedKey = null;
-    selectedHelpSourceLine = null;
-    showFileProps = false;
-    activePulldown = null;
     render();
   });
 
@@ -491,15 +486,18 @@ const htmlTemplate = `<!DOCTYPE html>
    *  arbitrary combination of independently-defined records is ambiguous (which
    *  record does an edit belong to?), so this mode deliberately doesn't support it;
    *  switch back to single-record mode to make an actual edit. */
-  function renderCompareMode() {
-    previewRowsRow.classList.add('hidden');
-    rebuildSizeSelect();
-    // Rebuild the checkbox list every render so it reflects the current model
-    // (e.g. after the user renamed... well, records can't be renamed, but new
-    // records could appear from an external text edit).
+  // Rebuilds the checkbox list of "other" records available as a dimmed
+  // backdrop - every record EXCEPT whichever one is currently being edited,
+  // since that one is already shown normally (full opacity, interactive) as
+  // the primary layer; showing it a second time, dimmed, behind itself
+  // would be redundant. Rebuilt on every render (not just when compareMode
+  // is on) so the list is already current the moment the user checks the
+  // toggle, and so switching records updates which ones are offered without
+  // needing its own special-case.
+  function renderCompareRecordList(currentRecordName) {
     const prevScroll = compareRecordList.scrollTop;
     compareRecordList.innerHTML = '';
-    model.records.forEach((r) => {
+    model.records.filter((r) => r.name !== currentRecordName).forEach((r) => {
       const row = document.createElement('label');
       row.className = 'compare-record-row';
       row.innerHTML = '<input type="checkbox" ' + (compareSelectedRecords.has(r.name) ? 'checked' : '') + ' /> ' + r.name;
@@ -510,30 +508,34 @@ const htmlTemplate = `<!DOCTYPE html>
       compareRecordList.appendChild(row);
     });
     compareRecordList.scrollTop = prevScroll;
+  }
 
-    mainHint.textContent = 'Read-only comparison of multiple record formats - switch off "Compare" to edit.';
-    mainHint.classList.add('hint-readonly');
-
-    const selected = Array.from(compareSelectedRecords).filter((name) => model.records.some((r) => r.name === name));
-    if (selected.length === 0) {
-      screenOutput.innerHTML = '<div class="empty-state">Check one or more record formats above to compare them.</div>';
-      indicatorList.innerHTML = '';
-      propsBody.innerHTML = '<div class="empty-state">Read-only comparison mode - no properties to edit.</div>';
-      return;
-    }
-
-    const screen = DspfEngine.resolveMultiScreen(model, selected, active, selectedSizeIndex);
-    screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
-    // Deliberately no per-field event wiring here - every field in this mode is inert.
-
-    const indSet = new Set();
-    selected.forEach((name) => {
-      const rec = model.records.find((r) => r.name === name);
-      if (rec) indicatorsForContext(name).forEach((n) => indSet.add(n));
-    });
-    rebuildIndicatorListFromSet(Array.from(indSet).sort());
-
-    propsBody.innerHTML = '<div class="empty-state">Read-only comparison mode - no properties to edit.</div>';
+  // Renders every OTHER checked record as a single dimmed, non-interactive
+  // backdrop layer sitting visually BEHIND the primary (editable) screen -
+  // true overlay compare, not the old read-only side-by-side multi-select.
+  // Reuses resolveMultiScreen (already merges several records' fields into
+  // one screen, tagging each with sourceRecord) purely as a convenient way
+  // to combine multiple backdrop records into one rendered layer; nothing
+  // about it is read-only-mode-specific. Appended AFTER the primary's own
+  // .dspf-screen in the DOM (not prepended) so every existing
+  // screenOutput.querySelector('.dspf-screen') call elsewhere keeps
+  // finding the PRIMARY one first, as it always did - the backdrop's own
+  // stacking is purely a CSS z-index/opacity concern (see
+  // .dspf-screen-backdrop-layer), not a DOM-order one.
+  function renderCompareBackdrop(currentRecordName) {
+    if (!compareMode) return;
+    const others = Array.from(compareSelectedRecords).filter(
+      (name) => name !== currentRecordName && model.records.some((r) => r.name === name)
+    );
+    if (others.length === 0) return;
+    const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex);
+    screenOutput.insertAdjacentHTML(
+      'beforeend',
+      '<div class="dspf-screen-backdrop-layer" title="Dimmed reference: ' + others.join(', ') + '">' + DspfEngine.renderScreenHtml(backdropScreen) + '</div>'
+    );
+    // Deliberately no event wiring on anything inside this layer - it's a
+    // read-only visual reference, not a second editable surface; the CSS's
+    // own pointer-events:none on the wrapper backs this up too.
   }
 
   function renderFileCommandKeys(currentRecord) {
@@ -548,7 +550,6 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function render() {
-    if (compareMode) { renderCompareMode(); return; }
     mainHint.classList.remove('hint-readonly');
     mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
 
@@ -560,6 +561,7 @@ const htmlTemplate = `<!DOCTYPE html>
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
     updateSizeBoundsWarning(recordName);
+    renderCompareRecordList(recordName);
 
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
@@ -576,12 +578,20 @@ const htmlTemplate = `<!DOCTYPE html>
         : 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
+    renderCompareBackdrop(recordName);
+    // Every wiring call below is scoped to primaryScreenEl (the FIRST
+    // .dspf-screen in the DOM - see renderCompareBackdrop's own comment on
+    // why it's always appended after, never before) rather than the whole
+    // screenOutput subtree, specifically so none of it accidentally wires
+    // click/drag/title-edit interactivity onto the dimmed backdrop layer's
+    // own (structurally identical) .dspf-field/.dspf-window-title/etc divs -
+    // that layer must stay purely a read-only visual reference.
+    const primaryScreenEl = screenOutput.querySelector('.dspf-screen');
     if (placementMode) {
-      const screenEl = screenOutput.querySelector('.dspf-screen');
-      if (screenEl) screenEl.classList.add('placing');
+      primaryScreenEl.classList.add('placing');
     }
 
-    screenOutput.querySelectorAll('.dspf-field').forEach((el) => {
+    primaryScreenEl.querySelectorAll('.dspf-field').forEach((el) => {
       if (el.getAttribute('data-tag') === 'pulldown') return; // read-only preview overlay, see below for its own click handling
       if ((el.getAttribute('data-tag') || '').indexOf('subfile-preview-row-') === 0) return; // protected: switch to the SFL record itself to edit rows
 
@@ -625,7 +635,7 @@ const htmlTemplate = `<!DOCTYPE html>
           // rows" toggle): every rendered row instance is the SAME template, so every
           // field visible in THIS row instance moves together, and every NAMED field
           // of the record is batch-committed together - see commitGroupEdit.
-          const siblingEls = Array.from(screenOutput.querySelectorAll('[data-tag="' + tag.replace(/"/g, '\\\\"') + '"]'));
+          const siblingEls = Array.from(primaryScreenEl.querySelectorAll('[data-tag="' + tag.replace(/"/g, '\\\\"') + '"]'));
           startGroupDrag(siblingEls, ownerRecord.fields.filter((f) => f.name), ownerRecordName);
         } else {
           startDrag(el, underlying, ownerRecordName);
@@ -637,7 +647,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // linked PULLDOWN record as an overlay anchored just below the choice.
     // Clicking the currently-open choice again, or clicking anywhere else on
     // the screen background, closes it.
-    screenOutput.querySelectorAll('.dspf-menubar-choice').forEach((el) => {
+    primaryScreenEl.querySelectorAll('.dspf-menubar-choice').forEach((el) => {
       const pulldownRecord = el.getAttribute('data-pulldown-record');
       const choiceKey = pulldownRecord + '#' + el.getAttribute('data-choice-id');
       if (activePulldown && activePulldown.choiceKey === choiceKey) el.classList.add('dspf-menubar-open');
@@ -673,7 +683,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // title div's rendered text is actually a mix of the record name, the
     // WDWTITLE text, and status hints (see renderScreenHtml), so it isn't
     // safe to edit that text directly in place.
-    screenOutput.querySelectorAll('.dspf-window-title').forEach((el) => {
+    primaryScreenEl.querySelectorAll('.dspf-window-title').forEach((el) => {
       el.classList.add('dspf-window-title-editable');
       el.title = 'Click to edit the window title';
       el.addEventListener('click', (e) => {
@@ -687,11 +697,10 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     });
 
-    // Window move/resize: only ever ONE window border in single-record
-    // preview mode (never compare mode - that whole path returns early at
-    // the top of render() and reuses this same renderScreenHtml output with
-    // no listeners attached at all, so these handles just sit inert there,
-    // same as every field already does). Disabled - handles rendered but
+    // Window move/resize: only ever ONE interactive window border - the
+    // primary's own (scoped via primaryScreenEl, same reasoning as above;
+    // a dimmed backdrop record's window border, if it has one, must never
+    // get move/resize handles wired). Disabled - handles rendered but
     // non-interactive - when the record's own conditioning is too complex
     // to safely reserialize (isEditable, same gate every other
     // record-level edit already uses) or when the WINDOW keyword itself has
@@ -700,7 +709,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // is the final authority on exactly which operations that allows; this
     // client-side check only decides whether to attach a move handle vs. a
     // resize-only one, not whether the write itself will succeed).
-    const windowEl = screenOutput.querySelector('.dspf-window-border');
+    const windowEl = primaryScreenEl.querySelector('.dspf-window-border');
     if (windowEl && currentRecord) {
       const windowEditable = DspfWriter.isEditable(currentRecord) && !windowEl.getAttribute('data-window-inherited');
       const windowMovable = windowEditable && !windowEl.getAttribute('data-window-position-default');

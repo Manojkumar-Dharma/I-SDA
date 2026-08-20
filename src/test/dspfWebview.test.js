@@ -1020,6 +1020,92 @@ function runWindowMoveResizeScenario() {
     last = posted[posted.length - 1];
     check('resizing a *DFT window keeps *DFT and only changes height/width', last && last.type === 'applyEdit' && /WINDOW\(\*DFT/.test(last.text));
 
+    runDimmedCompareScenario();
+  }, 0);
+}
+
+// True dimmed-overlay compare: the previously-selected record stays the
+// normal, fully interactive, editable primary layer - toggling "Show other
+// record(s) dimmed behind" only ADDS a read-only backdrop layer of other
+// records behind it, rather than replacing the whole view with the old
+// read-only side-by-side multi-select.
+function runDimmedCompareScenario() {
+  console.log('\ntrue dimmed-overlay compare: primary record stays editable, others render dimmed behind it');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R SCR1',
+      "     A                                  1  2'Screen one'",
+      '     A          R SCR2',
+      "     A                                  3  5'Screen two'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'DIMCOMPARE.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  toggle off (default): no backdrop layer, record select enabled');
+    check('setup: SCR1 is selected by default', doc.getElementById('recordSelect').value === 'SCR1');
+    check('no backdrop layer present yet', !doc.querySelector('.dspf-screen-backdrop-layer'));
+    check('record select is enabled (never disabled by this feature)', !doc.getElementById('recordSelect').disabled);
+
+    console.log('  turn the toggle on: checklist appears, excluding the currently-edited record');
+    const toggle = doc.getElementById('compareModeToggle');
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('the compare record list is no longer hidden', !doc.getElementById('compareRecordList').classList.contains('hidden'));
+    const listLabels = Array.from(doc.querySelectorAll('.compare-record-row')).map((r) => r.textContent.trim());
+    check('SCR1 (currently being edited) is NOT offered as a backdrop option', !listLabels.includes('SCR1'));
+    check('SCR2 IS offered', listLabels.includes('SCR2'));
+    check('still no backdrop layer - nothing is checked yet', !doc.querySelector('.dspf-screen-backdrop-layer'));
+    check('the primary record is STILL fully rendered (not replaced by a read-only view)', /Screen one/.test(doc.querySelector('.dspf-screen').textContent));
+
+    console.log('  check SCR2: a dimmed backdrop layer appears behind the primary');
+    const scr2Checkbox = Array.from(doc.querySelectorAll('.compare-record-row')).find((r) => r.textContent.trim() === 'SCR2').querySelector('input');
+    scr2Checkbox.checked = true;
+    scr2Checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    const backdrop = doc.querySelector('.dspf-screen-backdrop-layer');
+    check('a backdrop layer is now present', !!backdrop);
+    check("it contains SCR2's own field", /Screen two/.test(backdrop.textContent));
+    check("the PRIMARY screen (first .dspf-screen in the DOM) is still SCR1's, not SCR2's", doc.querySelector('.dspf-screen').textContent.includes('Screen one'));
+
+    console.log('  the primary record is still fully interactive - clicking a field selects it');
+    const primaryField = doc.querySelector('.dspf-field');
+    check('setup: at least one interactive field is present in the primary layer', !!primaryField);
+    primaryField.dispatchEvent(new Event('click', { bubbles: true }));
+    // click's own handler calls render(), which rebuilds the whole DOM from
+    // scratch - re-query rather than checking the now-stale primaryField
+    // reference (checking classList on it afterward would always be false,
+    // regardless of whether selection actually worked).
+    check('clicking a primary-layer field selects it (proves it is NOT inert/read-only)', !!doc.querySelector('.dspf-field.selected'));
+
+    console.log('  the backdrop layer itself is inert - clicking inside it does not select anything there');
+    posted.length = 0;
+    const backdropAfterClick = doc.querySelector('.dspf-screen-backdrop-layer');
+    const backdropField = backdropAfterClick.querySelector('.dspf-field');
+    check('setup: the backdrop has its own field div rendered', !!backdropField);
+    backdropField.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking inside the backdrop layer does not select it (no selected class added there)', !doc.querySelector('.dspf-screen-backdrop-layer .dspf-field.selected'));
+
+    console.log('  switching the primary record to SCR2 stops it from also appearing dimmed behind itself');
+    doc.getElementById('recordSelect').value = 'SCR2';
+    doc.getElementById('recordSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    check('no backdrop layer renders once the only checked backdrop record becomes the primary', !doc.querySelector('.dspf-screen-backdrop-layer'));
+    check('SCR1 is now offered in the checklist instead (SCR2 is now the primary)', Array.from(doc.querySelectorAll('.compare-record-row')).map((r) => r.textContent.trim()).includes('SCR1'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

@@ -152,10 +152,11 @@ function-key legend, indicator conditioning (both entity-level and now
 per-keyword), copy field/constant, Add Display Size, the file-attributes
 panel, whole-record create/copy/delete, the Center/Fill/colors-
 attributes/validity-edit-error-message field-panel helpers, "+
-Field"/"+ Constant" click-to-place, window move/resize handles, and
-Change Window Title, all now in both designers where applicable, plus
-sort elements - have moved to CHANGELOG.md rather than staying listed
-here as limitations. No Common items are currently pending.)
+Field"/"+ Constant" click-to-place, window move/resize handles, Change
+Window Title, and true dimmed-overlay compare, all now in both designers
+where applicable, plus sort elements - have moved to CHANGELOG.md rather
+than staying listed here as limitations. No Common items are currently
+pending.)
 
 #### Display (DSPF) designer only
 
@@ -168,10 +169,6 @@ here as limitations. No Common items are currently pending.)
 3. **`ERRMSG` on a window's own reserved message line** (its last content
    row, unless `*NOMSGLIN`) - not implemented; nothing renders `ERRMSG`
    specially yet.
-4. **True dimmed-overlay compare** (one record drawn dimmed behind the one
-    being edited) - today's "Compare multiple formats" is a read-only,
-    side-by-side multi-select, not an editable-record-plus-dimmed-backdrop
-    view.
 
 #### Menu designer only
 

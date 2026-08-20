@@ -3,6 +3,40 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.33] - Unreleased
+
+### Changed
+- **True dimmed-overlay compare, replacing the old read-only side-by-side
+  multi-select.** The record currently being edited now stays exactly as
+  normal - full opacity, fully interactive, click/drag/rename/copy/delete
+  all still work - while "Show other record(s) dimmed behind" (renamed
+  from "Compare multiple formats (read-only)") adds a second, read-only,
+  non-interactive layer showing any number of OTHER records rendered
+  dimmed behind it for visual alignment reference. Reuses
+  `DspfEngine.resolveMultiScreen`/`renderScreenHtml` (unchanged) purely
+  as a convenient way to combine several backdrop records into one
+  rendered layer - nothing about them is read-only-specific anymore;
+  the read-only-ness now comes entirely from `pointer-events: none` and
+  no event wiring on that one layer, not from disabling the rest of the
+  UI. The backdrop checklist excludes whichever record is currently
+  being edited (it's already shown normally, in the primary layer, so
+  listing it again as an "other" option would be redundant); switching
+  the primary record while a backdrop is active drops it from the
+  backdrop the moment it becomes primary, rather than briefly rendering
+  behind itself.
+- Every field/menubar-choice/window-title/window-move-resize wiring
+  loop in `buildWebviewTemplate.js`'s `render()` was previously scoped
+  to the whole `screenOutput` subtree; now scoped to `primaryScreenEl`
+  (the primary's own `.dspf-screen`, always first in the DOM) so none
+  of that interactivity can ever attach itself to the new backdrop
+  layer's structurally-identical divs.
+- Covered by a new `runDimmedCompareScenario` in `dspfWebview.test.js`:
+  toggle behavior, checklist filtering, the backdrop appearing/
+  disappearing as records are checked/unchecked, the primary staying
+  clickable, and the backdrop itself staying genuinely inert (a
+  regression test for the scoping fix above - it would have failed
+  before that fix).
+
 ## [0.9.32] - Unreleased
 
 ### Fixed
