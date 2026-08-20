@@ -799,6 +799,99 @@ function runFieldPropertyHelpersScenario() {
     const errKw = reparsedAmount && reparsedAmount.keywords.find((k) => k.name === 'ERRMSG');
     check("posts ERRMSG with the text, apostrophe correctly doubled", errKw && errKw.parameters === "'Amount can''t be negative'");
 
+    runClickToPlaceScenario();
+  }, 0);
+}
+
+function runClickToPlaceScenario() {
+  console.log('\n"+ Field" / "+ Constant" click-to-place on the preview canvas');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R SCR1',
+      "     A                                  1  2'A short label'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce8', src, 'PLACE.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      // jsdom does no real layout, so getBoundingClientRect() is always all-zero -
+      // gridMetrics() (used by both drag and click-to-place) needs a non-zero
+      // rect to convert a pixel click into a line/column. 800x480 for an 80x24
+      // screen gives a clean 10px/col, 20px/row grid to click against.
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  + Constant');
+    const placeConstantBtn = doc.getElementById('placeConstantBtn');
+    check('setup: the + Constant button is present', !!placeConstantBtn);
+    placeConstantBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('activates the crosshair placement class on the screen', !!doc.querySelector('.dspf-screen.placing'));
+    check('shows the placement hint banner', !doc.getElementById('placementHint').classList.contains('hidden'));
+
+    // Click at pixel (155, 95) on the 10px/col x 20px/row grid: gridMetrics'
+    // conversion is Math.round(px/cell) + 1, so this lands at col 17, line 6
+    // (round(155/10)=16, +1=17; round(95/20)=5, +1=6).
+    const screenEl = doc.querySelector('.dspf-screen');
+    const clickEvent = new dom.window.MouseEvent('click', { bubbles: true, clientX: 155, clientY: 95 });
+    screenEl.dispatchEvent(clickEvent);
+
+    check('placement mode turns off once the click lands', !doc.querySelector('.dspf-screen.placing'));
+    const placeLine = doc.getElementById('p-place-line');
+    const placeCol = doc.getElementById('p-place-col');
+    check('opens the placement form pre-filled with the clicked line', !!placeLine && placeLine.value === '6');
+    check('...and column', !!placeCol && placeCol.value === '17');
+    check('did NOT select the existing constant underneath (click-to-place takes priority)', !doc.querySelector('.dspf-field.selected'));
+
+    doc.getElementById('p-place-text').value = 'NEW LABEL';
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('commits a new constant at the clicked position', applyEdit && /6\s*17'NEW LABEL'/.test(applyEdit.text));
+    check('the placement form is gone afterward (pendingPlacement cleared)', !doc.getElementById('p-place-add'));
+
+    console.log('  + Field, with validation');
+    posted.length = 0;
+    const placeFieldBtn = doc.getElementById('placeFieldBtn');
+    placeFieldBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const screenEl2 = doc.querySelector('.dspf-screen');
+    screenEl2.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 5, clientY: 155 }));
+
+    // Empty name should be rejected without committing anything.
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+    check('rejects a blank field name without posting an edit', posted.length === 0 && doc.getElementById('p-place-error').textContent.length > 0);
+
+    doc.getElementById('p-place-name').value = 'newfld';
+    doc.getElementById('p-place-length').value = '5';
+    doc.getElementById('p-place-type').value = 'A';
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+    let fieldEdit = posted.find((m) => m.type === 'applyEdit');
+    check('uppercases the entered name and commits the new field', fieldEdit && fieldEdit.text.includes('NEWFLD'));
+    const reparsed = DspfParser.parseDspf(fieldEdit.text).records[0].fields.find((f) => f.name === 'NEWFLD');
+    check('with the length typed in', reparsed && reparsed.length === 5);
+
+    console.log('  Escape cancels placement mode');
+    posted.length = 0;
+    doc.getElementById('placeFieldBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    check('setup: placement mode is active', !!doc.querySelector('.dspf-screen.placing'));
+    doc.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    check('Escape turns placement mode back off', !doc.querySelector('.dspf-screen.placing'));
+    check('and nothing was committed', posted.length === 0);
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

@@ -150,33 +150,30 @@ only make sense in one context. Within each list, roughly highest-value/most
 requested first. (Completed items from this audit - command keys, the
 function-key legend, indicator conditioning (both entity-level and now
 per-keyword), copy field/constant, Add Display Size, the file-attributes
-panel, whole-record create/copy/delete, and the Center/Fill/colors-
-attributes/validity-edit-error-message field-panel helpers, all now in
-both designers where applicable, plus sort elements - have moved to
-CHANGELOG.md rather than staying listed here as limitations. No Common
-items are currently pending.)
+panel, whole-record create/copy/delete, the Center/Fill/colors-
+attributes/validity-edit-error-message field-panel helpers, and "+
+Field"/"+ Constant" click-to-place, all now in both designers where
+applicable, plus sort elements - have moved to CHANGELOG.md rather than
+staying listed here as limitations. No Common items are currently
+pending.)
 
 #### Display (DSPF) designer only
 
-1. **"+ Field" / "+ Constant" click-to-place buttons** on the preview
-   canvas - `DspfWriter.insertField` already exists and is used by the menu
-   designer's "+ Add option", but the DSPF designer has no equivalent
-   entry point yet.
-2. **Window resize handles**, aware of every declared display size at
+1. **Window resize handles**, aware of every declared display size at
    once - today a window can only be dragged (moved), never resized, from
    the preview.
-3. **Change Window Title** by clicking it directly on the preview (`WDWTITLE`
+2. **Change Window Title** by clicking it directly on the preview (`WDWTITLE`
    is read/rendered already; editing it means hand-typing the keyword).
-4. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
+3. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
    a referenced field's real type/length/decimals from a connected IBM i.
    Not implemented anywhere in the DSPF designer today (Code for i is
    currently only used by the menu designer's Compile Menu command).
-5. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
+4. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
    chars/line) - not implemented in `dspfEngine.js`.
-6. **`ERRMSG` on a window's own reserved message line** (its last content
+5. **`ERRMSG` on a window's own reserved message line** (its last content
    row, unless `*NOMSGLIN`) - not implemented; nothing renders `ERRMSG`
    specially yet.
-7. **True dimmed-overlay compare** (one record drawn dimmed behind the one
+6. **True dimmed-overlay compare** (one record drawn dimmed behind the one
     being edited) - today's "Compare multiple formats" is a read-only,
     side-by-side multi-select, not an editable-record-plus-dimmed-backdrop
     view.

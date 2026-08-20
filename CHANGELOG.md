@@ -3,6 +3,24 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.29] - Unreleased
+
+### Added
+- **DSPF designer: "+ Field" / "+ Constant" click-to-place buttons** on
+  the preview canvas. `DspfWriter.insertField` already existed and was
+  used by the menu designer's "+ Add option"; this adds the DSPF
+  designer's own entry point. Clicking either button arms a crosshair
+  placement mode (Esc cancels); the next click on the screen preview
+  converts its pixel position into a line/column via the same
+  `gridMetrics()` conversion drag already uses, then opens a small
+  placement form in the Properties panel pre-filled with that position
+  (still editable) plus - for a field - Name/Length/Decimals/Data
+  type/Usage, or - for a constant - just Text. Name validation reuses
+  the same `isValidDdsName`/duplicate-name checks "+ Add record" uses.
+  Committing calls `insertField` (always appends at the bottom of the
+  record's field list, same placement rule as Copy field/constant) and
+  selects the new field, ready to drag into its exact final spot.
+
 ## [0.9.28] - Unreleased
 
 ### Added

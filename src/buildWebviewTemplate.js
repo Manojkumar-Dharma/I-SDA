@@ -151,6 +151,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .fkey-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--panel-border); }
   .fkey-chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--panel-border); border-radius: 3px; color: var(--ink-dim); }
   .fkey-chip.fkey-active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
+  .place-btn-row { display: flex; gap: 6px; margin-top: 8px; }
+  .place-btn-row button { flex: 1; }
+  .place-btn-row button.active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
+  .dspf-screen.placing { cursor: crosshair; }
 </style>
 </head>
 <body>
@@ -165,6 +169,11 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="rename-error" id="newRecordError"></div>
   <div class="field-row hidden" id="sizeSelectRow"><label>Screen size</label><select id="sizeSelect"></select></div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
+  <div class="place-btn-row">
+    <button class="secondary" id="placeFieldBtn">+ Field</button>
+    <button class="secondary" id="placeConstantBtn">+ Constant</button>
+  </div>
+  <div class="hint-readonly hidden" id="placementHint">Click anywhere on the screen preview to place it there (Esc to cancel).</div>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Compare multiple formats (read-only)</label>
   <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
   <div id="compareRecordList" class="hidden"></div>
@@ -310,6 +319,51 @@ const htmlTemplate = `<!DOCTYPE html>
       render();
     }
   });
+
+  // "+ Field" / "+ Constant" click-to-place: capture-phase so it runs before
+  // any field's own click handler (selection) or the background-deselect
+  // handler above, and stops propagation so placing on top of an existing
+  // field doesn't also select that field. Converts the click's pixel
+  // position into a line/column via the same gridMetrics() drag already
+  // uses, then opens the placement form (renderPlacementProps) instead of
+  // inserting immediately - a name/length/type (or constant text) is still
+  // needed before there's anything to write.
+  const placeFieldBtn = document.getElementById('placeFieldBtn');
+  const placeConstantBtn = document.getElementById('placeConstantBtn');
+  const placementHint = document.getElementById('placementHint');
+
+  function setPlacementMode(mode) {
+    placementMode = placementMode === mode ? null : mode; // clicking the active button again cancels
+    pendingPlacement = null;
+    placeFieldBtn.classList.toggle('active', placementMode === 'FIELD');
+    placeConstantBtn.classList.toggle('active', placementMode === 'CONSTANT');
+    placementHint.classList.toggle('hidden', !placementMode);
+    const screenEl = screenOutput.querySelector('.dspf-screen');
+    if (screenEl) screenEl.classList.toggle('placing', !!placementMode);
+    render();
+  }
+  placeFieldBtn.addEventListener('click', () => setPlacementMode('FIELD'));
+  placeConstantBtn.addEventListener('click', () => setPlacementMode('CONSTANT'));
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && (placementMode || pendingPlacement)) { setPlacementMode(null); pendingPlacement = null; render(); }
+  });
+
+  screenOutput.addEventListener('click', (e) => {
+    if (!placementMode) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    const screenEl = screenOutput.querySelector('.dspf-screen');
+    if (!screenEl) return;
+    const { rect, colWidth, rowHeight } = gridMetrics();
+    const col = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
+    const line = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+    pendingPlacement = { kind: placementMode, line: line, column: col };
+    placementMode = null;
+    placeFieldBtn.classList.remove('active');
+    placeConstantBtn.classList.remove('active');
+    placementHint.classList.add('hidden');
+    render();
+  }, true);
 
   /** Indicators relevant to the CURRENTLY PREVIEWED context only - the primary record,
    *  plus its paired SFL/SFLCTL record if this is a subfile (indicators used there
@@ -508,6 +562,10 @@ const htmlTemplate = `<!DOCTYPE html>
         : 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
+    if (placementMode) {
+      const screenEl = screenOutput.querySelector('.dspf-screen');
+      if (screenEl) screenEl.classList.add('placing');
+    }
 
     screenOutput.querySelectorAll('.dspf-field').forEach((el) => {
       if (el.getAttribute('data-tag') === 'pulldown') return; // read-only preview overlay, see below for its own click handling
@@ -597,6 +655,11 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   let dragState = null;
+  let placementMode = null; // null | 'FIELD' | 'CONSTANT' - set by the "+ Field"/"+ Constant"
+                             // buttons; the next click on the screen preview background
+                             // becomes the new field/constant's starting position.
+  let pendingPlacement = null; // null | { kind, line, column } - set once that click lands,
+                                // and cleared once the placement form commits or is cancelled.
 
   function gridMetrics() {
     const screenEl = screenOutput.querySelector('.dspf-screen');
@@ -746,6 +809,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function renderProps(recordName) {
+    if (pendingPlacement) { renderPlacementProps(recordName); return; }
     if (showFileProps) { renderFileProps(); return; }
     if (selectedKey) { renderFieldProps(recordName); return; }
     if (selectedHelpSourceLine != null) { renderHelpProps(recordName); return; }
@@ -924,6 +988,82 @@ const htmlTemplate = `<!DOCTYPE html>
     order[idx] = order[newIdx];
     order[newIdx] = tmp;
     commitSourceChange((lines) => DspfWriter.reorderFields(rec, lines, order));
+  }
+
+  /**
+   * "+ Field" / "+ Constant" click-to-place: the props panel while
+   * pendingPlacement is set (line/col already chosen from the canvas
+   * click, kept editable here in case the click landed a cell or two off).
+   * Reuses DspfWriter.insertField exactly as commitCopy/newRecordBtn do -
+   * appended at the bottom of the record's field list, then picked back up
+   * by index and selected so it's immediately ready to drag into its final
+   * spot, same "land somewhere sensible, then let the user refine it" flow.
+   */
+  function renderPlacementProps(recordName) {
+    const kind = pendingPlacement.kind;
+    let html = '<div class="section-label">' + (kind === 'CONSTANT' ? 'New constant' : 'New field') + '</div>';
+    html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
+    html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
+    if (kind === 'CONSTANT') {
+      html += '<div class="field-row"><label>Text</label><input type="text" id="p-place-text" placeholder="Constant text" /></div>';
+    } else {
+      html += '<div class="field-row"><label>Name</label><input type="text" id="p-place-name" maxlength="10" placeholder="FIELD1" /></div>';
+      html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-place-length" min="1" value="10" /></div>';
+      html += '<div class="field-row"><label>Decimals</label><input type="number" id="p-place-decimals" min="0" placeholder="(none)" /></div></div>';
+      html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-place-type">' +
+        ['A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>';
+      html += '<div class="field-row"><label>Usage</label><select id="p-place-usage">' +
+        ['B', 'I', 'O', 'H', 'M', 'P'].map((u) => '<option value="' + u + '">' + u + '</option>').join('') + '</select></div></div>';
+    }
+    html += '<div class="rename-error" id="p-place-error"></div>';
+    html += '<button id="p-place-add" style="width:100%;margin-top:8px;">' + (kind === 'CONSTANT' ? 'Add constant' : 'Add field') + '</button>';
+    html += '<button id="p-place-cancel" class="secondary" style="width:100%;margin-top:8px;">Cancel</button>';
+    propsBody.innerHTML = html;
+
+    document.getElementById('p-place-cancel').addEventListener('click', () => { pendingPlacement = null; render(); });
+    document.getElementById('p-place-add').addEventListener('click', () => {
+      const errorEl = document.getElementById('p-place-error');
+      errorEl.textContent = '';
+      const rec = model.records.find((r) => r.name === recordName);
+      if (!rec) { errorEl.textContent = 'No record selected.'; return; }
+
+      const line = Math.max(1, parseInt(document.getElementById('p-place-line').value, 10) || pendingPlacement.line);
+      const column = Math.max(1, parseInt(document.getElementById('p-place-col').value, 10) || pendingPlacement.column);
+
+      let newFieldSpec;
+      if (kind === 'CONSTANT') {
+        const text = document.getElementById('p-place-text').value;
+        if (!text) { errorEl.textContent = 'Enter the constant text.'; return; }
+        newFieldSpec = { nameType: 'CONSTANT', constantValue: text, location: { line: line, column: column } };
+      } else {
+        const name = document.getElementById('p-place-name').value.trim().toUpperCase();
+        if (!name) { errorEl.textContent = 'Enter a name for the new field.'; return; }
+        if (!WebviewClientHelpers.isValidDdsName(name)) { errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
+        if (rec.fields.some((f) => f.name === name)) { errorEl.textContent = 'A field named "' + name + '" already exists in this record.'; return; }
+        const length = Math.max(1, parseInt(document.getElementById('p-place-length').value, 10) || 1);
+        const decimalsRaw = document.getElementById('p-place-decimals').value;
+        const decimals = decimalsRaw !== '' ? Math.max(0, parseInt(decimalsRaw, 10) || 0) : null;
+        newFieldSpec = {
+          nameType: 'FIELD',
+          name: name,
+          length: length,
+          decimalPositions: decimals,
+          dataType: document.getElementById('p-place-type').value,
+          usage: document.getElementById('p-place-usage').value,
+          location: { line: line, column: column },
+        };
+      }
+
+      commitSourceChange(
+        (lines) => DspfWriter.insertField(rec, lines, newFieldSpec),
+        () => {
+          const freshRec = model.records.find((r) => r.name === recordName);
+          const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
+          pendingPlacement = null;
+          selectedKey = newField ? { sourceLine: newField.sourceLine } : null;
+        }
+      );
+    });
   }
 
   function renderRecordProps(recordName) {
