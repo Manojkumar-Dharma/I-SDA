@@ -3,6 +3,31 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.36] - Unreleased
+
+### Changed
+- **DSPF designer: properties panel reorganized into a breadcrumb +
+  tabs/accordions.** The panel previously showed file, record, and field
+  properties as one long flat scroll with no indication of which level
+  you were editing and no way to move between levels without deselecting
+  on the canvas. Added a persistent `File > Record: X > Field: Y`
+  breadcrumb (each earlier segment is clickable) above the properties
+  body, replacing the old file-panel-only "Back to record" button. Field
+  properties are now grouped into **Basic / Position / Attributes /
+  Keywords** tabs; record properties into **Basic / Keywords / Cmd keys
+  / Structure** tabs. The dense raw-keyword-chip editor and per-entity
+  conditioning editor are collapsed into accordions within their tab
+  rather than always fully expanded. No change to the underlying
+  editing/commit logic - only how the same controls are grouped and
+  navigated.
+- **Menu designer: accordion styling now matches the DSPF designer.**
+  The menu designer's properties were already well-separated (Record
+  controls persistent in the sidebar, File attributes and per-option
+  Conditioning each already collapsible) and didn't need the structural
+  change above - this just restyles the File attributes and per-option
+  Conditioning toggles with the same boxed accordion look, so both
+  designers feel like the same product.
+
 ## [0.9.35] - Unreleased
 
 ### Fixed
