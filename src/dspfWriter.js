@@ -768,9 +768,73 @@
     return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
   }
 
+  // ---------------------------------------------------------------------
+  // WINDOW geometry (move/resize): built on applyRecordUpdate rather than
+  // its own line-splicing, since a WINDOW keyword is just one more entry in
+  // record.keywords - the same "replace one keyword's parameters, re-run
+  // serializeRecordEntry" path every other keyword edit already uses.
+  // Handles all three real WINDOW forms (see resolveWindow's own doc
+  // comment in dspfEngine.js): the explicit `row col height width` form
+  // (both move and resize), the `*DFT height width` runtime-position form
+  // (resize only - there's no row/col to move), and rejects the
+  // `WINDOW(record-format-name)` inheritance form outright, since that
+  // record doesn't own its own geometry to rewrite.
+  // ---------------------------------------------------------------------
+
+  /**
+   * Moves and/or resizes a record's own WINDOW keyword. `geometry` is
+   * `{ row, col, height, width }` - any omitted field keeps its current
+   * value (so a pure move passes just `{row, col}`, a pure resize just
+   * `{height, width}`). Throws for a form with no fixed geometry of its
+   * own to rewrite (inherited-from-another-record, or a program-to-system
+   * field name instead of a literal row/col) - same "editing disabled,
+   * edit the source directly" stance `isEditable` already takes for
+   * multi-group/>3-indicator conditioning elsewhere; callers should check
+   * that case themselves before offering a drag/resize handle at all.
+   */
+  function setWindowGeometry(record, sourceLines, geometry) {
+    var kw = record.keywords.find(function (k) { return k.name === 'WINDOW'; });
+    if (!kw) throw new Error('This record has no WINDOW keyword to move or resize.');
+    var parts = kw.parameters.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) throw new Error("This record's WINDOW keyword has no parameters to move or resize.");
+
+    if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') {
+      throw new Error('This window inherits its geometry from record "' + parts[0] + '" (WINDOW(' + parts[0] + ')) - move or resize that record\'s own WINDOW keyword instead.');
+    }
+
+    var newParams;
+    if (parts[0].toUpperCase() === '*DFT') {
+      if (geometry.row != null || geometry.col != null) {
+        throw new Error("This window's position is set at runtime (WINDOW(*DFT ...)) - it has no fixed row/column to move, only its height/width can be changed.");
+      }
+      var dftHeight = geometry.height != null ? geometry.height : parseInt(parts[1], 10);
+      var dftWidth = geometry.width != null ? geometry.width : parseInt(parts[2], 10);
+      if (!(dftHeight > 0) || !(dftWidth > 0)) throw new Error('Window height and width must both be positive.');
+      newParams = '*DFT ' + dftHeight + ' ' + dftWidth;
+    } else {
+      var rowNum = parseInt(parts[0], 10);
+      var colNum = parseInt(parts[1], 10);
+      if (Number.isNaN(rowNum) || Number.isNaN(colNum)) {
+        throw new Error("This window's position is a program-to-system field name, not a fixed row/column - it can't be moved or resized from the preview.");
+      }
+      var row = geometry.row != null ? geometry.row : rowNum;
+      var col = geometry.col != null ? geometry.col : colNum;
+      var height = geometry.height != null ? geometry.height : parseInt(parts[2], 10);
+      var width = geometry.width != null ? geometry.width : parseInt(parts[3], 10);
+      if (!(row > 0) || !(col > 0) || !(height > 0) || !(width > 0)) {
+        throw new Error('Window row, column, height, and width must all be positive.');
+      }
+      newParams = row + ' ' + col + ' ' + height + ' ' + width;
+    }
+
+    var newKeywords = record.keywords.map(function (k) {
+      return k === kw ? { name: 'WINDOW', parameters: newParams, conditions: kw.conditions, raw: kw.raw, sourceLines: kw.sourceLines } : k;
+    });
+    return applyRecordUpdate(record, sourceLines, { keywords: newKeywords });
+  }
+
   /**
    * Renames a record format's own R-line - deliberately a SEPARATE function
-   * from applyRecordUpdate rather than an extra field on it, so that
    * function's existing "name is read-only" contract (see its own comment)
    * stays exactly as-is for every other caller. This is scoped specifically
    * for the menu designer, where the record format name has one legitimate
@@ -1381,6 +1445,7 @@
     applyRecordUpdate: applyRecordUpdate,
     renameRecordFormat: renameRecordFormat,
     renameRecordReferences: renameRecordReferences,
+    setWindowGeometry: setWindowGeometry,
     nextAvailableRecordName: nextAvailableRecordName,
     insertRecord: insertRecord,
     copyRecord: copyRecord,

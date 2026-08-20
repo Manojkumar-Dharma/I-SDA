@@ -892,6 +892,83 @@ function runClickToPlaceScenario() {
     check('Escape turns placement mode back off', !doc.querySelector('.dspf-screen.placing'));
     check('and nothing was committed', posted.length === 0);
 
+    runWindowMoveResizeScenario();
+  }, 0);
+}
+
+function runWindowMoveResizeScenario() {
+  console.log('\nwindow move/resize handles on the preview canvas');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R WDWREC',
+      '     A                                      WINDOW(3 10 8 40)',
+      "     A                                  1  2'In the window'",
+      '     A          R DFTREC',
+      '     A                                      WINDOW(*DFT 6 30)',
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce11', src, 'WDWMOVE.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      // Same 10px/col x 20px/row mock as runClickToPlaceScenario above.
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent } = dom.window;
+
+    console.log('  explicit-position window: move via the top move handle');
+    let windowEl = doc.querySelector('.dspf-window-border');
+    check('setup: the window border is rendered', !!windowEl);
+    check('not locked (record is editable, WINDOW has a fixed position)', !windowEl.classList.contains('dspf-window-locked'));
+    let moveHandle = windowEl.querySelector('.dspf-window-move-handle');
+    check('setup: a move handle is present', !!moveHandle);
+
+    moveHandle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 90, clientY: 40 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 100 }));
+    // round(150/10)+1=16, round(100/20)+1=6
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with the window moved to the dragged row/col', last && last.type === 'applyEdit' && /WINDOW\(6 16 8 40\)/.test(last.text));
+    check("the window's own field content is untouched", last && /In the window/.test(last.text));
+
+    console.log('  explicit-position window: resize via the bottom-right resize handle');
+    windowEl = doc.querySelector('.dspf-window-border');
+    const resizeHandle = windowEl.querySelector('.dspf-window-resize-handle');
+    check('setup: a resize handle is present', !!resizeHandle);
+    resizeHandle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 250, clientY: 180 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 260 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with the window resized, row/col unchanged', last && last.type === 'applyEdit' && /WINDOW\(6 16/.test(last.text));
+
+    console.log('  *DFT-positioned window: resize handle present, move handle absent (no fixed row/col to drag)');
+    doc.getElementById('recordSelect').value = 'DFTREC';
+    doc.getElementById('recordSelect').dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    windowEl = doc.querySelector('.dspf-window-border');
+    check('setup: the *DFT window is rendered', !!windowEl);
+    check('flagged as a default/runtime position', windowEl.getAttribute('data-window-position-default') === '1');
+    check('not locked (still editable, just not movable)', !windowEl.classList.contains('dspf-window-locked'));
+    posted.length = 0;
+    const dftResizeHandle = windowEl.querySelector('.dspf-window-resize-handle');
+    dftResizeHandle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 220, clientY: 140 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 220 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    last = posted[posted.length - 1];
+    check('resizing a *DFT window keeps *DFT and only changes height/width', last && last.type === 'applyEdit' && /WINDOW\(\*DFT/.test(last.text));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

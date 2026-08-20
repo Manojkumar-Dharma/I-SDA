@@ -1056,6 +1056,7 @@
         if (w.inheritedFrom) titleParts.push('window shared with ' + w.inheritedFrom);
         var titleHtml = titleParts.length > 0 ? '<div class="dspf-window-title">' + escapeHtml(titleParts.join(' \u00b7 ')) + '</div>' : '';
         var windowClasses = 'dspf-window-border' + (w.positionIsDefault ? ' dspf-window-default-position' : '');
+        var handleHtml = '<div class="dspf-window-move-handle" title="Drag to move"></div><div class="dspf-window-resize-handle" title="Drag to resize"></div>';
         return (
           '<div class="' +
           windowClasses +
@@ -1067,8 +1068,21 @@
           w.col +
           ' / span ' +
           w.width +
-          ';">' +
+          ';" data-window-line="' +
+          w.line +
+          '" data-window-col="' +
+          w.col +
+          '" data-window-height="' +
+          w.height +
+          '" data-window-width="' +
+          w.width +
+          '" data-window-position-default="' +
+          (w.positionIsDefault ? '1' : '') +
+          '" data-window-inherited="' +
+          (w.inheritedFrom ? '1' : '') +
+          '">' +
           titleHtml +
+          handleHtml +
           '</div>'
         );
       })

@@ -151,29 +151,26 @@ requested first. (Completed items from this audit - command keys, the
 function-key legend, indicator conditioning (both entity-level and now
 per-keyword), copy field/constant, Add Display Size, the file-attributes
 panel, whole-record create/copy/delete, the Center/Fill/colors-
-attributes/validity-edit-error-message field-panel helpers, and "+
-Field"/"+ Constant" click-to-place, all now in both designers where
-applicable, plus sort elements - have moved to CHANGELOG.md rather than
-staying listed here as limitations. No Common items are currently
-pending.)
+attributes/validity-edit-error-message field-panel helpers, "+
+Field"/"+ Constant" click-to-place, and window move/resize handles, all now
+in both designers where applicable, plus sort elements - have moved to
+CHANGELOG.md rather than staying listed here as limitations. No Common
+items are currently pending.)
 
 #### Display (DSPF) designer only
 
-1. **Window resize handles**, aware of every declared display size at
-   once - today a window can only be dragged (moved), never resized, from
-   the preview.
-2. **Change Window Title** by clicking it directly on the preview (`WDWTITLE`
+1. **Change Window Title** by clicking it directly on the preview (`WDWTITLE`
    is read/rendered already; editing it means hand-typing the keyword).
-3. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
+2. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
    a referenced field's real type/length/decimals from a connected IBM i.
    Not implemented anywhere in the DSPF designer today (Code for i is
    currently only used by the menu designer's Compile Menu command).
-4. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
+3. **`CNTFLD(n)` wrapping** in the preview (multi-line field wrap at n
    chars/line) - not implemented in `dspfEngine.js`.
-5. **`ERRMSG` on a window's own reserved message line** (its last content
+4. **`ERRMSG` on a window's own reserved message line** (its last content
    row, unless `*NOMSGLIN`) - not implemented; nothing renders `ERRMSG`
    specially yet.
-6. **True dimmed-overlay compare** (one record drawn dimmed behind the one
+5. **True dimmed-overlay compare** (one record drawn dimmed behind the one
     being edited) - today's "Compare multiple formats" is a read-only,
     side-by-side multi-select, not an editable-record-plus-dimmed-backdrop
     view.

@@ -74,6 +74,17 @@ const htmlTemplate = `<!DOCTYPE html>
     position: absolute; top: -1px; left: 8px; transform: translateY(-50%);
     background: #0a0f0c; padding: 0 6px; font-size: 11px; color: var(--ink-dim);
   }
+  .dspf-window-move-handle {
+    position: absolute; top: 0; left: 0; right: 0; height: 14px; cursor: move; pointer-events: auto; z-index: 1;
+  }
+  .dspf-window-resize-handle {
+    position: absolute; bottom: -4px; right: -4px; width: 12px; height: 12px;
+    background: #3a5a45; border: 1px solid var(--panel-border); border-radius: 2px;
+    cursor: nwse-resize; pointer-events: auto; z-index: 1;
+  }
+  .dspf-window-resize-handle:hover, .dspf-window-move-handle:hover { background: var(--accent); }
+  .dspf-window-border.dspf-window-locked .dspf-window-move-handle,
+  .dspf-window-border.dspf-window-locked .dspf-window-resize-handle { cursor: not-allowed; opacity: 0.4; }
   .dspf-field.dspf-widget-radio, .dspf-field.dspf-widget-checkbox {
     display: flex; flex-direction: column; justify-content: center; white-space: normal; z-index: 1;
   }
@@ -651,6 +662,34 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!activePulldown) pulldownCloserAttached = false;
 
+    // Window move/resize: only ever ONE window border in single-record
+    // preview mode (never compare mode - that whole path returns early at
+    // the top of render() and reuses this same renderScreenHtml output with
+    // no listeners attached at all, so these handles just sit inert there,
+    // same as every field already does). Disabled - handles rendered but
+    // non-interactive - when the record's own conditioning is too complex
+    // to safely reserialize (isEditable, same gate every other
+    // record-level edit already uses) or when the WINDOW keyword itself has
+    // no fixed geometry of its own to rewrite (inherited from another
+    // record, or a runtime *DFT/field-name position - setWindowGeometry
+    // is the final authority on exactly which operations that allows; this
+    // client-side check only decides whether to attach a move handle vs. a
+    // resize-only one, not whether the write itself will succeed).
+    const windowEl = screenOutput.querySelector('.dspf-window-border');
+    if (windowEl && currentRecord) {
+      const windowEditable = DspfWriter.isEditable(currentRecord) && !windowEl.getAttribute('data-window-inherited');
+      const windowMovable = windowEditable && !windowEl.getAttribute('data-window-position-default');
+      if (!windowEditable) windowEl.classList.add('dspf-window-locked');
+      const moveHandle = windowEl.querySelector('.dspf-window-move-handle');
+      const resizeHandle = windowEl.querySelector('.dspf-window-resize-handle');
+      if (moveHandle && windowMovable) {
+        moveHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowMove(windowEl, currentRecord); });
+      }
+      if (resizeHandle && windowEditable) {
+        resizeHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowResize(windowEl, currentRecord); });
+      }
+    }
+
     renderProps(recordName);
   }
 
@@ -709,6 +748,71 @@ const htmlTemplate = `<!DOCTYPE html>
         commitEdit(recordName, field, { line: origSourceLine + deltaLine, column: origSourceColumn + deltaColumn });
       }
       setTimeout(() => { dragState = null; }, 0);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  // Drags the whole window frame by a delta - same delta-not-absolute
+  // approach startDrag above uses, and for the same reason: only the
+  // WINDOW keyword's own row/col changes, nothing about the record's
+  // fields (which stay window-relative). Uses the window's OWN data-*
+  // attributes (baked in by dspfEngine.js) as the drag's starting point,
+  // not field-drag's data-render-line/-column, since a window has no
+  // field-style anchor of its own.
+  function startWindowMove(windowEl, record) {
+    const { rect, colWidth, rowHeight } = gridMetrics();
+    const origLine = parseInt(windowEl.getAttribute('data-window-line'), 10);
+    const origCol = parseInt(windowEl.getAttribute('data-window-col'), 10);
+    const height = parseInt(windowEl.getAttribute('data-window-height'), 10);
+    const width = parseInt(windowEl.getAttribute('data-window-width'), 10);
+    let newLine = origLine, newCol = origCol;
+    windowEl.classList.add('dragging');
+
+    function onMove(e) {
+      newCol = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
+      newLine = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+      windowEl.style.gridColumn = newCol + ' / span ' + width;
+      windowEl.style.gridRow = newLine + ' / span ' + height;
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      windowEl.classList.remove('dragging');
+      if (newLine !== origLine || newCol !== origCol) {
+        commitSourceChange((lines) => DspfWriter.setWindowGeometry(record, lines, { row: newLine, col: newCol }));
+      }
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  // Resizes from the bottom-right corner only (row/col - the window's own
+  // origin - never change here, only height/width grow or shrink toward/away
+  // from that fixed corner). Clamped to a 2x2 minimum so a window can never
+  // be dragged down to something DDS wouldn't accept anyway.
+  function startWindowResize(windowEl, record) {
+    const { rect, colWidth, rowHeight } = gridMetrics();
+    const line = parseInt(windowEl.getAttribute('data-window-line'), 10);
+    const col = parseInt(windowEl.getAttribute('data-window-col'), 10);
+    const origHeight = parseInt(windowEl.getAttribute('data-window-height'), 10);
+    const origWidth = parseInt(windowEl.getAttribute('data-window-width'), 10);
+    let newHeight = origHeight, newWidth = origWidth;
+    windowEl.classList.add('dragging');
+
+    function onMove(e) {
+      newWidth = Math.max(2, Math.round((e.clientX - rect.left) / colWidth) + 1 - col);
+      newHeight = Math.max(2, Math.round((e.clientY - rect.top) / rowHeight) + 1 - line);
+      windowEl.style.gridColumn = col + ' / span ' + newWidth;
+      windowEl.style.gridRow = line + ' / span ' + newHeight;
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      windowEl.classList.remove('dragging');
+      if (newHeight !== origHeight || newWidth !== origWidth) {
+        commitSourceChange((lines) => DspfWriter.setWindowGeometry(record, lines, { height: newHeight, width: newWidth }));
+      }
     }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);

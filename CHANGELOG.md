@@ -3,6 +3,42 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.30] - Unreleased
+
+### Added
+- **Window move/resize handles on the DSPF preview.** A window could
+  previously only be dragged - now it can be resized too, and both
+  operations are backed by a real writer primitive
+  (`DspfWriter.setWindowGeometry`) rather than a preview-only visual
+  effect. Handles all three real `WINDOW` forms: the explicit
+  `row col height width` form (move and resize both work), the
+  `*DFT height width` runtime-position form (resize only - there's no
+  fixed row/col to drag, so no move handle renders for it), and the
+  `WINDOW(record-format-name)` inheritance form (neither - that record
+  doesn't own its own geometry to rewrite; edit the record it inherits
+  from instead). Disabled, same as every other record-level edit, when
+  the record's own conditioning is too complex to safely reserialize
+  (`DspfWriter.isEditable`). Resize is corner-anchored (bottom-right
+  only) - row/col never move during a resize, only height/width grow or
+  shrink toward or away from that fixed corner.
+- Covered by 5 new cases in `dspfWriter.test.js` for the writer
+  primitive itself (move, resize, move+resize together, each of the
+  three WINDOW forms' own constraints) and a new
+  `runWindowMoveResizeScenario` in `dspfWebview.test.js` simulating an
+  actual mouse drag on both handles.
+
+### Verified
+- **A subfile inside a window** (a record carrying both `WINDOW` and
+  `SFLCTL`/`SFL`) - a common, ordinary real-DDS pattern - was already
+  architecturally supported (the window's own line/col offset was
+  already threaded through to the subfile preview's own resolution) but
+  had no dedicated test proving it. Added 2 new cases to
+  `dspfEngine.test.js` confirming both the SFLCTL-side preview and the
+  SFL-side (template) preview correctly offset every subfile row by the
+  window's own origin, not the raw screen origin - no engine changes
+  were needed; this was purely closing a testing gap the README had
+  flagged as worth checking.
+
 ## [0.9.29] - Unreleased
 
 ### Added

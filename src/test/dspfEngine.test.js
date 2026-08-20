@@ -471,6 +471,56 @@ console.log('\nDspfEngine.resolveFunctionKeyLegend() - merges file-level and rec
   check('simulating 90+91 flips both CA03 and CF05 active', legend3.find((k) => k.number === '03').active === true && legend3.find((k) => k.number === '05').active === true);
 }
 
+console.log('\nWINDOW + SFLCTL/SFL combined on the SFLCTL record: subfile preview rows are offset by the window\'s own origin, not the raw screen origin');
+{
+  // SFLCTLR carries BOTH WINDOW(5 10 10 30) and SFLCTL(SFLREC) - a subfile
+  // control record shown inside a window, same as real DDS allows (a
+  // windowed subfile is an ordinary, common pattern). resolveScreen resolves
+  // the window's own line/col offset once (windowBox.line-1, windowBox.col-1)
+  // and threads it through to resolveSubfilePreview's own lineOffset/
+  // colOffset params - this proves that composition actually happens rather
+  // than the subfile preview silently ignoring the window and rendering at
+  // the raw (un-offset) screen position.
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', name: 'ROWNAME', length: '10', dataType: 'A', usage: 'O', line: '1', col: '2' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTLR', func: 'SFLCTL(SFLREC)' }),
+    buildLine({ seq: '00201', func: 'WINDOW(5 10 10 30)' }),
+    buildLine({ seq: '00202', func: 'SFLPAG(3)' }),
+    buildLine({ seq: '00203', func: 'SFLDSP' }),
+    buildLine({ seq: '00204', func: 'SFLDSPCTL' }),
+    buildLine({ seq: '00205', line: '1', col: '2', func: "'Report'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTLR', new Set());
+  check('the window itself resolves at its declared position', screen.window && screen.window.line === 5 && screen.window.col === 10);
+  check("the record's own field ('Report' title) is offset by the window's origin (line 5+1-1=5, col 10+2-1=11)", screen.fields.some((f) => f.line === 5 && f.column === 11));
+  check('subfile preview rows are present', screen.subfilePreview && screen.subfilePreview.fields.length === 3);
+  const rowLines = screen.subfilePreview.fields.map((f) => f.line).sort((a, b) => a - b);
+  check('the FIRST subfile row is offset by the window origin too (line 5+1-1=5), not the raw screen (line 1)', rowLines[0] === 5);
+  check('subsequent subfile rows stack directly below that, still inside the window', rowLines[1] === 6 && rowLines[2] === 7);
+  check('every subfile row column is offset by the window\'s own column too (col 10+2-1=11)', screen.subfilePreview.fields.every((f) => f.column === 11));
+}
+
+console.log('\nWINDOW + SFL on the detail record itself (previewMultipleRows): the template\'s own preview rows are ALSO offset by its own WINDOW');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', func: 'WINDOW(4 6 12 40)' }),
+    buildLine({ seq: '00102', name: 'ROWNAME', length: '10', dataType: 'A', usage: 'O', line: '1', col: '2' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const screen = DspfEngine.resolveScreen(model, 'SFLREC', new Set(), null, true);
+  check('the window resolves at its declared position', screen.window && screen.window.line === 4 && screen.window.col === 6);
+  check('the template preview renders more than one row', screen.fields.length > 1);
+  const lines = screen.fields.map((f) => f.line).sort((a, b) => a - b);
+  check('the first preview row is offset by the window origin (line 4+1-1=4), not the raw screen (line 1)', lines[0] === 4);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);
