@@ -176,6 +176,23 @@ const htmlTemplate = `<!DOCTYPE html>
   .fkey-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--panel-border); }
   .fkey-chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--panel-border); border-radius: 3px; color: var(--ink-dim); }
   .fkey-chip.fkey-active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
+  .props-breadcrumb { font-size: 11px; color: var(--ink-dim); margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .props-breadcrumb .crumb { cursor: pointer; }
+  .props-breadcrumb .crumb:hover { color: var(--accent); }
+  .props-breadcrumb .crumb.current { color: var(--ink); cursor: default; font-weight: 600; }
+  .props-breadcrumb .crumb-sep { color: var(--panel-border); }
+  .props-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--panel-border); margin-bottom: 12px; flex-wrap: wrap; }
+  .props-tab { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--ink-dim); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 8px; cursor: pointer; border-radius: 0; }
+  .props-tab:hover { color: var(--ink); background: transparent; }
+  .props-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .props-tab-panel { display: none; }
+  .props-tab-panel.active { display: block; }
+  .props-accordion { border: 1px solid var(--panel-border); border-radius: 3px; margin-bottom: 10px; }
+  .props-accordion > summary { cursor: pointer; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); list-style: none; }
+  .props-accordion > summary::-webkit-details-marker { display: none; }
+  .props-accordion > summary:hover { color: var(--accent); }
+  .props-accordion[open] > summary { border-bottom: 1px solid var(--panel-border); color: var(--accent); }
+  .props-accordion-body { padding: 8px; }
   .place-btn-row { display: flex; gap: 6px; margin-top: 8px; }
   .place-btn-row button { flex: 1; }
   .place-btn-row button.active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
@@ -216,6 +233,7 @@ const htmlTemplate = `<!DOCTYPE html>
 </main>
 <div class="props-panel" id="propsPanel">
   <h2 style="font-size:13px;">Properties</h2>
+  <div id="propsBreadcrumb"></div>
   <div id="propsBody"><div class="empty-state">Select a field to edit it.</div></div>
 </div>
 
@@ -247,6 +265,9 @@ const htmlTemplate = `<!DOCTYPE html>
   const indicatorList = document.getElementById('indicatorList');
   const screenOutput = document.getElementById('screenOutput');
   const propsBody = document.getElementById('propsBody');
+  const propsBreadcrumb = document.getElementById('propsBreadcrumb');
+  let activeFieldTab = 'basic';
+  let activeRecordTab = 'basic';
   const compareModeToggle = document.getElementById('compareModeToggle');
   const compareRecordList = document.getElementById('compareRecordList');
   const mainHint = document.getElementById('mainHint');
@@ -955,11 +976,87 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function renderProps(recordName) {
+    renderBreadcrumb(recordName);
     if (pendingPlacement) { renderPlacementProps(recordName); return; }
     if (showFileProps) { renderFileProps(); return; }
     if (selectedKey) { renderFieldProps(recordName); return; }
     if (selectedHelpSourceLine != null) { renderHelpProps(recordName); return; }
     renderRecordProps(recordName);
+  }
+
+  /**
+   * Persistent "File > Record: X > Field: Y" trail above the props body -
+   * lets you jump straight back to the record or file level without
+   * deselecting on the canvas first. Rebuilt on every renderProps() call
+   * (cheap - it's a handful of spans) so it always reflects current state.
+   */
+  function renderBreadcrumb(recordName) {
+    const rec = model.records.find((r) => r.name === recordName);
+    const atRecord = !showFileProps && !selectedKey && selectedHelpSourceLine == null && !pendingPlacement;
+    let html = '<div class="props-breadcrumb">';
+    html += '<span class="crumb' + (showFileProps ? ' current' : '') + '" id="crumb-file">File</span>';
+    if (rec) {
+      html += '<span class="crumb-sep">&rsaquo;</span>';
+      html += '<span class="crumb' + (atRecord ? ' current' : '') + '" id="crumb-record">Record: ' + DspfEngine.escapeHtml(rec.name) + '</span>';
+    }
+    if (selectedKey) {
+      const found = findFieldBySourceLine(selectedKey.sourceLine);
+      const field = found && found.field;
+      const rawLabel = field ? (field.nameType === 'CONSTANT' ? (field.constantValue || '(constant)') : (field.name || '(field)')) : '';
+      const label = rawLabel.length > 18 ? rawLabel.slice(0, 18) + '\u2026' : rawLabel;
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Field: ' + DspfEngine.escapeHtml(label) + '</span>';
+    } else if (selectedHelpSourceLine != null) {
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Help entry</span>';
+    } else if (pendingPlacement) {
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">New ' + (pendingPlacement.kind === 'CONSTANT' ? 'constant' : 'field') + '</span>';
+    }
+    html += '</div>';
+    propsBreadcrumb.innerHTML = html;
+
+    const fileCrumb = document.getElementById('crumb-file');
+    if (fileCrumb) fileCrumb.addEventListener('click', () => {
+      if (showFileProps) return;
+      showFileProps = true;
+      selectedKey = null;
+      selectedHelpSourceLine = null;
+      pendingPlacement = null;
+      render();
+    });
+    const recordCrumb = document.getElementById('crumb-record');
+    if (recordCrumb) recordCrumb.addEventListener('click', () => {
+      if (atRecord) return;
+      showFileProps = false;
+      selectedKey = null;
+      selectedHelpSourceLine = null;
+      pendingPlacement = null;
+      render();
+    });
+  }
+
+  /** Builds a tab strip + its panels. tabs: [{id, label, content}]. */
+  function tabsHtml(tabs, activeId) {
+    let html = '<div class="props-tabs">';
+    tabs.forEach((t) => { html += '<button type="button" class="props-tab' + (t.id === activeId ? ' active' : '') + '" data-tab="' + t.id + '">' + t.label + '</button>'; });
+    html += '</div>';
+    tabs.forEach((t) => { html += '<div class="props-tab-panel' + (t.id === activeId ? ' active' : '') + '" data-tab-panel="' + t.id + '">' + t.content + '</div>'; });
+    return html;
+  }
+
+  /** Wires click handlers for a tabsHtml()-produced strip. onSwitch(id) fires after switching. */
+  function wireTabs(root, onSwitch) {
+    root.querySelectorAll('.props-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-tab');
+        root.querySelectorAll('.props-tab').forEach((b) => b.classList.toggle('active', b === btn));
+        root.querySelectorAll('.props-tab-panel').forEach((p) => p.classList.toggle('active', p.getAttribute('data-tab-panel') === id));
+        if (onSwitch) onSwitch(id);
+      });
+    });
+  }
+
+  /** A collapsible <details> section for dense content (raw keywords, conditioning). */
+  function accordionHtml(label, bodyHtml, openByDefault) {
+    return '<details class="props-accordion"' + (openByDefault ? ' open' : '') + '><summary>' + label + '</summary><div class="props-accordion-body">' + bodyHtml + '</div></details>';
   }
 
   /**
@@ -972,16 +1069,10 @@ const htmlTemplate = `<!DOCTYPE html>
    * panels already use (they have nothing else to Apply either).
    */
   function renderFileProps() {
-    let html = '<button id="p-file-back" class="secondary" style="width:100%;margin-bottom:12px;">&larr; Back to record</button>';
-    html += '<div class="section-label">File-level attributes</div>';
-    html += '<div class="status" style="margin-bottom:12px;">Keywords for the whole display file (DSPSIZ, REF, INDARA, PRINT, etc.) - not tied to any one record format. Command keys (CAxx/CFxx) have their own dedicated panel above and are best edited there.</div>';
+    let html = '<div class="status" style="margin-bottom:12px;">Keywords for the whole display file (DSPSIZ, REF, INDARA, PRINT, etc.) - not tied to any one record format. Command keys (CAxx/CFxx) have their own dedicated panel above and are best edited there.</div>';
     html += WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning);
     propsBody.innerHTML = html;
 
-    document.getElementById('p-file-back').addEventListener('click', () => {
-      showFileProps = false;
-      renderProps(recordSelect.value);
-    });
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
   }
 
@@ -999,49 +1090,67 @@ const htmlTemplate = `<!DOCTYPE html>
     const isConstant = field.nameType === 'CONSTANT';
     let html = '';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this field is disabled to avoid corrupting it. Edit the source directly.</div>';
+
+    // --- Basic tab: identity (name/text, length/decimals or fill, type/usage) ---
+    let basicHtml = '';
     if (isConstant) {
       // A constant has no name/length/data type/usage of its own - its whole
       // identity IS its literal text, which was previously not editable
       // here at all (only its position, via drag). DspfWriter.applyFieldUpdate
       // already supported writing back a new constantValue; only the input
       // to drive it was missing.
-      html += '<div class="field-row"><label>Text</label><input type="text" id="p-const-text" value="' + DspfEngine.escapeHtml(field.constantValue || '') + '" /></div>';
+      basicHtml += '<div class="field-row"><label>Text</label><input type="text" id="p-const-text" value="' + DspfEngine.escapeHtml(field.constantValue || '') + '" /></div>';
       // "Fill constant with characters" - repeats a single character across a
       // chosen length (e.g. a row of dashes as a visual divider). Populates
       // the Text input above rather than committing on its own, so it lines
-      // up with "Center" below and the shared Apply changes button - one
-      // commit for whatever combination of position/text/fill was touched.
-      html += '<div class="two-col"><div class="field-row"><label>Fill character</label><input type="text" id="p-fill-char" maxlength="1" value="." /></div>';
-      html += '<div class="field-row"><label>Fill length</label><input type="number" id="p-fill-len" min="1" value="' + Math.max(1, (field.constantValue || '').length || 10) + '" /></div></div>';
-      html += '<button id="p-fill" class="secondary" style="width:100%;margin-bottom:12px;">Fill</button>';
+      // up with "Center" below (Position tab) and the shared Apply changes
+      // button - one commit for whatever combination of position/text/fill
+      // was touched.
+      basicHtml += '<div class="two-col"><div class="field-row"><label>Fill character</label><input type="text" id="p-fill-char" maxlength="1" value="." /></div>';
+      basicHtml += '<div class="field-row"><label>Fill length</label><input type="number" id="p-fill-len" min="1" value="' + Math.max(1, (field.constantValue || '').length || 10) + '" /></div></div>';
+      basicHtml += '<button id="p-fill" class="secondary" style="width:100%;margin-bottom:12px;">Fill</button>';
     } else {
-      html += '<div class="field-row"><label>Name</label><input type="text" id="p-name" value="' + (field.name || '') + '" /></div>';
-      html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-length" value="' + (field.length != null ? field.length : '') + '" /></div>';
-      html += '<div class="field-row"><label>Decimals</label><input type="number" id="p-dec" value="' + (field.decimalPositions != null ? field.decimalPositions : '') + '" /></div></div>';
+      basicHtml += '<div class="field-row"><label>Name</label><input type="text" id="p-name" value="' + (field.name || '') + '" /></div>';
+      basicHtml += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-length" value="' + (field.length != null ? field.length : '') + '" /></div>';
+      basicHtml += '<div class="field-row"><label>Decimals</label><input type="number" id="p-dec" value="' + (field.decimalPositions != null ? field.decimalPositions : '') + '" /></div></div>';
+      basicHtml += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
+        ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
+      basicHtml += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
     }
-    html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-line" value="' + (field.location.line != null ? field.location.line : '') + '" /></div>';
-    html += '<div class="field-row"><label>Column</label><input type="number" id="p-col" value="' + (field.location.column != null ? field.location.column : '') + '" /></div></div>';
+
+    // --- Position tab: line/col + center helper ---
+    let positionHtml = '';
+    positionHtml += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-line" value="' + (field.location.line != null ? field.location.line : '') + '" /></div>';
+    positionHtml += '<div class="field-row"><label>Column</label><input type="number" id="p-col" value="' + (field.location.column != null ? field.location.column : '') + '" /></div></div>';
     // "Center field/constant on screen" - fills the Column input above with
     // the column that centers the current width within the record's screen,
     // same populate-then-Apply pattern as Fill above (and for the same
     // reason: centering AND retyping the text/length in the same visit
     // should commit as one edit, not two).
-    html += '<button id="p-center" class="secondary" style="width:100%;margin-bottom:12px;">Center on screen</button>';
+    positionHtml += '<button id="p-center" class="secondary" style="width:100%;margin-bottom:12px;">Center on screen</button>';
+
+    // --- Attributes tab: display attributes / validity & edit keywords ---
+    let attrsHtml = WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
     if (!isConstant) {
-      html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
-        ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
-      html += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
+      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine);
     }
-    html += WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
-    if (!isConstant) {
-      html += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine);
-    }
-    html += WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning);
-    html += WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field');
+
+    // --- Keywords tab: the dense raw-keyword chip editor + conditioning, each collapsed by default ---
+    let keywordsHtml = accordionHtml('Keywords', WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), true);
+    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field'), false);
+
+    html += tabsHtml([
+      { id: 'basic', label: isConstant ? 'Text' : 'Basic', content: basicHtml },
+      { id: 'position', label: 'Position', content: positionHtml },
+      { id: 'attrs', label: 'Attributes', content: attrsHtml },
+      { id: 'keywords', label: 'Keywords', content: keywordsHtml },
+    ], activeFieldTab);
+
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
     html += '<button id="p-copy" class="secondary" style="width:100%;margin-top:8px;">Copy ' + (isConstant ? 'constant' : 'field') + '</button>';
     html += '<div class="delete-hint">Press Delete or Backspace to remove this field. Press Ctrl+D to copy it.</div>';
     propsBody.innerHTML = html;
+    wireTabs(propsBody, (id) => { activeFieldTab = id; });
     if (!editable) return;
 
     document.getElementById('p-apply').addEventListener('click', () => {
@@ -1218,24 +1327,40 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const editable = DspfWriter.isEditable(rec);
     const hasWindow = rec.keywords.some((k) => k.name === 'WINDOW');
-    let html = '<div class="section-label">Record</div>';
-    html += '<div class="field-row"><label>Name</label>' +
+    let html = '';
+    if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
+
+    // --- Basic tab: name, window title ---
+    let basicHtml = '<div class="field-row"><label>Name</label>' +
       '<div class="rename-row"><input type="text" class="rename-input" id="p-record-name" value="' + rec.name + '" /><button class="rename-btn" id="p-record-rename">Rename</button></div>' +
       '<div class="rename-error" id="p-record-rename-error"></div></div>';
     if (hasWindow) {
-      html += '<div class="field-row"><label>Window title</label>' +
+      basicHtml += '<div class="field-row"><label>Window title</label>' +
         '<div class="rename-row"><input type="text" class="rename-input" id="p-window-title" value="' + DspfEngine.escapeHtml(DspfWriter.getWindowTitleText(rec.keywords)) + '" /><button class="rename-btn" id="p-window-title-save">Save</button></div></div>';
     }
-    if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this record is disabled to avoid corrupting it. Edit the source directly.</div>';
-    html += WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning);
-    html += WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record');
+
+    // --- Keywords tab: raw keyword chip editor + conditioning, collapsed by default ---
+    let keywordsHtml = accordionHtml('Keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), true);
+    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record'), false);
+
+    // --- Command keys tab ---
     const availableForRecord = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, rec.keywords);
-    html += WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
-    html += helpEntriesListHtml(rec);
-    html += fieldOrderListHtml(rec);
+    const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
+
+    // --- Structure tab: help entries + source field order ---
+    const structureHtml = helpEntriesListHtml(rec) + fieldOrderListHtml(rec);
+
+    html += tabsHtml([
+      { id: 'basic', label: 'Basic', content: basicHtml },
+      { id: 'keywords', label: 'Keywords', content: keywordsHtml },
+      { id: 'commandkeys', label: 'Cmd keys', content: commandKeysHtml },
+      { id: 'structure', label: 'Structure', content: structureHtml },
+    ], activeRecordTab);
+
     html += '<button id="p-record-copy" class="secondary" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled title="Multi-group or >3-indicator conditioning — copying this record is disabled to avoid corrupting it."') + '>Copy record</button>';
     html += '<button id="p-record-delete" class="secondary" style="width:100%;margin-top:8px;color:var(--warn);">Delete record</button>';
     propsBody.innerHTML = html;
+    wireTabs(propsBody, (id) => { activeRecordTab = id; });
 
     document.getElementById('p-record-rename').addEventListener('click', () => commitRecordRename(recordName));
     document.getElementById('p-record-copy').addEventListener('click', () => { if (editable) commitCopyRecord(recordName); });

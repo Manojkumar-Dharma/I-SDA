@@ -391,7 +391,7 @@ function runFileAttrsScenario() {
     const fileAttrsBtn = doc.getElementById('fileAttrsBtn');
     check('setup: the File attributes button exists in the sidebar', !!fileAttrsBtn);
     fileAttrsBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    check('switches the props panel to the file-level view', doc.getElementById('p-file-back') !== null);
+    check('switches the props panel to the file-level view', doc.getElementById('crumb-file') !== null && doc.getElementById('crumb-file').classList.contains('current'));
     check('shows the existing DSPSIZ keyword as a chip', /DSPSIZ/.test(doc.getElementById('kwed-file').textContent));
     check('no record-level Name/rename input in this view', doc.getElementById('p-record-name') === null);
 
@@ -401,10 +401,10 @@ function runFileAttrsScenario() {
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('posts applyEdit adding INDARA', applyEdit && /INDARA/.test(applyEdit.text));
     check('DSPSIZ is preserved alongside it', applyEdit && /DSPSIZ\(24 80 \*DS3\)/.test(applyEdit.text));
-    check('stays in the file-level view after committing (does not bounce back to record view)', doc.getElementById('p-file-back') !== null);
+    check('stays in the file-level view after committing (does not bounce back to record view)', doc.getElementById('crumb-file').classList.contains('current'));
 
-    console.log('  Back to record returns to the record-level view');
-    doc.getElementById('p-file-back').dispatchEvent(new Event('click', { bubbles: true }));
+    console.log('  the breadcrumb\'s Record crumb returns to the record-level view');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
     check('shows the record panel again', doc.getElementById('p-record-name') !== null);
 
     console.log('  Field order: Up/Down buttons reorder fields in the DDS source');
