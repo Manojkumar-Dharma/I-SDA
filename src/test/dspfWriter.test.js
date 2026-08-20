@@ -775,5 +775,84 @@ console.log('\nDspfWriter.getWindowTitleText()/setWindowTitleText() - WDWTITLE, 
   check('blank text removes WDWTITLE entirely, even a multi-parameter one', !cleared.some((k) => k.name === 'WDWTITLE'));
 }
 
+console.log('\nDspfWriter.setWindowGeometry() - moves and/or resizes a record\'s own explicit WINDOW(row col height width)');
+{
+  const src = [
+    "     A                                      DSPSIZ(24 80 *DS3)",
+    "     A          R WDWREC",
+    "     A                                      WINDOW(3 10 8 40)",
+    "     A                                      WDWTITLE(' My Window ')",
+    "     A                                  1  2'Inside the window'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const rec = model.records.find((r) => r.name === 'WDWREC');
+
+  const moved = DspfWriter.setWindowGeometry(rec, lines, { row: 5, col: 12 });
+  const reparsedMove = DspfParser.parseDspf(moved.join('\n'));
+  const movedKw = reparsedMove.records[0].keywords.find((k) => k.name === 'WINDOW');
+  check('moves row/col, leaves height/width untouched', movedKw.parameters.trim() === '5 12 8 40');
+  check('WDWTITLE is preserved', reparsedMove.records[0].keywords.some((k) => k.name === 'WDWTITLE'));
+  check("the window's own field is untouched", reparsedMove.records[0].fields[0].constantValue === 'Inside the window');
+
+  const resized = DspfWriter.setWindowGeometry(rec, lines, { height: 10, width: 50 });
+  const reparsedResize = DspfParser.parseDspf(resized.join('\n'));
+  const resizedKw = reparsedResize.records[0].keywords.find((k) => k.name === 'WINDOW');
+  check('resizes height/width, leaves row/col untouched', resizedKw.parameters.trim() === '3 10 10 50');
+
+  const both = DspfWriter.setWindowGeometry(rec, lines, { row: 1, col: 1, height: 24, width: 80 });
+  const reparsedBoth = DspfParser.parseDspf(both.join('\n'));
+  check('move + resize together', reparsedBoth.records[0].keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '1 1 24 80');
+
+  let threwNoPositive = false;
+  try { DspfWriter.setWindowGeometry(rec, lines, { row: 0 }); } catch (e) { threwNoPositive = true; }
+  check('rejects a non-positive row/col/height/width', threwNoPositive);
+}
+
+console.log('\nDspfWriter.setWindowGeometry() - resizes (but never moves) a WINDOW(*DFT height width)');
+{
+  const src = ["     A          R WDWREC", "     A                                      WINDOW(*DFT 8 40)"].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const rec = model.records.find((r) => r.name === 'WDWREC');
+
+  const resized = DspfWriter.setWindowGeometry(rec, lines, { height: 12, width: 60 });
+  const reparsed = DspfParser.parseDspf(resized.join('\n'));
+  check('*DFT is preserved, height/width updated', reparsed.records[0].keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '*DFT 12 60');
+
+  let threwOnMove = false;
+  try { DspfWriter.setWindowGeometry(rec, lines, { row: 5 }); } catch (e) { threwOnMove = true; }
+  check('rejects an attempt to move a *DFT-positioned window', threwOnMove);
+}
+
+console.log('\nDspfWriter.setWindowGeometry() - rejects a window that inherits its geometry from another record');
+{
+  const src = [
+    "     A          R BASEWDW",
+    "     A                                      WINDOW(3 10 8 40)",
+    "     A          R OTHERWDW",
+    "     A                                      WINDOW(BASEWDW)",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const rec = model.records.find((r) => r.name === 'OTHERWDW');
+
+  let threw = false;
+  try { DspfWriter.setWindowGeometry(rec, lines, { row: 5 }); } catch (e) { threw = true; }
+  check('rejects moving/resizing a WINDOW(record-format-name) inheritance form', threw);
+}
+
+console.log('\nDspfWriter.setWindowGeometry() - rejects a record with no WINDOW keyword at all');
+{
+  const src = "     A          R PLAINREC\n";
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const rec = model.records.find((r) => r.name === 'PLAINREC');
+
+  let threw = false;
+  try { DspfWriter.setWindowGeometry(rec, lines, { row: 5 }); } catch (e) { threw = true; }
+  check('rejects a record with no WINDOW keyword', threw);
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
