@@ -48,7 +48,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; z-index: 1; }
   .dspf-screen-backdrop-layer { position: absolute; top: 0; left: 0; opacity: 0.32; filter: grayscale(0.5); pointer-events: none; z-index: 0; }
   .dspf-screen-backdrop-layer .dspf-screen { z-index: 0; }
-  .dspf-field { white-space: pre; color: var(--accent); cursor: grab; user-select: none; border: 1px solid transparent; }
+  .dspf-field { white-space: pre; color: var(--accent); cursor: grab; user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
   .dspf-field:hover { border-color: rgba(51,255,102,0.4); }
   .dspf-field.selected { border-color: var(--accent); background: rgba(51,255,102,0.08); }
   .dspf-field.dragging { cursor: grabbing; opacity: 0.7; }

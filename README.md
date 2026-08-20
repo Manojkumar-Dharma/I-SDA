@@ -121,6 +121,12 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
 ### Menu designer
 
+- No command-key (`CAxx`/`CFxx`) assignment UI, unlike the DSPF designer -
+  CRTMNU-compiled numbered-option menus don't use them in practice (F3=Exit,
+  F12=Cancel etc. are handled by CRTMNU's own generated program logic, not
+  by DDS command keys the menu designer would let you assign). Removed in
+  0.9.35 after initially being added generically alongside the DSPF
+  designer's own command-key support.
 - No "Create New Menu" equivalent to the DSPF designer's "Create New
   Display File" - starting a new menu still requires an existing MNUDDS
   member (and its paired commands member) created some other way. Would
@@ -147,17 +153,17 @@ Audited against a full SDA-parity feature list. Split into **Common**
 (engine/writer work in `dspfEngine.js` / `dspfWriter.js` that both designers
 share - build once, both webviews benefit) and designer-specific gaps that
 only make sense in one context. Within each list, roughly highest-value/most
-requested first. (Completed items from this audit - command keys, the
-function-key legend, indicator conditioning (both entity-level and now
-per-keyword), copy field/constant, Add Display Size, the file-attributes
-panel, whole-record create/copy/delete, the Center/Fill/colors-
-attributes/validity-edit-error-message field-panel helpers, "+
-Field"/"+ Constant" click-to-place, window move/resize handles, Change
-Window Title, true dimmed-overlay compare, all now in both designers
-where applicable, plus sort elements, `CNTFLD(n)` preview wrapping, and
-`ERRMSG` rendering on a window's own reserved message line - have moved
-to CHANGELOG.md rather than staying listed here as limitations. No
-Common items are currently pending.)
+requested first. (Completed items from this audit - command keys and the
+function-key legend (DSPF designer only - see note below), indicator
+conditioning (both entity-level and now per-keyword), copy field/constant,
+Add Display Size, the file-attributes panel, whole-record create/copy/
+delete, the Center/Fill/colors-attributes/validity-edit-error-message
+field-panel helpers, "+ Field"/"+ Constant" click-to-place, window
+move/resize handles, Change Window Title, true dimmed-overlay compare -
+in both designers where applicable - plus sort elements, `CNTFLD(n)`
+preview wrapping, and `ERRMSG` rendering on a window's own reserved
+message line - have moved to CHANGELOG.md rather than staying listed
+here as limitations. No Common items are currently pending.)
 
 #### Display (DSPF) designer only
 

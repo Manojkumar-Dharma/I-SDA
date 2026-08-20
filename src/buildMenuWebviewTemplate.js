@@ -40,7 +40,7 @@ const htmlTemplate = `<!DOCTYPE html>
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; }
-  .dspf-field { white-space: pre; color: var(--accent); user-select: none; border: 1px solid transparent; }
+  .dspf-field { white-space: pre; color: var(--accent); user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
   .dspf-constant { color: #b7c9bf; }
   .dspf-hi { filter: brightness(1.6); font-weight: 600; }
   .dspf-reverse { background: currentColor; color: #050705 !important; }
@@ -139,13 +139,9 @@ const htmlTemplate = `<!DOCTYPE html>
   .cond-add-row label { font-size: 11px; display: flex; align-items: center; gap: 2px; }
   .cond-add-row input.cond-ind-num { width: 36px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 3px 4px; font-family: var(--mono); font-size: 11px; }
   .cond-group > button.cond-group-remove { display: block; margin-top: 6px; font-size: 11px; }
-  .fkey-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--panel-border); }
-  .fkey-chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--panel-border); border-radius: 3px; color: var(--ink-dim); }
-  .fkey-chip.fkey-active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
   .option-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 2px; }
   .option-cond-toggle:hover { color: var(--accent); }
   .option-cond-body { margin-top: 6px; }
-  .cmdkeys-section { margin-top: 20px; }
   .hidden { display: none; }
   .kw-row { margin-bottom: 4px; }
   .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -175,8 +171,6 @@ const htmlTemplate = `<!DOCTYPE html>
     <button class="rename-btn" id="newRecordBtn">+ Add record</button>
   </div>
   <div class="add-option-error" id="newRecordError"></div>
-  <div class="cmdkeys-section" id="fileCommandKeys"></div>
-  <div class="cmdkeys-section" id="recordCommandKeys"></div>
   <div class="file-attrs-toggle" id="fileAttrsToggle">File attributes &#x25be;</div>
   <div class="file-attrs-body hidden" id="fileAttrsBody"></div>
   <div class="section-label" style="margin-top:20px;">File</div>
@@ -186,7 +180,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="status" style="margin-top:6px;">Runs CRTDSPF, rebuilds the message file, then CRTMNU on your connected IBM i. Requires Code for i.</div>
 </aside>
 <main>
-  <div id="fkeyLegend"></div>
   <div class="screen-frame"><div id="screenOutput"></div></div>
   <div class="status">This is the menu layout as it will appear on the 5250 screen. Edit which command each numbered option runs in the panel on the right.</div>
 </main>
@@ -245,9 +238,6 @@ const htmlTemplate = `<!DOCTYPE html>
   const newRecordName = document.getElementById('newRecordName');
   const newRecordBtn = document.getElementById('newRecordBtn');
   const newRecordError = document.getElementById('newRecordError');
-  const fileCommandKeysEl = document.getElementById('fileCommandKeys');
-  const recordCommandKeysEl = document.getElementById('recordCommandKeys');
-  const fkeyLegendEl = document.getElementById('fkeyLegend');
   const fileAttrsToggle = document.getElementById('fileAttrsToggle');
   const fileAttrsBody = document.getElementById('fileAttrsBody');
   let fileAttrsExpanded = false; // survives renderAll() rebuilding everything else, same convention as expandedOptionConditioning below
@@ -423,8 +413,6 @@ const htmlTemplate = `<!DOCTYPE html>
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     if (!recordName) {
       screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>';
-      fkeyLegendEl.innerHTML = '';
-      renderFileCommandKeys(null);
       recordCopyBtn.disabled = true;
       recordDeleteBtn.disabled = true;
       return;
@@ -438,40 +426,6 @@ const htmlTemplate = `<!DOCTYPE html>
     const screen = DspfEngine.resolveScreen(model, recordName, new Set(), null);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + escapeHtml(screen.error) + '</div>'; return; }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
-    fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, new Set()));
-    renderFileCommandKeys(currentRecord);
-    renderRecordCommandKeys(currentRecord);
-  }
-
-  function renderFileCommandKeys(currentRecord) {
-    const recordKeywords = currentRecord ? currentRecord.keywords : [];
-    const available = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, recordKeywords);
-    fileCommandKeysEl.innerHTML = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, available, 'file');
-    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => {
-      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      lines = DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords);
-      sourceText = lines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
-      vscode.postMessage({ type: 'applyEdit', text: sourceText });
-      renderAll();
-    });
-  }
-
-  function renderRecordCommandKeys(currentRecord) {
-    if (!currentRecord) { recordCommandKeysEl.innerHTML = ''; return; }
-    const available = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, currentRecord.keywords);
-    recordCommandKeysEl.innerHTML = WebviewClientHelpers.commandKeysSectionHtml('this record', currentRecord.keywords, available, 'record');
-    WebviewClientHelpers.wireCommandKeysSection('record', currentRecord.keywords, (newKeywords) => {
-      const recordName = currentRecord.name;
-      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      const rec = model.records.find((r) => r.name === recordName);
-      if (!rec) return;
-      lines = DspfWriter.applyRecordUpdate(rec, lines, { keywords: newKeywords });
-      sourceText = lines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
-      vscode.postMessage({ type: 'applyEdit', text: sourceText });
-      renderAll();
-    });
   }
 
   // File attributes (fileKeywords - DSPSIZ, REF, PRINT, etc.): a collapsible

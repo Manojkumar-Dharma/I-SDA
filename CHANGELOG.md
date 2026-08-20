@@ -3,6 +3,36 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.35] - Unreleased
+
+### Fixed
+- **Window preview: fields rendered visually behind the window and were
+  hard to select/edit.** `.dspf-window-border` is `position: relative`
+  with an explicit `z-index: 0`, which makes it establish its own CSS
+  stacking context, painted above any *non-positioned, `z-index: auto`*
+  content - regardless of HTML source order. Every specific field widget
+  type (radio, checkbox, `CNTFLD`, button, menu bar) already had an
+  explicit `z-index: 1` to counter this, but the base `.dspf-field` rule
+  covering ordinary named fields and constants - the common case - never
+  got the same treatment, so those fields rendered underneath a window's
+  opaque background whenever one was being previewed. Added
+  `position: relative; z-index: 1;` to the base rule in both the DSPF and
+  menu designer (the menu designer renders windows too, e.g. `MNUBAR`
+  pulldowns, and had the identical gap).
+
+### Removed
+- **Command key (`CAxx`/`CFxx`) assignment UI in the menu designer.**
+  CRTMNU-compiled numbered-option menus don't use DDS command keys in
+  practice - standard keys like F3/F12 are handled by CRTMNU's own
+  generated program logic, not by keywords the menu designer would let
+  someone assign. This had been added generically alongside the DSPF
+  designer's own (still-supported) command-key UI without checking
+  whether it actually applied to menus; removed the file-level and
+  record-level Command keys panels, the function-key legend, and their
+  wiring from `buildMenuWebviewTemplate.js`. The underlying
+  `DspfWriter`/`DspfEngine` primitives are untouched and still power the
+  DSPF designer's own command-key support.
+
 ## [0.9.34] - Unreleased
 
 ### Added
