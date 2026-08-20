@@ -279,9 +279,25 @@ const htmlTemplate = `<!DOCTYPE html>
    *     (a bare "1." with nothing else on that line to its right)
    *   - label: the resolved label text either way
    */
-  function extractMenuOptions(m) {
+  // recordName is optional - omit it for the few call sites that
+  // genuinely need every option in the file regardless of which record it
+  // belongs to (addNewOption's duplicate-number check below: MNUCMD's own
+  // command mapping has no per-record concept, it's just optionNumber ->
+  // command for the whole menu, so two records both claiming option "1"
+  // would be forced to share one command anyway - blocking that globally
+  // is correct, not a bug).
+  //
+  // Every OTHER call site should pass it. Without it, two DIFFERENT
+  // records that happen to both declare option "1" collide in the dedup
+  // pass below and one of them is silently DROPPED from the result -
+  // invisible in the Options panel and unreachable via findOption(), not
+  // just mis-attributed to the wrong record. This never surfaced while the
+  // menu designer only supported one record format; it's a real risk now
+  // that insertRecord/copyRecord let a file have several.
+  function extractMenuOptions(m, recordName) {
     const options = [];
-    m.records.forEach((record) => {
+    const records = recordName != null ? m.records.filter((r) => r.name === recordName) : m.records;
+    records.forEach((record) => {
       // Group this record's constants by source line, sorted left-to-right,
       // so a number-only marker can look for "the next constant on this
       // line" without a second pass over the whole record.
@@ -347,8 +363,8 @@ const htmlTemplate = `<!DOCTYPE html>
   // before an edit - the same "re-fetch after each edit, don't trust a
   // stale reference" discipline the screen designer's group-drag uses,
   // since editing one field can shift source line numbers for others.
-  function findOption(m, numberValue) {
-    return extractMenuOptions(m).find((o) => o.numberValue === numberValue) || null;
+  function findOption(m, recordName, numberValue) {
+    return extractMenuOptions(m, recordName).find((o) => o.numberValue === numberValue) || null;
   }
 
   /**
@@ -485,8 +501,8 @@ const htmlTemplate = `<!DOCTYPE html>
     renderFileAttrs();
   });
 
-  function updateOptionLabel(numberValue, newLabel) {
-    const option = findOption(model, numberValue);
+  function updateOptionLabel(recordName, numberValue, newLabel) {
+    const option = findOption(model, recordName, numberValue);
     if (!option) return;
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
     lines = writeOptionLabel(lines, model, option, newLabel);
@@ -503,14 +519,14 @@ const htmlTemplate = `<!DOCTYPE html>
   // since the first edit shifts source line numbers for everything after it) only when
   // it's a genuinely separate constant from numberField (the combined "1. Do a thing"
   // form only has the one field to begin with).
-  function updateOptionConditions(numberValue, newConditions) {
-    const option = findOption(model, numberValue);
+  function updateOptionConditions(recordName, numberValue, newConditions) {
+    const option = findOption(model, recordName, numberValue);
     if (!option) return;
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
     lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { conditions: newConditions });
     let currentModel = DspfParser.parseDspf(lines.join('\\n'));
     if (option.labelField && option.labelField !== option.numberField) {
-      const fresh = findOption(currentModel, numberValue);
+      const fresh = findOption(currentModel, recordName, numberValue);
       if (fresh && fresh.labelField) {
         lines = DspfWriter.applyFieldUpdate(fresh.labelField, lines, { conditions: newConditions });
         currentModel = DspfParser.parseDspf(lines.join('\\n'));
@@ -529,8 +545,8 @@ const htmlTemplate = `<!DOCTYPE html>
   // confirmation prompt and no renumbering of other options - deleting is a
   // normal WorkspaceEdit like every other change here, so Ctrl+Z undoes it
   // the same way.
-  function deleteOption(numberValue) {
-    const option = findOption(model, numberValue);
+  function deleteOption(recordName, numberValue) {
+    const option = findOption(model, recordName, numberValue);
     if (!option) return;
 
     const fields = option.labelField && option.labelField !== option.numberField
@@ -563,12 +579,16 @@ const htmlTemplate = `<!DOCTYPE html>
   // applyFieldUpdate - next-available is simply the current max + 1, same
   // "append past the end" convention addNewOption's own placement guess
   // uses elsewhere in this file.
-  function copyOption(numberValue) {
-    const option = findOption(model, numberValue);
+  function copyOption(recordName, numberValue) {
+    const option = findOption(model, recordName, numberValue);
     if (!option) return;
     const record = model.records.find((r) => r.name === option.recordName);
     if (!record) return;
 
+    // Deliberately NOT scoped to recordName - a new option number must be
+    // unique across the WHOLE file (MNUCMD's command mapping has no
+    // per-record concept, see extractMenuOptions' own comment), so "next
+    // available" has to look at every record, not just this one.
     const existing = extractMenuOptions(model);
     const nextNum = Math.max.apply(null, existing.map((o) => o.numberValue)) + 1;
     if (nextNum > 9999) {
@@ -626,10 +646,10 @@ const htmlTemplate = `<!DOCTYPE html>
   // Each side keeps its OWN form (combined vs. split constants) - only the
   // label text moves between them, via writeOptionLabel(), which already
   // knows how to write into either shape correctly.
-  function swapOptions(numberA, numberB) {
+  function swapOptions(recordName, numberA, numberB) {
     if (numberA === numberB) return;
-    const optionA = findOption(model, numberA);
-    const optionB = findOption(model, numberB);
+    const optionA = findOption(model, recordName, numberA);
+    const optionB = findOption(model, recordName, numberB);
     if (!optionA || !optionB) return;
     const labelA = optionA.label;
     const labelB = optionB.label;
@@ -652,11 +672,11 @@ const htmlTemplate = `<!DOCTYPE html>
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
     let currentModel = model;
 
-    let opt = findOption(currentModel, firstNum);
+    let opt = findOption(currentModel, recordName, firstNum);
     lines = writeOptionLabel(lines, currentModel, opt, firstNewLabel);
     currentModel = DspfParser.parseDspf(lines.join('\\n'));
 
-    opt = findOption(currentModel, secondNum);
+    opt = findOption(currentModel, recordName, secondNum);
     lines = writeOptionLabel(lines, currentModel, opt, secondNewLabel);
     currentModel = DspfParser.parseDspf(lines.join('\\n'));
 
@@ -675,7 +695,8 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function renderOptions() {
-    const options = extractMenuOptions(model);
+    const currentRecordName = recordSelect.value || (model.records[0] && model.records[0].name);
+    const options = extractMenuOptions(model, currentRecordName);
     optionsBody.innerHTML = '';
     if (optionCountEl) optionCountEl.textContent = options.length === 1 ? '1 option' : options.length + ' options';
     refreshAddOptionDefaults();
@@ -718,7 +739,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const condBody = row.querySelector('.option-cond-body');
       if (isExpanded) {
         condBody.innerHTML = WebviewClientHelpers.conditionsEditorHtml(conditions, 'opt' + numLabel);
-        WebviewClientHelpers.wireConditionsEditor('opt' + numLabel, conditions, (newConditions) => updateOptionConditions(opt.numberValue, newConditions));
+        WebviewClientHelpers.wireConditionsEditor('opt' + numLabel, conditions, (newConditions) => updateOptionConditions(opt.recordName, opt.numberValue, newConditions));
       }
       condToggle.addEventListener('click', () => {
         if (expandedOptionConditioning.has(opt.numberValue)) expandedOptionConditioning.delete(opt.numberValue);
@@ -727,13 +748,13 @@ const htmlTemplate = `<!DOCTYPE html>
       });
 
       const deleteBtn = row.querySelector('.option-delete-btn');
-      deleteBtn.addEventListener('click', () => deleteOption(opt.numberValue));
+      deleteBtn.addEventListener('click', () => deleteOption(opt.recordName, opt.numberValue));
 
       const copyBtn = row.querySelector('.option-copy-btn');
-      copyBtn.addEventListener('click', () => copyOption(opt.numberValue));
+      copyBtn.addEventListener('click', () => copyOption(opt.recordName, opt.numberValue));
 
       const labelInput = row.querySelector('.option-label-input');
-      labelInput.addEventListener('change', () => updateOptionLabel(opt.numberValue, labelInput.value));
+      labelInput.addEventListener('change', () => updateOptionLabel(opt.recordName, opt.numberValue, labelInput.value));
 
       const input = row.querySelector('.option-cmd');
       input.addEventListener('change', () => {
@@ -750,7 +771,10 @@ const htmlTemplate = `<!DOCTYPE html>
       // Drag-to-swap: drop this row onto another to swap their (number +
       // label) screen positions - see swapOptions() above. Dragging starts
       // from anywhere on the row EXCEPT the two text inputs, so selecting
-      // text to edit it doesn't accidentally start a drag.
+      // text to edit it doesn't accidentally start a drag. Both sides of a
+      // swap always share opt.recordName - the options panel only ever
+      // lists one record's options at a time (see currentRecordName above),
+      // so a drag's source and target are guaranteed to be the same record.
       row.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/plain', String(opt.numberValue));
         row.classList.add('dragging');
@@ -762,7 +786,7 @@ const htmlTemplate = `<!DOCTYPE html>
         e.preventDefault();
         row.classList.remove('drag-over');
         const draggedNumber = parseInt(e.dataTransfer.getData('text/plain'), 10);
-        if (!isNaN(draggedNumber)) swapOptions(draggedNumber, opt.numberValue);
+        if (!isNaN(draggedNumber)) swapOptions(opt.recordName, draggedNumber, opt.numberValue);
       });
     });
   }
@@ -841,7 +865,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function computeDefaultPlacement(recordName) {
     const record = model.records.find((r) => r.name === recordName);
     if (!record) return null;
-    const existing = extractMenuOptions(model).filter((o) => o.recordName === recordName && o.line != null);
+    const existing = extractMenuOptions(model, recordName).filter((o) => o.line != null);
     let startRow = 6;
     let column = 5;
     if (existing.length > 0) {

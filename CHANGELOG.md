@@ -3,6 +3,39 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.32] - Unreleased
+
+### Fixed
+- **Menu designer: options from one record could shadow or hide another
+  record's options with the same number.** `extractMenuOptions()` scanned
+  *every* record format in the file and de-duplicated the result by
+  option number alone. That was invisible while the menu designer only
+  ever supported a single record format, but the whole-record
+  create/copy/delete feature (0.9.27) makes multi-record files a normal
+  case - e.g. `Copy record` on a record that already has an "option 1"
+  produces exactly that situation. Concretely, this meant: switching the
+  record picker to a second record could show the *first* record's
+  option 1 instead of the second's own (or nothing at all if the second
+  record's option happened to lose the de-dupe), and editing what looked
+  like "this record's option 1" could silently edit a different record's
+  constant, or fail to find one that was actually there.
+  `extractMenuOptions()`, `findOption()`, `updateOptionLabel()`,
+  `updateOptionConditions()`, `deleteOption()`, `copyOption()`, and
+  `swapOptions()` now all take the record name they're scoped to, and
+  `renderOptions()`/`computeDefaultPlacement()` pass the currently
+  selected record. Two call sites are deliberately left file-wide, since
+  they match real MNUCMD semantics rather than being a per-record concern:
+  `addNewOption`'s duplicate-number check and `copyOption`'s
+  next-available-number search, since a MNUCMD command mapping has no
+  per-record concept at all - two records sharing an option number are
+  forced to share its command either way, so a new number has to be
+  unique across the whole file, not just within one record.
+  Regression test: `runCrossRecordOptionScopingScenario` in
+  `menuWebview.test.js` (two records each declaring their own "option 1",
+  verifying the panel shows the selected record's own option, editing one
+  doesn't touch the other, and switching back shows the original
+  untouched).
+
 ## [0.9.31] - Unreleased
 
 ### Added

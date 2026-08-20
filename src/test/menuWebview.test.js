@@ -817,6 +817,66 @@ function runMenuRecordCrudScenario() {
     check('SUBMENU is no longer offered in the record picker', !Array.from(recordSelect.options).some((o) => o.value === 'SUBMENU'));
     check('every other record survives (MAINMENU, MAINMENU2, NEWSCR)', /R\s+MAINMENU\b/.test(last.text) && /R\s+MAINMENU2\b/.test(last.text) && /R\s+NEWSCR\b/.test(last.text));
 
+    runCrossRecordOptionScopingScenario();
+  }, 100);
+}
+
+function runCrossRecordOptionScopingScenario() {
+  console.log('\ntwo records each with their own option "1": the Options panel must show the SELECTED record\'s option, not silently drop it or leak the other record\'s');
+  const src =
+    [
+      "     A          R MAINMENU",
+      "     A                                  1  2'MAIN MENU'",
+      "     A                                  3  5'1. Display library list'",
+      "     A          R SUBMENU",
+      "     A                                  1  2'SUB MENU'",
+      "     A                                  3  5'1. Do something else'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce12', src, '', 'SCOPE.MNUDDS', 'SCOPEQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  MAINMENU (default selection) shows its own option 1');
+    let labels = Array.from(doc.querySelectorAll('.option-label-input')).map((i) => i.value);
+    check('shows exactly one option', labels.length === 1);
+    check('it is MAINMENU\'s own text, not dropped or swapped', labels[0] === 'Display library list');
+
+    console.log('  switching to SUBMENU shows ITS OWN option 1, not MAINMENU\'s (the bug: cross-record dedup silently kept only the first record\'s)');
+    recordSelect.value = 'SUBMENU';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    labels = Array.from(doc.querySelectorAll('.option-label-input')).map((i) => i.value);
+    check('still shows exactly one option (not zero - not silently dropped)', labels.length === 1);
+    check('it is SUBMENU\'s own text', labels[0] === 'Do something else');
+
+    console.log('  editing SUBMENU\'s option 1 label only touches SUBMENU\'s constant');
+    const labelInput = doc.querySelector('.option-label-input');
+    labelInput.value = 'Renamed sub option';
+    labelInput.dispatchEvent(new Event('change', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check("SUBMENU's line is updated", /Renamed sub option/.test(last.text));
+    check("MAINMENU's own option 1 is untouched", /1\.\s*Display library list/.test(last.text));
+
+    console.log('  switching back to MAINMENU still shows its own, unrenamed option');
+    recordSelect.value = 'MAINMENU';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    labels = Array.from(doc.querySelectorAll('.option-label-input')).map((i) => i.value);
+    check('MAINMENU shows its original text, not SUBMENU\'s edit leaking across', labels[0] === 'Display library list');
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 100);
