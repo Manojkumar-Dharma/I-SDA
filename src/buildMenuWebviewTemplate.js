@@ -139,18 +139,18 @@ const htmlTemplate = `<!DOCTYPE html>
   .cond-add-row label { font-size: 11px; display: flex; align-items: center; gap: 2px; }
   .cond-add-row input.cond-ind-num { width: 36px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 3px 4px; font-family: var(--mono); font-size: 11px; }
   .cond-group > button.cond-group-remove { display: block; margin-top: 6px; font-size: 11px; }
-  .option-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 2px; }
-  .option-cond-toggle:hover { color: var(--accent); }
-  .option-cond-body { margin-top: 6px; }
+  .option-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 6px; padding: 4px 6px; border: 1px solid var(--panel-border); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; }
+  .option-cond-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .option-cond-body { margin-top: 6px; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
   .hidden { display: none; }
   .kw-row { margin-bottom: 4px; }
   .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .kw-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; }
   .kw-cond-toggle:hover { color: var(--accent); }
   .kw-cond-body { margin: 4px 0 8px 0; padding-left: 8px; border-left: 2px solid var(--panel-border); }
-  .file-attrs-toggle { font-size: 11px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 16px; }
-  .file-attrs-toggle:hover { color: var(--accent); }
-  .file-attrs-body { margin-top: 8px; }
+  .file-attrs-toggle { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 20px; padding: 6px 8px; border: 1px solid var(--panel-border); border-radius: 3px; }
+  .file-attrs-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .file-attrs-body { margin-top: 0; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
 </style>
 </head>
 <body>
