@@ -686,5 +686,72 @@ console.log('\nDspfWriter.nextAvailableRecordName() - 10-char DDS name limit is 
   check('candidate name is genuinely unused', name !== 'VERYLONGRC');
 }
 
+console.log('\nDspfWriter.getColorAttr()/setColorAttr() - dedicated colors/attributes editor primitives');
+{
+  const empty = DspfWriter.getColorAttr([]);
+  check('no COLOR/DSPATR -> empty state', empty.color === '' && empty.attrs.length === 0);
+
+  const withBoth = DspfWriter.getColorAttr([
+    { name: 'COLOR', parameters: 'BLU', conditions: [], raw: '', sourceLines: [] },
+    { name: 'DSPATR', parameters: 'HI UL', conditions: [], raw: '', sourceLines: [] },
+    { name: 'TEXT', parameters: "'unrelated'", conditions: [], raw: '', sourceLines: [] },
+  ]);
+  check('reads the color', withBoth.color === 'BLU');
+  check('reads multiple DSPATR attributes out of one keyword', withBoth.attrs.join(',') === 'HI,UL');
+
+  const set = DspfWriter.setColorAttr(
+    [{ name: 'TEXT', parameters: "'unrelated'", conditions: [], raw: '', sourceLines: [] }],
+    'RED',
+    ['HI', 'BL']
+  );
+  check('unrelated keywords are preserved', set.some((k) => k.name === 'TEXT'));
+  check('COLOR is added with the chosen value', set.find((k) => k.name === 'COLOR').parameters === 'RED');
+  check('DSPATR is added joining every chosen attribute into one keyword', set.find((k) => k.name === 'DSPATR').parameters === 'HI BL');
+
+  const cleared = DspfWriter.setColorAttr(set, '', []);
+  check('empty color/attrs removes both keywords entirely', !cleared.some((k) => k.name === 'COLOR' || k.name === 'DSPATR'));
+  check('unrelated keywords still survive clearing', cleared.some((k) => k.name === 'TEXT'));
+}
+
+console.log('\nDspfWriter.getValidityCheck()/setValidityCheck() - RANGE/COMP/VALUES are mutually exclusive');
+{
+  const none = DspfWriter.getValidityCheck([]);
+  check('no validity keyword -> empty kind', none.kind === '');
+
+  const withRange = [{ name: 'RANGE', parameters: '1 99', conditions: [], raw: '', sourceLines: [] }];
+  check('reads an existing RANGE', DspfWriter.getValidityCheck(withRange).kind === 'RANGE' && DspfWriter.getValidityCheck(withRange).parameters === '1 99');
+
+  const switched = DspfWriter.setValidityCheck(withRange, 'COMP', 'GT 0');
+  check('switching kind removes the old RANGE', !switched.some((k) => k.name === 'RANGE'));
+  check('and adds the new COMP with its parameters', switched.find((k) => k.name === 'COMP').parameters === 'GT 0');
+
+  const cleared = DspfWriter.setValidityCheck(switched, '', '');
+  check('empty kind removes any validity-check keyword', !cleared.some((k) => ['RANGE', 'COMP', 'VALUES'].includes(k.name)));
+}
+
+console.log('\nDspfWriter.getEditKeyword()/setEditKeyword() - EDTCDE/EDTWRD are mutually exclusive');
+{
+  const withCode = [{ name: 'EDTCDE', parameters: 'J', conditions: [], raw: '', sourceLines: [] }];
+  check('reads an existing EDTCDE', DspfWriter.getEditKeyword(withCode).kind === 'EDTCDE' && DspfWriter.getEditKeyword(withCode).parameters === 'J');
+
+  const switched = DspfWriter.setEditKeyword(withCode, 'EDTWRD', "'  DR  CR'");
+  check('switching kind removes the old EDTCDE', !switched.some((k) => k.name === 'EDTCDE'));
+  check('and adds the new EDTWRD with its parameters', switched.find((k) => k.name === 'EDTWRD').parameters === "'  DR  CR'");
+}
+
+console.log('\nDspfWriter.getErrorMessageText()/setErrorMessageText() - ERRMSG auto-quotes and escapes for the caller');
+{
+  const none = DspfWriter.getErrorMessageText([]);
+  check('no ERRMSG -> empty text', none === '');
+
+  const set = DspfWriter.setErrorMessageText([], "Value can't be blank");
+  const kw = set.find((k) => k.name === 'ERRMSG');
+  check('embedded single quote is doubled per DDS literal escaping', kw.parameters === "'Value can''t be blank'");
+  check('round-trips back to the original unescaped text', DspfWriter.getErrorMessageText(set) === "Value can't be blank");
+
+  const cleared = DspfWriter.setErrorMessageText(set, '');
+  check('blank text removes ERRMSG entirely', !cleared.some((k) => k.name === 'ERRMSG'));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

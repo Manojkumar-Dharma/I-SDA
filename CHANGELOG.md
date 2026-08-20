@@ -3,10 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.25] - Unreleased
-
-### Added
-## [0.9.27] - Unreleased
+## [0.9.28] - Unreleased
 
 ### Added
 - **Menu designer: whole-record create/copy/delete UI.** The last
@@ -33,6 +30,37 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 With this, every item from the "Common" bucket of the Aug 2026 parity
 audit is done in both designers - see README "Known limitations",
 whose Common section is now empty.
+- **Dedicated colors/attributes editor (`COLOR`/`DSPATR`).** A color
+  `<select>` plus per-attribute checkboxes (HI, RI, UL, BL, ND, PC, MDT)
+  on the field/constant Properties panel - `DspfWriter.getColorAttr`/
+  `setColorAttr` read/replace both keywords together, joining every
+  checked attribute into one `DSPATR(...)` keyword the way real DDS
+  allows (e.g. `DSPATR(HI UL)`). Commits immediately on change, same
+  convention as the keyword-chip editor's own add/remove.
+- **Dedicated validity-check / edit-code-or-word / error-message
+  helpers (`RANGE`/`COMP`/`VALUES`, `EDTCDE`/`EDTWRD`, `ERRMSG`).** A
+  new "Validity check" + "Edit code / word" + "Error message" section
+  on the field Properties panel (named fields only - these don't apply
+  to constants). `setValidityCheck`/`setEditKeyword` each enforce their
+  keyword's own one-at-a-time DDS rule (a field can't carry both
+  `EDTCDE` and `EDTWRD`, or more than one of `RANGE`/`COMP`/`VALUES`) by
+  removing the sibling keywords before adding the new one.
+  `setErrorMessageText` takes plain unquoted text and handles DDS
+  single-quote literal escaping itself, unlike the generic keyword box
+  where the user has to type the quotes and escape them by hand.
+- **Center field/constant on screen.** A "Center on screen" button next
+  to the field Properties panel's Column input, computing the column
+  that centers the field/constant's current width within the record's
+  resolved screen width (tracked in a new `lastScreen` client-side
+  variable, set every `render()`). Populates the Column input rather
+  than committing on its own, so centering and any other edit made in
+  the same visit (text, length, position) commit together via the
+  existing Apply changes button.
+- **Fill constant with characters.** A fill-character + fill-length pair
+  of inputs and a Fill button on the constant Properties panel,
+  populating the Text input with the character repeated to the chosen
+  length (e.g. a row of dashes as a visual divider) - same
+  populate-then-Apply pattern as Center above, for the same reason.
 
 ## [0.9.26] - Unreleased
 

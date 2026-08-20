@@ -370,6 +370,106 @@
     }
   }
 
+  // -----------------------------------------------------------------------
+  // Colors & attributes (COLOR/DSPATR) - dedicated picker instead of the
+  // generic keyword box. `ownerKey` must be unique per field/constant/record
+  // the same way keywordEditorHtml's is, since it drives both element ids
+  // (the color <select>) and a class name shared by the attribute checkboxes.
+  // -----------------------------------------------------------------------
+
+  var DSPATR_ATTRS = ['HI', 'RI', 'UL', 'BL', 'ND', 'PC', 'MDT'];
+  var COLOR_VALUES = ['', 'BLU', 'RED', 'WHT', 'GRN', 'TRQ', 'YLW', 'PNK'];
+
+  function colorAttrEditorHtml(keywords, ownerKey) {
+    var state = DspfWriter.getColorAttr(keywords);
+    var html = '<div class="section-label">Color &amp; attributes</div>';
+    html += '<div class="field-row"><label>Color</label><select id="' + ownerKey + '-color">' +
+      COLOR_VALUES.map(function (c) {
+        return '<option value="' + c + '"' + (state.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
+      }).join('') + '</select></div>';
+    html += '<div class="attr-checks">';
+    DSPATR_ATTRS.forEach(function (a) {
+      var checked = state.attrs.indexOf(a) >= 0;
+      html += '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function wireColorAttrEditor(keywords, onChange, ownerKey) {
+    function commit() {
+      var colorSel = document.getElementById(ownerKey + '-color');
+      var color = colorSel ? colorSel.value : '';
+      var attrs = Array.prototype.slice
+        .call(document.querySelectorAll('.' + ownerKey + '-attr:checked'))
+        .map(function (el) { return el.value; });
+      onChange(DspfWriter.setColorAttr(keywords, color, attrs));
+    }
+    var colorSel = document.getElementById(ownerKey + '-color');
+    if (colorSel) colorSel.addEventListener('change', commit);
+    document.querySelectorAll('.' + ownerKey + '-attr').forEach(function (el) {
+      el.addEventListener('change', commit);
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Validity check (RANGE/COMP/VALUES), edit code/word (EDTCDE/EDTWRD), and
+  // error message (ERRMSG) - dedicated helpers instead of the generic
+  // keyword box, for named fields only (constants have no data type for a
+  // validity check or edit code to apply to). All three commit together via
+  // one "Apply" button, same as the field Row/Col/Name group does, rather
+  // than each keystroke committing immediately like the keyword-chip editor.
+  // -----------------------------------------------------------------------
+
+  function validityAndEditHtml(keywords, ownerKey) {
+    var vc = DspfWriter.getValidityCheck(keywords);
+    var ec = DspfWriter.getEditKeyword(keywords);
+    var errText = DspfWriter.getErrorMessageText(keywords);
+
+    var html = '<div class="section-label">Validity check</div>';
+    html += '<div class="two-col">' +
+      '<select id="' + ownerKey + '-vc-kind">' +
+      ['', 'RANGE', 'COMP', 'VALUES'].map(function (k) {
+        return '<option value="' + k + '"' + (vc.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
+      }).join('') +
+      '</select>' +
+      '<input type="text" id="' + ownerKey + '-vc-params" placeholder="e.g. 1 99" value="' + escapeHtml(vc.parameters) + '" />' +
+      '</div><div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
+
+    html += '<div class="section-label" style="margin-top:10px;">Edit code / word</div>';
+    html += '<div class="two-col">' +
+      '<select id="' + ownerKey + '-ec-kind">' +
+      ['', 'EDTCDE', 'EDTWRD'].map(function (k) {
+        return '<option value="' + k + '"' + (ec.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
+      }).join('') +
+      '</select>' +
+      '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
+      '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string</div>';
+
+    html += '<div class="section-label" style="margin-top:10px;">Error message</div>';
+    html += '<input type="text" id="' + ownerKey + '-errmsg" placeholder="Shown when the validity check fails" style="width:100%;" value="' + escapeHtml(errText) + '" />';
+
+    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply validity/edit/message</button>';
+    return html;
+  }
+
+  function wireValidityAndEdit(keywords, onChange, ownerKey) {
+    var applyBtn = document.querySelector('.' + ownerKey + '-vc-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      var vcKind = document.getElementById(ownerKey + '-vc-kind').value;
+      var vcParams = document.getElementById(ownerKey + '-vc-params').value;
+      var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
+      var ecParams = document.getElementById(ownerKey + '-ec-params').value;
+      var errText = document.getElementById(ownerKey + '-errmsg').value;
+
+      var next = DspfWriter.setValidityCheck(keywords, vcKind, vcParams);
+      next = DspfWriter.setEditKeyword(next, ecKind, ecParams);
+      next = DspfWriter.setErrorMessageText(next, errText);
+      onChange(next);
+    });
+  }
+
   /** Renders DspfEngine.resolveFunctionKeyLegend()'s output as a row of F-key chips,
    *  solid/active when the key's own response indicator (if any) is currently on. */
   function functionKeyLegendHtml(entries) {
@@ -398,5 +498,9 @@
     commandKeysSectionHtml: commandKeysSectionHtml,
     wireCommandKeysSection: wireCommandKeysSection,
     functionKeyLegendHtml: functionKeyLegendHtml,
+    colorAttrEditorHtml: colorAttrEditorHtml,
+    wireColorAttrEditor: wireColorAttrEditor,
+    validityAndEditHtml: validityAndEditHtml,
+    wireValidityAndEdit: wireValidityAndEdit,
   };
 });
