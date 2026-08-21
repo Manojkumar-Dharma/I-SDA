@@ -35,10 +35,11 @@ async function run() {
   console.log('activate()');
   const context = { subscriptions: [] };
   ext.activate(context);
-  check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 4);
+  check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 5);
   check('registers openPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openPreview'] === 'function');
   check('registers openMenuPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openMenuPreview'] === 'function');
   check('registers createNewDspf command', typeof vscodeMock.__registeredCommands['dspfDesigner.createNewDspf'] === 'function');
+  check('registers createNewMenu command', typeof vscodeMock.__registeredCommands['dspfDesigner.createNewMenu'] === 'function');
   check('registers compileMenu command', typeof vscodeMock.__registeredCommands['dspfDesigner.compileMenu'] === 'function');
   check('registers a CodeLens provider', vscodeMock.__registeredCodeLensProviders.length === 1);
   const providerEntry = vscodeMock.__registeredCustomEditorProvider;

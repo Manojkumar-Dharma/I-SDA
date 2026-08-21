@@ -3,6 +3,47 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.37] - Unreleased
+
+### Added
+- **"iSDA: Create New Menu" command**, the menu designer's counterpart to
+  "Create New Display File" - closes the last remaining Menu-designer-only
+  gap from the Aug 2026 parity audit. Previously, starting a new menu
+  required an existing MNUDDS member (and its paired `QQ` MNUCMD commands
+  member) to already exist, created some other way; there was no in-tool
+  way to generate either. The new command prompts for a menu/member name
+  (also used as the DDS record format name, since CRTMNU requires them to
+  match) and a title, then generates *both* paired members together in one
+  step: a starter MNUDDS boilerplate (title + two placeholder numbered
+  options, `1. Option 1` / `2. Option 2` - enough to satisfy
+  `isLikelyMenuFile()`'s own "2+ numbered options" heuristic immediately)
+  self-validated through `parseDspf` the same way `createNewDspf`'s
+  boilerplate already is, plus an (initially empty, header-comment-only)
+  MNUCMD companion - the menu designer already handles a missing/empty
+  companion gracefully, so there's nothing meaningful to pre-guess there.
+  Same local-vs-remote destination choice as "Create New Display File"
+  when Code for i is connected: locally, writes a `<name>.mnudds` file
+  alongside a sibling `<name>QQ.mnucmd` (the same convention
+  `getMenuCommandMemberUri` already uses for local/streamfile documents),
+  with a single combined overwrite prompt if either already exists;
+  remotely, issues two `ADDPFM`s (`SRCTYPE(MNUDDS)` then
+  `SRCTYPE(MNUCMD)`) into the same source file/library, writes the
+  generated content to both new `member:` scheme members, then opens the
+  MNUDDS half directly in the menu designer (`openMenuDesigner()`, a new
+  small helper also now shared by "Open Menu Design Preview" for
+  consistency). If the companion `ADDPFM` fails after the menu member's
+  own `ADDPFM` already succeeded, this doesn't roll anything back or treat
+  it as fatal - `ADDPFM` isn't transactional, and the menu member is
+  perfectly valid on its own - it warns instead, and the designer will
+  pick the companion up automatically once it's added separately (see
+  `getMenuCommandMemberUri`, which already treats a missing companion as
+  "no mappings yet", not an error). New `explorer/context` and
+  `commandPalette` contributions mirror "Create New Display File"'s.
+  Covered by a new `src/test/createNewMenu.test.js`, mirroring
+  `createNewDspf.test.js`'s local/remote/failure-path coverage plus the
+  paired-write and partial-failure cases specific to two members instead
+  of one.
+
 ## [0.9.36] - Unreleased
 
 ### Changed

@@ -79,7 +79,11 @@ Development Host. Either:
   **"iSDA: Open Menu Design Preview"**, or
 - Run **"iSDA: Create New Display File"** from the command palette (or
   right-click a folder in the Explorer) to generate a starter display file
-  and open it directly in the designer.
+  and open it directly in the designer, or
+- Run **"iSDA: Create New Menu"** from the command palette (or right-click
+  a folder in the Explorer) to generate a starter MNUDDS member *and* its
+  paired MNUCMD commands member together, and open the MNUDDS half
+  directly in the menu designer.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
@@ -127,11 +131,16 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   by DDS command keys the menu designer would let you assign). Removed in
   0.9.35 after initially being added generically alongside the DSPF
   designer's own command-key support.
-- No "Create New Menu" equivalent to the DSPF designer's "Create New
-  Display File" - starting a new menu still requires an existing MNUDDS
-  member (and its paired commands member) created some other way. Would
-  need to generate both paired members together, unlike a display file's
-  single-member case.
+- As of v0.9.36, "iSDA: Create New Menu" generates both paired members
+  together (MNUDDS + its `QQ` MNUCMD companion) in one step - a local
+  workspace pair (`<name>.mnudds` + `<name>QQ.mnucmd`), or both via ADDPFM
+  on a connected IBM i system. Like "Create New Display File", it won't
+  create the source physical file itself (`CRTSRCPF`) on the remote path -
+  only adds members to one that already exists. If the companion ADDPFM
+  fails after the menu member's own ADDPFM already succeeded, the menu
+  member is still created and written; only a warning is shown, since the
+  companion can be added separately later and iSDA will pick it up
+  automatically.
 - As of v0.9.19, a brand-new option's Row/Col are shown and editable before
   adding it - pre-filled with a smart default (right after the record's
   existing content: the last option, or the last title/header line if
@@ -176,9 +185,9 @@ No other Display-designer-only items are currently pending.
 
 #### Menu designer only
 
-1. **"Create New Menu"** equivalent to "Create New Display File" - still
-   needs an existing MNUDDS member (+ paired commands member) created some
-   other way; would need to generate both together.
+No Menu-designer-only items are currently pending. ("Create New Menu",
+generating the paired MNUDDS + MNUCMD members together, shipped in
+v0.9.36 - see Known limitations above and CHANGELOG.md.)
 
 ## License
 
