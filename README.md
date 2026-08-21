@@ -139,6 +139,42 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - Deleting an option doesn't scan for other references to it (unlike
   rename, which does).
 
+## Planned enhancements
+
+Forward-looking work, distinct from Known limitations above (which
+describes what's true about the current build) - not yet started, to be
+picked up after the current round of fixes.
+
+- **SDA-style picker screens for keywords, attributes, and conditioning**,
+  replacing free-typed keyword entry with pick-from-a-screen UI, the way
+  real SDA prompts for each keyword's own fields rather than having you
+  type `COLOR(RED)` by hand. A few keyword categories already get this
+  treatment - Color & attributes, Validity check (RANGE/COMP/VALUES), Edit
+  code/word, Command keys, Window title, Error message - each with its own
+  `getX`/`setX` pair in `dspfWriter.js` plus a dedicated panel in
+  `webviewClientHelpers.js`. The generic Keywords tab (free-text
+  name/parameters) remains the catch-all for anything without a dedicated
+  screen yet. Two directions to extend this:
+  - Give more keyword categories their own dedicated picker, one at a
+    time, following the same pattern.
+  - Surface the per-keyword Conditioning toggle directly on each
+    dedicated picker panel (today it only lives in the raw Keywords tab),
+    so conditioning a color/attribute/edit-code pick doesn't require
+    dropping into free-text keyword entry.
+- **Record type + dependent record format name options when creating a
+  record**, matching SDA's own "+ Add record" flow. Today, `insertRecord()`
+  always creates a blank record format (name only, no keywords) - SDA
+  instead asks for a record TYPE (basic screen, subfile, subfile control,
+  window, ...) and, for types that depend on another record format, which
+  one:
+  - **Subfile control (SFLCTL)** - asks which SFL record it controls,
+    writes `SFLCTL(sflname)`.
+  - **Window** - asks geometry, or which record to inherit it from
+    (`WINDOW(record-name)`).
+  - **Subfile (SFL)** - paired back to its SFLCTL.
+  Right now all of this has to be added by hand afterward via the raw
+  Keywords tab.
+
 ## License
 
 MIT — see `LICENSE`.
