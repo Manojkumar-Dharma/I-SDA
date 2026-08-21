@@ -104,14 +104,19 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   render on top of each other - but the position itself is still a
   placeholder). `WINDOW(record-format-name)` (inheriting another record's
   geometry) is fully resolved.
-- The pulldown-overlay preview (menu bar → clicked choice → dropdown) is
-  read-only. Switch to previewing the `PULLDOWN` record directly to edit
-  it.
-- The subfile detail area is read-only when previewing the `SFLCTL`
-  (control) record - switch to the `SFL` record to edit row layout. With
-  "Preview SFLPAG rows" enabled, dragging a field moves every *named*
-  field of that row together; unnamed constants in the row template stay
-  put.
+- As of v0.9.39, the pulldown-overlay preview (menu bar → clicked choice
+  → dropdown) is editable directly: click a field inside it to select it
+  (without the click closing the overlay), drag it to move it - the edit
+  writes back to the `PULLDOWN` record itself, not the record that has the
+  `MNUBARCHC` that opened it. You can still switch to previewing the
+  `PULLDOWN` record directly if you prefer that view.
+- As of v0.9.39, the subfile detail area is also editable when previewing
+  the `SFLCTL` (control) record - no need to switch to the `SFL` record
+  first. Dragging any field in the preview moves the whole row together,
+  writing back to the paired `SFL` record automatically (same as the `SFL`
+  record's own "Preview SFLPAG rows" toggle). With either, dragging a
+  field moves every *named* field of that row together; unnamed constants
+  in the row template stay put.
 - `CHCCTL` (per-choice runtime field-setting logic) has no visual
   representation - it's a logic construct, not a layout one.
 - Compare mode (previewing several record formats together) is read-only.

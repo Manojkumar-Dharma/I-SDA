@@ -3,6 +3,39 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.39] - Unreleased
+
+### Changed
+- **SFLCTL-side subfile preview and PULLDOWN overlay are now editable**,
+  closing two more items from the Known Limitations list. Both were
+  previously read-only reference layers requiring a record switch to edit:
+  - The subfile detail area, shown when previewing the `SFLCTL` (control)
+    record, is no longer protected/read-only. `resolveSubfilePreview()`
+    (`dspfEngine.js`) now tags its fields `subfile-edit-row-N` - the SAME
+    tag prefix (and the SAME group-drag machinery in
+    `buildWebviewTemplate.js`, `commitGroupEdit`) the `SFL` record's own
+    "Preview SFLPAG rows" toggle already used - so dragging any field in
+    the preview moves the whole row template together, writing the edit to
+    the PAIRED `SFL` record automatically (resolved via the field-wiring
+    loop's existing cross-record lookup fallback), without switching
+    records first. The old `dspf-subfile-preview` protected styling (dashed
+    border, `pointer-events: none`) no longer applies to these fields,
+    since the tag that triggered it is gone.
+  - A `PULLDOWN` overlay's fields (menu bar → clicked choice → dropdown)
+    are now clickable (selects the field, showing its Properties panel)
+    and draggable (writes back to the `PULLDOWN` record itself, via a
+    plain single-field `startDrag` - unlike a subfile row, a pulldown's
+    fields aren't a repeated template). Clicking a pulldown field no
+    longer closes the overlay: previously ANY click bubbled up to
+    `screenOutput`'s own "click anywhere closes the pulldown" listener,
+    which would immediately undo whatever the click was trying to do; a
+    pulldown field's own click/mousedown handlers now call
+    `e.stopPropagation()` first, the same pattern the menu-bar choice's own
+    click handler already used to avoid closing itself when toggling.
+  - Covered by two new scenarios in `dspfWebview.test.js`
+    (`runSubfileControlEditScenario`, `runPulldownEditScenario`) plus a tag
+    assertion added to `dspfEngine.test.js`'s existing SFLCTL coverage.
+
 ## [0.9.38] - Unreleased
 
 ### Added
