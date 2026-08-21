@@ -605,6 +605,9 @@ const htmlTemplate = `<!DOCTYPE html>
       mainHint.textContent = screen.previewRowCount < screen.declaredPreviewRowCount
         ? 'Previewing ' + screen.previewRowCount + ' of ' + screen.declaredPreviewRowCount + ' SFLPAG rows (capped to fit the ' + screen.lines + '-line screen). Drag any field to move the whole row - they all come from the same template.'
         : 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
+    } else if (screen.subfilePreview) {
+      mainHint.textContent = 'Showing ' + screen.subfilePreview.pageRows + ' subfile rows from ' + screen.subfilePreview.sflRecordName +
+        '. Drag any field here to move the whole row template - edits apply to ' + screen.subfilePreview.sflRecordName + ', not this control record.';
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     renderCompareBackdrop(recordName);
@@ -621,8 +624,8 @@ const htmlTemplate = `<!DOCTYPE html>
     }
 
     primaryScreenEl.querySelectorAll('.dspf-field').forEach((el) => {
-      if (el.getAttribute('data-tag') === 'pulldown') return; // read-only preview overlay, see below for its own click handling
-      if ((el.getAttribute('data-tag') || '').indexOf('subfile-preview-row-') === 0) return; // protected: switch to the SFL record itself to edit rows
+      const tag = el.getAttribute('data-tag') || '';
+      const isPulldownField = tag === 'pulldown';
 
       const name = el.getAttribute('data-field');
       const anchorLine = parseInt(el.getAttribute('data-line'), 10);
@@ -632,7 +635,9 @@ const htmlTemplate = `<!DOCTYPE html>
       // or a repeated subfile row they're the window-relative / template-row source
       // position, which is what matching against field.location must use. A subfile
       // row's fields belong to the PAIRED SFL record, not the previewed SFLCTL record
-      // (or vice versa), so the lookup searches every record, primary one first.
+      // (or vice versa), and a pulldown field belongs to the PULLDOWN record, not
+      // whatever record has the MNUBARCHC that opened it - so the lookup searches
+      // every record, primary one first.
       const primaryRec = model.records.find((r) => r.name === recordName);
       let underlying = primaryRec && (
         primaryRec.fields.find((f) => f.name === name && f.location.line === anchorLine) ||
@@ -651,22 +656,41 @@ const htmlTemplate = `<!DOCTYPE html>
       if (!editable) el.classList.add('locked');
       if (selectedKey && selectedKey.sourceLine === underlying.sourceLine) el.classList.add('selected');
 
-      const tag = el.getAttribute('data-tag') || '';
       const isEditableSflPreviewRow = tag.indexOf('subfile-edit-row-') === 0;
       const ownerRecord = model.records.find((r) => r.name === ownerRecordName);
 
-      el.addEventListener('click', () => { if (dragState) return; selectedKey = { sourceLine: underlying.sourceLine }; selectedHelpSourceLine = null; showFileProps = false; render(); });
+      el.addEventListener('click', (e) => {
+        // A pulldown field's click would otherwise bubble up to
+        // screenOutput's own "click anywhere closes the pulldown" listener
+        // (wired below, near activePulldown) and immediately undo the
+        // selection this click was trying to make - stop it there, same as
+        // the menu-bar choice's own click handler already does for the
+        // same reason.
+        if (isPulldownField) e.stopPropagation();
+        if (dragState) return;
+        selectedKey = { sourceLine: underlying.sourceLine };
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+        render();
+      });
       el.addEventListener('mousedown', (e) => {
+        if (isPulldownField) e.stopPropagation();
         if (!editable) return;
         e.preventDefault();
         if (isEditableSflPreviewRow && ownerRecord) {
-          // Multi-row SFLPAG preview (explicitly opted into via the "Preview SFLPAG
-          // rows" toggle): every rendered row instance is the SAME template, so every
-          // field visible in THIS row instance moves together, and every NAMED field
-          // of the record is batch-committed together - see commitGroupEdit.
+          // Multi-row SFLPAG preview (either the SFLCTL-side preview, or the
+          // SFL record's own "Preview SFLPAG rows" toggle): every rendered
+          // row instance is the SAME template, so every field visible in
+          // THIS row instance moves together, and every NAMED field of the
+          // record is batch-committed together - see commitGroupEdit.
           const siblingEls = Array.from(primaryScreenEl.querySelectorAll('[data-tag="' + tag.replace(/"/g, '\\\\"') + '"]'));
           startGroupDrag(siblingEls, ownerRecord.fields.filter((f) => f.name), ownerRecordName);
         } else {
+          // Also the pulldown-field path: unlike a subfile row, a PULLDOWN
+          // record's fields aren't a repeated template - it's an ordinary
+          // record shown as an overlay - so a plain single-field drag,
+          // writing back to its own PULLDOWN record via ownerRecordName, is
+          // the correct model here, not a group drag.
           startDrag(el, underlying, ownerRecordName);
         }
       });

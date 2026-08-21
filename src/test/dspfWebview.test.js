@@ -1020,6 +1020,139 @@ function runWindowMoveResizeScenario() {
     last = posted[posted.length - 1];
     check('resizing a *DFT window keeps *DFT and only changes height/width', last && last.type === 'applyEdit' && /WINDOW\(\*DFT/.test(last.text));
 
+    runSubfileControlEditScenario();
+  }, 0);
+}
+
+// SFLCTL-side subfile preview is now EDITABLE (0.9.38) rather than a
+// protected read-only reference layer: dragging any field in the preview
+// moves the whole row template, writing back to the PAIRED SFL record -
+// without switching records first, matching the SFL-side "Preview SFLPAG
+// rows" toggle's own group-drag behavior (see dspfEngine.js's
+// resolveSubfilePreview and buildWebviewTemplate.js's field-wiring loop).
+function runSubfileControlEditScenario() {
+  console.log('\nSFLCTL-side subfile preview is editable (drag writes back to the paired SFL record)');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+      buildLine({ seq: '00030', name: 'SEQNO', length: '10', dataType: 'A', usage: 'O', line: '1', col: '2' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'SFLCTLREC', func: 'SFLCTL(SFLREC)' }),
+      buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
+      buildLine({ seq: '00060', line: '1', col: '2', func: "'Header'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'SFLEDIT.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent, Event } = dom.window;
+
+    doc.getElementById('recordSelect').value = 'SFLCTLREC';
+    doc.getElementById('recordSelect').dispatchEvent(new Event('change', { bubbles: true }));
+
+    const previewEl = doc.querySelector('[data-tag^="subfile-edit-row-"]');
+    check('subfile preview fields are tagged as editable ("subfile-edit-row-"), not the old protected tag', !!previewEl);
+    check('no protected/locked styling is applied to them anymore', previewEl && !previewEl.classList.contains('locked'));
+
+    previewEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 20, clientY: 20 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 60 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+
+    const last = posted[posted.length - 1];
+    check('dragging it posts an applyEdit', last && last.type === 'applyEdit');
+    check("the edit landed on the PAIRED SFL record's field, not the SFLCTL record", last && /SEQNO/.test(last.text));
+
+    runPulldownEditScenario();
+  }, 0);
+}
+
+// A PULLDOWN record's fields are now interactive (0.9.38) rather than a
+// read-only overlay: clicking one selects it (without the click bubbling up
+// and closing the pulldown - it previously would have, via screenOutput's
+// own "click anywhere closes it" listener), and dragging it writes back to
+// the PULLDOWN record itself, not whatever record has the MNUBARCHC that
+// opened it.
+function runPulldownEditScenario() {
+  console.log('\nPULLDOWN overlay fields are interactive (select without closing it, drag writes back to the PULLDOWN record)');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'MAINREC' }),
+      buildLine({ seq: '00030', name: 'MENUFLD', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '1', col: '2', func: "MNUBARCHC(1 PULLREC 'File')" }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'PULLREC', func: 'PULLDOWN' }),
+      // Deliberately NOT line 1/col 2 - MENUFLD (on MAINREC, the record
+      // actually being previewed) already occupies that anchor position,
+      // and the field-wiring loop's fallback lookup matches by POSITION
+      // when a same-named field isn't found on the primary record first -
+      // reusing that same anchor here would collide with MENUFLD and the
+      // test would silently exercise the wrong field.
+      buildLine({ seq: '00050', name: 'PDFLD', length: '10', dataType: 'A', usage: 'B', line: '5', col: '10' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce13', src, 'PULLEDIT.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent, Event } = dom.window;
+
+    check('no pulldown overlay is open yet', !doc.querySelector('[data-tag="pulldown"]'));
+    const choiceEl = doc.querySelector('.dspf-menubar-choice');
+    check('setup: the menu-bar choice is rendered', !!choiceEl);
+    choiceEl.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const pulldownField = doc.querySelector('[data-tag="pulldown"]');
+    check('opening the pulldown renders its field', !!pulldownField);
+
+    pulldownField.dispatchEvent(new Event('click', { bubbles: true }));
+    check(
+      "clicking the pulldown field selects it WITHOUT closing the overlay (click doesn't bubble to the closer)",
+      !!doc.querySelector('[data-tag="pulldown"].selected')
+    );
+
+    posted.length = 0;
+    const fieldToDrag = doc.querySelector('[data-tag="pulldown"]');
+    fieldToDrag.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 20, clientY: 20 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 100 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+
+    const last = posted[posted.length - 1];
+    check('dragging it posts an applyEdit', last && last.type === 'applyEdit');
+    const reparsed = last && DspfParser.parseDspf(last.text);
+    const pullRec = reparsed && reparsed.records.find((r) => r.name === 'PULLREC');
+    const movedField = pullRec && pullRec.fields.find((f) => f.name === 'PDFLD');
+    check("the edit landed on the PULLDOWN record's own field, moved to a new line", movedField && movedField.location.line !== 1);
+    const mainRec = reparsed && reparsed.records.find((r) => r.name === 'MAINREC');
+    check("the record that OPENED the pulldown (MAINREC) is untouched", mainRec && mainRec.fields.find((f) => f.name === 'MENUFLD').location.line === 1);
+
     runDimmedCompareScenario();
   }, 0);
 }

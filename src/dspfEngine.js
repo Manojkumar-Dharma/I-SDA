@@ -629,13 +629,18 @@
   }
 
   /**
-   * The subfile detail area, rendered as a PROTECTED, non-interactive reference layer -
-   * only when `record` is itself the control (SFLCTL) side. Matches real SDA: when
-   * designing the control record, the subfile area shows for visual context but isn't
-   * individually editable there; switch to the SFL record itself to edit row layout.
-   * Deliberately one-directional (unlike the old findSflPairing, which resolved from
-   * either side) - viewing the SFL record directly now shows just its own fields, once,
-   * fully editable, with no automatic merging in either direction.
+   * The subfile detail area, rendered as an EDITABLE reference layer - only
+   * when `record` is itself the control (SFLCTL) side. Previously this was
+   * protected/read-only (matching a stricter reading of real SDA); as of
+   * the 0.9.39 fix it's editable, reusing the exact same tag prefix
+   * ('subfile-edit-row-') and group-drag machinery the SFL-side "Preview
+   * SFLPAG rows" toggle already uses below - dragging any field here moves
+   * the whole row template, and the edit is written to the PAIRED SFL
+   * record (resolved automatically: the webview's field-wiring loop
+   * already falls back to searching every record by name+anchor-line when
+   * a field isn't found on the currently-previewed record - see
+   * buildWebviewTemplate.js's primaryScreenEl.querySelectorAll('.dspf-field')
+   * loop), not this SFLCTL record, without switching records first.
    *
    * `totalLines` is the working area's line count for whichever DSPSIZ the
    * caller currently has selected - rendered rows are capped to what
@@ -684,7 +689,7 @@
     var fields = [];
     for (var row = 0; row < sflPag; row++) {
       var rowOffset = lineOffset + row * rowHeight;
-      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-preview-row-' + row, activeSizeName, dspfFile));
+      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-edit-row-' + row, activeSizeName, dspfFile));
     }
     return { sflRecordName: sflRecord.name, pageRows: sflPag, declaredPageRows: declaredSflPag, fields: fields };
   }
@@ -1161,7 +1166,6 @@
     if (f.style.protect) classes.push('dspf-protect');
     if (f.widget) classes.push('dspf-widget-' + f.widget.type);
     if (f.cntfld) classes.push('dspf-cntfld');
-    if (f.tag && f.tag.indexOf('subfile-preview-row-') === 0) classes.push('dspf-subfile-preview');
     if (f.tag === 'pulldown') classes.push('dspf-pulldown-field');
     var recordLabel = f.sourceRecord ? ' [' + f.sourceRecord + ']' : '';
     var colorStyle = f.style.color ? 'color:' + f.style.color + ';' : '';

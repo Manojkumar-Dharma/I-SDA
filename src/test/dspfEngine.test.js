@@ -93,6 +93,10 @@ console.log('SFLPAG: capped to the display working area (not left to overflow pa
   check('SFLCTL-side preview: declared SFLPAG(9999) is exposed as-is', ctlScreen.subfilePreview.declaredPageRows === 9999);
   check('SFLCTL-side preview: rendered rows are capped within the 24-line screen', ctlScreen.subfilePreview.pageRows < 9999 && ctlScreen.subfilePreview.pageRows > 0);
   check('SFLCTL-side preview: capped rows fit exactly within the working area', ctlScreen.subfilePreview.pageRows === 22);
+  check(
+    'SFLCTL-side preview fields are tagged "subfile-edit-row-" (editable, 0.9.38) not the old "subfile-preview-row-" (read-only) tag',
+    ctlScreen.subfilePreview.fields.every((f) => f.tag && f.tag.indexOf('subfile-edit-row-') === 0)
+  );
 
   const sflScreen = DspfEngine.resolveScreen(model, 'SFLREC', new Set(), null, true);
   check('SFL-side (template) preview: declared count exposed separately', sflScreen.declaredPreviewRowCount === 9999);
