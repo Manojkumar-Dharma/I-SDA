@@ -3,6 +3,25 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.38] - Unreleased
+
+### Added
+- **`isda.designerOpenColumn` setting** to control where the Screen/Menu
+  Designer webview opens. Previously it always opened split "beside" the
+  source column (`vscode.ViewColumn.Beside`) - fine for seeing the raw DDS
+  and the visual designer together, but on a narrower window (or with
+  other panels already open) the split leaves the designer cramped, and
+  the only fix was manually dragging the tab out into its own window every
+  time. The default (`"beside"`) is unchanged, so nobody's existing setup
+  changes underfoot; `"active"` opens the designer full-width in the same
+  tab group instead of splitting, and `"newWindow"` opens it and then
+  immediately runs `workbench.action.moveEditorToNewWindow` to pop it out
+  automatically. Applies everywhere a designer is opened - "Open
+  Screen/Menu Design Preview", and newly created display files/menus from
+  "Create New Display File"/"Create New Menu" (both already funnel through
+  the same `openDesigner()`/`openMenuDesigner()` helpers). Covered by a
+  new `src/test/designerOpenColumn.test.js`.
+
 ## [0.9.37] - Unreleased
 
 ### Added

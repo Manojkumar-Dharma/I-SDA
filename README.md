@@ -85,6 +85,12 @@ Development Host. Either:
   paired MNUCMD commands member together, and open the MNUDDS half
   directly in the menu designer.
 
+By default the designer opens in a split column next to the source so
+you can see both at once. If that feels cramped, set
+`isda.designerOpenColumn` (Settings) to `active` to open it full-width in
+the same tab instead, or to `newWindow` to have it automatically pop out
+into its own window.
+
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
 ## Known limitations

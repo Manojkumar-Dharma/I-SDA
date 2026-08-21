@@ -354,20 +354,49 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
   });
 }
 
-/** Opens the visual designer beside the current editor via the standard "open with a
- *  specific custom editor" command, rather than a plain WebviewPanel - see
- *  DspfDesignerEditorProvider for why: this way our webview participates as a real
- *  editor (dirty dot on its own tab, close-with-unsaved-changes prompt, Ctrl+Z/Y
- *  routed to it when focused) instead of being a second-class companion panel.
- *  supportsMultipleEditorsPerDocument:false above means a second call for the same
- *  URI reveals the existing instance rather than opening a duplicate. */
+/** Controls where openDesigner()/openMenuDesigner() below place the webview -
+ *  see the isda.designerOpenColumn setting (package.json). Defaults to the
+ *  original "beside" behavior (a split column next to the DDS/MNUDDS source,
+ *  so both are visible together) so nobody's existing workflow changes
+ *  underfoot; "active" opens full-width in the same tab group instead of
+ *  splitting, and "newWindow" pops the designer straight out into its own
+ *  OS window, for people who found the split view cramped and were
+ *  manually dragging the tab out themselves every time. */
+type DesignerOpenMode = 'beside' | 'active' | 'newWindow';
+
+function getDesignerOpenMode(): DesignerOpenMode {
+  const value = vscode.workspace.getConfiguration('isda').get<string>('designerOpenColumn', 'beside');
+  return value === 'active' || value === 'newWindow' ? value : 'beside';
+}
+
+/** Opens the visual designer via the standard "open with a specific custom
+ *  editor" command, rather than a plain WebviewPanel - see
+ *  DspfDesignerEditorProvider for why: this way our webview participates as a
+ *  real editor (dirty dot on its own tab, close-with-unsaved-changes prompt,
+ *  Ctrl+Z/Y routed to it when focused) instead of being a second-class
+ *  companion panel. supportsMultipleEditorsPerDocument:false above means a
+ *  second call for the same URI reveals the existing instance rather than
+ *  opening a duplicate. Where exactly it opens is governed by
+ *  getDesignerOpenMode() above. */
+async function openInDesigner(uri: vscode.Uri, viewType: string): Promise<void> {
+  const mode = getDesignerOpenMode();
+  const column = mode === 'beside' ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active;
+  await vscode.commands.executeCommand('vscode.openWith', uri, viewType, column);
+  if (mode === 'newWindow') {
+    // Operates on whichever editor is currently active - the openWith above
+    // just made the designer webview that editor, so this pops IT out (not
+    // the original source tab, which is left behind in the original window).
+    await vscode.commands.executeCommand('workbench.action.moveEditorToNewWindow');
+  }
+}
+
 function openDesigner(uri: vscode.Uri): void {
-  vscode.commands.executeCommand('vscode.openWith', uri, DspfDesignerEditorProvider.viewType, vscode.ViewColumn.Beside);
+  void openInDesigner(uri, DspfDesignerEditorProvider.viewType);
 }
 
 /** Same as openDesigner() above, but for the menu designer's custom editor. */
 function openMenuDesigner(uri: vscode.Uri): void {
-  vscode.commands.executeCommand('vscode.openWith', uri, MenuDesignerEditorProvider.viewType, vscode.ViewColumn.Beside);
+  void openInDesigner(uri, MenuDesignerEditorProvider.viewType);
 }
 
 /**

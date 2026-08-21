@@ -39,6 +39,7 @@ class Uri {
 let lastAppliedEdit = null;
 let lastWrittenFile = null;
 const mockFiles = {}; // uri.toString() -> text content, for workspace.fs.readFile in tests
+const mockConfig = {}; // 'section.key' -> value, for workspace.getConfiguration(...).get(...) in tests
 const changeListeners = []; // every registered workspace.onDidChangeTextDocument handler
 const openTextDocuments = []; // simulates vscode.workspace.textDocuments
 const executedCommands = []; // every vscode.commands.executeCommand call, for assertions
@@ -52,7 +53,7 @@ const vscodeMock = {
   WorkspaceEdit,
   CodeLens,
   Uri,
-  ViewColumn: { Beside: -2, One: 1 },
+  ViewColumn: { Active: -1, Beside: -2, One: 1 },
   extensions: {
     // Simulates "Code for i not installed" by default; tests can override this
     // (vscodeMock.extensions.getExtension = () => ({...})) to simulate a connection.
@@ -110,6 +111,12 @@ const vscodeMock = {
   },
   workspace: {
     workspaceFolders: [{ uri: new Uri('file', '/workspace') }],
+    getConfiguration: (section) => ({
+      get: (key, defaultValue) => {
+        const full = section ? `${section}.${key}` : key;
+        return Object.prototype.hasOwnProperty.call(mockConfig, full) ? mockConfig[full] : defaultValue;
+      },
+    }),
     fs: {
       stat: () => Promise.reject(new Error('not found')),
       writeFile: (uri, bytes) => {
@@ -143,6 +150,8 @@ const vscodeMock = {
   get __lastWrittenFile() { return lastWrittenFile; },
   __setMockFile: (uri, text) => { mockFiles[uri.toString()] = text; },
   __clearMockFiles: () => { Object.keys(mockFiles).forEach((k) => delete mockFiles[k]); },
+  __setMockConfig: (fullKey, value) => { mockConfig[fullKey] = value; },
+  __clearMockConfig: () => { Object.keys(mockConfig).forEach((k) => delete mockConfig[k]); },
   __setOpenTextDocuments: (docs) => { openTextDocuments.length = 0; openTextDocuments.push(...docs); },
   get __executedCommands() { return executedCommands; },
   __setRunCommandHandler: (fn) => { runCommandHandler = fn; },
