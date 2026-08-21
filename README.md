@@ -176,18 +176,14 @@ delete, the Center/Fill/colors-attributes/validity-edit-error-message
 field-panel helpers, "+ Field"/"+ Constant" click-to-place, window
 move/resize handles, Change Window Title, true dimmed-overlay compare -
 in both designers where applicable - plus sort elements, `CNTFLD(n)`
-preview wrapping, and `ERRMSG` rendering on a window's own reserved
-message line - have moved to CHANGELOG.md rather than staying listed
-here as limitations. No Common items are currently pending.)
+preview wrapping, `ERRMSG` rendering on a window's own reserved message
+line, and Resolve Referenced Field (and "Resolve All") via Code for i -
+have moved to CHANGELOG.md rather than staying listed here as
+limitations. No Common items are currently pending.)
 
 #### Display (DSPF) designer only
 
-1. **Resolve Referenced Field** (and "Resolve All") via Code for i - fetch
-   a referenced field's real type/length/decimals from a connected IBM i.
-   Not implemented anywhere in the DSPF designer today (Code for i is
-   currently only used by the menu designer's Compile Menu command).
-
-No other Display-designer-only items are currently pending.
+No Display-designer-only items are currently pending.
 
 #### Menu designer only
 

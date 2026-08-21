@@ -17,6 +17,18 @@ import { parseDspf } from './dspfParser';
 // rather than ported to TS, so the exact same parsing logic the webview uses
 // client-side also runs here on the extension host for the compile command.
 const MnuCmdEngine: { parseMnuCmd(text: string): { options: Array<{ optionNumber: string; numberValue: number; command: string }> } } = require('./mnuCmdEngine.js');
+// Same reasoning: DspfEngine.resolveReferenceTarget and DspfWriter.applyFieldUpdate are
+// plain, dependency-free JS shared verbatim with the webview (see their own file headers) -
+// required directly here for the extension-host half of Resolve Referenced Field (the
+// network round-trip to Code for i can only happen host-side; the webview only sends
+// "resolve this field" and receives the refreshed document back via the normal
+// onDidChangeTextDocument -> 'externalUpdate' plumbing already in place below).
+const DspfEngine: {
+  resolveReferenceTarget(dspfFile: any, record: any, field: any): { fieldName: string; library: string | null; file: string } | null;
+} = require('./dspfEngine.js');
+const DspfWriter: {
+  applyFieldUpdate(field: any, sourceLines: string[], updates: any): string[];
+} = require('./dspfWriter.js');
 
 // Matches local .dspf/.mnudds files by extension/language, PLUS remote IBM i
 // source members and IFS streamfiles opened through Code for i (scheme
@@ -390,6 +402,183 @@ async function openInDesigner(uri: vscode.Uri, viewType: string): Promise<void> 
   }
 }
 
+/**
+ * Field metadata fetched from a live IBM i for one referenced field - the
+ * result half of "Resolve Referenced Field via Code for i". `dataType` is
+ * already the real DDS position-35 type code (not a generic SQL type name -
+ * see fetchReferencedFieldAttributes' own comment for why DSPFFD's OUTFILE
+ * is used instead of the QSYS2.SYSCOLUMNS SQL catalog for this).
+ */
+type ReferencedFieldAttributes = { length: number; dataType: string; decimalPositions: number | null };
+
+/**
+ * Fetches one referenced field's real length/type/decimals from a connected
+ * IBM i via Code for IBM i - the network half of "Resolve Referenced Field",
+ * kept separate from DspfEngine.resolveReferenceTarget (which only works out
+ * WHERE to look, with no I/O of its own, so it can be unit tested without a
+ * live connection).
+ *
+ * Deliberately uses DSPFFD's classic OUTFILE (QADSPFFD/QWHDRFFD format)
+ * rather than the QSYS2.SYSCOLUMNS SQL catalog: SYSCOLUMNS reports generic
+ * SQL type names (CHARACTER, DECIMAL, ...), which would need a lossy
+ * best-guess mapping back to DDS's own single-character type codes
+ * (position 35 - P/S/B/F/L/T/Z/blank). DSPFFD's OUTFILE instead reports the
+ * field's ACTUAL DDS type code directly in WHFLDT - the same information
+ * real SDA itself reads when resolving a reference field - so no mapping or
+ * guessing is needed. WHFLDB is the field's length in BYTES (right for
+ * character fields); WHFLDD/WHFLDP are DIGITS/decimal-positions (right for
+ * numeric fields, which is what DDS's own LENGTH column means for a numeric
+ * type) - see the WHFLDT='A' branch below for exactly which pair applies.
+ */
+async function fetchReferencedFieldAttributes(
+  target: { fieldName: string; library: string | null; file: string }
+): Promise<ReferencedFieldAttributes | { error: string }> {
+  const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
+  if (!ext) {
+    return { error: 'Resolve Referenced Field requires the Code for IBM i extension (halcyontechltd.code-for-ibmi), installed and connected.' };
+  }
+  if (!ext.isActive) {
+    try {
+      await ext.activate();
+    } catch {
+      // fall through - exports may still be usable, or the getConnection() check below will catch it
+    }
+  }
+  const instance: any = ext.exports && ext.exports.instance;
+  const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
+  if (!connection) {
+    return { error: 'Not connected to an IBM i - connect via the Code for IBM i panel first.' };
+  }
+
+  const qualifiedFile = (target.library ? target.library + '/' : '') + target.file;
+  const tempMember = 'ISDARFFD';
+  const dspffdCmd = `DSPFFD FILE(${qualifiedFile}) OUTPUT(*OUTFILE) OUTFILE(QTEMP/${tempMember}) OUTMBR(*FIRST *REPLACE)`;
+  let cmdResult: any;
+  try {
+    cmdResult = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command: dspffdCmd, environment: 'ile' });
+  } catch (err) {
+    return { error: `DSPFFD failed for ${qualifiedFile}: ${err}` };
+  }
+  if (cmdResult && typeof cmdResult.code === 'number' && cmdResult.code !== 0) {
+    return { error: `DSPFFD failed for ${qualifiedFile}: ${cmdResult.stderr || cmdResult.stdout || 'unknown error'}` };
+  }
+
+  const escapedField = target.fieldName.toUpperCase().replace(/'/g, "''");
+  const sql = `SELECT WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} WHERE WHFLDI = '${escapedField}' FETCH FIRST 1 ROW ONLY`;
+  let rows: any[];
+  try {
+    rows = await connection.runSQL(sql);
+  } catch (err) {
+    return { error: `Could not read field metadata for "${target.fieldName}" in ${qualifiedFile}: ${err}` };
+  }
+  if (!rows || rows.length === 0) {
+    return { error: `Field "${target.fieldName}" was not found in ${qualifiedFile}.` };
+  }
+
+  const row = rows[0];
+  const rowValue = (key: string) => (row[key] !== undefined ? row[key] : row[key.toLowerCase()]);
+  const whfldt = String(rowValue('WHFLDT') || '').trim().toUpperCase();
+  const whfldb = Number(rowValue('WHFLDB'));
+  const whfldd = Number(rowValue('WHFLDD'));
+  const whfldp = Number(rowValue('WHFLDP'));
+
+  if (whfldt === 'A') {
+    // Character: DDS's LENGTH column means bytes here.
+    return { length: whfldb, dataType: '', decimalPositions: null };
+  }
+  // Numeric (and everything else): DDS's LENGTH column means total digits,
+  // not bytes - WHFLDD, not WHFLDB (see this function's own doc comment).
+  return { length: whfldd, dataType: whfldt, decimalPositions: whfldp > 0 ? whfldp : null };
+}
+
+/**
+ * Handles a 'resolveReferencedField'/'resolveAllReferencedFields' message
+ * from either designer's webview: re-parses the CURRENT document (not
+ * whatever model the webview last had - a network round-trip means the
+ * document could have changed underneath this by the time results come
+ * back), resolves each target field's real attributes over Code for i, and
+ * applies every successful one as a single WorkspaceEdit. Re-parses again
+ * after EACH field when resolving several at once, same "never trust a
+ * stale sourceLine after an edit" discipline the webview's own multi-step
+ * edits (e.g. menu option swap) already follow - one field's edit can never
+ * change how many lines an unrelated field spans (only its own positional
+ * columns), but re-parsing defensively costs little and rules that out for
+ * good rather than relying on that invariant staying true forever.
+ */
+async function handleResolveReferencedField(document: vscode.TextDocument, msg: { type: string; recordName: string; fieldSourceLine?: number }): Promise<void> {
+  const initialModel = parseDspf(document.getText());
+  const initialRecord = initialModel.records.find((r) => r.name === msg.recordName);
+  if (!initialRecord) {
+    vscode.window.showErrorMessage('iSDA: record not found.');
+    return;
+  }
+
+  const targetFieldNames: string[] =
+    msg.type === 'resolveAllReferencedFields'
+      ? initialRecord.fields.filter((f: any) => f.isReference).map((f: any) => f.name)
+      : initialRecord.fields.filter((f: any) => f.sourceLine === msg.fieldSourceLine).map((f: any) => f.name);
+
+  if (targetFieldNames.length === 0) {
+    vscode.window.showInformationMessage('iSDA: no reference fields (position 29 "R") to resolve on this record.');
+    return;
+  }
+
+  await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'iSDA: Resolving referenced field(s) via Code for IBM i' },
+    async (progress) => {
+      let text = document.getText();
+      let currentModel = parseDspf(text);
+      const failures: string[] = [];
+      let resolvedCount = 0;
+
+      for (const fieldName of targetFieldNames) {
+        const rec = currentModel.records.find((r) => r.name === msg.recordName);
+        const field = rec && rec.fields.find((f: any) => f.name === fieldName);
+        const target = field ? DspfEngine.resolveReferenceTarget(currentModel, rec, field) : null;
+        if (!field || !target) {
+          failures.push(`${fieldName || '(field)'}: no REF/REFFLD file to resolve against.`);
+          continue;
+        }
+
+        progress.report({ message: `${target.fieldName} from ${target.library ? target.library + '/' : ''}${target.file}...` });
+        const outcome = await fetchReferencedFieldAttributes(target);
+        if ('error' in outcome) {
+          failures.push(`${fieldName}: ${outcome.error}`);
+          continue;
+        }
+
+        let lines = text.split(/\r\n|\r|\n/);
+        lines = DspfWriter.applyFieldUpdate(field, lines, {
+          length: outcome.length,
+          dataType: outcome.dataType,
+          decimalPositions: outcome.decimalPositions,
+        });
+        text = lines.join('\n');
+        currentModel = parseDspf(text);
+        resolvedCount++;
+      }
+
+      if (resolvedCount > 0) {
+        const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(document.uri, fullRange, text);
+        // Deliberately NOT wrapped in the 'applyingFromWebview' suppression flag the
+        // 'applyEdit' message handler below uses: this edit originates from the HOST
+        // (a button click plus an async network round-trip), and the webview needs
+        // the resolved attributes pushed back to it via the normal onDidChangeTextDocument
+        // -> 'externalUpdate' path, not silently swallowed like a webview-originated edit.
+        await vscode.workspace.applyEdit(edit);
+      }
+
+      if (failures.length > 0) {
+        vscode.window.showErrorMessage('iSDA: ' + failures.join(' | '));
+      } else if (resolvedCount > 0) {
+        vscode.window.showInformationMessage(`iSDA: Resolved ${resolvedCount} referenced field${resolvedCount === 1 ? '' : 's'}.`);
+      }
+    }
+  );
+}
+
 function openDesigner(uri: vscode.Uri): void {
   void openInDesigner(uri, DspfDesignerEditorProvider.viewType);
 }
@@ -439,6 +628,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         applyingFromWebview = false;
       } else if (msg.type === 'error') {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
+      } else if (msg.type === 'resolveReferencedField' || msg.type === 'resolveAllReferencedFields') {
+        await handleResolveReferencedField(document, msg);
       }
       // 'ready' needs no response; initial content was already embedded in the HTML.
     });

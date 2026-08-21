@@ -1131,6 +1131,15 @@ const htmlTemplate = `<!DOCTYPE html>
 
     // --- Attributes tab: display attributes / validity & edit keywords ---
     let attrsHtml = WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
+    if (!isConstant && field.isReference) {
+      // Position 29 'R' - this field's length/type/decimals come from a
+      // referenced database field (REF/REFFLD - see DspfEngine.resolveReferenceTarget)
+      // rather than being typed in here. Offer to fetch the real values from
+      // a connected IBM i and fill them in, same as real SDA does the moment
+      // you type R and press Enter - see extension.ts's
+      // handleResolveReferencedField for the Code for i round-trip itself.
+      attrsHtml += '<button id="p-resolve-ref" class="secondary" style="width:100%;margin-bottom:12px;">Resolve Referenced Field (Code for i)</button>';
+    }
     if (!isConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine);
     }
@@ -1170,6 +1179,12 @@ const htmlTemplate = `<!DOCTYPE html>
       commitEdit(ownerRecordName, field, updates);
     });
     document.getElementById('p-copy').addEventListener('click', () => commitCopy(ownerRecordName, field));
+    const resolveRefBtn = document.getElementById('p-resolve-ref');
+    if (resolveRefBtn) {
+      resolveRefBtn.addEventListener('click', () => {
+        vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
+      });
+    }
     WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
     WebviewClientHelpers.wireColorAttrEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
@@ -1347,8 +1362,12 @@ const htmlTemplate = `<!DOCTYPE html>
     const availableForRecord = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, rec.keywords);
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
 
-    // --- Structure tab: help entries + source field order ---
-    const structureHtml = helpEntriesListHtml(rec) + fieldOrderListHtml(rec);
+    // --- Structure tab: help entries + source field order + reference fields ---
+    let structureHtml = helpEntriesListHtml(rec) + fieldOrderListHtml(rec);
+    const referenceFieldCount = (rec.fields || []).filter((f) => f.isReference).length;
+    if (referenceFieldCount > 0) {
+      structureHtml += '<button id="p-resolve-all-ref" class="secondary" style="width:100%;margin-top:16px;">Resolve all referenced fields (' + referenceFieldCount + ')</button>';
+    }
 
     html += tabsHtml([
       { id: 'basic', label: 'Basic', content: basicHtml },
@@ -1365,6 +1384,12 @@ const htmlTemplate = `<!DOCTYPE html>
     document.getElementById('p-record-rename').addEventListener('click', () => commitRecordRename(recordName));
     document.getElementById('p-record-copy').addEventListener('click', () => { if (editable) commitCopyRecord(recordName); });
     document.getElementById('p-record-delete').addEventListener('click', () => commitDeleteRecord(recordName));
+    const resolveAllBtn = document.getElementById('p-resolve-all-ref');
+    if (resolveAllBtn) {
+      resolveAllBtn.addEventListener('click', () => {
+        vscode.postMessage({ type: 'resolveAllReferencedFields', recordName: recordName });
+      });
+    }
 
     propsBody.querySelectorAll('.help-entry-row').forEach((el) => {
       el.addEventListener('click', () => {

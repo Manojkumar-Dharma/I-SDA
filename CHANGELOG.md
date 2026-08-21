@@ -3,6 +3,49 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.39] - Unreleased
+
+### Added
+- **Resolve Referenced Field (and "Resolve All") via Code for i.** A
+  field flagged as a database reference (position 29 `R`) can now have
+  its real length/type/decimals fetched from a connected IBM i and
+  written into the DDS source, the same convenience real SDA offers the
+  moment you type `R` and press Enter.
+  - `DspfEngine.resolveReferenceTarget()` works out WHICH field, in
+    WHICH library/file, to resolve - REFFLD's own field-name/file
+    parameters, falling back to the file-level REF keyword, correctly
+    returning nothing resolvable for `REFFLD(field *SRC)` (no live file
+    to query) or when there's no REF/REFFLD file at all. Pure, no I/O,
+    fully unit-tested (7 new cases in `dspfEngine.test.js`).
+  - `extension.ts`'s `fetchReferencedFieldAttributes()` does the actual
+    network round-trip: runs `DSPFFD ... OUTPUT(*OUTFILE)` via Code for
+    i's `code-for-ibmi.runCommand`, then reads the resulting QTEMP
+    outfile's `WHFLDT`/`WHFLDB`/`WHFLDD`/`WHFLDP` via
+    `instance.getConnection().runSQL()`. Deliberately uses DSPFFD's
+    OUTFILE rather than the `QSYS2.SYSCOLUMNS` SQL catalog: DSPFFD
+    reports the field's actual DDS type code (position 35) directly, so
+    there's no lossy mapping back from a generic SQL type name.
+  - `handleResolveReferencedField()` resolves one field (the field
+    panel's new "Resolve Referenced Field (Code for i)" button, added to
+    the new Attributes tab) or every reference field on the record at
+    once (the record panel's new "Resolve all referenced fields (N)"
+    button, added to the new Structure tab), applying every success as a
+    single `WorkspaceEdit` and reporting any failures (not
+    installed/connected, field not found, no REF/REFFLD file) without
+    losing whatever did resolve.
+  - Covered by 5 new cases in `extension.test.js` against a mock Code
+    for i extension/connection: not-installed, a successful resolve
+    (length written into the source, correct DSPFFD/SQL calls), field
+    not found, and Resolve All resolving multiple fields at once.
+  - Fixed a build gap along the way: `dspfEngine.js`/`dspfWriter.js`
+    weren't being copied into `dist/` the way `mnuCmdEngine.js` already
+    was, so `extension.ts`'s new `require()` calls of them would have
+    failed at runtime once compiled - `npm run build:webview-assets`
+    now copies all three.
+  - This was the last remaining Display-designer-only gap from the Aug
+    2026 parity audit; with "Create New Menu" landing separately (see
+    0.9.37 below), no Display- or Menu-designer-only items remain.
+
 ## [0.9.38] - Unreleased
 
 ### Added

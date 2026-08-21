@@ -20,6 +20,7 @@ Module._load = function (request, parent, isMain) {
 
 const vscodeMock = require('./vscode-mock.js');
 const ext = require(path.join(__dirname, '../../dist/extension.js'));
+const { buildLine } = require('../fixtures/lineBuilder.js');
 
 let failures = 0;
 function check(label, condition) {
@@ -94,6 +95,93 @@ async function run() {
   console.log('\nerror message -> showErrorMessage');
   await messageHandler({ type: 'error', message: 'boom' });
   check('surfaces the error to the user', vscodeMock.__lastError === 'iSDA: boom');
+
+  console.log('\nresolveReferencedField / resolveAllReferencedFields (Code for i)');
+  {
+    const refSrc =
+      buildLine({ seq: '00005', func: 'REF(MYLIB/CUSMSTP)' }) + '\n' +
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }) + '\n' +
+      buildLine({ seq: '00020', name: 'CUSTNO', length: '5', dataType: 'A', usage: 'B', line: '1', col: '2', ref: 'R' }) + '\n' +
+      buildLine({ seq: '00030', name: 'CUSTNM', length: '5', dataType: 'A', usage: 'B', line: '2', col: '2', ref: 'R' }) + '\n';
+    const refDoc = vscodeMock.__mockDocument(refSrc);
+    let refMessageHandler = null;
+    const refPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { refMessageHandler = h; return { dispose: () => {} }; },
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    providerEntry.provider.resolveCustomTextEditor(refDoc, refPanel, {});
+
+    console.log('  Code for i not installed');
+    vscodeMock.__removeMockExtension('halcyontechltd.code-for-ibmi');
+    vscodeMock.__lastError = undefined;
+    await refMessageHandler({ type: 'resolveReferencedField', recordName: 'SCR1', fieldSourceLine: 3 });
+    check('surfaces a clear error when Code for i is not installed', /Code for IBM i extension/.test(vscodeMock.__lastError || ''));
+
+    console.log('  connected, field found via SQL');
+    const runSqlCalls = [];
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runSQL: async (sql) => {
+              runSqlCalls.push(sql);
+              return [{ WHFLDT: 'A', WHFLDB: 25, WHFLDD: 0, WHFLDP: 0 }];
+            },
+          }),
+        },
+      },
+    });
+    vscodeMock.__setRunCommandHandler((info) => {
+      check('runs DSPFFD against the REF file (MYLIB/CUSMSTP)', info.command.includes('DSPFFD FILE(MYLIB/CUSMSTP)'));
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    vscodeMock.__lastAppliedEdit = undefined;
+    vscodeMock.__lastInformation = undefined;
+    await refMessageHandler({ type: 'resolveReferencedField', recordName: 'SCR1', fieldSourceLine: 3 });
+    const appliedEdit = vscodeMock.__lastAppliedEdit;
+    check('applies a WorkspaceEdit with the resolved length written into the source', !!appliedEdit && /CUSTNO\s+R\s+25\s+B/.test(appliedEdit.edits[0].newText.split('\n')[2]));
+    check('confirms success to the user', /Resolved 1 referenced field/.test(vscodeMock.__lastInformationMessage || ''));
+    check('queried the reference file field by name (CUSTNO)', runSqlCalls.some((sql) => sql.includes("WHFLDI = 'CUSTNO'")));
+
+    console.log('  field not found in the reference file');
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: true,
+      exports: { instance: { getConnection: () => ({ runSQL: async () => [] }) } },
+    });
+    vscodeMock.__setRunCommandHandler(() => ({ code: 0, stdout: '', stderr: '' }));
+    vscodeMock.__lastError = undefined;
+    await refMessageHandler({ type: 'resolveReferencedField', recordName: 'SCR1', fieldSourceLine: 3 });
+    check('surfaces a not-found error', /was not found/.test(vscodeMock.__lastError || ''));
+
+    console.log('  resolveAllReferencedFields resolves every reference field in the record');
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runSQL: async () => [{ WHFLDT: 'A', WHFLDB: 30, WHFLDD: 0, WHFLDP: 0 }],
+          }),
+        },
+      },
+    });
+    vscodeMock.__setRunCommandHandler(() => ({ code: 0, stdout: '', stderr: '' }));
+    vscodeMock.__lastInformation = undefined;
+    await refMessageHandler({ type: 'resolveAllReferencedFields', recordName: 'SCR1' });
+    check('resolves both reference fields on the record', /Resolved 2 referenced fields/.test(vscodeMock.__lastInformationMessage || ''));
+
+    // Restore the default-installed mock extension for any later tests in this file.
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi' });
+    vscodeMock.__setRunCommandHandler(null);
+  }
 
   console.log('\necho-suppression (the core anti-infinite-loop mechanism)');
   const posted2 = [];

@@ -641,6 +641,103 @@ console.log('\nERRMSG: a record with no WINDOW keyword never gets a window messa
   check('no window -> no errorMessage', screen.errorMessage === null);
 }
 
+console.log('\nresolveReferenceTarget: a bare R with no REFFLD resolves against the file-level REF, using the field\'s own name');
+{
+  const src = [
+    buildLine({ seq: '00005', func: 'REF(MYLIB/CUSMSTP)' }),
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'CUSTNO', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2', ref: 'R' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records[0];
+  const field = record.fields[0];
+  const target = DspfEngine.resolveReferenceTarget(model, record, field);
+  check('resolves', !!target);
+  check('field name defaults to the field\'s own name (CUSTNO)', target.fieldName === 'CUSTNO');
+  check('library comes from REF (MYLIB)', target.library === 'MYLIB');
+  check('file comes from REF (CUSMSTP)', target.file === 'CUSMSTP');
+}
+
+console.log('\nresolveReferenceTarget: REFFLD\'s own field name overrides the field\'s own name');
+{
+  const src = [
+    buildLine({ seq: '00005', func: 'REF(MYLIB/CUSMSTP)' }),
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'CUST1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2', ref: 'R', func: 'REFFLD(CUSTNO)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records[0];
+  const field = record.fields[0];
+  const target = DspfEngine.resolveReferenceTarget(model, record, field);
+  check('resolves', !!target);
+  check('field name comes from REFFLD (CUSTNO), not the field\'s own name (CUST1)', target.fieldName === 'CUSTNO');
+  check('still falls back to REF for the file (no file given on REFFLD)', target.library === 'MYLIB' && target.file === 'CUSMSTP');
+}
+
+console.log('\nresolveReferenceTarget: REFFLD\'s own file overrides REF\'s file');
+{
+  const src = [
+    buildLine({ seq: '00005', func: 'REF(MYLIB/CUSMSTP)' }),
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'ORDNO', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2', ref: 'R', func: 'REFFLD(ORDNO OTHLIB/ORDMSTP)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records[0];
+  const field = record.fields[0];
+  const target = DspfEngine.resolveReferenceTarget(model, record, field);
+  check('REFFLD\'s own library/file wins over REF\'s', target.library === 'OTHLIB' && target.file === 'ORDMSTP');
+}
+
+console.log('\nresolveReferenceTarget: REFFLD without a library still resolves (library null)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'ORDNO', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2', ref: 'R', func: 'REFFLD(ORDNO ORDMSTP)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records[0];
+  const field = record.fields[0];
+  const target = DspfEngine.resolveReferenceTarget(model, record, field);
+  check('resolves with no library qualifier', !!target && target.library === null && target.file === 'ORDMSTP');
+}
+
+console.log('\nresolveReferenceTarget: REFFLD(... *SRC) is unresolvable (no live file to query)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'CUSTNO', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2', ref: 'R', func: 'REFFLD(CUSTNO *SRC)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records[0];
+  const field = record.fields[0];
+  check('*SRC returns null', DspfEngine.resolveReferenceTarget(model, record, field) === null);
+}
+
+console.log('\nresolveReferenceTarget: no REF and no REFFLD file means nothing to resolve against');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'CUSTNO', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2', ref: 'R' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records[0];
+  const field = record.fields[0];
+  check('returns null with nothing to resolve against', DspfEngine.resolveReferenceTarget(model, record, field) === null);
+}
+
+console.log('\nresolveReferenceTarget: a field without R in position 29 is never a reference field');
+{
+  const src = [
+    buildLine({ seq: '00005', func: 'REF(MYLIB/CUSMSTP)' }),
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'CUSTNO', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records[0];
+  const field = record.fields[0];
+  check('non-reference field returns null even with REF present', DspfEngine.resolveReferenceTarget(model, record, field) === null);
+}
+
 if (failures > 0) {
   console.log('\n' + failures + ' FAILURE(S)');
   process.exit(1);

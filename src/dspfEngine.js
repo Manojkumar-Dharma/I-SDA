@@ -766,6 +766,59 @@
     };
   }
 
+  // ---------------------------------------------------------------------
+  // Resolve Referenced Field (REF/REFFLD, position 29 'R'): given a field
+  // flagged as a database reference, works out WHICH field, in WHICH
+  // library/file, its length/type/decimals should be resolved from - the
+  // pure "where do I look" half of the "Resolve Referenced Field via Code
+  // for i" action; the actual network round-trip (DSPFFD + an SQL lookup)
+  // only makes sense on the extension host, so it lives in extension.ts,
+  // built on top of this. See "When to specify REF and REFFLD keywords for
+  // DDS files" in the DDS Reference for the precedence rules this follows:
+  //   - REFFLD's own field-name parameter (defaulting to this field's own
+  //     name in positions 19-28 when REFFLD isn't present at all - a bare
+  //     R means "same-named field").
+  //   - REFFLD's own [library/]file parameter, if given, OVERRIDES the
+  //     file-level REF keyword's file.
+  //   - REFFLD(field-name *SRC) means "search the file being defined" -
+  //     there's no live database file to query for that, so this returns
+  //     null (unresolvable via this feature) rather than guessing.
+  //   - With no REFFLD file/library at all, falls back to the file-level
+  //     REF keyword; with no REF either, there's nothing to resolve against.
+  // ---------------------------------------------------------------------
+
+  /** @returns {{fieldName:string, library:?string, file:string}|null} */
+  function resolveReferenceTarget(dspfFile, record, field) {
+    if (!field || !field.isReference) return null;
+
+    var reffld = (field.keywords || []).find(function (k) { return k.name === 'REFFLD'; });
+    var fieldName = field.name;
+    var fileSpec = null;
+
+    if (reffld) {
+      var parts = reffld.parameters.trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 0) return null;
+      fieldName = parts[0];
+      if (parts.length > 1) {
+        if (parts[1].toUpperCase() === '*SRC') return null; // "search this DDS file itself" - no live file to query
+        fileSpec = parts[1];
+      }
+    }
+
+    if (!fileSpec) {
+      var refKw = (dspfFile.fileKeywords || []).find(function (k) { return k.name === 'REF'; });
+      if (!refKw || !refKw.parameters.trim()) return null; // nothing to resolve against
+      fileSpec = refKw.parameters.trim();
+    }
+
+    var slash = fileSpec.indexOf('/');
+    var library = slash >= 0 ? fileSpec.slice(0, slash) : null;
+    var file = slash >= 0 ? fileSpec.slice(slash + 1) : fileSpec;
+    if (!file) return null;
+
+    return { fieldName: fieldName, library: library, file: file };
+  }
+
   function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex) {
     activeIndicators = activeIndicators || new Set();
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
@@ -1266,6 +1319,7 @@
     conditionsSatisfied: conditionsSatisfied,
     resolveScreen: resolveScreen,
     resolveMultiScreen: resolveMultiScreen,
+    resolveReferenceTarget: resolveReferenceTarget,
     renderScreenHtml: renderScreenHtml,
     isPulldownRecord: isPulldownRecord,
     findSflPairing: findSflPairing,
