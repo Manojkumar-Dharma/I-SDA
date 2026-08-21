@@ -104,19 +104,6 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   render on top of each other - but the position itself is still a
   placeholder). `WINDOW(record-format-name)` (inheriting another record's
   geometry) is fully resolved.
-- As of v0.9.39, the pulldown-overlay preview (menu bar → clicked choice
-  → dropdown) is editable directly: click a field inside it to select it
-  (without the click closing the overlay), drag it to move it - the edit
-  writes back to the `PULLDOWN` record itself, not the record that has the
-  `MNUBARCHC` that opened it. You can still switch to previewing the
-  `PULLDOWN` record directly if you prefer that view.
-- As of v0.9.39, the subfile detail area is also editable when previewing
-  the `SFLCTL` (control) record - no need to switch to the `SFL` record
-  first. Dragging any field in the preview moves the whole row together,
-  writing back to the paired `SFL` record automatically (same as the `SFL`
-  record's own "Preview SFLPAG rows" toggle). With either, dragging a
-  field moves every *named* field of that row together; unnamed constants
-  in the row template stay put.
 - `CHCCTL` (per-choice runtime field-setting logic) has no visual
   representation - it's a logic construct, not a layout one.
 - Compare mode (previewing several record formats together) is read-only.
@@ -139,25 +126,10 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - No command-key (`CAxx`/`CFxx`) assignment UI, unlike the DSPF designer -
   CRTMNU-compiled numbered-option menus don't use them in practice (F3=Exit,
   F12=Cancel etc. are handled by CRTMNU's own generated program logic, not
-  by DDS command keys the menu designer would let you assign). Removed in
-  0.9.35 after initially being added generically alongside the DSPF
-  designer's own command-key support.
-- As of v0.9.36, "iSDA: Create New Menu" generates both paired members
-  together (MNUDDS + its `QQ` MNUCMD companion) in one step - a local
-  workspace pair (`<name>.mnudds` + `<name>QQ.mnucmd`), or both via ADDPFM
-  on a connected IBM i system. Like "Create New Display File", it won't
-  create the source physical file itself (`CRTSRCPF`) on the remote path -
-  only adds members to one that already exists. If the companion ADDPFM
-  fails after the menu member's own ADDPFM already succeeded, the menu
-  member is still created and written; only a warning is shown, since the
-  companion can be added separately later and iSDA will pick it up
-  automatically.
-- As of v0.9.19, a brand-new option's Row/Col are shown and editable before
-  adding it - pre-filled with a smart default (right after the record's
-  existing content: the last option, or the last title/header line if
-  there are no options yet). Choosing an occupied row or one past the
-  screen size is rejected with the specific reason. Leaving the fields
-  untouched places it exactly where the old auto-placement would have.
+  by DDS command keys the menu designer would let you assign).
+- "Create New Menu" won't create the source physical file itself
+  (`CRTSRCPF`) on the remote path - only adds members to one that already
+  exists.
 - The companion commands file (`QQ` member, or local/streamfile sibling)
   stays in sync if it's open in its own editor tab. Two menu designer
   instances racing to write it at once is unhandled.
@@ -166,35 +138,6 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   handles `TYPE(*DSPF)` menus.
 - Deleting an option doesn't scan for other references to it (unlike
   rename, which does).
-
-### Planned / not yet built (prioritized, Aug 2026 parity audit)
-
-Audited against a full SDA-parity feature list. Split into **Common**
-(engine/writer work in `dspfEngine.js` / `dspfWriter.js` that both designers
-share - build once, both webviews benefit) and designer-specific gaps that
-only make sense in one context. Within each list, roughly highest-value/most
-requested first. (Completed items from this audit - command keys and the
-function-key legend (DSPF designer only - see note below), indicator
-conditioning (both entity-level and now per-keyword), copy field/constant,
-Add Display Size, the file-attributes panel, whole-record create/copy/
-delete, the Center/Fill/colors-attributes/validity-edit-error-message
-field-panel helpers, "+ Field"/"+ Constant" click-to-place, window
-move/resize handles, Change Window Title, true dimmed-overlay compare -
-in both designers where applicable - plus sort elements, `CNTFLD(n)`
-preview wrapping, `ERRMSG` rendering on a window's own reserved message
-line, and Resolve Referenced Field (and "Resolve All") via Code for i -
-have moved to CHANGELOG.md rather than staying listed here as
-limitations. No Common items are currently pending.)
-
-#### Display (DSPF) designer only
-
-No Display-designer-only items are currently pending.
-
-#### Menu designer only
-
-No Menu-designer-only items are currently pending. ("Create New Menu",
-generating the paired MNUDDS + MNUCMD members together, shipped in
-v0.9.36 - see Known limitations above and CHANGELOG.md.)
 
 ## License
 
