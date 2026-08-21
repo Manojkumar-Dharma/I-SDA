@@ -47,6 +47,54 @@
   }
 
   /**
+   * Drives the "+ Add record" record-TYPE picker's dependent-record dropdown:
+   * given the chosen type ('BASIC' | 'SFLCTL' | 'SFL' | 'WINDOW') and the
+   * CURRENT model's records, returns which existing records are legitimate
+   * picks and what the dropdown's label/requiredness should be - matching
+   * real SDA's own "+ Add record" flow (see README's Planned enhancements
+   * note). Pure/DOM-free so it's unit-testable without jsdom; the webview
+   * itself just pours the `candidates` into a <select>.
+   *
+   * - BASIC has no dependent record at all - returns null (caller hides the row).
+   * - SFLCTL "asks which SFL record it controls" - only records that already
+   *   declare an SFL keyword are sensible picks (a subfile control has to
+   *   name the detail record it repeats).
+   * - SFL "paired back to its SFLCTL" - only records that already declare an
+   *   SFLCTL keyword are sensible picks (the control record that will be
+   *   rewritten to point at this brand-new SFL record - see
+   *   DspfWriter.insertTypedRecord's own pairBack parameter).
+   * - WINDOW's dependent pick is OPTIONAL (`required: false`): leaving it
+   *   blank means "new geometry" (a sensible default box), picking a record
+   *   means "inherit geometry from" (WINDOW(record-name)) - so only records
+   *   that already own a WINDOW keyword are offered, since that's the only
+   *   thing there is to inherit.
+   */
+  function recordTypeDependentInfo(type, records) {
+    if (type === 'SFLCTL') {
+      return {
+        label: 'Controls subfile record',
+        required: true,
+        candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'SFL'; }); }).map(function (r) { return r.name; }),
+      };
+    }
+    if (type === 'SFL') {
+      return {
+        label: 'Paired with control record',
+        required: true,
+        candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'SFLCTL'; }); }).map(function (r) { return r.name; }),
+      };
+    }
+    if (type === 'WINDOW') {
+      return {
+        label: 'Inherit geometry from',
+        required: false,
+        candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'WINDOW'; }); }).map(function (r) { return r.name; }),
+      };
+    }
+    return null;
+  }
+
+  /**
    * Whether `name` is a syntactically valid DDS record-format name: 1-10
    * characters, starting with a letter or $/#/@. Doesn't check for
    * collisions with an existing name in the file - callers that care (a
@@ -489,6 +537,7 @@
 
   return {
     rebuildRecordSelect: rebuildRecordSelect,
+    recordTypeDependentInfo: recordTypeDependentInfo,
     isValidDdsName: isValidDdsName,
     findLikelyNameReferences: findLikelyNameReferences,
     conditionsEditorHtml: conditionsEditorHtml,

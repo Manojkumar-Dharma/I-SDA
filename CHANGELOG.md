@@ -3,6 +3,40 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.41] - Unreleased
+
+### Added
+- **Record type + dependent record format name options when creating a
+  record**, matching real SDA's own "+ Add record" flow. The "+ Add record"
+  form in the DSPF designer now has a Type picker (Basic screen, Subfile
+  control (SFLCTL), Subfile (SFL), Window) alongside the record name, instead
+  of always creating a blank record format:
+  - **Subfile control (SFLCTL)** - a second dropdown offers only existing
+    records that already declare an `SFL` keyword ("which SFL record does
+    this control?"), and writes `SFLCTL(sflname)` on the new record.
+  - **Subfile (SFL)** - the dropdown instead offers existing records that
+    already declare `SFLCTL`, since pairing a detail record to a control
+    created before it means REWRITING that control's own `SFLCTL`
+    parameter to point at the new record - handled by
+    `DspfWriter.insertTypedRecord()`'s new `pairBack` parameter.
+  - **Window** - the dropdown offers existing records that already own a
+    `WINDOW` keyword; picking one inherits its geometry
+    (`WINDOW(record-name)`), leaving it blank creates a sensible default
+    box (`WINDOW(2 2 10 40)`) the user can then drag/resize as normal.
+  - `WebviewClientHelpers.recordTypeDependentInfo()` is the pure,
+    DOM-free helper deciding which existing records qualify as a
+    dependent pick per type (and the label/requiredness to show) -
+    unit-tested without jsdom.
+  - `DspfWriter.insertTypedRecord()` wraps `insertRecord` with an optional
+    second-record rewrite for the SFL-pairs-back-to-SFLCTL case. Always
+    runs `insertRecord` first (which only ever appends after the LAST
+    existing record's full footprint) so the pairBack record's own line
+    range - computed against the ORIGINAL source - stays valid for the
+    follow-up `applyRecordUpdate`.
+  - 10 new `dspfWriter.test.js` cases plus a full jsdom scenario in
+    `dspfWebview.test.js` driving the Type/dependent dropdowns end-to-end
+    (including the "no valid dependent yet" refusal case).
+
 ## [0.9.40] - Unreleased
 
 ### Added

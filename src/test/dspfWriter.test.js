@@ -611,6 +611,72 @@ console.log('\nDspfWriter.insertRecord() - creates a brand-new, empty record for
   check('a record is created even starting from a totally empty file', reparsed4.records.map((r) => r.name).join(',') === 'ONLY');
 }
 
+console.log('\nDspfWriter.insertTypedRecord() - "+ Add record" record-TYPE wizard primitive (SFLCTL/SFL/WINDOW)');
+{
+  const { buildLine } = require('../fixtures/lineBuilder.js');
+
+  console.log('  Subfile control (SFLCTL): writes SFLCTL(sflname), no pairBack needed');
+  {
+    const src = [
+      buildLine({ seq: '00010', nameType: 'R', name: 'DETAIL', func: 'SFL' }),
+      buildLine({ seq: '00030', name: 'NAME', dataType: 'A', length: '10', usage: 'O', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+    const model = DspfParser.parseDspf(src);
+    const lines = src.split(/\r\n|\r|\n/);
+    const afterInsert = DspfWriter.insertTypedRecord(
+      model,
+      lines,
+      { name: 'CTL', keywords: [{ name: 'SFLCTL', parameters: 'DETAIL', conditions: [], raw: '', sourceLines: [] }] },
+      null
+    );
+    const reparsed = DspfParser.parseDspf(afterInsert.join('\n'));
+    const ctl = reparsed.records.find((r) => r.name === 'CTL');
+    check('new CTL record was created', !!ctl);
+    check('CTL carries SFLCTL(DETAIL)', ctl && ctl.keywords.some((k) => k.name === 'SFLCTL' && k.parameters.trim() === 'DETAIL'));
+    check('the DETAIL record is untouched', reparsed.records.find((r) => r.name === 'DETAIL').keywords.some((k) => k.name === 'SFL'));
+  }
+
+  console.log('  Subfile (SFL): writes SFL on the new record AND rewrites the existing SFLCTL record to point at it (pairBack)');
+  {
+    const src = [
+      buildLine({ seq: '00010', nameType: 'R', name: 'CTL', func: 'SFLCTL(OLDNAME)' }),
+      buildLine({ seq: '00030', name: 'HDR', dataType: 'A', length: '2', usage: 'O', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+    const model = DspfParser.parseDspf(src);
+    const lines = src.split(/\r\n|\r|\n/);
+    const ctlRecord = model.records.find((r) => r.name === 'CTL');
+    const afterInsert = DspfWriter.insertTypedRecord(
+      model,
+      lines,
+      { name: 'DETAIL', keywords: [{ name: 'SFL', parameters: '', conditions: [], raw: '', sourceLines: [] }] },
+      ctlRecord
+    );
+    const reparsed = DspfParser.parseDspf(afterInsert.join('\n'));
+    const detail = reparsed.records.find((r) => r.name === 'DETAIL');
+    const ctl = reparsed.records.find((r) => r.name === 'CTL');
+    check('new DETAIL record was created with SFL', detail && detail.keywords.some((k) => k.name === 'SFL'));
+    check("CTL's SFLCTL parameter was rewritten from OLDNAME to DETAIL (paired back)", ctl && ctl.keywords.some((k) => k.name === 'SFLCTL' && k.parameters.trim() === 'DETAIL'));
+    check("CTL's own field content is untouched", ctl && ctl.fields.some((f) => f.name === 'HDR'));
+  }
+
+  console.log('  Window: new geometry (literal row/col/height/width) vs. inheriting an existing record\'s geometry');
+  {
+    const src = [buildLine({ seq: '00010', nameType: 'R', name: 'BASE' })].join('\n') + '\n';
+    const model = DspfParser.parseDspf(src);
+    const lines = src.split(/\r\n|\r|\n/);
+
+    const withGeometry = DspfWriter.insertTypedRecord(model, lines, { name: 'WIN1', keywords: [{ name: 'WINDOW', parameters: '2 2 10 40', conditions: [], raw: '', sourceLines: [] }] }, null);
+    const reparsedGeo = DspfParser.parseDspf(withGeometry.join('\n'));
+    const win1 = reparsedGeo.records.find((r) => r.name === 'WIN1');
+    check('WIN1 gets its own literal WINDOW geometry', win1 && win1.keywords.some((k) => k.name === 'WINDOW' && k.parameters.trim() === '2 2 10 40'));
+
+    const withInherit = DspfWriter.insertTypedRecord(model, lines, { name: 'WIN2', keywords: [{ name: 'WINDOW', parameters: 'BASE', conditions: [], raw: '', sourceLines: [] }] }, null);
+    const reparsedInherit = DspfParser.parseDspf(withInherit.join('\n'));
+    const win2 = reparsedInherit.records.find((r) => r.name === 'WIN2');
+    check('WIN2 instead inherits geometry via WINDOW(BASE)', win2 && win2.keywords.some((k) => k.name === 'WINDOW' && k.parameters.trim() === 'BASE'));
+  }
+}
+
 console.log("\nDspfWriter.copyRecord() - duplicates a whole record format (own keywords + every field) under a new name");
 {
   const { buildLine } = require('../fixtures/lineBuilder.js');

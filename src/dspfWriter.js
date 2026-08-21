@@ -1420,6 +1420,38 @@
   }
 
   /**
+   * Creates a new record format the same way insertRecord does, but as the
+   * "+ Add record" record-TYPE wizard's own primitive: newRecord.keywords may
+   * already carry a type-defining keyword (SFLCTL(name), SFL, WINDOW(...))
+   * from the caller's own type-to-keyword mapping. `pairBack`, when given, is
+   * an EXISTING record whose own SFLCTL keyword must be added/replaced to
+   * reference this brand-new record's name - the one case where creating a
+   * record needs to touch a SECOND, already-existing record too (a Subfile
+   * (SFL) record created after its control already exists - see the README's
+   * "Record type + dependent record format name" note; SFLCTL(sflname) is
+   * the control record's OWN keyword, so pairing an SFL detail record back to
+   * a control that predates it means rewriting that control's SFLCTL
+   * parameter to this new record's name, not just the new record's own
+   * keywords). Always runs insertRecord FIRST and the pairBack update SECOND:
+   * insertRecord only ever appends after the LAST existing record's full
+   * footprint, so pairBack's own line range (computed against the ORIGINAL
+   * sourceLines, before insertRecord's append) is still valid in the lines
+   * insertRecord returns - reversing the order would risk pairBack's line
+   * range going stale if applyRecordUpdate's own rewrite changed pairBack's
+   * line count ahead of insertRecord computing where "the end" is.
+   */
+  function insertTypedRecord(dspfFile, sourceLines, newRecord, pairBack) {
+    var newLines = insertRecord(dspfFile, sourceLines, newRecord);
+    if (pairBack) {
+      var updatedKeywords = pairBack.keywords
+        .filter(function (k) { return k.name !== 'SFLCTL'; })
+        .concat([{ name: 'SFLCTL', parameters: newRecord.name, conditions: [], raw: '', sourceLines: [] }]);
+      newLines = applyRecordUpdate(pairBack, newLines, { keywords: updatedKeywords });
+    }
+    return newLines;
+  }
+
+  /**
    * Duplicates an entire record format - its own conditions/keywords AND
    * every field/constant/help entry it contains - as a new record inserted
    * directly after the original's full footprint (see
@@ -1485,6 +1517,7 @@
     setWindowGeometry: setWindowGeometry,
     nextAvailableRecordName: nextAvailableRecordName,
     insertRecord: insertRecord,
+    insertTypedRecord: insertTypedRecord,
     copyRecord: copyRecord,
     deleteRecord: deleteRecord,
     getFileKeywordLineRange: getFileKeywordLineRange,

@@ -690,8 +690,115 @@ function runRecordCrudScenario() {
     doc.getElementById('p-record-rename').dispatchEvent(new Event('click', { bubbles: true }));
     check('the renamed record (ZFINAL), not some other survivor, is now selected', recordSelect.value === 'ZFINAL');
 
+    runRecordTypeWizardScenario();
+  }, 0);
+}
+
+function runRecordTypeWizardScenario() {
+  console.log('\n"+ Add record" record-TYPE wizard: Basic/SFLCTL/SFL/Window, matching SDA\'s own "+ Add record" prompts');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'DTL', func: 'SFL' }),
+      buildLine({ seq: '00020', name: 'NAME', dataType: 'A', length: '10', usage: 'O', line: '1', col: '1' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'BOX' }),
+      buildLine({ seq: '00040', func: 'WINDOW(2 2 10 40)' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce11', src, 'TYPEWIZ.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+    const typeSelect = doc.getElementById('newRecordType');
+    const depRow = doc.getElementById('newRecordDepRow');
+    const depSelect = doc.getElementById('newRecordDepSelect');
+    const nameInput = doc.getElementById('newRecordName');
+    const addBtn = doc.getElementById('newRecordBtn');
+    const errorEl = doc.getElementById('newRecordError');
+
+    console.log('  Basic screen (default): dependent row stays hidden, still creates a bare record');
+    check('defaults to Basic screen', typeSelect.value === 'BASIC');
+    check('dependent row is hidden for Basic', depRow.classList.contains('hidden'));
+    nameInput.value = 'PLAIN';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with a bare new record', last && last.type === 'applyEdit' && /R\s+PLAIN\b/.test(last.text));
+    check('no SFLCTL/SFL/WINDOW keyword was added for the plain record', (last.text.match(/\bSFLCTL\(/g) || []).length === 0 && (last.text.match(/\bWINDOW\(/g) || []).length === 1);
+    check('the wizard resets back to Basic after a successful add', typeSelect.value === 'BASIC');
+
+    console.log('  Subfile control (SFLCTL): dependent dropdown offers only DTL (the existing SFL record)');
+    typeSelect.value = 'SFLCTL';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('dependent row is now shown', !depRow.classList.contains('hidden'));
+    check('label asks which SFL record it controls', /controls/i.test(document_labelText(doc)));
+    check('DTL is offered as a candidate', Array.from(depSelect.options).some((o) => o.value === 'DTL'));
+    depSelect.value = 'DTL';
+    nameInput.value = 'CTL1';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SFLCTL(DTL) on the new CTL1 record', last && last.type === 'applyEdit' && /R\s+CTL1[\s\S]*?SFLCTL\(DTL\)/.test(last.text));
+
+    console.log('  Subfile control (SFLCTL): refusing to add without picking which SFL record it controls');
+    typeSelect.value = 'SFLCTL';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    depSelect.value = '';
+    nameInput.value = 'CTL2';
+    const postedBefore = posted.length;
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows an error naming the requirement', /which subfile/i.test(errorEl.textContent) || /which.*SFL/i.test(errorEl.textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+
+    console.log('  Subfile (SFL): creating one pairs it back to an existing SFLCTL record (rewrites that record\'s SFLCTL parameter)');
+    typeSelect.value = 'SFL';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('label asks which control record this pairs with', /control/i.test(document_labelText(doc)));
+    check('CTL1 (the SFLCTL record just created) is offered as a candidate', Array.from(depSelect.options).some((o) => o.value === 'CTL1'));
+    depSelect.value = 'CTL1';
+    nameInput.value = 'DTL2';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SFL on the new DTL2 record', last && last.type === 'applyEdit' && /R\s+DTL2[\s\S]*?SFL\b/.test(last.text));
+    check("CTL1's own SFLCTL parameter was rewritten to point at DTL2 (paired back)", /R\s+CTL1[\s\S]*?SFLCTL\(DTL2\)/.test(last.text));
+
+    console.log('  Window: leaving the dependent pick blank creates new (default) geometry; picking a record inherits its geometry');
+    typeSelect.value = 'WINDOW';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('label offers "inherit geometry from" and BOX (the existing window) is a candidate', Array.from(depSelect.options).some((o) => o.value === 'BOX'));
+    check('a blank "(new geometry)" option is offered too (not required)', Array.from(depSelect.options).some((o) => o.value === ''));
+    depSelect.value = '';
+    nameInput.value = 'WIN1';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with a default literal WINDOW geometry on WIN1', last && last.type === 'applyEdit' && /R\s+WIN1[\s\S]*?WINDOW\(2 2 10 40\)/.test(last.text));
+
+    typeSelect.value = 'WINDOW';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    depSelect.value = 'BOX';
+    nameInput.value = 'WIN2';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with WIN2 inheriting geometry via WINDOW(BOX)', last && last.type === 'applyEdit' && /R\s+WIN2[\s\S]*?WINDOW\(BOX\)/.test(last.text));
+
     runFieldPropertyHelpersScenario();
   }, 0);
+}
+
+// Small helper: current text of the dependent-record dropdown's own label,
+// used only to assert the wizard swapped in the right per-type wording.
+function document_labelText(doc) {
+  const el = doc.getElementById('newRecordDepLabel');
+  return el ? el.textContent : '';
 }
 
 function runFieldPropertyHelpersScenario() {

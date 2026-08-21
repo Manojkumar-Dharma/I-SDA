@@ -204,6 +204,19 @@ const htmlTemplate = `<!DOCTYPE html>
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
+  <div class="field-row" style="margin-top:6px;">
+    <label>Type</label>
+    <select id="newRecordType">
+      <option value="BASIC">Basic screen</option>
+      <option value="SFLCTL">Subfile control (SFLCTL)</option>
+      <option value="SFL">Subfile (SFL)</option>
+      <option value="WINDOW">Window</option>
+    </select>
+  </div>
+  <div class="field-row hidden" id="newRecordDepRow">
+    <label id="newRecordDepLabel">Controls</label>
+    <select id="newRecordDepSelect"></select>
+  </div>
   <div class="rename-row" style="margin-top:6px;">
     <input type="text" class="rename-input" id="newRecordName" placeholder="New record name" maxlength="10" />
     <button class="rename-btn" id="newRecordBtn">+ Add record</button>
@@ -282,6 +295,10 @@ const htmlTemplate = `<!DOCTYPE html>
   const newRecordName = document.getElementById('newRecordName');
   const newRecordBtn = document.getElementById('newRecordBtn');
   const newRecordError = document.getElementById('newRecordError');
+  const newRecordType = document.getElementById('newRecordType');
+  const newRecordDepRow = document.getElementById('newRecordDepRow');
+  const newRecordDepLabel = document.getElementById('newRecordDepLabel');
+  const newRecordDepSelect = document.getElementById('newRecordDepSelect');
 
   fileAttrsBtn.addEventListener('click', () => {
     showFileProps = true;
@@ -298,16 +315,54 @@ const htmlTemplate = `<!DOCTYPE html>
   // must not already be used by another record in the file - checked here
   // client-side against the CURRENT model rather than relying on the parser
   // to reject a genuine duplicate R-line after the fact.
+  // Builds the type-defining keyword(s) for the "+ Add record" wizard's
+  // chosen TYPE, matching real SDA's own "+ Add record" prompts (see
+  // README's Planned enhancements note) rather than always creating a blank
+  // record the way insertRecord alone does. Returns null if the type's
+  // dependent-record requirement isn't satisfied yet (caller shows an error
+  // and doesn't commit) - BASIC has no dependent so always succeeds.
+  function buildTypedRecordPlan(type, depValue) {
+    if (type === 'SFLCTL') {
+      if (!depValue) return null;
+      return { keywords: [{ name: 'SFLCTL', parameters: depValue, conditions: [], raw: '', sourceLines: [] }], pairBack: null };
+    }
+    if (type === 'SFL') {
+      if (!depValue) return null;
+      const pairBack = model.records.find((r) => r.name === depValue) || null;
+      return { keywords: [{ name: 'SFL', parameters: '', conditions: [], raw: '', sourceLines: [] }], pairBack: pairBack };
+    }
+    if (type === 'WINDOW') {
+      // A dependent pick means "inherit geometry from" (WINDOW(record-name));
+      // leaving it blank means "new geometry", landed at a sensible default
+      // box the user can then drag/resize like any other window.
+      const params = depValue || '2 2 10 40';
+      return { keywords: [{ name: 'WINDOW', parameters: params, conditions: [], raw: '', sourceLines: [] }], pairBack: null };
+    }
+    return { keywords: [], pairBack: null }; // BASIC
+  }
+
   newRecordBtn.addEventListener('click', () => {
     const name = newRecordName.value.trim().toUpperCase();
+    const type = newRecordType.value;
+    const depValue = newRecordDepSelect.value;
     newRecordError.textContent = '';
     if (!name) { newRecordError.textContent = 'Enter a name for the new record format.'; return; }
     if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
     if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
+
+    const plan = buildTypedRecordPlan(type, depValue);
+    if (!plan) {
+      newRecordError.textContent = type === 'SFLCTL'
+        ? 'Select which subfile (SFL) record this control manages.'
+        : 'Select which subfile control (SFLCTL) record this pairs with.';
+      return;
+    }
+
     commitSourceChange(
-      (lines) => DspfWriter.insertRecord(model, lines, { name: name }),
+      (lines) => DspfWriter.insertTypedRecord(model, lines, { name: name, keywords: plan.keywords }, plan.pairBack),
       () => {
         newRecordName.value = '';
+        newRecordType.value = 'BASIC';
         selectedKey = null;
         selectedHelpSourceLine = null;
         showFileProps = false;
@@ -436,6 +491,34 @@ const htmlTemplate = `<!DOCTYPE html>
   function rebuildRecordSelect() {
     WebviewClientHelpers.rebuildRecordSelect(recordSelect, model.records);
   }
+
+  /**
+   * Syncs the "+ Add record" record-TYPE picker's dependent-record dropdown
+   * to the currently-selected type and the LIVE model (see
+   * WebviewClientHelpers.recordTypeDependentInfo's own doc comment for what
+   * qualifies as a candidate per type). Re-run on every type change and every
+   * render() - a record created via the raw Keywords tab could add/remove an
+   * SFL/SFLCTL/WINDOW keyword that changes which records qualify, same
+   * "always rebuild off the live model" spirit as rebuildRecordSelect.
+   */
+  function rebuildNewRecordDepOptions() {
+    const info = WebviewClientHelpers.recordTypeDependentInfo(newRecordType.value, model.records);
+    if (!info) {
+      newRecordDepRow.classList.add('hidden');
+      newRecordDepSelect.innerHTML = '';
+      return;
+    }
+    newRecordDepRow.classList.remove('hidden');
+    newRecordDepLabel.textContent = info.label;
+    const prev = newRecordDepSelect.value;
+    let optionsHtml = info.candidates.map((n) => '<option value="' + n + '">' + n + '</option>').join('');
+    if (!info.required) optionsHtml = '<option value="">(new geometry)</option>' + optionsHtml;
+    else if (info.candidates.length === 0) optionsHtml = '<option value="">(none available yet)</option>';
+    newRecordDepSelect.innerHTML = optionsHtml;
+    if (info.candidates.some((n) => n === prev)) newRecordDepSelect.value = prev;
+  }
+
+  newRecordType.addEventListener('change', rebuildNewRecordDepOptions);
 
   /**
    * Shows/populates the screen-size picker only when the file actually
@@ -584,6 +667,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     rebuildRecordSelect();
     rebuildSizeSelect();
+    rebuildNewRecordDepOptions();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; renderFileCommandKeys(null); screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }

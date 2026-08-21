@@ -161,19 +161,6 @@ picked up after the current round of fixes.
     dedicated picker panel (today it only lives in the raw Keywords tab),
     so conditioning a color/attribute/edit-code pick doesn't require
     dropping into free-text keyword entry.
-- **Record type + dependent record format name options when creating a
-  record**, matching SDA's own "+ Add record" flow. Today, `insertRecord()`
-  always creates a blank record format (name only, no keywords) - SDA
-  instead asks for a record TYPE (basic screen, subfile, subfile control,
-  window, ...) and, for types that depend on another record format, which
-  one:
-  - **Subfile control (SFLCTL)** - asks which SFL record it controls,
-    writes `SFLCTL(sflname)`.
-  - **Window** - asks geometry, or which record to inherit it from
-    (`WINDOW(record-name)`).
-  - **Subfile (SFL)** - paired back to its SFLCTL.
-  Right now all of this has to be added by hand afterward via the raw
-  Keywords tab.
 
 ## License
 
