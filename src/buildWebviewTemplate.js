@@ -207,15 +207,23 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="field-row" style="margin-top:6px;">
     <label>Type</label>
     <select id="newRecordType">
-      <option value="BASIC">Basic screen</option>
-      <option value="SFLCTL">Subfile control (SFLCTL)</option>
+      <option value="BASIC">Basic screen (RECORD)</option>
       <option value="SFL">Subfile (SFL)</option>
+      <option value="SFLCTL">Subfile control (SFLCTL)</option>
       <option value="WINDOW">Window</option>
+      <option value="WDWSFL">Window subfile control (WDWSFL)</option>
+      <option value="PDNSFL">Pull-down subfile control (PDNSFL)</option>
+      <option value="PULLDOWN">Pull-down menu (PULLDOWN)</option>
+      <option value="MNUBAR">Menu bar (MNUBAR)</option>
     </select>
   </div>
   <div class="field-row hidden" id="newRecordDepRow">
     <label id="newRecordDepLabel">Controls</label>
     <select id="newRecordDepSelect"></select>
+  </div>
+  <div class="field-row hidden" id="newRecordWindowRow">
+    <label id="newRecordWindowLabel">Inherit geometry from</label>
+    <select id="newRecordWindowSelect"></select>
   </div>
   <div class="rename-row" style="margin-top:6px;">
     <input type="text" class="rename-input" id="newRecordName" placeholder="New record name" maxlength="10" />
@@ -310,6 +318,8 @@ const htmlTemplate = `<!DOCTYPE html>
   const newRecordDepRow = document.getElementById('newRecordDepRow');
   const newRecordDepLabel = document.getElementById('newRecordDepLabel');
   const newRecordDepSelect = document.getElementById('newRecordDepSelect');
+  const newRecordWindowRow = document.getElementById('newRecordWindowRow');
+  const newRecordWindowSelect = document.getElementById('newRecordWindowSelect');
 
   fileAttrsBtn.addEventListener('click', () => {
     showFileProps = true;
@@ -327,47 +337,72 @@ const htmlTemplate = `<!DOCTYPE html>
   // client-side against the CURRENT model rather than relying on the parser
   // to reject a genuine duplicate R-line after the fact.
   // Builds the type-defining keyword(s) for the "+ Add record" wizard's
-  // chosen TYPE, matching real SDA's own "+ Add record" prompts (see
-  // README's Planned enhancements note) rather than always creating a blank
-  // record the way insertRecord alone does. Returns null if the type's
-  // dependent-record requirement isn't satisfied yet (caller shows an error
-  // and doesn't commit) - BASIC has no dependent so always succeeds.
-  function buildTypedRecordPlan(type, depValue) {
+  // chosen TYPE, matching real SDA's own record types and their actual DDS
+  // keyword combinations (verified against IBM's own DDS reference/examples):
+  //   SFLCTL           -> SFLCTL(sflname)
+  //   SFL              -> SFL, paired back to an existing SFLCTL record
+  //   WINDOW           -> WINDOW(geometry-or-inherited-record-name)
+  //   WDWSFL           -> SFLCTL(sflname) + WINDOW(...) BOTH on this one
+  //                       record (a windowed subfile's CONTROL record - the
+  //                       SFL detail record itself stays a plain SFL)
+  //   PDNSFL           -> SFLCTL(sflname) + PULLDOWN BOTH on this one record
+  //                       (a pull-down subfile's CONTROL record)
+  //   PULLDOWN         -> PULLDOWN (plain pull-down menu, no dependent)
+  //   MNUBAR           -> MNUBAR (menu bar, no dependent)
+  //   BASIC            -> no keyword
+  // Returns null if a required dependent isn't satisfied yet (caller shows
+  // an error and doesn't commit).
+  function buildTypedRecordPlan(type, sflDepValue, windowDepValue) {
+    const kw = (name, parameters) => ({ name: name, parameters: parameters, conditions: [], raw: '', sourceLines: [] });
     if (type === 'SFLCTL') {
-      if (!depValue) return null;
-      return { keywords: [{ name: 'SFLCTL', parameters: depValue, conditions: [], raw: '', sourceLines: [] }], pairBack: null };
+      if (!sflDepValue) return null;
+      return { keywords: [kw('SFLCTL', sflDepValue)], pairBack: null };
     }
     if (type === 'SFL') {
-      if (!depValue) return null;
-      const pairBack = model.records.find((r) => r.name === depValue) || null;
-      return { keywords: [{ name: 'SFL', parameters: '', conditions: [], raw: '', sourceLines: [] }], pairBack: pairBack };
+      if (!sflDepValue) return null;
+      const pairBack = model.records.find((r) => r.name === sflDepValue) || null;
+      return { keywords: [kw('SFL', '')], pairBack: pairBack };
     }
     if (type === 'WINDOW') {
       // A dependent pick means "inherit geometry from" (WINDOW(record-name));
       // leaving it blank means "new geometry", landed at a sensible default
       // box the user can then drag/resize like any other window.
-      const params = depValue || '2 2 10 40';
-      return { keywords: [{ name: 'WINDOW', parameters: params, conditions: [], raw: '', sourceLines: [] }], pairBack: null };
+      return { keywords: [kw('WINDOW', windowDepValue || '2 2 10 40')], pairBack: null };
     }
+    if (type === 'WDWSFL') {
+      if (!sflDepValue) return null;
+      return { keywords: [kw('SFLCTL', sflDepValue), kw('WINDOW', windowDepValue || '2 2 10 40')], pairBack: null };
+    }
+    if (type === 'PDNSFL') {
+      if (!sflDepValue) return null;
+      return { keywords: [kw('SFLCTL', sflDepValue), kw('PULLDOWN', '')], pairBack: null };
+    }
+    if (type === 'PULLDOWN') return { keywords: [kw('PULLDOWN', '')], pairBack: null };
+    if (type === 'MNUBAR') return { keywords: [kw('MNUBAR', '')], pairBack: null };
     return { keywords: [], pairBack: null }; // BASIC
+  }
+
+  // Per-type wording for "you picked a type that needs a dependent record
+  // but didn't choose one yet" - only SFLCTL/SFL/WDWSFL/PDNSFL require one.
+  function missingDependentMessage(type) {
+    if (type === 'SFL') return 'Select which subfile control (SFLCTL) record this pairs with.';
+    if (type === 'WDWSFL') return 'Select which subfile (SFL) record this window control manages.';
+    if (type === 'PDNSFL') return 'Select which subfile (SFL) record this pull-down control manages.';
+    return 'Select which subfile (SFL) record this control manages.'; // SFLCTL
   }
 
   newRecordBtn.addEventListener('click', () => {
     const name = newRecordName.value.trim().toUpperCase();
     const type = newRecordType.value;
-    const depValue = newRecordDepSelect.value;
+    const sflDepValue = newRecordDepSelect.value;
+    const windowDepValue = newRecordWindowSelect.value;
     newRecordError.textContent = '';
     if (!name) { newRecordError.textContent = 'Enter a name for the new record format.'; return; }
     if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
     if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
 
-    const plan = buildTypedRecordPlan(type, depValue);
-    if (!plan) {
-      newRecordError.textContent = type === 'SFLCTL'
-        ? 'Select which subfile (SFL) record this control manages.'
-        : 'Select which subfile control (SFLCTL) record this pairs with.';
-      return;
-    }
+    const plan = buildTypedRecordPlan(type, sflDepValue, windowDepValue);
+    if (!plan) { newRecordError.textContent = missingDependentMessage(type); return; }
 
     commitSourceChange(
       (lines) => DspfWriter.insertTypedRecord(model, lines, { name: name, keywords: plan.keywords }, plan.pairBack),
@@ -510,29 +545,43 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   /**
-   * Syncs the "+ Add record" record-TYPE picker's dependent-record dropdown
-   * to the currently-selected type and the LIVE model (see
+   * Syncs the "+ Add record" record-TYPE picker's dependent-record
+   * dropdown(s) to the currently-selected type and the LIVE model (see
    * WebviewClientHelpers.recordTypeDependentInfo's own doc comment for what
-   * qualifies as a candidate per type). Re-run on every type change and every
-   * render() - a record created via the raw Keywords tab could add/remove an
-   * SFL/SFLCTL/WINDOW keyword that changes which records qualify, same
-   * "always rebuild off the live model" spirit as rebuildRecordSelect.
+   * qualifies as a candidate per type/slot). Re-run on every type change and
+   * every render() - a record created via the raw Keywords tab could
+   * add/remove an SFL/SFLCTL/WINDOW keyword that changes which records
+   * qualify, same "always rebuild off the live model" spirit as
+   * rebuildRecordSelect.
    */
   function rebuildNewRecordDepOptions() {
     const info = WebviewClientHelpers.recordTypeDependentInfo(newRecordType.value, model.records);
-    if (!info) {
+    const sfl = info && info.sfl;
+    const win = info && info.window;
+
+    if (!sfl) {
       newRecordDepRow.classList.add('hidden');
       newRecordDepSelect.innerHTML = '';
-      return;
+    } else {
+      newRecordDepRow.classList.remove('hidden');
+      newRecordDepLabel.textContent = sfl.label;
+      const prev = newRecordDepSelect.value;
+      let optionsHtml = sfl.candidates.map((n) => '<option value="' + n + '">' + n + '</option>').join('');
+      if (sfl.candidates.length === 0) optionsHtml = '<option value="">(none available yet)</option>';
+      newRecordDepSelect.innerHTML = optionsHtml;
+      if (sfl.candidates.some((n) => n === prev)) newRecordDepSelect.value = prev;
     }
-    newRecordDepRow.classList.remove('hidden');
-    newRecordDepLabel.textContent = info.label;
-    const prev = newRecordDepSelect.value;
-    let optionsHtml = info.candidates.map((n) => '<option value="' + n + '">' + n + '</option>').join('');
-    if (!info.required) optionsHtml = '<option value="">(new geometry)</option>' + optionsHtml;
-    else if (info.candidates.length === 0) optionsHtml = '<option value="">(none available yet)</option>';
-    newRecordDepSelect.innerHTML = optionsHtml;
-    if (info.candidates.some((n) => n === prev)) newRecordDepSelect.value = prev;
+
+    if (!win) {
+      newRecordWindowRow.classList.add('hidden');
+      newRecordWindowSelect.innerHTML = '';
+    } else {
+      newRecordWindowRow.classList.remove('hidden');
+      const prevWin = newRecordWindowSelect.value;
+      const winOptionsHtml = win.candidates.map((n) => '<option value="' + n + '">' + n + '</option>').join('');
+      newRecordWindowSelect.innerHTML = '<option value="">(new geometry)</option>' + winOptionsHtml;
+      if (win.candidates.some((n) => n === prevWin)) newRecordWindowSelect.value = prevWin;
+    }
   }
 
   newRecordType.addEventListener('change', rebuildNewRecordDepOptions);

@@ -675,6 +675,56 @@ console.log('\nDspfWriter.insertTypedRecord() - "+ Add record" record-TYPE wizar
     const win2 = reparsedInherit.records.find((r) => r.name === 'WIN2');
     check('WIN2 instead inherits geometry via WINDOW(BASE)', win2 && win2.keywords.some((k) => k.name === 'WINDOW' && k.parameters.trim() === 'BASE'));
   }
+
+  console.log('  Window subfile control (WDWSFL) and pull-down subfile control (PDNSFL): a single new record can carry MULTIPLE type-defining keywords at once');
+  {
+    const src = [buildLine({ seq: '00010', nameType: 'R', name: 'DTL', func: 'SFL' })].join('\n') + '\n';
+    const model = DspfParser.parseDspf(src);
+    const lines = src.split(/\r\n|\r|\n/);
+
+    const wdwsfl = DspfWriter.insertTypedRecord(
+      model,
+      lines,
+      { name: 'WCTL', keywords: [
+        { name: 'SFLCTL', parameters: 'DTL', conditions: [], raw: '', sourceLines: [] },
+        { name: 'WINDOW', parameters: '2 2 10 40', conditions: [], raw: '', sourceLines: [] },
+      ] },
+      null
+    );
+    const reparsedWdwsfl = DspfParser.parseDspf(wdwsfl.join('\n'));
+    const wctl = reparsedWdwsfl.records.find((r) => r.name === 'WCTL');
+    check('WCTL carries SFLCTL(DTL)', wctl && wctl.keywords.some((k) => k.name === 'SFLCTL' && k.parameters.trim() === 'DTL'));
+    check('WCTL ALSO carries WINDOW(2 2 10 40) - a windowed subfile control record', wctl && wctl.keywords.some((k) => k.name === 'WINDOW' && k.parameters.trim() === '2 2 10 40'));
+
+    const pdnsfl = DspfWriter.insertTypedRecord(
+      model,
+      lines,
+      { name: 'PCTL', keywords: [
+        { name: 'SFLCTL', parameters: 'DTL', conditions: [], raw: '', sourceLines: [] },
+        { name: 'PULLDOWN', parameters: '', conditions: [], raw: '', sourceLines: [] },
+      ] },
+      null
+    );
+    const reparsedPdnsfl = DspfParser.parseDspf(pdnsfl.join('\n'));
+    const pctl = reparsedPdnsfl.records.find((r) => r.name === 'PCTL');
+    check('PCTL carries SFLCTL(DTL)', pctl && pctl.keywords.some((k) => k.name === 'SFLCTL' && k.parameters.trim() === 'DTL'));
+    check('PCTL ALSO carries PULLDOWN - a pull-down subfile control record', pctl && pctl.keywords.some((k) => k.name === 'PULLDOWN'));
+  }
+
+  console.log('  Plain keyword-only types: PULLDOWN (pull-down menu) and MNUBAR (menu bar), no dependent record');
+  {
+    const src = [buildLine({ seq: '00010', nameType: 'R', name: 'BASE' })].join('\n') + '\n';
+    const model = DspfParser.parseDspf(src);
+    const lines = src.split(/\r\n|\r|\n/);
+
+    const pulldown = DspfWriter.insertTypedRecord(model, lines, { name: 'FPULDWN', keywords: [{ name: 'PULLDOWN', parameters: '', conditions: [], raw: '', sourceLines: [] }] }, null);
+    const reparsedPulldown = DspfParser.parseDspf(pulldown.join('\n'));
+    check('FPULDWN carries a plain PULLDOWN keyword', reparsedPulldown.records.find((r) => r.name === 'FPULDWN').keywords.some((k) => k.name === 'PULLDOWN'));
+
+    const mnubar = DspfWriter.insertTypedRecord(model, lines, { name: 'BAR1', keywords: [{ name: 'MNUBAR', parameters: '', conditions: [], raw: '', sourceLines: [] }] }, null);
+    const reparsedMnubar = DspfParser.parseDspf(mnubar.join('\n'));
+    check('BAR1 carries a plain MNUBAR keyword', reparsedMnubar.records.find((r) => r.name === 'BAR1').keywords.some((k) => k.name === 'MNUBAR'));
+  }
 }
 
 console.log("\nDspfWriter.copyRecord() - duplicates a whole record format (own keywords + every field) under a new name");

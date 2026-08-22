@@ -47,51 +47,65 @@
   }
 
   /**
-   * Drives the "+ Add record" record-TYPE picker's dependent-record dropdown:
-   * given the chosen type ('BASIC' | 'SFLCTL' | 'SFL' | 'WINDOW') and the
-   * CURRENT model's records, returns which existing records are legitimate
-   * picks and what the dropdown's label/requiredness should be - matching
-   * real SDA's own "+ Add record" flow (see README's Planned enhancements
-   * note). Pure/DOM-free so it's unit-testable without jsdom; the webview
-   * itself just pours the `candidates` into a <select>.
+   * Drives the "+ Add record" record-TYPE picker's dependent-record
+   * dropdown(s): given the chosen type and the CURRENT model's records,
+   * returns which existing records are legitimate picks for each of up to
+   * TWO independent dependent slots - matching real SDA's own "+ Add
+   * record" flow and its actual DDS keyword combinations (verified against
+   * IBM's own DDS reference/examples, not guessed):
    *
-   * - BASIC has no dependent record at all - returns null (caller hides the row).
-   * - SFLCTL "asks which SFL record it controls" - only records that already
-   *   declare an SFL keyword are sensible picks (a subfile control has to
-   *   name the detail record it repeats).
-   * - SFL "paired back to its SFLCTL" - only records that already declare an
-   *   SFLCTL keyword are sensible picks (the control record that will be
-   *   rewritten to point at this brand-new SFL record - see
-   *   DspfWriter.insertTypedRecord's own pairBack parameter).
-   * - WINDOW's dependent pick is OPTIONAL (`required: false`): leaving it
-   *   blank means "new geometry" (a sensible default box), picking a record
-   *   means "inherit geometry from" (WINDOW(record-name)) - so only records
-   *   that already own a WINDOW keyword are offered, since that's the only
-   *   thing there is to inherit.
+   * - `sfl` slot ("which SFL record"): shown for SFLCTL, SFL, WDWSFL,
+   *   PDNSFL. SFLCTL/WDWSFL/PDNSFL ask which EXISTING record already
+   *   declaring `SFL` this one controls (writes `SFLCTL(name)`); SFL asks
+   *   which EXISTING record already declaring `SFLCTL` to pair back to
+   *   (rewrites THAT record's SFLCTL parameter to point at the brand-new
+   *   SFL record - see DspfWriter.insertTypedRecord's pairBack parameter).
+   * - `window` slot ("inherit geometry from"): shown for WINDOW and
+   *   WDWSFL. OPTIONAL - blank means "new geometry" (a sensible default
+   *   box), picking a record means inherit its geometry
+   *   (`WINDOW(record-name)`) - so only records that already own a
+   *   WINDOW keyword are offered.
+   *
+   * Real SDA's own "Window subfile" (WDWSFL) and "Pull-down subfile"
+   * (PDNSFL) record types put BOTH keywords on the subfile CONTROL record -
+   * `SFLCTL(sflname) WINDOW(...)` for WDWSFL, `SFLCTL(sflname) PULLDOWN`
+   * for PDNSFL (see e.g. IBM's own "Window/subfile control record" example:
+   * `SFLCTL(SFL1) ... WINDOW(2 22 16 35)`) - the SFL detail record itself
+   * stays a plain `SFL`, same as the existing SFL type. PULLDOWN (plain)
+   * and MNUBAR are keyword-only, no dependent record at all.
+   *
+   * Returns null if the type has no dependent record at all (BASIC,
+   * PULLDOWN, MNUBAR); otherwise `{ sfl: {...}|null, window: {...}|null }`.
+   * Pure/DOM-free so it's unit-testable without jsdom; the webview itself
+   * just pours each slot's `candidates` into its own <select>.
    */
   function recordTypeDependentInfo(type, records) {
-    if (type === 'SFLCTL') {
-      return {
+    var sflSlot = null;
+    if (type === 'SFLCTL' || type === 'WDWSFL' || type === 'PDNSFL') {
+      sflSlot = {
         label: 'Controls subfile record',
         required: true,
         candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'SFL'; }); }).map(function (r) { return r.name; }),
       };
-    }
-    if (type === 'SFL') {
-      return {
+    } else if (type === 'SFL') {
+      sflSlot = {
         label: 'Paired with control record',
         required: true,
         candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'SFLCTL'; }); }).map(function (r) { return r.name; }),
       };
     }
-    if (type === 'WINDOW') {
-      return {
+
+    var windowSlot = null;
+    if (type === 'WINDOW' || type === 'WDWSFL') {
+      windowSlot = {
         label: 'Inherit geometry from',
         required: false,
         candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'WINDOW'; }); }).map(function (r) { return r.name; }),
       };
     }
-    return null;
+
+    if (!sflSlot && !windowSlot) return null;
+    return { sfl: sflSlot, window: windowSlot };
   }
 
   /**

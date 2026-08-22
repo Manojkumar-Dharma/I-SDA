@@ -695,7 +695,7 @@ function runRecordCrudScenario() {
 }
 
 function runRecordTypeWizardScenario() {
-  console.log('\n"+ Add record" record-TYPE wizard: Basic/SFLCTL/SFL/Window, matching SDA\'s own "+ Add record" prompts');
+  console.log('\n"+ Add record" record-TYPE wizard: Basic/SFL/SFLCTL/Window/WDWSFL/PDNSFL/PULLDOWN/MNUBAR');
   const src =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'DTL', func: 'SFL' }),
@@ -723,24 +723,28 @@ function runRecordTypeWizardScenario() {
     const typeSelect = doc.getElementById('newRecordType');
     const depRow = doc.getElementById('newRecordDepRow');
     const depSelect = doc.getElementById('newRecordDepSelect');
+    const windowRow = doc.getElementById('newRecordWindowRow');
+    const windowSelect = doc.getElementById('newRecordWindowSelect');
     const nameInput = doc.getElementById('newRecordName');
     const addBtn = doc.getElementById('newRecordBtn');
     const errorEl = doc.getElementById('newRecordError');
 
-    console.log('  Basic screen (default): dependent row stays hidden, still creates a bare record');
+    console.log('  Basic screen (default): both dependent rows stay hidden, still creates a bare record');
     check('defaults to Basic screen', typeSelect.value === 'BASIC');
-    check('dependent row is hidden for Basic', depRow.classList.contains('hidden'));
+    check('SFL dependent row is hidden for Basic', depRow.classList.contains('hidden'));
+    check('window dependent row is hidden for Basic', windowRow.classList.contains('hidden'));
     nameInput.value = 'PLAIN';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     let last = posted[posted.length - 1];
     check('posts applyEdit with a bare new record', last && last.type === 'applyEdit' && /R\s+PLAIN\b/.test(last.text));
-    check('no SFLCTL/SFL/WINDOW keyword was added for the plain record', (last.text.match(/\bSFLCTL\(/g) || []).length === 0 && (last.text.match(/\bWINDOW\(/g) || []).length === 1);
+    check('no SFLCTL/WINDOW keyword was added for the plain record', (last.text.match(/\bSFLCTL\(/g) || []).length === 0 && (last.text.match(/\bWINDOW\(/g) || []).length === 1);
     check('the wizard resets back to Basic after a successful add', typeSelect.value === 'BASIC');
 
     console.log('  Subfile control (SFLCTL): dependent dropdown offers only DTL (the existing SFL record)');
     typeSelect.value = 'SFLCTL';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('dependent row is now shown', !depRow.classList.contains('hidden'));
+    check('SFL dependent row is now shown', !depRow.classList.contains('hidden'));
+    check('window row stays hidden (SFLCTL alone has no geometry)', windowRow.classList.contains('hidden'));
     check('label asks which SFL record it controls', /controls/i.test(document_labelText(doc)));
     check('DTL is offered as a candidate', Array.from(depSelect.options).some((o) => o.value === 'DTL'));
     depSelect.value = 'DTL';
@@ -754,7 +758,7 @@ function runRecordTypeWizardScenario() {
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
     depSelect.value = '';
     nameInput.value = 'CTL2';
-    const postedBefore = posted.length;
+    let postedBefore = posted.length;
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     check('shows an error naming the requirement', /which subfile/i.test(errorEl.textContent) || /which.*SFL/i.test(errorEl.textContent));
     check('nothing new was posted', posted.length === postedBefore);
@@ -771,12 +775,13 @@ function runRecordTypeWizardScenario() {
     check('posts applyEdit with SFL on the new DTL2 record', last && last.type === 'applyEdit' && /R\s+DTL2[\s\S]*?SFL\b/.test(last.text));
     check("CTL1's own SFLCTL parameter was rewritten to point at DTL2 (paired back)", /R\s+CTL1[\s\S]*?SFLCTL\(DTL2\)/.test(last.text));
 
-    console.log('  Window: leaving the dependent pick blank creates new (default) geometry; picking a record inherits its geometry');
+    console.log('  Window: leaving the geometry pick blank creates new (default) geometry; picking a record inherits its geometry');
     typeSelect.value = 'WINDOW';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('label offers "inherit geometry from" and BOX (the existing window) is a candidate', Array.from(depSelect.options).some((o) => o.value === 'BOX'));
-    check('a blank "(new geometry)" option is offered too (not required)', Array.from(depSelect.options).some((o) => o.value === ''));
-    depSelect.value = '';
+    check('SFL dependent row stays hidden (WINDOW alone has no subfile)', depRow.classList.contains('hidden'));
+    check('window row is shown, offering "inherit geometry from" with BOX as a candidate', !windowRow.classList.contains('hidden') && Array.from(windowSelect.options).some((o) => o.value === 'BOX'));
+    check('a blank "(new geometry)" option is offered too (not required)', Array.from(windowSelect.options).some((o) => o.value === ''));
+    windowSelect.value = '';
     nameInput.value = 'WIN1';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
@@ -784,11 +789,62 @@ function runRecordTypeWizardScenario() {
 
     typeSelect.value = 'WINDOW';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    depSelect.value = 'BOX';
+    windowSelect.value = 'BOX';
     nameInput.value = 'WIN2';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check('posts applyEdit with WIN2 inheriting geometry via WINDOW(BOX)', last && last.type === 'applyEdit' && /R\s+WIN2[\s\S]*?WINDOW\(BOX\)/.test(last.text));
+
+    console.log('  Window subfile control (WDWSFL): needs BOTH which-SFL and geometry - writes SFLCTL(...) AND WINDOW(...) on the same record');
+    typeSelect.value = 'WDWSFL';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('both dependent rows are shown at once', !depRow.classList.contains('hidden') && !windowRow.classList.contains('hidden'));
+    check('DTL is offered in the SFL slot', Array.from(depSelect.options).some((o) => o.value === 'DTL'));
+    depSelect.value = 'DTL';
+    windowSelect.value = '';
+    nameInput.value = 'WCTL1';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SFLCTL(DTL) and a default WINDOW geometry both on WCTL1', last && last.type === 'applyEdit' && /R\s+WCTL1[\s\S]*?SFLCTL\(DTL\)[\s\S]*?WINDOW\(2 2 10 40\)/.test(last.text));
+
+    console.log('  Window subfile control (WDWSFL): refusing to add without picking which SFL record it manages');
+    typeSelect.value = 'WDWSFL';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    depSelect.value = '';
+    nameInput.value = 'WCTL2';
+    postedBefore = posted.length;
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows an error naming the requirement', /which subfile/i.test(errorEl.textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+
+    console.log('  Pull-down subfile control (PDNSFL): writes SFLCTL(...) AND PULLDOWN on the same record, no geometry needed');
+    typeSelect.value = 'PDNSFL';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('SFL dependent row is shown', !depRow.classList.contains('hidden'));
+    check('window row stays hidden (a pull-down auto-sizes, no geometry to pick)', windowRow.classList.contains('hidden'));
+    depSelect.value = 'DTL';
+    nameInput.value = 'PCTL1';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SFLCTL(DTL) and PULLDOWN both on PCTL1', last && last.type === 'applyEdit' && /R\s+PCTL1[\s\S]*?SFLCTL\(DTL\)[\s\S]*?PULLDOWN\b/.test(last.text));
+
+    console.log('  Pull-down menu (PULLDOWN): plain keyword, no dependent record at all');
+    typeSelect.value = 'PULLDOWN';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('neither dependent row is shown', depRow.classList.contains('hidden') && windowRow.classList.contains('hidden'));
+    nameInput.value = 'FPULDWN';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with a plain PULLDOWN keyword on FPULDWN', last && last.type === 'applyEdit' && /R\s+FPULDWN[\s\S]*?PULLDOWN\b/.test(last.text));
+
+    console.log('  Menu bar (MNUBAR): plain keyword, no dependent record at all');
+    typeSelect.value = 'MNUBAR';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('neither dependent row is shown', depRow.classList.contains('hidden') && windowRow.classList.contains('hidden'));
+    nameInput.value = 'BAR1';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with a plain MNUBAR keyword on BAR1', last && last.type === 'applyEdit' && /R\s+BAR1[\s\S]*?MNUBAR\b/.test(last.text));
 
     runFieldPropertyHelpersScenario();
   }, 0);

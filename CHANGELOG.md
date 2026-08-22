@@ -61,6 +61,35 @@ Covered by new scenarios in `dspfWebview.test.js`
 (`runFullOverlayCompareScenario`) and updated assertions in the existing
 constant/EDTCDE-adjacent test coverage; version bump 0.9.41 -> 0.9.42.
 
+## [0.9.43] - Unreleased
+
+### Added
+- **Full SDA record-TYPE list for "+ Add record"**: the Type picker added in
+  0.9.41 (Basic screen, Subfile control, Subfile, Window) now covers ALL of
+  real SDA's record types, matched against IBM's own DDS reference and
+  examples rather than guessed:
+  - **Window subfile control (WDWSFL)** - a subfile control record that's
+    ALSO a window: writes `SFLCTL(sflname)` and `WINDOW(...)` on the same
+    new record. Needs both a "which SFL record" pick and a geometry pick
+    (inherit from an existing window, or a default box) at once.
+  - **Pull-down subfile control (PDNSFL)** - a subfile control record
+    that's ALSO a pull-down menu: writes `SFLCTL(sflname)` and `PULLDOWN`
+    together (no geometry needed - pull-downs auto-size).
+  - **Pull-down menu (PULLDOWN)** - plain `PULLDOWN` keyword, no dependent
+    record (later referenced from a `MNUBARCHC` field elsewhere).
+  - **Menu bar (MNUBAR)** - plain `MNUBAR` keyword, no dependent record.
+  - `WebviewClientHelpers.recordTypeDependentInfo()` now returns up to TWO
+    independent dependent-record slots (`sfl` and `window`) instead of one,
+    since WDWSFL needs both simultaneously; the "+ Add record" form grew a
+    second, independently-shown dependent dropdown to match.
+  - Two record types from real SDA's own list were deliberately left out
+    for now: `USRDFN` (an SDA workflow toggle with no DDS keyword of its
+    own - already equivalent to Basic screen here) and `SFLMSG` (a message
+    subfile, which needs two synthesized hidden fields alongside its own
+    keyword - a bigger feature than a keyword-only type).
+  - 6 new `dspfWriter.test.js` cases plus 20 new jsdom checks in
+    `dspfWebview.test.js` covering every new type end-to-end.
+
 ## [0.9.41] - Unreleased
 
 ### Added
