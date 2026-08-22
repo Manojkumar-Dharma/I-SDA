@@ -154,6 +154,26 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - Deleting an option doesn't scan for other references to it (unlike
   rename, which does).
 
+### Editor UI / workflow
+
+Filed from an SDA parity review (see
+[`docs/sda-reference/`](docs/sda-reference/) "Issues" list) - not yet
+fixed:
+
+- The preview/compare default should be **Active** rather than **Beside**
+  in settings.
+- The left/right side panels need a hide/minimize control, since they can
+  crowd out the screen preview on wide layouts like a 27x132 `*DS4`
+  display.
+- The "Record type" + dependent-record-creation controls should only be
+  visible when the Add-record button is selected, not always shown.
+- Adding a record should offer the real SDA record-type set (`RECORD`,
+  `USRDFN`, `SFL`, `SFLMSG`, `WINDOW`, `WDWSFL`, `PULDWN`, `PDNSFL`,
+  `MNUBAR`) and auto-create the dependent record(s) IBM i SDA creates for
+  you - e.g. picking an `SFL`-family type (`SFL`/`SFLMSG`/`WDWSFL`/
+  `PDNSFL`) should also add its paired `SFLCTL` record and prompt for its
+  name, matching SDA's own behavior.
+
 ## Planned enhancements
 
 Forward-looking work, distinct from Known limitations above (which
@@ -171,41 +191,52 @@ picked up after the current round of fixes.
   name/parameters) remains the catch-all for anything without a dedicated
   screen yet.
 
-  The next round of this work is being mapped directly against real
-  SDA's own "Select Keywords" panels (from screenshots of an actual STRSDA
-  session) rather than from the DDS keyword reference alone, since SDA
-  groups keywords by function differently than the reference does, and
-  which groups appear varies by level and - at field level - by field
-  type. That gives a natural set of independent, parallelizable units of
-  work - each maps to its own SDA panel and mostly touches its own,
-  non-overlapping code (new `getX`/`setX` pair(s) in `dspfWriter.js` +
-  new panel in `webviewClientHelpers.js` + wiring into the relevant tab in
-  `buildWebviewTemplate.js`), so separate sessions/developers can pick up
-  different rows below without much collision. Status column is `not
-  started` / `in progress` / `done` - update it when picking up or
-  finishing a row so parallel sessions don't duplicate work.
+  This round of the work is mapped directly against real SDA's own
+  "Select Keywords" panels (from screenshots of an actual STRSDA session -
+  see [`docs/sda-reference/`](docs/sda-reference/)) rather than from the
+  DDS keyword reference alone, since SDA groups keywords by function
+  differently than the reference does, and the same "Select/Define \_\_\_
+  Keywords" screen repeats verbatim across many record types (e.g.
+  General/Indicator/Application Help/Help/Output/Input/Overlay/Print looks
+  and behaves identically on a plain `RECORD`, a `SFLCTL`, a `WINDOW`, or a
+  `PULLDOWN` record). The work is split **by screen, not by record type**,
+  so each screen is built once as a shared component and then wired into
+  every record/field type that uses it - see
+  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)
+  for the full task table, dependency waves, and a suggested 3-developer
+  parallelization. Summary of the split:
 
-  | Level | Variant | Status |
-  | --- | --- | --- |
-  | File | (one panel, no variants) | not started |
-  | Record | plain `RECORD` | not started |
-  | Record | `SFL` (subfile) | not started |
-  | Record | `SFLCTL` (subfile control) | not started |
-  | Record | `WINDOW` | not started |
-  | Field | Constant | not started |
-  | Field | Numeric | not started |
-  | Field | Character | not started |
+  | Level | Component | Task ID(s) | Reused by |
+  | --- | --- | --- | --- |
+  | File | Single picker, all 9 categories | F1 | - (one record type only) |
+  | Record | Base Record Keywords (General/Indicator/App Help/Help/Output/Input/Overlay/Print) | R1 | `RECORD`, `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`, `MNUBAR` (full or partial) |
+  | Record | `USRDFN` wiring (subset of R1) | R2 | - |
+  | Record | `SFL` (Subfile keywords + General + Indicator) | R3 | `WNDSFL`, `PULDWNSFL` |
+  | Record | `SFLCTL` (Subfile Control: General/Display Layout/Subfile Messages) | R4 | `SFLMSGCTL`, `WNDSFCTL`, `PDNSFLCTL` |
+  | Record | `SFLMSG` (Message Record + General + Indicator) | R5 | - |
+  | Record | `WINDOW` (Window Parameters + Border set) | R7 | `WNDSFL`, `WNDSFCTL`, `PULLDOWN`, `PULDWNSFL`, `PDNSFLCTL` (border set) |
+  | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 | `PULDWNSFL`, `PDNSFLCTL` |
+  | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 | - |
+  | Record | Combination types (`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | R6, R8, R9, R11, R12 | wiring-only, depend on the rows above |
+  | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 | Character (full set), Numeric & Constant (subsets) |
+  | Field | Character wiring | D2 | - |
+  | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 | - |
+  | Field | Constant (subset + Menu-Bar Keywords) | D4 | - |
+  | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 | - |
 
-  Within each row: map every option shown on the real SDA screenshot to
-  its underlying DDS keyword(s) (checking `dspfWriter.js` for an existing
+  Status per task is tracked in
+  [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)
+  (`not started` / `in progress` / `done`) - update it there when picking
+  up or finishing a task so parallel sessions don't duplicate work. Within
+  each task: map every option shown on the real SDA screenshot to its
+  underlying DDS keyword(s) (checking `dspfWriter.js` for an existing
   `getX`/`setX` pair before adding a new one - several keywords are
   already covered under a different panel's umbrella, e.g. `DSPATR` under
   Color & attributes), note anything genuinely new, then build the panel
   following the existing dedicated-picker pattern and wire it into the
   matching tab (Basic/Position/Attributes/Keywords for fields; Basic/
-  Keywords/Cmd keys/Structure for records) added in the properties-panel
-  reorganization above. Two further directions once the per-level/type
-  panels exist:
+  Keywords/Cmd keys/Structure for records). Two further directions once
+  all tasks are done:
   - Surface the per-keyword Conditioning toggle directly on each
     dedicated picker panel (today it only lives in the raw Keywords tab),
     so conditioning a color/attribute/edit-code pick doesn't require
