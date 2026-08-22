@@ -214,21 +214,108 @@
     return DATFMT_LENGTHS[name] != null ? DATFMT_LENGTHS[name] : DATFMT_LENGTHS['*ISO'];
   }
 
+  // ---------------------------------------------------------------------
+  // EDTCDE / EDTWRD -> exact display width
+  //
+  // This used to be a flat approximation (just the field's raw digit
+  // length, no adjustment at all) with a comment saying edit-code
+  // formatting was "too varied to safely approximate without a live
+  // system to verify against". It doesn't need approximating, though -
+  // IBM's own EDTCDE reference gives a closed-form rule, and its three
+  // worked examples confirm it exactly:
+  //   PRICE  5,2 EDTCDE(J)     -> 7   (5 + 1 decimal point + 1 trailing "-")
+  //   SALES  7,2 EDTCDE(K $)   -> 11  (7 + 1 comma + 1 point + 1 "-" + 1 $)
+  //   SALARY 8,2 EDTCDE(1 *)   -> 10  (8 + 1 comma + 1 point; asterisk fill
+  //                                    protection replaces characters, it
+  //                                    doesn't add any)
+  // ---------------------------------------------------------------------
+
+  // Which edit codes insert thousands-grouping commas - the "Commas" and
+  // "Commas and zero balances" columns of the standard 4x4 edit-code grid
+  // (codes 1/2/3/4, A/B/C/D, J/K/L/M, N/O/P/Q vary by sign style across
+  // rows, comma-or-not across columns; only the first two columns get
+  // commas).
+  var EDTCDE_COMMAS = { 1: true, 2: true, A: true, B: true, J: true, K: true, N: true, O: true };
+  // Extra positions the sign itself reserves: CR is always 2 characters
+  // ("CR", printed only when negative, blank otherwise, but the position
+  // is reserved either way since display fields are fixed-width); a plain
+  // "-" (leading or trailing) is 1; codes with no sign at all reserve 0.
+  var EDTCDE_SIGN_WIDTH = {
+    1: 0, 2: 0, 3: 0, 4: 0,
+    A: 2, B: 2, C: 2, D: 2,
+    J: 1, K: 1, L: 1, M: 1,
+    N: 1, O: 1, P: 1, Q: 1,
+    X: 0, Z: 0, // X and Z both strip the sign entirely rather than reserving space for one
+  };
+
+  /** Exact display width for a numeric field carrying an EDTCDE keyword. */
+  function edtcdeDisplayWidth(field, keyword) {
+    var len = field.length || 0;
+    var dec = field.decimalPositions || 0;
+    var intDigits = Math.max(0, len - dec);
+    var params = (keyword.parameters || '').trim();
+    // EDTCDE(edit-code [* | floating-currency-symbol]) - the optional
+    // second token is either an asterisk (fill protection, adds no width)
+    // or a single floating-currency character (adds exactly 1).
+    var m = params.match(/^([1-4A-DJ-QWXYZ])\s*(\S+)?/i);
+    var code = m ? m[1].toUpperCase() : '';
+    var second = m && m[2] ? m[2] : '';
+    var floatingCurrency = second !== '' && second !== '*';
+    // W and Y are the DATE-keyword-specific "date edit" codes (they insert
+    // job-attribute-dependent separator characters, same runtime-only
+    // ambiguity that keeps WINDOW(*DFT) a placeholder elsewhere in this
+    // file) - leave the field's own coded length untouched rather than
+    // guess at a separator width we can't know at design time.
+    if (code === 'W' || code === 'Y') return len;
+    var extra = 0;
+    if (dec > 0) extra += 1; // decimal point - every numeric edit code inserts one when there are decimals
+    if (EDTCDE_COMMAS[code] && intDigits > 3) extra += Math.floor((intDigits - 1) / 3);
+    if (EDTCDE_SIGN_WIDTH[code] != null) extra += EDTCDE_SIGN_WIDTH[code];
+    if (floatingCurrency) extra += 1;
+    return len + extra;
+  }
+
+  /**
+   * Exact display width for a numeric field (or DATE/TIME/PAGNBR system-value
+   * constant) carrying an EDTWRD keyword. An edit word is a literal
+   * character-for-character template - IBM's own reference calls out that a
+   * floating-currency character still occupies a real screen position (it's
+   * just excluded from the separate "digit positions must equal field
+   * length" *validation* rule) - so the display width is simply the
+   * template's own character count. This is exact for the overwhelming
+   * majority of real-world EDTWRD usage (a single body word, status like
+   * "CR"/"-" embedded directly via "&CR" rather than the 3-part
+   * body,status,expansion comma syntax - every real-world example found
+   * uses this style). In the rarer true 3-part form the structural commas
+   * get counted as characters too, which very slightly *over*-reserves
+   * width rather than under - the safe direction for overlap detection.
+   */
+  function edtwrdDisplayWidth(paramText) {
+    var s = (paramText || '').trim();
+    if (s.length >= 2 && s.charAt(0) === "'" && s.charAt(s.length - 1) === "'") {
+      s = s.slice(1, -1);
+    }
+    s = s.replace(/''/g, "'"); // DDS represents an embedded literal quote as a doubled '' - one output character
+    return s.length;
+  }
+
   function displayLength(field, record, dspfFile) {
-    // Approximation of "display length" rules for numeric edit codes/words
-    // (EDTCDE/EDTWRD can insert commas, currency symbols, and sign
-    // positions in ways too varied to safely approximate without a live
-    // system to verify against - see position-35 reference).
-    // TODO: refine per exact EDTCDE/EDTWRD rules once the editor needs
-    // pixel-exact widths for edited numerics specifically.
     var len = field.length || 0;
     var t = (field.dataType || '').toUpperCase();
     if (t === 'F') return len + 7;
     if (t === 'L') return dateFieldLength(field, record, dspfFile); // honors DATFMT: field, then record, then file level
     if (t === 'T') return 8; // every TIMFMT value is 8 chars, including the *ISO default - already exact
     if (t === 'Z') return 26;
-    if ((t === 'S' || t === 'N' || t === 'I' || t === '') && (field.usage === 'I' || field.usage === 'B') && (field.decimalPositions || 0) > 0) {
-      return len + 1;
+    if (t === 'S' || t === 'N' || t === 'I' || t === '') {
+      // t === '' also covers DATE/TIME/PAGNBR system-value CONSTANTs (they
+      // have no data-type column of their own) - EDTCDE/EDTWRD show up on
+      // those in real DDS (e.g. slashes inserted into a DATE placeholder)
+      // just as often as on named numeric fields.
+      var edtKw = (field.keywords || []).find(function (k) { return k.name === 'EDTCDE' || k.name === 'EDTWRD'; });
+      if (edtKw) return edtKw.name === 'EDTWRD' ? edtwrdDisplayWidth(edtKw.parameters) : edtcdeDisplayWidth(field, edtKw);
+      if ((field.usage === 'I' || field.usage === 'B') && (field.decimalPositions || 0) > 0) {
+        return len + 1;
+      }
     }
     return len;
   }

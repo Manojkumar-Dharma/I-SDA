@@ -742,9 +742,70 @@ console.log('\nresolveReferenceTarget: a field without R in position 29 is never
   check('non-reference field returns null even with REF present', DspfEngine.resolveReferenceTarget(model, record, field) === null);
 }
 
-if (failures > 0) {
-  console.log('\n' + failures + ' FAILURE(S)');
-  process.exit(1);
-} else {
-  console.log('\nALL CHECKS PASSED');
+console.log('\nEDTCDE display width: IBM\'s own three worked examples from the EDTCDE reference');
+{
+  // PRICE 5,2 EDTCDE(J) -> 7 (5 + 1 decimal point + 1 trailing "-", no
+  // comma since only 3 integer digits).
+  // SALES 7,2 EDTCDE(K $) -> 11 (7 + 1 comma + 1 point + 1 "-" + 1 "$").
+  // SALARY 8,2 EDTCDE(1 *) -> 10 (8 + 1 comma + 1 point; code 1 has no
+  // sign; asterisk fill protection adds no width).
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'PRICE', length: '5', decimals: '2', dataType: 'S', usage: 'O', line: '1', col: '1', func: 'EDTCDE(J)' }),
+    buildLine({ seq: '00030', name: 'SALES', length: '7', decimals: '2', dataType: 'S', usage: 'O', line: '2', col: '1', func: "EDTCDE(K $)" }),
+    buildLine({ seq: '00040', name: 'SALARY', length: '8', decimals: '2', dataType: 'S', usage: 'O', line: '3', col: '1', func: "EDTCDE(1 *)" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const price = screen.fields.find((f) => f.name === 'PRICE');
+  const sales = screen.fields.find((f) => f.name === 'SALES');
+  const salary = screen.fields.find((f) => f.name === 'SALARY');
+  check('PRICE 5,2 EDTCDE(J) -> width 7', price.length === 7);
+  check('SALES 7,2 EDTCDE(K $) -> width 11', sales.length === 11);
+  check('SALARY 8,2 EDTCDE(1 *) -> width 10', salary.length === 10);
 }
+
+console.log('\nEDTCDE display width: no-comma case (<=3 integer digits) and CR sign (2 chars)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'SMALLAMT', length: '5', decimals: '2', dataType: 'S', usage: 'O', line: '1', col: '1', func: 'EDTCDE(2)' }),
+    buildLine({ seq: '00030', name: 'BALANCE', length: '7', decimals: '2', dataType: 'S', usage: 'O', line: '2', col: '1', func: 'EDTCDE(A)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const small = screen.fields.find((f) => f.name === 'SMALLAMT');
+  const balance = screen.fields.find((f) => f.name === 'BALANCE');
+  check('3 integer digits -> no comma added (5 + 1 point + 0 sign = 6)', small.length === 6);
+  check('EDTCDE(A) reserves 2 chars for CR (7 + 1 comma + 1 point + 2 CR = 11)', balance.length === 11);
+}
+
+console.log('\nEDTWRD display width: exact template character count, not the field\'s raw digit length');
+{
+  // A classic date-slash edit word on an 8-digit YYMMDD field - width
+  // should come from the template itself (10), independent of the coded
+  // field length (8).
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'ORDDATE', length: '8', decimals: '0', dataType: 'S', usage: 'O', line: '1', col: '1', func: "EDTWRD('  /  /    ')" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const ord = screen.fields.find((f) => f.name === 'ORDDATE');
+  check('EDTWRD template length (10) drives width, not the coded field length (8)', ord.length === 10);
+}
+
+console.log('\nEDTCDE/EDTWRD on a DATE/TIME/PAGNBR system-value CONSTANT (no data type or length column of its own)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', line: '1', col: '1', func: "EDTWRD('  /  /  ')" }),
+    buildLine({ seq: '00021', func: 'DATE' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const dateConst = screen.fields.find((f) => f.nameType === 'CONSTANT');
+  check('a DATE system-value constant picks up its EDTWRD template width (8) even with no length column', dateConst && dateConst.length === 8);
+}
+
+

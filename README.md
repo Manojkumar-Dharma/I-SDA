@@ -122,17 +122,19 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - "Create New Display File" won't create the source physical file itself
   if it doesn't exist yet (`CRTSRCPF`) - only adds a member to one that
   already exists.
-- Numeric fields with an `EDTCDE` or `EDTWRD` edit code (commas, currency
-  symbols, sign positions) use an approximated display width - real
-  edit-code formatting is too varied to safely approximate without a live
-  system to verify every case against.
-- As of v0.9.40, the Attributes tab's dedicated "Edit code / word" picker
-  now also shows for `DATE`/`TIME`/`PAGNBR` system-value constants (it
-  previously only showed for named fields) - these parse as `CONSTANT`
-  the same as an ordinary literal, but real DDS commonly puts `EDTCDE`/
-  `EDTWRD` on them (e.g. inserting slashes into a `DATE` placeholder), and
-  that was previously invisible in the properties panel even though it
-  parsed and wrote back correctly via the generic keyword editor.
+- As of v0.9.44, numeric fields with an `EDTCDE` or `EDTWRD` edit code get
+  an exact display width - commas, decimal point, sign/CR reservation,
+  and a floating currency symbol for `EDTCDE` (per IBM's own worked
+  examples in the EDTCDE reference), and the literal template's own
+  character count for `EDTWRD` - instead of the field's raw undecorated
+  digit length. This also applies to `DATE`/`TIME`/`PAGNBR` system-value
+  constants carrying `EDTCDE`/`EDTWRD` (e.g. slashes inserted into a
+  `DATE` placeholder), since those parse as `CONSTANT` the same as an
+  ordinary literal but commonly carry edit keywords in real DDS. The
+  `EDTCDE(Y)`/`EDTCDE(W)` "date edit" codes are left at the field's coded
+  length rather than guessed at, since their separator width depends on
+  the job's `DATSEP` attribute - not knowable at design time, the same
+  runtime-only ambiguity that keeps `WINDOW(*DFT)` a placeholder above.
 
 ### Menu designer
 

@@ -3,6 +3,33 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.44] - Unreleased
+
+### Fixed
+- **`EDTCDE`/`EDTWRD` numeric display width was a flat approximation
+  (the field's raw digit length, no adjustment at all) - it's now exact.**
+  For `EDTCDE`, width = coded length + a decimal point (if there are
+  decimals) + thousands-grouping commas for the codes that have them +
+  sign/CR reservation (0 for no-sign codes, 1 for a plain `-`, 2 for
+  `CR`) + 1 for a floating currency symbol. Verified against all three
+  of IBM's own worked examples in the EDTCDE reference (`PRICE 5,2
+  EDTCDE(J)` -> 7, `SALES 7,2 EDTCDE(K $)` -> 11, `SALARY 8,2 EDTCDE(1
+  *)` -> 10) - asterisk fill protection correctly adds no width, only a
+  floating currency symbol does. `EDTCDE(Y)`/`EDTCDE(W)` ("date edit")
+  are left at the coded length, since their separator width depends on
+  the job's `DATSEP` attribute at runtime - not knowable at design time.
+  For `EDTWRD`, width = the literal template's own character count
+  (an edit word is a character-for-character stencil, so this is exact
+  for the single-body-word style essentially every real-world example
+  uses; the rarer 3-part `body,status,expansion` comma syntax very
+  slightly over-reserves rather than under, which is the safe direction
+  for overlap detection). This also fixes the same gap for `DATE`/
+  `TIME`/`PAGNBR` system-value constants carrying `EDTCDE`/`EDTWRD`,
+  since they share the same code path (they have no data-type column of
+  their own to key off of). Added dedicated `dspfEngine.test.js`
+  coverage reproducing IBM's worked examples plus an `EDTWRD` date-slash
+  case and a system-value-constant case.
+
 ## [0.9.42] - Unreleased
 
 ### Fixed
