@@ -169,13 +169,50 @@ picked up after the current round of fixes.
   `getX`/`setX` pair in `dspfWriter.js` plus a dedicated panel in
   `webviewClientHelpers.js`. The generic Keywords tab (free-text
   name/parameters) remains the catch-all for anything without a dedicated
-  screen yet. Two directions to extend this:
-  - Give more keyword categories their own dedicated picker, one at a
-    time, following the same pattern.
+  screen yet.
+
+  The next round of this work is being mapped directly against real
+  SDA's own "Select Keywords" panels (from screenshots of an actual STRSDA
+  session) rather than from the DDS keyword reference alone, since SDA
+  groups keywords by function differently than the reference does, and
+  which groups appear varies by level and - at field level - by field
+  type. That gives a natural set of independent, parallelizable units of
+  work - each maps to its own SDA panel and mostly touches its own,
+  non-overlapping code (new `getX`/`setX` pair(s) in `dspfWriter.js` +
+  new panel in `webviewClientHelpers.js` + wiring into the relevant tab in
+  `buildWebviewTemplate.js`), so separate sessions/developers can pick up
+  different rows below without much collision. Status column is `not
+  started` / `in progress` / `done` - update it when picking up or
+  finishing a row so parallel sessions don't duplicate work.
+
+  | Level | Variant | Status |
+  | --- | --- | --- |
+  | File | (one panel, no variants) | not started |
+  | Record | plain `RECORD` | not started |
+  | Record | `SFL` (subfile) | not started |
+  | Record | `SFLCTL` (subfile control) | not started |
+  | Record | `WINDOW` | not started |
+  | Field | Constant | not started |
+  | Field | Numeric | not started |
+  | Field | Character | not started |
+
+  Within each row: map every option shown on the real SDA screenshot to
+  its underlying DDS keyword(s) (checking `dspfWriter.js` for an existing
+  `getX`/`setX` pair before adding a new one - several keywords are
+  already covered under a different panel's umbrella, e.g. `DSPATR` under
+  Color & attributes), note anything genuinely new, then build the panel
+  following the existing dedicated-picker pattern and wire it into the
+  matching tab (Basic/Position/Attributes/Keywords for fields; Basic/
+  Keywords/Cmd keys/Structure for records) added in the properties-panel
+  reorganization above. Two further directions once the per-level/type
+  panels exist:
   - Surface the per-keyword Conditioning toggle directly on each
     dedicated picker panel (today it only lives in the raw Keywords tab),
     so conditioning a color/attribute/edit-code pick doesn't require
     dropping into free-text keyword entry.
+  - Menu designer options get the same treatment once the DSPF designer
+    rows above are done - its per-option Conditioning panel already
+    follows a similar structure to build on.
 
 ## License
 
