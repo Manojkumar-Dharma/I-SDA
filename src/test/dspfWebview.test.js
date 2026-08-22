@@ -1346,6 +1346,85 @@ function runDimmedCompareScenario() {
     check('no backdrop layer renders once the only checked backdrop record becomes the primary', !doc.querySelector('.dspf-screen-backdrop-layer'));
     check('SCR1 is now offered in the checklist instead (SCR2 is now the primary)', Array.from(doc.querySelectorAll('.compare-record-row')).map((r) => r.textContent.trim()).includes('SCR1'));
 
+    runFullOverlayCompareScenario();
+  }, 0);
+}
+
+// Full overlay compare: the OLDER (pre-dimmed-backdrop) behavior, kept
+// available as an opt-in - see compareFullOverlay's own doc comment in
+// buildWebviewTemplate.js. Every checked record renders together at full
+// brightness (no dimming, no separate primary/backdrop split), and the
+// WHOLE thing is read-only - unlike dimmed-backdrop mode, where the
+// primary stays editable.
+function runFullOverlayCompareScenario() {
+  console.log('\nfull overlay compare (opt-in, read-only): every checked record renders at full brightness, nothing is editable');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R SCR1',
+      "     A                                  1  2'Screen one'",
+      '     A          R SCR2',
+      "     A                                  3  5'Screen two'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce14', src, 'FULLOVERLAY.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  the toggle is hidden until Compare mode itself is on');
+    check('setup: "Full overlay" row is hidden before Compare is toggled on', doc.getElementById('compareOverlayRow').classList.contains('hidden'));
+
+    const compareToggle = doc.getElementById('compareModeToggle');
+    compareToggle.checked = true;
+    compareToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('turning Compare on reveals the "Full overlay" row', !doc.getElementById('compareOverlayRow').classList.contains('hidden'));
+
+    console.log('  turn "Full overlay" on: no dimmed backdrop layer at all, single combined screen instead');
+    const overlayToggle = doc.getElementById('compareOverlayToggle');
+    overlayToggle.checked = true;
+    overlayToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no dimmed-backdrop layer exists in overlay mode (it is a totally different render path)', !doc.querySelector('.dspf-screen-backdrop-layer'));
+    check('the currently-selected record (SCR1) is shown even though nothing is checked yet', /Screen one/.test(doc.getElementById('screenOutput').textContent));
+    check('SCR2 is NOT shown yet (not checked)', !/Screen two/.test(doc.getElementById('screenOutput').textContent));
+    check('the properties panel shows the read-only explanation, not an editable record view', doc.getElementById('propsBody').textContent.includes('read-only'));
+
+    console.log('  check SCR2: both records now render together, full brightness, in ONE combined screen');
+    const scr2Checkbox = Array.from(doc.querySelectorAll('.compare-record-row')).find((r) => r.textContent.trim() === 'SCR2').querySelector('input');
+    scr2Checkbox.checked = true;
+    scr2Checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    check('SCR1 text is present', /Screen one/.test(doc.getElementById('screenOutput').textContent));
+    check('SCR2 text is ALSO present, in the same combined screen', /Screen two/.test(doc.getElementById('screenOutput').textContent));
+    check('still no dimmed-backdrop layer', !doc.querySelector('.dspf-screen-backdrop-layer'));
+    check('exactly one .dspf-screen renders (a single combined layer, not primary+backdrop)', doc.querySelectorAll('.dspf-screen').length === 1);
+
+    console.log('  clicking a field in overlay mode does nothing - it is genuinely read-only');
+    posted.length = 0;
+    const anyField = doc.querySelector('.dspf-field');
+    check('setup: at least one field renders', !!anyField);
+    anyField.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking a field does not select it (no click wiring at all in overlay mode)', !doc.querySelector('.dspf-field.selected'));
+    check('clicking a field posts nothing back to the extension', posted.length === 0);
+
+    console.log('  turning "Full overlay" back off restores the normal dimmed-backdrop behavior');
+    overlayToggle.checked = false;
+    overlayToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('the primary record is interactive again', !!doc.querySelector('.dspf-field'));
+    doc.querySelector('.dspf-field').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking a field now selects it again (interactivity restored)', !!doc.querySelector('.dspf-field.selected'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

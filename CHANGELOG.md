@@ -3,6 +3,64 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.42] - Unreleased
+
+### Fixed
+- **Clicking a constant only ever selected the FIRST constant on its
+  source line, however many were actually on it.** The field-wiring
+  loop's underlying-field lookup tried `f.name === name && f.location.line
+  === anchorLine` first - fine for a named field, but a `CONSTANT`'s DDS
+  name column is always blank, so for every constant `name` (from the
+  clicked element's `data-field` attribute) was `''`, and `'' === ''`
+  matched whichever constant `.find()` happened to hit FIRST on that
+  line, regardless of which one was actually clicked - the fallback
+  line+COLUMN match (which would have disambiguated them) never even
+  ran. Fixed in `buildWebviewTemplate.js` by guarding that first branch on
+  `name` being truthy, so every constant now goes straight to the
+  line+column match - a genuinely named field is unaffected (still
+  matches by name first). Same fix applied in both the primary-record
+  lookup and the cross-record fallback loop.
+
+### Added
+- **`DATE`/`TIME`/`PAGNBR` system-value constants now show the Attributes
+  tab's dedicated "Edit code / word" picker.** These parse as `CONSTANT`
+  (DDS leaves their name column blank, same as any other literal), and the
+  picker was unconditionally hidden for every constant on the reasoning
+  that "constants have no data type to validate" - true for the Validity
+  check/Error message parts, but NOT for Edit code/word: real DDS commonly
+  puts `EDTCDE`/`EDTWRD` on a `DATE`/`TIME`/`PAGNBR` placeholder (e.g.
+  inserting slashes into a date). The keyword itself always parsed and
+  wrote back correctly through the generic keyword-chip editor underneath -
+  only the dedicated picker was missing. `webviewClientHelpers.js`'s
+  `validityAndEditHtml`/`wireValidityAndEdit` now take an optional
+  `{includeValidity: false}` to render just the Edit code/word section
+  (used for these three constants); `buildWebviewTemplate.js` detects them
+  via a `DATE`/`TIME`/`PAGNBR` keyword check alongside the existing
+  `isConstant` check. Keyword insertion order for the named-field path is
+  unchanged (still validity check, then edit code/word, then error
+  message) so existing byte-for-byte output isn't disturbed by an
+  unrelated continuation-wrap shift.
+- **"Full overlay" compare mode** - the older, pre-dimmed-backdrop way of
+  comparing several record formats, restored as an opt-in alongside (not
+  instead of) the dimmed backdrop added in the 0.9.x compare-mode
+  redesign. A new "Full overlay instead (read-only)" checkbox appears once
+  Compare mode is on: switching it on renders every checked record (plus
+  whichever is currently selected) together via the existing
+  `DspfEngine.resolveMultiScreen` at full brightness, in ONE combined
+  screen - no primary/backdrop split, no dimming/grayscale - and
+  (matching the original design) nothing is editable while it's active:
+  click/drag wiring is skipped entirely, same "which record would an edit
+  belong to?" ambiguity the original read-only compare mode was built
+  around. Switching it back off restores normal single-record editing
+  immediately. Implemented as a new `renderFullOverlay()` branch at the
+  top of `render()`, reusing `renderCompareRecordList`'s existing
+  checklist (already excludes whichever record is "current") rather than
+  building a second one.
+
+Covered by new scenarios in `dspfWebview.test.js`
+(`runFullOverlayCompareScenario`) and updated assertions in the existing
+constant/EDTCDE-adjacent test coverage; version bump 0.9.41 -> 0.9.42.
+
 ## [0.9.41] - Unreleased
 
 ### Added

@@ -463,28 +463,36 @@
   // -----------------------------------------------------------------------
   // Validity check (RANGE/COMP/VALUES), edit code/word (EDTCDE/EDTWRD), and
   // error message (ERRMSG) - dedicated helpers instead of the generic
-  // keyword box, for named fields only (constants have no data type for a
-  // validity check or edit code to apply to). All three commit together via
-  // one "Apply" button, same as the field Row/Col/Name group does, rather
-  // than each keystroke committing immediately like the keyword-chip editor.
+  // keyword box, for named fields (validity check + edit code/word + error
+  // message) AND for DATE/TIME/PAGNBR system-value constants (edit
+  // code/word only, via options.includeValidity: false - those aren't
+  // data-entry fields, so a validity check/error message genuinely doesn't
+  // apply, but real DDS commonly puts EDTCDE/EDTWRD on them, e.g. inserting
+  // slashes into a DATE placeholder). All included fields commit together
+  // via one "Apply" button, same as the field Row/Col/Name group does,
+  // rather than each keystroke committing immediately like the
+  // keyword-chip editor.
   // -----------------------------------------------------------------------
 
-  function validityAndEditHtml(keywords, ownerKey) {
-    var vc = DspfWriter.getValidityCheck(keywords);
+  function validityAndEditHtml(keywords, ownerKey, options) {
+    var includeValidity = !options || options.includeValidity !== false;
     var ec = DspfWriter.getEditKeyword(keywords);
-    var errText = DspfWriter.getErrorMessageText(keywords);
 
-    var html = '<div class="section-label">Validity check</div>';
-    html += '<div class="two-col">' +
-      '<select id="' + ownerKey + '-vc-kind">' +
-      ['', 'RANGE', 'COMP', 'VALUES'].map(function (k) {
-        return '<option value="' + k + '"' + (vc.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
-      }).join('') +
-      '</select>' +
-      '<input type="text" id="' + ownerKey + '-vc-params" placeholder="e.g. 1 99" value="' + escapeHtml(vc.parameters) + '" />' +
-      '</div><div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
+    var html = '';
+    if (includeValidity) {
+      var vc = DspfWriter.getValidityCheck(keywords);
+      html += '<div class="section-label">Validity check</div>';
+      html += '<div class="two-col">' +
+        '<select id="' + ownerKey + '-vc-kind">' +
+        ['', 'RANGE', 'COMP', 'VALUES'].map(function (k) {
+          return '<option value="' + k + '"' + (vc.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
+        }).join('') +
+        '</select>' +
+        '<input type="text" id="' + ownerKey + '-vc-params" placeholder="e.g. 1 99" value="' + escapeHtml(vc.parameters) + '" />' +
+        '</div><div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
+    }
 
-    html += '<div class="section-label" style="margin-top:10px;">Edit code / word</div>';
+    html += '<div class="section-label"' + (includeValidity ? ' style="margin-top:10px;"' : '') + '>Edit code / word</div>';
     html += '<div class="two-col">' +
       '<select id="' + ownerKey + '-ec-kind">' +
       ['', 'EDTCDE', 'EDTWRD'].map(function (k) {
@@ -494,26 +502,40 @@
       '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
       '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string</div>';
 
-    html += '<div class="section-label" style="margin-top:10px;">Error message</div>';
-    html += '<input type="text" id="' + ownerKey + '-errmsg" placeholder="Shown when the validity check fails" style="width:100%;" value="' + escapeHtml(errText) + '" />';
+    if (includeValidity) {
+      html += '<div class="section-label" style="margin-top:10px;">Error message</div>';
+      var errText = DspfWriter.getErrorMessageText(keywords);
+      html += '<input type="text" id="' + ownerKey + '-errmsg" placeholder="Shown when the validity check fails" style="width:100%;" value="' + escapeHtml(errText) + '" />';
+    }
 
-    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply validity/edit/message</button>';
+    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit/message' : 'edit code/word') + '</button>';
     return html;
   }
 
-  function wireValidityAndEdit(keywords, onChange, ownerKey) {
+  function wireValidityAndEdit(keywords, onChange, ownerKey, options) {
+    var includeValidity = !options || options.includeValidity !== false;
     var applyBtn = document.querySelector('.' + ownerKey + '-vc-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
-      var vcKind = document.getElementById(ownerKey + '-vc-kind').value;
-      var vcParams = document.getElementById(ownerKey + '-vc-params').value;
+      // Same keyword insertion order as before includeValidity existed
+      // (validity check, then edit code/word, then error message) - DDS
+      // doesn't care about keyword order, but preserving it keeps output
+      // byte-for-byte identical for the includeValidity:true (named-field)
+      // path, rather than incidentally shifting where an 80-column
+      // continuation wrap falls.
+      var next = keywords;
+      if (includeValidity) {
+        var vcKind = document.getElementById(ownerKey + '-vc-kind').value;
+        var vcParams = document.getElementById(ownerKey + '-vc-params').value;
+        next = DspfWriter.setValidityCheck(next, vcKind, vcParams);
+      }
       var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
       var ecParams = document.getElementById(ownerKey + '-ec-params').value;
-      var errText = document.getElementById(ownerKey + '-errmsg').value;
-
-      var next = DspfWriter.setValidityCheck(keywords, vcKind, vcParams);
       next = DspfWriter.setEditKeyword(next, ecKind, ecParams);
-      next = DspfWriter.setErrorMessageText(next, errText);
+      if (includeValidity) {
+        var errText = document.getElementById(ownerKey + '-errmsg').value;
+        next = DspfWriter.setErrorMessageText(next, errText);
+      }
       onChange(next);
     });
   }

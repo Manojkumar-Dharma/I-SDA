@@ -230,6 +230,7 @@ const htmlTemplate = `<!DOCTYPE html>
   </div>
   <div class="hint-readonly hidden" id="placementHint">Click anywhere on the screen preview to place it there (Esc to cancel).</div>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Show other record(s) dimmed behind</label>
+  <label class="compare-toggle hidden" id="compareOverlayRow"><input type="checkbox" id="compareOverlayToggle" /> Full overlay instead (read-only)</label>
   <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
   <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
@@ -265,6 +266,14 @@ const htmlTemplate = `<!DOCTYPE html>
   let activePulldown = null; // { pulldownRecord, line, col, choiceKey } - simulates a clicked menu-bar choice
   let pulldownCloserAttached = false;
   let compareMode = false;
+  // Full overlay: the OLDER (pre-dimmed-backdrop) compare behavior, kept
+  // available as an opt-in alongside the dimmed backdrop rather than
+  // replaced by it - every checked record (plus whichever is currently
+  // selected) rendered together via resolveMultiScreen at full brightness,
+  // same as renderCompareBackdrop already does for the dimmed layer, just
+  // without the opacity/grayscale and without a separate "primary" record -
+  // nothing is individually editable while this is on (see renderFullOverlay).
+  let compareFullOverlay = false;
   const compareSelectedRecords = new Set();
   let previewMultipleRows = false;
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
@@ -282,6 +291,8 @@ const htmlTemplate = `<!DOCTYPE html>
   let activeFieldTab = 'basic';
   let activeRecordTab = 'basic';
   const compareModeToggle = document.getElementById('compareModeToggle');
+  const compareOverlayRow = document.getElementById('compareOverlayRow');
+  const compareOverlayToggle = document.getElementById('compareOverlayToggle');
   const compareRecordList = document.getElementById('compareRecordList');
   const mainHint = document.getElementById('mainHint');
   const previewRowsRow = document.getElementById('previewRowsRow');
@@ -398,6 +409,12 @@ const htmlTemplate = `<!DOCTYPE html>
   compareModeToggle.addEventListener('change', () => {
     compareMode = compareModeToggle.checked;
     compareRecordList.classList.toggle('hidden', !compareMode);
+    compareOverlayRow.classList.toggle('hidden', !compareMode);
+    render();
+  });
+
+  compareOverlayToggle.addEventListener('change', () => {
+    compareFullOverlay = compareOverlayToggle.checked;
     render();
   });
 
@@ -661,6 +678,37 @@ const htmlTemplate = `<!DOCTYPE html>
     commitSourceChange((lines) => DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords));
   }
 
+  // Full overlay compare (the older, pre-dimmed-backdrop behavior - see
+  // compareFullOverlay's own doc comment above): every checked record PLUS
+  // whichever is currently selected in the dropdown, combined via
+  // resolveMultiScreen and rendered as the ONLY content of screenOutput -
+  // no primary/backdrop distinction, no dimming, and (matching the
+  // original's own design) no click/drag/select wiring at all: editing an
+  // arbitrary combination of independently-defined records is ambiguous
+  // (which record would an edit belong to?), so render() returns right
+  // after this rather than falling through to the interactivity wiring
+  // block below, the same way it already does for the empty "no record
+  // formats found" case.
+  function renderFullOverlay(recordName) {
+    const included = [recordName].concat(
+      Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n))
+    );
+    fkeyLegendEl.innerHTML = '';
+    renderFileCommandKeys(null);
+    const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex);
+    lastScreen = screen;
+    mainHint.classList.add('hint-readonly');
+    mainHint.textContent = included.length > 1
+      ? 'Comparing ' + included.join(', ') + ' overlaid together at full brightness, read-only - switch off "Full overlay" or "Compare" to edit again.'
+      : 'Check another record above to overlay it here at full brightness, read-only.';
+    screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
+    selectedKey = null;
+    selectedHelpSourceLine = null;
+    showFileProps = false;
+    propsBreadcrumb.innerHTML = '';
+    propsBody.innerHTML = '<div class="empty-state">Full overlay compare is read-only - nothing here is editable while it is on.</div>';
+  }
+
   function render() {
     mainHint.classList.remove('hint-readonly');
     mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
@@ -675,6 +723,11 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildIndicatorList(recordName);
     updateSizeBoundsWarning(recordName);
     renderCompareRecordList(recordName);
+
+    if (compareMode && compareFullOverlay) {
+      renderFullOverlay(recordName);
+      return;
+    }
 
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
@@ -723,14 +776,22 @@ const htmlTemplate = `<!DOCTYPE html>
       // whatever record has the MNUBARCHC that opened it - so the lookup searches
       // every record, primary one first.
       const primaryRec = model.records.find((r) => r.name === recordName);
+      // A CONSTANT's DDS name column is always blank (data-field=""), so
+      // for constants 'name' here is '' - guarding this branch on 'name'
+      // truthy forces every constant straight to the line+column match
+      // below. Without the guard, f.name === name ('' === '') matched
+      // the FIRST constant .find() happened to hit on that anchor line,
+      // regardless of which constant was actually clicked, whenever two or
+      // more constants shared a screen row - a real bug, not a stylistic
+      // choice; a genuinely named field still matches by name first below.
       let underlying = primaryRec && (
-        primaryRec.fields.find((f) => f.name === name && f.location.line === anchorLine) ||
+        (name && primaryRec.fields.find((f) => f.name === name && f.location.line === anchorLine)) ||
         primaryRec.fields.find((f) => f.location.line === anchorLine && f.location.column === anchorColumn)
       );
       let ownerRecordName = recordName;
       if (!underlying) {
         for (const r of model.records) {
-          const found = r.fields.find((f) => f.name === name && f.location.line === anchorLine) ||
+          const found = (name && r.fields.find((f) => f.name === name && f.location.line === anchorLine)) ||
                         r.fields.find((f) => f.location.line === anchorLine && f.location.column === anchorColumn);
           if (found) { underlying = found; ownerRecordName = r.name; break; }
         }
@@ -1196,6 +1257,15 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const editable = DspfWriter.isEditable(field);
     const isConstant = field.nameType === 'CONSTANT';
+    // DATE/TIME/PAGNBR system-value placeholders parse as CONSTANT (DDS
+    // leaves their name column blank, same as an ordinary literal), but
+    // unlike a plain literal they DO commonly carry an EDTCDE/EDTWRD in
+    // real DDS (e.g. inserting slashes into a DATE placeholder) - the
+    // Edit code/word section below applies to these even though the rest
+    // of the "constants have no data type to validate" reasoning still
+    // holds (no Validity check/Error message section for them - those
+    // genuinely don't apply to a non-data-entry placeholder).
+    const isSystemValueConstant = isConstant && field.keywords.some((k) => k.name === 'DATE' || k.name === 'TIME' || k.name === 'PAGNBR');
     let html = '';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this field is disabled to avoid corrupting it. Edit the source directly.</div>';
 
@@ -1250,6 +1320,8 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!isConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine);
+    } else if (isSystemValueConstant) {
+      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false });
     }
 
     // --- Keywords tab: the dense raw-keyword chip editor + conditioning, each collapsed by default ---
@@ -1298,6 +1370,8 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireColorAttrEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
     if (!isConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    } else if (isSystemValueConstant) {
+      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false });
     }
 
     if (isConstant) {

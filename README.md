@@ -106,8 +106,14 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   geometry) is fully resolved.
 - `CHCCTL` (per-choice runtime field-setting logic) has no visual
   representation - it's a logic construct, not a layout one.
-- Compare mode (previewing several record formats together) is read-only.
-  Switch back to single-record mode to edit.
+- Compare mode (previewing several record formats together) has two
+  styles: the default dimmed backdrop (the currently-edited record stays
+  fully interactive; the others render behind it, dimmed and read-only),
+  and an opt-in "Full overlay" toggle (as of v0.9.40) that instead shows
+  every checked record together at full brightness, with nothing
+  editable - closer to how SDA's own multi-format compare looked before
+  the dimmed backdrop was added. Switch off "Full overlay" (or Compare
+  entirely) to go back to editing.
 - Deleting a field only warns (never rewrites) if something else looks
   like it references it by name - unlike rename, there's nothing sensible
   to auto-fix a deleted field's reference TO. Only named fields are
@@ -120,6 +126,13 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   symbols, sign positions) use an approximated display width - real
   edit-code formatting is too varied to safely approximate without a live
   system to verify every case against.
+- As of v0.9.40, the Attributes tab's dedicated "Edit code / word" picker
+  now also shows for `DATE`/`TIME`/`PAGNBR` system-value constants (it
+  previously only showed for named fields) - these parse as `CONSTANT`
+  the same as an ordinary literal, but real DDS commonly puts `EDTCDE`/
+  `EDTWRD` on them (e.g. inserting slashes into a `DATE` placeholder), and
+  that was previously invisible in the properties panel even though it
+  parsed and wrote back correctly via the generic keyword editor.
 
 ### Menu designer
 
