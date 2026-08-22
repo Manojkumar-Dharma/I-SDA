@@ -88,6 +88,39 @@ Covered by new scenarios in `dspfWebview.test.js`
 (`runFullOverlayCompareScenario`) and updated assertions in the existing
 constant/EDTCDE-adjacent test coverage; version bump 0.9.41 -> 0.9.42.
 
+## [0.9.46] - Unreleased
+
+### Added
+- **SFLMSG (message subfile) record type** for "+ Add record", inheriting
+  real SDA's own SFLMSG flow: the new record gets `SFL` + `SFLMSGRCD(line)`
+  (line 1-27, where the first message displays) and pairs back to an
+  EXISTING SFLCTL control record - exactly like the plain SFL type - plus
+  TWO synthesized hidden fields matching IBM's own "Example: A message
+  subfile using DDS": a message-key field (`SFLMSGKEY`) and a program-queue
+  field (`SFLPGMQ`, bare for the 10-byte default or `SFLPGMQ(276)` via a
+  "276-byte queue field" checkbox). Field names default to MSGKEY/PGMQ
+  (the near-universal convention in every real-world example found) and
+  are renameable afterward via the new Hidden fields tab below. Creating
+  one runs a reparse-between-each-insert pipeline (record, then each hidden
+  field) so the newly-created record's line range never goes stale between
+  steps - see `buildWebviewTemplate.js`'s `newRecordBtn` handler.
+  - One record type from real SDA's own list is still deliberately left
+    out: `USRDFN` (an SDA workflow toggle with no DDS keyword of its own -
+    already equivalent to Basic screen here).
+- **"Hidden" tab on the record properties panel** - add/select/delete for
+  usage=H (hidden) fields, which have no on-screen position and were
+  previously unreachable once created (nothing to click on the canvas).
+  Lists existing hidden fields with an inline Delete button per row;
+  clicking a row selects it into the normal field props panel (Basic/
+  Attributes/Keywords tabs all still apply; Position is simply blank,
+  which insertField already supported); a "+ Add hidden field" inline form
+  skips the canvas-click placement step entirely since a hidden field has
+  no meaningful position to click.
+  - `WebviewClientHelpers.recordTypeDependentInfo()`'s `sfl` slot now also
+    covers SFLMSG (same "pair with an existing SFLCTL" semantics as SFL).
+  - 7 new `dspfWriter.test.js` cases, 20 new `dspfWebview.test.js` checks
+    across both features.
+
 ## [0.9.43] - Unreleased
 
 ### Added

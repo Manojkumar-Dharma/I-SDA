@@ -775,6 +775,69 @@ function runRecordTypeWizardScenario() {
     check('posts applyEdit with SFL on the new DTL2 record', last && last.type === 'applyEdit' && /R\s+DTL2[\s\S]*?SFL\b/.test(last.text));
     check("CTL1's own SFLCTL parameter was rewritten to point at DTL2 (paired back)", /R\s+CTL1[\s\S]*?SFLCTL\(DTL2\)/.test(last.text));
 
+    console.log('  Subfile message (SFLMSG): SFL + SFLMSGRCD(line) on the new record, pairs back to an existing SFLCTL, and synthesizes two hidden fields (SFLMSGKEY/SFLPGMQ)');
+    const sflmsgLine = doc.getElementById('newRecordSflmsgLine');
+    const sflmsg276 = doc.getElementById('newRecordSflmsg276');
+    const sflmsgKeyName = doc.getElementById('newRecordSflmsgKeyName');
+    const sflmsgQueueName = doc.getElementById('newRecordSflmsgQueueName');
+    const sflmsgRow = doc.getElementById('newRecordSflmsgRow');
+    typeSelect.value = 'SFLMSG';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('SFL dependent row is shown (same "which SFLCTL to pair with" as plain SFL)', !depRow.classList.contains('hidden'));
+    check('the SFLMSG-specific inputs (line/key/queue) are shown', !sflmsgRow.classList.contains('hidden'));
+    check('CTL1 is offered as a candidate to pair with', Array.from(depSelect.options).some((o) => o.value === 'CTL1'));
+    depSelect.value = 'CTL1';
+    sflmsgLine.value = '23';
+    sflmsgKeyName.value = 'MSGKEY';
+    sflmsgQueueName.value = 'PGMQ';
+    nameInput.value = 'MSGSFL';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SFL + SFLMSGRCD(23) on the new MSGSFL record', last && last.type === 'applyEdit' && /R\s+MSGSFL[\s\S]*?SFL\b[\s\S]*?SFLMSGRCD\(23\)/.test(last.text));
+    check("CTL1's own SFLCTL parameter was rewritten to point at MSGSFL (paired back, same as plain SFL)", /R\s+CTL1[\s\S]*?SFLCTL\(MSGSFL\)/.test(last.text));
+    check('MSGKEY hidden field carries SFLMSGKEY', /MSGKEY[\s\S]{0,20}SFLMSGKEY/.test(last.text));
+    check('PGMQ hidden field carries a bare SFLPGMQ (default 10-byte, no 276 requested)', /PGMQ[\s\S]{0,60}SFLPGMQ\b/.test(last.text) && !/SFLPGMQ\(276\)/.test(last.text));
+
+    console.log('  Subfile message (SFLMSG): "Use 276-byte queue field" writes SFLPGMQ(276) instead of a bare SFLPGMQ');
+    typeSelect.value = 'SFLMSG';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    depSelect.value = 'CTL1';
+    sflmsgLine.value = '24';
+    sflmsg276.checked = true;
+    sflmsgKeyName.value = 'MKEY2';
+    sflmsgQueueName.value = 'MQ2';
+    nameInput.value = 'MSGSFL2';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SFLPGMQ(276) on the 276-byte queue field', /MQ2[\s\S]{0,60}SFLPGMQ\(276\)/.test(last.text));
+    sflmsg276.checked = false;
+
+    console.log('  Subfile message (SFLMSG): refuses an out-of-range line number (must be 1-27)');
+    typeSelect.value = 'SFLMSG';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    depSelect.value = 'CTL1';
+    sflmsgLine.value = '99';
+    nameInput.value = 'MSGSFLBAD';
+    postedBefore = posted.length;
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows an error about the line number range', /line number/i.test(errorEl.textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+
+    console.log('  Subfile message (SFLMSG): refuses when the key/queue field names collide');
+    typeSelect.value = 'SFLMSG';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    depSelect.value = 'CTL1';
+    sflmsgLine.value = '24';
+    sflmsgKeyName.value = 'SAME';
+    sflmsgQueueName.value = 'SAME';
+    nameInput.value = 'MSGSFLBAD2';
+    postedBefore = posted.length;
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows an error about the field names needing to differ', /different names/i.test(errorEl.textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+    sflmsgKeyName.value = 'MSGKEY';
+    sflmsgQueueName.value = 'PGMQ';
+
     console.log('  Window: leaving the geometry pick blank creates new (default) geometry; picking a record inherits its geometry');
     typeSelect.value = 'WINDOW';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -845,6 +908,84 @@ function runRecordTypeWizardScenario() {
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check('posts applyEdit with a plain MNUBAR keyword on BAR1', last && last.type === 'applyEdit' && /R\s+BAR1[\s\S]*?MNUBAR\b/.test(last.text));
+
+    runHiddenFieldsScenario();
+  }, 0);
+}
+
+function runHiddenFieldsScenario() {
+  console.log('\nHidden fields tab: add/select/delete usage=H fields that have no on-screen position to click');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'FMT1' }),
+      buildLine({ seq: '00020', name: 'NAME', dataType: 'A', length: '10', usage: 'O', line: '1', col: '1' }),
+      buildLine({ seq: '00030', name: 'EXIST', dataType: 'A', length: '4', usage: 'H' }),
+      buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'HIDDEN.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    // Land on the Hidden tab of the record props panel.
+    const hiddenTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.getAttribute('data-tab') === 'hidden');
+    check('a Hidden tab exists on the record props panel', !!hiddenTabBtn);
+    hiddenTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    console.log('  Lists the existing hidden field (EXIST) even though it has no on-screen presence');
+    let rows = doc.querySelectorAll('#p-add-hidden-form');
+    check('the add-hidden form exists (collapsed by default)', rows.length === 1 && rows[0].classList.contains('hidden'));
+    const existingRow = Array.from(doc.querySelectorAll('.field-order-row[data-source-line]')).find((el) => el.textContent.indexOf('EXIST') !== -1);
+    check('EXIST is listed in the Hidden tab', !!existingRow);
+
+    console.log('  Clicking a hidden field row selects it into the normal field props panel (Basic/Position/Attributes/Keywords)');
+    existingRow.dispatchEvent(new Event('click', { bubbles: true }));
+    const nameField = doc.getElementById('p-name');
+    check('selecting EXIST opens the normal field props panel showing its name', nameField && nameField.value === 'EXIST');
+
+    console.log('  "+ Add hidden field" opens an inline form (no canvas click needed) and creates a new usage=H field');
+    // Back to the record, then the Hidden tab again.
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelectorAll('.props-tab').forEach((b) => { if (b.getAttribute('data-tab') === 'hidden') b.dispatchEvent(new Event('click', { bubbles: true })); });
+    doc.getElementById('p-add-hidden').dispatchEvent(new Event('click', { bubbles: true }));
+    check('the add-hidden form is now visible', !doc.getElementById('p-add-hidden-form').classList.contains('hidden'));
+    doc.getElementById('p-add-hidden-name').value = 'NEWHID';
+    doc.getElementById('p-add-hidden-length').value = '8';
+    doc.getElementById('p-add-hidden-confirm').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with a new hidden (usage H) field NEWHID', last && last.type === 'applyEdit' && /NEWHID[\s\S]{0,15}8A\s+H\b/.test(last.text));
+
+    console.log('  Refuses to add a hidden field with a name that already exists in the record');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelectorAll('.props-tab').forEach((b) => { if (b.getAttribute('data-tab') === 'hidden') b.dispatchEvent(new Event('click', { bubbles: true })); });
+    doc.getElementById('p-add-hidden').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('p-add-hidden-name').value = 'EXIST';
+    const postedBefore = posted.length;
+    doc.getElementById('p-add-hidden-confirm').dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows a name-collision error', /already exists/i.test(doc.getElementById('p-add-hidden-error').textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+
+    console.log('  Delete button on a hidden-field row removes it without needing to select it first');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelectorAll('.props-tab').forEach((b) => { if (b.getAttribute('data-tab') === 'hidden') b.dispatchEvent(new Event('click', { bubbles: true })); });
+    const newhidRow = Array.from(doc.querySelectorAll('.field-order-row[data-source-line]')).find((el) => el.textContent.indexOf('NEWHID') !== -1);
+    check('NEWHID is listed before deleting it', !!newhidRow);
+    newhidRow.querySelector('.hidden-field-delete').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with NEWHID removed', last && last.type === 'applyEdit' && !/NEWHID\b/.test(last.text));
 
     runFieldPropertyHelpersScenario();
   }, 0);
