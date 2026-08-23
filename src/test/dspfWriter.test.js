@@ -725,6 +725,47 @@ console.log('\nDspfWriter.insertTypedRecord() - "+ Add record" record-TYPE wizar
     const reparsedMnubar = DspfParser.parseDspf(mnubar.join('\n'));
     check('BAR1 carries a plain MNUBAR keyword', reparsedMnubar.records.find((r) => r.name === 'BAR1').keywords.some((k) => k.name === 'MNUBAR'));
   }
+
+  console.log('  Subfile message (SFLMSG): SFL + SFLMSGRCD(line) on the record, plus two synthesized hidden fields (SFLMSGKEY/SFLPGMQ) via a reparse-between-inserts pipeline');
+  {
+    const src = [buildLine({ seq: '00010', nameType: 'R', name: 'CTL', func: 'SFLCTL(OLDNAME)' })].join('\n') + '\n';
+    const model = DspfParser.parseDspf(src);
+    const lines = src.split(/\r\n|\r|\n/);
+    const ctlRecord = model.records.find((r) => r.name === 'CTL');
+
+    // The record itself (SFL + SFLMSGRCD), paired back to CTL exactly like plain SFL.
+    let newLines = DspfWriter.insertTypedRecord(
+      model,
+      lines,
+      { name: 'MSGSFL', keywords: [
+        { name: 'SFL', parameters: '', conditions: [], raw: '', sourceLines: [] },
+        { name: 'SFLMSGRCD', parameters: '23', conditions: [], raw: '', sourceLines: [] },
+      ] },
+      ctlRecord
+    );
+    // Then its two hidden fields, ONE AT A TIME with a reparse between each -
+    // exactly the pipeline the webview's own SFLMSG handler runs (see
+    // buildWebviewTemplate.js's newRecordBtn handler).
+    let midModel = DspfParser.parseDspf(newLines.join('\n'));
+    let rec = midModel.records.find((r) => r.name === 'MSGSFL');
+    newLines = DspfWriter.insertField(rec, newLines, { nameType: 'FIELD', name: 'MSGKEY', location: { line: null, column: null }, usage: 'H', keywords: [{ name: 'SFLMSGKEY', parameters: '', conditions: [], raw: '', sourceLines: [] }] });
+    midModel = DspfParser.parseDspf(newLines.join('\n'));
+    rec = midModel.records.find((r) => r.name === 'MSGSFL');
+    newLines = DspfWriter.insertField(rec, newLines, { nameType: 'FIELD', name: 'PGMQ', location: { line: null, column: null }, usage: 'H', keywords: [{ name: 'SFLPGMQ', parameters: '', conditions: [], raw: '', sourceLines: [] }] });
+
+    const final = DspfParser.parseDspf(newLines.join('\n'));
+    const msgsfl = final.records.find((r) => r.name === 'MSGSFL');
+    const ctl = final.records.find((r) => r.name === 'CTL');
+    check('MSGSFL carries SFL', msgsfl && msgsfl.keywords.some((k) => k.name === 'SFL'));
+    check('MSGSFL carries SFLMSGRCD(23)', msgsfl && msgsfl.keywords.some((k) => k.name === 'SFLMSGRCD' && k.parameters.trim() === '23'));
+    check("CTL's SFLCTL parameter was rewritten to MSGSFL (paired back)", ctl && ctl.keywords.some((k) => k.name === 'SFLCTL' && k.parameters.trim() === 'MSGSFL'));
+    const msgkeyField = msgsfl && msgsfl.fields.find((f) => f.name === 'MSGKEY');
+    const pgmqField = msgsfl && msgsfl.fields.find((f) => f.name === 'PGMQ');
+    check('MSGSFL has BOTH synthesized hidden fields (MSGKEY and PGMQ)', !!msgkeyField && !!pgmqField);
+    check('MSGKEY is usage H and carries SFLMSGKEY', msgkeyField.usage === 'H' && msgkeyField.keywords.some((k) => k.name === 'SFLMSGKEY'));
+    check('PGMQ is usage H and carries a bare SFLPGMQ (no 276)', pgmqField.usage === 'H' && pgmqField.keywords.some((k) => k.name === 'SFLPGMQ' && k.parameters.trim() === ''));
+    check("MSGKEY's own line/column are blank (hidden fields have no on-screen position)", msgkeyField.location.line === null && msgkeyField.location.column === null);
+  }
 }
 
 console.log("\nDspfWriter.copyRecord() - duplicates a whole record format (own keywords + every field) under a new name");

@@ -54,12 +54,15 @@
    * record" flow and its actual DDS keyword combinations (verified against
    * IBM's own DDS reference/examples, not guessed):
    *
-   * - `sfl` slot ("which SFL record"): shown for SFLCTL, SFL, WDWSFL,
-   *   PDNSFL. SFLCTL/WDWSFL/PDNSFL ask which EXISTING record already
-   *   declaring `SFL` this one controls (writes `SFLCTL(name)`); SFL asks
-   *   which EXISTING record already declaring `SFLCTL` to pair back to
-   *   (rewrites THAT record's SFLCTL parameter to point at the brand-new
-   *   SFL record - see DspfWriter.insertTypedRecord's pairBack parameter).
+   * - `sfl` slot ("which SFL record"): shown for SFLCTL, SFL, SFLMSG,
+   *   WDWSFL, PDNSFL. SFLCTL/WDWSFL/PDNSFL ask which EXISTING record
+   *   already declaring `SFL` this one controls (writes `SFLCTL(name)`);
+   *   SFL/SFLMSG ask which EXISTING record already declaring `SFLCTL` to
+   *   pair back to (rewrites THAT record's SFLCTL parameter to point at
+   *   the brand-new SFL/SFLMSG record - see
+   *   DspfWriter.insertTypedRecord's pairBack parameter). A message
+   *   subfile is still fundamentally a subfile - real SDA's own SFLMSG
+   *   flow asks for its "Subfile control record" too, same as plain SFL.
    * - `window` slot ("inherit geometry from"): shown for WINDOW and
    *   WDWSFL. OPTIONAL - blank means "new geometry" (a sensible default
    *   box), picking a record means inherit its geometry
@@ -87,7 +90,7 @@
         required: true,
         candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'SFL'; }); }).map(function (r) { return r.name; }),
       };
-    } else if (type === 'SFL') {
+    } else if (type === 'SFL' || type === 'SFLMSG') {
       sflSlot = {
         label: 'Paired with control record',
         required: true,
