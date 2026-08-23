@@ -47,68 +47,69 @@
   }
 
   /**
-   * Drives the "+ Add record" record-TYPE picker's dependent-record
-   * dropdown(s): given the chosen type and the CURRENT model's records,
-   * returns which existing records are legitimate picks for each of up to
-   * TWO independent dependent slots - matching real SDA's own "+ Add
-   * record" flow and its actual DDS keyword combinations (verified against
-   * IBM's own DDS reference/examples, not guessed):
+   * The real SDA record-type set the "+ Add record" wizard's Type picker
+   * offers, in display order. Deliberately NOT the raw DDS keyword names -
+   * `RECORD` has no keyword at all, `PULDWN` writes a `PULLDOWN` keyword,
+   * and the four SFL-family entries (SFL/SFLMSG/WDWSFL/PDNSFL) all write a
+   * plain `SFL` keyword on the record being created plus an
+   * auto-generated, separately-named `SFLCTL` companion record - see
+   * isSflFamilyRecordType below and buildTypedRecordPlan in
+   * buildWebviewTemplate.js for what each writes. `SFLCTL` itself is
+   * intentionally absent from this list: real SDA never lets you create a
+   * bare subfile control record by hand, only ever as the automatic
+   * companion to one of the four SFL-family types.
+   */
+  var RECORD_TYPES = [
+    { value: 'RECORD', label: 'Basic screen (RECORD)' },
+    { value: 'USRDFN', label: 'User-defined (USRDFN)' },
+    { value: 'SFL', label: 'Subfile (SFL)' },
+    { value: 'SFLMSG', label: 'Message subfile (SFLMSG)' },
+    { value: 'WINDOW', label: 'Window' },
+    { value: 'WDWSFL', label: 'Window subfile (WDWSFL)' },
+    { value: 'PULDWN', label: 'Pull-down menu (PULDWN)' },
+    { value: 'PDNSFL', label: 'Pull-down subfile (PDNSFL)' },
+    { value: 'MNUBAR', label: 'Menu bar (MNUBAR)' },
+  ];
+
+  /** SFL, SFLMSG, WDWSFL, and PDNSFL all describe an SFL-keyword detail
+   *  record that needs a paired SFLCTL control record - the one real SDA
+   *  auto-creates for you rather than making you create it separately (see
+   *  RECORD_TYPES above). SFLMSG (message subfile) additionally writes
+   *  SFLMSGRCD(line) on the main record and synthesizes two hidden
+   *  (usage=H) fields - a message-key field (SFLMSGKEY) and a program-queue
+   *  field (SFLPGMQ) - matching IBM's own "Example: A message subfile
+   *  using DDS"; see buildTypedRecordPlan in buildWebviewTemplate.js for
+   *  exactly what gets written. */
+  function isSflFamilyRecordType(type) {
+    return type === 'SFL' || type === 'SFLMSG' || type === 'WDWSFL' || type === 'PDNSFL';
+  }
+
+  /**
+   * Drives the "+ Add record" record-TYPE picker's "inherit geometry from"
+   * dropdown - the only dependent-record PICKER left in the wizard now
+   * that SFL-family types auto-generate their SFLCTL companion by name
+   * (see isSflFamilyRecordType) rather than pairing to an existing record.
+   * Shown for WINDOW (the geometry lands on the record itself) and WDWSFL
+   * (the geometry lands on the auto-generated SFLCTL companion, alongside
+   * its `SFLCTL(...)` - matching real SDA's own "Window subfile control
+   * record" example: `SFLCTL(SFL1) ... WINDOW(2 22 16 35)`, both keywords
+   * together). OPTIONAL either way - blank means "new geometry" (a
+   * sensible default box), picking a record means inherit its geometry
+   * (`WINDOW(record-name)`) - so only records that already own a WINDOW
+   * keyword are offered.
    *
-   * - `sfl` slot ("which SFL record"): shown for SFLCTL, SFL, SFLMSG,
-   *   WDWSFL, PDNSFL. SFLCTL/WDWSFL/PDNSFL ask which EXISTING record
-   *   already declaring `SFL` this one controls (writes `SFLCTL(name)`);
-   *   SFL/SFLMSG ask which EXISTING record already declaring `SFLCTL` to
-   *   pair back to (rewrites THAT record's SFLCTL parameter to point at
-   *   the brand-new SFL/SFLMSG record - see
-   *   DspfWriter.insertTypedRecord's pairBack parameter). A message
-   *   subfile is still fundamentally a subfile - real SDA's own SFLMSG
-   *   flow asks for its "Subfile control record" too, same as plain SFL.
-   * - `window` slot ("inherit geometry from"): shown for WINDOW and
-   *   WDWSFL. OPTIONAL - blank means "new geometry" (a sensible default
-   *   box), picking a record means inherit its geometry
-   *   (`WINDOW(record-name)`) - so only records that already own a
-   *   WINDOW keyword are offered.
-   *
-   * Real SDA's own "Window subfile" (WDWSFL) and "Pull-down subfile"
-   * (PDNSFL) record types put BOTH keywords on the subfile CONTROL record -
-   * `SFLCTL(sflname) WINDOW(...)` for WDWSFL, `SFLCTL(sflname) PULLDOWN`
-   * for PDNSFL (see e.g. IBM's own "Window/subfile control record" example:
-   * `SFLCTL(SFL1) ... WINDOW(2 22 16 35)`) - the SFL detail record itself
-   * stays a plain `SFL`, same as the existing SFL type. PULLDOWN (plain)
-   * and MNUBAR are keyword-only, no dependent record at all.
-   *
-   * Returns null if the type has no dependent record at all (BASIC,
-   * PULLDOWN, MNUBAR); otherwise `{ sfl: {...}|null, window: {...}|null }`.
-   * Pure/DOM-free so it's unit-testable without jsdom; the webview itself
-   * just pours each slot's `candidates` into its own <select>.
+   * Returns null if the type has no geometry slot at all; otherwise
+   * `{ label, required: false, candidates: [...] }`. Pure/DOM-free so it's
+   * unit-testable without jsdom; the webview itself just pours
+   * `candidates` into the `<select>`.
    */
   function recordTypeDependentInfo(type, records) {
-    var sflSlot = null;
-    if (type === 'SFLCTL' || type === 'WDWSFL' || type === 'PDNSFL') {
-      sflSlot = {
-        label: 'Controls subfile record',
-        required: true,
-        candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'SFL'; }); }).map(function (r) { return r.name; }),
-      };
-    } else if (type === 'SFL' || type === 'SFLMSG') {
-      sflSlot = {
-        label: 'Paired with control record',
-        required: true,
-        candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'SFLCTL'; }); }).map(function (r) { return r.name; }),
-      };
-    }
-
-    var windowSlot = null;
-    if (type === 'WINDOW' || type === 'WDWSFL') {
-      windowSlot = {
-        label: 'Inherit geometry from',
-        required: false,
-        candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'WINDOW'; }); }).map(function (r) { return r.name; }),
-      };
-    }
-
-    if (!sflSlot && !windowSlot) return null;
-    return { sfl: sflSlot, window: windowSlot };
+    if (type !== 'WINDOW' && type !== 'WDWSFL') return null;
+    return {
+      label: 'Inherit geometry from',
+      required: false,
+      candidates: records.filter(function (r) { return r.keywords.some(function (k) { return k.name === 'WINDOW'; }); }).map(function (r) { return r.name; }),
+    };
   }
 
   /**
@@ -570,6 +571,357 @@
     return html;
   }
 
+  // -----------------------------------------------------------------------
+  // Task F1 - File-level keyword picker ("Select File Keywords" + its 9
+  // category screens - see docs/sda-reference/screens/file-level/ and
+  // PICKER-SCREENS-PLAN.md). Every category commits through the SAME
+  // `onChange(newFileKeywords)` callback the caller already uses for
+  // commitFileEdit - each row's checkbox/input applies immediately on
+  // change (same "no separate Apply button" convention as
+  // colorAttrEditorHtml), reading the CURRENT full fileKeywords array off
+  // the row's own data-* attributes rather than keeping local state, so
+  // rows never go stale against edits made through another row or the
+  // raw Keywords accordion.
+  //
+  // A small `flagRowHtml`/`readFlagRow` pair backs most rows (checkbox +
+  // optional single text input); the handful of keywords with real
+  // multi-field structure (REF, PRTFILE, WDWBORDER, Display sizes) get
+  // their own markup below instead of being forced through that shape.
+  // -----------------------------------------------------------------------
+
+  /** One "label ... [ ] Y=Yes (+ optional param box)" row. `paramsPlaceholder`
+   *  omitted entirely means the keyword takes no parameters at all. */
+  function flagRowHtml(id, label, present, paramsValue, paramsPlaceholder) {
+    var html = '<div class="field-row" style="margin-bottom:10px;">';
+    html += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">';
+    html += '<input type="checkbox" id="' + id + '-on" ' + (present ? 'checked' : '') + ' /> ' + escapeHtml(label);
+    html += '</label>';
+    if (paramsPlaceholder !== undefined) {
+      html += '<input type="text" id="' + id + '-params" placeholder="' + escapeHtml(paramsPlaceholder) + '" value="' + escapeHtml(paramsValue || '') + '" style="width:100%;margin-top:4px;" />';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  /** Wires a flagRowHtml() row so any change to its checkbox or param box
+   *  re-derives the file's keyword array and commits it via `onChange`.
+   *  `apply(keywords, present, paramsValue)` does the actual get/set call
+   *  for this specific keyword (usually DspfWriter.setFileFlagKeyword). */
+  function wireFlagRow(id, getKeywords, onChange, apply) {
+    var onEl = document.getElementById(id + '-on');
+    var paramsEl = document.getElementById(id + '-params');
+    function commit() {
+      var present = onEl.checked;
+      var params = paramsEl ? paramsEl.value : '';
+      onChange(apply(getKeywords(), present, params));
+    }
+    if (onEl) onEl.addEventListener('change', commit);
+    if (paramsEl) paramsEl.addEventListener('change', commit);
+  }
+
+  var WDWBORDER_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL'];
+  var BORDER_POSITIONS = [
+    { key: 0, label: 'Top-left-corner' },
+    { key: 1, label: 'Top-border' },
+    { key: 2, label: 'Top-right-corner' },
+    { key: 3, label: 'Left-border' },
+    { key: 4, label: 'Right-border' },
+    { key: 5, label: 'Bottom-left-corner' },
+    { key: 6, label: 'Bottom-border' },
+    { key: 7, label: 'Bottom-right-corner' },
+  ];
+
+  /**
+   * Builds all 9 category panels' inner HTML at once - { general,
+   * indicatorKeywords, print, help, displaySizes, dbcsConversion,
+   * alternate, windowBorder, menuBar }, keyed to match the tab ids the
+   * caller wires up with tabsHtml(). Every panel is self-contained HTML;
+   * wireFileKeywordsPanels() below wires all of them regardless of which
+   * tab is currently visible (same "all panels exist in the DOM, CSS just
+   * hides the inactive ones" approach tabsHtml already uses elsewhere).
+   */
+  function fileKeywordsPanelsHtml(fileKeywords) {
+    var kw = fileKeywords || [];
+    var panels = {};
+
+    // --- General ---
+    var refState = DspfWriter.getFileRefKeyword(kw);
+    var g = '';
+    g += flagRowHtml('fk-invite', 'Invite devices for later read', DspfWriter.getFileFlagKeyword(kw, 'INVITE').present);
+    g += flagRowHtml('fk-alwgph', 'Allow graphics', DspfWriter.getFileFlagKeyword(kw, 'ALWGPH').present);
+    g += flagRowHtml('fk-msgalarm', 'Sound alarm on messages', DspfWriter.getFileFlagKeyword(kw, 'MSGALARM').present);
+    g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', DspfWriter.getFileFlagKeyword(kw, 'INDARA').present);
+    g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT').present);
+    g += flagRowHtml('fk-check-ab', 'Allow blanks', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
+    g += flagRowHtml('fk-check-rltb', 'Move cursor right-left, top-bottom', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RLTB').present);
+    g += flagRowHtml('fk-check-rl', 'Move cursor right to left', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', DspfWriter.getFileFlagKeyword(kw, 'DSPRL').present);
+    var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
+    g += flagRowHtml('fk-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)');
+    var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
+    g += flagRowHtml('fk-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL');
+    g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', DspfWriter.getFileFlagKeyword(kw, 'ERRSFL').present);
+    g += '<div class="section-label">Reference database file (REF)</div>';
+    g += '<div class="two-col"><input type="text" id="fk-ref-library" placeholder="Library" value="' + escapeHtml(refState.library) + '" />' +
+      '<input type="text" id="fk-ref-record" placeholder="Record/File name" value="' + escapeHtml(refState.record) + '" /></div>';
+    g += '<div class="section-label">Record to pass unformatted data (PASSRCD)</div>';
+    g += '<input type="text" id="fk-passrcd" placeholder="Record name" value="' + escapeHtml(DspfWriter.getFileFlagKeyword(kw, 'PASSRCD').parameters) + '" style="width:100%;" />';
+    panels.general = g;
+
+    // --- Indicator / screen-control keywords ---
+    var ind = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords.</div>';
+    [
+      ['fk-clear', 'CLEAR', 'Clear', '10-99, or 01-99'],
+      ['fk-home', 'HOME', 'Home', '10-99'],
+      ['fk-pagedown', 'PAGEDOWN', 'Page down / Roll up', '10-99'],
+      ['fk-pageup', 'PAGEUP', 'Page up / Roll down', '10-99'],
+      ['fk-help', 'HELP', 'Help', '10-99'],
+      ['fk-hlprtn', 'HLPRTN', 'Help return', '10-99'],
+      ['fk-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99'],
+    ].forEach(function (row) {
+      var state = DspfWriter.getFileFlagKeyword(kw, row[1]);
+      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')');
+    });
+    var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
+    var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
+    ind += '<div class="section-label">Indicator text (INDTXT)</div>';
+    ind += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="fk-indtxt-on" ' + (indtxt.present ? 'checked' : '') + ' /> Enabled</label>';
+    ind += '<div class="two-col"><input type="text" id="fk-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
+      '<input type="text" id="fk-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
+    panels.indicatorKeywords = ind;
+
+    // --- Print ---
+    var print = flagRowHtml('fk-print', 'Enable Print key (PRINT)', DspfWriter.getFileFlagKeyword(kw, 'PRINT').present, DspfWriter.getFileFlagKeyword(kw, 'PRINT').parameters, 'response indicator (if program handles it)');
+    var prtFile = DspfWriter.getFilePrtFileKeyword(kw);
+    print += '<div class="section-label">System handles print (PRTFILE)</div>';
+    print += '<div class="two-col"><input type="text" id="fk-prtfile-name" placeholder="Print file" value="' + escapeHtml(prtFile.name) + '" />' +
+      '<input type="text" id="fk-prtfile-library" placeholder="Library" value="' + escapeHtml(prtFile.library) + '" /></div>';
+    print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', DspfWriter.getFileFlagKeyword(kw, 'OPENPRT').present);
+    panels.print = print;
+
+    // --- Help ---
+    var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
+    var help = flagRowHtml('fk-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name');
+    var hlpschidx = DspfWriter.getFileFlagKeyword(kw, 'HLPSCHIDX');
+    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, hlpschidx.parameters, 'search-index-object library');
+    help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', DspfWriter.getFileFlagKeyword(kw, 'HLPFULL').present);
+    help += '<div class="section-label">Help title (HLPTITLE)</div>';
+    help += '<input type="text" id="fk-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
+    panels.help = help;
+
+    // --- Display sizes (DSPSIZ) ---
+    var sizeList = DspfWriter.getDisplaySizesList(kw);
+    function orderFor(name) {
+      var idx = sizeList.findIndex(function (s) { return s.name === name; });
+      return idx >= 0 ? String(idx + 1) : '';
+    }
+    var ds = '<div class="status" style="margin-bottom:10px;">Type an order number (1-2) to select a display size, blank to leave it out.</div>';
+    ds += '<div class="two-col" style="font-size:10px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:4px;"><span>Size</span><span>Order / Display name</span></div>';
+    ds += '<div class="two-col" style="margin-bottom:8px;"><span style="align-self:center;">27x132</span><span style="display:flex;gap:4px;"><input type="text" id="fk-dspsiz-order-ds4" placeholder="Order" value="' + escapeHtml(orderFor('*DS4')) + '" style="width:50px;" /><input type="text" id="fk-dspsiz-name-ds4" value="' + escapeHtml((sizeList.find(function (s) { return s.name === '*DS4'; }) || {}).name || '*DS4') + '" style="width:70px;" /></span></div>';
+    ds += '<div class="two-col"><span style="align-self:center;">24x80</span><span style="display:flex;gap:4px;"><input type="text" id="fk-dspsiz-order-ds3" placeholder="Order" value="' + escapeHtml(orderFor('*DS3')) + '" style="width:50px;" /><input type="text" id="fk-dspsiz-name-ds3" value="' + escapeHtml((sizeList.find(function (s) { return s.name === '*DS3'; }) || {}).name || '*DS3') + '" style="width:70px;" /></span></div>';
+    ds += '<button class="secondary" id="fk-dspsiz-apply" style="width:100%;margin-top:10px;">Apply display sizes</button>';
+    panels.displaySizes = ds;
+
+    // --- DBCS conversion ---
+    var igccnv = DspfWriter.getFileFlagKeyword(kw, 'IGCCNV');
+    var igcParts = (igccnv.parameters || '').trim().split(/\s+/);
+    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present);
+    dbcs += '<div class="two-col"><input type="text" id="fk-igccnv-key" placeholder="CF01-CF24" value="' + escapeHtml(igcParts[0] || '') + '" />' +
+      '<input type="text" id="fk-igccnv-line" placeholder="line 1-24" value="' + escapeHtml(igcParts[1] || '') + '" /></div>';
+    panels.dbcsConversion = dbcs;
+
+    // --- Alternate keywords ---
+    var althelp = DspfWriter.getFileFlagKeyword(kw, 'ALTHELP');
+    var alt = flagRowHtml('fk-althelp', 'Alternative help (ALTHELP)', althelp.present, althelp.parameters, 'alternative key, CA01-CA24');
+    var altpageup = DspfWriter.getFileFlagKeyword(kw, 'ALTPAGEUP');
+    alt += flagRowHtml('fk-altpageup', 'Alternative page up (ALTPAGEUP)', altpageup.present, altpageup.parameters, 'alternative key, CF01-CF24');
+    var altpagedwn = DspfWriter.getFileFlagKeyword(kw, 'ALTPAGEDWN');
+    alt += flagRowHtml('fk-altpagedwn', 'Alternative page down (ALTPAGEDWN)', altpagedwn.present, altpagedwn.parameters, 'alternative key, CF01-CF24');
+    panels.alternate = alt;
+
+    // --- Window Border (WDWBORDER) ---
+    var wb = DspfWriter.getWdwBorder(kw);
+    var wbEnabled = { color: !!wb.color, attrs: wb.attrs.length > 0, chars: wb.chars.some(function (c) { return c; }) };
+    var win = '<div class="section-label">Color</div>';
+    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="fk-wdw-color-on" ' + (wbEnabled.color ? 'checked' : '') + ' /> Define parameters</label>';
+    win += '<select id="fk-wdw-color">' + COLOR_VALUES.map(function (c) { return '<option value="' + c + '"' + (wb.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>'; }).join('') + '</select>';
+    win += '<div class="section-label">Display attributes</div>';
+    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="fk-wdw-attrs-on" ' + (wbEnabled.attrs ? 'checked' : '') + ' /> Define parameters</label>';
+    win += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+      var checked = wb.attrs.indexOf(a) >= 0;
+      return '<label class="attr-check"><input type="checkbox" class="fk-wdw-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+    }).join('') + '</div>';
+    win += '<div class="section-label">Border Characters</div>';
+    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="fk-wdw-chars-on" ' + (wbEnabled.chars ? 'checked' : '') + ' /> Define parameters</label>';
+    BORDER_POSITIONS.forEach(function (p) {
+      win += '<div class="field-row" style="margin-bottom:6px;"><label>' + escapeHtml(p.label) + '</label><input type="text" maxlength="1" id="fk-wdw-char-' + p.key + '" value="' + escapeHtml(wb.chars[p.key] || '') + '" style="width:40px;" /></div>';
+    });
+    win += '<button class="secondary" id="fk-wdw-apply" style="width:100%;margin-top:8px;">Apply window border</button>';
+    panels.windowBorder = win;
+
+    // --- Menu-bar keywords ---
+    var mnubarsw = DspfWriter.getFileFlagKeyword(kw, 'MNUBARSW');
+    var mnubarswParts = (mnubarsw.parameters || '').trim().split(/\s+/);
+    var mb = flagRowHtml('fk-mnubarsw', 'Menu-bar switch key (MNUBARSW)', mnubarsw.present);
+    mb += '<div class="two-col"><input type="text" id="fk-mnubarsw-ind" placeholder="indicator" value="' + escapeHtml(mnubarswParts[0] || '') + '" />' +
+      '<input type="text" id="fk-mnubarsw-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnubarswParts[1] || '') + '" /></div>';
+    var mnucnl = DspfWriter.getFileFlagKeyword(kw, 'MNUCNL');
+    var mnucnlParts = (mnucnl.parameters || '').trim().split(/\s+/);
+    mb += flagRowHtml('fk-mnucnl', 'Menu-cancel key (MNUCNL)', mnucnl.present);
+    mb += '<div class="two-col"><input type="text" id="fk-mnucnl-ind" placeholder="indicator" value="' + escapeHtml(mnucnlParts[0] || '') + '" />' +
+      '<input type="text" id="fk-mnucnl-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnucnlParts[1] || '') + '" /></div>';
+    mb += '<input type="text" id="fk-mnucnl-resp" placeholder="response indicator 01-99" value="' + escapeHtml(mnucnlParts[2] || '') + '" style="width:100%;margin-top:4px;" />';
+    panels.menuBar = mb;
+
+    return panels;
+  }
+
+  /** Wires every row across all 9 fileKeywordsPanelsHtml() panels.
+   *  `getKeywords` returns the CURRENT fileKeywords array (a function, not
+   *  a snapshot, so a commit from one row sees any change a previous
+   *  commit in the same render already made) and `onChange` receives the
+   *  new array to commit, same contract as every other dedicated picker
+   *  here. */
+  function wireFileKeywordsPanels(getKeywords, onChange) {
+    function simple(id, name, placeholderIsParams) {
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '');
+      });
+    }
+    // General
+    simple('fk-invite', 'INVITE');
+    simple('fk-alwgph', 'ALWGPH');
+    simple('fk-msgalarm', 'MSGALARM');
+    simple('fk-indara', 'INDARA');
+    simple('fk-usrdspmgt', 'USRDSPMGT');
+    wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
+    wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB'); });
+    wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+    simple('fk-dsprl', 'DSPRL');
+    simple('fk-chginpdft', 'CHGINPDFT', true);
+    simple('fk-entfldatr', 'ENTFLDATR', true);
+    simple('fk-errsfl', 'ERRSFL');
+    var refLib = document.getElementById('fk-ref-library');
+    var refRec = document.getElementById('fk-ref-record');
+    function commitRef() { onChange(DspfWriter.setFileRefKeyword(getKeywords(), refLib.value, refRec.value)); }
+    if (refLib) refLib.addEventListener('change', commitRef);
+    if (refRec) refRec.addEventListener('change', commitRef);
+    var passrcd = document.getElementById('fk-passrcd');
+    if (passrcd) passrcd.addEventListener('change', function () { onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!passrcd.value.trim(), passrcd.value.trim())); });
+
+    // Indicator / screen-control
+    ['fk-clear:CLEAR', 'fk-home:HOME', 'fk-pagedown:PAGEDOWN', 'fk-pageup:PAGEUP', 'fk-help:HELP', 'fk-hlprtn:HLPRTN', 'fk-vldcmdkey:VLDCMDKEY'].forEach(function (pair) {
+      var parts = pair.split(':');
+      simple(parts[0], parts[1], true);
+    });
+    var indtxtOn = document.getElementById('fk-indtxt-on');
+    var indtxtInd = document.getElementById('fk-indtxt-ind');
+    var indtxtText = document.getElementById('fk-indtxt-text');
+    function commitIndtxt() {
+      var ind = (indtxtInd.value || '').trim();
+      var text = (indtxtText.value || '').trim();
+      var params = ind ? ind + (text ? " '" + text.replace(/'/g, "''") + "'" : '') : '';
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params));
+    }
+    if (indtxtOn) indtxtOn.addEventListener('change', commitIndtxt);
+    if (indtxtInd) indtxtInd.addEventListener('change', commitIndtxt);
+    if (indtxtText) indtxtText.addEventListener('change', commitIndtxt);
+
+    // Print
+    simple('fk-print', 'PRINT', true);
+    var prtName = document.getElementById('fk-prtfile-name');
+    var prtLib = document.getElementById('fk-prtfile-library');
+    function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
+    if (prtName) prtName.addEventListener('change', commitPrtFile);
+    if (prtLib) prtLib.addEventListener('change', commitPrtFile);
+    simple('fk-openprt', 'OPENPRT');
+
+    // Help
+    simple('fk-hlppnlgrp', 'HLPPNLGRP', true);
+    simple('fk-hlpschidx', 'HLPSCHIDX', true);
+    simple('fk-hlpfull', 'HLPFULL');
+    var hlptitle = document.getElementById('fk-hlptitle');
+    if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
+
+    // Display sizes
+    var dspsizApply = document.getElementById('fk-dspsiz-apply');
+    if (dspsizApply) {
+      dspsizApply.addEventListener('click', function () {
+        var rows = [
+          { order: document.getElementById('fk-dspsiz-order-ds4').value, lines: 27, columns: 132, name: (document.getElementById('fk-dspsiz-name-ds4').value || '*DS4').trim() || '*DS4' },
+          { order: document.getElementById('fk-dspsiz-order-ds3').value, lines: 24, columns: 80, name: (document.getElementById('fk-dspsiz-name-ds3').value || '*DS3').trim() || '*DS3' },
+        ].filter(function (r) { return (r.order || '').trim() !== ''; });
+        rows.sort(function (a, b) { return parseInt(a.order, 10) - parseInt(b.order, 10); });
+        try {
+          onChange(DspfWriter.setDisplaySizesList(getKeywords(), rows.map(function (r) { return { lines: r.lines, columns: r.columns, name: r.name }; })));
+        } catch (e) {
+          window.alert(e.message);
+        }
+      });
+    }
+
+    // DBCS conversion
+    var igccnvOn = document.getElementById('fk-igccnv-on');
+    var igccnvKey = document.getElementById('fk-igccnv-key');
+    var igccnvLine = document.getElementById('fk-igccnv-line');
+    function commitIgccnv() {
+      var key = (igccnvKey.value || '').trim();
+      var line = (igccnvLine.value || '').trim();
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'IGCCNV', igccnvOn.checked, [key, line].filter(Boolean).join(' ')));
+    }
+    if (igccnvOn) igccnvOn.addEventListener('change', commitIgccnv);
+    if (igccnvKey) igccnvKey.addEventListener('change', commitIgccnv);
+    if (igccnvLine) igccnvLine.addEventListener('change', commitIgccnv);
+
+    // Alternate keywords
+    simple('fk-althelp', 'ALTHELP', true);
+    simple('fk-altpageup', 'ALTPAGEUP', true);
+    simple('fk-altpagedwn', 'ALTPAGEDWN', true);
+
+    // Window Border
+    var wdwApply = document.getElementById('fk-wdw-apply');
+    if (wdwApply) {
+      wdwApply.addEventListener('click', function () {
+        var attrs = Array.prototype.slice.call(document.querySelectorAll('.fk-wdw-attr:checked')).map(function (el) { return el.value; });
+        var chars = BORDER_POSITIONS.map(function (p) { return (document.getElementById('fk-wdw-char-' + p.key).value || '').slice(0, 1); });
+        var state = {
+          colorEnabled: document.getElementById('fk-wdw-color-on').checked,
+          color: document.getElementById('fk-wdw-color').value,
+          attrsEnabled: document.getElementById('fk-wdw-attrs-on').checked,
+          attrs: attrs,
+          charsEnabled: document.getElementById('fk-wdw-chars-on').checked,
+          chars: chars,
+        };
+        onChange(DspfWriter.setWdwBorder(getKeywords(), state));
+      });
+    }
+
+    // Menu-bar
+    var mnubarswOn = document.getElementById('fk-mnubarsw-on');
+    var mnubarswInd = document.getElementById('fk-mnubarsw-ind');
+    var mnubarswCakey = document.getElementById('fk-mnubarsw-cakey');
+    function commitMnubarsw() {
+      var params = [mnubarswInd.value, mnubarswCakey.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUBARSW', mnubarswOn.checked, params));
+    }
+    if (mnubarswOn) mnubarswOn.addEventListener('change', commitMnubarsw);
+    if (mnubarswInd) mnubarswInd.addEventListener('change', commitMnubarsw);
+    if (mnubarswCakey) mnubarswCakey.addEventListener('change', commitMnubarsw);
+
+    var mnucnlOn = document.getElementById('fk-mnucnl-on');
+    var mnucnlInd = document.getElementById('fk-mnucnl-ind');
+    var mnucnlCakey = document.getElementById('fk-mnucnl-cakey');
+    var mnucnlResp = document.getElementById('fk-mnucnl-resp');
+    function commitMnucnl() {
+      var params = [mnucnlInd.value, mnucnlCakey.value, mnucnlResp.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUCNL', mnucnlOn.checked, params));
+    }
+    if (mnucnlOn) mnucnlOn.addEventListener('change', commitMnucnl);
+    if (mnucnlInd) mnucnlInd.addEventListener('change', commitMnucnl);
+    if (mnucnlCakey) mnucnlCakey.addEventListener('change', commitMnucnl);
+    if (mnucnlResp) mnucnlResp.addEventListener('change', commitMnucnl);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -577,6 +929,8 @@
   return {
     rebuildRecordSelect: rebuildRecordSelect,
     recordTypeDependentInfo: recordTypeDependentInfo,
+    RECORD_TYPES: RECORD_TYPES,
+    isSflFamilyRecordType: isSflFamilyRecordType,
     isValidDdsName: isValidDdsName,
     findLikelyNameReferences: findLikelyNameReferences,
     conditionsEditorHtml: conditionsEditorHtml,
@@ -590,5 +944,7 @@
     wireColorAttrEditor: wireColorAttrEditor,
     validityAndEditHtml: validityAndEditHtml,
     wireValidityAndEdit: wireValidityAndEdit,
+    fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,
+    wireFileKeywordsPanels: wireFileKeywordsPanels,
   };
 });

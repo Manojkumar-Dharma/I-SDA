@@ -3,9 +3,9 @@
  *
  * Coverage for the isda.designerOpenColumn setting (package.json), which
  * lets a person choose where openPreview/openMenuPreview place the designer
- * webview: split "beside" the source (the original, still-default
- * behavior), full-width "active" (same tab group, no split), or
- * automatically popped out into its own "newWindow". Run with:
+ * webview: full-width "active" (same tab group, no split - the default),
+ * split "beside" the source, or automatically popped out into its own
+ * "newWindow". Run with:
  * node src/test/designerOpenColumn.test.js
  */
 const path = require('path');
@@ -38,24 +38,24 @@ async function run() {
   const docUri = vscodeMock.Uri.file('/workspace/SCREEN1.dspf');
   vscodeMock.window.activeTextEditor = { document: { uri: docUri } };
 
-  console.log('\ndefault (no setting configured) -> beside, unchanged from before this setting existed');
+  console.log('\ndefault (no setting configured) -> active, same column, no split');
   {
     vscodeMock.__clearMockConfig();
     vscodeMock.__executedCommands.length = 0;
     await openPreview();
     const openWithCall = vscodeMock.__executedCommands.find((c) => c.id === 'vscode.openWith');
     check('called vscode.openWith', !!openWithCall);
-    check('with ViewColumn.Beside', openWithCall && openWithCall.args[2] === vscodeMock.ViewColumn.Beside);
+    check('with ViewColumn.Active', openWithCall && openWithCall.args[2] === vscodeMock.ViewColumn.Active);
     check('did NOT try to pop out a new window', !vscodeMock.__executedCommands.some((c) => c.id === 'workbench.action.moveEditorToNewWindow'));
   }
 
-  console.log('\nisda.designerOpenColumn = "active" -> same column, no split, no new-window pop-out');
+  console.log('\nisda.designerOpenColumn = "beside" -> split column next to the source');
   {
-    vscodeMock.__setMockConfig('isda.designerOpenColumn', 'active');
+    vscodeMock.__setMockConfig('isda.designerOpenColumn', 'beside');
     vscodeMock.__executedCommands.length = 0;
     await openPreview();
     const openWithCall = vscodeMock.__executedCommands.find((c) => c.id === 'vscode.openWith');
-    check('called vscode.openWith with ViewColumn.Active', openWithCall && openWithCall.args[2] === vscodeMock.ViewColumn.Active);
+    check('called vscode.openWith with ViewColumn.Beside', openWithCall && openWithCall.args[2] === vscodeMock.ViewColumn.Beside);
     check('did not pop out a new window', !vscodeMock.__executedCommands.some((c) => c.id === 'workbench.action.moveEditorToNewWindow'));
   }
 
@@ -71,13 +71,13 @@ async function run() {
     check('in that order (open first, then move out)', openWithIndex >= 0 && moveIndex > openWithIndex);
   }
 
-  console.log('\nan unrecognized setting value falls back to "beside" rather than erroring');
+  console.log('\nan unrecognized setting value falls back to "active" rather than erroring');
   {
     vscodeMock.__setMockConfig('isda.designerOpenColumn', 'bogus-value');
     vscodeMock.__executedCommands.length = 0;
     await openPreview();
     const openWithCall = vscodeMock.__executedCommands.find((c) => c.id === 'vscode.openWith');
-    check('falls back to ViewColumn.Beside', openWithCall && openWithCall.args[2] === vscodeMock.ViewColumn.Beside);
+    check('falls back to ViewColumn.Active', openWithCall && openWithCall.args[2] === vscodeMock.ViewColumn.Active);
   }
 
   vscodeMock.__clearMockConfig();

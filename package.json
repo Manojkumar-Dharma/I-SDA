@@ -25,13 +25,13 @@
       "properties": {
         "isda.designerOpenColumn": {
           "type": "string",
-          "enum": ["beside", "active", "newWindow"],
+          "enum": ["active", "beside", "newWindow"],
           "enumDescriptions": [
-            "Open the designer in a split column next to the DDS source (default) - lets you see the source and the visual designer side by side.",
-            "Open the designer full-width in the same tab, replacing the split - less cramped if you don't need the source visible at the same time.",
+            "Open the designer full-width in the same tab, replacing the split (default) - less cramped, since you don't need the source visible at the same time.",
+            "Open the designer in a split column next to the DDS source - lets you see the source and the visual designer side by side.",
             "Open the designer and automatically pop it out into its own window."
           ],
-          "default": "beside",
+          "default": "active",
           "description": "Where iSDA opens the Screen/Menu Designer, for \"Open Screen/Menu Design Preview\" and for newly created display files/menus."
         }
       }
@@ -124,7 +124,7 @@
     }
   },
   "scripts": {
-    "test": "node src/test/extension.test.js && node src/test/createNewDspf.test.js && node src/test/createNewMenu.test.js && node src/test/designerOpenColumn.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js && node src/test/dspfParser.test.js && node src/test/dspfEngine.test.js && node src/test/dspfWebview.test.js && node src/test/compileMenu.test.js",
+    "test": "node src/test/extension.test.js && node src/test/createNewDspf.test.js && node src/test/createNewMenu.test.js && node src/test/designerOpenColumn.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js && node src/test/fileKeywordsPicker.test.js && node src/test/dspfParser.test.js && node src/test/dspfEngine.test.js && node src/test/dspfWebview.test.js && node src/test/compileMenu.test.js",
     "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','dspfWriter.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\"",
     "compile": "npm run build:webview-assets && tsc -p ."
   },
