@@ -5,6 +5,48 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.9.44] - Unreleased
 
+### Added
+- **Task F1 - SDA-style "Select File Keywords" picker.** The file-level
+  Properties panel (previously just the generic raw keyword-chip editor)
+  now has a tab strip mirroring real SDA's own file-level "Select/Define
+  ___ Keywords" screens (see `docs/sda-reference/screens/file-level/` and
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`, task F1): **General**
+  (`INVITE`/`ALWGPH`/`MSGALARM`/`INDARA`/`USRDSPMGT`/`CHECK(AB|RLTB|RL)`/
+  `DSPRL`/`CHGINPDFT`/`ENTFLDATR`/`ERRSFL`/`REF`/`PASSRCD`), **Indicator**
+  (`CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`INDTXT`/
+  `VLDCMDKEY` - `CA`/`CF` command keys stay on their existing dedicated
+  panel), **Print** (`PRINT`/`PRTFILE`/`OPENPRT`), **Help**
+  (`HLPPNLGRP`/`HLPSCHIDX`/`HLPFULL`/`HLPTITLE`), **Display sizes**
+  (a full-replace, order-aware `DSPSIZ` editor alongside the existing
+  append-only `addDisplaySize`), **DBCS conversion** (`IGCCNV`),
+  **Alternate** (`ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN`), **Window Border**
+  (`WDWBORDER`'s three sub-groups - Color/Display attributes/Border
+  characters, each independently toggled, matching its own 5-screen SDA
+  flow) and **Menu-bar** (`MNUBARSW`/`MNUCNL`). The old free-text editor
+  remains underneath as a collapsed "Advanced / raw keywords" accordion
+  for anything not covered here. New `dspfWriter.js` primitives -
+  `getFileFlagKeyword`/`setFileFlagKeyword` (a generic present/absent +
+  optional-parameters pair covering most of the above, including a
+  `fixedParam` variant so `CHECK(AB)`/`CHECK(RLTB)`/`CHECK(RL)` act as
+  three independent toggles sharing one keyword name), plus dedicated
+  pairs for the keywords with real internal structure: `getFileQuotedText`/
+  `setFileQuotedText` (`HLPTITLE`), `getFileRefKeyword`/`setFileRefKeyword`,
+  `getFilePrtFileKeyword`/`setFilePrtFileKeyword`, `getWdwBorder`/
+  `setWdwBorder`, and `getDisplaySizesList`/`setDisplaySizesList` - all
+  pure `keywords[] -> keywords[]` transforms committed through the
+  existing `applyFileKeywordsUpdate`, same convention as the Color &
+  attributes/Validity check pickers. New `fileKeywordsPanelsHtml`/
+  `wireFileKeywordsPanels` in `webviewClientHelpers.js` render and wire
+  all 9 panels; `renderFileProps()` in `buildWebviewTemplate.js` now
+  builds a `tabsHtml()` strip the same way the field/record Properties
+  panels already do. Covered by new `src/test/fileKeywordsPicker.test.js`
+  (per-function unit coverage plus an end-to-end round-trip through
+  `applyFileKeywordsUpdate` + re-parse). A handful of keywords with
+  multi-argument DDS syntax I wasn't fully certain of ordering for
+  (`HLPPNLGRP`, `IGCCNV`, `PASSRCD`) take a single free-text parameters
+  box rather than guessed-at sub-fields - same fallback the existing
+  Validity check editor already uses for `VALUES`/`EDTWRD`.
+
 ### Fixed
 - **`EDTCDE`/`EDTWRD` numeric display width was a flat approximation
   (the field's raw digit length, no adjustment at all) - it's now exact.**

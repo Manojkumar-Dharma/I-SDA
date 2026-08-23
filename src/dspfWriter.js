@@ -710,6 +710,199 @@
     return next;
   }
 
+  // ---------------------------------------------------------------------
+  // Task F1 - File-level keyword picker (Select File Keywords + its 9
+  // category screens: General, Indicator, Print, Help, Display sizes,
+  // DBCS conversion, Alternate, Window Border, Menu-bar). All of these
+  // operate purely on a `keywords` array (dspfFile.fileKeywords) and hand
+  // back a NEW array - same "no sourceLines here, applyFileKeywordsUpdate
+  // does the serializing" convention as getColorAttr/setColorAttr etc.
+  // above, so every category panel can commit through the file props
+  // panel's existing commitFileEdit/applyFileKeywordsUpdate path.
+  //
+  // Most keywords here are a simple "present or absent, optionally with
+  // free-text parameters" shape - getFileFlagKeyword/setFileFlagKeyword
+  // cover that generically rather than hand-writing ~20 near-identical
+  // get/set pairs. A `fixedParam` lets 3 keywords share one NAME with
+  // different literal parameters (CHECK(AB)/CHECK(RLTB)/CHECK(RL) are all
+  // independent yes/no choices on the General screen, not one shared
+  // control). Keywords whose real DDS argument shape is multi-part and not
+  // fully nailed down here (HLPPNLGRP, IGCCNV, etc.) get a single
+  // free-text parameters box rather than guessed-at sub-fields, the same
+  // "caller supplies the properly-formed argument text" fallback the
+  // existing Validity check/Edit code editor already uses for VALUES/
+  // EDTWRD - safer than silently mis-ordering a multi-argument keyword.
+  // ---------------------------------------------------------------------
+
+  /** Reads a simple file-level keyword's current state - { present, parameters }.
+   *  `fixedParam` (optional) narrows the match to a keyword instance whose
+   *  parameter text equals it exactly (case-insensitive) - used for keywords
+   *  like CHECK that appear multiple times with different fixed arguments,
+   *  each acting as its own independent toggle. */
+  function getFileFlagKeyword(keywords, name, fixedParam) {
+    var k = (keywords || []).find(function (kw) {
+      if (kw.name !== name) return false;
+      if (fixedParam == null) return true;
+      return (kw.parameters || '').trim().toUpperCase() === String(fixedParam).toUpperCase();
+    });
+    return { present: !!k, parameters: k ? (k.parameters || '') : '' };
+  }
+
+  /** Returns a NEW keywords array with the given keyword set on/off. When
+   *  `fixedParam` is given, only that specific fixed-argument instance is
+   *  added/removed (other instances of the same keyword NAME, e.g. other
+   *  CHECK(...) variants, are left alone); otherwise any existing keyword
+   *  of this name is replaced (single-instance keywords like INDARA,
+   *  PRINT, HLPPNLGRP). `parameters` is ignored when `fixedParam` is set
+   *  (the fixed text IS the parameter). */
+  function setFileFlagKeyword(keywords, name, present, parameters, fixedParam) {
+    var next = (keywords || []).filter(function (kw) {
+      if (kw.name !== name) return true;
+      if (fixedParam == null) return false;
+      return (kw.parameters || '').trim().toUpperCase() !== String(fixedParam).toUpperCase();
+    });
+    if (present) {
+      var params = fixedParam != null ? String(fixedParam) : (parameters || '');
+      next = next.concat([{ name: name, parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** Plain-text getter for a quoted-string file-level keyword (HLPTITLE) -
+   *  same shape as getErrorMessageText/getWindowTitleText, unquoting so the
+   *  editor input shows plain text rather than DDS's own quote escaping. */
+  function getFileQuotedText(keywords, name) {
+    var k = (keywords || []).find(function (kw) { return kw.name === name; });
+    if (!k) return '';
+    var m = /^'((?:[^']|'')*)'/.exec((k.parameters || '').trim());
+    return m ? m[1].replace(/''/g, "'") : '';
+  }
+
+  /** Returns a NEW keywords array with `name` set to the quoted+escaped
+   *  form of `text` (removed entirely if `text` is blank). */
+  function setFileQuotedText(keywords, name, text) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== name; });
+    var trimmed = (text || '').trim();
+    if (trimmed) {
+      next = next.concat([{ name: name, parameters: "'" + trimmed.replace(/'/g, "''") + "'", conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** REF (Reference database file) - reads its Library/Record sub-fields
+   *  out of the `library/record` parameter form. */
+  function getFileRefKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'REF'; });
+    if (!k) return { library: '', record: '' };
+    var parts = (k.parameters || '').trim().split('/');
+    return parts.length > 1 ? { library: parts[0].trim(), record: parts.slice(1).join('/').trim() } : { library: '', record: parts[0].trim() };
+  }
+
+  /** Returns a NEW keywords array with REF set from `library`/`record`
+   *  (REF(library/record), or REF(record) with no library qualifier), or
+   *  removed entirely if `record` is blank. */
+  function setFileRefKeyword(keywords, library, record) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'REF'; });
+    var rec = (record || '').trim();
+    if (rec) {
+      var lib = (library || '').trim();
+      next = next.concat([{ name: 'REF', parameters: lib ? lib + '/' + rec : rec, conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** PRTFILE (System handles print: print file/library) - same
+   *  library/name shape as REF, kept separate since the keyword and its
+   *  meaning are unrelated. */
+  function getFilePrtFileKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'PRTFILE'; });
+    if (!k) return { name: '', library: '' };
+    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    return { name: tokens[0] || '', library: tokens[1] || '' };
+  }
+
+  function setFilePrtFileKeyword(keywords, name, library) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'PRTFILE'; });
+    var nm = (name || '').trim();
+    if (nm) {
+      var lib = (library || '').trim();
+      next = next.concat([{ name: 'PRTFILE', parameters: lib ? nm + ' ' + lib : nm, conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /**
+   * WDWBORDER (Window Border, file-level default) - the one keyword in
+   * this set with real internal structure: up to three bracketed groups,
+   * *COLOR (a single color name), *DSPATR (one or more display attribute
+   * codes), and *CHAR (all 8 border-position characters, in the fixed
+   * top-left/top/top-right/left/right/bottom-left/bottom/bottom-right
+   * order the picker screen shows them in - see docs/sda-reference/
+   * screens/file-level/08-window-border/). Only the groups actually
+   * enabled are written, matching the "Color Y/N, Display attributes Y/N,
+   * Border Characters Y/N" toggles on the real SDA screen.
+   */
+  function getWdwBorder(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'WDWBORDER'; });
+    var result = { color: '', attrs: [], chars: ['', '', '', '', '', '', '', ''] };
+    if (!k) return result;
+    var text = k.parameters || '';
+    var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
+    if (colorM) result.color = colorM[1].toUpperCase();
+    var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
+    if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+    var charM = /\*CHAR\s+((?:'[^']*'\s*)+)/i.exec(text);
+    if (charM) {
+      var chars = charM[1].match(/'[^']*'/g) || [];
+      result.chars = chars.map(function (c) { return c.slice(1, -1); });
+      while (result.chars.length < 8) result.chars.push('');
+    }
+    return result;
+  }
+
+  /** Returns a NEW keywords array with WDWBORDER built from `state` -
+   *  `{ colorEnabled, color, attrsEnabled, attrs, charsEnabled, chars }` -
+   *  removed entirely if none of the three groups are enabled. */
+  function setWdwBorder(keywords, state) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'WDWBORDER'; });
+    var groups = [];
+    if (state.colorEnabled && state.color) groups.push('(*COLOR ' + state.color + ')');
+    if (state.attrsEnabled && state.attrs && state.attrs.length) groups.push('(*DSPATR ' + state.attrs.join(' ') + ')');
+    if (state.charsEnabled && state.chars && state.chars.some(function (c) { return c; })) {
+      var chars = state.chars.slice(0, 8);
+      while (chars.length < 8) chars.push('');
+      groups.push('(*CHAR ' + chars.map(function (c) { return "'" + (c || ' ') + "'"; }).join(' ') + ')');
+    }
+    if (groups.length) {
+      next = next.concat([{ name: 'WDWBORDER', parameters: groups.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** Display sizes (DSPSIZ) - reads the file's declared sizes as an ordered
+   *  list (priority order = keyword's own parameter order), reusing the
+   *  same triple parser addDisplaySize already relies on. */
+  function getDisplaySizesList(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'DSPSIZ'; });
+    return k ? parseDisplaySizeTriples(k.parameters) : [];
+  }
+
+  /** Returns a NEW keywords array with DSPSIZ fully replaced by `sizes`
+   *  (an ordered array of `{ lines, columns, name }`, at most 2 - DDS's own
+   *  limit), or removed entirely if `sizes` is empty. Unlike addDisplaySize
+   *  (which only appends a second size to whatever's already there), this
+   *  replaces the whole list/order in one go, which is what the Display
+   *  Sizes picker's "Order" column needs. */
+  function setDisplaySizesList(keywords, sizes) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'DSPSIZ'; });
+    var list = (sizes || []).filter(function (s) { return s && s.lines > 0 && s.columns > 0; });
+    if (list.length > 2) throw new Error('DSPSIZ supports at most two display sizes.');
+    if (list.length) {
+      next = next.concat([{ name: 'DSPSIZ', parameters: serializeDisplaySizes(list), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -1540,5 +1733,19 @@
     setErrorMessageText: setErrorMessageText,
     getWindowTitleText: getWindowTitleText,
     setWindowTitleText: setWindowTitleText,
+    getFileFlagKeyword: getFileFlagKeyword,
+    setFileFlagKeyword: setFileFlagKeyword,
+    getFileQuotedText: getFileQuotedText,
+    setFileQuotedText: setFileQuotedText,
+    getFileRefKeyword: getFileRefKeyword,
+    setFileRefKeyword: setFileRefKeyword,
+    getFilePrtFileKeyword: getFilePrtFileKeyword,
+    setFilePrtFileKeyword: setFilePrtFileKeyword,
+    getWdwBorder: getWdwBorder,
+    setWdwBorder: setWdwBorder,
+    getDisplaySizesList: getDisplaySizesList,
+    setDisplaySizesList: setDisplaySizesList,
+    parseDisplaySizeTriples: parseDisplaySizeTriples,
+    serializeDisplaySizes: serializeDisplaySizes,
   };
 });
