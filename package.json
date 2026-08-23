@@ -25,13 +25,13 @@
       "properties": {
         "isda.designerOpenColumn": {
           "type": "string",
-          "enum": ["beside", "active", "newWindow"],
+          "enum": ["active", "beside", "newWindow"],
           "enumDescriptions": [
-            "Open the designer in a split column next to the DDS source (default) - lets you see the source and the visual designer side by side.",
-            "Open the designer full-width in the same tab, replacing the split - less cramped if you don't need the source visible at the same time.",
+            "Open the designer full-width in the same tab, replacing the split (default) - less cramped, since you don't need the source visible at the same time.",
+            "Open the designer in a split column next to the DDS source - lets you see the source and the visual designer side by side.",
             "Open the designer and automatically pop it out into its own window."
           ],
-          "default": "beside",
+          "default": "active",
           "description": "Where iSDA opens the Screen/Menu Designer, for \"Open Screen/Menu Design Preview\" and for newly created display files/menus."
         }
       }

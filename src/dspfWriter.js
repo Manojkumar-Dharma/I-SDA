@@ -1396,6 +1396,22 @@
    * to none, matching insertField's own defaults for a new field.
    */
   function insertRecord(dspfFile, sourceLines, newRecord) {
+    return insertRecords(dspfFile, sourceLines, [newRecord]);
+  }
+
+  /**
+   * Same placement rule as insertRecord (append after the LAST existing
+   * record's full footprint, or after the file-level keywords block/top of
+   * file if there are no records yet), but for MULTIPLE brand-new records
+   * inserted together as one atomic block, in the order given - used by
+   * insertTypedRecordWithDependent below so a subfile detail record and its
+   * auto-created SFLCTL companion land as consecutive lines from a single
+   * edit, rather than needing two separate insertRecord calls (which would
+   * both compute the same insertion point against the ORIGINAL sourceLines
+   * and so silently clobber/reorder each other if called naively in
+   * sequence).
+   */
+  function insertRecords(dspfFile, sourceLines, newRecords) {
     var records = dspfFile.records || [];
     var insertAfterLine;
     if (records.length > 0) {
@@ -1410,13 +1426,16 @@
       insertAfterLine = fileKwRange ? fileKwRange[1] : 0;
     }
 
-    var record = {
-      name: newRecord.name,
-      conditions: newRecord.conditions || [],
-      keywords: newRecord.keywords || [],
-    };
-    var newLines = serializeRecordEntry(record, '     A');
-    return sourceLines.slice(0, insertAfterLine).concat(newLines, sourceLines.slice(insertAfterLine));
+    var allNewLines = [];
+    newRecords.forEach(function (newRecord) {
+      var record = {
+        name: newRecord.name,
+        conditions: newRecord.conditions || [],
+        keywords: newRecord.keywords || [],
+      };
+      allNewLines = allNewLines.concat(serializeRecordEntry(record, '     A'));
+    });
+    return sourceLines.slice(0, insertAfterLine).concat(allNewLines, sourceLines.slice(insertAfterLine));
   }
 
   /**
@@ -1449,6 +1468,25 @@
       newLines = applyRecordUpdate(pairBack, newLines, { keywords: updatedKeywords });
     }
     return newLines;
+  }
+
+  /**
+   * The "+ Add record" wizard's primitive for an SFL-family type (SFL,
+   * SFLMSG, WDWSFL, PDNSFL) - matching real SDA, which never lets a
+   * subfile detail record exist without also creating its SFLCTL control
+   * record: inserts `mainRecord` (the SFL-keyword detail record) AND
+   * `dependentRecord` (the auto-generated SFLCTL, already carrying
+   * `SFLCTL(mainRecord.name)` plus whatever else its family variant adds -
+   * `WINDOW(...)` for WDWSFL, `PULLDOWN` for PDNSFL) together as ONE
+   * insertRecords call, so both land as consecutive new lines from a
+   * single edit instead of two separate ones that would each be computed
+   * against the same stale "end of file" position. Order is main-then-
+   * dependent (SFL record first, its SFLCTL control right after) purely for
+   * source readability - DDS record formats are independent of each other's
+   * position in the file either way.
+   */
+  function insertTypedRecordWithDependent(dspfFile, sourceLines, mainRecord, dependentRecord) {
+    return insertRecords(dspfFile, sourceLines, [mainRecord, dependentRecord]);
   }
 
   /**
@@ -1517,7 +1555,9 @@
     setWindowGeometry: setWindowGeometry,
     nextAvailableRecordName: nextAvailableRecordName,
     insertRecord: insertRecord,
+    insertRecords: insertRecords,
     insertTypedRecord: insertTypedRecord,
+    insertTypedRecordWithDependent: insertTypedRecordWithDependent,
     copyRecord: copyRecord,
     deleteRecord: deleteRecord,
     getFileKeywordLineRange: getFileKeywordLineRange,

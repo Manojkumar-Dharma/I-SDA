@@ -367,18 +367,20 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
 }
 
 /** Controls where openDesigner()/openMenuDesigner() below place the webview -
- *  see the isda.designerOpenColumn setting (package.json). Defaults to the
- *  original "beside" behavior (a split column next to the DDS/MNUDDS source,
- *  so both are visible together) so nobody's existing workflow changes
- *  underfoot; "active" opens full-width in the same tab group instead of
- *  splitting, and "newWindow" pops the designer straight out into its own
- *  OS window, for people who found the split view cramped and were
- *  manually dragging the tab out themselves every time. */
+ *  see the isda.designerOpenColumn setting (package.json). Defaults to
+ *  "active" - full-width in the same tab group, no split - since the
+ *  designer's own side panels (record/field lists, properties) already give
+ *  people the context a split source view would otherwise provide, and a
+ *  full-width designer avoids the two of them fighting over horizontal
+ *  space on any but the widest terminals. "beside" restores the original
+ *  split-column-next-to-the-source behavior for people who want to see the
+ *  raw DDS while they work, and "newWindow" pops the designer straight out
+ *  into its own OS window. */
 type DesignerOpenMode = 'beside' | 'active' | 'newWindow';
 
 function getDesignerOpenMode(): DesignerOpenMode {
-  const value = vscode.workspace.getConfiguration('isda').get<string>('designerOpenColumn', 'beside');
-  return value === 'active' || value === 'newWindow' ? value : 'beside';
+  const value = vscode.workspace.getConfiguration('isda').get<string>('designerOpenColumn', 'active');
+  return value === 'beside' || value === 'newWindow' ? value : 'active';
 }
 
 /** Opens the visual designer via the standard "open with a specific custom

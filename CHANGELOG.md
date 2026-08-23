@@ -5,6 +5,40 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.9.44] - Unreleased
 
+### Changed
+- **`isda.designerOpenColumn` now defaults to `"active"` (full-width, same
+  tab) instead of `"beside"` (split next to the source).** The designer's
+  own side panels already carry the context a split source view would
+  otherwise provide, and full-width avoids the panels and the source
+  fighting over horizontal space on anything but the widest terminals.
+  `beside` is still available and behaves exactly as before for anyone who
+  wants the source visible alongside the preview - just no longer the
+  default. Updated `src/test/designerOpenColumn.test.js` and the README to
+  match.
+- **"+ Add record" now opens as a collapsible form behind a `+ Add record`
+  toggle** instead of always showing its Record type picker and
+  dependent-record controls. Keeps the sidebar quieter for the common case
+  of just switching between existing records, and collapses itself again
+  after a successful add.
+- **The "+ Add record" Type picker now offers the real SDA record-type
+  set** - `RECORD`, `USRDFN`, `SFL`, `SFLMSG`, `WINDOW`, `WDWSFL`,
+  `PULDWN`, `PDNSFL`, `MNUBAR` - instead of the previous ad hoc list.
+  Picking an SFL-family type (`SFL`/`SFLMSG`/`WDWSFL`/`PDNSFL`) now
+  **auto-creates its paired `SFLCTL` record and prompts for its name**,
+  matching real SDA's own behavior, instead of requiring you to first
+  create a bare SFLCTL and pick it from a dropdown. `SFLCTL` is no longer
+  a directly-selectable type, since it is always created this way now.
+  New `DspfWriter.insertRecords`/`insertTypedRecordWithDependent` write
+  the paired records together as one atomic edit.
+
+### Added
+- **Left/right side panels can now be hidden/minimized** via a toggle
+  button pinned to the top of each one, so the screen preview can reclaim
+  the freed-up width on wide-but-short layouts (e.g. a 27x132 `*DS4`
+  display) where the docked panels would otherwise crowd it out. Each
+  panel collapses independently and is session-only (not persisted across
+  reopens).
+
 ### Fixed
 - **`EDTCDE`/`EDTWRD` numeric display width was a flat approximation
   (the field's raw digit length, no adjustment at all) - it's now exact.**

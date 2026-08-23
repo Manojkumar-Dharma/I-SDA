@@ -85,11 +85,11 @@ Development Host. Either:
   paired MNUCMD commands member together, and open the MNUDDS half
   directly in the menu designer.
 
-By default the designer opens in a split column next to the source so
-you can see both at once. If that feels cramped, set
-`isda.designerOpenColumn` (Settings) to `active` to open it full-width in
-the same tab instead, or to `newWindow` to have it automatically pop out
-into its own window.
+By default the designer opens full-width in the same tab (`active`). If
+you'd rather see the raw DDS source and the designer side by side, set
+`isda.designerOpenColumn` (Settings) to `beside` to open it in a split
+column next to the source instead, or to `newWindow` to have it
+automatically pop out into its own window.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
@@ -157,22 +157,21 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 ### Editor UI / workflow
 
 Filed from an SDA parity review (see
-[`docs/sda-reference/`](docs/sda-reference/) "Issues" list) - not yet
-fixed:
+[`docs/sda-reference/`](docs/sda-reference/) "Issues" list) - fixed in
+0.9.44:
 
-- The preview/compare default should be **Active** rather than **Beside**
-  in settings.
-- The left/right side panels need a hide/minimize control, since they can
-  crowd out the screen preview on wide layouts like a 27x132 `*DS4`
-  display.
-- The "Record type" + dependent-record-creation controls should only be
-  visible when the Add-record button is selected, not always shown.
-- Adding a record should offer the real SDA record-type set (`RECORD`,
-  `USRDFN`, `SFL`, `SFLMSG`, `WINDOW`, `WDWSFL`, `PULDWN`, `PDNSFL`,
-  `MNUBAR`) and auto-create the dependent record(s) IBM i SDA creates for
-  you - e.g. picking an `SFL`-family type (`SFL`/`SFLMSG`/`WDWSFL`/
-  `PDNSFL`) should also add its paired `SFLCTL` record and prompt for its
-  name, matching SDA's own behavior.
+- ~~The preview/compare default should be **Active** rather than
+  **Beside** in settings.~~ Default flipped; `beside` remains available.
+- ~~The left/right side panels need a hide/minimize control...~~ Each
+  panel now has its own hide/minimize toggle.
+- ~~The "Record type" + dependent-record-creation controls should only be
+  visible when the Add-record button is selected...~~ Now behind a
+  "+ Add record" toggle.
+- ~~Adding a record should offer the real SDA record-type set...~~ Type
+  picker now offers `RECORD`, `USRDFN`, `SFL`, `SFLMSG`, `WINDOW`,
+  `WDWSFL`, `PULDWN`, `PDNSFL`, `MNUBAR`, and SFL-family types
+  auto-create their paired `SFLCTL` record.
+
 
 ## Planned enhancements
 
