@@ -167,12 +167,14 @@ fixed:
   display.
 - The "Record type" + dependent-record-creation controls should only be
   visible when the Add-record button is selected, not always shown.
-- Adding a record should offer the real SDA record-type set (`RECORD`,
-  `USRDFN`, `SFL`, `SFLMSG`, `WINDOW`, `WDWSFL`, `PULDWN`, `PDNSFL`,
-  `MNUBAR`) and auto-create the dependent record(s) IBM i SDA creates for
-  you - e.g. picking an `SFL`-family type (`SFL`/`SFLMSG`/`WDWSFL`/
-  `PDNSFL`) should also add its paired `SFLCTL` record and prompt for its
-  name, matching SDA's own behavior.
+- ~~Adding a record should offer the real SDA record-type set~~ - done:
+  `RECORD`/`SFL`/`SFLMSG`/`SFLCTL`/`WINDOW`/`WDWSFL`/`PDNSFL`/`PULLDOWN`/
+  `MNUBAR` are all selectable now (`USRDFN` deliberately excluded - it's
+  an SDA workflow toggle with no DDS keyword of its own, already
+  equivalent to picking `RECORD`). Still open: SDA **auto-creates** the
+  paired `SFLCTL`/`SFL` record and just prompts for its name; this build
+  instead asks you to pick an **existing** one from a dropdown, so the
+  companion record still has to be created as a separate step first.
 
 ## Planned enhancements
 
