@@ -8,3 +8,4 @@ package-lock.json
 node_modules/**
 .git/**
 vsc-extension-quickstart.md
+docs/**
