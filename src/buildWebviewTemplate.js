@@ -318,6 +318,7 @@ const htmlTemplate = `<!DOCTYPE html>
   const propsBreadcrumb = document.getElementById('propsBreadcrumb');
   let activeFieldTab = 'basic';
   let activeRecordTab = 'basic';
+  let activeFileTab = 'general';
   const compareModeToggle = document.getElementById('compareModeToggle');
   const compareOverlayRow = document.getElementById('compareOverlayRow');
   const compareOverlayToggle = document.getElementById('compareOverlayToggle');
@@ -1436,11 +1437,26 @@ const htmlTemplate = `<!DOCTYPE html>
    * button, keywords commit themselves" pattern the Record and Help-entry
    * panels already use (they have nothing else to Apply either).
    */
-  function renderFileProps() {
-    let html = '<div class="status" style="margin-bottom:12px;">Keywords for the whole display file (DSPSIZ, REF, INDARA, PRINT, etc.) - not tied to any one record format. Command keys (CAxx/CFxx) have their own dedicated panel above and are best edited there.</div>';
-    html += WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning);
-    propsBody.innerHTML = html;
 
+  function renderFileProps() {
+    const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords);
+    let html = '<div class="status" style="margin-bottom:12px;">SDA-style keyword picker for the whole display file - not tied to any one record format. Command keys (CAxx/CFxx) have their own dedicated panel above and are best edited there.</div>';
+    html += tabsHtml([
+      { id: 'general', label: 'General', content: panels.general },
+      { id: 'indicator', label: 'Indicator', content: panels.indicatorKeywords },
+      { id: 'print', label: 'Print', content: panels.print },
+      { id: 'help', label: 'Help', content: panels.help },
+      { id: 'sizes', label: 'Display sizes', content: panels.displaySizes },
+      { id: 'dbcs', label: 'DBCS', content: panels.dbcsConversion },
+      { id: 'alternate', label: 'Alternate', content: panels.alternate },
+      { id: 'wdwborder', label: 'Window Border', content: panels.windowBorder },
+      { id: 'menubar', label: 'Menu-bar', content: panels.menuBar },
+    ], activeFileTab);
+    html += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning), false);
+    propsBody.innerHTML = html;
+    wireTabs(propsBody, (id) => { activeFileTab = id; });
+
+    WebviewClientHelpers.wireFileKeywordsPanels(() => model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
   }
 
