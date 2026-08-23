@@ -3,7 +3,59 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.44] - Unreleased
+## [0.9.46] - Unreleased
+
+### Changed
+- **`isda.designerOpenColumn` now defaults to `"active"` (full-width, same
+  tab) instead of `"beside"` (split next to the source).** The designer's
+  own side panels already carry the context a split source view would
+  otherwise provide, and full-width avoids the panels and the source
+  fighting over horizontal space on anything but the widest terminals.
+  `beside` is still available and behaves exactly as before for anyone who
+  wants the source visible alongside the preview - just no longer the
+  default. Updated `src/test/designerOpenColumn.test.js` and the README to
+  match.
+- **"+ Add record" now opens as a collapsible form behind a `+ Add record`
+  toggle** instead of always showing its Record type picker and
+  dependent-record controls. Keeps the sidebar quieter for the common case
+  of just switching between existing records, and collapses itself again
+  after a successful add.
+- **The "+ Add record" Type picker now offers the real SDA record-type
+  set** - `RECORD`, `USRDFN`, `SFL`, `SFLMSG`, `WINDOW`, `WDWSFL`,
+  `PULDWN`, `PDNSFL`, `MNUBAR` - instead of the previous ad hoc list.
+  Picking an SFL-family type (`SFL`/`SFLMSG`/`WDWSFL`/`PDNSFL`) now
+  **auto-creates its paired `SFLCTL` record and prompts for its name**,
+  matching real SDA's own behavior, instead of requiring you to first
+  create a bare SFLCTL and pick it from a dropdown. `SFLCTL` is no longer
+  a directly-selectable type, since it is always created this way now.
+  New `DspfWriter.insertRecords`/`insertTypedRecordWithDependent` write
+  the paired records together as one atomic edit.
+  - **SFLMSG** additionally writes `SFLMSGRCD(line)` (line 1-27) on the
+    new record and synthesizes two hidden (usage=H) fields matching IBM's
+    own "Example: A message subfile using DDS" - a message-key field
+    (`SFLMSGKEY`) and a program-queue field (`SFLPGMQ`, bare for the
+    10-byte default or `SFLPGMQ(276)` via a "276-byte queue field"
+    checkbox) - on its auto-created SFLCTL companion, same auto-create
+    flow as plain SFL rather than pairing to an existing control record.
+    Field names default to MSGKEY/PGMQ and are renameable afterward via
+    the Hidden fields tab.
+
+### Added
+- **Left/right side panels can now be hidden/minimized** via a toggle
+  button pinned to the top of each one, so the screen preview can reclaim
+  the freed-up width on wide-but-short layouts (e.g. a 27x132 `*DS4`
+  display) where the docked panels would otherwise crowd it out. Each
+  panel collapses independently and is session-only (not persisted across
+  reopens).
+- **"Hidden" tab on the record properties panel** - add/select/delete for
+  usage=H (hidden) fields, which have no on-screen position and were
+  previously unreachable once created (nothing to click on the canvas).
+  Lists existing hidden fields with an inline Delete button per row;
+  clicking a row selects it into the normal field props panel (Basic/
+  Attributes/Keywords tabs all still apply; Position is simply blank,
+  which insertField already supported); a "+ Add hidden field" inline form
+  skips the canvas-click placement step entirely since a hidden field has
+  no meaningful position to click.
 
 ### Fixed
 - **`EDTCDE`/`EDTWRD` numeric display width was a flat approximation
@@ -87,39 +139,6 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Covered by new scenarios in `dspfWebview.test.js`
 (`runFullOverlayCompareScenario`) and updated assertions in the existing
 constant/EDTCDE-adjacent test coverage; version bump 0.9.41 -> 0.9.42.
-
-## [0.9.46] - Unreleased
-
-### Added
-- **SFLMSG (message subfile) record type** for "+ Add record", inheriting
-  real SDA's own SFLMSG flow: the new record gets `SFL` + `SFLMSGRCD(line)`
-  (line 1-27, where the first message displays) and pairs back to an
-  EXISTING SFLCTL control record - exactly like the plain SFL type - plus
-  TWO synthesized hidden fields matching IBM's own "Example: A message
-  subfile using DDS": a message-key field (`SFLMSGKEY`) and a program-queue
-  field (`SFLPGMQ`, bare for the 10-byte default or `SFLPGMQ(276)` via a
-  "276-byte queue field" checkbox). Field names default to MSGKEY/PGMQ
-  (the near-universal convention in every real-world example found) and
-  are renameable afterward via the new Hidden fields tab below. Creating
-  one runs a reparse-between-each-insert pipeline (record, then each hidden
-  field) so the newly-created record's line range never goes stale between
-  steps - see `buildWebviewTemplate.js`'s `newRecordBtn` handler.
-  - One record type from real SDA's own list is still deliberately left
-    out: `USRDFN` (an SDA workflow toggle with no DDS keyword of its own -
-    already equivalent to Basic screen here).
-- **"Hidden" tab on the record properties panel** - add/select/delete for
-  usage=H (hidden) fields, which have no on-screen position and were
-  previously unreachable once created (nothing to click on the canvas).
-  Lists existing hidden fields with an inline Delete button per row;
-  clicking a row selects it into the normal field props panel (Basic/
-  Attributes/Keywords tabs all still apply; Position is simply blank,
-  which insertField already supported); a "+ Add hidden field" inline form
-  skips the canvas-click placement step entirely since a hidden field has
-  no meaningful position to click.
-  - `WebviewClientHelpers.recordTypeDependentInfo()`'s `sfl` slot now also
-    covers SFLMSG (same "pair with an existing SFLCTL" semantics as SFL).
-  - 7 new `dspfWriter.test.js` cases, 20 new `dspfWebview.test.js` checks
-    across both features.
 
 ## [0.9.43] - Unreleased
 

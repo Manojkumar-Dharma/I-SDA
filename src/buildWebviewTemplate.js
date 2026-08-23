@@ -197,50 +197,55 @@ const htmlTemplate = `<!DOCTYPE html>
   .place-btn-row button { flex: 1; }
   .place-btn-row button.active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
   .dspf-screen.placing { cursor: crosshair; }
+  .panel-toggle-btn {
+    position: sticky; top: 0; display: block; width: 100%; background: var(--panel); color: var(--ink-dim);
+    border: none; border-bottom: 1px solid var(--panel-border); cursor: pointer; padding: 6px 0;
+    font-family: var(--mono); font-size: 12px; z-index: 2; margin-bottom: 10px;
+  }
+  .panel-toggle-btn:hover { color: var(--accent); }
+  aside.panel-collapsed, .props-panel.panel-collapsed { padding: 0; overflow: hidden; }
+  .panel-collapsed .panel-body { display: none; }
+  .panel-collapsed .panel-toggle-btn { margin-bottom: 0; writing-mode: vertical-rl; height: 100%; padding: 10px 0; }
+  #newRecordForm { border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px; margin-top: 8px; }
 </style>
 </head>
 <body>
 <aside>
+  <button class="panel-toggle-btn" id="leftPanelToggle" title="Hide this panel">&#9664; Hide panel</button>
+  <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
-  <div class="field-row" style="margin-top:6px;">
-    <label>Type</label>
-    <select id="newRecordType">
-      <option value="BASIC">Basic screen (RECORD)</option>
-      <option value="SFL">Subfile (SFL)</option>
-      <option value="SFLMSG">Subfile message (SFLMSG)</option>
-      <option value="SFLCTL">Subfile control (SFLCTL)</option>
-      <option value="WINDOW">Window</option>
-      <option value="WDWSFL">Window subfile control (WDWSFL)</option>
-      <option value="PDNSFL">Pull-down subfile control (PDNSFL)</option>
-      <option value="PULLDOWN">Pull-down menu (PULLDOWN)</option>
-      <option value="MNUBAR">Menu bar (MNUBAR)</option>
-    </select>
-  </div>
-  <div class="field-row hidden" id="newRecordDepRow">
-    <label id="newRecordDepLabel">Controls</label>
-    <select id="newRecordDepSelect"></select>
-  </div>
-  <div class="field-row hidden" id="newRecordWindowRow">
-    <label id="newRecordWindowLabel">Inherit geometry from</label>
-    <select id="newRecordWindowSelect"></select>
-  </div>
-  <div class="hidden" id="newRecordSflmsgRow">
-    <div class="two-col">
-      <div class="field-row"><label>Line for first message</label><input type="number" id="newRecordSflmsgLine" min="1" max="27" value="24" /></div>
-      <div class="field-row"><label class="compare-toggle"><input type="checkbox" id="newRecordSflmsg276" /> 276-byte queue field</label></div>
+  <button class="secondary" id="newRecordToggleBtn" style="width:100%;margin-top:6px;">+ Add record</button>
+  <div class="hidden" id="newRecordForm">
+    <div class="field-row">
+      <label>Record type</label>
+      <select id="newRecordType"></select>
     </div>
-    <div class="two-col">
-      <div class="field-row"><label>Message key field name</label><input type="text" id="newRecordSflmsgKeyName" maxlength="10" value="MSGKEY" /></div>
-      <div class="field-row"><label>Program queue field name</label><input type="text" id="newRecordSflmsgQueueName" maxlength="10" value="PGMQ" /></div>
+    <div class="field-row hidden" id="newRecordSflctlRow">
+      <label id="newRecordSflctlLabel">Subfile control (SFLCTL) record name</label>
+      <input type="text" class="rename-input" id="newRecordSflctlName" placeholder="SFLCTL record name" maxlength="10" />
     </div>
+    <div class="field-row hidden" id="newRecordWindowRow">
+      <label id="newRecordWindowLabel">Inherit geometry from</label>
+      <select id="newRecordWindowSelect"></select>
+    </div>
+    <div class="hidden" id="newRecordSflmsgRow">
+      <div class="two-col">
+        <div class="field-row"><label>Line for first message</label><input type="number" id="newRecordSflmsgLine" min="1" max="27" value="24" /></div>
+        <div class="field-row"><label class="compare-toggle"><input type="checkbox" id="newRecordSflmsg276" /> 276-byte queue field</label></div>
+      </div>
+      <div class="two-col">
+        <div class="field-row"><label>Message key field name</label><input type="text" id="newRecordSflmsgKeyName" maxlength="10" value="MSGKEY" /></div>
+        <div class="field-row"><label>Program queue field name</label><input type="text" id="newRecordSflmsgQueueName" maxlength="10" value="PGMQ" /></div>
+      </div>
+    </div>
+    <div class="rename-row" style="margin-top:6px;">
+      <input type="text" class="rename-input" id="newRecordName" placeholder="New record name" maxlength="10" />
+      <button class="rename-btn" id="newRecordBtn">Create</button>
+    </div>
+    <div class="rename-error" id="newRecordError"></div>
   </div>
-  <div class="rename-row" style="margin-top:6px;">
-    <input type="text" class="rename-input" id="newRecordName" placeholder="New record name" maxlength="10" />
-    <button class="rename-btn" id="newRecordBtn">+ Add record</button>
-  </div>
-  <div class="rename-error" id="newRecordError"></div>
   <div class="field-row hidden" id="sizeSelectRow"><label>Screen size</label><select id="sizeSelect"></select></div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
   <div class="place-btn-row">
@@ -258,6 +263,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="section-label">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
+  </div>
 </aside>
 <main>
   <div id="fkeyLegend"></div>
@@ -265,9 +271,12 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
 </main>
 <div class="props-panel" id="propsPanel">
+  <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
+  <div class="panel-body" id="rightPanelBody">
   <h2 style="font-size:13px;">Properties</h2>
   <div id="propsBreadcrumb"></div>
   <div id="propsBody"><div class="empty-state">Select a field to edit it.</div></div>
+  </div>
 </div>
 
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
@@ -322,13 +331,15 @@ const htmlTemplate = `<!DOCTYPE html>
   const fileAttrsBtn = document.getElementById('fileAttrsBtn');
   const fileCommandKeysEl = document.getElementById('fileCommandKeys');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
+  const newRecordToggleBtn = document.getElementById('newRecordToggleBtn');
+  const newRecordForm = document.getElementById('newRecordForm');
   const newRecordName = document.getElementById('newRecordName');
   const newRecordBtn = document.getElementById('newRecordBtn');
   const newRecordError = document.getElementById('newRecordError');
   const newRecordType = document.getElementById('newRecordType');
-  const newRecordDepRow = document.getElementById('newRecordDepRow');
-  const newRecordDepLabel = document.getElementById('newRecordDepLabel');
-  const newRecordDepSelect = document.getElementById('newRecordDepSelect');
+  const newRecordSflctlRow = document.getElementById('newRecordSflctlRow');
+  const newRecordSflctlLabel = document.getElementById('newRecordSflctlLabel');
+  const newRecordSflctlName = document.getElementById('newRecordSflctlName');
   const newRecordWindowRow = document.getElementById('newRecordWindowRow');
   const newRecordWindowSelect = document.getElementById('newRecordWindowSelect');
   const newRecordSflmsgRow = document.getElementById('newRecordSflmsgRow');
@@ -336,6 +347,70 @@ const htmlTemplate = `<!DOCTYPE html>
   const newRecordSflmsg276 = document.getElementById('newRecordSflmsg276');
   const newRecordSflmsgKeyName = document.getElementById('newRecordSflmsgKeyName');
   const newRecordSflmsgQueueName = document.getElementById('newRecordSflmsgQueueName');
+
+  // Populate the Type picker with the real SDA record-type set (see
+  // WebviewClientHelpers.RECORD_TYPES) rather than hardcoding <option>
+  // markup in the HTML template above.
+  newRecordType.innerHTML = WebviewClientHelpers.RECORD_TYPES.map(
+    (t) => '<option value="' + t.value + '">' + t.label + '</option>'
+  ).join('');
+
+  // The Type picker + dependent-record controls (SFLCTL name / geometry)
+  // only make sense once someone has actually asked to add a record - see
+  // newRecordToggleBtn below. Collapsed by default so they don't crowd the
+  // panel for the common case of just switching which existing record is
+  // being edited.
+  let addRecordMode = false;
+  function setAddRecordMode(on) {
+    addRecordMode = on;
+    newRecordForm.classList.toggle('hidden', !on);
+    newRecordToggleBtn.classList.toggle('active', on);
+    newRecordToggleBtn.textContent = on ? '\u2212 Cancel' : '+ Add record';
+    if (!on) {
+      newRecordError.textContent = '';
+      newRecordName.value = '';
+      newRecordSflctlName.value = '';
+      newRecordSflmsgLine.value = '24';
+      newRecordSflmsg276.checked = false;
+      newRecordSflmsgKeyName.value = 'MSGKEY';
+      newRecordSflmsgQueueName.value = 'PGMQ';
+      newRecordType.value = 'RECORD';
+      rebuildNewRecordDepOptions();
+    }
+  }
+  newRecordToggleBtn.addEventListener('click', () => setAddRecordMode(!addRecordMode));
+
+  // Left/right side-panel hide controls - collapsing either one frees up
+  // horizontal space for the screen preview on wide-but-short layouts (a
+  // 27x132 *DS4 display is wider than either panel really needs to be
+  // permanently docked at). Session-only (not persisted across reopens);
+  // collapsing just shrinks the grid column to the toggle button's own
+  // width and hides everything else in that panel via .panel-body.
+  const leftPanelToggle = document.getElementById('leftPanelToggle');
+  const rightPanelToggle = document.getElementById('rightPanelToggle');
+  const asideEl = document.querySelector('aside');
+  const propsPanelEl = document.getElementById('propsPanel');
+  let leftPanelCollapsed = false;
+  let rightPanelCollapsed = false;
+  function applyPanelCollapse() {
+    asideEl.classList.toggle('panel-collapsed', leftPanelCollapsed);
+    propsPanelEl.classList.toggle('panel-collapsed', rightPanelCollapsed);
+    document.body.style.gridTemplateColumns =
+      (leftPanelCollapsed ? '28px' : '240px') + ' 1fr ' + (rightPanelCollapsed ? '28px' : '300px');
+    leftPanelToggle.textContent = leftPanelCollapsed ? '\u25B6' : '\u25C0 Hide panel';
+    leftPanelToggle.title = leftPanelCollapsed ? 'Show record/field panel' : 'Hide this panel';
+    rightPanelToggle.textContent = rightPanelCollapsed ? '\u25C0' : 'Hide panel \u25B6';
+    rightPanelToggle.title = rightPanelCollapsed ? 'Show properties panel' : 'Hide this panel';
+  }
+  leftPanelToggle.addEventListener('click', () => {
+    leftPanelCollapsed = !leftPanelCollapsed;
+    applyPanelCollapse();
+  });
+  rightPanelToggle.addEventListener('click', () => {
+    rightPanelCollapsed = !rightPanelCollapsed;
+    applyPanelCollapse();
+  });
+  applyPanelCollapse();
 
   fileAttrsBtn.addEventListener('click', () => {
     showFileProps = true;
@@ -352,115 +427,125 @@ const htmlTemplate = `<!DOCTYPE html>
   // must not already be used by another record in the file - checked here
   // client-side against the CURRENT model rather than relying on the parser
   // to reject a genuine duplicate R-line after the fact.
-  // Builds the type-defining keyword(s) (and, for SFLMSG, extra hidden
-  // fields) for the "+ Add record" wizard's chosen TYPE, matching real
-  // SDA's own record types and their actual DDS keyword combinations
-  // (verified against IBM's own DDS reference/examples):
-  //   SFLCTL           -> SFLCTL(sflname)
-  //   SFL              -> SFL, paired back to an existing SFLCTL record
-  //   SFLMSG           -> SFL + SFLMSGRCD(line), paired back to an existing
-  //                       SFLCTL record (same as SFL - a message subfile is
-  //                       still a subfile), PLUS two synthesized hidden
-  //                       fields: a message-key field (SFLMSGKEY) and a
-  //                       program-queue field (SFLPGMQ) - see IBM's own
-  //                       "Example: A message subfile using DDS".
+  // Builds the type-defining keyword(s) for the "+ Add record" wizard's
+  // chosen TYPE, matching real SDA's own record types (see
+  // WebviewClientHelpers.RECORD_TYPES) and their actual DDS keyword
+  // combinations (verified against IBM's own DDS reference/examples):
+  //   RECORD           -> no keyword
+  //   USRDFN           -> USRDFN (parameter left blank - which field
+  //                       carries the formatted data is set afterward via
+  //                       the Keywords tab, same as any other keyword
+  //                       parameter)
+  //   SFL/SFLMSG/
+  //   WDWSFL/PDNSFL     -> SFL on THIS record, plus an auto-created SFLCTL
+  //                       companion record (see isSflFamilyRecordType) -
+  //                       SFLCTL(this-record-name) always, plus
+  //                       WINDOW(...) too for WDWSFL or PULLDOWN too for
+  //                       PDNSFL (real SDA's own "Window subfile control"/
+  //                       "Pull-down subfile control" records put BOTH
+  //                       keywords on the control record - see e.g. IBM's
+  //                       own worked example: SFLCTL(SFL1) ...
+  //                       WINDOW(2 22 16 35)). SFLMSG additionally adds
+  //                       SFLMSGRCD(line) on the main record plus TWO
+  //                       synthesized hidden fields - a message-key field
+  //                       (SFLMSGKEY) and a program-queue field
+  //                       (SFLPGMQ) - see IBM's own "Example: A message
+  //                       subfile using DDS"; sflmsgOpts carries the line
+  //                       number/field names/276-byte choice gathered from
+  //                       newRecordSflmsgRow.
   //   WINDOW           -> WINDOW(geometry-or-inherited-record-name)
-  //   WDWSFL           -> SFLCTL(sflname) + WINDOW(...) BOTH on this one
-  //                       record (a windowed subfile's CONTROL record - the
-  //                       SFL detail record itself stays a plain SFL)
-  //   PDNSFL           -> SFLCTL(sflname) + PULLDOWN BOTH on this one record
-  //                       (a pull-down subfile's CONTROL record)
-  //   PULLDOWN         -> PULLDOWN (plain pull-down menu, no dependent)
+  //   PULDWN           -> PULLDOWN (plain pull-down menu, no dependent)
   //   MNUBAR           -> MNUBAR (menu bar, no dependent)
-  //   BASIC            -> no keyword
-  // Returns { error: string } if some requirement isn't satisfied yet
-  // (caller shows the error and doesn't commit); otherwise
-  // { keywords, pairBack, extraFields } - extraFields is always an array
-  // (empty except for SFLMSG), each { name, usage, keywords } ready to
-  // hand to DspfWriter.insertField once the new record itself exists.
-  function buildTypedRecordPlan(type, sflDepValue, windowDepValue, sflmsgOpts) {
+  // Returns null if a required dependent (the SFLCTL companion's name)
+  // isn't filled in yet - caller shows an error and doesn't commit.
+  // extraFields is always an array (empty except for SFLMSG), each
+  // { name, usage, keywords } ready to hand to DspfWriter.insertField once
+  // the new record itself exists.
+  function buildTypedRecordPlan(type, name, sflctlName, windowDepValue, sflmsgOpts) {
     const kw = (name, parameters) => ({ name: name, parameters: parameters, conditions: [], raw: '', sourceLines: [] });
-    if (type === 'SFLCTL') {
-      if (!sflDepValue) return { error: 'Select which subfile (SFL) record this control manages.' };
-      return { keywords: [kw('SFLCTL', sflDepValue)], pairBack: null, extraFields: [] };
-    }
-    if (type === 'SFL') {
-      if (!sflDepValue) return { error: 'Select which subfile control (SFLCTL) record this pairs with.' };
-      const pairBack = model.records.find((r) => r.name === sflDepValue) || null;
-      return { keywords: [kw('SFL', '')], pairBack: pairBack, extraFields: [] };
-    }
-    if (type === 'SFLMSG') {
-      if (!sflDepValue) return { error: 'Select which subfile control (SFLCTL) record this pairs with.' };
-      const pairBack = model.records.find((r) => r.name === sflDepValue) || null;
-      const lineNo = parseInt(sflmsgOpts.line, 10);
-      if (!lineNo || lineNo < 1 || lineNo > 27) return { error: 'Enter a line number from 1 to 27 for the first message.' };
-      const keyName = (sflmsgOpts.keyName || '').trim().toUpperCase();
-      const queueName = (sflmsgOpts.queueName || '').trim().toUpperCase();
-      if (!keyName || !WebviewClientHelpers.isValidDdsName(keyName)) return { error: 'Enter a valid name for the message key field.' };
-      if (!queueName || !WebviewClientHelpers.isValidDdsName(queueName)) return { error: 'Enter a valid name for the program queue field.' };
-      if (keyName === queueName) return { error: 'The message key and program queue fields need different names.' };
-      return {
-        keywords: [kw('SFL', ''), kw('SFLMSGRCD', String(lineNo))],
-        pairBack: pairBack,
-        extraFields: [
-          { name: keyName, usage: 'H', keywords: [kw('SFLMSGKEY', '')] },
-          // Bare SFLPGMQ defaults to a 10-byte field; an explicit 276
-          // generates the larger field some message-handling APIs expect.
-          { name: queueName, usage: 'H', keywords: [kw('SFLPGMQ', sflmsgOpts.use276 ? '276' : '')] },
-        ],
-      };
-    }
+    if (type === 'USRDFN') return { mainKeywords: [kw('USRDFN', '')], dependent: null, extraFields: [] };
     if (type === 'WINDOW') {
       // A dependent pick means "inherit geometry from" (WINDOW(record-name));
       // leaving it blank means "new geometry", landed at a sensible default
       // box the user can then drag/resize like any other window.
-      return { keywords: [kw('WINDOW', windowDepValue || '2 2 10 40')], pairBack: null, extraFields: [] };
+      return { mainKeywords: [kw('WINDOW', windowDepValue || '2 2 10 40')], dependent: null, extraFields: [] };
     }
-    if (type === 'WDWSFL') {
-      if (!sflDepValue) return { error: 'Select which subfile (SFL) record this window control manages.' };
-      return { keywords: [kw('SFLCTL', sflDepValue), kw('WINDOW', windowDepValue || '2 2 10 40')], pairBack: null, extraFields: [] };
+    if (type === 'PULDWN') return { mainKeywords: [kw('PULLDOWN', '')], dependent: null, extraFields: [] };
+    if (type === 'MNUBAR') return { mainKeywords: [kw('MNUBAR', '')], dependent: null, extraFields: [] };
+    if (WebviewClientHelpers.isSflFamilyRecordType(type)) {
+      if (!sflctlName) return null;
+      const dependentKeywords = [kw('SFLCTL', name)];
+      if (type === 'WDWSFL') dependentKeywords.push(kw('WINDOW', windowDepValue || '2 2 10 40'));
+      if (type === 'PDNSFL') dependentKeywords.push(kw('PULLDOWN', ''));
+      const mainKeywords = [kw('SFL', '')];
+      let extraFields = [];
+      if (type === 'SFLMSG' && sflmsgOpts) {
+        mainKeywords.push(kw('SFLMSGRCD', String(sflmsgOpts.line)));
+        extraFields = [
+          { name: sflmsgOpts.keyName, usage: 'H', keywords: [kw('SFLMSGKEY', '')] },
+          // Bare SFLPGMQ defaults to a 10-byte field; an explicit 276
+          // generates the larger field some message-handling APIs expect.
+          { name: sflmsgOpts.queueName, usage: 'H', keywords: [kw('SFLPGMQ', sflmsgOpts.use276 ? '276' : '')] },
+        ];
+      }
+      return { mainKeywords: mainKeywords, dependent: { name: sflctlName, keywords: dependentKeywords }, extraFields: extraFields };
     }
-    if (type === 'PDNSFL') {
-      if (!sflDepValue) return { error: 'Select which subfile (SFL) record this pull-down control manages.' };
-      return { keywords: [kw('SFLCTL', sflDepValue), kw('PULLDOWN', '')], pairBack: null, extraFields: [] };
-    }
-    if (type === 'PULLDOWN') return { keywords: [kw('PULLDOWN', '')], pairBack: null, extraFields: [] };
-    if (type === 'MNUBAR') return { keywords: [kw('MNUBAR', '')], pairBack: null, extraFields: [] };
-    return { keywords: [], pairBack: null, extraFields: [] }; // BASIC
+    return { mainKeywords: [], dependent: null, extraFields: [] }; // RECORD
+  }
+
+  // Wording for "you picked an SFL-family type but haven't named its
+  // auto-created SFLCTL companion yet" - the only still-required dependent
+  // now that SFL-family types generate their control record automatically
+  // instead of pairing to an existing one.
+  function missingDependentMessage(type) {
+    if (type === 'SFLMSG') return 'Enter a name for the message subfile\u2019s SFLCTL control record - iSDA creates it for you, same as SDA.';
+    return 'Enter a name for the subfile\u2019s SFLCTL control record - iSDA creates it for you, same as SDA.';
   }
 
   newRecordBtn.addEventListener('click', () => {
     const name = newRecordName.value.trim().toUpperCase();
     const type = newRecordType.value;
-    const sflDepValue = newRecordDepSelect.value;
+    const sflctlName = newRecordSflctlName.value.trim().toUpperCase();
     const windowDepValue = newRecordWindowSelect.value;
-    const sflmsgOpts = {
-      line: newRecordSflmsgLine.value,
-      keyName: newRecordSflmsgKeyName.value,
-      queueName: newRecordSflmsgQueueName.value,
-      use276: newRecordSflmsg276.checked,
-    };
     newRecordError.textContent = '';
     if (!name) { newRecordError.textContent = 'Enter a name for the new record format.'; return; }
     if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
     if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
 
-    const plan = buildTypedRecordPlan(type, sflDepValue, windowDepValue, sflmsgOpts);
-    if (plan.error) { newRecordError.textContent = plan.error; return; }
+    let sflmsgOpts = null;
+    if (type === 'SFLMSG') {
+      const lineNo = parseInt(newRecordSflmsgLine.value, 10);
+      if (!lineNo || lineNo < 1 || lineNo > 27) { newRecordError.textContent = 'Enter a line number from 1 to 27 for the first message.'; return; }
+      const keyName = newRecordSflmsgKeyName.value.trim().toUpperCase();
+      const queueName = newRecordSflmsgQueueName.value.trim().toUpperCase();
+      if (!keyName || !WebviewClientHelpers.isValidDdsName(keyName)) { newRecordError.textContent = 'Enter a valid name for the message key field.'; return; }
+      if (!queueName || !WebviewClientHelpers.isValidDdsName(queueName)) { newRecordError.textContent = 'Enter a valid name for the program queue field.'; return; }
+      if (keyName === queueName) { newRecordError.textContent = 'The message key and program queue fields need different names.'; return; }
+      sflmsgOpts = { line: lineNo, keyName: keyName, queueName: queueName, use276: newRecordSflmsg276.checked };
+    }
+
+    const plan = buildTypedRecordPlan(type, name, sflctlName, windowDepValue, sflmsgOpts);
+    if (!plan) { newRecordError.textContent = missingDependentMessage(type); return; }
+
+    if (plan.dependent) {
+      if (!WebviewClientHelpers.isValidDdsName(plan.dependent.name)) { newRecordError.textContent = 'The SFLCTL record name is not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
+      if (plan.dependent.name === name) { newRecordError.textContent = 'The SFLCTL record needs a different name than the subfile record itself.'; return; }
+      if (model.records.some((r) => r.name === plan.dependent.name)) { newRecordError.textContent = 'A record format named "' + plan.dependent.name + '" already exists in this file.'; return; }
+    }
 
     commitSourceChange(
       (lines) => {
-        // The record itself always inserts first (insertTypedRecord's own
-        // pairBack rewrite, if any, is safe against the ORIGINAL lines - see
-        // its own doc comment). Any extraFields (SFLMSG's two hidden fields)
-        // then insert ONE AT A TIME, reparsing in between each: the freshly
-        // created record doesn't exist in 'model' yet, and after the FIRST
-        // field lands, a stale (still-zero-fields) record reference would
-        // place the second field back at the same spot instead of after the
-        // first - reparsing prevents forming any assumption about a record
-        // this transform itself just created.
-        let newLines = DspfWriter.insertTypedRecord(model, lines, { name: name, keywords: plan.keywords }, plan.pairBack);
-        plan.extraFields.forEach((spec) => {
+        let newLines = plan.dependent
+          ? DspfWriter.insertTypedRecordWithDependent(model, lines, { name: name, keywords: plan.mainKeywords }, { name: plan.dependent.name, keywords: plan.dependent.keywords })
+          : DspfWriter.insertTypedRecord(model, lines, { name: name, keywords: plan.mainKeywords }, null);
+        // SFLMSG's two synthesized hidden fields (message key / program
+        // queue) insert ONE AT A TIME with a reparse between each: the
+        // freshly created record doesn't exist in 'model' yet, and after
+        // the FIRST field lands, a stale (still-zero-fields) record
+        // reference would place the second field back at the same spot
+        // instead of after the first - reparsing prevents forming any
+        // assumption about a record this transform itself just created.
+        (plan.extraFields || []).forEach((spec) => {
           const midModel = DspfParser.parseDspf(newLines.join('\\n'));
           const rec = midModel.records.find((r) => r.name === name);
           if (!rec) return;
@@ -475,11 +560,10 @@ const htmlTemplate = `<!DOCTYPE html>
         return newLines;
       },
       () => {
-        newRecordName.value = '';
-        newRecordType.value = 'BASIC';
         selectedKey = null;
         selectedHelpSourceLine = null;
         showFileProps = false;
+        setAddRecordMode(false); // collapses the wizard back down and clears its fields
       }
     );
     // Setting recordSelect.value to a name with no matching <option> yet is a
@@ -614,32 +698,27 @@ const htmlTemplate = `<!DOCTYPE html>
 
   /**
    * Syncs the "+ Add record" record-TYPE picker's dependent-record
-   * dropdown(s) to the currently-selected type and the LIVE model (see
-   * WebviewClientHelpers.recordTypeDependentInfo's own doc comment for what
-   * qualifies as a candidate per type/slot). Re-run on every type change and
-   * every render() - a record created via the raw Keywords tab could
-   * add/remove an SFL/SFLCTL/WINDOW keyword that changes which records
-   * qualify, same "always rebuild off the live model" spirit as
-   * rebuildRecordSelect.
+   * controls to the currently-selected type and the LIVE model: the
+   * SFLCTL-name text row for SFL-family types (WebviewClientHelpers.
+   * isSflFamilyRecordType), and the "inherit geometry from" dropdown for
+   * WINDOW/WDWSFL (see WebviewClientHelpers.recordTypeDependentInfo's own
+   * doc comment for what qualifies as a geometry candidate). Re-run on
+   * every type change and every render() - a record created via the raw
+   * Keywords tab could add/remove a WINDOW keyword that changes which
+   * records qualify as geometry candidates, same "always rebuild off the
+   * live model" spirit as rebuildRecordSelect.
    */
   function rebuildNewRecordDepOptions() {
-    const info = WebviewClientHelpers.recordTypeDependentInfo(newRecordType.value, model.records);
-    const sfl = info && info.sfl;
-    const win = info && info.window;
-
-    if (!sfl) {
-      newRecordDepRow.classList.add('hidden');
-      newRecordDepSelect.innerHTML = '';
-    } else {
-      newRecordDepRow.classList.remove('hidden');
-      newRecordDepLabel.textContent = sfl.label;
-      const prev = newRecordDepSelect.value;
-      let optionsHtml = sfl.candidates.map((n) => '<option value="' + n + '">' + n + '</option>').join('');
-      if (sfl.candidates.length === 0) optionsHtml = '<option value="">(none available yet)</option>';
-      newRecordDepSelect.innerHTML = optionsHtml;
-      if (sfl.candidates.some((n) => n === prev)) newRecordDepSelect.value = prev;
+    const type = newRecordType.value;
+    const isSflFamily = WebviewClientHelpers.isSflFamilyRecordType(type);
+    newRecordSflctlRow.classList.toggle('hidden', !isSflFamily);
+    if (isSflFamily) {
+      newRecordSflctlLabel.textContent = type === 'SFLMSG'
+        ? 'Message subfile control (SFLCTL) record name'
+        : 'Subfile control (SFLCTL) record name';
     }
 
+    const win = WebviewClientHelpers.recordTypeDependentInfo(type, model.records);
     if (!win) {
       newRecordWindowRow.classList.add('hidden');
       newRecordWindowSelect.innerHTML = '';
@@ -651,10 +730,11 @@ const htmlTemplate = `<!DOCTYPE html>
       if (win.candidates.some((n) => n === prevWin)) newRecordWindowSelect.value = prevWin;
     }
 
-    newRecordSflmsgRow.classList.toggle('hidden', newRecordType.value !== 'SFLMSG');
+    newRecordSflmsgRow.classList.toggle('hidden', type !== 'SFLMSG');
   }
 
   newRecordType.addEventListener('change', rebuildNewRecordDepOptions);
+  rebuildNewRecordDepOptions(); // initial sync for the default type (RECORD)
 
   /**
    * Shows/populates the screen-size picker only when the file actually
@@ -1798,6 +1878,8 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     }
 
+    wireHiddenFieldsSection(recordName, rec);
+
     propsBody.querySelectorAll('.help-entry-row').forEach((el) => {
       el.addEventListener('click', () => {
         selectedHelpSourceLine = parseInt(el.getAttribute('data-source-line'), 10);
@@ -1811,8 +1893,6 @@ const htmlTemplate = `<!DOCTYPE html>
     propsBody.querySelectorAll('.field-order-down').forEach((el) => {
       el.addEventListener('click', () => moveField(recordName, parseInt(el.getAttribute('data-idx'), 10), 1));
     });
-
-    wireHiddenFieldsSection(recordName, rec);
 
     if (!editable) return;
     if (hasWindow) {

@@ -695,7 +695,7 @@ function runRecordCrudScenario() {
 }
 
 function runRecordTypeWizardScenario() {
-  console.log('\n"+ Add record" record-TYPE wizard: Basic/SFL/SFLCTL/Window/WDWSFL/PDNSFL/PULLDOWN/MNUBAR');
+  console.log('\n"+ Add record" record-TYPE wizard: RECORD/USRDFN/SFL/SFLMSG/Window/WDWSFL/PDNSFL/PULDWN/MNUBAR');
   const src =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'DTL', func: 'SFL' }),
@@ -720,128 +720,171 @@ function runRecordTypeWizardScenario() {
   setTimeout(() => {
     const doc = dom.window.document;
     const Event = dom.window.Event;
+    const toggleBtn = doc.getElementById('newRecordToggleBtn');
+    const form = doc.getElementById('newRecordForm');
     const typeSelect = doc.getElementById('newRecordType');
-    const depRow = doc.getElementById('newRecordDepRow');
-    const depSelect = doc.getElementById('newRecordDepSelect');
+    const sflctlRow = doc.getElementById('newRecordSflctlRow');
+    const sflctlLabel = doc.getElementById('newRecordSflctlLabel');
+    const sflctlName = doc.getElementById('newRecordSflctlName');
     const windowRow = doc.getElementById('newRecordWindowRow');
     const windowSelect = doc.getElementById('newRecordWindowSelect');
     const nameInput = doc.getElementById('newRecordName');
     const addBtn = doc.getElementById('newRecordBtn');
     const errorEl = doc.getElementById('newRecordError');
 
-    console.log('  Basic screen (default): both dependent rows stay hidden, still creates a bare record');
-    check('defaults to Basic screen', typeSelect.value === 'BASIC');
-    check('SFL dependent row is hidden for Basic', depRow.classList.contains('hidden'));
-    check('window dependent row is hidden for Basic', windowRow.classList.contains('hidden'));
+    console.log('  the wizard (Type/dependent controls) stays hidden until "+ Add record" is selected');
+    check('form starts hidden', form.classList.contains('hidden'));
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking "+ Add record" reveals the form', !form.classList.contains('hidden'));
+    check('the toggle button is now marked active', toggleBtn.classList.contains('active'));
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking it again (Cancel) hides the form', form.classList.contains('hidden'));
+    check('the toggle button is no longer active', !toggleBtn.classList.contains('active'));
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true })); // leave it open for the rest of this scenario
+
+    console.log('  Type picker offers the real SDA record-type set, RECORD first (no SFLCTL - it is always auto-created)');
+    const typeValues = Array.from(typeSelect.options).map((o) => o.value);
+    check(
+      'exactly RECORD/USRDFN/SFL/SFLMSG/WINDOW/WDWSFL/PULDWN/PDNSFL/MNUBAR, in that order',
+      typeValues.join(',') === 'RECORD,USRDFN,SFL,SFLMSG,WINDOW,WDWSFL,PULDWN,PDNSFL,MNUBAR'
+    );
+
+    console.log('  RECORD (default): both dependent rows stay hidden, still creates a bare record');
+    check('defaults to RECORD', typeSelect.value === 'RECORD');
+    check('SFLCTL-name row is hidden for RECORD', sflctlRow.classList.contains('hidden'));
+    check('window dependent row is hidden for RECORD', windowRow.classList.contains('hidden'));
     nameInput.value = 'PLAIN';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     let last = posted[posted.length - 1];
     check('posts applyEdit with a bare new record', last && last.type === 'applyEdit' && /R\s+PLAIN\b/.test(last.text));
     check('no SFLCTL/WINDOW keyword was added for the plain record', (last.text.match(/\bSFLCTL\(/g) || []).length === 0 && (last.text.match(/\bWINDOW\(/g) || []).length === 1);
-    check('the wizard resets back to Basic after a successful add', typeSelect.value === 'BASIC');
+    check('the wizard collapses back down after a successful add', form.classList.contains('hidden'));
+    check('and the toggle button is no longer active', !toggleBtn.classList.contains('active'));
 
-    console.log('  Subfile control (SFLCTL): dependent dropdown offers only DTL (the existing SFL record)');
-    typeSelect.value = 'SFLCTL';
+    console.log('  User-defined (USRDFN): plain keyword, no dependent record at all');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    typeSelect.value = 'USRDFN';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('SFL dependent row is now shown', !depRow.classList.contains('hidden'));
-    check('window row stays hidden (SFLCTL alone has no geometry)', windowRow.classList.contains('hidden'));
-    check('label asks which SFL record it controls', /controls/i.test(document_labelText(doc)));
-    check('DTL is offered as a candidate', Array.from(depSelect.options).some((o) => o.value === 'DTL'));
-    depSelect.value = 'DTL';
-    nameInput.value = 'CTL1';
+    check('neither dependent row is shown', sflctlRow.classList.contains('hidden') && windowRow.classList.contains('hidden'));
+    nameInput.value = 'UDF1';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
-    check('posts applyEdit with SFLCTL(DTL) on the new CTL1 record', last && last.type === 'applyEdit' && /R\s+CTL1[\s\S]*?SFLCTL\(DTL\)/.test(last.text));
+    check('posts applyEdit with a plain USRDFN keyword on UDF1', last && last.type === 'applyEdit' && /R\s+UDF1[\s\S]*?USRDFN\b/.test(last.text));
 
-    console.log('  Subfile control (SFLCTL): refusing to add without picking which SFL record it controls');
-    typeSelect.value = 'SFLCTL';
-    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    depSelect.value = '';
-    nameInput.value = 'CTL2';
-    let postedBefore = posted.length;
-    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    check('shows an error naming the requirement', /which subfile/i.test(errorEl.textContent) || /which.*SFL/i.test(errorEl.textContent));
-    check('nothing new was posted', posted.length === postedBefore);
-
-    console.log('  Subfile (SFL): creating one pairs it back to an existing SFLCTL record (rewrites that record\'s SFLCTL parameter)');
+    console.log('  Subfile (SFL): auto-creates its paired SFLCTL companion and prompts for its name');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'SFL';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('label asks which control record this pairs with', /control/i.test(document_labelText(doc)));
-    check('CTL1 (the SFLCTL record just created) is offered as a candidate', Array.from(depSelect.options).some((o) => o.value === 'CTL1'));
-    depSelect.value = 'CTL1';
+    check('the SFLCTL-name row is shown', !sflctlRow.classList.contains('hidden'));
+    check('window row stays hidden (plain SFL has no geometry)', windowRow.classList.contains('hidden'));
+    check('label asks for the SFLCTL record name', /SFLCTL/i.test(sflctlLabel.textContent));
     nameInput.value = 'DTL2';
+    let postedBefore = posted.length;
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('refuses without a SFLCTL name', /SFLCTL/i.test(errorEl.textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+    sflctlName.value = 'CTL2';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
-    check('posts applyEdit with SFL on the new DTL2 record', last && last.type === 'applyEdit' && /R\s+DTL2[\s\S]*?SFL\b/.test(last.text));
-    check("CTL1's own SFLCTL parameter was rewritten to point at DTL2 (paired back)", /R\s+CTL1[\s\S]*?SFLCTL\(DTL2\)/.test(last.text));
+    check('posts applyEdit with a plain SFL keyword on DTL2', last && last.type === 'applyEdit' && /R\s+DTL2[\s\S]*?SFL\b/.test(last.text));
+    check('AND the auto-created CTL2 record carries SFLCTL(DTL2)', /R\s+CTL2[\s\S]*?SFLCTL\(DTL2\)/.test(last.text));
 
-    console.log('  Subfile message (SFLMSG): SFL + SFLMSGRCD(line) on the new record, pairs back to an existing SFLCTL, and synthesizes two hidden fields (SFLMSGKEY/SFLPGMQ)');
+    console.log('  Subfile: refusing to add when the SFLCTL name collides with an existing record, or matches the main name');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    typeSelect.value = 'SFL';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    nameInput.value = 'DTL3';
+    sflctlName.value = 'CTL2'; // already exists from the previous add
+    postedBefore = posted.length;
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows a duplicate-name error for the SFLCTL side', /already exists/i.test(errorEl.textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+    sflctlName.value = 'DTL3'; // same as the main record's own name
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows an error that the two names must differ', /different name/i.test(errorEl.textContent));
+    check('still nothing new was posted', posted.length === postedBefore);
+
+    console.log('  Message subfile (SFLMSG): same SFL/SFLCTL keyword pair as plain SFL, auto-created the same way');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    typeSelect.value = 'SFLMSG';
+    typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('label mentions message subfile', /message subfile/i.test(sflctlLabel.textContent));
+    nameInput.value = 'MDTL1';
+    sflctlName.value = 'MCTL1';
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with a plain SFL keyword on MDTL1', last && last.type === 'applyEdit' && /R\s+MDTL1[\s\S]*?SFL\b/.test(last.text));
+    check('AND the auto-created MCTL1 record carries SFLCTL(MDTL1)', /R\s+MCTL1[\s\S]*?SFLCTL\(MDTL1\)/.test(last.text));
+
+    console.log('  Message subfile (SFLMSG): SFLMSGRCD(line) on the new record plus two synthesized hidden fields (SFLMSGKEY/SFLPGMQ)');
+    const sflmsgRow = doc.getElementById('newRecordSflmsgRow');
     const sflmsgLine = doc.getElementById('newRecordSflmsgLine');
     const sflmsg276 = doc.getElementById('newRecordSflmsg276');
     const sflmsgKeyName = doc.getElementById('newRecordSflmsgKeyName');
     const sflmsgQueueName = doc.getElementById('newRecordSflmsgQueueName');
-    const sflmsgRow = doc.getElementById('newRecordSflmsgRow');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'SFLMSG';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('SFL dependent row is shown (same "which SFLCTL to pair with" as plain SFL)', !depRow.classList.contains('hidden'));
     check('the SFLMSG-specific inputs (line/key/queue) are shown', !sflmsgRow.classList.contains('hidden'));
-    check('CTL1 is offered as a candidate to pair with', Array.from(depSelect.options).some((o) => o.value === 'CTL1'));
-    depSelect.value = 'CTL1';
     sflmsgLine.value = '23';
     sflmsgKeyName.value = 'MSGKEY';
     sflmsgQueueName.value = 'PGMQ';
     nameInput.value = 'MSGSFL';
+    sflctlName.value = 'MSGCTL';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check('posts applyEdit with SFL + SFLMSGRCD(23) on the new MSGSFL record', last && last.type === 'applyEdit' && /R\s+MSGSFL[\s\S]*?SFL\b[\s\S]*?SFLMSGRCD\(23\)/.test(last.text));
-    check("CTL1's own SFLCTL parameter was rewritten to point at MSGSFL (paired back, same as plain SFL)", /R\s+CTL1[\s\S]*?SFLCTL\(MSGSFL\)/.test(last.text));
+    check('AND the auto-created MSGCTL record carries SFLCTL(MSGSFL)', /R\s+MSGCTL[\s\S]*?SFLCTL\(MSGSFL\)/.test(last.text));
     check('MSGKEY hidden field carries SFLMSGKEY', /MSGKEY[\s\S]{0,20}SFLMSGKEY/.test(last.text));
     check('PGMQ hidden field carries a bare SFLPGMQ (default 10-byte, no 276 requested)', /PGMQ[\s\S]{0,60}SFLPGMQ\b/.test(last.text) && !/SFLPGMQ\(276\)/.test(last.text));
 
-    console.log('  Subfile message (SFLMSG): "Use 276-byte queue field" writes SFLPGMQ(276) instead of a bare SFLPGMQ');
+    console.log('  Message subfile (SFLMSG): "Use 276-byte queue field" writes SFLPGMQ(276) instead of a bare SFLPGMQ');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'SFLMSG';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    depSelect.value = 'CTL1';
     sflmsgLine.value = '24';
     sflmsg276.checked = true;
     sflmsgKeyName.value = 'MKEY2';
     sflmsgQueueName.value = 'MQ2';
     nameInput.value = 'MSGSFL2';
+    sflctlName.value = 'MSGCTL2';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check('posts applyEdit with SFLPGMQ(276) on the 276-byte queue field', /MQ2[\s\S]{0,60}SFLPGMQ\(276\)/.test(last.text));
     sflmsg276.checked = false;
 
-    console.log('  Subfile message (SFLMSG): refuses an out-of-range line number (must be 1-27)');
+    console.log('  Message subfile (SFLMSG): refuses an out-of-range line number (must be 1-27)');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'SFLMSG';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    depSelect.value = 'CTL1';
     sflmsgLine.value = '99';
     nameInput.value = 'MSGSFLBAD';
+    sflctlName.value = 'MSGCTLBAD';
     postedBefore = posted.length;
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     check('shows an error about the line number range', /line number/i.test(errorEl.textContent));
     check('nothing new was posted', posted.length === postedBefore);
 
-    console.log('  Subfile message (SFLMSG): refuses when the key/queue field names collide');
+    console.log('  Message subfile (SFLMSG): refuses when the key/queue field names collide');
     typeSelect.value = 'SFLMSG';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    depSelect.value = 'CTL1';
     sflmsgLine.value = '24';
     sflmsgKeyName.value = 'SAME';
     sflmsgQueueName.value = 'SAME';
     nameInput.value = 'MSGSFLBAD2';
+    sflctlName.value = 'MSGCTLBAD2';
     postedBefore = posted.length;
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    check('shows an error about the field names needing to differ', /different names/i.test(errorEl.textContent));
+    check('shows an error about the key/queue field names needing to differ', /different names/i.test(errorEl.textContent));
     check('nothing new was posted', posted.length === postedBefore);
     sflmsgKeyName.value = 'MSGKEY';
     sflmsgQueueName.value = 'PGMQ';
 
     console.log('  Window: leaving the geometry pick blank creates new (default) geometry; picking a record inherits its geometry');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'WINDOW';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('SFL dependent row stays hidden (WINDOW alone has no subfile)', depRow.classList.contains('hidden'));
+    check('SFLCTL-name row stays hidden (WINDOW alone has no subfile)', sflctlRow.classList.contains('hidden'));
     check('window row is shown, offering "inherit geometry from" with BOX as a candidate', !windowRow.classList.contains('hidden') && Array.from(windowSelect.options).some((o) => o.value === 'BOX'));
     check('a blank "(new geometry)" option is offered too (not required)', Array.from(windowSelect.options).some((o) => o.value === ''));
     windowSelect.value = '';
@@ -850,6 +893,7 @@ function runRecordTypeWizardScenario() {
     last = posted[posted.length - 1];
     check('posts applyEdit with a default literal WINDOW geometry on WIN1', last && last.type === 'applyEdit' && /R\s+WIN1[\s\S]*?WINDOW\(2 2 10 40\)/.test(last.text));
 
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'WINDOW';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
     windowSelect.value = 'BOX';
@@ -858,52 +902,58 @@ function runRecordTypeWizardScenario() {
     last = posted[posted.length - 1];
     check('posts applyEdit with WIN2 inheriting geometry via WINDOW(BOX)', last && last.type === 'applyEdit' && /R\s+WIN2[\s\S]*?WINDOW\(BOX\)/.test(last.text));
 
-    console.log('  Window subfile control (WDWSFL): needs BOTH which-SFL and geometry - writes SFLCTL(...) AND WINDOW(...) on the same record');
+    console.log('  Window subfile (WDWSFL): auto-created SFLCTL companion carries BOTH SFLCTL(...) and WINDOW(...)');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'WDWSFL';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('both dependent rows are shown at once', !depRow.classList.contains('hidden') && !windowRow.classList.contains('hidden'));
-    check('DTL is offered in the SFL slot', Array.from(depSelect.options).some((o) => o.value === 'DTL'));
-    depSelect.value = 'DTL';
+    check('both dependent rows are shown at once', !sflctlRow.classList.contains('hidden') && !windowRow.classList.contains('hidden'));
     windowSelect.value = '';
-    nameInput.value = 'WCTL1';
+    nameInput.value = 'WDTL1';
+    sflctlName.value = 'WCTL1';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
-    check('posts applyEdit with SFLCTL(DTL) and a default WINDOW geometry both on WCTL1', last && last.type === 'applyEdit' && /R\s+WCTL1[\s\S]*?SFLCTL\(DTL\)[\s\S]*?WINDOW\(2 2 10 40\)/.test(last.text));
+    check('posts applyEdit with a plain SFL keyword on WDTL1', last && last.type === 'applyEdit' && /R\s+WDTL1[\s\S]*?SFL\b/.test(last.text));
+    check('AND the auto-created WCTL1 record carries SFLCTL(WDTL1) and a default WINDOW geometry', /R\s+WCTL1[\s\S]*?SFLCTL\(WDTL1\)[\s\S]*?WINDOW\(2 2 10 40\)/.test(last.text));
 
-    console.log('  Window subfile control (WDWSFL): refusing to add without picking which SFL record it manages');
+    console.log('  Window subfile (WDWSFL): refusing to add without naming the auto-created SFLCTL companion');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'WDWSFL';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    depSelect.value = '';
-    nameInput.value = 'WCTL2';
+    nameInput.value = 'WDTL2';
+    sflctlName.value = '';
     postedBefore = posted.length;
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    check('shows an error naming the requirement', /which subfile/i.test(errorEl.textContent));
+    check('shows an error naming the requirement', /SFLCTL/i.test(errorEl.textContent));
     check('nothing new was posted', posted.length === postedBefore);
 
-    console.log('  Pull-down subfile control (PDNSFL): writes SFLCTL(...) AND PULLDOWN on the same record, no geometry needed');
+    console.log('  Pull-down subfile (PDNSFL): auto-created SFLCTL companion carries BOTH SFLCTL(...) and PULLDOWN, no geometry needed');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'PDNSFL';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('SFL dependent row is shown', !depRow.classList.contains('hidden'));
+    check('SFLCTL-name row is shown', !sflctlRow.classList.contains('hidden'));
     check('window row stays hidden (a pull-down auto-sizes, no geometry to pick)', windowRow.classList.contains('hidden'));
-    depSelect.value = 'DTL';
-    nameInput.value = 'PCTL1';
+    nameInput.value = 'PDTL1';
+    sflctlName.value = 'PCTL1';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
-    check('posts applyEdit with SFLCTL(DTL) and PULLDOWN both on PCTL1', last && last.type === 'applyEdit' && /R\s+PCTL1[\s\S]*?SFLCTL\(DTL\)[\s\S]*?PULLDOWN\b/.test(last.text));
+    check('posts applyEdit with a plain SFL keyword on PDTL1', last && last.type === 'applyEdit' && /R\s+PDTL1[\s\S]*?SFL\b/.test(last.text));
+    check('AND the auto-created PCTL1 record carries SFLCTL(PDTL1) and PULLDOWN', /R\s+PCTL1[\s\S]*?SFLCTL\(PDTL1\)[\s\S]*?PULLDOWN\b/.test(last.text));
 
-    console.log('  Pull-down menu (PULLDOWN): plain keyword, no dependent record at all');
-    typeSelect.value = 'PULLDOWN';
+    console.log('  Pull-down menu (PULDWN): plain PULLDOWN keyword, no dependent record at all');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    typeSelect.value = 'PULDWN';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('neither dependent row is shown', depRow.classList.contains('hidden') && windowRow.classList.contains('hidden'));
+    check('neither dependent row is shown', sflctlRow.classList.contains('hidden') && windowRow.classList.contains('hidden'));
     nameInput.value = 'FPULDWN';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check('posts applyEdit with a plain PULLDOWN keyword on FPULDWN', last && last.type === 'applyEdit' && /R\s+FPULDWN[\s\S]*?PULLDOWN\b/.test(last.text));
 
     console.log('  Menu bar (MNUBAR): plain keyword, no dependent record at all');
+    toggleBtn.dispatchEvent(new Event('click', { bubbles: true }));
     typeSelect.value = 'MNUBAR';
     typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    check('neither dependent row is shown', depRow.classList.contains('hidden') && windowRow.classList.contains('hidden'));
+    check('neither dependent row is shown', sflctlRow.classList.contains('hidden') && windowRow.classList.contains('hidden'));
     nameInput.value = 'BAR1';
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
@@ -991,12 +1041,7 @@ function runHiddenFieldsScenario() {
   }, 0);
 }
 
-// Small helper: current text of the dependent-record dropdown's own label,
-// used only to assert the wizard swapped in the right per-type wording.
-function document_labelText(doc) {
-  const el = doc.getElementById('newRecordDepLabel');
-  return el ? el.textContent : '';
-}
+
 
 function runFieldPropertyHelpersScenario() {
   console.log('\nfield-panel property helpers: Center on screen, Fill constant, Colors & attributes, Validity/Edit/Error message');
@@ -1621,6 +1666,64 @@ function runFullOverlayCompareScenario() {
     check('the primary record is interactive again', !!doc.querySelector('.dspf-field'));
     doc.querySelector('.dspf-field').dispatchEvent(new Event('click', { bubbles: true }));
     check('clicking a field now selects it again (interactivity restored)', !!doc.querySelector('.dspf-field.selected'));
+
+    runPanelCollapseScenario();
+  }, 0);
+}
+
+// Left/right side-panel hide/minimize controls - lets the screen preview
+// reclaim horizontal space on wide-but-short layouts (a 27x132 *DS4
+// display) where the two docked panels would otherwise crowd it out.
+function runPanelCollapseScenario() {
+  console.log('\nleft/right side-panel hide controls: collapsing either panel frees up space for the screen preview');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R SCR1',
+      "     A                                  1  2'Screen one'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce15', src, 'PANELS.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const asideEl = doc.querySelector('aside');
+    const propsPanelEl = doc.getElementById('propsPanel');
+    const leftToggle = doc.getElementById('leftPanelToggle');
+    const rightToggle = doc.getElementById('rightPanelToggle');
+
+    console.log('  both panels start expanded');
+    check('left (aside) panel starts expanded', !asideEl.classList.contains('panel-collapsed'));
+    check('right (properties) panel starts expanded', !propsPanelEl.classList.contains('panel-collapsed'));
+    check('body reserves full width for both panels initially', /240px 1fr 300px/.test(doc.body.style.gridTemplateColumns));
+
+    console.log('  hiding the left panel collapses it and gives the preview the freed-up width');
+    leftToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    check('left panel is now collapsed', asideEl.classList.contains('panel-collapsed'));
+    check('right panel is untouched', !propsPanelEl.classList.contains('panel-collapsed'));
+    check('the grid column for the left panel shrank to the toggle-button width', /^28px 1fr 300px$/.test(doc.body.style.gridTemplateColumns));
+
+    console.log('  hiding the right panel too collapses both independently');
+    rightToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    check('right panel is now also collapsed', propsPanelEl.classList.contains('panel-collapsed'));
+    check('both grid columns shrank', /^28px 1fr 28px$/.test(doc.body.style.gridTemplateColumns));
+
+    console.log('  toggling either one again restores it independently of the other');
+    leftToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    check('left panel is expanded again', !asideEl.classList.contains('panel-collapsed'));
+    check('right panel stays collapsed', propsPanelEl.classList.contains('panel-collapsed'));
+    check('grid reflects left restored, right still collapsed', /^240px 1fr 28px$/.test(doc.body.style.gridTemplateColumns));
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
