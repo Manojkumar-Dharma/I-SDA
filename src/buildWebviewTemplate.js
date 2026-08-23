@@ -187,6 +187,17 @@ const htmlTemplate = `<!DOCTYPE html>
   .props-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
   .props-tab-panel { display: none; }
   .props-tab-panel.active { display: block; }
+  /* A second, visually-lighter tab strip (subtabsHtml/wireSubTabs) for nesting inside
+     one props-tab-panel - e.g. R1's 8 category panels living inside the record
+     Properties panel's own Keywords tab. Distinct classes/attributes (not
+     .props-tab/-panel) so wireTabs()'s querySelectorAll on the outer propsBody
+     root can't also pick up (and mis-wire) these inner buttons/panels. */
+  .props-subtabs { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 10px; }
+  .props-subtab { background: var(--panel-alt); border: 1px solid var(--panel-border); color: var(--ink-dim); font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 7px; cursor: pointer; border-radius: 3px; }
+  .props-subtab:hover { color: var(--ink); }
+  .props-subtab.active { color: var(--accent); border-color: var(--accent); }
+  .props-subtab-panel { display: none; }
+  .props-subtab-panel.active { display: block; }
   .props-accordion { border: 1px solid var(--panel-border); border-radius: 3px; margin-bottom: 10px; }
   .props-accordion > summary { cursor: pointer; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); list-style: none; }
   .props-accordion > summary::-webkit-details-marker { display: none; }
@@ -319,6 +330,7 @@ const htmlTemplate = `<!DOCTYPE html>
   let activeFieldTab = 'basic';
   let activeRecordTab = 'basic';
   let activeFileTab = 'general';
+  let activeRecordKwTab = 'general';
   const compareModeToggle = document.getElementById('compareModeToggle');
   const compareOverlayRow = document.getElementById('compareOverlayRow');
   const compareOverlayToggle = document.getElementById('compareOverlayToggle');
@@ -1423,6 +1435,33 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  /** Same idea as tabsHtml() but with its own .props-subtab / .props-subtab-panel
+   *  classes/attributes, so it can be nested INSIDE a single tabsHtml() panel
+   *  (e.g. R1's 8 category panels living inside the record Properties
+   *  panel's own Keywords tab) without wireTabs()'s querySelectorAll(root)
+   *  also catching and mis-wiring these inner buttons. */
+  function subtabsHtml(tabs, activeId) {
+    let html = '<div class="props-subtabs">';
+    tabs.forEach((t) => { html += '<button type="button" class="props-subtab' + (t.id === activeId ? ' active' : '') + '" data-subtab="' + t.id + '">' + t.label + '</button>'; });
+    html += '</div>';
+    tabs.forEach((t) => { html += '<div class="props-subtab-panel' + (t.id === activeId ? ' active' : '') + '" data-subtab-panel="' + t.id + '">' + t.content + '</div>'; });
+    return html;
+  }
+
+  /** Wires click handlers for a subtabsHtml()-produced strip. Scope 'root' to
+   *  just the subtabs' own container (not the whole propsBody) so an outer
+   *  wireTabs() call sharing the same propsBody never sees these buttons. */
+  function wireSubTabs(root, onSwitch) {
+    root.querySelectorAll('.props-subtab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-subtab');
+        root.querySelectorAll('.props-subtab').forEach((b) => b.classList.toggle('active', b === btn));
+        root.querySelectorAll('.props-subtab-panel').forEach((p) => p.classList.toggle('active', p.getAttribute('data-subtab-panel') === id));
+        if (onSwitch) onSwitch(id);
+      });
+    });
+  }
+
   /** A collapsible <details> section for dense content (raw keywords, conditioning). */
   function accordionHtml(label, bodyHtml, openByDefault) {
     return '<details class="props-accordion"' + (openByDefault ? ' open' : '') + '><summary>' + label + '</summary><div class="props-accordion-body">' + bodyHtml + '</div></details>';
@@ -1876,8 +1915,22 @@ const htmlTemplate = `<!DOCTYPE html>
         '<div class="rename-row"><input type="text" class="rename-input" id="p-window-title" value="' + DspfEngine.escapeHtml(DspfWriter.getWindowTitleText(rec.keywords)) + '" /><button class="rename-btn" id="p-window-title-save">Save</button></div></div>';
     }
 
-    // --- Keywords tab: raw keyword chip editor + conditioning, collapsed by default ---
-    let keywordsHtml = accordionHtml('Keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), true);
+    // --- Keywords tab: Task R1's SDA-style category subtabs on top (the
+    // "Select Record Keywords" picker), raw keyword chip editor + conditioning
+    // collapsed underneath for anything not covered here ---
+    const rkPrefix = 'rk-' + rec.name;
+    const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix);
+    let keywordsHtml = subtabsHtml([
+      { id: 'general', label: 'General', content: rkPanels.general },
+      { id: 'indicator', label: 'Indicator', content: rkPanels.indicatorKeywords },
+      { id: 'apphelp', label: 'App help', content: rkPanels.applicationHelp },
+      { id: 'help', label: 'Help', content: rkPanels.help },
+      { id: 'output', label: 'Output', content: rkPanels.output },
+      { id: 'input', label: 'Input', content: rkPanels.input },
+      { id: 'overlay', label: 'Overlay', content: rkPanels.overlay },
+      { id: 'print', label: 'Print', content: rkPanels.print },
+    ], activeRecordKwTab);
+    keywordsHtml += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
     keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record'), false);
 
     // --- Command keys tab ---
@@ -1908,6 +1961,7 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<button id="p-record-delete" class="secondary" style="width:100%;margin-top:8px;color:var(--warn);">Delete record</button>';
     propsBody.innerHTML = html;
     wireTabs(propsBody, (id) => { activeRecordTab = id; });
+    wireSubTabs(propsBody, (id) => { activeRecordKwTab = id; });
 
     document.getElementById('p-record-rename').addEventListener('click', () => commitRecordRename(recordName));
     document.getElementById('p-record-copy').addEventListener('click', () => { if (editable) commitCopyRecord(recordName); });
@@ -1942,6 +1996,7 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     }
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
   }

@@ -1085,6 +1085,68 @@
     return next;
   }
 
+  // ---------------------------------------------------------------------
+  // Task R1 - Base Record Keywords picker (General, Indicator, Application
+  // Help, Help, Output, Input, Overlay, Print - see docs/sda-reference/
+  // screens/record-level/base-record-keywords/ and PICKER-SCREENS-PLAN.md).
+  // The F1 primitives above (getFileFlagKeyword/setFileFlagKeyword,
+  // getFileQuotedText/setFileQuotedText, getFilePrtFileKeyword/
+  // setFilePrtFileKeyword) are already generic over any `keywords` array -
+  // not file-level-specific despite the name - so R1 reuses them as-is for
+  // most of its ~30 keywords (a record's PRINT/PRTFILE take the exact same
+  // shape as the file-level ones). Only two keyword shapes below are new:
+  // UNLOCK's *ERASE/*MDTOFF sub-flags (multiple option VALUES inside one
+  // keyword's parameter list, not separate keyword instances) and a small
+  // generic two-field pair for CSRLOC/RTNCSRLOC/HLPSEQ (space-separated
+  // "a b" parameters - same shape as PRTFILE's "name library" but reused
+  // generically rather than triplicating getFilePrtFileKeyword's body).
+  // ---------------------------------------------------------------------
+
+  /** UNLOCK - present/absent plus its two independent option VALUES
+   *  (*ERASE, *MDTOFF), both optional, space-separated within the one
+   *  keyword's own parameter list rather than separate keyword instances. */
+  function getUnlockKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'UNLOCK'; });
+    if (!k) return { present: false, erase: false, mdtoff: false };
+    var text = (k.parameters || '').toUpperCase();
+    return { present: true, erase: /\*ERASE\b/.test(text), mdtoff: /\*MDTOFF\b/.test(text) };
+  }
+
+  /** Returns a NEW keywords array with UNLOCK set from `present`/`erase`/
+   *  `mdtoff` - removed entirely when `present` is false. */
+  function setUnlockKeyword(keywords, present, erase, mdtoff) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'UNLOCK'; });
+    if (present) {
+      var vals = [];
+      if (erase) vals.push('*ERASE');
+      if (mdtoff) vals.push('*MDTOFF');
+      next = next.concat([{ name: 'UNLOCK', parameters: vals.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** Generic "keyword(a b)" reader - two whitespace-separated tokens, both
+   *  optional individually (CSRLOC's row/col, RTNCSRLOC's row-field/
+   *  col-field, HLPSEQ's help-group-name/sequence-number). */
+  function getFileTwoFieldKeyword(keywords, name) {
+    var k = (keywords || []).find(function (kw) { return kw.name === name; });
+    if (!k) return { a: '', b: '' };
+    var parts = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    return { a: parts[0] || '', b: parts[1] || '' };
+  }
+
+  /** Returns a NEW keywords array with `name` set to "a b" (or just "a" if
+   *  `b` is blank), removed entirely if both are blank. */
+  function setFileTwoFieldKeyword(keywords, name, a, b) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== name; });
+    a = (a || '').trim();
+    b = (b || '').trim();
+    if (a || b) {
+      next = next.concat([{ name: name, parameters: b ? a + ' ' + b : a, conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -1093,6 +1155,7 @@
    * as read-only to avoid silently breaking those cross-references.
    */
   /** Preserves each ORIGINAL line's own sequence-number/form prefix (cols 1-6) at its position
+
    *  within the regenerated lines, rather than blanket-applying the first line's prefix to every
    *  line - keeps diffs minimal when an edit doesn't change the line count. Lines beyond the
    *  original range (genuinely new lines the edit introduced) keep their default prefix. */
@@ -1977,6 +2040,10 @@
     setWdwBorder: setWdwBorder,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,
+    getUnlockKeyword: getUnlockKeyword,
+    setUnlockKeyword: setUnlockKeyword,
+    getFileTwoFieldKeyword: getFileTwoFieldKeyword,
+    setFileTwoFieldKeyword: setFileTwoFieldKeyword,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
     serializeDisplaySizes: serializeDisplaySizes,
   };

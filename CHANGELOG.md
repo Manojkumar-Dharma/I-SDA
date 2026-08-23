@@ -3,6 +3,60 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.48] - Unreleased
+
+### Added
+- **Base Record Keywords picker (SDA parity plan task R1 - see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, mapped against real
+  SDA's own record-level "Select/Define ___ Keywords" screens
+  (`docs/sda-reference/screens/record-level/base-record-keywords/`) - the
+  base RECORD screen distilled out of ~71 reference screenshots that also
+  covered SFL/SFLCTL/WINDOW/PULLDOWN/MNUBAR record-type variants (those
+  stay deferred to their own later wiring tasks, same as D1's deferrals):
+  - **General**: `INZRCD`/`KEEP`/`ASSUME`/`ALWROL`/`RETKEY`/`RETCMDKEY`
+    flags, `CHGINPDFT`/`MNUBARDSP`/`ENTFLDATR` (+free-text parameters),
+    `RTNCSRLOC` (row/column field names).
+  - **Indicator**: `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/
+    `VLDCMDKEY`/`SETOF`/`CHANGE` (each an indicator-parameter row) plus
+    `INDTXT` (indicator + text) - CA/CF stay on the existing Command keys
+    panel, same convention as F1's Indicator category.
+  - **Application help**: `HLPPNLGRP` (+parameters), `HLPEXCLD`,
+    `HLPBDY`, `HLPARA`.
+  - **Help**: `HLPCLR`, `HLPSEQ` (help group name + sequence number),
+    `HLPCMDKEY`, `HLPTITLE` (quoted text).
+  - **Output**: `BLINK`/`ALARM`/`MSGALARM`/`LOCK`/`LOGOUT`/`INVITE`/
+    `ALWGPH`/`FRCDTA` flags, `DSPMOD` (+display name), `CSRLOC`
+    (row/column field names), `SLNO`/`CLRL` (+parameters).
+  - **Input**: `LOGINP`, `UNLOCK` (+`*ERASE`/`*MDTOFF` sub-flags),
+    `GETRETAIN`, `RETLCKSTS` (+indicators), `CHECK(AB)`/`CHECK(RL)`,
+    `RTNDTA`.
+  - **Overlay**: `OVERLAY`/`PUTRETAIN`/`PROTECT`/`PUTOVR`/`OVRDTA`/
+    `OVRATR`/`INZINP`/`ERASE` flags, `MDTOFF` (+`*UNPR`/`*ALL`),
+    `ERASEINP` (+`*MDTON`/`*ALL`).
+  - **Print**: `PRINT` (+response indicator), `PRTFILE` (name + library) -
+    same shape as F1's file-level Print category, minus `OPENPRT` (file-
+    level only).
+  - New `dspfWriter.js` primitives: `getUnlockKeyword`/`setUnlockKeyword`
+    (UNLOCK's `*ERASE`/`*MDTOFF` option values, not separate keyword
+    instances) and `getFileTwoFieldKeyword`/`setFileTwoFieldKeyword` (the
+    generic "keyword(a b)" shape `CSRLOC`/`RTNCSRLOC`/`HLPSEQ` all share).
+    Everything else reuses F1's `getFileFlagKeyword`/`setFileFlagKeyword`/
+    `getFileQuotedText`/`getFilePrtFileKeyword` unchanged - those were
+    already generic over any keywords array, not file-level-specific.
+  - New `subtabsHtml`/`wireSubTabs` in `buildWebviewTemplate.js` - a
+    second tab-strip helper with its own CSS classes, so R1's 8 category
+    tabs can nest inside record props' existing Keywords tab without
+    colliding with the outer Basic/Keywords/Cmd keys/Structure/Hidden
+    tab strip's own `wireTabs()` wiring.
+  - Covered by new `src/test/recordKeywordsPicker.test.js`: the two new
+    primitives plus an end-to-end round-trip (one keyword per category)
+    through `applyRecordUpdate` + re-parse.
+  - Not included in this pass, same reasoning as F1/D1's deferrals:
+    multiple CONDITIONED instances of a keyword (e.g. two differently-
+    indicator-conditioned `CLEAR`s) - the picker manages one primary
+    instance per keyword; the Advanced/raw keywords accordion underneath
+    still reaches the rest.
+
 ## [0.9.47] - Unreleased
 
 ### Added

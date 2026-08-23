@@ -1151,6 +1151,269 @@
     if (mnucnlResp) mnucnlResp.addEventListener('change', commitMnucnl);
   }
 
+  // -----------------------------------------------------------------------
+  // Task R1 - Base Record Keywords picker (General, Indicator, Application
+  // Help, Help, Output, Input, Overlay, Print - see docs/sda-reference/
+  // screens/record-level/base-record-keywords/ and PICKER-SCREENS-PLAN.md).
+  // Reuses flagRowHtml/wireFlagRow and DspfWriter.getFileFlagKeyword/
+  // setFileFlagKeyword etc. from Task F1 above - those are generic over any
+  // `keywords` array, not file-level-specific, so a record's PRINT/PRTFILE/
+  // HLPTITLE take the exact same shape as the file-level ones. Only the ids
+  // differ (rk- prefix instead of fk-) so a record's panel and the file
+  // panel can coexist without id collisions if both are ever rendered at
+  // once (they're on different tabs, but ids are still page-global).
+  // -----------------------------------------------------------------------
+
+  /**
+   * Builds all 8 R1 category panels' inner HTML at once - { general,
+   * indicatorKeywords, applicationHelp, help, output, input, overlay,
+   * print }, keyed to match the subtabsHtml() ids the caller wires up.
+   * `idPrefix` (e.g. 'rk-RECORD1') keeps element ids unique per record
+   * when the props panel is rebuilt for a different record.
+   */
+  function recordKeywordsPanelsHtml(keywords, idPrefix) {
+    var kw = keywords || [];
+    var p = idPrefix;
+    var panels = {};
+
+    // --- General ---
+    var g = '';
+    g += flagRowHtml(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', DspfWriter.getFileFlagKeyword(kw, 'INZRCD').present);
+    g += flagRowHtml(p + '-keep', 'Keep record on display (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
+    g += flagRowHtml(p + '-assume', 'Assume record is on display (ASSUME)', DspfWriter.getFileFlagKeyword(kw, 'ASSUME').present);
+    g += flagRowHtml(p + '-alwrol', 'Allow rolling of lines (ALWROL)', DspfWriter.getFileFlagKeyword(kw, 'ALWROL').present);
+    g += flagRowHtml(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', DspfWriter.getFileFlagKeyword(kw, 'RETKEY').present);
+    g += flagRowHtml(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY').present);
+    var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
+    g += flagRowHtml(p + '-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)');
+    var mnubardsp = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP');
+    g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, mnubardsp.parameters, 'parameters (optional)');
+    var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
+    g += flagRowHtml(p + '-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL');
+    var rtncsrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'RTNCSRLOC');
+    g += '<div class="section-label">Return cursor location (RTNCSRLOC)</div>';
+    g += '<div class="two-col"><input type="text" id="' + p + '-rtncsrloc-row" placeholder="Row field name" value="' + escapeHtml(rtncsrloc.a) + '" />' +
+      '<input type="text" id="' + p + '-rtncsrloc-col" placeholder="Column field name" value="' + escapeHtml(rtncsrloc.b) + '" /></div>';
+    panels.general = g;
+
+    // --- Indicator / screen-control keywords ---
+    var ind = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords.</div>';
+    [
+      [p + '-clear', 'CLEAR', 'Clear', '10-99, or 01-99'],
+      [p + '-home', 'HOME', 'Home', '10-99'],
+      [p + '-pagedown', 'PAGEDOWN', 'Page down / Roll up', '10-99'],
+      [p + '-pageup', 'PAGEUP', 'Page up / Roll down', '10-99'],
+      [p + '-help', 'HELP', 'Help', '10-99'],
+      [p + '-hlprtn', 'HLPRTN', 'Help return', '10-99'],
+      [p + '-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99'],
+      [p + '-setof', 'SETOF', 'Set off', '10-99'],
+      [p + '-change', 'CHANGE', 'Change', '10-99'],
+    ].forEach(function (row) {
+      var state = DspfWriter.getFileFlagKeyword(kw, row[1]);
+      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')');
+    });
+    var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
+    var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
+    ind += '<div class="section-label">Indicator text (INDTXT)</div>';
+    ind += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="' + p + '-indtxt-on" ' + (indtxt.present ? 'checked' : '') + ' /> Enabled</label>';
+    ind += '<div class="two-col"><input type="text" id="' + p + '-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
+      '<input type="text" id="' + p + '-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
+    panels.indicatorKeywords = ind;
+
+    // --- Application help ---
+    var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
+    var ah = flagRowHtml(p + '-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name');
+    ah += flagRowHtml(p + '-hlpexcld', 'Help text excluded (HLPEXCLD)', DspfWriter.getFileFlagKeyword(kw, 'HLPEXCLD').present);
+    ah += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', DspfWriter.getFileFlagKeyword(kw, 'HLPBDY').present);
+    ah += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', DspfWriter.getFileFlagKeyword(kw, 'HLPARA').present);
+    panels.applicationHelp = ah;
+
+    // --- Help ---
+    var help = flagRowHtml(p + '-hlpclr', 'Clear previous help text records (HLPCLR)', DspfWriter.getFileFlagKeyword(kw, 'HLPCLR').present);
+    var hlpseq = DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ');
+    help += '<div class="section-label">Sequence of help text records (HLPSEQ)</div>';
+    help += '<div class="two-col"><input type="text" id="' + p + '-hlpseq-group" placeholder="Help group name" value="' + escapeHtml(hlpseq.a) + '" />' +
+      '<input type="text" id="' + p + '-hlpseq-num" placeholder="Sequence number 0-99" value="' + escapeHtml(hlpseq.b) + '" /></div>';
+    help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', DspfWriter.getFileFlagKeyword(kw, 'HLPCMDKEY').present);
+    help += '<div class="section-label">Define help title (HLPTITLE)</div>';
+    help += '<input type="text" id="' + p + '-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
+    panels.help = help;
+
+    // --- Output ---
+    var out = flagRowHtml(p + '-blink', 'Blink cursor (BLINK)', DspfWriter.getFileFlagKeyword(kw, 'BLINK').present);
+    out += flagRowHtml(p + '-alarm', 'Sound the alarm (ALARM)', DspfWriter.getFileFlagKeyword(kw, 'ALARM').present);
+    out += flagRowHtml(p + '-msgalarm', 'Sound alarm on messages (MSGALARM)', DspfWriter.getFileFlagKeyword(kw, 'MSGALARM').present);
+    out += flagRowHtml(p + '-lock', 'Do not unlock keyboard (LOCK)', DspfWriter.getFileFlagKeyword(kw, 'LOCK').present);
+    out += flagRowHtml(p + '-logout', 'Write record to job log (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
+    out += flagRowHtml(p + '-invite', 'Invite devices for later read (INVITE)', DspfWriter.getFileFlagKeyword(kw, 'INVITE').present);
+    out += flagRowHtml(p + '-alwgph', 'Allow graphics (ALWGPH)', DspfWriter.getFileFlagKeyword(kw, 'ALWGPH').present);
+    out += flagRowHtml(p + '-frcdta', 'Put data before buffer is full (FRCDTA)', DspfWriter.getFileFlagKeyword(kw, 'FRCDTA').present);
+    var dspmod = DspfWriter.getFileFlagKeyword(kw, 'DSPMOD');
+    out += flagRowHtml(p + '-dspmod', 'Use alternate display mode (DSPMOD)', dspmod.present, dspmod.parameters, 'display name, e.g. *DS3');
+    var csrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC');
+    out += '<div class="section-label">Hidden fields with cursor position for output (CSRLOC)</div>';
+    out += '<div class="two-col"><input type="text" id="' + p + '-csrloc-row" placeholder="Row field name" value="' + escapeHtml(csrloc.a) + '" />' +
+      '<input type="text" id="' + p + '-csrloc-col" placeholder="Column field name" value="' + escapeHtml(csrloc.b) + '" /></div>';
+    var slno = DspfWriter.getFileFlagKeyword(kw, 'SLNO');
+    out += flagRowHtml(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number');
+    var clrl = DspfWriter.getFileFlagKeyword(kw, 'CLRL');
+    out += flagRowHtml(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...');
+    panels.output = out;
+
+    // --- Input ---
+    var inp = flagRowHtml(p + '-loginp', 'Write record to job log (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
+    var unlock = DspfWriter.getUnlockKeyword(kw);
+    inp += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="' + p + '-unlock-on" ' + (unlock.present ? 'checked' : '') + ' /> Unlock keyboard after input operation (UNLOCK)</label>';
+    inp += '<div style="display:flex;gap:14px;margin-bottom:10px;">' +
+      '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-erase" ' + (unlock.erase ? 'checked' : '') + '/>Erase input capable fields (*ERASE)</label>' +
+      '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-mdtoff" ' + (unlock.mdtoff ? 'checked' : '') + '/>Reset all modified data tags (*MDTOFF)</label></div>';
+    inp += flagRowHtml(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN').present);
+    var retlcksts = DspfWriter.getFileFlagKeyword(kw, 'RETLCKSTS');
+    inp += flagRowHtml(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, retlcksts.parameters, 'indicators (optional)');
+    inp += flagRowHtml(p + '-check-ab', 'Allow blanks in input fields', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
+    inp += flagRowHtml(p + '-check-rl', 'Move cursor right to left', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    inp += flagRowHtml(p + '-rtndta', 'Return same input data on next read (RTNDTA)', DspfWriter.getFileFlagKeyword(kw, 'RTNDTA').present);
+    panels.input = inp;
+
+    // --- Overlay ---
+    var ov = flagRowHtml(p + '-overlay', 'Overlay without erasing (OVERLAY)', DspfWriter.getFileFlagKeyword(kw, 'OVERLAY').present);
+    ov += flagRowHtml(p + '-putretain', 'Retain data on re-display (PUTRETAIN)', DspfWriter.getFileFlagKeyword(kw, 'PUTRETAIN').present);
+    ov += flagRowHtml(p + '-protect', 'Protect all input fields (PROTECT)', DspfWriter.getFileFlagKeyword(kw, 'PROTECT').present);
+    ov += flagRowHtml(p + '-putovr', 'Activate OVRDTA and OVRATR (PUTOVR)', DspfWriter.getFileFlagKeyword(kw, 'PUTOVR').present);
+    ov += flagRowHtml(p + '-ovrdta', 'Override Data (OVRDTA)', DspfWriter.getFileFlagKeyword(kw, 'OVRDTA').present);
+    ov += flagRowHtml(p + '-ovratr', 'Override Attribute (OVRATR)', DspfWriter.getFileFlagKeyword(kw, 'OVRATR').present);
+    ov += flagRowHtml(p + '-inzinp', 'Initialize input fields (INZINP)', DspfWriter.getFileFlagKeyword(kw, 'INZINP').present);
+    var mdtoff = DspfWriter.getFileFlagKeyword(kw, 'MDTOFF');
+    ov += flagRowHtml(p + '-mdtoff', 'Reset all modified data tags (MDTOFF)', mdtoff.present, mdtoff.parameters, '*UNPR or *ALL (optional)');
+    var eraseinp = DspfWriter.getFileFlagKeyword(kw, 'ERASEINP');
+    ov += flagRowHtml(p + '-eraseinp', 'Erase all input fields (ERASEINP)', eraseinp.present, eraseinp.parameters, '*MDTON or *ALL (optional)');
+    ov += flagRowHtml(p + '-erase', 'Erase all records below (ERASE)', DspfWriter.getFileFlagKeyword(kw, 'ERASE').present);
+    panels.overlay = ov;
+
+    // --- Print ---
+    var print = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
+    var pr = flagRowHtml(p + '-print', 'Enable Print key (PRINT)', print.present, print.parameters, 'response indicator (if program handles it)');
+    var prtFile = DspfWriter.getFilePrtFileKeyword(kw);
+    pr += '<div class="section-label">System handles print (PRTFILE)</div>';
+    pr += '<div class="two-col"><input type="text" id="' + p + '-prtfile-name" placeholder="Print file" value="' + escapeHtml(prtFile.name) + '" />' +
+      '<input type="text" id="' + p + '-prtfile-library" placeholder="Library" value="' + escapeHtml(prtFile.library) + '" /></div>';
+    panels.print = pr;
+
+    return panels;
+  }
+
+  /** Wires every row across all 8 recordKeywordsPanelsHtml() panels.
+   *  `getKeywords`/`onChange` follow the same "current array, new array"
+   *  contract as wireFileKeywordsPanels. `idPrefix` must match what was
+   *  passed to recordKeywordsPanelsHtml(). */
+  function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange) {
+    var p = idPrefix;
+    function simple(id, name, hasParams) {
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '');
+      });
+    }
+    function wireTwoField(elIdA, elIdB, name) {
+      var elA = document.getElementById(elIdA);
+      var elB = document.getElementById(elIdB);
+      function commit() { onChange(DspfWriter.setFileTwoFieldKeyword(getKeywords(), name, elA.value, elB.value)); }
+      if (elA) elA.addEventListener('change', commit);
+      if (elB) elB.addEventListener('change', commit);
+    }
+
+    // General
+    simple(p + '-inzrcd', 'INZRCD');
+    simple(p + '-keep', 'KEEP');
+    simple(p + '-assume', 'ASSUME');
+    simple(p + '-alwrol', 'ALWROL');
+    simple(p + '-retkey', 'RETKEY');
+    simple(p + '-retcmdkey', 'RETCMDKEY');
+    simple(p + '-chginpdft', 'CHGINPDFT', true);
+    simple(p + '-mnubardsp', 'MNUBARDSP', true);
+    simple(p + '-entfldatr', 'ENTFLDATR', true);
+    wireTwoField(p + '-rtncsrloc-row', p + '-rtncsrloc-col', 'RTNCSRLOC');
+
+    // Indicator / screen-control
+    [p + '-clear:CLEAR', p + '-home:HOME', p + '-pagedown:PAGEDOWN', p + '-pageup:PAGEUP', p + '-help:HELP', p + '-hlprtn:HLPRTN', p + '-vldcmdkey:VLDCMDKEY', p + '-setof:SETOF', p + '-change:CHANGE'].forEach(function (pair) {
+      var idx = pair.lastIndexOf(':');
+      simple(pair.slice(0, idx), pair.slice(idx + 1), true);
+    });
+    var indtxtOn = document.getElementById(p + '-indtxt-on');
+    var indtxtInd = document.getElementById(p + '-indtxt-ind');
+    var indtxtText = document.getElementById(p + '-indtxt-text');
+    function commitIndtxt() {
+      var ind = (indtxtInd.value || '').trim();
+      var text = (indtxtText.value || '').trim();
+      var params = ind ? ind + (text ? " '" + text.replace(/'/g, "''") + "'" : '') : '';
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params));
+    }
+    if (indtxtOn) indtxtOn.addEventListener('change', commitIndtxt);
+    if (indtxtInd) indtxtInd.addEventListener('change', commitIndtxt);
+    if (indtxtText) indtxtText.addEventListener('change', commitIndtxt);
+
+    // Application help
+    simple(p + '-hlppnlgrp', 'HLPPNLGRP', true);
+    simple(p + '-hlpexcld', 'HLPEXCLD');
+    simple(p + '-hlpbdy', 'HLPBDY');
+    simple(p + '-hlpara', 'HLPARA');
+
+    // Help
+    simple(p + '-hlpclr', 'HLPCLR');
+    wireTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
+    simple(p + '-hlpcmdkey', 'HLPCMDKEY');
+    var hlptitle = document.getElementById(p + '-hlptitle');
+    if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
+
+    // Output
+    simple(p + '-blink', 'BLINK');
+    simple(p + '-alarm', 'ALARM');
+    simple(p + '-msgalarm', 'MSGALARM');
+    simple(p + '-lock', 'LOCK');
+    simple(p + '-logout', 'LOGOUT');
+    simple(p + '-invite', 'INVITE');
+    simple(p + '-alwgph', 'ALWGPH');
+    simple(p + '-frcdta', 'FRCDTA');
+    simple(p + '-dspmod', 'DSPMOD', true);
+    wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC');
+    simple(p + '-slno', 'SLNO', true);
+    simple(p + '-clrl', 'CLRL', true);
+
+    // Input
+    simple(p + '-loginp', 'LOGINP');
+    var unlockOn = document.getElementById(p + '-unlock-on');
+    var unlockErase = document.getElementById(p + '-unlock-erase');
+    var unlockMdtoff = document.getElementById(p + '-unlock-mdtoff');
+    function commitUnlock() { onChange(DspfWriter.setUnlockKeyword(getKeywords(), unlockOn.checked, unlockErase.checked, unlockMdtoff.checked)); }
+    if (unlockOn) unlockOn.addEventListener('change', commitUnlock);
+    if (unlockErase) unlockErase.addEventListener('change', commitUnlock);
+    if (unlockMdtoff) unlockMdtoff.addEventListener('change', commitUnlock);
+    simple(p + '-getretain', 'GETRETAIN');
+    simple(p + '-retlcksts', 'RETLCKSTS', true);
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+    simple(p + '-rtndta', 'RTNDTA');
+
+    // Overlay
+    simple(p + '-overlay', 'OVERLAY');
+    simple(p + '-putretain', 'PUTRETAIN');
+    simple(p + '-protect', 'PROTECT');
+    simple(p + '-putovr', 'PUTOVR');
+    simple(p + '-ovrdta', 'OVRDTA');
+    simple(p + '-ovratr', 'OVRATR');
+    simple(p + '-inzinp', 'INZINP');
+    simple(p + '-mdtoff', 'MDTOFF', true);
+    simple(p + '-eraseinp', 'ERASEINP', true);
+    simple(p + '-erase', 'ERASE');
+
+    // Print
+    simple(p + '-print', 'PRINT', true);
+    var prtName = document.getElementById(p + '-prtfile-name');
+    var prtLib = document.getElementById(p + '-prtfile-library');
+    function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
+    if (prtName) prtName.addEventListener('change', commitPrtFile);
+    if (prtLib) prtLib.addEventListener('change', commitPrtFile);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -1175,6 +1438,8 @@
     wireValidityAndEdit: wireValidityAndEdit,
     fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,
     wireFileKeywordsPanels: wireFileKeywordsPanels,
+    recordKeywordsPanelsHtml: recordKeywordsPanelsHtml,
+    wireRecordKeywordsPanels: wireRecordKeywordsPanels,
     keyingOptionsHtml: keyingOptionsHtml,
     wireKeyingOptionsEditor: wireKeyingOptionsEditor,
     inputKeywordsHtml: inputKeywordsHtml,
