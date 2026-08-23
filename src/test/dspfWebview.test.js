@@ -1226,6 +1226,99 @@ function runFieldPropertyHelpersScenario() {
     const msgidFields = DspfParser.parseDspf(msgidEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
     check('posts MSGID with the entered argument text', msgidFields.find((k) => k.name === 'MSGID') && msgidFields.find((k) => k.name === 'MSGID').parameters === 'USR &AMOUNT MSGF1 MYLIB');
 
+    runFieldKeywordVisibilityScenario();
+  }, 0);
+}
+
+function runFieldKeywordVisibilityScenario() {
+  console.log('\nD2: field-keyword panels are gated by Usage (and, for Validity check, data type) matching real SDA\'s "For Field Type" column');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', name: 'FLDBOTH', dataType: 'A', length: '10', usage: 'B', line: '5', col: '5' }),
+      buildLine({ seq: '00040', name: 'FLDIN', dataType: 'A', length: '10', usage: 'I', line: '6', col: '5' }),
+      buildLine({ seq: '00050', name: 'FLDOUT', dataType: 'A', length: '10', usage: 'O', line: '7', col: '5' }),
+      buildLine({ seq: '00060', name: 'FLDFLOAT', dataType: 'F', length: '8', decimals: '2', usage: 'B', line: '8', col: '5' }),
+      buildLine({ seq: '00070', name: 'FLDHID', dataType: 'A', length: '4', usage: 'H' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce13', src, 'D2VIS.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    function accordionLabels() {
+      return Array.from(doc.querySelectorAll('#propsBody .props-accordion > summary')).map((el) => el.textContent);
+    }
+    function selectFieldByName(name) {
+      const el = Array.from(doc.querySelectorAll('.dspf-field')).find((e) => e.getAttribute('data-field') === name);
+      if (el) { el.dispatchEvent(new Event('click', { bubbles: true })); return true; }
+      return false;
+    }
+
+    console.log('  Usage B (Both), non-float: every D1 category is offered');
+    check('FLDBOTH is selectable on the canvas', selectFieldByName('FLDBOTH'));
+    let labels = accordionLabels();
+    check('Keying options shown for B', labels.indexOf('Keying options') >= 0);
+    check('Input keywords shown for B', labels.indexOf('Input keywords') >= 0);
+    check('General keywords shown for B', labels.indexOf('General keywords') >= 0);
+    check('Database reference shown for B', labels.indexOf('Database reference') >= 0);
+    check('Message ID shown for B', labels.indexOf('Message ID') >= 0);
+    check('Color & attributes section is present (inline, not an accordion) for B', doc.getElementById('propsBody').innerHTML.indexOf('Color &amp; attributes') >= 0);
+    check('Validity check section is present (inline) for B', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') >= 0);
+
+    console.log('  Usage I (Input): Message ID (Output-only) is hidden, everything Input-side stays');
+    check('FLDIN is selectable', selectFieldByName('FLDIN'));
+    labels = accordionLabels();
+    check('Keying options still shown for I', labels.indexOf('Keying options') >= 0);
+    check('Input keywords still shown for I', labels.indexOf('Input keywords') >= 0);
+    check('Message ID is hidden for I', labels.indexOf('Message ID') === -1);
+    check('Validity check section is still present (inline) for I', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') >= 0);
+
+    console.log('  Usage O (Output): Keying options/Input keywords/Validity check (all Input-side) are hidden, Message ID stays');
+    check('FLDOUT is selectable', selectFieldByName('FLDOUT'));
+    labels = accordionLabels();
+    check('Keying options is hidden for O', labels.indexOf('Keying options') === -1);
+    check('Input keywords is hidden for O', labels.indexOf('Input keywords') === -1);
+    check('Message ID is shown for O', labels.indexOf('Message ID') >= 0);
+    check('Database reference is still shown for O', labels.indexOf('Database reference') >= 0);
+    check('Validity check section is hidden (inline) for O', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') === -1);
+    check('Edit code/word is still present for O (never usage-gated)', doc.getElementById('propsBody').innerHTML.indexOf('Edit code') >= 0);
+
+    console.log('  Float field (dataType F), Usage B: Validity check hidden even though B normally qualifies, everything else unaffected');
+    check('FLDFLOAT is selectable', selectFieldByName('FLDFLOAT'));
+    labels = accordionLabels();
+    check('Validity check section is hidden (inline) for a float field', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') === -1);
+    check('Edit code/word still present for a float field', doc.getElementById('propsBody').innerHTML.indexOf('Edit code') >= 0);
+    check('Input keywords still shown for a float field (only Validity check is float-restricted)', labels.indexOf('Input keywords') >= 0);
+
+    console.log('  Usage H (Hidden, via the Hidden fields tab): only Keying options / General keywords / Database reference apply');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    const hiddenTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.getAttribute('data-tab') === 'hidden');
+    check('setup: Hidden tab exists', !!hiddenTabBtn);
+    hiddenTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const hidRow = Array.from(doc.querySelectorAll('.field-order-row[data-source-line]')).find((el) => el.textContent.indexOf('FLDHID') !== -1);
+    check('FLDHID is listed in the Hidden tab', !!hidRow);
+    hidRow.dispatchEvent(new Event('click', { bubbles: true }));
+    labels = accordionLabels();
+    check('Keying options shown for H', labels.indexOf('Keying options') >= 0);
+    check('Input keywords hidden for H', labels.indexOf('Input keywords') === -1);
+    check('Message ID hidden for H', labels.indexOf('Message ID') === -1);
+    check('Database reference shown for H', labels.indexOf('Database reference') >= 0);
+    check('Color & attributes section is hidden (inline) for H', doc.getElementById('propsBody').innerHTML.indexOf('Color &amp; attributes') === -1);
+
     runClickToPlaceScenario();
   }, 0);
 }
@@ -1802,6 +1895,118 @@ function runPanelCollapseScenario() {
     check('left panel is expanded again', !asideEl.classList.contains('panel-collapsed'));
     check('right panel stays collapsed', propsPanelEl.classList.contains('panel-collapsed'));
     check('grid reflects left restored, right still collapsed', /^240px 1fr 28px$/.test(doc.body.style.gridTemplateColumns));
+
+    runSflMsgPickerScenario();
+  }, 0);
+}
+
+function runSflMsgPickerScenario() {
+  console.log('\nSFLMSG picker (Task R5): Message Record / General / Indicator tab, only on SFLMSGRCD-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SFLMESS', func: 'SFL' }),
+      buildLine({ seq: '00020', func: 'SFLMSGRCD(24)' }),
+      buildLine({ seq: '00030', name: 'MSGKEY', dataType: 'A', length: '10', usage: 'H' }),
+      buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
+      buildLine({ seq: '00050', name: 'PGMQ', dataType: 'A', length: '10', usage: 'H' }),
+      buildLine({ seq: '00060', func: 'SFLPGMQ(276)' }),
+      buildLine({ seq: '00070', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00080', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce16', src, 'SFLMSG.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no SFLMSGRCD) does not get the SFLMSG tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no SFLMSG tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFLMSG'));
+
+    console.log('  an SFLMSG record (carries SFLMSGRCD) gets the SFLMSG tab');
+    recordSelect.value = 'SFLMESS';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const sflMsgTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLMSG');
+    check('SFLMSG tab button rendered', !!sflMsgTabBtn);
+    sflMsgTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    console.log('  Message Record: line number pre-filled from SFLMSGRCD(24), and shows which fields carry SFLMSGKEY/SFLPGMQ');
+    const rcdInput = doc.getElementById('sm-sflmsgrcd');
+    check('SFLMSGRCD line pre-filled with 24', rcdInput && rcdInput.value === '24');
+    const statusDivs = Array.from(doc.querySelectorAll('#propsBody .status')).map((d) => d.textContent);
+    check('shows MSGKEY as the message ID field', statusDivs.some((t) => t.includes('MSGKEY')));
+    check('shows PGMQ (276-byte) as the program message queue field', statusDivs.some((t) => t.includes('PGMQ') && t.includes('276-byte')));
+
+    console.log('  Message Record: editing the line number commits SFLMSGRCD, other keywords untouched');
+    rcdInput.value = '15';
+    rcdInput.dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('SFLMSGRCD updated to 15', reparsed.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === '15');
+    check('SFL keyword still present, untouched', reparsed.keywords.some((k) => k.name === 'SFL'));
+    posted.length = 0;
+
+    console.log('  Message Record: a field name is accepted too (not just a 1-27 line number)');
+    rcdInput.value = 'LINEFLD';
+    rcdInput.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('SFLMSGRCD accepts a field name', reparsed.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === 'LINEFLD');
+    posted.length = 0;
+
+    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL)/CHGINPDFT all start unchecked, toggling one commits just that keyword');
+    check('SFLNXTCHG starts unchecked', !doc.getElementById('sm-sflnxtchg-on').checked);
+    const keepBox = doc.getElementById('sm-keep-on');
+    keepBox.checked = true;
+    keepBox.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
+    check('SFLNXTCHG was NOT added (independent toggle)', !reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
+    posted.length = 0;
+
+    console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
+    doc.getElementById('sm-check-ab-on').checked = true;
+    doc.getElementById('sm-check-ab-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('CHECK(AB) was added', reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB'));
+    check('CHECK(RL) was not', !reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
+    posted.length = 0;
+
+    console.log('  Indicator: INDTXT (indicator+text) and SETOF (space-separated indicator list) commit independently');
+    doc.getElementById('sm-indtxt-on').checked = true;
+    doc.getElementById('sm-indtxt-ind').value = '50';
+    doc.getElementById('sm-indtxt-text').value = "Amount valid";
+    doc.getElementById('sm-indtxt-text').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    const indtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
+    check('INDTXT written with indicator 50 and quoted text', indtxtKw && /^50\s+'Amount valid'/.test(indtxtKw.parameters.trim()));
+    posted.length = 0;
+
+    doc.getElementById('sm-setof-on').checked = true;
+    doc.getElementById('sm-setof-params').value = '30 31 32';
+    doc.getElementById('sm-setof-params').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('SETOF written with the space-separated indicator list', reparsed.keywords.find((k) => k.name === 'SETOF').parameters.trim() === '30 31 32');
+    check('INDTXT from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'INDTXT'));
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);

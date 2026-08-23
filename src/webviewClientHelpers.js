@@ -617,6 +617,66 @@
   // built on the getX/setX pairs above the same way the panels above are.
   // -----------------------------------------------------------------------
 
+  // -----------------------------------------------------------------------
+  // D2 - Character field wiring: real SDA's own "Select Field Keywords"
+  // screen (docs/sda-reference/screens/field-level/character/_menu/image161.png)
+  // shows a "For Field Type" column next to each category, meaning D1's
+  // panels aren't ALL applicable to every field regardless of Usage - e.g.
+  // Keying options only makes sense for Hidden/Input/Both, Message ID only
+  // for Output/Both. fieldKeywordCategoryVisibility() is the pure,
+  // DOM-free gate deciding which panels the caller should even render for
+  // the field's CURRENT (last-committed) usage/data type, matching that
+  // screenshot's table exactly:
+  //   Display attributes / Colors - All except Hidden
+  //   Keying options             - Hidden, Input, or Both
+  //   Validity check             - Input or Both, not float
+  //   Input keywords             - Input or Both
+  //   General keywords           - All types (always)
+  //   Database reference         - Hidden, Input, Output, or Both
+  //   Error messages             - Input, Output, or Both
+  //   Message ID                 - Output or Both
+  // Deliberately gates only VISIBILITY, never deletes a keyword a field
+  // already carries just because its Usage changed - an already-set
+  // keyword from a now-inapplicable category stays intact and editable via
+  // the raw Keywords tab, which is never gated. M/P (Message text/Program-
+  // to-system) usages and any blank/unrecognized usage fail OPEN (treated
+  // as "show everything") since SDA's own table never covers them and
+  // hiding a category the user might still need is worse than an extra one
+  // they can ignore. Error messages is tied to Validity check's own gate
+  // here (both live in the same combined validityAndEditHtml panel) rather
+  // than getting its own Input-or-Both-plus-Output rule split out - an
+  // error message without an associated validity check to fail has nothing
+  // to report, so this is a deliberate scoping choice, not an oversight.
+  // -----------------------------------------------------------------------
+  function fieldKeywordCategoryVisibility(usage, dataType) {
+    var u = usage || '';
+    var isKnownUsage = u === 'H' || u === 'I' || u === 'O' || u === 'B';
+    if (!isKnownUsage) {
+      // Blank (unset) or an unrecognized usage (M/P) - SDA's own table never
+      // covers these, so show every category rather than guessing wrong.
+      return {
+        colorAndAttributes: true,
+        keyingOptions: true,
+        validityAndErrorMessage: dataType !== 'F',
+        inputKeywords: true,
+        generalKeywords: true,
+        databaseReference: true,
+        messageId: true,
+      };
+    }
+    var isIOB = u === 'I' || u === 'B'; // Input or Both
+    return {
+      colorAndAttributes: u !== 'H',
+      keyingOptions: u === 'H' || isIOB,
+      validityAndErrorMessage: isIOB && dataType !== 'F',
+      inputKeywords: isIOB,
+      generalKeywords: true,
+      databaseReference: true, // H/I/O/B are exactly SDA's own "Hidden, Input, Output, Both" list
+      messageId: u === 'O' || u === 'B',
+    };
+  }
+
+
   var KEYING_OPTION_CODES = [
     { code: 'ME', label: 'Mandatory entry' },
     { code: 'ER', label: 'Automatic record advance' },
@@ -1302,6 +1362,102 @@
     return panels;
   }
 
+  // ---------------------------------------------------------------------
+  // Task R5 - SFLMSG-specific picker (Message Record, General, Indicator).
+  // Standalone per PICKER-SCREENS-PLAN.md: SFLMSG doesn't use the base
+  // Record Keywords set (R1, built above) directly - it has its own
+  // narrower screen set. Every keyword here has the same simple "present,
+  // optionally with free-text parameters" shape DspfWriter.getFileFlagKeyword/
+  // setFileFlagKeyword already handle generically (they operate on any
+  // keywords[] array, not just a file's - "file" in the name is a holdover
+  // from where they were first introduced), so no new dspfWriter.js
+  // functions were needed for this task - reusing flagRowHtml/wireFlagRow
+  // and the same INDTXT single-instance encoding the file-level Indicator
+  // panel already uses.
+  //
+  // Two controls from the real "Define Message Record" screen are
+  // deliberately NOT wired here: "Display size conditioning" (SFLMSGRCD's
+  // parameter already accepts a plain field name as an alternative to a
+  // 1-27 line number, which the single sm-sflmsgrcd text box already
+  // covers - DDS doesn't document a SEPARATE conditioning slot beyond
+  // that) and "Roll keyword" (its real DDS argument shape wasn't
+  // confidently verified against IBM's own reference). Real SDA's
+  // "Define Indicator Keywords" screen's CHANGE keyword is left out for
+  // the same reason - only INDTXT and SETOF's shapes were confirmed.
+  // Both gaps route through the raw Keywords editor accordion that sits
+  // alongside this panel, same fallback every other uncertain-shape
+  // keyword in this codebase uses.
+  // ---------------------------------------------------------------------
+
+  /** Whether `rec` is a message-subfile (SFLMSG) record - defined by
+   *  carrying an SFLMSGRCD keyword, the one keyword unique to this record
+   *  type (see buildTypedRecordPlan in buildWebviewTemplate.js, which
+   *  writes it for every SFLMSG record the "+ Add record" wizard creates).
+   *  Drives whether renderRecordProps shows the SFLMSG tab at all. */
+  function isSflMsgRecord(rec) {
+    return (rec.keywords || []).some(function (k) { return k.name === 'SFLMSGRCD'; });
+  }
+
+  /**
+   * Builds the 3 SFLMSG sub-panels' inner HTML at once - { messageRecord,
+   * general, indicator } - for the record properties panel's SFLMSG tab
+   * (see isSflMsgRecord above for when that tab appears). Takes the whole
+   * `rec` (not just rec.keywords) because the Message Record panel's
+   * Message ID/Program message queue rows are read-only lookups of WHICH
+   * FIELD carries the SFLMSGKEY/SFLPGMQ keyword (those are field-level
+   * keywords the "+ Add record" wizard already writes onto two
+   * synthesized hidden fields at creation time - see buildTypedRecordPlan)
+   * rather than record-level state of their own; renaming/reassigning
+   * them happens via the Hidden fields tab, not duplicated here.
+   */
+  function sflMsgPanelsHtml(rec) {
+    var kw = rec.keywords || [];
+    var panels = {};
+
+    // --- Message Record ---
+    var rcd = DspfWriter.getFileFlagKeyword(kw, 'SFLMSGRCD');
+    var mr = '<div class="section-label">Line for first message, or a field name (SFLMSGRCD)</div>';
+    mr += '<input type="text" id="sm-sflmsgrcd" placeholder="1-27, or a field name" value="' + escapeHtml(rcd.parameters) + '" style="width:100%;" />';
+    mr += '<div class="hint-small">Real SDA also offers a "Roll keyword" here - its DDS argument shape wasn\u2019t confidently verified, so use the raw Keywords editor below if you need it.</div>';
+
+    var keyField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLMSGKEY'; }); });
+    var queueField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLPGMQ'; }); });
+    var queueKw = queueField && queueField.keywords.find(function (k) { return k.name === 'SFLPGMQ'; });
+    mr += '<div class="section-label">Message ID field (SFLMSGKEY)</div>';
+    mr += '<div class="status">' + (keyField ? escapeHtml(keyField.name) : '(none yet - add via the Hidden tab)') + '</div>';
+    mr += '<div class="section-label">Program message queue field (SFLPGMQ)</div>';
+    mr += '<div class="status">' + (queueField ? escapeHtml(queueField.name) + ((queueKw && (queueKw.parameters || '').trim() === '276') ? ' (276-byte)' : '') : '(none yet - add via the Hidden tab)') + '</div>';
+    mr += '<div class="hint-small">Rename or edit either field via the Hidden fields tab.</div>';
+    panels.messageRecord = mr;
+
+    // --- General ---
+    var g = '';
+    g += flagRowHtml('sm-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG').present);
+    g += flagRowHtml('sm-logout', 'Write this record to the job log on output (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
+    g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
+    g += flagRowHtml('sm-keep', 'Keep records on display when closing the file (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
+    g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
+    g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
+    g += flagRowHtml('sm-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)');
+    panels.general = g;
+
+    // --- Indicator ---
+    var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
+    var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
+    var ind = '<div class="section-label">Indicator text (INDTXT)</div>';
+    ind += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="sm-indtxt-on" ' + (indtxt.present ? 'checked' : '') + ' /> Enabled</label>';
+    ind += '<div class="two-col"><input type="text" id="sm-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
+      '<input type="text" id="sm-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
+    var setof = DspfWriter.getFileFlagKeyword(kw, 'SETOF');
+    ind += '<div class="section-label">Set off indicators when record is written (SETOF)</div>';
+    ind += flagRowHtml('sm-setof', 'Enabled', setof.present, setof.parameters, 'space-separated indicators, e.g. 30 31 32');
+    ind += '<div class="hint-small">Real SDA\u2019s Indicator screen also lists CHANGE here - its record-level DDS argument shape wasn\u2019t confidently verified, so use the raw Keywords editor below if you need it.</div>';
+    panels.indicator = ind;
+
+    return panels;
+  }
+
   /** Wires every row across all 8 recordKeywordsPanelsHtml() panels.
    *  `getKeywords`/`onChange` follow the same "current array, new array"
    *  contract as wireFileKeywordsPanels. `idPrefix` must match what was
@@ -1414,6 +1570,49 @@
     if (prtLib) prtLib.addEventListener('change', commitPrtFile);
   }
 
+  /** Wires every row across all 3 sflMsgPanelsHtml() panels - same
+   *  "getKeywords is a function so a commit from one row sees any change
+   *  a previous commit in the same render already made" contract as
+   *  wireFileKeywordsPanels above. */
+  function wireSflMsgPanels(getKeywords, onChange) {
+    function simple(id, name, placeholderIsParams) {
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '');
+      });
+    }
+
+    var rcd = document.getElementById('sm-sflmsgrcd');
+    if (rcd) {
+      rcd.addEventListener('change', function () {
+        var v = (rcd.value || '').trim();
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLMSGRCD', !!v, v));
+      });
+    }
+
+    simple('sm-sflnxtchg', 'SFLNXTCHG');
+    simple('sm-logout', 'LOGOUT');
+    simple('sm-loginp', 'LOGINP');
+    simple('sm-keep', 'KEEP');
+    wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
+    wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+    simple('sm-chginpdft', 'CHGINPDFT', true);
+
+    var indtxtOn = document.getElementById('sm-indtxt-on');
+    var indtxtInd = document.getElementById('sm-indtxt-ind');
+    var indtxtText = document.getElementById('sm-indtxt-text');
+    function commitIndtxt() {
+      var indv = (indtxtInd.value || '').trim();
+      var text = (indtxtText.value || '').trim();
+      var params = indv ? indv + (text ? " '" + text.replace(/'/g, "''") + "'" : '') : '';
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params));
+    }
+    if (indtxtOn) indtxtOn.addEventListener('change', commitIndtxt);
+    if (indtxtInd) indtxtInd.addEventListener('change', commitIndtxt);
+    if (indtxtText) indtxtText.addEventListener('change', commitIndtxt);
+
+    simple('sm-setof', 'SETOF', true);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -1441,6 +1640,7 @@
     recordKeywordsPanelsHtml: recordKeywordsPanelsHtml,
     wireRecordKeywordsPanels: wireRecordKeywordsPanels,
     keyingOptionsHtml: keyingOptionsHtml,
+    fieldKeywordCategoryVisibility: fieldKeywordCategoryVisibility,
     wireKeyingOptionsEditor: wireKeyingOptionsEditor,
     inputKeywordsHtml: inputKeywordsHtml,
     wireInputKeywordsEditor: wireInputKeywordsEditor,
@@ -1450,5 +1650,8 @@
     wireReferenceOverridesEditor: wireReferenceOverridesEditor,
     messageIdHtml: messageIdHtml,
     wireMessageIdEditor: wireMessageIdEditor,
+    isSflMsgRecord: isSflMsgRecord,
+    sflMsgPanelsHtml: sflMsgPanelsHtml,
+    wireSflMsgPanels: wireSflMsgPanels,
   };
 });

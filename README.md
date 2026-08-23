@@ -146,6 +146,22 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   under indicator 20 on the same field, or several `ERRMSG`/`ERRMSGID`
   entries tried in order. Not modeled here; would need its own follow-up
   since it affects several keywords at once, not just one panel.
+- As of v0.9.48, D1's field-keyword panels are gated by the field's
+  current Usage (and, for Validity check, data type) to match real SDA's
+  own "For Field Type" column (task D2 in
+  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md);
+  see `WebviewClientHelpers.fieldKeywordCategoryVisibility()`'s own doc
+  comment for the exact rule table). This only hides panels for a field's
+  CURRENT usage - it never deletes a keyword the field already carries
+  just because Usage changed, and an already-set keyword from a now-
+  hidden category stays intact and editable via the raw Keywords tab,
+  which is never gated. Two scoping choices worth knowing: Error message
+  is tied to Validity check's own gate (both live in one combined panel)
+  rather than getting SDA's separately-listed Input/Output/Both rule,
+  since an error message without an associated validity check has
+  nothing to report; and M/P (Message text/Program-to-system) usages,
+  which SDA's own table never covers, fail open (show every category)
+  rather than guessing.
 
 ### Menu designer
 
@@ -228,7 +244,7 @@ picked up after the current round of fixes.
   | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 | - |
   | Record | Combination types (`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | R6, R8, R9, R11, R12 | wiring-only, depend on the rows above |
   | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
-  | Field | Character wiring | D2 | - |
+  | Field | Character wiring | D2 ✅ | - |
   | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 | - |
   | Field | Constant (subset + Menu-Bar Keywords) | D4 | - |
   | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 | - |

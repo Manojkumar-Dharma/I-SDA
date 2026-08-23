@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.48] - Unreleased
+## [0.9.49] - Unreleased
 
 ### Added
 - **Base Record Keywords picker (SDA parity plan task R1 - see
@@ -56,10 +56,69 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     indicator-conditioned `CLEAR`s) - the picker manages one primary
     instance per keyword; the Advanced/raw keywords accordion underneath
     still reaches the rest.
+- **Task D2 - Character field wiring (Usage B/I/O)**: D1's "Select Field
+  Keywords" panels (Keying options, Validity check, Input keywords,
+  Database reference, Message ID, Color & attributes) are now gated by
+  the field's current Usage - and, for Validity check, its data type -
+  matching real SDA's own "For Field Type" column exactly
+  (`docs/sda-reference/screens/field-level/character/_menu/image161.png`):
+  - Display attributes / Colors - all except Hidden
+  - Keying options - Hidden, Input, or Both
+  - Validity check - Input or Both, not float (`dataType === 'F'`)
+  - Input keywords - Input or Both
+  - General keywords - all types (always shown)
+  - Database reference - Hidden, Input, Output, or Both
+  - Message ID - Output or Both
+  - `WebviewClientHelpers.fieldKeywordCategoryVisibility(usage, dataType)`
+    is the new pure, DOM-free gate driving this - unrecognized/blank
+    usage (M/P, or unset) fails OPEN rather than guessing, since SDA's
+    own table never covers those. Gates VISIBILITY only - never deletes
+    a keyword a field already carries just because its Usage changed;
+    it stays editable via the raw Keywords tab, which is never gated.
+  - Error message is deliberately tied to Validity check's own gate
+    (both live in one combined panel) rather than SDA's separately-
+    listed Input/Output/Both rule, since an error message without an
+    associated validity check has nothing to report.
+  - 39 new `fieldKeywordVisibility.test.js` checks (new dedicated test
+    file, pure Node, no jsdom) plus 33 new `dspfWebview.test.js` checks
+    driving the actual gated panels end-to-end across Both/Input/Output/
+    float/Hidden fields.
+- Fixed a stale-status bug found while wiring this up: D2's own row in
+  `PICKER-SCREENS-PLAN.md` now reflects completion; README's task table
+  synced to match.
 
 ## [0.9.47] - Unreleased
 
 ### Added
+- **SFLMSG (message subfile) record-level picker (SDA parity plan task
+  R5 - see `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, a new "SFLMSG"
+  tab on the record properties panel shown only for records carrying
+  `SFLMSGRCD` (standalone per the plan - `SFLMSG` doesn't use the base
+  Record Keywords set at all):
+  - **Message Record**: the `SFLMSGRCD` line number (1-27, or a field
+    name), plus a read-only lookup of which fields currently carry
+    `SFLMSGKEY`/`SFLPGMQ` (edit/rename those via the existing Hidden
+    fields tab rather than duplicating that here).
+  - **General**: `SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP` flags, `CHECK`'s
+    `AB`/`RL` codes as independent toggles (same shared-keyword pattern
+    as the file-level General panel's `CHECK(AB)`/`CHECK(RLTB)`/
+    `CHECK(RL)`), and `CHGINPDFT` with optional parameters.
+  - **Indicator**: `INDTXT` (indicator + text, single instance - same
+    convention the file-level Indicator panel already uses) and `SETOF`
+    (a space-separated indicator list).
+  - No new `dspfWriter.js` functions needed - every keyword here fits the
+    existing generic `getFileFlagKeyword`/`setFileFlagKeyword` present/
+    absent-with-parameters shape (despite the "file" in the name, they
+    operate on any keywords array), reusing `flagRowHtml`/`wireFlagRow`
+    from the Task F1 file-keywords picker.
+  - Deliberately not wired: the real SDA screen's "Roll keyword" (Message
+    Record) and `CHANGE` (Indicator) - their exact DDS argument shape
+    wasn't confidently verified, so both route through the existing raw
+    Keywords editor accordion instead of guessed-at UI, same fallback the
+    D1/F1 pickers already use for HLPPNLGRP/IGCCNV/PASSRCD/MSGID.
+  - 1 new `dspfWebview.test.js` scenario (18 checks): tab visibility,
+    Message Record pre-fill + read-only field lookups, and independent
+    commit of each General/Indicator control.
 - **Field-level "Select Field Keywords" picker screens (SDA parity plan
   task D1 - see `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, mapped
   directly against real SDA's own field-keyword screens rather than the

@@ -1562,7 +1562,16 @@ const htmlTemplate = `<!DOCTYPE html>
     positionHtml += '<button id="p-center" class="secondary" style="width:100%;margin-bottom:12px;">Center on screen</button>';
 
     // --- Attributes tab: display attributes / validity & edit keywords ---
-    let attrsHtml = WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
+    // D2: gate which of the D1 panels below even apply to this field's
+    // CURRENT usage/data type, matching real SDA's own "For Field Type"
+    // column (see WebviewClientHelpers.fieldKeywordCategoryVisibility's own
+    // doc comment). Constants have no usage/dataType of their own
+    // (undefined here), which the gate treats the same as blank - "show
+    // everything except what's explicitly usage-restricted" - so this
+    // doesn't change a constant's existing Color & attributes visibility.
+    const catVis = WebviewClientHelpers.fieldKeywordCategoryVisibility(field.usage, field.dataType);
+    let attrsHtml = '';
+    if (catVis.colorAndAttributes) attrsHtml += WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
     if (!isConstant && field.isReference) {
       // Position 29 'R' - this field's length/type/decimals come from a
       // referenced database field (REF/REFFLD - see DspfEngine.resolveReferenceTarget)
@@ -1573,24 +1582,31 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += '<button id="p-resolve-ref" class="secondary" style="width:100%;margin-bottom:12px;">Resolve Referenced Field (Code for i)</button>';
     }
     if (!isConstant) {
-      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine);
+      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage });
     } else if (isSystemValueConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false });
     }
     // Remaining SDA "Select Field Keywords" categories (docs/sda-reference/
     // task D1) - collapsed by default, same as the Keywords/Conditioning
     // accordions below, since these are reached far less often than
-    // Color & attributes / Validity check.
-    if (!isConstant) {
+    // Color & attributes / Validity check. Each gated per D2's usage-based
+    // applicability rules above.
+    if (!isConstant && catVis.keyingOptions) {
       attrsHtml += accordionHtml('Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine), false);
+    }
+    if (!isConstant && catVis.inputKeywords) {
       attrsHtml += accordionHtml('Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
-    attrsHtml += accordionHtml('General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
-    if (!isConstant) {
+    if (catVis.generalKeywords) {
+      attrsHtml += accordionHtml('General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+    }
+    if (!isConstant && catVis.databaseReference) {
       let dbRefBody = '';
       if (field.isReference) dbRefBody += '<div class="hint-small">REFFLD/REF are managed by the Resolve Referenced Field button above.</div>';
       dbRefBody += WebviewClientHelpers.referenceOverridesHtml(field.keywords, 'field-' + field.sourceLine);
       attrsHtml += accordionHtml('Database reference', dbRefBody, false);
+    }
+    if (!isConstant && catVis.messageId) {
       attrsHtml += accordionHtml('Message ID', WebviewClientHelpers.messageIdHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
 
@@ -1949,13 +1965,31 @@ const htmlTemplate = `<!DOCTYPE html>
     // canvas-click flow every other field/constant uses.
     const hiddenHtml = hiddenFieldsSectionHtml(rec);
 
-    html += tabsHtml([
+    // --- SFLMSG tab: only for message-subfile records (Task R5) - Message
+    // Record/General/Indicator stacked as accordions within one tab, same
+    // "several accordions in one tab" shape the Keywords tab above already
+    // uses, rather than 3 more entries in the top-level tab bar.
+    const isSflMsg = WebviewClientHelpers.isSflMsgRecord(rec);
+    let sflMsgPanels = null;
+    if (isSflMsg) {
+      sflMsgPanels = WebviewClientHelpers.sflMsgPanelsHtml(rec);
+    }
+
+    const tabs = [
       { id: 'basic', label: 'Basic', content: basicHtml },
       { id: 'keywords', label: 'Keywords', content: keywordsHtml },
       { id: 'commandkeys', label: 'Cmd keys', content: commandKeysHtml },
       { id: 'structure', label: 'Structure', content: structureHtml },
       { id: 'hidden', label: 'Hidden', content: hiddenHtml },
-    ], activeRecordTab);
+    ];
+    if (isSflMsg) {
+      const sflMsgHtml =
+        accordionHtml('Message Record', sflMsgPanels.messageRecord, true) +
+        accordionHtml('General', sflMsgPanels.general, false) +
+        accordionHtml('Indicator', sflMsgPanels.indicator, false);
+      tabs.push({ id: 'sflmsg', label: 'SFLMSG', content: sflMsgHtml });
+    }
+    html += tabsHtml(tabs, activeRecordTab);
 
     html += '<button id="p-record-copy" class="secondary" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled title="Multi-group or >3-indicator conditioning — copying this record is disabled to avoid corrupting it."') + '>Copy record</button>';
     html += '<button id="p-record-delete" class="secondary" style="width:100%;margin-top:8px;color:var(--warn);">Delete record</button>';
@@ -1999,6 +2033,9 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
+    if (isSflMsg) {
+      WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
   }
 
   function renderHelpProps(recordName) {
