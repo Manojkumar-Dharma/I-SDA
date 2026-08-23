@@ -910,6 +910,104 @@ console.log('\nDspfWriter.getErrorMessageText()/setErrorMessageText() - ERRMSG a
   check('blank text removes ERRMSG entirely', !cleared.some((k) => k.name === 'ERRMSG'));
 }
 
+console.log('\nDspfWriter.getCheckOptions()/setCheckOptions() - CHECK(...) shared by SDA\u2019s Keying options + Validity check screens');
+{
+  const none = DspfWriter.getCheckOptions([]);
+  check('no CHECK -> empty array', Array.isArray(none) && none.length === 0);
+
+  const withCheck = [{ name: 'CHECK', parameters: 'ME AB', conditions: [], raw: '', sourceLines: [] }];
+  check('reads multiple codes out of one CHECK', DspfWriter.getCheckOptions(withCheck).join(',') === 'ME,AB');
+
+  const set = DspfWriter.setCheckOptions(
+    [{ name: 'TEXT', parameters: "'unrelated'", conditions: [], raw: '', sourceLines: [] }],
+    ['FE', 'VN']
+  );
+  check('unrelated keywords are preserved', set.some((k) => k.name === 'TEXT'));
+  check('CHECK is added joining every chosen code into one keyword', set.find((k) => k.name === 'CHECK').parameters === 'FE VN');
+  check('coexists alongside a validity-check keyword (RANGE/COMP/VALUES are separate)', DspfWriter.setValidityCheck(set, 'RANGE', '1 99').some((k) => k.name === 'CHECK'));
+
+  const cleared = DspfWriter.setCheckOptions(set, []);
+  check('empty codes removes CHECK entirely', !cleared.some((k) => k.name === 'CHECK'));
+  check('unrelated keywords still survive clearing', cleared.some((k) => k.name === 'TEXT'));
+}
+
+console.log('\nDspfWriter.getInputKeywords()/setInputKeywords() - DUP/BLANKS/CHANGE/CHGINPDFT booleans');
+{
+  const none = DspfWriter.getInputKeywords([]);
+  check('none present -> all false', !none.dup && !none.blanks && !none.change && !none.chginpdft);
+
+  const withDup = [{ name: 'DUP', parameters: '', conditions: [], raw: '', sourceLines: [] }];
+  check('reads an existing DUP', DspfWriter.getInputKeywords(withDup).dup === true);
+
+  const set = DspfWriter.setInputKeywords([], { dup: true, blanks: false, change: true, chginpdft: true });
+  check('adds DUP', set.some((k) => k.name === 'DUP'));
+  check('adds CHANGE', set.some((k) => k.name === 'CHANGE'));
+  check('adds CHGINPDFT', set.some((k) => k.name === 'CHGINPDFT'));
+  check('leaves BLANKS off', !set.some((k) => k.name === 'BLANKS'));
+
+  const toggledOff = DspfWriter.setInputKeywords(set, { dup: false, blanks: false, change: true, chginpdft: false });
+  check('toggling off removes just that keyword', !toggledOff.some((k) => k.name === 'DUP') && !toggledOff.some((k) => k.name === 'CHGINPDFT'));
+  check('leaves the still-on one alone', toggledOff.some((k) => k.name === 'CHANGE'));
+}
+
+console.log('\nDspfWriter.getGeneralFieldKeywords()/setGeneralFieldKeywords() - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG + boolean flags');
+{
+  const none = DspfWriter.getGeneralFieldKeywords([]);
+  check('none present -> empty text, false flags', none.alias === '' && none.putretain === false);
+
+  const set = DspfWriter.setGeneralFieldKeywords([], {
+    alias: 'CUST_NAME',
+    dft: "'N/A'",
+    fldcsrprg: 'NEXTFLD',
+    putretain: true,
+    ovrdta: false,
+    chrid: true,
+  });
+  check('ALIAS written as bare name (caller-supplied form)', set.find((k) => k.name === 'ALIAS').parameters === 'CUST_NAME');
+  check('DFT written with caller-supplied quoting', set.find((k) => k.name === 'DFT').parameters === "'N/A'");
+  check('FLDCSRPRG written', set.find((k) => k.name === 'FLDCSRPRG').parameters === 'NEXTFLD');
+  check('PUTRETAIN boolean added bare', set.some((k) => k.name === 'PUTRETAIN' && k.parameters === ''));
+  check('OVRDTA left off since it was false', !set.some((k) => k.name === 'OVRDTA'));
+  check('CHRID boolean added', set.some((k) => k.name === 'CHRID'));
+
+  const roundTrip = DspfWriter.getGeneralFieldKeywords(set);
+  check('round-trips text fields back out', roundTrip.alias === 'CUST_NAME' && roundTrip.dft === "'N/A'");
+  check('round-trips boolean flags back out', roundTrip.putretain === true && roundTrip.chrid === true && roundTrip.ovrdta === false);
+
+  const cleared = DspfWriter.setGeneralFieldKeywords(set, {});
+  check('blank/false state clears everything this pair manages', !cleared.some((k) => ['ALIAS', 'DFT', 'FLDCSRPRG', 'PUTRETAIN', 'CHRID'].includes(k.name)));
+}
+
+console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');
+{
+  const none = DspfWriter.getReferenceOverrides([]);
+  check('none present -> both false', !none.dltchk && !none.dltedt);
+
+  const set = DspfWriter.setReferenceOverrides(
+    [{ name: 'REFFLD', parameters: 'CUSTNO', conditions: [], raw: '', sourceLines: [] }],
+    { dltchk: true, dltedt: false }
+  );
+  check('REFFLD (managed by the existing Resolve Referenced Field feature) is untouched', set.some((k) => k.name === 'REFFLD'));
+  check('DLTCHK added', set.some((k) => k.name === 'DLTCHK'));
+  check('DLTEDT left off', !set.some((k) => k.name === 'DLTEDT'));
+
+  const cleared = DspfWriter.setReferenceOverrides(set, { dltchk: false, dltedt: false });
+  check('clearing both removes them but keeps REFFLD', !cleared.some((k) => k.name === 'DLTCHK') && cleared.some((k) => k.name === 'REFFLD'));
+}
+
+console.log('\nDspfWriter.getMessageId()/setMessageId() - MSGID, caller-supplied argument form (varies too much to decompose)');
+{
+  const none = DspfWriter.getMessageId([]);
+  check('no MSGID -> empty string', none === '');
+
+  const set = DspfWriter.setMessageId([], 'USR &FLDNAME MSGF1 MYLIB');
+  check('MSGID written as supplied', set.find((k) => k.name === 'MSGID').parameters === 'USR &FLDNAME MSGF1 MYLIB');
+  check('round-trips back out', DspfWriter.getMessageId(set) === 'USR &FLDNAME MSGF1 MYLIB');
+
+  const cleared = DspfWriter.setMessageId(set, '');
+  check('blank parameters removes MSGID entirely', !cleared.some((k) => k.name === 'MSGID'));
+}
+
 console.log('\nDspfWriter.getWindowTitleText()/setWindowTitleText() - WDWTITLE, preserving any other parameters (position modifiers etc.)');
 {
   const none = DspfWriter.getWindowTitleText([]);

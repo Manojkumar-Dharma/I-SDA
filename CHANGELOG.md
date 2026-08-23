@@ -3,6 +3,64 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.47] - Unreleased
+
+### Added
+- **Field-level "Select Field Keywords" picker screens (SDA parity plan
+  task D1 - see `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, mapped
+  directly against real SDA's own field-keyword screens rather than the
+  DDS reference alone (verified against IBM's DDS keyword docs, not
+  guessed):
+  - **Keying options**: `CHECK`'s `ME`/`ER`/`MF`/`FE`/`RB`/`RZ`/`RL`/`LC`
+    codes as checkboxes on a new accordion.
+  - **Validity check** panel extended with `CHECK`'s remaining codes -
+    `AB`/`VN`/`VNE`/`M10`/`M11`, each with an "Immed" toggle that writes
+    `M10F`/`M11F` instead of the plain code. Both this and Keying options
+    write into the SAME underlying `CHECK(...)` keyword (real DDS allows
+    combining both categories' codes in one keyword) and now merge rather
+    than clobber each other's codes.
+  - **Input keywords**: `DUP`/`BLANKS`/`CHANGE`/`CHGINPDFT` as an
+    immediate-commit checkbox row.
+  - **General keywords**: `ALIAS`/`INDTXT`/`DFT`/`DFTVAL`/`FLDCSRPRG`
+    (text) + `PUTRETAIN`/`OVRDTA`/`OVRATR`/`CHRID`/`IGCALTTYP`/`NOCCSID`
+    (boolean flags), batch-committed via its own Apply button.
+  - **Database reference**: `DLTCHK`/`DLTEDT` override toggles, alongside
+    (not replacing) the existing Resolve Referenced Field button, which
+    still owns `REFFLD`/`REF` themselves.
+  - **Message ID**: `MSGID`, caller-supplied argument text (its shape
+    varies too much - `[prefix] &field-name` vs `[prefix] msg-id
+    message-file [library]` - to usefully decompose further).
+  - **Display Attributes**: `DSPATR`'s checkbox list extended from 7 to
+    the full 11 real values - added `CS` (column separators), `PR`
+    (protect field), `OID` (operator ID magnetic card), `SP` (select by
+    light pen), which real SDA's screen offers but were missing.
+  - New `dspfWriter.js` primitives behind all of the above:
+    `getCheckOptions`/`setCheckOptions`, `getInputKeywords`/
+    `setInputKeywords`, `getGeneralFieldKeywords`/
+    `setGeneralFieldKeywords`, `getReferenceOverrides`/
+    `setReferenceOverrides`, `getMessageId`/`setMessageId` - each
+    following the existing single-instance-per-keyword pattern
+    `getColorAttr`/`getValidityCheck`/etc. already use.
+  - Not included in this pass (documented as still-open under D1 in the
+    plan doc, and as a new Known limitation below): multiple CONDITIONED
+    instances of the same keyword (e.g. two independently-conditioned
+    `ERRMSG`s, or `COLOR`/`DSPATR` varying by indicator the way real SDA's
+    "Colors"/"Display Attributes" screens allow via their own
+    Indicators/+ columns) - the existing single-instance model for
+    `COLOR`/`DSPATR`/`ERRMSG` is unchanged.
+  - `docs/sda-reference/` (screenshots + task plan) added to the repo in
+    the prior commit; this release is task D1 off that plan.
+  - 12 new `dspfWriter.test.js` cases, 8 new `dspfWebview.test.js` checks.
+
+### Known limitations
+- The field-level keyword panels above manage ONE instance of their
+  keyword at a time, same as the existing Color & attributes/Validity
+  check/Error message panels - real SDA allows several conditioned
+  instances of `COLOR`/`DSPATR`/`ERRMSG`/`ERRMSGID` (e.g. a field that's
+  red under indicator 10 and green under indicator 20). Conditioning a
+  single instance still works via the generic keyword editor's
+  Conditioning toggle once the keyword exists.
+
 ## [0.9.46] - Unreleased
 
 ### Changed
@@ -99,6 +157,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`HLPPNLGRP`, `IGCCNV`, `PASSRCD`) take a single free-text parameters
   box rather than guessed-at sub-fields - same fallback the existing
   Validity check editor already uses for `VALUES`/`EDTWRD`.
+
+## [0.9.44] - Unreleased
 
 ### Fixed
 - **`EDTCDE`/`EDTWRD` numeric display width was a flat approximation

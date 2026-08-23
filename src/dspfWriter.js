@@ -673,6 +673,188 @@
     return next;
   }
 
+  // -----------------------------------------------------------------------
+  // Field-level keyword pickers modeled on real SDA's "Select Field
+  // Keywords" screens (see docs/sda-reference/, task D1) - CHECK(...)
+  // (shared by SDA's "Keying options" and part of "Validity check"
+  // screens), input handling (DUP/BLANKS/CHANGE/CHGINPDFT), general
+  // keywords (ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/PUTRETAIN/OVRDTA/OVRATR/
+  // CHRID/IGCALTTYP/NOCCSID), database-reference overrides (DLTCHK/
+  // DLTEDT - REFFLD/REF itself is handled by the existing Resolve
+  // Referenced Field feature, not duplicated here), and MSGID. Verified
+  // against IBM's own DDS keyword reference, not guessed - each is a real,
+  // distinct field-level keyword (DFT is input-only, DFTVAL is output/
+  // both; CHECK takes a code list distinct from RANGE/COMP/VALUES and can
+  // coexist with them; FLDCSRPRG is genuinely "Cursor Progression Field",
+  // not a typo of CSRLOC).
+  //
+  // Multiple conditioned instances of the SAME keyword (e.g. two ERRMSG
+  // entries, each active under a different indicator, same as real SDA's
+  // "Error Messages" screen allows) aren't modeled here - like
+  // getColorAttr/setColorAttr and getErrorMessageText/setErrorMessageText
+  // above, these getters/setters manage ONE instance, conditioned as a
+  // whole via the generic keyword editor's own Conditioning toggle. See
+  // Known limitations in the README.
+  // -----------------------------------------------------------------------
+
+  var CHECK_CODES = ['ME', 'ER', 'MF', 'FE', 'RB', 'RZ', 'RL', 'LC', 'AB', 'VN', 'VNE', 'M10', 'M10F', 'M11', 'M11F'];
+
+  /** Reads the field's CHECK(...) keyword (if any) as an array of its space-
+   *  separated codes, e.g. ['ME','AB'] - real DDS allows combining any of
+   *  SDA's "Keying options" (ME/ER/MF/FE/RB/RZ/RL/LC) and "Validity check"
+   *  (AB/VN/VNE/M10/M10F/M11/M11F) codes in ONE CHECK() keyword, so both
+   *  screens share this same getter/setter rather than each owning a
+   *  separate keyword. */
+  function getCheckOptions(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'CHECK'; });
+    if (!k) return [];
+    return (k.parameters || '').trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+  }
+
+  /** Returns a NEW keywords array with CHECK replaced by one joining every
+   *  code in `codes` (order preserved as given), or removed entirely if
+   *  `codes` is empty. Unknown codes are kept as-is (not validated against
+   *  CHECK_CODES) so a hand-typed keyword from the generic editor round-
+   *  trips untouched. */
+  function setCheckOptions(keywords, codes) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'CHECK'; });
+    var list = (codes || []).filter(Boolean);
+    if (list.length > 0) next = next.concat([{ name: 'CHECK', parameters: list.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** Reads the field's input-handling keywords - DUP (Dup key duplication,
+   *  optional response indicator via CHECK's own indicator column - here
+   *  represented simply as present/absent since the response indicator is
+   *  written through the generic Conditioning toggle same as every other
+   *  keyword here), BLANKS (numeric blank-vs-zero distinction), CHANGE
+   *  (MDT/changed detection), CHGINPDFT (change input defaults) - each a
+   *  simple boolean per real DDS (DUP/BLANKS/CHANGE take a REQUIRED
+   *  response indicator in real DDS, which the caller supplies via
+   *  Conditioning on that specific keyword the same as any other
+   *  conditioned keyword; CHGINPDFT takes none). */
+  function getInputKeywords(keywords) {
+    var names = (keywords || []).map(function (k) { return k.name; });
+    return {
+      dup: names.indexOf('DUP') >= 0,
+      blanks: names.indexOf('BLANKS') >= 0,
+      change: names.indexOf('CHANGE') >= 0,
+      chginpdft: names.indexOf('CHGINPDFT') >= 0,
+    };
+  }
+
+  /** Returns a NEW keywords array with DUP/BLANKS/CHANGE/CHGINPDFT set to
+   *  match `state` ({ dup, blanks, change, chginpdft }: booleans). Existing
+   *  parameters (e.g. DUP's optional response-indicator text) are
+   *  preserved when a flag stays true; toggling one off removes it
+   *  entirely; toggling one on where it didn't exist adds it bare (no
+   *  parameters - real DDS allows DUP/BLANKS/CHANGE with just their
+   *  required response indicator, added via Conditioning). */
+  function setInputKeywords(keywords, state) {
+    var s = state || {};
+    var KEEP = { dup: 'DUP', blanks: 'BLANKS', change: 'CHANGE', chginpdft: 'CHGINPDFT' };
+    var toRemove = Object.keys(KEEP).filter(function (k) { return !s[k]; }).map(function (k) { return KEEP[k]; });
+    var next = (keywords || []).filter(function (k) { return toRemove.indexOf(k.name) < 0; });
+    Object.keys(KEEP).forEach(function (k) {
+      if (s[k] && !next.some(function (kw) { return kw.name === KEEP[k]; })) {
+        next = next.concat([{ name: KEEP[k], parameters: '', conditions: [], raw: '', sourceLines: [] }]);
+      }
+    });
+    return next;
+  }
+
+  /** Reads the field's "General keywords" (real SDA's category, not this
+   *  file's ALIAS/CNTFLD which already have their own concerns elsewhere -
+   *  CNTFLD is handled by dspfEngine.js's continued-entry preview, ALIAS is
+   *  just plain text here). Text-bearing keywords come back as their raw
+   *  (already-quoted-if-needed) parameter string for the caller to display/
+   *  edit; boolean ones as true/false. */
+  function getGeneralFieldKeywords(keywords) {
+    var find = function (name) { var k = (keywords || []).find(function (k) { return k.name === name; }); return k ? (k.parameters || '') : ''; };
+    var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
+    return {
+      alias: find('ALIAS'),
+      indtxt: find('INDTXT'),
+      dft: find('DFT'),
+      dftval: find('DFTVAL'),
+      fldcsrprg: find('FLDCSRPRG'),
+      putretain: has('PUTRETAIN'),
+      ovrdta: has('OVRDTA'),
+      ovratr: has('OVRATR'),
+      chrid: has('CHRID'),
+      igcalttyp: has('IGCALTTYP'),
+      noccsid: has('NOCCSID'),
+    };
+  }
+
+  /** Returns a NEW keywords array reflecting `state` (same shape as
+   *  getGeneralFieldKeywords returns) - text fields take the parameter
+   *  string as-is (caller supplies quoting, matching how the generic
+   *  keyword editor already works, since these vary too much in shape -
+   *  e.g. ALIAS/FLDCSRPRG take a bare name, DFT/DFTVAL/INDTXT take a
+   *  quoted string - to usefully auto-quote here); blank/false removes the
+   *  keyword entirely. */
+  function setGeneralFieldKeywords(keywords, state) {
+    var s = state || {};
+    var TEXT = { alias: 'ALIAS', indtxt: 'INDTXT', dft: 'DFT', dftval: 'DFTVAL', fldcsrprg: 'FLDCSRPRG' };
+    var BOOL = { putretain: 'PUTRETAIN', ovrdta: 'OVRDTA', ovratr: 'OVRATR', chrid: 'CHRID', igcalttyp: 'IGCALTTYP', noccsid: 'NOCCSID' };
+    var removeNames = Object.keys(TEXT).map(function (k) { return TEXT[k]; }).concat(Object.keys(BOOL).map(function (k) { return BOOL[k]; }));
+    var next = (keywords || []).filter(function (k) { return removeNames.indexOf(k.name) < 0; });
+    Object.keys(TEXT).forEach(function (k) {
+      var v = (s[k] || '').toString().trim();
+      if (v) next = next.concat([{ name: TEXT[k], parameters: v, conditions: [], raw: '', sourceLines: [] }]);
+    });
+    Object.keys(BOOL).forEach(function (k) {
+      if (s[k]) next = next.concat([{ name: BOOL[k], parameters: '', conditions: [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
+  /** Reads the field's database-reference OVERRIDE flags - DLTCHK (ignore
+   *  the referenced field's own validity-check keywords) and DLTEDT
+   *  (ignore its edit keywords) - only meaningful alongside REFFLD/REF,
+   *  which the existing Resolve Referenced Field feature already manages
+   *  (see DspfEngine.resolveReferenceTarget / extension.ts's
+   *  fetchReferencedFieldAttributes) - not duplicated here. */
+  function getReferenceOverrides(keywords) {
+    var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
+    return { dltchk: has('DLTCHK'), dltedt: has('DLTEDT') };
+  }
+
+  /** Returns a NEW keywords array with DLTCHK/DLTEDT set to match `state`
+   *  ({ dltchk, dltedt }: booleans). */
+  function setReferenceOverrides(keywords, state) {
+    var s = state || {};
+    var toRemove = [];
+    if (!s.dltchk) toRemove.push('DLTCHK');
+    if (!s.dltedt) toRemove.push('DLTEDT');
+    var next = (keywords || []).filter(function (k) { return toRemove.indexOf(k.name) < 0; });
+    if (s.dltchk && !next.some(function (k) { return k.name === 'DLTCHK'; })) next = next.concat([{ name: 'DLTCHK', parameters: '', conditions: [], raw: '', sourceLines: [] }]);
+    if (s.dltedt && !next.some(function (k) { return k.name === 'DLTEDT'; })) next = next.concat([{ name: 'DLTEDT', parameters: '', conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** Reads the field's MSGID keyword (message-identifier-sourced field
+   *  text) as its raw parameter string - unlike ERRMSG/WDWTITLE, MSGID's
+   *  argument is either "[msg-prefix] &field-name" or "[msgid-prefix]
+   *  msg-id message-file [library/]" - too structurally varied to usefully
+   *  decompose here, so (like getGeneralFieldKeywords' text fields) this
+   *  hands back the parameter text as-is for the caller to parse/display. */
+  function getMessageId(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'MSGID'; });
+    return k ? (k.parameters || '') : '';
+  }
+
+  /** Returns a NEW keywords array with MSGID's parameters replaced by
+   *  `parameters` (caller-supplied, already in valid MSGID argument form),
+   *  or removed entirely if blank. */
+  function setMessageId(keywords, parameters) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'MSGID'; });
+    var trimmed = (parameters || '').trim();
+    if (trimmed) next = next.concat([{ name: 'MSGID', parameters: trimmed, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
   /** Plain-text getter for WDWTITLE - same shape as getErrorMessageText, unlike
    *  the generic keyword box where the user has to type the quotes themselves.
    *  DspfEngine.resolveWindowTitle already does this same extraction for the
@@ -1771,6 +1953,16 @@
     setEditKeyword: setEditKeyword,
     getErrorMessageText: getErrorMessageText,
     setErrorMessageText: setErrorMessageText,
+    getCheckOptions: getCheckOptions,
+    setCheckOptions: setCheckOptions,
+    getInputKeywords: getInputKeywords,
+    setInputKeywords: setInputKeywords,
+    getGeneralFieldKeywords: getGeneralFieldKeywords,
+    setGeneralFieldKeywords: setGeneralFieldKeywords,
+    getReferenceOverrides: getReferenceOverrides,
+    setReferenceOverrides: setReferenceOverrides,
+    getMessageId: getMessageId,
+    setMessageId: setMessageId,
     getWindowTitleText: getWindowTitleText,
     setWindowTitleText: setWindowTitleText,
     getFileFlagKeyword: getFileFlagKeyword,

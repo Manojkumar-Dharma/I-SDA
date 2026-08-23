@@ -1148,6 +1148,84 @@ function runFieldPropertyHelpersScenario() {
     const errKw = reparsedAmount && reparsedAmount.keywords.find((k) => k.name === 'ERRMSG');
     check("posts ERRMSG with the text, apostrophe correctly doubled", errKw && errKw.parameters === "'Amount can''t be negative'");
 
+    console.log('  Keying options (CHECK) on a named field');
+    posted.length = 0;
+    const amountEl3 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl3.dispatchEvent(new Event('click', { bubbles: true }));
+    const meCheck = doc.querySelector('.' + fieldKey + '-keying-code[value="ME"]');
+    check('setup: the ME (Mandatory entry) checkbox is present', !!meCheck);
+    meCheck.checked = true;
+    meCheck.dispatchEvent(new Event('change', { bubbles: true }));
+    let keyingEdit = posted.find((m) => m.type === 'applyEdit');
+    check('checking ME commits CHECK(ME) immediately', keyingEdit && keyingEdit.text.includes('CHECK(ME)'));
+
+    console.log('  Validity check\u2019s own CHECK codes (AB/VN/VNE/M10/M11) merge with Keying options\u2019, not replace them');
+    posted.length = 0;
+    const amountEl4 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl4.dispatchEvent(new Event('click', { bubbles: true }));
+    const abCheck = doc.querySelector('.' + fieldKey + '-check-code[value="AB"]');
+    check('setup: the AB (Allow blanks) checkbox is present', !!abCheck);
+    abCheck.checked = true;
+    doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let mergedEdit = posted.find((m) => m.type === 'applyEdit');
+    const mergedCheck = DspfParser.parseDspf(mergedEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'CHECK');
+    check('CHECK ends up with BOTH the earlier ME (Keying options) and the new AB (Validity check)', mergedCheck && mergedCheck.parameters.split(/\s+/).sort().join(',') === 'AB,ME');
+
+    console.log('  Modulus 10/11 Immediate toggle switches M10 <-> M10F');
+    posted.length = 0;
+    const amountEl5 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl5.dispatchEvent(new Event('click', { bubbles: true }));
+    const m10Check = doc.querySelector('.' + fieldKey + '-check-code[value="M10"]');
+    const m10Immed = doc.querySelector('.' + fieldKey + '-check-code-immed[data-for="M10"]');
+    check('setup: M10 checkbox and its Immed checkbox are both present', !!m10Check && !!m10Immed);
+    m10Check.checked = true;
+    m10Immed.checked = true;
+    doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let immedEdit = posted.find((m) => m.type === 'applyEdit');
+    const immedCheck = DspfParser.parseDspf(immedEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'CHECK');
+    check('Immed checked writes M10F rather than plain M10', immedCheck && immedCheck.parameters.split(/\s+/).indexOf('M10F') >= 0);
+    check('and does not ALSO write plain M10', immedCheck && immedCheck.parameters.split(/\s+/).indexOf('M10') < 0);
+
+    console.log('  Input keywords (DUP/BLANKS/CHANGE/CHGINPDFT) on a named field');
+    posted.length = 0;
+    const amountEl6 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl6.dispatchEvent(new Event('click', { bubbles: true }));
+    const dupCheck = doc.getElementById(fieldKey + '-inp-dup');
+    check('setup: the DUP checkbox is present', !!dupCheck);
+    dupCheck.checked = true;
+    dupCheck.dispatchEvent(new Event('change', { bubbles: true }));
+    let inputEdit = posted.find((m) => m.type === 'applyEdit');
+    check('checking DUP commits it immediately', inputEdit && inputEdit.text.includes('DUP'));
+
+    console.log('  General keywords (ALIAS/DFT/... + boolean flags) on a named field');
+    posted.length = 0;
+    const amountEl7 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl7.dispatchEvent(new Event('click', { bubbles: true }));
+    const aliasInput = doc.getElementById(fieldKey + '-gen-alias');
+    check('setup: the ALIAS input is present', !!aliasInput);
+    aliasInput.value = 'AMOUNT_DUE';
+    doc.getElementById(fieldKey + '-gen-putretain').checked = true;
+    doc.querySelector('.' + fieldKey + '-gen-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let genEdit = posted.find((m) => m.type === 'applyEdit');
+    // This field now carries enough keywords that the line wraps with a '+'
+    // continuation (same reasoning as the ERRMSG check above) - possibly
+    // mid-keyword - so check the round-tripped MODEL rather than raw text.
+    const genFields = DspfParser.parseDspf(genEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
+    check('posts ALIAS with the entered name', genFields.find((k) => k.name === 'ALIAS') && genFields.find((k) => k.name === 'ALIAS').parameters === 'AMOUNT_DUE');
+    check('posts PUTRETAIN bare', genFields.some((k) => k.name === 'PUTRETAIN'));
+
+    console.log('  Message ID (MSGID) on a named field');
+    posted.length = 0;
+    const amountEl8 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl8.dispatchEvent(new Event('click', { bubbles: true }));
+    const msgidInput = doc.getElementById(fieldKey + '-msgid');
+    check('setup: the MSGID input is present', !!msgidInput);
+    msgidInput.value = 'USR &AMOUNT MSGF1 MYLIB';
+    doc.querySelector('.' + fieldKey + '-msgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let msgidEdit = posted.find((m) => m.type === 'applyEdit');
+    const msgidFields = DspfParser.parseDspf(msgidEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
+    check('posts MSGID with the entered argument text', msgidFields.find((k) => k.name === 'MSGID') && msgidFields.find((k) => k.name === 'MSGID').parameters === 'USR &AMOUNT MSGF1 MYLIB');
+
     runClickToPlaceScenario();
   }, 0);
 }

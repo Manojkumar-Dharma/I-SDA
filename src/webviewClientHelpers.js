@@ -443,7 +443,11 @@
   // (the color <select>) and a class name shared by the attribute checkboxes.
   // -----------------------------------------------------------------------
 
-  var DSPATR_ATTRS = ['HI', 'RI', 'UL', 'BL', 'ND', 'PC', 'MDT'];
+  // Full DSPATR list, in the same order real SDA's "Select Display
+  // Attributes" screen shows them (docs/sda-reference/screens/field-level/
+  // character/display-attributes/) - CS/PR/OID/SP were missing from the
+  // original 7-attribute set.
+  var DSPATR_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL', 'PC', 'MDT', 'PR', 'OID', 'SP'];
   var COLOR_VALUES = ['', 'BLU', 'RED', 'WHT', 'GRN', 'TRQ', 'YLW', 'PNK'];
 
   function colorAttrEditorHtml(keywords, ownerKey) {
@@ -492,6 +496,24 @@
   // keyword-chip editor.
   // -----------------------------------------------------------------------
 
+  // CHECK(...) codes real SDA's "Validity check" screen offers alongside
+  // RANGE/COMP/VALUES (Allow blanks / Name field / Name extended field /
+  // Modulus 10 / Modulus 11 - see DspfWriter.getCheckOptions) - a field can
+  // carry one of RANGE/COMP/VALUES AND any of these at the same time, since
+  // they're a different keyword (CHECK) entirely.
+  // M10/M11 each have an "immediate" variant (M10F/M11F - checked as each
+  // character is typed rather than at Enter) real SDA exposes as a
+  // separate "Immed" column on the same row rather than a whole extra
+  // checkbox - modeled here as { code, immedCode }, switched by the
+  // ownerKey+'-check-'+code+'-immed' checkbox next to it.
+  var VALIDITY_CHECK_CODES = [
+    { code: 'AB', label: 'Allow blanks' },
+    { code: 'VN', label: 'Name field' },
+    { code: 'VNE', label: 'Name extended field' },
+    { code: 'M10', immedCode: 'M10F', label: 'Modulus 10 self check' },
+    { code: 'M11', immedCode: 'M11F', label: 'Modulus 11 self check' },
+  ];
+
   function validityAndEditHtml(keywords, ownerKey, options) {
     var includeValidity = !options || options.includeValidity !== false;
     var ec = DspfWriter.getEditKeyword(keywords);
@@ -508,6 +530,18 @@
         '</select>' +
         '<input type="text" id="' + ownerKey + '-vc-params" placeholder="e.g. 1 99" value="' + escapeHtml(vc.parameters) + '" />' +
         '</div><div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
+
+      var checkCodes = DspfWriter.getCheckOptions(keywords);
+      html += '<div class="attr-checks" style="margin-top:6px;">';
+      VALIDITY_CHECK_CODES.forEach(function (c) {
+        var isImmed = !!c.immedCode && checkCodes.indexOf(c.immedCode) >= 0;
+        var checked = checkCodes.indexOf(c.code) >= 0 || isImmed;
+        html += '<label class="attr-check" title="' + escapeHtml(c.label) + '"><input type="checkbox" class="' + ownerKey + '-check-code" value="' + c.code + '" ' + (checked ? 'checked' : '') + '/>' + c.code + '</label>';
+        if (c.immedCode) {
+          html += '<label class="attr-check" title="Immediate (check each keystroke rather than at Enter)"><input type="checkbox" class="' + ownerKey + '-check-code-immed" data-for="' + c.code + '" data-immed-code="' + c.immedCode + '" ' + (isImmed ? 'checked' : '') + '/>Immed</label>';
+        }
+      });
+      html += '</div>';
     }
 
     html += '<div class="section-label"' + (includeValidity ? ' style="margin-top:10px;"' : '') + '>Edit code / word</div>';
@@ -546,6 +580,22 @@
         var vcKind = document.getElementById(ownerKey + '-vc-kind').value;
         var vcParams = document.getElementById(ownerKey + '-vc-params').value;
         next = DspfWriter.setValidityCheck(next, vcKind, vcParams);
+
+        // Merge: keep whatever CHECK codes this field already had that
+        // AREN'T one of the validity-check codes shown here (e.g. a Keying
+        // options code like ME set via the Input Keywords panel), then
+        // apply the checkbox state for the validity-specific codes.
+        var validityCodeValues = [];
+        VALIDITY_CHECK_CODES.forEach(function (c) { validityCodeValues.push(c.code); if (c.immedCode) validityCodeValues.push(c.immedCode); });
+        var existingNonValidity = DspfWriter.getCheckOptions(next).filter(function (c) { return validityCodeValues.indexOf(c) < 0; });
+        var immedFor = {};
+        Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-check-code-immed:checked')).forEach(function (el) {
+          immedFor[el.getAttribute('data-for')] = el.getAttribute('data-immed-code');
+        });
+        var chosenValidity = Array.prototype.slice
+          .call(document.querySelectorAll('.' + ownerKey + '-check-code:checked'))
+          .map(function (el) { return immedFor[el.value] || el.value; });
+        next = DspfWriter.setCheckOptions(next, existingNonValidity.concat(chosenValidity));
       }
       var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
       var ecParams = document.getElementById(ownerKey + '-ec-params').value;
@@ -555,6 +605,185 @@
         next = DspfWriter.setErrorMessageText(next, errText);
       }
       onChange(next);
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Field-level "Keying options" (CHECK's ME/ER/MF/FE/RB/RZ/RL/LC codes),
+  // "Input Keywords" (DUP/BLANKS/CHANGE/CHGINPDFT), "General Keywords"
+  // (ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG + boolean flags), database-reference
+  // overrides (DLTCHK/DLTEDT), and Message ID (MSGID) - the remaining SDA
+  // "Select Field Keywords" categories from docs/sda-reference/ task D1,
+  // built on the getX/setX pairs above the same way the panels above are.
+  // -----------------------------------------------------------------------
+
+  var KEYING_OPTION_CODES = [
+    { code: 'ME', label: 'Mandatory entry' },
+    { code: 'ER', label: 'Automatic record advance' },
+    { code: 'MF', label: 'Mandatory fill' },
+    { code: 'FE', label: 'Field exit key required' },
+    { code: 'RB', label: 'Right adjust blank fill' },
+    { code: 'RZ', label: 'Right adjust zero fill' },
+    { code: 'RL', label: 'Move cursor right to left' },
+    { code: 'LC', label: 'Lowercase entry allowed' },
+  ];
+
+  /** "Select Keying Options" - CHECK's ME/ER/MF/FE/RB/RZ/RL/LC codes, sharing
+   *  the same underlying CHECK(...) keyword as the Validity check panel's
+   *  AB/VN/VNE/M10/M11 checkboxes (see DspfWriter.getCheckOptions) - each
+   *  panel only touches ITS OWN slice of the code list, merging with
+   *  whatever the other panel already set, the same way
+   *  validityAndEditHtml's Apply handler merges back in. */
+  function keyingOptionsHtml(keywords, ownerKey) {
+    var codes = DspfWriter.getCheckOptions(keywords);
+    var html = '<div class="section-label">Keying options</div>';
+    html += '<div class="attr-checks">';
+    KEYING_OPTION_CODES.forEach(function (c) {
+      var checked = codes.indexOf(c.code) >= 0;
+      html += '<label class="attr-check" title="' + escapeHtml(c.label) + '"><input type="checkbox" class="' + ownerKey + '-keying-code" value="' + c.code + '" ' + (checked ? 'checked' : '') + '/>' + c.code + '</label>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function wireKeyingOptionsEditor(keywords, onChange, ownerKey) {
+    function commit() {
+      var keyingCodeValues = KEYING_OPTION_CODES.map(function (c) { return c.code; });
+      var existingOther = DspfWriter.getCheckOptions(keywords).filter(function (c) { return keyingCodeValues.indexOf(c) < 0; });
+      var chosen = Array.prototype.slice
+        .call(document.querySelectorAll('.' + ownerKey + '-keying-code:checked'))
+        .map(function (el) { return el.value; });
+      onChange(DspfWriter.setCheckOptions(keywords, existingOther.concat(chosen)));
+    }
+    document.querySelectorAll('.' + ownerKey + '-keying-code').forEach(function (el) {
+      el.addEventListener('change', commit);
+    });
+  }
+
+  /** "Select Input Keywords" - DUP/BLANKS/CHANGE/CHGINPDFT (see
+   *  DspfWriter.getInputKeywords/setInputKeywords). Real DDS requires a
+   *  response indicator on DUP/BLANKS/CHANGE - that's set the same way any
+   *  other keyword's conditioning is, via the Conditioning accordion on
+   *  the Keywords tab, once the keyword exists here. */
+  function inputKeywordsHtml(keywords, ownerKey) {
+    var state = DspfWriter.getInputKeywords(keywords);
+    var html = '<div class="section-label">Input keywords</div>';
+    html += '<div class="attr-checks">';
+    html += '<label class="attr-check" title="Dup key duplicates the previous record\u2019s value into this field"><input type="checkbox" id="' + ownerKey + '-inp-dup" ' + (state.dup ? 'checked' : '') + '/>DUP</label>';
+    html += '<label class="attr-check" title="Numeric field: let the program tell blank apart from zero"><input type="checkbox" id="' + ownerKey + '-inp-blanks" ' + (state.blanks ? 'checked' : '') + '/>BLANKS</label>';
+    html += '<label class="attr-check" title="Response indicator turns on if the workstation user changed this field"><input type="checkbox" id="' + ownerKey + '-inp-change" ' + (state.change ? 'checked' : '') + '/>CHANGE</label>';
+    html += '<label class="attr-check" title="Change input defaults"><input type="checkbox" id="' + ownerKey + '-inp-chginpdft" ' + (state.chginpdft ? 'checked' : '') + '/>CHGINPDFT</label>';
+    html += '</div><div class="hint-small">DUP/BLANKS/CHANGE need a response indicator - condition the keyword once it\u2019s added (Keywords tab).</div>';
+    return html;
+  }
+
+  function wireInputKeywordsEditor(keywords, onChange, ownerKey) {
+    function commit() {
+      onChange(DspfWriter.setInputKeywords(keywords, {
+        dup: !!document.getElementById(ownerKey + '-inp-dup').checked,
+        blanks: !!document.getElementById(ownerKey + '-inp-blanks').checked,
+        change: !!document.getElementById(ownerKey + '-inp-change').checked,
+        chginpdft: !!document.getElementById(ownerKey + '-inp-chginpdft').checked,
+      }));
+    }
+    ['dup', 'blanks', 'change', 'chginpdft'].forEach(function (k) {
+      var el = document.getElementById(ownerKey + '-inp-' + k);
+      if (el) el.addEventListener('change', commit);
+    });
+  }
+
+  /** "Select General Keywords" - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG (text,
+   *  caller-supplied form - see DspfWriter.getGeneralFieldKeywords for why)
+   *  + PUTRETAIN/OVRDTA/OVRATR/CHRID/IGCALTTYP/NOCCSID (booleans). Batch-
+   *  commits via its own Apply button, same reasoning as
+   *  validityAndEditHtml (several fields at once shouldn't each trigger
+   *  their own edit). */
+  function generalFieldKeywordsHtml(keywords, ownerKey) {
+    var s = DspfWriter.getGeneralFieldKeywords(keywords);
+    var html = '<div class="section-label">General keywords</div>';
+    html += '<div class="field-row"><label>ALIAS</label><input type="text" id="' + ownerKey + '-gen-alias" placeholder="Alternative (long) name" value="' + escapeHtml(s.alias) + '" /></div>';
+    html += '<div class="field-row"><label>INDTXT</label><input type="text" id="' + ownerKey + '-gen-indtxt" placeholder="e.g. 50 &#39;Amount valid&#39;" value="' + escapeHtml(s.indtxt) + '" /></div>';
+    html += '<div class="field-row"><label>DFT <span class="hint-small">(input-only)</span></label><input type="text" id="' + ownerKey + '-gen-dft" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dft) + '" /></div>';
+    html += '<div class="field-row"><label>DFTVAL <span class="hint-small">(output/both)</span></label><input type="text" id="' + ownerKey + '-gen-dftval" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dftval) + '" /></div>';
+    html += '<div class="field-row"><label>FLDCSRPRG</label><input type="text" id="' + ownerKey + '-gen-fldcsrprg" placeholder="Cursor-progression field name" value="' + escapeHtml(s.fldcsrprg) + '" /></div>';
+    html += '<div class="attr-checks" style="margin-top:6px;">';
+    [
+      ['putretain', 'PUTRETAIN', 'Retain field on display'],
+      ['ovrdta', 'OVRDTA', 'Override data'],
+      ['ovratr', 'OVRATR', 'Override attributes'],
+      ['chrid', 'CHRID', 'Translate characters'],
+      ['igcalttyp', 'IGCALTTYP', 'Alter IGC type'],
+      ['noccsid', 'NOCCSID', 'No coded character set id'],
+    ].forEach(function (row) {
+      html += '<label class="attr-check" title="' + escapeHtml(row[2]) + '"><input type="checkbox" id="' + ownerKey + '-gen-' + row[0] + '" ' + (s[row[0]] ? 'checked' : '') + '/>' + row[1] + '</label>';
+    });
+    html += '</div>';
+    html += '<button class="secondary ' + ownerKey + '-gen-apply" style="width:100%;margin-top:8px;">Apply general keywords</button>';
+    return html;
+  }
+
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey) {
+    var applyBtn = document.querySelector('.' + ownerKey + '-gen-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      onChange(DspfWriter.setGeneralFieldKeywords(keywords, {
+        alias: document.getElementById(ownerKey + '-gen-alias').value,
+        indtxt: document.getElementById(ownerKey + '-gen-indtxt').value,
+        dft: document.getElementById(ownerKey + '-gen-dft').value,
+        dftval: document.getElementById(ownerKey + '-gen-dftval').value,
+        fldcsrprg: document.getElementById(ownerKey + '-gen-fldcsrprg').value,
+        putretain: !!document.getElementById(ownerKey + '-gen-putretain').checked,
+        ovrdta: !!document.getElementById(ownerKey + '-gen-ovrdta').checked,
+        ovratr: !!document.getElementById(ownerKey + '-gen-ovratr').checked,
+        chrid: !!document.getElementById(ownerKey + '-gen-chrid').checked,
+        igcalttyp: !!document.getElementById(ownerKey + '-gen-igcalttyp').checked,
+        noccsid: !!document.getElementById(ownerKey + '-gen-noccsid').checked,
+      }));
+    });
+  }
+
+  /** "Define Database Reference" overrides - DLTCHK/DLTEDT, alongside
+   *  (not replacing) the existing Resolve Referenced Field button which
+   *  owns REFFLD/REF itself. */
+  function referenceOverridesHtml(keywords, ownerKey) {
+    var s = DspfWriter.getReferenceOverrides(keywords);
+    var html = '<div class="section-label" style="margin-top:10px;">Ignore previously specified</div>';
+    html += '<div class="attr-checks">';
+    html += '<label class="attr-check" title="Ignore the referenced field\u2019s own validity-check keywords"><input type="checkbox" id="' + ownerKey + '-ref-dltchk" ' + (s.dltchk ? 'checked' : '') + '/>DLTCHK</label>';
+    html += '<label class="attr-check" title="Ignore the referenced field\u2019s own edit keywords"><input type="checkbox" id="' + ownerKey + '-ref-dltedt" ' + (s.dltedt ? 'checked' : '') + '/>DLTEDT</label>';
+    html += '</div>';
+    return html;
+  }
+
+  function wireReferenceOverridesEditor(keywords, onChange, ownerKey) {
+    function commit() {
+      onChange(DspfWriter.setReferenceOverrides(keywords, {
+        dltchk: !!document.getElementById(ownerKey + '-ref-dltchk').checked,
+        dltedt: !!document.getElementById(ownerKey + '-ref-dltedt').checked,
+      }));
+    }
+    ['dltchk', 'dltedt'].forEach(function (k) {
+      var el = document.getElementById(ownerKey + '-ref-' + k);
+      if (el) el.addEventListener('change', commit);
+    });
+  }
+
+  /** "Define Message ID" - MSGID, caller-supplied argument text (see
+   *  DspfWriter.getMessageId for why it isn't decomposed further). */
+  function messageIdHtml(keywords, ownerKey) {
+    var text = DspfWriter.getMessageId(keywords);
+    var html = '<div class="section-label">Message ID (MSGID)</div>';
+    html += '<input type="text" id="' + ownerKey + '-msgid" placeholder="e.g. USR &amp;FLDNAME MSGF1 MYLIB, or *NONE" style="width:100%;" value="' + escapeHtml(text) + '" />';
+    html += '<div class="hint-small">[msg-prefix] &amp;field-name, or [msgid-prefix] msg-id message-file [library]</div>';
+    html += '<button class="secondary ' + ownerKey + '-msgid-apply" style="width:100%;margin-top:8px;">Apply message ID</button>';
+    return html;
+  }
+
+  function wireMessageIdEditor(keywords, onChange, ownerKey) {
+    var applyBtn = document.querySelector('.' + ownerKey + '-msgid-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      onChange(DspfWriter.setMessageId(keywords, document.getElementById(ownerKey + '-msgid').value));
     });
   }
 
@@ -946,5 +1175,15 @@
     wireValidityAndEdit: wireValidityAndEdit,
     fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,
     wireFileKeywordsPanels: wireFileKeywordsPanels,
+    keyingOptionsHtml: keyingOptionsHtml,
+    wireKeyingOptionsEditor: wireKeyingOptionsEditor,
+    inputKeywordsHtml: inputKeywordsHtml,
+    wireInputKeywordsEditor: wireInputKeywordsEditor,
+    generalFieldKeywordsHtml: generalFieldKeywordsHtml,
+    wireGeneralFieldKeywordsEditor: wireGeneralFieldKeywordsEditor,
+    referenceOverridesHtml: referenceOverridesHtml,
+    wireReferenceOverridesEditor: wireReferenceOverridesEditor,
+    messageIdHtml: messageIdHtml,
+    wireMessageIdEditor: wireMessageIdEditor,
   };
 });

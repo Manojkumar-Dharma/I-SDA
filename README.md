@@ -135,6 +135,17 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   length rather than guessed at, since their separator width depends on
   the job's `DATSEP` attribute - not knowable at design time, the same
   runtime-only ambiguity that keeps `WINDOW(*DFT)` a placeholder above.
+- Field-level keyword panels (Color & attributes, Validity check, Error
+  message, and the new v0.9.47 Keying options/Input keywords/General
+  keywords/Database reference/Message ID panels - see task D1 in
+  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md))
+  each manage ONE instance of their keyword(s) at a time, conditioned as a
+  whole via the generic keyword editor's Conditioning toggle. Real SDA
+  additionally allows MULTIPLE independently-conditioned instances of the
+  same keyword - e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)`
+  under indicator 20 on the same field, or several `ERRMSG`/`ERRMSGID`
+  entries tried in order. Not modeled here; would need its own follow-up
+  since it affects several keywords at once, not just one panel.
 
 ### Menu designer
 
@@ -216,7 +227,7 @@ picked up after the current round of fixes.
   | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 | `PULDWNSFL`, `PDNSFLCTL` |
   | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 | - |
   | Record | Combination types (`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | R6, R8, R9, R11, R12 | wiring-only, depend on the rows above |
-  | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 | Character (full set), Numeric & Constant (subsets) |
+  | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
   | Field | Character wiring | D2 | - |
   | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 | - |
   | Field | Constant (subset + Menu-Bar Keywords) | D4 | - |
