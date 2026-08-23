@@ -162,6 +162,17 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   nothing to report; and M/P (Message text/Program-to-system) usages,
   which SDA's own table never covers, fail open (show every category)
   rather than guessing.
+- As of v0.9.51, menu-bar choice fields (task D5) have dedicated panels:
+  Menu-bar choices (`MNUBARCHC`) and Menu-bar separator (`MNUBARSEP`) on
+  a field whose owning record carries `MNUBAR`; Choice selection type
+  (`SNGCHCFLD`/`MLTCHCFLD`) always offered as the opt-in entry point,
+  with Choice keywords (`CHOICE`/`CHCCTL`/`CHCACCEL`, merged into one row
+  per choice number) and Choice colors & attributes (`CHCAVAIL`/
+  `CHCUNAVAIL`/`CHCSLT`) appearing once a field is already one of those.
+  Not modeled: `MNUBARCHC`'s "Text field"/"Return field" variable-
+  argument forms shown on the real SDA screen - only the literal-text
+  form (`id record 'text'`) is supported, matching what
+  `DspfEngine.parseMenubarChoice` already renders on screen.
 
 ### Menu designer
 
@@ -247,7 +258,7 @@ picked up after the current round of fixes.
   | Field | Character wiring | D2 ✅ | - |
   | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 | - |
   | Field | Constant (subset + Menu-Bar Keywords) | D4 | - |
-  | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 | - |
+  | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 ✅ | - |
 
   Status per task is tracked in
   [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)

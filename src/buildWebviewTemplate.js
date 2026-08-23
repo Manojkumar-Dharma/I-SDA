@@ -42,6 +42,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .field-row { margin-bottom: 10px; }
   .field-row label { display: block; font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .choice-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .choice-row input { min-width: 0; }
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
   #screenOutput { position: relative; }
@@ -1609,6 +1611,33 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!isConstant && catVis.messageId) {
       attrsHtml += accordionHtml('Message ID', WebviewClientHelpers.messageIdHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
+    // D5 - Menu-bar choice fields (docs/sda-reference/ task D5). Two
+    // distinct gates, since these serve two different field kinds:
+    //   - MNUBARCHC/MNUBARSEP only make sense on a field that lives in a
+    //     record carrying its own MNUBAR keyword (see the record-type
+    //     wizard's MNUBAR/PULLDOWN/PDNSFL types) - gated on the OWNING
+    //     RECORD, not the field itself, since a brand-new field in that
+    //     record hasn't been turned into the bar's own choice field yet.
+    //   - Choice selection type is always offered (it's the opt-in entry
+    //     point, same spirit as D1's Keying options always being offered);
+    //     the per-choice keyword list and the three color states only
+    //     appear once a field IS already a SNGCHCFLD/MLTCHCFLD choice
+    //     field, so a random unrelated field's Attributes tab doesn't get
+    //     cluttered with an empty, confusing choice-list editor.
+    const ownerRecord = found.record;
+    const isMenuBarRecord = !isConstant && ownerRecord.keywords.some((k) => k.name === 'MNUBAR');
+    if (isMenuBarRecord) {
+      attrsHtml += accordionHtml('Menu-bar choices (MNUBARCHC)', WebviewClientHelpers.menuBarChoicesHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('Menu-bar separator (MNUBARSEP)', WebviewClientHelpers.menuBarSeparatorHtml(field.keywords, 'field-' + field.sourceLine), false);
+    }
+    if (!isConstant) {
+      attrsHtml += accordionHtml('Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
+      const isChoiceField = DspfWriter.getChoiceSelectionType(field.keywords).kind !== '';
+      if (isChoiceField) {
+        attrsHtml += accordionHtml('Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine), false);
+        attrsHtml += accordionHtml('Choice colors & attributes', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine), false);
+      }
+    }
 
     // --- Keywords tab: the dense raw-keyword chip editor + conditioning, each collapsed by default ---
     let keywordsHtml = accordionHtml('Keywords', WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), true);
@@ -1667,6 +1696,17 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!isConstant) {
       WebviewClientHelpers.wireReferenceOverridesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
       WebviewClientHelpers.wireMessageIdEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    }
+    if (isMenuBarRecord) {
+      WebviewClientHelpers.wireMenuBarChoicesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      WebviewClientHelpers.wireMenuBarSeparatorEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    }
+    if (!isConstant) {
+      WebviewClientHelpers.wireChoiceSelectionTypeEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      if (DspfWriter.getChoiceSelectionType(field.keywords).kind !== '') {
+        WebviewClientHelpers.wireChoiceKeywordsListEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+        WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      }
     }
 
     if (isConstant) {

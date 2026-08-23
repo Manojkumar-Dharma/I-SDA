@@ -855,6 +855,298 @@
     return next;
   }
 
+  // -----------------------------------------------------------------------
+  // D5 - Menu-bar choice fields (MNB*/MNUACT): the remaining SDA "Select
+  // Field Keywords"-family screens from docs/sda-reference/ task D5, all
+  // under docs/sda-reference/screens/field-level/menu-bar-choice/. Two
+  // field kinds share this territory:
+  //   - MNB* fields (the menu-bar itself, carrying MNUBAR on their record -
+  //     see the record-type wizard): MNUBARCHC (one per top-level choice,
+  //     each naming the PULLDOWN record it opens) and MNUBARSEP (the
+  //     separator line under the bar).
+  //   - MNUACT-style fields (a SNGCHCFLD/MLTCHCFLD selection field, usually
+  //     living INSIDE a PULLDOWN record): the Choice Selection Type
+  //     keyword itself, then per-choice CHOICE/CHCCTL/CHCACCEL, then the
+  //     three whole-field choice-color-state keywords CHCAVAIL/CHCUNAVAIL/
+  //     CHCSLT.
+  // Verified against IBM's own DDS reference and a real worked MNUBAR/
+  // PULLDOWN/CHCCTL example (search: "RPG Example Using a Display File to
+  // Display a Menu Bar (MNUBAR) with PULLDOWN and CHCCTL") rather than
+  // guessed - matches DspfEngine.parseMenubarChoice/parseChoiceParams'
+  // existing RENDER-side parsing exactly, so what this writes back is
+  // guaranteed to still render correctly.
+  // -----------------------------------------------------------------------
+
+  /** Parses one CHOICE-shaped keyword's "id 'text'" or "id &variable"
+   *  parameter form - shared by MNUBARCHC (id record-name 'text'/&var),
+   *  CHOICE (id 'text'/&var), and CHCACCEL (id 'text'/&var). Returns
+   *  { id: string, rest: string } where `rest` is whatever follows the id
+   *  (either just the text/variable, or - for MNUBARCHC - the record name
+   *  AND the text/variable together, left for the caller to split further). */
+  function splitLeadingChoiceId(parameters) {
+    var m = (parameters || '').trim().match(/^(\d+)\s+([\s\S]*)$/);
+    return m ? { id: m[1], rest: m[2] } : { id: '', rest: (parameters || '').trim() };
+  }
+
+  /** Quotes `text` for a DDS literal argument (doubling embedded quotes),
+   *  or returns a &variable reference as-is - the inverse of
+   *  DspfEngine.parseChoiceParams/parseMenubarChoice's own text parsing. */
+  function formatChoiceText(text) {
+    var t = (text || '').trim();
+    if (!t) return "''";
+    if (t.charAt(0) === '&') return t;
+    return "'" + t.replace(/'/g, "''") + "'";
+  }
+
+  /** MNUBARCHC(id pulldown-record-name 'text') - one per top-level menu-bar
+   *  choice, field-level on the MNB* field, read back in the SAME order
+   *  DspfEngine.widgetFromKeywords sorts them (ascending by id) so what
+   *  round-trips through the picker matches what's already on screen. */
+  function getMenubarChoices(keywords) {
+    return (keywords || [])
+      .filter(function (k) { return k.name === 'MNUBARCHC'; })
+      .map(function (k) {
+        var m = (k.parameters || '').trim().match(/^(\d+)\s+(\S+)\s+((?:&\S+)|(?:'(?:[^']|'')*'))/);
+        if (!m) return { id: '', pulldownRecord: '', text: (k.parameters || '').trim() };
+        var text = m[3].charAt(0) === '&' ? m[3] : m[3].slice(1, -1).replace(/''/g, "'");
+        return { id: m[1], pulldownRecord: m[2], text: text };
+      });
+  }
+
+  /** Returns a NEW keywords array with every existing MNUBARCHC removed and
+   *  replaced by one per entry in `choices` ({ id, pulldownRecord, text }),
+   *  in the given order - blank/incomplete entries (no id, record, or
+   *  text) are skipped rather than writing a malformed keyword. */
+  function setMenubarChoices(keywords, choices) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'MNUBARCHC'; });
+    (choices || []).forEach(function (c) {
+      var id = (c.id || '').trim();
+      var record = (c.pulldownRecord || '').trim();
+      var text = (c.text || '').trim();
+      if (!id || !record || !text) return;
+      next = next.concat([{ name: 'MNUBARCHC', parameters: id + ' ' + record + ' ' + formatChoiceText(text), conditions: [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
+  /** MNUBARSEP((*COLOR color) (*DSPATR attrs) (*CHAR 'c')) - the menu-bar's
+   *  own separator line, field-level on the MNB* field, at most one
+   *  instance. Same bracketed-groups shape as WDWBORDER (see getWdwBorder)
+   *  but with a SINGLE separator character rather than 8 border positions,
+   *  and no dedicated "only write groups that are enabled" state needed
+   *  beyond what's already present vs. absent. */
+  function getMenubarSeparator(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'MNUBARSEP'; });
+    var result = { color: '', attrs: [], char: '' };
+    if (!k) return result;
+    var text = k.parameters || '';
+    var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
+    if (colorM) result.color = colorM[1].toUpperCase();
+    var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
+    if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+    var charM = /\*CHAR\s+'([^']*)'/i.exec(text);
+    if (charM) result.char = charM[1];
+    return result;
+  }
+
+  /** Returns a NEW keywords array with MNUBARSEP built from `state` -
+   *  `{ colorEnabled, color, attrsEnabled, attrs, charEnabled, char }` -
+   *  removed entirely if none of the three groups are enabled. */
+  function setMenubarSeparator(keywords, state) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'MNUBARSEP'; });
+    var groups = [];
+    if (state.colorEnabled && state.color) groups.push('(*COLOR ' + state.color + ')');
+    if (state.attrsEnabled && state.attrs && state.attrs.length) groups.push('(*DSPATR ' + state.attrs.join(' ') + ')');
+    if (state.charEnabled && state.char) groups.push("(*CHAR '" + state.char.charAt(0) + "')");
+    if (groups.length) next = next.concat([{ name: 'MNUBARSEP', parameters: groups.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** The *param values real SDA's "Define Choice Selection Type" screen
+   *  offers for SNGCHCFLD/MLTCHCFLD (see docs/sda-reference/screens/
+   *  field-level/menu-bar-choice/choice-selection-type/image205.png) -
+   *  grouped by the mutually-exclusive pairs the screen itself shows them
+   *  in (only one of each pair applies at a time; *NUMCOL/*NUMROW/*GUTTER
+   *  take a numeric argument instead of being a bare flag). */
+  var CHOICE_SELECTION_FLAGS = ['*RSTCSR', '*NORSTCSR', '*SLTIND', '*NOSLTIND', '*AUTOSLT', '*NOAUTOSLT', '*AUTOSLTENH', '*AUTOENT', '*NOAUTOENT', '*AUTOENTNN'];
+
+  /** Reads which of SNGCHCFLD/MLTCHCFLD is present and its *param list -
+   *  { kind: ''|'SNGCHCFLD'|'MLTCHCFLD', flags: string[] (e.g. ['*AUTOENT']),
+   *  numCol: string, numRow: string, gutter: string } - a field carries at
+   *  most one of these two keywords (the two selection-type radio options
+   *  on the SDA screen), same "at most one at a time" shape as
+   *  getValidityCheck's RANGE/COMP/VALUES. */
+  function getChoiceSelectionType(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'SNGCHCFLD' || kw.name === 'MLTCHCFLD'; });
+    var result = { kind: '', flags: [], numCol: '', numRow: '', gutter: '' };
+    if (!k) return result;
+    result.kind = k.name;
+    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    tokens.forEach(function (t) {
+      var upper = t.toUpperCase();
+      if (CHOICE_SELECTION_FLAGS.indexOf(upper) >= 0) { result.flags.push(upper); return; }
+      var numColM = /^\*NUMCOL\((\d+)\)$/i.exec(t);
+      if (numColM) { result.numCol = numColM[1]; return; }
+      var numRowM = /^\*NUMROW\((\d+)\)$/i.exec(t);
+      if (numRowM) { result.numRow = numRowM[1]; return; }
+      var gutterM = /^\*GUTTER\((\d+)\)$/i.exec(t);
+      if (gutterM) { result.gutter = gutterM[1]; return; }
+    });
+    return result;
+  }
+
+  /** Returns a NEW keywords array with SNGCHCFLD/MLTCHCFLD replaced by one
+   *  keyword built from `state` (same shape getChoiceSelectionType
+   *  returns) - removed entirely if `state.kind` is blank. */
+  function setChoiceSelectionType(keywords, state) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'SNGCHCFLD' && kw.name !== 'MLTCHCFLD'; });
+    if (!state || !state.kind) return next;
+    var parts = (state.flags || []).slice();
+    if (state.numCol) parts.push('*NUMCOL(' + state.numCol + ')');
+    if (state.numRow) parts.push('*NUMROW(' + state.numRow + ')');
+    if (state.gutter) parts.push('*GUTTER(' + state.gutter + ')');
+    next = next.concat([{ name: state.kind, parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** CHOICE(id 'text') - one per choice on a SNGCHCFLD/MLTCHCFLD field,
+   *  same shape as DspfEngine.parseChoiceParams. */
+  function getChoices(keywords) {
+    return (keywords || [])
+      .filter(function (k) { return k.name === 'CHOICE'; })
+      .map(function (k) {
+        var split = splitLeadingChoiceId(k.parameters);
+        var text = split.rest.charAt(0) === '&' ? split.rest : split.rest.replace(/^'|'$/g, '').replace(/''/g, "'");
+        return { id: split.id, text: text };
+      });
+  }
+
+  /** Returns a NEW keywords array with every existing CHOICE removed and
+   *  replaced by one per entry in `choices` ({ id, text }) - blank
+   *  entries (no id or text) skipped. */
+  function setChoices(keywords, choices) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'CHOICE'; });
+    (choices || []).forEach(function (c) {
+      var id = (c.id || '').trim();
+      var text = (c.text || '').trim();
+      if (!id || !text) return;
+      next = next.concat([{ name: 'CHOICE', parameters: id + ' ' + formatChoiceText(text), conditions: [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
+  /** CHCACCEL(id 'text') - one per choice's accelerator-key text, same
+   *  list shape as getChoices/setChoices. */
+  function getChoiceAccelerators(keywords) {
+    return (keywords || [])
+      .filter(function (k) { return k.name === 'CHCACCEL'; })
+      .map(function (k) {
+        var split = splitLeadingChoiceId(k.parameters);
+        var text = split.rest.charAt(0) === '&' ? split.rest : split.rest.replace(/^'|'$/g, '').replace(/''/g, "'");
+        return { id: split.id, text: text };
+      });
+  }
+
+  /** Returns a NEW keywords array with every existing CHCACCEL removed and
+   *  replaced by one per entry in `accelerators` ({ id, text }) - blank
+   *  entries skipped. */
+  function setChoiceAccelerators(keywords, accelerators) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'CHCACCEL'; });
+    (accelerators || []).forEach(function (a) {
+      var id = (a.id || '').trim();
+      var text = (a.text || '').trim();
+      if (!id || !text) return;
+      next = next.concat([{ name: 'CHCACCEL', parameters: id + ' ' + formatChoiceText(text), conditions: [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
+  /** CHCCTL(id control-field [message-id message-file [library]]) - one per
+   *  choice, controlling whether that choice is selectable (control-field
+   *  non-zero => unavailable) and what tells the user why if they try to
+   *  pick it anyway. `messageId`/`messageFile` are themselves either a
+   *  literal message ID + file name, or &variables - left as raw text
+   *  since (like getMessageId) the argument shapes vary too much to
+   *  usefully decompose further. */
+  function getChoiceControls(keywords) {
+    return (keywords || [])
+      .filter(function (k) { return k.name === 'CHCCTL'; })
+      .map(function (k) {
+        var split = splitLeadingChoiceId(k.parameters);
+        var tokens = split.rest.split(/\s+/).filter(Boolean);
+        var messageFileToken = tokens[2] || '';
+        var libMatch = /^([^/]+)\/(.+)$/.exec(messageFileToken);
+        return {
+          id: split.id,
+          controlField: tokens[0] || '',
+          messageId: tokens[1] || '',
+          messageFile: libMatch ? libMatch[2] : messageFileToken,
+          library: libMatch ? libMatch[1] : '',
+        };
+      });
+  }
+
+  /** Returns a NEW keywords array with every existing CHCCTL removed and
+   *  replaced by one per entry in `controls` ({ id, controlField,
+   *  messageId, messageFile, library }) - entries need at least id and
+   *  controlField; messageId/messageFile/library are optional (a choice
+   *  can be controlled with no explanatory message). `library`, if given,
+   *  is joined onto messageFile as `library/messageFile` DDS's qualified-
+   *  name form expects. */
+  function setChoiceControls(keywords, controls) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'CHCCTL'; });
+    (controls || []).forEach(function (c) {
+      var id = (c.id || '').trim();
+      var controlField = (c.controlField || '').trim();
+      if (!id || !controlField) return;
+      var parts = [controlField];
+      var messageId = (c.messageId || '').trim();
+      var messageFile = (c.messageFile || '').trim();
+      var library = (c.library || '').trim();
+      if (messageId && messageFile) {
+        parts.push(messageId);
+        parts.push(library ? library + '/' + messageFile : messageFile);
+      }
+      next = next.concat([{ name: 'CHCCTL', parameters: id + ' ' + parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
+  var CHOICE_COLOR_STATE_KEYWORDS = ['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT'];
+
+  /** CHCAVAIL/CHCUNAVAIL/CHCSLT ((*COLOR c) (*DSPATR a a)) - the three
+   *  whole-field (not per-choice) color/attribute states a SNGCHCFLD/
+   *  MLTCHCFLD field's choices can be shown in: available, unavailable
+   *  (see CHCCTL above), and selected. Same bracketed-groups shape as
+   *  MNUBARSEP/WDWBORDER minus the *CHAR group (these three have no
+   *  character sub-option on the real SDA screen). `keywordName` must be
+   *  one of CHOICE_COLOR_STATE_KEYWORDS. */
+  function getChoiceColorState(keywords, keywordName) {
+    var k = (keywords || []).find(function (kw) { return kw.name === keywordName; });
+    var result = { color: '', attrs: [] };
+    if (!k) return result;
+    var text = k.parameters || '';
+    var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
+    if (colorM) result.color = colorM[1].toUpperCase();
+    var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
+    if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+    return result;
+  }
+
+  /** Returns a NEW keywords array with `keywordName` (one of
+   *  CHOICE_COLOR_STATE_KEYWORDS) built from `color`/`attrs`, removed
+   *  entirely if both are empty - same shape as setColorAttr but for a
+   *  caller-chosen keyword name instead of the fixed COLOR/DSPATR pair. */
+  function setChoiceColorState(keywords, keywordName, color, attrs) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== keywordName; });
+    var groups = [];
+    if (color) groups.push('(*COLOR ' + color + ')');
+    if (attrs && attrs.length) groups.push('(*DSPATR ' + attrs.join(' ') + ')');
+    if (groups.length) next = next.concat([{ name: keywordName, parameters: groups.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+
   /** Plain-text getter for WDWTITLE - same shape as getErrorMessageText, unlike
    *  the generic keyword box where the user has to type the quotes themselves.
    *  DspfEngine.resolveWindowTitle already does this same extraction for the
@@ -2164,6 +2456,20 @@
     setReferenceOverrides: setReferenceOverrides,
     getMessageId: getMessageId,
     setMessageId: setMessageId,
+    getMenubarChoices: getMenubarChoices,
+    setMenubarChoices: setMenubarChoices,
+    getMenubarSeparator: getMenubarSeparator,
+    setMenubarSeparator: setMenubarSeparator,
+    getChoiceSelectionType: getChoiceSelectionType,
+    setChoiceSelectionType: setChoiceSelectionType,
+    getChoices: getChoices,
+    setChoices: setChoices,
+    getChoiceAccelerators: getChoiceAccelerators,
+    setChoiceAccelerators: setChoiceAccelerators,
+    getChoiceControls: getChoiceControls,
+    setChoiceControls: setChoiceControls,
+    getChoiceColorState: getChoiceColorState,
+    setChoiceColorState: setChoiceColorState,
     getWindowTitleText: getWindowTitleText,
     setWindowTitleText: setWindowTitleText,
     getFileFlagKeyword: getFileFlagKeyword,

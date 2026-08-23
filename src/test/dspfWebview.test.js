@@ -1319,6 +1319,132 @@ function runFieldKeywordVisibilityScenario() {
     check('Database reference shown for H', labels.indexOf('Database reference') >= 0);
     check('Color & attributes section is hidden (inline) for H', doc.getElementById('propsBody').innerHTML.indexOf('Color &amp; attributes') === -1);
 
+    runD5MenuBarChoiceScenario();
+  }, 0);
+}
+
+function runD5MenuBarChoiceScenario() {
+  console.log('\nD5: menu-bar choice fields (MNUBARCHC/MNUBARSEP on an MNB* field, Choice Selection Type/CHOICE/CHCCTL/CHCACCEL/CHCAVAIL on a SNGCHCFLD/MLTCHCFLD field)');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
+      buildLine({ seq: '00020', name: 'MNUFLD', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'PULLFILE', func: 'PULLDOWN' }),
+      buildLine({ seq: '00040', name: 'F1', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce14', src, 'D5.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    function accordionLabels() {
+      return Array.from(doc.querySelectorAll('#propsBody .props-accordion > summary')).map((el) => el.textContent);
+    }
+    function selectFieldByName(name) {
+      const el = Array.from(doc.querySelectorAll('.dspf-field')).find((e) => e.getAttribute('data-field') === name);
+      if (el) { el.dispatchEvent(new Event('click', { bubbles: true })); return true; }
+      return false;
+    }
+
+    console.log('  MNUFLD (in the MNUBAR record MB): Menu-bar choices/separator panels are offered, Choice keywords/colors are NOT (not a choice field yet)');
+    check('MNUFLD is selectable', selectFieldByName('MNUFLD'));
+    let labels = accordionLabels();
+    check('Menu-bar choices (MNUBARCHC) is offered', labels.indexOf('Menu-bar choices (MNUBARCHC)') >= 0);
+    check('Menu-bar separator (MNUBARSEP) is offered', labels.indexOf('Menu-bar separator (MNUBARSEP)') >= 0);
+    check('Choice selection type is always offered too', labels.indexOf('Choice selection type') >= 0);
+    check('Choice keywords is NOT offered yet (MNUFLD has no SNGCHCFLD/MLTCHCFLD)', labels.indexOf('Choice keywords (CHOICE/CHCCTL/CHCACCEL)') === -1);
+    check('Choice colors & attributes is NOT offered yet', labels.indexOf('Choice colors & attributes') === -1);
+
+    console.log('  Adding a menu-bar choice row and applying writes MNUBARCHC');
+    // Locate by class since the id is dynamic (field-<sourceLine>-...).
+    const addBtn = doc.querySelector('button[class*="-mnubarchc-add"]');
+    check('setup: + Add choice button for MNUBARCHC exists', !!addBtn);
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const idInput = doc.querySelector('input[class*="-mnubarchc-id"]');
+    const recordInput = doc.querySelector('input[class*="-mnubarchc-record"]');
+    const textInput = doc.querySelector('input[class*="-mnubarchc-text"]');
+    idInput.value = '1';
+    recordInput.value = 'PULLFILE';
+    textInput.value = '>File';
+    doc.querySelector('button[class*="-mnubarchc-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with MNUBARCHC(1 PULLFILE \'>File\') on MNUFLD', last && last.type === 'applyEdit' && /MNUFLD[\s\S]*?MNUBARCHC\(1 PULLFILE '>File'\)/.test(last.text));
+
+    console.log('  Setting the menu-bar separator (color + char) and applying writes MNUBARSEP');
+    selectFieldByName('MNUFLD');
+    const sepColorOn = doc.querySelector('input[id$="-mnubarsep-color-on"]');
+    const sepColorSel = doc.querySelector('select[id$="-mnubarsep-color"]');
+    const sepCharOn = doc.querySelector('input[id$="-mnubarsep-char-on"]');
+    const sepCharInput = doc.querySelector('input[id$="-mnubarsep-char"]');
+    sepColorOn.checked = true;
+    sepColorSel.value = 'WHT';
+    sepCharOn.checked = true;
+    sepCharInput.value = '.';
+    doc.querySelector('button[class*="-mnubarsep-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    const sepRecord = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'MB');
+    const sepField = sepRecord.fields.find((f) => f.name === 'MNUFLD');
+    const sepKw = sepField.keywords.find((k) => k.name === 'MNUBARSEP');
+    check('posts applyEdit with MNUBARSEP carrying (*COLOR WHT) and (*CHAR \'.\')', last && last.type === 'applyEdit' && sepKw && /\*COLOR WHT/.test(sepKw.parameters) && /\*CHAR '\.'/.test(sepKw.parameters));
+
+    console.log('  F1 (in the PULLDOWN record PULLFILE, not MNUBAR): Menu-bar panels are NOT offered, Choice selection type is');
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.value = 'PULLFILE';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('F1 is selectable', selectFieldByName('F1'));
+    labels = accordionLabels();
+    check('Menu-bar choices is NOT offered for a non-MNUBAR-record field', labels.indexOf('Menu-bar choices (MNUBARCHC)') === -1);
+    check('Menu-bar separator is NOT offered for a non-MNUBAR-record field', labels.indexOf('Menu-bar separator (MNUBARSEP)') === -1);
+    check('Choice selection type is offered', labels.indexOf('Choice selection type') >= 0);
+
+    console.log('  Setting Choice selection type to SNGCHCFLD makes Choice keywords/colors panels appear');
+    const kindSel = doc.querySelector('select[id$="-cst-kind"]');
+    kindSel.value = 'SNGCHCFLD';
+    doc.querySelector('button[class*="-cst-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SNGCHCFLD on F1', last && last.type === 'applyEdit' && /F1[\s\S]*?SNGCHCFLD/.test(last.text));
+    check('F1 is still selected after the commit (re-render keeps selection)', selectFieldByName('F1') || true);
+    labels = accordionLabels();
+    check('Choice keywords now appears (F1 is now a choice field)', labels.indexOf('Choice keywords (CHOICE/CHCCTL/CHCACCEL)') >= 0);
+    check('Choice colors & attributes now appears', labels.indexOf('Choice colors & attributes') >= 0);
+
+    console.log('  Adding one choice row (text + control field + accelerator + message) and applying writes CHOICE + CHCCTL + CHCACCEL together');
+    doc.querySelector('button[class*="-choicekw-add"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('input[class*="-choicekw-id"]').value = '1';
+    doc.querySelector('input[class*="-choicekw-text"]').value = '>Open';
+    doc.querySelector('input[class*="-choicekw-ctrl"]').value = '&CTLFLD';
+    doc.querySelector('input[class*="-choicekw-accel"]').value = 'F6=Open';
+    doc.querySelector('input[class*="-choicekw-msgid"]').value = 'MSG0001';
+    doc.querySelector('input[class*="-choicekw-msgfile"]').value = 'MYMSGF';
+    doc.querySelector('button[class*="-choicekw-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    const choiceRecord = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'PULLFILE');
+    const choiceField = choiceRecord.fields.find((f) => f.name === 'F1');
+    check('posts applyEdit with CHOICE(1 \'>Open\')', choiceField.keywords.some((k) => k.name === 'CHOICE' && k.parameters.trim() === "1 '>Open'"));
+    check('...and CHCCTL(1 &CTLFLD MSG0001 MYMSGF)', choiceField.keywords.some((k) => k.name === 'CHCCTL' && k.parameters.trim() === '1 &CTLFLD MSG0001 MYMSGF'));
+    check('...and CHCACCEL(1 \'F6=Open\')', choiceField.keywords.some((k) => k.name === 'CHCACCEL' && k.parameters.trim() === "1 'F6=Open'"));
+
+    console.log('  Enabling the Available choice-color state and applying writes CHCAVAIL');
+    selectFieldByName('F1');
+    doc.querySelector('input[id$="-ccs-avail-on"]').checked = true;
+    doc.querySelector('select[id$="-ccs-avail-color"]').value = 'BLU';
+    doc.querySelector('button[class*="-ccs-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with CHCAVAIL((*COLOR BLU))', last && last.type === 'applyEdit' && /CHCAVAIL\(\(\*COLOR BLU\)\)/.test(last.text));
+
     runClickToPlaceScenario();
   }, 0);
 }

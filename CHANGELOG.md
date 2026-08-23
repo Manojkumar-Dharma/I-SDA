@@ -87,6 +87,51 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `*DFT` 3-token forms, mode switching, and the shared Border Parameters
     panel producing the same `WDWBORDER` output as the file-level picker.
 
+## [0.9.51] - Unreleased
+
+### Added
+- **Task D5 - Menu-bar choice fields (`MNB*`/`MNUACT`)**: five new panels
+  covering `docs/sda-reference/screens/field-level/menu-bar-choice/*`,
+  verified against IBM's own DDS reference and a real worked MNUBAR/
+  PULLDOWN/CHCCTL example rather than guessed:
+  - **Menu-bar choices (`MNUBARCHC`)** and **Menu-bar separator
+    (`MNUBARSEP`)** - list/single-instance editors, gated on the field's
+    *owning record* carrying `MNUBAR` (a brand-new field in that record
+    hasn't been turned into the bar's own choice field yet).
+  - **Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`)** - the opt-in
+    entry point for the remaining two panels, always offered on any
+    non-constant field, with every `*param` flag from the real SDA
+    screen (`*RSTCSR`/`*SLTIND`/`*AUTOSLT`/`*AUTOENT` families plus
+    `*NUMCOL`/`*NUMROW`/`*GUTTER`).
+  - **Choice keywords (`CHOICE`/`CHCCTL`/`CHCACCEL`)** - merged into one
+    row per choice number (a choice's text, its optional control field/
+    message, and its accelerator text are conceptually "the same
+    choice", matching real SDA's own screen).
+  - **Choice colors & attributes (`CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT`)** -
+    three independent color/attribute states.
+  - Both list-style choice panels (Choice keywords and Menu-bar choices)
+    only appear once a field already carries `SNGCHCFLD`/`MLTCHCFLD` (or,
+    for menu-bar choices, once its owning record carries `MNUBAR`),
+    avoiding an empty, confusing choice-list editor on unrelated fields.
+  - New `DspfWriter` primitives: `getMenubarChoices`/`setMenubarChoices`,
+    `getMenubarSeparator`/`setMenubarSeparator`,
+    `getChoiceSelectionType`/`setChoiceSelectionType`,
+    `getChoices`/`setChoices`,
+    `getChoiceAccelerators`/`setChoiceAccelerators`,
+    `getChoiceControls`/`setChoiceControls`,
+    `getChoiceColorState`/`setChoiceColorState`.
+  - Deliberately deferred: `MNUBARCHC`'s "Text field"/"Return field"
+    variable-argument forms shown on the real SDA screen - only the
+    literal-text form (`id record 'text'`) is modeled, matching what
+    `DspfEngine.parseMenubarChoice` already renders.
+  - 47 new `dspfWriter.test.js` checks (including a full end-to-end
+    round-trip against the real worked MNUBAR/PULLDOWN/CHCCTL example)
+    plus 21 new `dspfWebview.test.js` checks driving all five panels
+    live, across both an MNB* field and a choice field.
+
+## [0.9.48] - Unreleased
+
+### Added
 - **Base Record Keywords picker (SDA parity plan task R1 - see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, mapped against real
   SDA's own record-level "Select/Define ___ Keywords" screens

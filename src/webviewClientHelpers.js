@@ -847,6 +847,307 @@
     });
   }
 
+  // -----------------------------------------------------------------------
+  // D5 - Menu-bar choice fields (MNB*/MNUACT). Two field kinds, five panels
+  // (see DspfWriter's own D5 primitives doc comment for the exact DDS
+  // shapes and which real SDA screenshot each panel matches):
+  //   MNB* fields  - menuBarChoicesHtml (MNUBARCHC list), menuBarSeparatorHtml (MNUBARSEP)
+  //   choice fields - choiceSelectionTypeHtml (SNGCHCFLD/MLTCHCFLD),
+  //                   choiceKeywordsListHtml (CHOICE + CHCCTL + CHCACCEL, one row per choice),
+  //                   choiceColorStatesHtml (CHCAVAIL/CHCUNAVAIL/CHCSLT, three side-by-side states)
+  // -----------------------------------------------------------------------
+
+  /** MNUBARCHC list editor - one row per top-level menu-bar choice
+   *  (id, pulldown record name, text). Rows commit together via one Apply
+   *  button, same "batch-edit a list" pattern as the file-level Display
+   *  Sizes editor - editing choice N shouldn't require N separate applies. */
+  function menuBarChoicesHtml(keywords, ownerKey) {
+    var choices = DspfWriter.getMenubarChoices(keywords);
+    var html = '<div class="section-label">Menu-bar choices (MNUBARCHC)</div>';
+    html += '<div id="' + ownerKey + '-mnubarchc-rows">';
+    choices.forEach(function (c, idx) {
+      html += menuBarChoiceRowHtml(ownerKey, idx, c);
+    });
+    html += '</div>';
+    html += '<button class="secondary ' + ownerKey + '-mnubarchc-add" style="width:100%;margin-top:6px;">+ Add choice</button>';
+    html += '<button class="' + ownerKey + '-mnubarchc-apply" style="width:100%;margin-top:6px;">Apply menu-bar choices</button>';
+    return html;
+  }
+
+  function menuBarChoiceRowHtml(ownerKey, idx, c) {
+    c = c || { id: '', pulldownRecord: '', text: '' };
+    return '<div class="choice-row" data-idx="' + idx + '">' +
+      '<input type="text" class="' + ownerKey + '-mnubarchc-id" placeholder="#" maxlength="3" value="' + escapeHtml(c.id) + '" style="width:36px;" />' +
+      '<input type="text" class="' + ownerKey + '-mnubarchc-record" placeholder="pulldown record" maxlength="10" value="' + escapeHtml(c.pulldownRecord) + '" style="width:110px;" />' +
+      '<input type="text" class="' + ownerKey + '-mnubarchc-text" placeholder="text" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
+      '<button class="secondary ' + ownerKey + '-mnubarchc-remove" data-idx="' + idx + '" title="Remove">&times;</button>' +
+      '</div>';
+  }
+
+  function wireMenuBarChoicesEditor(keywords, onChange, ownerKey) {
+    var container = document.getElementById(ownerKey + '-mnubarchc-rows');
+    if (!container) return;
+    var addBtn = document.querySelector('.' + ownerKey + '-mnubarchc-add');
+    var applyBtn = document.querySelector('.' + ownerKey + '-mnubarchc-apply');
+    if (addBtn) addBtn.addEventListener('click', function () {
+      container.insertAdjacentHTML('beforeend', menuBarChoiceRowHtml(ownerKey, container.children.length, null));
+      wireRemoveButtons();
+    });
+    function wireRemoveButtons() {
+      document.querySelectorAll('.' + ownerKey + '-mnubarchc-remove').forEach(function (btn) {
+        btn.onclick = function () { btn.closest('.choice-row').remove(); };
+      });
+    }
+    wireRemoveButtons();
+    if (applyBtn) applyBtn.addEventListener('click', function () {
+      var rows = Array.prototype.slice.call(container.querySelectorAll('.choice-row'));
+      var choices = rows.map(function (row) {
+        return {
+          id: row.querySelector('.' + ownerKey + '-mnubarchc-id').value,
+          pulldownRecord: row.querySelector('.' + ownerKey + '-mnubarchc-record').value,
+          text: row.querySelector('.' + ownerKey + '-mnubarchc-text').value,
+        };
+      });
+      onChange(DspfWriter.setMenubarChoices(keywords, choices));
+    });
+  }
+
+  /** MNUBARSEP - the menu-bar's own separator line. Same "enable checkbox
+   *  per group, one Apply" shape as WDWBORDER (see fileKeywordsPanelsHtml's
+   *  own windowBorder panel) but a single separator character instead of 8
+   *  border positions, and no *CHAR-less alternative for a bare Y default -
+   *  real SDA's own screen always pairs the Y flag with its own field. */
+  function menuBarSeparatorHtml(keywords, ownerKey) {
+    var sep = DspfWriter.getMenubarSeparator(keywords);
+    var enabled = { color: !!sep.color, attrs: sep.attrs.length > 0, chars: !!sep.char };
+    var html = '<div class="section-label">Menu-bar separator (MNUBARSEP)</div>';
+    html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-mnubarsep-color-on" ' + (enabled.color ? 'checked' : '') + ' /> Color</label>';
+    html += '<select id="' + ownerKey + '-mnubarsep-color">' + COLOR_VALUES.map(function (c) {
+      return '<option value="' + c + '"' + (sep.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
+    }).join('') + '</select>';
+    html += '<label style="display:flex;align-items:center;gap:6px;margin:8px 0 6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-mnubarsep-attrs-on" ' + (enabled.attrs ? 'checked' : '') + ' /> Display attributes</label>';
+    html += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+      var checked = sep.attrs.indexOf(a) >= 0;
+      return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-mnubarsep-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+    }).join('') + '</div>';
+    html += '<label style="display:flex;align-items:center;gap:6px;margin:8px 0 6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-mnubarsep-char-on" ' + (enabled.chars ? 'checked' : '') + ' /> Separator character</label>';
+    html += '<input type="text" maxlength="1" id="' + ownerKey + '-mnubarsep-char" value="' + escapeHtml(sep.char) + '" style="width:40px;" />';
+    html += '<button class="secondary ' + ownerKey + '-mnubarsep-apply" style="width:100%;margin-top:8px;">Apply separator</button>';
+    return html;
+  }
+
+  function wireMenuBarSeparatorEditor(keywords, onChange, ownerKey) {
+    var applyBtn = document.querySelector('.' + ownerKey + '-mnubarsep-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      var attrs = Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-mnubarsep-attr:checked')).map(function (el) { return el.value; });
+      onChange(DspfWriter.setMenubarSeparator(keywords, {
+        colorEnabled: document.getElementById(ownerKey + '-mnubarsep-color-on').checked,
+        color: document.getElementById(ownerKey + '-mnubarsep-color').value,
+        attrsEnabled: document.getElementById(ownerKey + '-mnubarsep-attrs-on').checked,
+        attrs: attrs,
+        charEnabled: document.getElementById(ownerKey + '-mnubarsep-char-on').checked,
+        char: document.getElementById(ownerKey + '-mnubarsep-char').value,
+      }));
+    });
+  }
+
+  // The *param flags real SDA's "Define Choice Selection Type" screen
+  // offers (docs/sda-reference/screens/field-level/menu-bar-choice/
+  // choice-selection-type/image205.png), grouped into the mutually-
+  // exclusive radio pairs the screen itself shows them as (plus a blank
+  // "not specified" option each group defaults to).
+  var CHOICE_SELECTION_RADIO_GROUPS = [
+    { name: 'rstcsr', label: 'Cursor restriction', options: [['', '(not specified)'], ['*RSTCSR', 'Restrict cursor to field'], ['*NORSTCSR', 'No restriction']] },
+    { name: 'sltind', label: 'Select indicator', options: [['', '(not specified)'], ['*SLTIND', 'Display select indicator'], ['*NOSLTIND', 'No display']] },
+    { name: 'autoslt', label: 'Auto-select', options: [['', '(not specified)'], ['*AUTOSLT', 'Select choice upon pressing Enter'], ['*NOAUTOSLT', 'No auto-select'], ['*AUTOSLTENH', 'Only with enhanced controller']] },
+    { name: 'autoent', label: 'Auto-enter', options: [['', '(not specified)'], ['*AUTOENT', 'Enable auto-enter on all display'], ['*NOAUTOENT', 'No auto-enter'], ['*AUTOENTNN', 'Only with no numeric selection']] },
+  ];
+
+  /** SNGCHCFLD/MLTCHCFLD - marks a field as a single- or multiple-choice
+   *  selection field and its own *param behavior flags. This is the entry
+   *  point for the other choice panels below (choiceKeywordsListHtml/
+   *  choiceColorStatesHtml only make sense once a field IS one of these). */
+  function choiceSelectionTypeHtml(keywords, ownerKey) {
+    var state = DspfWriter.getChoiceSelectionType(keywords);
+    var html = '<div class="section-label">Choice selection type</div>';
+    html += '<div class="field-row"><label>Type</label><select id="' + ownerKey + '-cst-kind">' +
+      ['', 'SNGCHCFLD', 'MLTCHCFLD'].map(function (k) {
+        var label = k === '' ? '(not a choice field)' : k === 'SNGCHCFLD' ? '1=SNGCHCFLD (single choice)' : '2=MLTCHCFLD (multiple choice)';
+        return '<option value="' + k + '"' + (state.kind === k ? ' selected' : '') + '>' + label + '</option>';
+      }).join('') + '</select></div>';
+    CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
+      var current = group.options.map(function (o) { return o[0]; }).find(function (v) { return v !== '' && state.flags.indexOf(v) >= 0; }) || '';
+      html += '<div class="field-row"><label>' + escapeHtml(group.label) + '</label><select class="' + ownerKey + '-cst-' + group.name + '">' +
+        group.options.map(function (opt) {
+          return '<option value="' + opt[0] + '"' + (opt[0] === current ? ' selected' : '') + '>' + opt[1] + '</option>';
+        }).join('') + '</select></div>';
+    });
+    html += '<div class="two-col">';
+    html += '<div class="field-row"><label>Columns (*NUMCOL)</label><input type="number" min="1" max="999" id="' + ownerKey + '-cst-numcol" value="' + escapeHtml(state.numCol) + '" /></div>';
+    html += '<div class="field-row"><label>Rows (*NUMROW)</label><input type="number" min="1" max="999" id="' + ownerKey + '-cst-numrow" value="' + escapeHtml(state.numRow) + '" /></div>';
+    html += '</div>';
+    html += '<div class="field-row"><label>Gutter (*GUTTER)</label><input type="number" min="2" max="999" id="' + ownerKey + '-cst-gutter" value="' + escapeHtml(state.gutter) + '" /></div>';
+    html += '<button class="secondary ' + ownerKey + '-cst-apply" style="width:100%;margin-top:8px;">Apply choice selection type</button>';
+    return html;
+  }
+
+  function wireChoiceSelectionTypeEditor(keywords, onChange, ownerKey) {
+    var applyBtn = document.querySelector('.' + ownerKey + '-cst-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      var flags = [];
+      CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
+        var sel = document.querySelector('.' + ownerKey + '-cst-' + group.name);
+        if (sel && sel.value) flags.push(sel.value);
+      });
+      onChange(DspfWriter.setChoiceSelectionType(keywords, {
+        kind: document.getElementById(ownerKey + '-cst-kind').value,
+        flags: flags,
+        numCol: document.getElementById(ownerKey + '-cst-numcol').value,
+        numRow: document.getElementById(ownerKey + '-cst-numrow').value,
+        gutter: document.getElementById(ownerKey + '-cst-gutter').value,
+      }));
+    });
+  }
+
+  /** CHOICE + CHCCTL + CHCACCEL - one row per choice number, all three
+   *  keywords for that choice edited together (a choice's text, its
+   *  optional control field/message, and its optional accelerator text
+   *  are all conceptually "the same choice", matching real SDA's own
+   *  "Define Choice Keywords" screen which prompts for all three under one
+   *  choice-number header). Rows commit together via one Apply, same
+   *  batch-edit pattern as menuBarChoicesHtml. */
+  function choiceKeywordsListHtml(keywords, ownerKey) {
+    var choices = DspfWriter.getChoices(keywords);
+    var controls = DspfWriter.getChoiceControls(keywords);
+    var accelerators = DspfWriter.getChoiceAccelerators(keywords);
+    var ids = {};
+    choices.forEach(function (c) { ids[c.id] = true; });
+    controls.forEach(function (c) { ids[c.id] = true; });
+    accelerators.forEach(function (c) { ids[c.id] = true; });
+    var merged = Object.keys(ids).sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); }).map(function (id) {
+      var choice = choices.find(function (c) { return c.id === id; }) || { text: '' };
+      var control = controls.find(function (c) { return c.id === id; }) || { controlField: '', messageId: '', messageFile: '', library: '' };
+      var accel = accelerators.find(function (c) { return c.id === id; }) || { text: '' };
+      return { id: id, text: choice.text, controlField: control.controlField, messageId: control.messageId, messageFile: control.messageFile, library: control.library, accelText: accel.text };
+    });
+    var html = '<div class="section-label">Choice keywords (CHOICE / CHCCTL / CHCACCEL)</div>';
+    html += '<div id="' + ownerKey + '-choicekw-rows">';
+    merged.forEach(function (c, idx) { html += choiceKeywordRowHtml(ownerKey, idx, c); });
+    html += '</div>';
+    html += '<button class="secondary ' + ownerKey + '-choicekw-add" style="width:100%;margin-top:6px;">+ Add choice</button>';
+    html += '<button class="' + ownerKey + '-choicekw-apply" style="width:100%;margin-top:6px;">Apply choice keywords</button>';
+    return html;
+  }
+
+  function choiceKeywordRowHtml(ownerKey, idx, c) {
+    c = c || { id: '', text: '', controlField: '', messageId: '', messageFile: '', library: '', accelText: '' };
+    var row = '<div class="choice-row-block" data-idx="' + idx + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
+    row += '<div class="choice-row">' +
+      '<input type="text" class="' + ownerKey + '-choicekw-id" placeholder="#" maxlength="3" value="' + escapeHtml(c.id) + '" style="width:36px;" />' +
+      '<input type="text" class="' + ownerKey + '-choicekw-text" placeholder="choice text (CHOICE)" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
+      '<button class="secondary ' + ownerKey + '-choicekw-remove" data-idx="' + idx + '" title="Remove">&times;</button>' +
+      '</div>';
+    row += '<div class="two-col" style="margin-top:6px;">' +
+      '<input type="text" class="' + ownerKey + '-choicekw-ctrl" placeholder="control field (CHCCTL)" value="' + escapeHtml(c.controlField) + '" />' +
+      '<input type="text" class="' + ownerKey + '-choicekw-accel" placeholder="accelerator text (CHCACCEL)" value="' + escapeHtml(c.accelText) + '" />' +
+      '</div>';
+    row += '<div class="two-col" style="margin-top:6px;">' +
+      '<input type="text" class="' + ownerKey + '-choicekw-msgid" placeholder="message ID" value="' + escapeHtml(c.messageId) + '" />' +
+      '<input type="text" class="' + ownerKey + '-choicekw-msgfile" placeholder="message file" value="' + escapeHtml(c.messageFile) + '" />' +
+      '</div>';
+    row += '<input type="text" class="' + ownerKey + '-choicekw-lib" placeholder="library (optional)" value="' + escapeHtml(c.library) + '" style="width:100%;margin-top:6px;" />';
+    row += '</div>';
+    return row;
+  }
+
+  function wireChoiceKeywordsListEditor(keywords, onChange, ownerKey) {
+    var container = document.getElementById(ownerKey + '-choicekw-rows');
+    if (!container) return;
+    var addBtn = document.querySelector('.' + ownerKey + '-choicekw-add');
+    var applyBtn = document.querySelector('.' + ownerKey + '-choicekw-apply');
+    if (addBtn) addBtn.addEventListener('click', function () {
+      container.insertAdjacentHTML('beforeend', choiceKeywordRowHtml(ownerKey, container.children.length, null));
+      wireRemoveButtons();
+    });
+    function wireRemoveButtons() {
+      document.querySelectorAll('.' + ownerKey + '-choicekw-remove').forEach(function (btn) {
+        btn.onclick = function () { btn.closest('.choice-row-block').remove(); };
+      });
+    }
+    wireRemoveButtons();
+    if (applyBtn) applyBtn.addEventListener('click', function () {
+      var rows = Array.prototype.slice.call(container.querySelectorAll('.choice-row-block'));
+      var choices = [], controls = [], accelerators = [];
+      rows.forEach(function (row) {
+        var id = row.querySelector('.' + ownerKey + '-choicekw-id').value;
+        choices.push({ id: id, text: row.querySelector('.' + ownerKey + '-choicekw-text').value });
+        controls.push({
+          id: id,
+          controlField: row.querySelector('.' + ownerKey + '-choicekw-ctrl').value,
+          messageId: row.querySelector('.' + ownerKey + '-choicekw-msgid').value,
+          messageFile: row.querySelector('.' + ownerKey + '-choicekw-msgfile').value,
+          library: row.querySelector('.' + ownerKey + '-choicekw-lib').value,
+        });
+        accelerators.push({ id: id, text: row.querySelector('.' + ownerKey + '-choicekw-accel').value });
+      });
+      var next = DspfWriter.setChoices(keywords, choices);
+      next = DspfWriter.setChoiceControls(next, controls);
+      next = DspfWriter.setChoiceAccelerators(next, accelerators);
+      onChange(next);
+    });
+  }
+
+  // CHCAVAIL/CHCUNAVAIL/CHCSLT share one row shape (label, keyword suffix
+  // for element ids, and the keyword name itself DspfWriter's
+  // get/setChoiceColorState expects).
+  var CHOICE_COLOR_STATES = [
+    { key: 'avail', keyword: 'CHCAVAIL', label: 'Available' },
+    { key: 'unavail', keyword: 'CHCUNAVAIL', label: 'Unavailable' },
+    { key: 'slt', keyword: 'CHCSLT', label: 'Selected' },
+  ];
+
+  /** CHCAVAIL/CHCUNAVAIL/CHCSLT - the three whole-field color/attribute
+   *  states a choice field's entries can be shown in (see DspfWriter's own
+   *  getChoiceColorState doc comment). Three independent enable-checkbox +
+   *  color + attrs groups side by side, one shared Apply. */
+  function choiceColorStatesHtml(keywords, ownerKey) {
+    var html = '<div class="section-label">Choice colors &amp; attributes</div>';
+    CHOICE_COLOR_STATES.forEach(function (state) {
+      var current = DspfWriter.getChoiceColorState(keywords, state.keyword);
+      var enabled = !!current.color || current.attrs.length > 0;
+      html += '<div style="margin-bottom:10px;">';
+      html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;font-weight:600;"><input type="checkbox" id="' + ownerKey + '-ccs-' + state.key + '-on" ' + (enabled ? 'checked' : '') + ' /> ' + state.label + ' (' + state.keyword + ')</label>';
+      html += '<select id="' + ownerKey + '-ccs-' + state.key + '-color">' + COLOR_VALUES.map(function (c) {
+        return '<option value="' + c + '"' + (current.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
+      }).join('') + '</select>';
+      html += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+        var checked = current.attrs.indexOf(a) >= 0;
+        return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-ccs-' + state.key + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+      }).join('') + '</div>';
+      html += '</div>';
+    });
+    html += '<button class="secondary ' + ownerKey + '-ccs-apply" style="width:100%;margin-top:6px;">Apply choice colors &amp; attributes</button>';
+    return html;
+  }
+
+  function wireChoiceColorStatesEditor(keywords, onChange, ownerKey) {
+    var applyBtn = document.querySelector('.' + ownerKey + '-ccs-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      var next = keywords;
+      CHOICE_COLOR_STATES.forEach(function (state) {
+        var on = document.getElementById(ownerKey + '-ccs-' + state.key + '-on').checked;
+        var color = on ? document.getElementById(ownerKey + '-ccs-' + state.key + '-color').value : '';
+        var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-ccs-' + state.key + '-attr:checked')).map(function (el) { return el.value; }) : [];
+        next = DspfWriter.setChoiceColorState(next, state.keyword, color, attrs);
+      });
+      onChange(next);
+    });
+  }
+
+
   /** Renders DspfEngine.resolveFunctionKeyLegend()'s output as a row of F-key chips,
    *  solid/active when the key's own response indicator (if any) is currently on. */
   function functionKeyLegendHtml(entries) {
@@ -1858,6 +2159,16 @@
     wireReferenceOverridesEditor: wireReferenceOverridesEditor,
     messageIdHtml: messageIdHtml,
     wireMessageIdEditor: wireMessageIdEditor,
+    menuBarChoicesHtml: menuBarChoicesHtml,
+    wireMenuBarChoicesEditor: wireMenuBarChoicesEditor,
+    menuBarSeparatorHtml: menuBarSeparatorHtml,
+    wireMenuBarSeparatorEditor: wireMenuBarSeparatorEditor,
+    choiceSelectionTypeHtml: choiceSelectionTypeHtml,
+    wireChoiceSelectionTypeEditor: wireChoiceSelectionTypeEditor,
+    choiceKeywordsListHtml: choiceKeywordsListHtml,
+    wireChoiceKeywordsListEditor: wireChoiceKeywordsListEditor,
+    choiceColorStatesHtml: choiceColorStatesHtml,
+    wireChoiceColorStatesEditor: wireChoiceColorStatesEditor,
     isSflMsgRecord: isSflMsgRecord,
     sflMsgPanelsHtml: sflMsgPanelsHtml,
     wireSflMsgPanels: wireSflMsgPanels,
