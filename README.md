@@ -217,7 +217,7 @@ picked up after the current round of fixes.
 
   | Level | Component | Task ID(s) | Reused by |
   | --- | --- | --- | --- |
-  | File | Single picker, all 9 categories | F1 | - (one record type only) |
+  | File | Single picker, all 9 categories | F1 ✅ | - (one record type only) |
   | Record | Base Record Keywords (General/Indicator/App Help/Help/Output/Input/Overlay/Print) | R1 | `RECORD`, `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`, `MNUBAR` (full or partial) |
   | Record | `USRDFN` wiring (subset of R1) | R2 | - |
   | Record | `SFL` (Subfile keywords + General + Indicator) | R3 | `WNDSFL`, `PULDWNSFL` |
