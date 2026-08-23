@@ -1896,13 +1896,31 @@ const htmlTemplate = `<!DOCTYPE html>
     // canvas-click flow every other field/constant uses.
     const hiddenHtml = hiddenFieldsSectionHtml(rec);
 
-    html += tabsHtml([
+    // --- SFLMSG tab: only for message-subfile records (Task R5) - Message
+    // Record/General/Indicator stacked as accordions within one tab, same
+    // "several accordions in one tab" shape the Keywords tab above already
+    // uses, rather than 3 more entries in the top-level tab bar.
+    const isSflMsg = WebviewClientHelpers.isSflMsgRecord(rec);
+    let sflMsgPanels = null;
+    if (isSflMsg) {
+      sflMsgPanels = WebviewClientHelpers.sflMsgPanelsHtml(rec);
+    }
+
+    const tabs = [
       { id: 'basic', label: 'Basic', content: basicHtml },
       { id: 'keywords', label: 'Keywords', content: keywordsHtml },
       { id: 'commandkeys', label: 'Cmd keys', content: commandKeysHtml },
       { id: 'structure', label: 'Structure', content: structureHtml },
       { id: 'hidden', label: 'Hidden', content: hiddenHtml },
-    ], activeRecordTab);
+    ];
+    if (isSflMsg) {
+      const sflMsgHtml =
+        accordionHtml('Message Record', sflMsgPanels.messageRecord, true) +
+        accordionHtml('General', sflMsgPanels.general, false) +
+        accordionHtml('Indicator', sflMsgPanels.indicator, false);
+      tabs.push({ id: 'sflmsg', label: 'SFLMSG', content: sflMsgHtml });
+    }
+    html += tabsHtml(tabs, activeRecordTab);
 
     html += '<button id="p-record-copy" class="secondary" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled title="Multi-group or >3-indicator conditioning — copying this record is disabled to avoid corrupting it."') + '>Copy record</button>';
     html += '<button id="p-record-delete" class="secondary" style="width:100%;margin-top:8px;color:var(--warn);">Delete record</button>';
@@ -1944,6 +1962,9 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
+    if (isSflMsg) {
+      WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
   }
 
   function renderHelpProps(recordName) {

@@ -6,6 +6,35 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.47] - Unreleased
 
 ### Added
+- **SFLMSG (message subfile) record-level picker (SDA parity plan task
+  R5 - see `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, a new "SFLMSG"
+  tab on the record properties panel shown only for records carrying
+  `SFLMSGRCD` (standalone per the plan - `SFLMSG` doesn't use the base
+  Record Keywords set at all):
+  - **Message Record**: the `SFLMSGRCD` line number (1-27, or a field
+    name), plus a read-only lookup of which fields currently carry
+    `SFLMSGKEY`/`SFLPGMQ` (edit/rename those via the existing Hidden
+    fields tab rather than duplicating that here).
+  - **General**: `SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP` flags, `CHECK`'s
+    `AB`/`RL` codes as independent toggles (same shared-keyword pattern
+    as the file-level General panel's `CHECK(AB)`/`CHECK(RLTB)`/
+    `CHECK(RL)`), and `CHGINPDFT` with optional parameters.
+  - **Indicator**: `INDTXT` (indicator + text, single instance - same
+    convention the file-level Indicator panel already uses) and `SETOF`
+    (a space-separated indicator list).
+  - No new `dspfWriter.js` functions needed - every keyword here fits the
+    existing generic `getFileFlagKeyword`/`setFileFlagKeyword` present/
+    absent-with-parameters shape (despite the "file" in the name, they
+    operate on any keywords array), reusing `flagRowHtml`/`wireFlagRow`
+    from the Task F1 file-keywords picker.
+  - Deliberately not wired: the real SDA screen's "Roll keyword" (Message
+    Record) and `CHANGE` (Indicator) - their exact DDS argument shape
+    wasn't confidently verified, so both route through the existing raw
+    Keywords editor accordion instead of guessed-at UI, same fallback the
+    D1/F1 pickers already use for HLPPNLGRP/IGCCNV/PASSRCD/MSGID.
+  - 1 new `dspfWebview.test.js` scenario (18 checks): tab visibility,
+    Message Record pre-fill + read-only field lookups, and independent
+    commit of each General/Indicator control.
 - **Field-level "Select Field Keywords" picker screens (SDA parity plan
   task D1 - see `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, mapped
   directly against real SDA's own field-keyword screens rather than the

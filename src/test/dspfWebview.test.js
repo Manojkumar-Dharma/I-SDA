@@ -1803,6 +1803,118 @@ function runPanelCollapseScenario() {
     check('right panel stays collapsed', propsPanelEl.classList.contains('panel-collapsed'));
     check('grid reflects left restored, right still collapsed', /^240px 1fr 28px$/.test(doc.body.style.gridTemplateColumns));
 
+    runSflMsgPickerScenario();
+  }, 0);
+}
+
+function runSflMsgPickerScenario() {
+  console.log('\nSFLMSG picker (Task R5): Message Record / General / Indicator tab, only on SFLMSGRCD-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SFLMESS', func: 'SFL' }),
+      buildLine({ seq: '00020', func: 'SFLMSGRCD(24)' }),
+      buildLine({ seq: '00030', name: 'MSGKEY', dataType: 'A', length: '10', usage: 'H' }),
+      buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
+      buildLine({ seq: '00050', name: 'PGMQ', dataType: 'A', length: '10', usage: 'H' }),
+      buildLine({ seq: '00060', func: 'SFLPGMQ(276)' }),
+      buildLine({ seq: '00070', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00080', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce16', src, 'SFLMSG.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no SFLMSGRCD) does not get the SFLMSG tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no SFLMSG tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFLMSG'));
+
+    console.log('  an SFLMSG record (carries SFLMSGRCD) gets the SFLMSG tab');
+    recordSelect.value = 'SFLMESS';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const sflMsgTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLMSG');
+    check('SFLMSG tab button rendered', !!sflMsgTabBtn);
+    sflMsgTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    console.log('  Message Record: line number pre-filled from SFLMSGRCD(24), and shows which fields carry SFLMSGKEY/SFLPGMQ');
+    const rcdInput = doc.getElementById('sm-sflmsgrcd');
+    check('SFLMSGRCD line pre-filled with 24', rcdInput && rcdInput.value === '24');
+    const statusDivs = Array.from(doc.querySelectorAll('#propsBody .status')).map((d) => d.textContent);
+    check('shows MSGKEY as the message ID field', statusDivs.some((t) => t.includes('MSGKEY')));
+    check('shows PGMQ (276-byte) as the program message queue field', statusDivs.some((t) => t.includes('PGMQ') && t.includes('276-byte')));
+
+    console.log('  Message Record: editing the line number commits SFLMSGRCD, other keywords untouched');
+    rcdInput.value = '15';
+    rcdInput.dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('SFLMSGRCD updated to 15', reparsed.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === '15');
+    check('SFL keyword still present, untouched', reparsed.keywords.some((k) => k.name === 'SFL'));
+    posted.length = 0;
+
+    console.log('  Message Record: a field name is accepted too (not just a 1-27 line number)');
+    rcdInput.value = 'LINEFLD';
+    rcdInput.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('SFLMSGRCD accepts a field name', reparsed.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === 'LINEFLD');
+    posted.length = 0;
+
+    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL)/CHGINPDFT all start unchecked, toggling one commits just that keyword');
+    check('SFLNXTCHG starts unchecked', !doc.getElementById('sm-sflnxtchg-on').checked);
+    const keepBox = doc.getElementById('sm-keep-on');
+    keepBox.checked = true;
+    keepBox.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
+    check('SFLNXTCHG was NOT added (independent toggle)', !reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
+    posted.length = 0;
+
+    console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
+    doc.getElementById('sm-check-ab-on').checked = true;
+    doc.getElementById('sm-check-ab-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('CHECK(AB) was added', reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB'));
+    check('CHECK(RL) was not', !reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
+    posted.length = 0;
+
+    console.log('  Indicator: INDTXT (indicator+text) and SETOF (space-separated indicator list) commit independently');
+    doc.getElementById('sm-indtxt-on').checked = true;
+    doc.getElementById('sm-indtxt-ind').value = '50';
+    doc.getElementById('sm-indtxt-text').value = "Amount valid";
+    doc.getElementById('sm-indtxt-text').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    const indtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
+    check('INDTXT written with indicator 50 and quoted text', indtxtKw && /^50\s+'Amount valid'/.test(indtxtKw.parameters.trim()));
+    posted.length = 0;
+
+    doc.getElementById('sm-setof-on').checked = true;
+    doc.getElementById('sm-setof-params').value = '30 31 32';
+    doc.getElementById('sm-setof-params').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('SETOF written with the space-separated indicator list', reparsed.keywords.find((k) => k.name === 'SETOF').parameters.trim() === '30 31 32');
+    check('INDTXT from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'INDTXT'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
