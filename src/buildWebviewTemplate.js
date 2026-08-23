@@ -1523,7 +1523,16 @@ const htmlTemplate = `<!DOCTYPE html>
     positionHtml += '<button id="p-center" class="secondary" style="width:100%;margin-bottom:12px;">Center on screen</button>';
 
     // --- Attributes tab: display attributes / validity & edit keywords ---
-    let attrsHtml = WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
+    // D2: gate which of the D1 panels below even apply to this field's
+    // CURRENT usage/data type, matching real SDA's own "For Field Type"
+    // column (see WebviewClientHelpers.fieldKeywordCategoryVisibility's own
+    // doc comment). Constants have no usage/dataType of their own
+    // (undefined here), which the gate treats the same as blank - "show
+    // everything except what's explicitly usage-restricted" - so this
+    // doesn't change a constant's existing Color & attributes visibility.
+    const catVis = WebviewClientHelpers.fieldKeywordCategoryVisibility(field.usage, field.dataType);
+    let attrsHtml = '';
+    if (catVis.colorAndAttributes) attrsHtml += WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
     if (!isConstant && field.isReference) {
       // Position 29 'R' - this field's length/type/decimals come from a
       // referenced database field (REF/REFFLD - see DspfEngine.resolveReferenceTarget)
@@ -1534,24 +1543,31 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += '<button id="p-resolve-ref" class="secondary" style="width:100%;margin-bottom:12px;">Resolve Referenced Field (Code for i)</button>';
     }
     if (!isConstant) {
-      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine);
+      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage });
     } else if (isSystemValueConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false });
     }
     // Remaining SDA "Select Field Keywords" categories (docs/sda-reference/
     // task D1) - collapsed by default, same as the Keywords/Conditioning
     // accordions below, since these are reached far less often than
-    // Color & attributes / Validity check.
-    if (!isConstant) {
+    // Color & attributes / Validity check. Each gated per D2's usage-based
+    // applicability rules above.
+    if (!isConstant && catVis.keyingOptions) {
       attrsHtml += accordionHtml('Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine), false);
+    }
+    if (!isConstant && catVis.inputKeywords) {
       attrsHtml += accordionHtml('Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
-    attrsHtml += accordionHtml('General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
-    if (!isConstant) {
+    if (catVis.generalKeywords) {
+      attrsHtml += accordionHtml('General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+    }
+    if (!isConstant && catVis.databaseReference) {
       let dbRefBody = '';
       if (field.isReference) dbRefBody += '<div class="hint-small">REFFLD/REF are managed by the Resolve Referenced Field button above.</div>';
       dbRefBody += WebviewClientHelpers.referenceOverridesHtml(field.keywords, 'field-' + field.sourceLine);
       attrsHtml += accordionHtml('Database reference', dbRefBody, false);
+    }
+    if (!isConstant && catVis.messageId) {
       attrsHtml += accordionHtml('Message ID', WebviewClientHelpers.messageIdHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
 

@@ -3,6 +3,40 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.48] - Unreleased
+
+### Added
+- **Task D2 - Character field wiring (Usage B/I/O)**: D1's "Select Field
+  Keywords" panels (Keying options, Validity check, Input keywords,
+  Database reference, Message ID, Color & attributes) are now gated by
+  the field's current Usage - and, for Validity check, its data type -
+  matching real SDA's own "For Field Type" column exactly
+  (`docs/sda-reference/screens/field-level/character/_menu/image161.png`):
+  - Display attributes / Colors - all except Hidden
+  - Keying options - Hidden, Input, or Both
+  - Validity check - Input or Both, not float (`dataType === 'F'`)
+  - Input keywords - Input or Both
+  - General keywords - all types (always shown)
+  - Database reference - Hidden, Input, Output, or Both
+  - Message ID - Output or Both
+  - `WebviewClientHelpers.fieldKeywordCategoryVisibility(usage, dataType)`
+    is the new pure, DOM-free gate driving this - unrecognized/blank
+    usage (M/P, or unset) fails OPEN rather than guessing, since SDA's
+    own table never covers those. Gates VISIBILITY only - never deletes
+    a keyword a field already carries just because its Usage changed;
+    it stays editable via the raw Keywords tab, which is never gated.
+  - Error message is deliberately tied to Validity check's own gate
+    (both live in one combined panel) rather than SDA's separately-
+    listed Input/Output/Both rule, since an error message without an
+    associated validity check has nothing to report.
+  - 39 new `fieldKeywordVisibility.test.js` checks (new dedicated test
+    file, pure Node, no jsdom) plus 33 new `dspfWebview.test.js` checks
+    driving the actual gated panels end-to-end across Both/Input/Output/
+    float/Hidden fields.
+- Fixed a stale-status bug found while wiring this up: D2's own row in
+  `PICKER-SCREENS-PLAN.md` now reflects completion; README's task table
+  synced to match.
+
 ## [0.9.47] - Unreleased
 
 ### Added

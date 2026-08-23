@@ -1226,6 +1226,99 @@ function runFieldPropertyHelpersScenario() {
     const msgidFields = DspfParser.parseDspf(msgidEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
     check('posts MSGID with the entered argument text', msgidFields.find((k) => k.name === 'MSGID') && msgidFields.find((k) => k.name === 'MSGID').parameters === 'USR &AMOUNT MSGF1 MYLIB');
 
+    runFieldKeywordVisibilityScenario();
+  }, 0);
+}
+
+function runFieldKeywordVisibilityScenario() {
+  console.log('\nD2: field-keyword panels are gated by Usage (and, for Validity check, data type) matching real SDA\'s "For Field Type" column');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', name: 'FLDBOTH', dataType: 'A', length: '10', usage: 'B', line: '5', col: '5' }),
+      buildLine({ seq: '00040', name: 'FLDIN', dataType: 'A', length: '10', usage: 'I', line: '6', col: '5' }),
+      buildLine({ seq: '00050', name: 'FLDOUT', dataType: 'A', length: '10', usage: 'O', line: '7', col: '5' }),
+      buildLine({ seq: '00060', name: 'FLDFLOAT', dataType: 'F', length: '8', decimals: '2', usage: 'B', line: '8', col: '5' }),
+      buildLine({ seq: '00070', name: 'FLDHID', dataType: 'A', length: '4', usage: 'H' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce13', src, 'D2VIS.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    function accordionLabels() {
+      return Array.from(doc.querySelectorAll('#propsBody .props-accordion > summary')).map((el) => el.textContent);
+    }
+    function selectFieldByName(name) {
+      const el = Array.from(doc.querySelectorAll('.dspf-field')).find((e) => e.getAttribute('data-field') === name);
+      if (el) { el.dispatchEvent(new Event('click', { bubbles: true })); return true; }
+      return false;
+    }
+
+    console.log('  Usage B (Both), non-float: every D1 category is offered');
+    check('FLDBOTH is selectable on the canvas', selectFieldByName('FLDBOTH'));
+    let labels = accordionLabels();
+    check('Keying options shown for B', labels.indexOf('Keying options') >= 0);
+    check('Input keywords shown for B', labels.indexOf('Input keywords') >= 0);
+    check('General keywords shown for B', labels.indexOf('General keywords') >= 0);
+    check('Database reference shown for B', labels.indexOf('Database reference') >= 0);
+    check('Message ID shown for B', labels.indexOf('Message ID') >= 0);
+    check('Color & attributes section is present (inline, not an accordion) for B', doc.getElementById('propsBody').innerHTML.indexOf('Color &amp; attributes') >= 0);
+    check('Validity check section is present (inline) for B', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') >= 0);
+
+    console.log('  Usage I (Input): Message ID (Output-only) is hidden, everything Input-side stays');
+    check('FLDIN is selectable', selectFieldByName('FLDIN'));
+    labels = accordionLabels();
+    check('Keying options still shown for I', labels.indexOf('Keying options') >= 0);
+    check('Input keywords still shown for I', labels.indexOf('Input keywords') >= 0);
+    check('Message ID is hidden for I', labels.indexOf('Message ID') === -1);
+    check('Validity check section is still present (inline) for I', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') >= 0);
+
+    console.log('  Usage O (Output): Keying options/Input keywords/Validity check (all Input-side) are hidden, Message ID stays');
+    check('FLDOUT is selectable', selectFieldByName('FLDOUT'));
+    labels = accordionLabels();
+    check('Keying options is hidden for O', labels.indexOf('Keying options') === -1);
+    check('Input keywords is hidden for O', labels.indexOf('Input keywords') === -1);
+    check('Message ID is shown for O', labels.indexOf('Message ID') >= 0);
+    check('Database reference is still shown for O', labels.indexOf('Database reference') >= 0);
+    check('Validity check section is hidden (inline) for O', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') === -1);
+    check('Edit code/word is still present for O (never usage-gated)', doc.getElementById('propsBody').innerHTML.indexOf('Edit code') >= 0);
+
+    console.log('  Float field (dataType F), Usage B: Validity check hidden even though B normally qualifies, everything else unaffected');
+    check('FLDFLOAT is selectable', selectFieldByName('FLDFLOAT'));
+    labels = accordionLabels();
+    check('Validity check section is hidden (inline) for a float field', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') === -1);
+    check('Edit code/word still present for a float field', doc.getElementById('propsBody').innerHTML.indexOf('Edit code') >= 0);
+    check('Input keywords still shown for a float field (only Validity check is float-restricted)', labels.indexOf('Input keywords') >= 0);
+
+    console.log('  Usage H (Hidden, via the Hidden fields tab): only Keying options / General keywords / Database reference apply');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    const hiddenTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.getAttribute('data-tab') === 'hidden');
+    check('setup: Hidden tab exists', !!hiddenTabBtn);
+    hiddenTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const hidRow = Array.from(doc.querySelectorAll('.field-order-row[data-source-line]')).find((el) => el.textContent.indexOf('FLDHID') !== -1);
+    check('FLDHID is listed in the Hidden tab', !!hidRow);
+    hidRow.dispatchEvent(new Event('click', { bubbles: true }));
+    labels = accordionLabels();
+    check('Keying options shown for H', labels.indexOf('Keying options') >= 0);
+    check('Input keywords hidden for H', labels.indexOf('Input keywords') === -1);
+    check('Message ID hidden for H', labels.indexOf('Message ID') === -1);
+    check('Database reference shown for H', labels.indexOf('Database reference') >= 0);
+    check('Color & attributes section is hidden (inline) for H', doc.getElementById('propsBody').innerHTML.indexOf('Color &amp; attributes') === -1);
+
     runClickToPlaceScenario();
   }, 0);
 }
