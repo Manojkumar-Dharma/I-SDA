@@ -1276,6 +1276,60 @@
   }
 
   /**
+   * Builds the Menu-Bar switch/cancel key sub-panel's inner HTML -
+   * MNUBARSW (switch key: indicator + CA key) and MNUCNL (cancel key:
+   * indicator + CA key + response-indicator) - shared between the
+   * file-level picker (Task F1) and the record-level MNUBAR picker (Task
+   * R13, screens/record-level/menu-bar-record-mnubar/general - the same
+   * two keywords repeated on a MNUBAR record's own General screen),
+   * rather than the two duplicating this block. `idPrefix` namespaces
+   * every element id, same reasoning windowBorderPanelHtml above takes an
+   * idPrefix.
+   */
+  function menuBarKeysPanelHtml(keywords, idPrefix) {
+    var mnubarsw = DspfWriter.getFileFlagKeyword(keywords, 'MNUBARSW');
+    var mnubarswParts = (mnubarsw.parameters || '').trim().split(/\s+/);
+    var mb = flagRowHtml(idPrefix + '-mnubarsw', 'Menu-bar switch key (MNUBARSW)', mnubarsw.present);
+    mb += '<div class="two-col"><input type="text" id="' + idPrefix + '-mnubarsw-ind" placeholder="indicator" value="' + escapeHtml(mnubarswParts[0] || '') + '" />' +
+      '<input type="text" id="' + idPrefix + '-mnubarsw-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnubarswParts[1] || '') + '" /></div>';
+    var mnucnl = DspfWriter.getFileFlagKeyword(keywords, 'MNUCNL');
+    var mnucnlParts = (mnucnl.parameters || '').trim().split(/\s+/);
+    mb += flagRowHtml(idPrefix + '-mnucnl', 'Menu-cancel key (MNUCNL)', mnucnl.present);
+    mb += '<div class="two-col"><input type="text" id="' + idPrefix + '-mnucnl-ind" placeholder="indicator" value="' + escapeHtml(mnucnlParts[0] || '') + '" />' +
+      '<input type="text" id="' + idPrefix + '-mnucnl-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnucnlParts[1] || '') + '" /></div>';
+    mb += '<input type="text" id="' + idPrefix + '-mnucnl-resp" placeholder="response indicator 01-99" value="' + escapeHtml(mnucnlParts[2] || '') + '" style="width:100%;margin-top:4px;" />';
+    return mb;
+  }
+
+  /** Wires a menuBarKeysPanelHtml()-produced panel. Same `getKeywords`/
+   *  `onChange` contract every other dedicated picker here uses. */
+  function wireMenuBarKeysPanel(idPrefix, getKeywords, onChange) {
+    var mnubarswOn = document.getElementById(idPrefix + '-mnubarsw-on');
+    var mnubarswInd = document.getElementById(idPrefix + '-mnubarsw-ind');
+    var mnubarswCakey = document.getElementById(idPrefix + '-mnubarsw-cakey');
+    function commitMnubarsw() {
+      var params = [mnubarswInd.value, mnubarswCakey.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUBARSW', mnubarswOn.checked, params));
+    }
+    if (mnubarswOn) mnubarswOn.addEventListener('change', commitMnubarsw);
+    if (mnubarswInd) mnubarswInd.addEventListener('change', commitMnubarsw);
+    if (mnubarswCakey) mnubarswCakey.addEventListener('change', commitMnubarsw);
+
+    var mnucnlOn = document.getElementById(idPrefix + '-mnucnl-on');
+    var mnucnlInd = document.getElementById(idPrefix + '-mnucnl-ind');
+    var mnucnlCakey = document.getElementById(idPrefix + '-mnucnl-cakey');
+    var mnucnlResp = document.getElementById(idPrefix + '-mnucnl-resp');
+    function commitMnucnl() {
+      var params = [mnucnlInd.value, mnucnlCakey.value, mnucnlResp.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUCNL', mnucnlOn.checked, params));
+    }
+    if (mnucnlOn) mnucnlOn.addEventListener('change', commitMnucnl);
+    if (mnucnlInd) mnucnlInd.addEventListener('change', commitMnucnl);
+    if (mnucnlCakey) mnucnlCakey.addEventListener('change', commitMnucnl);
+    if (mnucnlResp) mnucnlResp.addEventListener('change', commitMnucnl);
+  }
+
+  /**
    * Builds all 9 category panels' inner HTML at once - { general,
    * indicatorKeywords, print, help, displaySizes, dbcsConversion,
    * alternate, windowBorder, menuBar }, keyed to match the tab ids the
@@ -1387,18 +1441,7 @@
     panels.windowBorder = windowBorderPanelHtml(kw, 'fk-wdw');
 
     // --- Menu-bar keywords ---
-    var mnubarsw = DspfWriter.getFileFlagKeyword(kw, 'MNUBARSW');
-    var mnubarswParts = (mnubarsw.parameters || '').trim().split(/\s+/);
-    var mb = flagRowHtml('fk-mnubarsw', 'Menu-bar switch key (MNUBARSW)', mnubarsw.present);
-    mb += '<div class="two-col"><input type="text" id="fk-mnubarsw-ind" placeholder="indicator" value="' + escapeHtml(mnubarswParts[0] || '') + '" />' +
-      '<input type="text" id="fk-mnubarsw-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnubarswParts[1] || '') + '" /></div>';
-    var mnucnl = DspfWriter.getFileFlagKeyword(kw, 'MNUCNL');
-    var mnucnlParts = (mnucnl.parameters || '').trim().split(/\s+/);
-    mb += flagRowHtml('fk-mnucnl', 'Menu-cancel key (MNUCNL)', mnucnl.present);
-    mb += '<div class="two-col"><input type="text" id="fk-mnucnl-ind" placeholder="indicator" value="' + escapeHtml(mnucnlParts[0] || '') + '" />' +
-      '<input type="text" id="fk-mnucnl-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnucnlParts[1] || '') + '" /></div>';
-    mb += '<input type="text" id="fk-mnucnl-resp" placeholder="response indicator 01-99" value="' + escapeHtml(mnucnlParts[2] || '') + '" style="width:100%;margin-top:4px;" />';
-    panels.menuBar = mb;
+    panels.menuBar = menuBarKeysPanelHtml(kw, 'fk');
 
     return panels;
   }
@@ -1509,29 +1552,7 @@
     wireWindowBorderPanel('fk-wdw', getKeywords, onChange);
 
     // Menu-bar
-    var mnubarswOn = document.getElementById('fk-mnubarsw-on');
-    var mnubarswInd = document.getElementById('fk-mnubarsw-ind');
-    var mnubarswCakey = document.getElementById('fk-mnubarsw-cakey');
-    function commitMnubarsw() {
-      var params = [mnubarswInd.value, mnubarswCakey.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUBARSW', mnubarswOn.checked, params));
-    }
-    if (mnubarswOn) mnubarswOn.addEventListener('change', commitMnubarsw);
-    if (mnubarswInd) mnubarswInd.addEventListener('change', commitMnubarsw);
-    if (mnubarswCakey) mnubarswCakey.addEventListener('change', commitMnubarsw);
-
-    var mnucnlOn = document.getElementById('fk-mnucnl-on');
-    var mnucnlInd = document.getElementById('fk-mnucnl-ind');
-    var mnucnlCakey = document.getElementById('fk-mnucnl-cakey');
-    var mnucnlResp = document.getElementById('fk-mnucnl-resp');
-    function commitMnucnl() {
-      var params = [mnucnlInd.value, mnucnlCakey.value, mnucnlResp.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUCNL', mnucnlOn.checked, params));
-    }
-    if (mnucnlOn) mnucnlOn.addEventListener('change', commitMnucnl);
-    if (mnucnlInd) mnucnlInd.addEventListener('change', commitMnucnl);
-    if (mnucnlCakey) mnucnlCakey.addEventListener('change', commitMnucnl);
-    if (mnucnlResp) mnucnlResp.addEventListener('change', commitMnucnl);
+    wireMenuBarKeysPanel('fk', getKeywords, onChange);
   }
 
   // -----------------------------------------------------------------------
@@ -2294,6 +2315,67 @@
     }
   }
 
+  // -----------------------------------------------------------------------
+  // Task R13 - MNUBAR-specific picker (General + Menu-Bar Display Keywords -
+  // see docs/sda-reference/screens/record-level/menu-bar-record-mnubar/ and
+  // PICKER-SCREENS-PLAN.md). Menu-Bar Display Keywords (MNUBARDSP) is
+  // deliberately NOT rebuilt here - it's already on Task R1's base Record
+  // Keywords -> General tab (present for every record type including
+  // MNUBAR, via the existing flag+free-text-parameters row), and real
+  // SDA's own "Select Menu-Bar Record Keywords" menu (_menu/image148.png)
+  // only lists General + Select record keywords anyway - the dedicated
+  // "Define Menu-Bar Display Keywords" sub-screen is reached FROM
+  // MNUBARDSP's own "Select parameters" flag, not a separate top-level
+  // category, so R1's existing free-text parameters box already reaches
+  // it (its one sub-field, "Pull-down input field" - a field name - fits
+  // there directly). MNUBARSW/MNUCNL reuse menuBarKeysPanelHtml/
+  // wireMenuBarKeysPanel above as-is (confirmed identical to the
+  // file-level Menu-bar screen, just scoped to the record's own
+  // keywords).
+  //
+  // MNUBAR itself (the record-defining keyword) is modeled as a plain
+  // present/absent flag with an optional free-text parameter - the real
+  // screen's "Display separator" sub-row wasn't confidently matched to a
+  // specific literal DDS parameter value, so it's left reachable through
+  // that free-text box (or the raw Keywords editor) rather than guessed
+  // at, same fallback this codebase uses for every other keyword whose
+  // exact argument shape isn't nailed down.
+  // -----------------------------------------------------------------------
+
+  /** Whether `rec` is a menu-bar record - carries the MNUBAR keyword.
+   *  Drives whether renderRecordProps shows the "MNUBAR" tab at all. */
+  function isMnuBarRecord(rec) {
+    return (rec.keywords || []).some(function (k) { return k.name === 'MNUBAR'; });
+  }
+
+  /**
+   * Builds the MNUBAR tab's single General sub-panel's inner HTML - just
+   * { general } for symmetry with the other record-type-specific panel
+   * builders (see isMnuBarRecord above for when the tab appears).
+   */
+  function mnuBarPanelsHtml(keywords, idPrefix) {
+    var kw = keywords || [];
+    var p = idPrefix;
+    var panels = {};
+
+    var mnubar = DspfWriter.getFileFlagKeyword(kw, 'MNUBAR');
+    var g = flagRowHtml(p + '-mnubar', 'Menu-bar (MNUBAR)', mnubar.present, mnubar.parameters, 'parameters (optional - e.g. the display-separator value)');
+    g += '<div class="hint-small">Real SDA\u2019s own screen shows a separate "Display separator" toggle here - its exact DDS parameter value wasn\u2019t confidently verified, so use the parameters box above or the raw Keywords editor below if you need it.</div>';
+    g += '<div class="section-label" style="margin-top:14px;"></div>';
+    g += menuBarKeysPanelHtml(kw, p);
+    g += '<div class="hint-small">Menu-Bar display (MNUBARDSP) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
+    panels.general = g;
+
+    return panels;
+  }
+
+  /** Wires the mnuBarPanelsHtml() panel. Same `getKeywords`/`onChange`
+   *  contract every other dedicated picker here uses. */
+  function wireMnuBarPanels(idPrefix, getKeywords, onChange) {
+    wireFlagRow(idPrefix + '-mnubar', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'MNUBAR', present, params); });
+    wireMenuBarKeysPanel(idPrefix, getKeywords, onChange);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -2353,6 +2435,9 @@
     isSflCtlRecord: isSflCtlRecord,
     sflCtlPanelsHtml: sflCtlPanelsHtml,
     wireSflCtlPanels: wireSflCtlPanels,
+    isMnuBarRecord: isMnuBarRecord,
+    mnuBarPanelsHtml: mnuBarPanelsHtml,
+    wireMnuBarPanels: wireMnuBarPanels,
     isSflRecord: isSflRecord,
     sflKeywordsPanelsHtml: sflKeywordsPanelsHtml,
     wireSflKeywordsPanels: wireSflKeywordsPanels,

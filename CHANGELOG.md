@@ -3,6 +3,39 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.53] - Unreleased
+
+### Added
+- **Task R13 - MNUBAR-specific record picker** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "MNUBAR" tab on the
+  record properties panel shown only for records carrying `MNUBAR`, with
+  a single General accordion:
+  - `MNUBAR` itself, modeled as a plain present/absent flag with an
+    optional free-text parameter - the real SDA screen's "Display
+    separator" sub-row wasn't confidently matched to a specific literal
+    DDS parameter value, so it's reachable through that free-text box (or
+    the raw Keywords editor) rather than guessed at.
+  - `MNUBARSW` (menu-bar switch key) and `MNUCNL` (menu-cancel key),
+    reused as-is from the file-level picker (Task F1) - refactored
+    `menuBarKeysPanelHtml`/`wireMenuBarKeysPanel` out of that picker into
+    shared, `idPrefix`-parameterized functions (same pattern R7 already
+    used for Window Border) so both reuse the same ~25 lines instead of
+    duplicating them; the file-level panel's own ids/behavior are
+    unchanged (manually verified, since it wasn't covered by existing
+    dedicated tests).
+  - `MNUBARDSP` (Menu-Bar Display Keywords) is deliberately **not**
+    rebuilt here - it's already on Task R1's base Record Keywords →
+    General tab (present for every record type including MNUBAR), and
+    real SDA's own "Select Menu-Bar Record Keywords" menu only lists
+    General + the base Record Keywords menu anyway - the dedicated
+    "Define Menu-Bar Display Keywords" sub-screen is reached from
+    MNUBARDSP's own "Select parameters" flag, not a separate top-level
+    category, so R1's existing free-text parameters box already reaches
+    its one sub-field ("Pull-down input field", a field name).
+  - New `runMnuBarPickerScenario` in `dspfWebview.test.js`: tab
+    visibility, MNUBAR's own pre-fill/commit, and MNUBARSW/MNUCNL
+    committing independently of MNUBAR and of each other.
+
 ## [0.9.52] - Unreleased
 
 ### Added

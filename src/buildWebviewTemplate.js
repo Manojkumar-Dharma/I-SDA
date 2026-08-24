@@ -2061,6 +2061,17 @@ const htmlTemplate = `<!DOCTYPE html>
       sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec.keywords, sflCtlPrefix);
     }
 
+    // --- MNUBAR tab: only for menu-bar records (Task R13) - single
+    // General accordion (MNUBAR itself + reused MNUBARSW/MNUCNL). Menu-Bar
+    // display keywords (MNUBARDSP) already live on R1's base General tab,
+    // shown for every record including this one - not duplicated here.
+    const mnuBarPrefix = 'mnubar-' + rec.name;
+    const isMnuBar = WebviewClientHelpers.isMnuBarRecord(rec);
+    let mnuBarPanels = null;
+    if (isMnuBar) {
+      mnuBarPanels = WebviewClientHelpers.mnuBarPanelsHtml(rec.keywords, mnuBarPrefix);
+    }
+
     const tabs = [
       { id: 'basic', label: 'Basic', content: basicHtml },
       { id: 'keywords', label: 'Keywords', content: keywordsHtml },
@@ -2094,6 +2105,10 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('Display Layout', sflCtlPanels.displayLayout, false) +
         accordionHtml('Subfile Messages', sflCtlPanels.subfileMessages, false);
       tabs.push({ id: 'sflctl', label: 'SFLCTL', content: sflCtlHtml });
+    }
+    if (isMnuBar) {
+      const mnuBarHtml = accordionHtml('General', mnuBarPanels.general, true);
+      tabs.push({ id: 'mnubar', label: 'MNUBAR', content: mnuBarHtml });
     }
     html += tabsHtml(tabs, activeRecordTab);
 
@@ -2150,6 +2165,9 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (isSflCtl) {
       WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
+    if (isMnuBar) {
+      WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
   }
 

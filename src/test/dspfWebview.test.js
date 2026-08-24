@@ -2549,6 +2549,85 @@ function runSflCtlPickerScenario() {
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
     check('SFLMSGID removed when the message ID is blank', !reparsed.keywords.some((k) => k.name === 'SFLMSGID'));
 
+    runMnuBarPickerScenario();
+  }, 0);
+}
+
+function runMnuBarPickerScenario() {
+  console.log('\nMNUBAR picker (Task R13): General (MNUBAR + reused MNUBARSW/MNUCNL), only on MNUBAR-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'BAR1', func: 'MNUBAR' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'MNUBAR.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no MNUBAR) does not get the MNUBAR tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no MNUBAR tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'MNUBAR'));
+
+    console.log('  a MNUBAR record gets the MNUBAR tab');
+    recordSelect.value = 'BAR1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const mnuBarTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'MNUBAR');
+    check('MNUBAR tab button rendered', !!mnuBarTabBtn);
+    mnuBarTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const p = 'mnubar-BAR1';
+    console.log('  General: MNUBAR starts checked (already present in the source, no parameters)');
+    check('MNUBAR checkbox starts checked', doc.getElementById(p + '-mnubar-on').checked);
+    check('MNUBAR params start blank', doc.getElementById(p + '-mnubar-params').value === '');
+
+    console.log('  General: MNUBARSW and MNUCNL (reused from the file-level component) commit independently of MNUBAR itself');
+    doc.getElementById(p + '-mnubarsw-on').checked = true;
+    doc.getElementById(p + '-mnubarsw-ind').value = '50';
+    doc.getElementById(p + '-mnubarsw-cakey').value = 'CA03';
+    doc.getElementById(p + '-mnubarsw-cakey').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
+    check('MNUBARSW written with indicator + CA key', reparsed.keywords.find((k) => k.name === 'MNUBARSW').parameters.trim() === '50 CA03');
+    check('MNUBAR keyword itself is untouched', reparsed.keywords.some((k) => k.name === 'MNUBAR'));
+    posted.length = 0;
+
+    doc.getElementById(p + '-mnucnl-on').checked = true;
+    doc.getElementById(p + '-mnucnl-ind').value = '51';
+    doc.getElementById(p + '-mnucnl-cakey').value = 'CA04';
+    doc.getElementById(p + '-mnucnl-resp').value = '90';
+    doc.getElementById(p + '-mnucnl-resp').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
+    check('MNUCNL written with indicator + CA key + response indicator', reparsed.keywords.find((k) => k.name === 'MNUCNL').parameters.trim() === '51 CA04 90');
+    check('MNUBARSW from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'MNUBARSW'));
+    posted.length = 0;
+
+    console.log('  General: editing MNUBAR\u2019s own parameters box commits just that keyword');
+    doc.getElementById(p + '-mnubar-params').value = '*SEP';
+    doc.getElementById(p + '-mnubar-params').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
+    check('MNUBAR written with the new parameter', reparsed.keywords.find((k) => k.name === 'MNUBAR').parameters.trim() === '*SEP');
+    check('MNUBARSW/MNUCNL from earlier steps are still there (independent commits)', reparsed.keywords.some((k) => k.name === 'MNUBARSW') && reparsed.keywords.some((k) => k.name === 'MNUCNL'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
