@@ -1398,6 +1398,32 @@
     return (rec.keywords || []).some(function (k) { return k.name === 'SFLMSGRCD'; });
   }
 
+  // ---------------------------------------------------------------------
+  // Task R2 - USRDFN wiring. Per PICKER-SCREENS-PLAN.md, USRDFN has no
+  // picker screens of its own - real SDA's own "Select Record Keywords"
+  // menu for a USRDFN record (docs/sda-reference/screens/record-level/
+  // usrdfn/_menu-example/image26.png) offers only 4 of R1's 8 categories:
+  // General, Application help, Help, Print (Indicator/Output/Input/
+  // Overlay are absent from that menu entirely, not just empty). So R2 is
+  // pure wiring - renderRecordProps narrows recordKeywordsPanelsHtml's
+  // subtabs to that 4-of-8 subset when the record is USRDFN - not a new
+  // getX/setX pair or a new panel. The USRDFN keyword's own parameter
+  // (which field carries the formatted data - see buildTypedRecordPlan)
+  // isn't part of any of the 4 screens either; it stays reachable through
+  // the Advanced/raw keywords accordion, same "no screen of its own"
+  // reasoning.
+  // ---------------------------------------------------------------------
+
+  /** Whether `rec` is a user-defined-format (USRDFN) record - defined by
+   *  carrying a USRDFN keyword, the one keyword unique to this record type
+   *  (see buildTypedRecordPlan, which writes it - always with blank
+   *  parameters at creation time - for every USRDFN record the "+ Add
+   *  record" wizard creates). Drives whether renderRecordProps narrows the
+   *  R1 Keywords subtabs to USRDFN's own 4-of-8 subset. */
+  function isUsrDfnRecord(rec) {
+    return (rec.keywords || []).some(function (k) { return k.name === 'USRDFN'; });
+  }
+
   /**
    * Builds the 3 SFLMSG sub-panels' inner HTML at once - { messageRecord,
    * general, indicator } - for the record properties panel's SFLMSG tab
@@ -1651,6 +1677,7 @@
     messageIdHtml: messageIdHtml,
     wireMessageIdEditor: wireMessageIdEditor,
     isSflMsgRecord: isSflMsgRecord,
+    isUsrDfnRecord: isUsrDfnRecord,
     sflMsgPanelsHtml: sflMsgPanelsHtml,
     wireSflMsgPanels: wireSflMsgPanels,
   };

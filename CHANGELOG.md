@@ -3,6 +3,30 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.50] - Unreleased
+
+### Added
+- **Task R2 - USRDFN wiring**: real SDA's own "Select Record Keywords"
+  menu for a USRDFN record (`docs/sda-reference/screens/record-level/
+  usrdfn/_menu-example/image26.png`) offers only 4 of R1's 8 categories -
+  General, Application help, Help, Print (Indicator/Output/Input/Overlay
+  are absent from that menu entirely, not just empty). Pure wiring, no
+  new picker screens or `dspfWriter.js` primitives, per the task's own
+  plan-doc note ("no screens of its own") - `renderRecordProps()` now
+  narrows R1's Keywords subtabs to that 4-of-8 subset whenever the record
+  carries the `USRDFN` keyword (new `WebviewClientHelpers.isUsrDfnRecord`,
+  same "detect by the record type's one defining keyword" convention
+  `isSflMsgRecord` already established for R5's SFLMSG tab). The
+  previously-active subtab is preserved across records where it still
+  exists, falling back to the first available one otherwise (switching
+  from a normal record's Indicator tab to a USRDFN record no longer
+  leaves every subtab panel hidden). USRDFN's own keyword parameter
+  (which field carries the formatted data) isn't part of any of the 4
+  screens either, so it stays reachable through the existing
+  Advanced/raw keywords accordion, same reasoning.
+  - 14 new `dspfWebview.test.js` checks covering both the narrowed tab
+    set and that the General panel still commits normally underneath it.
+
 ## [0.9.49] - Unreleased
 
 ### Added

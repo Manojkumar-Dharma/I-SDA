@@ -2008,6 +2008,75 @@ function runSflMsgPickerScenario() {
     check('SETOF written with the space-separated indicator list', reparsed.keywords.find((k) => k.name === 'SETOF').parameters.trim() === '30 31 32');
     check('INDTXT from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'INDTXT'));
 
+    runUsrDfnPickerScenario();
+  }, 0);
+}
+
+function runUsrDfnPickerScenario() {
+  console.log('\nUSRDFN picker (Task R2): Keywords tab narrows R1\'s 8 categories to General/App help/Help/Print only');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'USERDEFN', func: 'USRDFN' }),
+      buildLine({ seq: '00020', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00040', name: 'FLD2', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'USRDFN.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    function keywordsSubtabLabels() {
+      const keywordsTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Keywords');
+      keywordsTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+      return Array.from(doc.querySelectorAll('.props-subtab')).map((b) => b.textContent.trim());
+    }
+
+    console.log('  a plain record gets all 8 R1 categories');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const plainLabels = keywordsSubtabLabels();
+    check('all 8 category subtabs present', ['General', 'Indicator', 'App help', 'Help', 'Output', 'Input', 'Overlay', 'Print'].every((l) => plainLabels.includes(l)));
+
+    console.log('  a USRDFN record (carries the USRDFN keyword) only gets General/App help/Help/Print');
+    recordSelect.value = 'USERDEFN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const usrdfnLabels = keywordsSubtabLabels();
+    check('exactly 4 subtabs', usrdfnLabels.length === 4);
+    check('General present', usrdfnLabels.includes('General'));
+    check('App help present', usrdfnLabels.includes('App help'));
+    check('Help present', usrdfnLabels.includes('Help'));
+    check('Print present', usrdfnLabels.includes('Print'));
+    check('Indicator absent', !usrdfnLabels.includes('Indicator'));
+    check('Output absent', !usrdfnLabels.includes('Output'));
+    check('Input absent', !usrdfnLabels.includes('Input'));
+    check('Overlay absent', !usrdfnLabels.includes('Overlay'));
+
+    console.log('  General panel still commits normally for a USRDFN record (e.g. KEEP)');
+    const keepBox = doc.getElementById('rk-USERDEFN-keep-on');
+    check('KEEP checkbox exists in the narrowed panel', !!keepBox);
+    keepBox.checked = true;
+    keepBox.dispatchEvent(new Event('change', { bubbles: true }));
+    const applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    const reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'USERDEFN');
+    check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
+    check('USRDFN keyword itself is untouched', reparsed.keywords.some((k) => k.name === 'USRDFN'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

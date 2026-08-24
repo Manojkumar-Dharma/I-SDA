@@ -1933,19 +1933,32 @@ const htmlTemplate = `<!DOCTYPE html>
 
     // --- Keywords tab: Task R1's SDA-style category subtabs on top (the
     // "Select Record Keywords" picker), raw keyword chip editor + conditioning
-    // collapsed underneath for anything not covered here ---
+    // collapsed underneath for anything not covered here. Task R2: a USRDFN
+    // record's own "Select Record Keywords" menu only offers 4 of R1's 8
+    // categories (see WebviewClientHelpers.isUsrDfnRecord's doc comment) -
+    // narrow the subtabs to that subset for USRDFN records specifically.
     const rkPrefix = 'rk-' + rec.name;
     const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix);
-    let keywordsHtml = subtabsHtml([
-      { id: 'general', label: 'General', content: rkPanels.general },
-      { id: 'indicator', label: 'Indicator', content: rkPanels.indicatorKeywords },
-      { id: 'apphelp', label: 'App help', content: rkPanels.applicationHelp },
-      { id: 'help', label: 'Help', content: rkPanels.help },
-      { id: 'output', label: 'Output', content: rkPanels.output },
-      { id: 'input', label: 'Input', content: rkPanels.input },
-      { id: 'overlay', label: 'Overlay', content: rkPanels.overlay },
-      { id: 'print', label: 'Print', content: rkPanels.print },
-    ], activeRecordKwTab);
+    const isUsrDfn = WebviewClientHelpers.isUsrDfnRecord(rec);
+    const rkTabs = isUsrDfn
+      ? [
+          { id: 'general', label: 'General', content: rkPanels.general },
+          { id: 'apphelp', label: 'App help', content: rkPanels.applicationHelp },
+          { id: 'help', label: 'Help', content: rkPanels.help },
+          { id: 'print', label: 'Print', content: rkPanels.print },
+        ]
+      : [
+          { id: 'general', label: 'General', content: rkPanels.general },
+          { id: 'indicator', label: 'Indicator', content: rkPanels.indicatorKeywords },
+          { id: 'apphelp', label: 'App help', content: rkPanels.applicationHelp },
+          { id: 'help', label: 'Help', content: rkPanels.help },
+          { id: 'output', label: 'Output', content: rkPanels.output },
+          { id: 'input', label: 'Input', content: rkPanels.input },
+          { id: 'overlay', label: 'Overlay', content: rkPanels.overlay },
+          { id: 'print', label: 'Print', content: rkPanels.print },
+        ];
+    const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
+    let keywordsHtml = subtabsHtml(rkTabs, rkActiveTab);
     keywordsHtml += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
     keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record'), false);
 
