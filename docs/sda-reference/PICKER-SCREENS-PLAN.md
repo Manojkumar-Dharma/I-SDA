@@ -47,32 +47,32 @@ Display Attributes and Colors) rather than genuinely new keyword handling.
 
 ## Wave 2 — first-level wiring (depends on one Wave 1 task each)
 
-| Task | Component | Screens | Depends on |
-| --- | --- | --- | --- |
-| **R2** | USRDFN wiring | *(reuses R1 General/Application Help/Help/Print only — no screens of its own)* | R1 |
-| **R3** | SFL-specific (Subfile keywords + its own General + Indicator) | `screens/record-level/subfile-sfl/*` | — (independent, but grouped here since it feeds R4/R8/R11) - **done** (v0.9.50). Also retrofitted the new repeatable Indicator component into Task R5's SFLMSG picker, closing a gap R5 had explicitly flagged (SETOF/CHANGE argument shape). |
-| **R7** | WINDOW-specific (Window Parameters: size/roll + Border Parameters/Color/Attributes/Characters) + wire WINDOW to R1 | `screens/record-level/window/*` | R1. Window Title is already covered by the existing dedicated panel — don't rebuild. - **done**. |
-| **D2** | Character field wiring (Usage B/I/O) | `screens/field-level/character/*` | D1 (uses the full set, no additions) - **done**, see Known limitations for scope notes |
-| **D3** | Numeric field additions (Editing Keywords, Subfile Keywords) + wire Numeric to D1 | `screens/field-level/numeric/*` | D1. Editing Keywords ≈ existing Edit code/word panel — reuse. |
-| **D4** | Constant field wiring (Display Attributes, Colors, General) + new Menu-Bar Keywords screen | `screens/field-level/constant/*` | D1 |
+| Task | Component | Screens | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| **R2** | USRDFN wiring | *(reuses R1 General/Application Help/Help/Print only — no screens of its own)* | R1 | not started |
+| **R3** | SFL-specific (Subfile keywords + its own General + Indicator) | `screens/record-level/subfile-sfl/*` | — (independent, but grouped here since it feeds R4/R8/R11). Shipped in v0.9.50. Also retrofitted the new repeatable Indicator component into Task R5's SFLMSG picker, closing a gap R5 had explicitly flagged (SETOF/CHANGE argument shape). | done |
+| **R7** | WINDOW-specific (Window Parameters: size/roll + Border Parameters/Color/Attributes/Characters) + wire WINDOW to R1 | `screens/record-level/window/*` | R1. Window Title is already covered by the existing dedicated panel — don't rebuild. | done |
+| **D2** | Character field wiring (Usage B/I/O) | `screens/field-level/character/*` | D1 (uses the full set, no additions) — see README's Known limitations for scope notes | done |
+| **D3** | Numeric field additions (Editing Keywords, Subfile Keywords) + wire Numeric to D1 | `screens/field-level/numeric/*` | D1. Editing Keywords ≈ existing Edit code/word panel — reuse. | not started |
+| **D4** | Constant field wiring (Display Attributes, Colors, General) + new Menu-Bar Keywords screen | `screens/field-level/constant/*` | D1 | not started |
 
 ## Wave 3 — second-level wiring (depends on two Wave 1/2 components)
 
-| Task | Component | Screens | Depends on |
-| --- | --- | --- | --- |
-| **R4** | SFLCTL-specific (Subfile Control menu: General/Display Layout/Subfile Messages) + wire SFLCTL to R1 (all 8) + R3's Subfile Keywords screen | `screens/record-level/subfile-control-sflctl/*` | R1, R3 |
-| **R10** | PULLDOWN-specific (General ×2 + Border set, no window-parameters) + wire to R1 | `screens/record-level/pulldown-puldwn/*` | R1, R7 (reuses the border sub-panels built for Window) |
-| **R13** | MNUBAR-specific (General + Menu-Bar Display Keywords) + wire to R1 | `screens/record-level/menu-bar-record-mnubar/*` | R1 |
+| Task | Component | Screens | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| **R4** | SFLCTL-specific (Subfile Control menu: General/Display Layout/Subfile Messages) + wire SFLCTL to R1 (all 8) + R3's Subfile Keywords screen | `screens/record-level/subfile-control-sflctl/*` | R1, R3 | not started |
+| **R10** | PULLDOWN-specific (General ×2 + Border set, no window-parameters) + wire to R1 | `screens/record-level/pulldown-puldwn/*` | R1, R7 (reuses the border sub-panels built for Window) | not started |
+| **R13** | MNUBAR-specific (General + Menu-Bar Display Keywords) + wire to R1 | `screens/record-level/menu-bar-record-mnubar/*` | R1 | not started |
 
 ## Wave 4 — combination types (Window+Subfile / Pulldown+Subfile)
 
-| Task | Component | Screens | Depends on |
-| --- | --- | --- | --- |
-| **R6** | SFLMSGCTL-specific (same shape as R4: General/Display Layout/Subfile Messages) + wire to R1 | `screens/record-level/subfile-message-sflmsg/*` (control variant) | R4 (reuse the Subfile Control Keywords pattern built there) |
-| **R8** | WNDSFL-specific | `screens/record-level/window-subfile-wndsfl/*` | R3 (subfile General/Indicator), R7 (window/border set) |
-| **R9** | WNDSFCTL-specific | `screens/record-level/window-subfile-control-wndsfctl/*` | R4 (subfile control pattern), R7 (window/border set) |
-| **R11** | PULDWNSFL-specific | `screens/record-level/pulldown-subfile-puldwnsfl/*` | R3, R10 |
-| **R12** | PDNSFLCTL-specific | `screens/record-level/pulldown-subfile-control-pdnsflctl/*` | R4, R10 |
+| Task | Component | Screens | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| **R6** | SFLMSGCTL-specific (same shape as R4: General/Display Layout/Subfile Messages) + wire to R1 | `screens/record-level/subfile-message-sflmsg/*` (control variant) | R4 (reuse the Subfile Control Keywords pattern built there) | not started |
+| **R8** | WNDSFL-specific | `screens/record-level/window-subfile-wndsfl/*` | R3 (subfile General/Indicator), R7 (window/border set) | not started |
+| **R9** | WNDSFCTL-specific | `screens/record-level/window-subfile-control-wndsfctl/*` | R4 (subfile control pattern), R7 (window/border set) | not started |
+| **R11** | PULDWNSFL-specific | `screens/record-level/pulldown-subfile-puldwnsfl/*` | R3, R10 | not started |
+| **R12** | PDNSFLCTL-specific | `screens/record-level/pulldown-subfile-control-pdnsflctl/*` | R4, R10 | not started |
 
 ---
 
