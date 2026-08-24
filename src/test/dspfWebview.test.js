@@ -2549,6 +2549,106 @@ function runSflCtlPickerScenario() {
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
     check('SFLMSGID removed when the message ID is blank', !reparsed.keywords.some((k) => k.name === 'SFLMSGID'));
 
+    runNumericFieldPickerScenario();
+  }, 0);
+}
+
+function runNumericFieldPickerScenario() {
+  console.log('\nNumeric field picker (Task D3): Edit code/word/mask gated on Output/Both, Keyboard shift attribute, Subfile keywords');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'DTLCTL', func: 'SFLCTL(DETAIL)' }),
+      buildLine({ seq: '00030', name: 'AMT', dataType: 'S', length: '7', decimals: '2', usage: 'O', line: '1', col: '1' }),
+      buildLine({ seq: '00040', name: 'QTY', dataType: 'S', length: '5', usage: 'H' }),
+      buildLine({ seq: '00050', name: 'RECNBR', dataType: 'S', length: '5', usage: 'B', line: '1', col: '30' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'NUMERIC.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    function selectFieldByName(name) {
+      const el = Array.from(doc.querySelectorAll('.dspf-field')).find((e) => e.getAttribute('data-field') === name);
+      if (el) { el.dispatchEvent(new Event('click', { bubbles: true })); return true; }
+      return false;
+    }
+
+    console.log('  AMT (Usage O, numeric): Edit code/word/mask section is present, EDTMSK is a selectable kind');
+    check('AMT is selectable on the canvas', selectFieldByName('AMT'));
+    const ecKindSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.id.endsWith('-ec-kind'));
+    check('Edit code/word/mask select exists for an Output field', !!ecKindSelect);
+    check('EDTMSK is one of its options', Array.from(ecKindSelect.options).some((o) => o.value === 'EDTMSK'));
+    const ecOwnerKey = ecKindSelect.id.replace('-ec-kind', '');
+    ecKindSelect.value = 'EDTMSK';
+    doc.getElementById(ecOwnerKey + '-ec-params').value = "'(999) 999-9999'";
+    doc.querySelector('.' + ecOwnerKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text);
+    let amtField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'AMT');
+    check('EDTMSK written with the quoted mask', amtField.keywords.some((k) => k.name === 'EDTMSK' && k.parameters.trim() === "'(999) 999-9999'"));
+    posted.length = 0;
+
+    console.log('  QTY (Usage H, Hidden): Edit code/word/mask section is absent (not Output/Both)');
+    doc.getElementById('recordSelect').value = 'DTLCTL';
+    doc.getElementById('recordSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    const hiddenTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.getAttribute('data-tab') === 'hidden');
+    check('a Hidden tab exists on the record props panel', !!hiddenTabBtn);
+    hiddenTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const qtyRow = Array.from(doc.querySelectorAll('.field-order-row[data-source-line]')).find((el) => el.textContent.indexOf('QTY') !== -1);
+    check('QTY is listed in the Hidden tab', !!qtyRow);
+    qtyRow.dispatchEvent(new Event('click', { bubbles: true }));
+    const hiddenEcKind = Array.from(doc.querySelectorAll('select')).find((s) => s.id.endsWith('-ec-kind'));
+    check('no Edit code/word/mask select for a Hidden field', !hiddenEcKind);
+
+    console.log('  QTY (Usage H, Hidden): Keying options panel offers the Keyboard shift attribute (KEYBRD)');
+    const keybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keybrd') >= 0);
+    check('KEYBRD select present for a Hidden field (Keying options is Hidden/Input/Both)', !!keybrdSelect);
+    keybrdSelect.value = 'S';
+    keybrdSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted for KEYBRD', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text);
+    const qtyField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'QTY');
+    check('KEYBRD written with value S', qtyField.keywords.some((k) => k.name === 'KEYBRD' && k.parameters.trim() === 'S'));
+    posted.length = 0;
+
+    console.log('  RECNBR (in an SFLCTL record): Subfile keywords panel is present, SFLRCDNBR/SFLROLVAL commit');
+    selectFieldByName('RECNBR');
+    const sflrcdnbrEl = Array.from(doc.querySelectorAll('select')).find((s) => s.id.endsWith('-sflrcdnbr'));
+    check('SFLRCDNBR select present for a field in an SFLCTL record', !!sflrcdnbrEl);
+    sflrcdnbrEl.value = '*TOP';
+    sflrcdnbrEl.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text);
+    let recnbrField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'RECNBR');
+    check('SFLRCDNBR written as *TOP', recnbrField.keywords.some((k) => k.name === 'SFLRCDNBR' && k.parameters.trim() === '*TOP'));
+    posted.length = 0;
+
+    const sflrolvalOwnerKey = sflrcdnbrEl.id.replace('-sflrcdnbr', '');
+    const sflrolvalEl = doc.getElementById(sflrolvalOwnerKey + '-sflrolval');
+    check('SFLROLVAL checkbox present', !!sflrolvalEl);
+    sflrolvalEl.checked = true;
+    sflrolvalEl.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text);
+    recnbrField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'RECNBR');
+    check('SFLROLVAL written', recnbrField.keywords.some((k) => k.name === 'SFLROLVAL'));
+    check('SFLRCDNBR from the previous step is still there (independent commits)', recnbrField.keywords.some((k) => k.name === 'SFLRCDNBR'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

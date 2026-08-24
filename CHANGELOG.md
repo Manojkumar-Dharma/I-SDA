@@ -3,6 +3,17 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.53] - Unreleased
+
+### Added
+- **Task D3 - Numeric field wiring** (`docs/sda-reference/screens/field-level/numeric/`, see `PICKER-SCREENS-PLAN.md`). Most of D1's panels (Display attrs/Colors/Keying options/Validity check/Input keywords/Database reference/General keywords/Message ID) already matched numeric's own "For Field Type" table exactly and were already correctly wired via D2's generic, non-data-type-specific `fieldKeywordCategoryVisibility` gate - so this task's real work was the genuine gaps:
+  - **`EDTMSK`** added as a third mutually-exclusive option alongside `EDTCDE`/`EDTWRD` in the existing Edit code/word editor (now "Edit code / word / mask").
+  - **Fixed a real gating gap**: the Edit code/word section previously rendered unconditionally for every field usage, including Hidden - real SDA's numeric screen lists it as "Numeric Output or Both" only, a narrower and separate gate from Validity check's "Input or Both, not float" (edit keywords format OUTPUT values; validity checks constrain INPUT). New `editingKeywords` entry in `fieldKeywordCategoryVisibility`; `validityAndEditHtml`/`wireValidityAndEdit` gained an independent `includeEditKeyword` option (previously bundled with `includeValidity`) so the two can now show/hide separately. System-value constants (DATE/TIME/PAGNBR) are unaffected - they keep unconditional edit-keyword access, same as before.
+  - **`KEYBRD`** (Keyboard shift attribute - S/N/Y/I/D) added to the Keying options panel, gated the same as the rest of that panel (Hidden/Input/Both).
+  - New **Subfile keywords** panel (`SFLRCDNBR` - CURSOR/*TOP select, `SFLROLVAL` - flag) for a numeric field living directly in an SFL or SFLCTL record, reusing R3/R4's existing `isSflRecord`/`isSflCtlRecord` detectors for the gate.
+  - No new `dspfWriter.js` primitives needed - `KEYBRD` and both new Subfile keywords reuse the existing generic `getFileFlagKeyword`/`setFileFlagKeyword` pair (present/absent + a free-text or fixed-option parameter), same as several of Task R1's record-level keywords.
+  - 16 new `dspfWebview.test.js` checks.
+
 ## [0.9.52] - Unreleased
 
 ### Added

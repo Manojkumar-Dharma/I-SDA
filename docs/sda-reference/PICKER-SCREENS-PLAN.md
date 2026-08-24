@@ -53,7 +53,7 @@ Display Attributes and Colors) rather than genuinely new keyword handling.
 | **R3** | SFL-specific (Subfile keywords + its own General + Indicator) | `screens/record-level/subfile-sfl/*` | — (independent, but grouped here since it feeds R4/R8/R11). Shipped in v0.9.50. Also retrofitted the new repeatable Indicator component into Task R5's SFLMSG picker, closing a gap R5 had explicitly flagged (SETOF/CHANGE argument shape). | done |
 | **R7** | WINDOW-specific (Window Parameters: size/roll + Border Parameters/Color/Attributes/Characters) + wire WINDOW to R1 | `screens/record-level/window/*` | R1. Window Title is already covered by the existing dedicated panel — don't rebuild. | done |
 | **D2** | Character field wiring (Usage B/I/O) | `screens/field-level/character/*` | D1 (uses the full set, no additions) — see README's Known limitations for scope notes | done |
-| **D3** | Numeric field additions (Editing Keywords, Subfile Keywords) + wire Numeric to D1 | `screens/field-level/numeric/*` | D1. Editing Keywords ≈ existing Edit code/word panel — reuse. | not started |
+| **D3** | Numeric field additions (Editing Keywords, Subfile Keywords) + wire Numeric to D1 | `screens/field-level/numeric/*` | D1. Editing Keywords ≈ existing Edit code/word panel — reuse. Shipped in v0.9.53: added EDTMSK, fixed the Edit code/word section's own Output/Both gate (previously unconditional), added KEYBRD to Keying options, added a new Subfile keywords panel (SFLRCDNBR/SFLROLVAL) for numeric fields in SFL/SFLCTL records. | done |
 | **D4** | Constant field wiring (Display Attributes, Colors, General) + new Menu-Bar Keywords screen | `screens/field-level/constant/*` | D1 | not started |
 
 ## Wave 3 — second-level wiring (depends on two Wave 1/2 components)

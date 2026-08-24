@@ -630,20 +630,23 @@
     return next;
   }
 
-  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD'];
+  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD', 'EDTMSK'];
 
-  /** Same one-at-a-time rule as validity checks - a field can't carry both an
-   *  edit code and an edit word - { kind: ''|'EDTCDE'|'EDTWRD', parameters: string }. */
+  /** Same one-at-a-time rule as validity checks - a field can't carry more
+   *  than one of an edit code, an edit word, or an edit mask -
+   *  { kind: ''|'EDTCDE'|'EDTWRD'|'EDTMSK', parameters: string }. */
   function getEditKeyword(keywords) {
     var k = (keywords || []).find(function (k) { return EDIT_KEYWORDS.indexOf(k.name) >= 0; });
     return k ? { kind: k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
   }
 
-  /** Returns a NEW keywords array with any existing EDTCDE/EDTWRD removed and,
-   *  if `kind` is non-empty, one new keyword added with `parameters` (a bare
-   *  edit-code letter for EDTCDE, e.g. "J", or the full quoted substitution
-   *  string for EDTWRD, e.g. "'  DR  CR'" - the caller supplies quoting for
-   *  EDTWRD itself since its internal structure is meaningful). */
+  /** Returns a NEW keywords array with any existing EDTCDE/EDTWRD/EDTMSK
+   *  removed and, if `kind` is non-empty, one new keyword added with
+   *  `parameters` (a bare edit-code letter for EDTCDE, e.g. "J"; the full
+   *  quoted substitution string for EDTWRD, e.g. "'  DR  CR'"; or the full
+   *  quoted mask string for EDTMSK, e.g. "'(999) 999-9999'" - the caller
+   *  supplies quoting for EDTWRD/EDTMSK itself since their internal
+   *  structure is meaningful). */
   function setEditKeyword(keywords, kind, parameters) {
     var next = (keywords || []).filter(function (k) { return EDIT_KEYWORDS.indexOf(k.name) < 0; });
     if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
