@@ -2050,6 +2050,17 @@ const htmlTemplate = `<!DOCTYPE html>
       windowPanels = WebviewClientHelpers.windowPanelsHtml(rec.keywords, rwPrefix);
     }
 
+    // --- Pull-down tab: only for records carrying PULLDOWN (Task R10) -
+    // General (the PULLDOWN keyword's own *SLTIND/*RSTCSR sub-flags) and
+    // Border Parameters (reusing R7's WDWBORDER panel) stacked as
+    // accordions within one tab, same shape as the Window tab above.
+    const rpdPrefix = 'rpd-' + rec.name;
+    const isPulldown = WebviewClientHelpers.isPulldownRecord(rec);
+    let pulldownPanels = null;
+    if (isPulldown) {
+      pulldownPanels = WebviewClientHelpers.pulldownPanelsHtml(rec.keywords, rpdPrefix);
+    }
+
     // --- SFL tab: only for plain subfile records (Task R3) - not shown
     // for SFLMSG records, which get their own SFLMSG tab above covering
     // the same ground plus its own Message Record category.
@@ -2072,6 +2083,17 @@ const htmlTemplate = `<!DOCTYPE html>
       sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec.keywords, sflCtlPrefix);
     }
 
+    // --- MNUBAR tab: only for menu-bar records (Task R13) - single
+    // General accordion (MNUBAR itself + reused MNUBARSW/MNUCNL). Menu-Bar
+    // display keywords (MNUBARDSP) already live on R1's base General tab,
+    // shown for every record including this one - not duplicated here.
+    const mnuBarPrefix = 'mnubar-' + rec.name;
+    const isMnuBar = WebviewClientHelpers.isMnuBarRecord(rec);
+    let mnuBarPanels = null;
+    if (isMnuBar) {
+      mnuBarPanels = WebviewClientHelpers.mnuBarPanelsHtml(rec.keywords, mnuBarPrefix);
+    }
+
     const tabs = [
       { id: 'basic', label: 'Basic', content: basicHtml },
       { id: 'keywords', label: 'Keywords', content: keywordsHtml },
@@ -2092,6 +2114,12 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('Border Parameters', windowPanels.borderParameters, false);
       tabs.push({ id: 'window', label: 'Window', content: windowHtml });
     }
+    if (isPulldown) {
+      const pulldownHtml =
+        accordionHtml('General', pulldownPanels.general, true) +
+        accordionHtml('Border Parameters', pulldownPanels.borderParameters, false);
+      tabs.push({ id: 'pulldown', label: 'Pull-down', content: pulldownHtml });
+    }
     if (isSfl) {
       const sflHtml =
         accordionHtml('General', sflPanels.general, true) +
@@ -2105,6 +2133,10 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('Display Layout', sflCtlPanels.displayLayout, false) +
         accordionHtml('Subfile Messages', sflCtlPanels.subfileMessages, false);
       tabs.push({ id: 'sflctl', label: 'SFLCTL', content: sflCtlHtml });
+    }
+    if (isMnuBar) {
+      const mnuBarHtml = accordionHtml('General', mnuBarPanels.general, true);
+      tabs.push({ id: 'mnubar', label: 'MNUBAR', content: mnuBarHtml });
     }
     html += tabsHtml(tabs, activeRecordTab);
 
@@ -2156,11 +2188,17 @@ const htmlTemplate = `<!DOCTYPE html>
     if (hasWindow) {
       WebviewClientHelpers.wireWindowPanels(rwPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
+    if (isPulldown) {
+      WebviewClientHelpers.wirePulldownPanels(rpdPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
     if (isSfl) {
       WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
     if (isSflCtl) {
       WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
+    if (isMnuBar) {
+      WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
   }
 

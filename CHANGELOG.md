@@ -13,10 +13,73 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - New **Subfile keywords** panel (`SFLRCDNBR` - CURSOR/*TOP select, `SFLROLVAL` - flag) for a numeric field living directly in an SFL or SFLCTL record, reusing R3/R4's existing `isSflRecord`/`isSflCtlRecord` detectors for the gate.
   - No new `dspfWriter.js` primitives needed - `KEYBRD` and both new Subfile keywords reuse the existing generic `getFileFlagKeyword`/`setFileFlagKeyword` pair (present/absent + a free-text or fixed-option parameter), same as several of Task R1's record-level keywords.
   - 16 new `dspfWebview.test.js` checks.
+- **Task R13 - MNUBAR-specific record picker** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "MNUBAR" tab on the
+  record properties panel shown only for records carrying `MNUBAR`, with
+  a single General accordion:
+  - `MNUBAR` itself, modeled as a plain present/absent flag with an
+    optional free-text parameter - the real SDA screen's "Display
+    separator" sub-row wasn't confidently matched to a specific literal
+    DDS parameter value, so it's reachable through that free-text box (or
+    the raw Keywords editor) rather than guessed at.
+  - `MNUBARSW` (menu-bar switch key) and `MNUCNL` (menu-cancel key),
+    reused as-is from the file-level picker (Task F1) - refactored
+    `menuBarKeysPanelHtml`/`wireMenuBarKeysPanel` out of that picker into
+    shared, `idPrefix`-parameterized functions (same pattern R7 already
+    used for Window Border) so both reuse the same ~25 lines instead of
+    duplicating them; the file-level panel's own ids/behavior are
+    unchanged (manually verified, since it wasn't covered by existing
+    dedicated tests).
+  - `MNUBARDSP` (Menu-Bar Display Keywords) is deliberately **not**
+    rebuilt here - it's already on Task R1's base Record Keywords →
+    General tab (present for every record type including MNUBAR), and
+    real SDA's own "Select Menu-Bar Record Keywords" menu only lists
+    General + the base Record Keywords menu anyway - the dedicated
+    "Define Menu-Bar Display Keywords" sub-screen is reached from
+    MNUBARDSP's own "Select parameters" flag, not a separate top-level
+    category, so R1's existing free-text parameters box already reaches
+    its one sub-field ("Pull-down input field", a field name).
+  - New `runMnuBarPickerScenario` in `dspfWebview.test.js`: tab
+    visibility, MNUBAR's own pre-fill/commit, and MNUBARSW/MNUCNL
+    committing independently of MNUBAR and of each other.
 
 ## [0.9.52] - Unreleased
 
 ### Added
+- **Task R10 - PULLDOWN-specific record picker** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "Pull-down" tab on
+  the record properties panel shown only for records carrying `PULLDOWN`,
+  with two accordions:
+  - **General**: the `PULLDOWN` keyword's own presence toggle plus its two
+    independent option sub-flags, `*SLTIND` (Selection indicators) and
+    `*RSTCSR` (Restrict cursor to pull-down) - same "flag plus independent
+    option sub-flags within one keyword's parameter list" shape R1's
+    `UNLOCK`/`*ERASE`/`*MDTOFF` already established. New
+    `DspfWriter.getPulldownKeyword`/`setPulldownKeyword`.
+  - **Border Parameters**: reuses Task F1/R7's `WDWBORDER`
+    `getWdwBorder`/`setWdwBorder` and `windowBorderPanelHtml`/
+    `wireWindowBorderPanel` as-is - confirmed identical "Define Window
+    Border Parameters" screen to the file-level and WINDOW-record
+    versions, just scoped to a PULLDOWN record's own keywords. No new
+    primitives needed for this half.
+  - "Select record keywords" (R1's base 8-category set) needed no wiring
+    of its own - `renderRecordProps`' Keywords tab already shows R1's
+    subtabs for every record type except USRDFN, so a PULLDOWN record
+    gets it automatically.
+  - Deliberately not wired: WINDOW's own "Window Parameters" screen
+    (size/roll/start position) - real SDA's PULLDOWN menu doesn't offer
+    it (PULLDOWN records are auto-sized/positioned by the runtime, no
+    `WINDOW` keyword involved), matching the plan doc's "no
+    window-parameters" note for this task. The `ALTNAME`/`TEXT` keyword
+    rows shown on the real "Select Record Keywords" screen are part of
+    R1's own generic outer menu shell (identical on a plain `RECORD`'s
+    screen too) - a pre-existing, already-deferred R1 gap, not new scope
+    for this task.
+  - New `src/test/pulldownRecordKeywordsPicker.test.js` (14 checks) plus a
+    new `runPulldownPickerScenario` in `dspfWebview.test.js` (tab
+    visibility, General pre-fill/commit/removal, and the reused Border
+    Parameters panel leaving `PULLDOWN` untouched).
+
 - **Task R4 - SFLCTL-specific record picker** (see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "SFLCTL" tab on the
   record properties panel shown only for records carrying `SFLCTL`

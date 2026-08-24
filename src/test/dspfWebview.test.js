@@ -2648,6 +2648,161 @@ function runNumericFieldPickerScenario() {
     recnbrField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'RECNBR');
     check('SFLROLVAL written', recnbrField.keywords.some((k) => k.name === 'SFLROLVAL'));
     check('SFLRCDNBR from the previous step is still there (independent commits)', recnbrField.keywords.some((k) => k.name === 'SFLRCDNBR'));
+    runMnuBarPickerScenario();
+  }, 0);
+}
+
+function runMnuBarPickerScenario() {
+  console.log('\nMNUBAR picker (Task R13): General (MNUBAR + reused MNUBARSW/MNUCNL), only on MNUBAR-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'BAR1', func: 'MNUBAR' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'MNUBAR.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no MNUBAR) does not get the MNUBAR tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no MNUBAR tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'MNUBAR'));
+
+    console.log('  a MNUBAR record gets the MNUBAR tab');
+    recordSelect.value = 'BAR1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const mnuBarTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'MNUBAR');
+    check('MNUBAR tab button rendered', !!mnuBarTabBtn);
+    mnuBarTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const p = 'mnubar-BAR1';
+    console.log('  General: MNUBAR starts checked (already present in the source, no parameters)');
+    check('MNUBAR checkbox starts checked', doc.getElementById(p + '-mnubar-on').checked);
+    check('MNUBAR params start blank', doc.getElementById(p + '-mnubar-params').value === '');
+
+    console.log('  General: MNUBARSW and MNUCNL (reused from the file-level component) commit independently of MNUBAR itself');
+    doc.getElementById(p + '-mnubarsw-on').checked = true;
+    doc.getElementById(p + '-mnubarsw-ind').value = '50';
+    doc.getElementById(p + '-mnubarsw-cakey').value = 'CA03';
+    doc.getElementById(p + '-mnubarsw-cakey').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
+    check('MNUBARSW written with indicator + CA key', reparsed.keywords.find((k) => k.name === 'MNUBARSW').parameters.trim() === '50 CA03');
+    check('MNUBAR keyword itself is untouched', reparsed.keywords.some((k) => k.name === 'MNUBAR'));
+    posted.length = 0;
+
+    doc.getElementById(p + '-mnucnl-on').checked = true;
+    doc.getElementById(p + '-mnucnl-ind').value = '51';
+    doc.getElementById(p + '-mnucnl-cakey').value = 'CA04';
+    doc.getElementById(p + '-mnucnl-resp').value = '90';
+    doc.getElementById(p + '-mnucnl-resp').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
+    check('MNUCNL written with indicator + CA key + response indicator', reparsed.keywords.find((k) => k.name === 'MNUCNL').parameters.trim() === '51 CA04 90');
+    check('MNUBARSW from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'MNUBARSW'));
+    posted.length = 0;
+
+    console.log('  General: editing MNUBAR\u2019s own parameters box commits just that keyword');
+    doc.getElementById(p + '-mnubar-params').value = '*SEP';
+    doc.getElementById(p + '-mnubar-params').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
+    check('MNUBAR written with the new parameter', reparsed.keywords.find((k) => k.name === 'MNUBAR').parameters.trim() === '*SEP');
+    check('MNUBARSW/MNUCNL from earlier steps are still there (independent commits)', reparsed.keywords.some((k) => k.name === 'MNUBARSW') && reparsed.keywords.some((k) => k.name === 'MNUCNL'));
+
+    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED for MNUBAR - continuing to Pull-down' : failures + ' CHECK(S) FAILED so far'));
+    runPulldownPickerScenario();
+  }, 0);
+}
+
+function runPulldownPickerScenario() {
+  console.log('\nPull-down picker (Task R10): General (PULLDOWN\u2019s own *SLTIND/*RSTCSR) + Border Parameters (reused from R7), only on PULLDOWN-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'PDN1', func: 'PULLDOWN(*SLTIND)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'PULLDOWN.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no PULLDOWN) does not get the Pull-down tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no Pull-down tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'Pull-down'));
+
+    console.log('  a PULLDOWN record gets the Pull-down tab, and PULLDOWN(*SLTIND) pre-fills General');
+    recordSelect.value = 'PDN1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const pulldownTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Pull-down');
+    check('Pull-down tab button rendered', !!pulldownTabBtn);
+    pulldownTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const rpdPrefix = 'rpd-PDN1';
+    check('PULLDOWN starts checked (already present in the source)', doc.getElementById(rpdPrefix + '-on').checked);
+    check('*SLTIND starts checked (already present in the source)', doc.getElementById(rpdPrefix + '-sltind').checked);
+    check('*RSTCSR starts unchecked (not in the source)', !doc.getElementById(rpdPrefix + '-rstcsr').checked);
+
+    console.log('  checking *RSTCSR commits both sub-flags on PULLDOWN, other keywords untouched');
+    doc.getElementById(rpdPrefix + '-rstcsr').checked = true;
+    doc.getElementById(rpdPrefix + '-rstcsr').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PDN1');
+    let pulldownKw = reparsed.keywords.find((k) => k.name === 'PULLDOWN');
+    check('PULLDOWN now carries both *SLTIND and *RSTCSR', pulldownKw && /\*SLTIND/.test(pulldownKw.parameters) && /\*RSTCSR/.test(pulldownKw.parameters));
+    posted.length = 0;
+
+    console.log('  Border Parameters: applying color writes WDWBORDER, same shared F1/R7 panel, PULLDOWN untouched');
+    doc.getElementById(rpdPrefix + '-wdw-color-on').checked = true;
+    doc.getElementById(rpdPrefix + '-wdw-color').value = 'RED';
+    doc.getElementById(rpdPrefix + '-wdw-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PDN1');
+    const wdwBorderKw = reparsed.keywords.find((k) => k.name === 'WDWBORDER');
+    check('WDWBORDER written with *COLOR RED', wdwBorderKw && /\*COLOR RED/.test(wdwBorderKw.parameters));
+    check("PDN1's own PULLDOWN keyword is untouched by the border edit", reparsed.keywords.some((k) => k.name === 'PULLDOWN'));
+    posted.length = 0;
+
+    console.log('  unchecking the Pull-down record checkbox removes PULLDOWN entirely');
+    doc.getElementById(rpdPrefix + '-on').checked = false;
+    doc.getElementById(rpdPrefix + '-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PDN1');
+    check('PULLDOWN removed', !reparsed.keywords.some((k) => k.name === 'PULLDOWN'));
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);

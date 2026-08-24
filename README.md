@@ -268,11 +268,11 @@ picked up after the current round of fixes.
   | Record | Base Record Keywords (General/Indicator/App Help/Help/Output/Input/Overlay/Print) | R1 ✅ | `RECORD`, `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`, `MNUBAR` (full or partial) |
   | Record | `USRDFN` wiring (subset of R1) | R2 | - |
   | Record | `SFL` (Subfile keywords + General + Indicator) | R3 ✅ | `WNDSFL`, `PULDWNSFL` |
-  | Record | `SFLCTL` (Subfile Control: General/Display Layout/Subfile Messages) | R4 | `SFLMSGCTL`, `WNDSFCTL`, `PDNSFLCTL` |
+  | Record | `SFLCTL` (Subfile Control: General/Display Layout/Subfile Messages) | R4 ✅ | `SFLMSGCTL`, `WNDSFCTL`, `PDNSFLCTL` |
   | Record | `SFLMSG` (Message Record + General + Indicator) | R5 ✅ | - |
   | Record | `WINDOW` (Window Parameters + Border set) | R7 ✅ | `WNDSFL`, `WNDSFCTL`, `PULLDOWN`, `PULDWNSFL`, `PDNSFLCTL` (border set) |
-  | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 | `PULDWNSFL`, `PDNSFLCTL` |
-  | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 | - |
+  | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 ✅ | `PULDWNSFL`, `PDNSFLCTL` |
+  | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 ✅ | - |
   | Record | Combination types (`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | R6, R8, R9, R11, R12 | wiring-only, depend on the rows above |
   | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
   | Field | Character wiring | D2 ✅ | - |
