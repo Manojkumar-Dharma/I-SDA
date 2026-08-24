@@ -2405,6 +2405,55 @@
   }
 
   // ---------------------------------------------------------------------
+  // Task R10 - PULLDOWN-specific picker (General keywords x2 - the
+  // PULLDOWN keyword's own *SLTIND/*RSTCSR sub-flags, plus Window
+  // borders/WDWBORDER - and Select record keywords, i.e. wiring PULLDOWN
+  // into R1's base 8-category set, which is already automatic for every
+  // record type except USRDFN - see docs/sda-reference/screens/
+  // record-level/pulldown-puldwn/ and PICKER-SCREENS-PLAN.md). Border
+  // Parameters reuse getWdwBorder/setWdwBorder as-is (confirmed identical
+  // "Define Window Border Parameters" screen to file-level/WINDOW's, just
+  // scoped to a PULLDOWN record's own keywords) - no new functions needed
+  // for that half, same reasoning R7's own section comment gives.
+  // Deliberately NOT wired here: WINDOW's own "Window Parameters" screen
+  // (size/roll/start position) - real SDA's PULLDOWN menu doesn't offer
+  // it (PULLDOWN records are auto-sized/positioned by the runtime, no
+  // WINDOW keyword involved), matching the plan doc's "no
+  // window-parameters" note for this task.
+  // ---------------------------------------------------------------------
+
+  /**
+   * Reads the PULLDOWN keyword's own state - `{ present, sltind, rstcsr }`
+   * - matching the "Pull-down" row and its two indented sub-rows
+   * (Selection indicators / Restrict cursor to pull-down) on the real
+   * "Define General Keywords" screen. Same shape UNLOCK's *ERASE/*MDTOFF
+   * pair already takes (one keyword, independent optional sub-flags
+   * space-separated within its own parameter list) - PULLDOWN([*SLTIND]
+   * [*RSTCSR]) rather than separate keyword instances.
+   */
+  function getPulldownKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'PULLDOWN'; });
+    if (!k) return { present: false, sltind: false, rstcsr: false };
+    var text = (k.parameters || '').toUpperCase();
+    return { present: true, sltind: /\*SLTIND\b/.test(text), rstcsr: /\*RSTCSR\b/.test(text) };
+  }
+
+  /** Returns a NEW keywords array with PULLDOWN set from `present`/
+   *  `sltind`/`rstcsr` - removed entirely when `present` is false, same
+   *  "flag plus independent option sub-flags" shape setUnlockKeyword
+   *  above already takes. */
+  function setPulldownKeyword(keywords, present, sltind, rstcsr) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'PULLDOWN'; });
+    if (present) {
+      var vals = [];
+      if (sltind) vals.push('*SLTIND');
+      if (rstcsr) vals.push('*RSTCSR');
+      next = next.concat([{ name: 'PULLDOWN', parameters: vals.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  // ---------------------------------------------------------------------
   // Task R4 - SFLCTL-specific picker (Subfile Control menu: General/
   // Display Layout/Subfile Messages - see docs/sda-reference/screens/
   // record-level/subfile-control-sflctl/ and PICKER-SCREENS-PLAN.md).
@@ -2597,6 +2646,8 @@
     setWdwBorder: setWdwBorder,
     getWindowParamsKeyword: getWindowParamsKeyword,
     setWindowParamsKeyword: setWindowParamsKeyword,
+    getPulldownKeyword: getPulldownKeyword,
+    setPulldownKeyword: setPulldownKeyword,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,
     getUnlockKeyword: getUnlockKeyword,
