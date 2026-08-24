@@ -2628,6 +2628,83 @@ function runMnuBarPickerScenario() {
     check('MNUBAR written with the new parameter', reparsed.keywords.find((k) => k.name === 'MNUBAR').parameters.trim() === '*SEP');
     check('MNUBARSW/MNUCNL from earlier steps are still there (independent commits)', reparsed.keywords.some((k) => k.name === 'MNUBARSW') && reparsed.keywords.some((k) => k.name === 'MNUCNL'));
 
+    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED for MNUBAR - continuing to Pull-down' : failures + ' CHECK(S) FAILED so far'));
+    runPulldownPickerScenario();
+  }, 0);
+}
+
+function runPulldownPickerScenario() {
+  console.log('\nPull-down picker (Task R10): General (PULLDOWN\u2019s own *SLTIND/*RSTCSR) + Border Parameters (reused from R7), only on PULLDOWN-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'PDN1', func: 'PULLDOWN(*SLTIND)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'PULLDOWN.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no PULLDOWN) does not get the Pull-down tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no Pull-down tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'Pull-down'));
+
+    console.log('  a PULLDOWN record gets the Pull-down tab, and PULLDOWN(*SLTIND) pre-fills General');
+    recordSelect.value = 'PDN1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const pulldownTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Pull-down');
+    check('Pull-down tab button rendered', !!pulldownTabBtn);
+    pulldownTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const rpdPrefix = 'rpd-PDN1';
+    check('PULLDOWN starts checked (already present in the source)', doc.getElementById(rpdPrefix + '-on').checked);
+    check('*SLTIND starts checked (already present in the source)', doc.getElementById(rpdPrefix + '-sltind').checked);
+    check('*RSTCSR starts unchecked (not in the source)', !doc.getElementById(rpdPrefix + '-rstcsr').checked);
+
+    console.log('  checking *RSTCSR commits both sub-flags on PULLDOWN, other keywords untouched');
+    doc.getElementById(rpdPrefix + '-rstcsr').checked = true;
+    doc.getElementById(rpdPrefix + '-rstcsr').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PDN1');
+    let pulldownKw = reparsed.keywords.find((k) => k.name === 'PULLDOWN');
+    check('PULLDOWN now carries both *SLTIND and *RSTCSR', pulldownKw && /\*SLTIND/.test(pulldownKw.parameters) && /\*RSTCSR/.test(pulldownKw.parameters));
+    posted.length = 0;
+
+    console.log('  Border Parameters: applying color writes WDWBORDER, same shared F1/R7 panel, PULLDOWN untouched');
+    doc.getElementById(rpdPrefix + '-wdw-color-on').checked = true;
+    doc.getElementById(rpdPrefix + '-wdw-color').value = 'RED';
+    doc.getElementById(rpdPrefix + '-wdw-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PDN1');
+    const wdwBorderKw = reparsed.keywords.find((k) => k.name === 'WDWBORDER');
+    check('WDWBORDER written with *COLOR RED', wdwBorderKw && /\*COLOR RED/.test(wdwBorderKw.parameters));
+    check("PDN1's own PULLDOWN keyword is untouched by the border edit", reparsed.keywords.some((k) => k.name === 'PULLDOWN'));
+    posted.length = 0;
+
+    console.log('  unchecking the Pull-down record checkbox removes PULLDOWN entirely');
+    doc.getElementById(rpdPrefix + '-on').checked = false;
+    doc.getElementById(rpdPrefix + '-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PDN1');
+    check('PULLDOWN removed', !reparsed.keywords.some((k) => k.name === 'PULLDOWN'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

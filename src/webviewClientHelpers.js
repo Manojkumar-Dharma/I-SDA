@@ -2170,6 +2170,68 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task R10 - PULLDOWN-specific picker (General keywords - PULLDOWN's own
+  // *SLTIND/*RSTCSR sub-flags - plus Window borders/WDWBORDER - see
+  // docs/sda-reference/screens/record-level/pulldown-puldwn/ and
+  // PICKER-SCREENS-PLAN.md). Border Parameters reuse windowBorderPanelHtml/
+  // wireWindowBorderPanel above as-is, same reasoning R7's Window tab
+  // already takes for the identical screen. "Select record keywords" (R1's
+  // base 8 categories) needs no wiring of its own here - renderRecordProps'
+  // Keywords tab already shows recordKeywordsPanelsHtml for every record
+  // type except USRDFN, so a PULLDOWN record gets it automatically.
+  // -----------------------------------------------------------------------
+
+  /** Whether `rec` carries a PULLDOWN keyword - drives whether
+   *  renderRecordProps shows the "Pull-down" tab at all (parallel to
+   *  isWindowRecord above for the Window tab). */
+  function isPulldownRecord(rec) {
+    return (rec.keywords || []).some(function (k) { return k.name === 'PULLDOWN'; });
+  }
+
+  /**
+   * Builds the 2 Pull-down sub-panels' inner HTML at once - { general,
+   * borderParameters } - for the record properties panel's Pull-down tab
+   * (see isPulldownRecord above for when that tab appears). `idPrefix`
+   * namespaces every element id, same reasoning windowPanelsHtml takes.
+   */
+  function pulldownPanelsHtml(keywords, idPrefix) {
+    var panels = {};
+
+    // --- General (PULLDOWN's own *SLTIND/*RSTCSR sub-flags) ---
+    var pd = DspfWriter.getPulldownKeyword(keywords);
+    var g = '<div class="section-label">Pull-down (PULLDOWN)</div>';
+    g += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-on" ' + (pd.present ? 'checked' : '') + ' /> Pull-down record</label>';
+    g += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;padding-left:16px;"><input type="checkbox" id="' + idPrefix + '-sltind" ' + (pd.sltind ? 'checked' : '') + ' /> Selection indicators (*SLTIND)</label>';
+    g += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;padding-left:16px;"><input type="checkbox" id="' + idPrefix + '-rstcsr" ' + (pd.rstcsr ? 'checked' : '') + ' /> Restrict cursor to pull-down (*RSTCSR)</label>';
+    panels.general = g;
+
+    // --- Border Parameters (shared with F1/R7's Window Border) ---
+    panels.borderParameters = windowBorderPanelHtml(keywords, idPrefix + '-wdw');
+
+    return panels;
+  }
+
+  /** Wires both pulldownPanelsHtml() panels. Same `getKeywords`/`onChange`
+   *  contract every other dedicated picker here uses. */
+  function wirePulldownPanels(idPrefix, getKeywords, onChange) {
+    function commitGeneral() {
+      var on = document.getElementById(idPrefix + '-on');
+      var sltind = document.getElementById(idPrefix + '-sltind');
+      var rstcsr = document.getElementById(idPrefix + '-rstcsr');
+      onChange(DspfWriter.setPulldownKeyword(getKeywords(), on.checked, sltind.checked, rstcsr.checked));
+    }
+    var on = document.getElementById(idPrefix + '-on');
+    var sltind = document.getElementById(idPrefix + '-sltind');
+    var rstcsr = document.getElementById(idPrefix + '-rstcsr');
+    if (on) on.addEventListener('change', commitGeneral);
+    if (sltind) sltind.addEventListener('change', commitGeneral);
+    if (rstcsr) rstcsr.addEventListener('change', commitGeneral);
+
+    // Border Parameters
+    wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);
+  }
+
+  // -----------------------------------------------------------------------
   // Task R4 - SFLCTL-specific picker (Subfile Control menu: General/
   // Display Layout/Subfile Messages - see docs/sda-reference/screens/
   // record-level/subfile-control-sflctl/ and PICKER-SCREENS-PLAN.md).
@@ -2432,6 +2494,9 @@
     isWindowRecord: isWindowRecord,
     windowPanelsHtml: windowPanelsHtml,
     wireWindowPanels: wireWindowPanels,
+    isPulldownRecord: isPulldownRecord,
+    pulldownPanelsHtml: pulldownPanelsHtml,
+    wirePulldownPanels: wirePulldownPanels,
     isSflCtlRecord: isSflCtlRecord,
     sflCtlPanelsHtml: sflCtlPanelsHtml,
     wireSflCtlPanels: wireSflCtlPanels,

@@ -39,6 +39,40 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.52] - Unreleased
 
 ### Added
+- **Task R10 - PULLDOWN-specific record picker** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "Pull-down" tab on
+  the record properties panel shown only for records carrying `PULLDOWN`,
+  with two accordions:
+  - **General**: the `PULLDOWN` keyword's own presence toggle plus its two
+    independent option sub-flags, `*SLTIND` (Selection indicators) and
+    `*RSTCSR` (Restrict cursor to pull-down) - same "flag plus independent
+    option sub-flags within one keyword's parameter list" shape R1's
+    `UNLOCK`/`*ERASE`/`*MDTOFF` already established. New
+    `DspfWriter.getPulldownKeyword`/`setPulldownKeyword`.
+  - **Border Parameters**: reuses Task F1/R7's `WDWBORDER`
+    `getWdwBorder`/`setWdwBorder` and `windowBorderPanelHtml`/
+    `wireWindowBorderPanel` as-is - confirmed identical "Define Window
+    Border Parameters" screen to the file-level and WINDOW-record
+    versions, just scoped to a PULLDOWN record's own keywords. No new
+    primitives needed for this half.
+  - "Select record keywords" (R1's base 8-category set) needed no wiring
+    of its own - `renderRecordProps`' Keywords tab already shows R1's
+    subtabs for every record type except USRDFN, so a PULLDOWN record
+    gets it automatically.
+  - Deliberately not wired: WINDOW's own "Window Parameters" screen
+    (size/roll/start position) - real SDA's PULLDOWN menu doesn't offer
+    it (PULLDOWN records are auto-sized/positioned by the runtime, no
+    `WINDOW` keyword involved), matching the plan doc's "no
+    window-parameters" note for this task. The `ALTNAME`/`TEXT` keyword
+    rows shown on the real "Select Record Keywords" screen are part of
+    R1's own generic outer menu shell (identical on a plain `RECORD`'s
+    screen too) - a pre-existing, already-deferred R1 gap, not new scope
+    for this task.
+  - New `src/test/pulldownRecordKeywordsPicker.test.js` (14 checks) plus a
+    new `runPulldownPickerScenario` in `dspfWebview.test.js` (tab
+    visibility, General pre-fill/commit/removal, and the reused Border
+    Parameters panel leaving `PULLDOWN` untouched).
+
 - **Task R4 - SFLCTL-specific record picker** (see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "SFLCTL" tab on the
   record properties panel shown only for records carrying `SFLCTL`

@@ -61,7 +61,7 @@ Display Attributes and Colors) rather than genuinely new keyword handling.
 | Task | Component | Screens | Depends on | Status |
 | --- | --- | --- | --- | --- |
 | **R4** | SFLCTL-specific (Subfile Control menu: General/Display Layout/Subfile Messages) + wire SFLCTL to R1 (all 8) + R3's Subfile Keywords screen | `screens/record-level/subfile-control-sflctl/*` | R1, R3 | done |
-| **R10** | PULLDOWN-specific (General ×2 + Border set, no window-parameters) + wire to R1 | `screens/record-level/pulldown-puldwn/*` | R1, R7 (reuses the border sub-panels built for Window) | not started |
+| **R10** | PULLDOWN-specific (General ×2 + Border set, no window-parameters) + wire to R1 | `screens/record-level/pulldown-puldwn/*` | R1, R7 (reuses the border sub-panels built for Window) | done |
 | **R13** | MNUBAR-specific (General + Menu-Bar Display Keywords) + wire to R1 | `screens/record-level/menu-bar-record-mnubar/*` | R1 | done |
 
 ## Wave 4 — combination types (Window+Subfile / Pulldown+Subfile)
