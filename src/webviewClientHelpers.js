@@ -805,6 +805,7 @@
     html += '<div class="field-row"><label>DFT <span class="hint-small">(input-only)</span></label><input type="text" id="' + ownerKey + '-gen-dft" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dft) + '" /></div>';
     html += '<div class="field-row"><label>DFTVAL <span class="hint-small">(output/both)</span></label><input type="text" id="' + ownerKey + '-gen-dftval" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dftval) + '" /></div>';
     html += '<div class="field-row"><label>FLDCSRPRG</label><input type="text" id="' + ownerKey + '-gen-fldcsrprg" placeholder="Cursor-progression field name" value="' + escapeHtml(s.fldcsrprg) + '" /></div>';
+    html += '<div class="field-row"><label>HLPID <span class="hint-small">(constant help identifier)</span></label><input type="text" id="' + ownerKey + '-gen-hlpid" placeholder="e.g. FLDHELP1" value="' + escapeHtml(s.hlpid) + '" /></div>';
     html += '<div class="attr-checks" style="margin-top:6px;">';
     [
       ['putretain', 'PUTRETAIN', 'Retain field on display'],
@@ -831,6 +832,7 @@
         dft: document.getElementById(ownerKey + '-gen-dft').value,
         dftval: document.getElementById(ownerKey + '-gen-dftval').value,
         fldcsrprg: document.getElementById(ownerKey + '-gen-fldcsrprg').value,
+        hlpid: document.getElementById(ownerKey + '-gen-hlpid').value,
         putretain: !!document.getElementById(ownerKey + '-gen-putretain').checked,
         ovrdta: !!document.getElementById(ownerKey + '-gen-ovrdta').checked,
         ovratr: !!document.getElementById(ownerKey + '-gen-ovratr').checked,

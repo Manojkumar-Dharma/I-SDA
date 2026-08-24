@@ -43,6 +43,32 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     visibility, MNUBAR's own pre-fill/commit, and MNUBARSW/MNUCNL
     committing independently of MNUBAR and of each other.
 
+## [0.9.54] - Unreleased
+
+### Added
+- **Task D4 - Constant field wiring** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`), the last of the field-level
+  picker tasks. Turned out to be a small, well-scoped addition rather than
+  a new set of screens: three of the four SDA screens for constants
+  (Colors, Display Attributes, most of General Keywords) were ALREADY
+  covered by the shared D1 panels, which were never gated to exclude
+  constants in the first place. The two genuinely new pieces:
+  - **`HLPID`** added to the General keywords panel - verified against
+    IBM's own DDS reference as a "constant field-level keyword" (links
+    the constant to a `HLPARA`-referenced help panel), the same bare-
+    identifier shape as `ALIAS`/`FLDCSRPRG` already handled there.
+  - **Relaxed Task D5's Menu-bar choices/separator gate** so a constant
+    living in a `MNUBAR` record can carry `MNUBARCHC`/`MNUBARSEP` too
+    (real SDA's own "Select Menu-Bar Keywords" screen shows the
+    identical keyword set for this case) - valid regardless of whether
+    the DDS entry has a name. Choice selection type (`SNGCHCFLD`/
+    `MLTCHCFLD`)/Choice keywords/Choice colors stay constant-excluded:
+    those require real, named, indicator-controlled field semantics a
+    constant structurally can't have.
+  - 3 new `dspfWriter.test.js` checks (`HLPID` round-trip) plus 8 new
+    `dspfWebview.test.js` checks (constant-in-a-MNUBAR-record scenario,
+    confirming Menu-bar panels appear but Choice selection type doesn't).
+
 ## [0.9.52] - Unreleased
 
 ### Added

@@ -1445,6 +1445,71 @@ function runD5MenuBarChoiceScenario() {
     last = posted[posted.length - 1];
     check('posts applyEdit with CHCAVAIL((*COLOR BLU))', last && last.type === 'applyEdit' && /CHCAVAIL\(\(\*COLOR BLU\)\)/.test(last.text));
 
+    runD4ConstantWiringScenario();
+  }, 0);
+}
+
+function runD4ConstantWiringScenario() {
+  console.log('\nD4: constant field wiring - HLPID (General keywords) and menu-bar keywords (MNUBARCHC/MNUBARSEP) on a constant, but NOT Choice selection type');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
+      "     A                                  1  2'>File'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce15', src, 'D4.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    function accordionLabels() {
+      return Array.from(doc.querySelectorAll('#propsBody .props-accordion > summary')).map((el) => el.textContent);
+    }
+    function selectConstant() {
+      const el = Array.from(doc.querySelectorAll('.dspf-field')).find((e) => e.textContent.includes('>File'));
+      if (el) { el.dispatchEvent(new Event('click', { bubbles: true })); return true; }
+      return false;
+    }
+
+    console.log('  Selecting the constant (in the MNUBAR record MB): Menu-bar choices/separator ARE offered, Choice selection type is NOT');
+    check('the constant is selectable', selectConstant());
+    check('confirms this is a constant (no Name input)', !doc.getElementById('p-name'));
+    let labels = accordionLabels();
+    check('Menu-bar choices (MNUBARCHC) is offered on a constant in a MNUBAR record', labels.indexOf('Menu-bar choices (MNUBARCHC)') >= 0);
+    check('Menu-bar separator (MNUBARSEP) is offered on a constant too', labels.indexOf('Menu-bar separator (MNUBARSEP)') >= 0);
+    check('Choice selection type is NOT offered for a constant (structurally can\'t be a choice field)', labels.indexOf('Choice selection type') === -1);
+    check('General keywords is still offered (HLPID lives there)', labels.indexOf('General keywords') >= 0);
+
+    console.log('  Filling in HLPID on the constant via General keywords and applying writes HLPID');
+    doc.querySelector('input[id$="-gen-hlpid"]').value = 'CONSTHELP';
+    doc.querySelector('button[class*="-gen-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with HLPID(CONSTHELP) on the constant', last && last.type === 'applyEdit' && /HLPID\(CONSTHELP\)/.test(last.text));
+
+    console.log('  Adding a menu-bar choice row on the constant and applying writes MNUBARCHC');
+    selectConstant();
+    doc.querySelector('button[class*="-mnubarchc-add"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('input[class*="-mnubarchc-id"]').value = '1';
+    doc.querySelector('input[class*="-mnubarchc-record"]').value = 'PULLFILE';
+    doc.querySelector('input[class*="-mnubarchc-text"]').value = '>File';
+    doc.querySelector('button[class*="-mnubarchc-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    const mbRecord = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'MB');
+    const constField = mbRecord.fields.find((f) => (f.nameType === 'CONSTANT' || !f.name));
+    check('posts applyEdit with MNUBARCHC on the constant entry', last && last.type === 'applyEdit' && constField && constField.keywords.some((k) => k.name === 'MNUBARCHC'));
+
     runClickToPlaceScenario();
   }, 0);
 }

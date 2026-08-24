@@ -1621,19 +1621,29 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     // D5 - Menu-bar choice fields (docs/sda-reference/ task D5). Two
     // distinct gates, since these serve two different field kinds:
-    //   - MNUBARCHC/MNUBARSEP only make sense on a field that lives in a
-    //     record carrying its own MNUBAR keyword (see the record-type
-    //     wizard's MNUBAR/PULLDOWN/PDNSFL types) - gated on the OWNING
-    //     RECORD, not the field itself, since a brand-new field in that
-    //     record hasn't been turned into the bar's own choice field yet.
-    //   - Choice selection type is always offered (it's the opt-in entry
-    //     point, same spirit as D1's Keying options always being offered);
-    //     the per-choice keyword list and the three color states only
-    //     appear once a field IS already a SNGCHCFLD/MLTCHCFLD choice
-    //     field, so a random unrelated field's Attributes tab doesn't get
-    //     cluttered with an empty, confusing choice-list editor.
+    //   - MNUBARCHC/MNUBARSEP only make sense on a field OR CONSTANT that
+    //     lives in a record carrying its own MNUBAR keyword (see the
+    //     record-type wizard's MNUBAR/PULLDOWN/PDNSFL types) - gated on
+    //     the OWNING RECORD, not the field itself, since a brand-new entry
+    //     in that record hasn't been turned into the bar's own choice
+    //     element yet. Constants ARE included here (task D4's own "Select
+    //     Menu-Bar Keywords" screen shows the identical MNUBARCHC/
+    //     MNUBARSEP/CHCAVAIL/CHCSLT set) - unlike Choice selection type
+    //     below, MNUBARCHC/MNUBARSEP are valid DDS entries regardless of
+    //     whether the entry has a name, so a constant serving as a
+    //     menu-bar label/separator can carry them too.
+    //   - Choice selection type is always offered for non-constant fields
+    //     (it's the opt-in entry point, same spirit as D1's Keying options
+    //     always being offered); the per-choice keyword list and the
+    //     three color states only appear once a field IS already a
+    //     SNGCHCFLD/MLTCHCFLD choice field, so a random unrelated field's
+    //     Attributes tab doesn't get cluttered with an empty, confusing
+    //     choice-list editor. These stay CONSTANT-EXCLUDED (unlike
+    //     MNUBARCHC/MNUBARSEP above) because SNGCHCFLD/MLTCHCFLD are
+    //     genuinely field semantics - a nameless constant structurally
+    //     cannot be an interactive, indicator-controlled choice field.
     const ownerRecord = found.record;
-    const isMenuBarRecord = !isConstant && ownerRecord.keywords.some((k) => k.name === 'MNUBAR');
+    const isMenuBarRecord = ownerRecord.keywords.some((k) => k.name === 'MNUBAR');
     if (isMenuBarRecord) {
       attrsHtml += accordionHtml('Menu-bar choices (MNUBARCHC)', WebviewClientHelpers.menuBarChoicesHtml(field.keywords, 'field-' + field.sourceLine), false);
       attrsHtml += accordionHtml('Menu-bar separator (MNUBARSEP)', WebviewClientHelpers.menuBarSeparatorHtml(field.keywords, 'field-' + field.sourceLine), false);
