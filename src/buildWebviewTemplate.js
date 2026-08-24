@@ -1986,6 +1986,15 @@ const htmlTemplate = `<!DOCTYPE html>
       windowPanels = WebviewClientHelpers.windowPanelsHtml(rec.keywords, rwPrefix);
     }
 
+    // --- SFL tab: only for plain subfile records (Task R3) - not shown
+    // for SFLMSG records, which get their own SFLMSG tab above covering
+    // the same ground plus its own Message Record category.
+    const isSfl = WebviewClientHelpers.isSflRecord(rec);
+    let sflPanels = null;
+    if (isSfl) {
+      sflPanels = WebviewClientHelpers.sflKeywordsPanelsHtml(rec.keywords, 'sfl-' + rec.name);
+    }
+
     const tabs = [
       { id: 'basic', label: 'Basic', content: basicHtml },
       { id: 'keywords', label: 'Keywords', content: keywordsHtml },
@@ -2005,6 +2014,12 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('Window Parameters', windowPanels.windowParameters, true) +
         accordionHtml('Border Parameters', windowPanels.borderParameters, false);
       tabs.push({ id: 'window', label: 'Window', content: windowHtml });
+    }
+    if (isSfl) {
+      const sflHtml =
+        accordionHtml('General', sflPanels.general, true) +
+        accordionHtml('Indicator', sflPanels.indicator, false);
+      tabs.push({ id: 'sfl', label: 'SFL', content: sflHtml });
     }
     html += tabsHtml(tabs, activeRecordTab);
 
@@ -2055,6 +2070,9 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (hasWindow) {
       WebviewClientHelpers.wireWindowPanels(rwPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
+    if (isSfl) {
+      WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
   }
 

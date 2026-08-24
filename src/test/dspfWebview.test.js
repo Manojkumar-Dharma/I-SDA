@@ -1989,24 +1989,111 @@ function runSflMsgPickerScenario() {
     check('CHECK(RL) was not', !reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
     posted.length = 0;
 
-    console.log('  Indicator: INDTXT (indicator+text) and SETOF (space-separated indicator list) commit independently');
-    doc.getElementById('sm-indtxt-on').checked = true;
-    doc.getElementById('sm-indtxt-ind').value = '50';
-    doc.getElementById('sm-indtxt-text').value = "Amount valid";
-    doc.getElementById('sm-indtxt-text').dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('  Indicator: repeatable INDTXT/SETOF/CHANGE rows (Task R3/R5 shared component) commit together via Apply');
+    doc.getElementById('sm-ind-row0-kw').value = 'INDTXT';
+    doc.getElementById('sm-ind-row0-ind').value = '50';
+    doc.getElementById('sm-ind-row0-text').value = 'Amount valid';
+    doc.getElementById('sm-ind-row1-kw').value = 'SETOF';
+    doc.getElementById('sm-ind-row1-ind').value = '30';
+    doc.getElementById('sm-ind-row2-kw').value = 'SETOF';
+    doc.getElementById('sm-ind-row2-ind').value = '31';
+    doc.getElementById('sm-ind-row3-kw').value = 'CHANGE';
+    doc.getElementById('sm-ind-row3-ind').value = '40';
+    doc.querySelector('.sm-ind-apply').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
     const indtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
     check('INDTXT written with indicator 50 and quoted text', indtxtKw && /^50\s+'Amount valid'/.test(indtxtKw.parameters.trim()));
+    check('two independent SETOF keywords - one per indicator, not one space-separated list', reparsed.keywords.filter((k) => k.name === 'SETOF').length === 2);
+    check('SETOF(30) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '30'));
+    check('SETOF(31) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '31'));
+    check('CHANGE(40) written - previously a documented gap, now verified and supported', reparsed.keywords.some((k) => k.name === 'CHANGE' && k.parameters.trim() === '40'));
+
+    runSflPickerScenario();
+  }, 0);
+}
+
+function runSflPickerScenario() {
+  console.log('\nSFL picker (Task R3): General / Indicator tab, only on plain subfile records (not SFLMSG)');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SUBFILE', func: 'SFL' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SFLMESS', func: 'SFL' }),
+      buildLine({ seq: '00030', func: 'SFLMSGRCD(24)' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'SFL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no SFL) does not get the SFL tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no SFL tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFL'));
+
+    console.log('  an SFLMSG record (carries SFL + SFLMSGRCD) does NOT get a redundant SFL tab - it has its own SFLMSG tab instead');
+    recordSelect.value = 'SFLMESS';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no SFL tab on an SFLMSG record', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFL'));
+    check('its own SFLMSG tab is still there', Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFLMSG'));
+
+    console.log('  a plain SFL record gets the SFL tab');
+    recordSelect.value = 'SUBFILE';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const sflTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFL');
+    check('SFL tab button rendered', !!sflTabBtn);
+    sflTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const p = 'sfl-SUBFILE';
+
+    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL) all start unchecked, toggling one commits just that keyword');
+    check('setup: SFLNXTCHG checkbox present', !!doc.getElementById(p + '-sflnxtchg-on'));
+    check('SFLNXTCHG starts unchecked', doc.getElementById(p + '-sflnxtchg-on').checked === false);
+    doc.getElementById(p + '-keep-on').checked = true;
+    doc.getElementById(p + '-keep-on').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
+    check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
+    check('SFLNXTCHG was NOT added (independent toggle)', !reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
+    check('SFL itself is untouched', reparsed.keywords.some((k) => k.name === 'SFL'));
     posted.length = 0;
 
-    doc.getElementById('sm-setof-on').checked = true;
-    doc.getElementById('sm-setof-params').value = '30 31 32';
-    doc.getElementById('sm-setof-params').dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
+    doc.getElementById(p + '-check-ab-on').checked = true;
+    doc.getElementById(p + '-check-ab-on').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
-    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
-    check('SETOF written with the space-separated indicator list', reparsed.keywords.find((k) => k.name === 'SETOF').parameters.trim() === '30 31 32');
-    check('INDTXT from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'INDTXT'));
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
+    check('CHECK(AB) was added', reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB'));
+    check('CHECK(RL) was not', !reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
+    posted.length = 0;
+
+    console.log('  Indicator: repeatable INDTXT/SETOF/CHANGE rows commit together via Apply');
+    doc.getElementById(p + '-ind-row0-kw').value = 'SETOF';
+    doc.getElementById(p + '-ind-row0-ind').value = '30';
+    doc.getElementById(p + '-ind-row1-kw').value = 'CHANGE';
+    doc.getElementById(p + '-ind-row1-ind').value = '40';
+    doc.querySelector('.' + p + '-ind-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
+    check('SETOF(30) written', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '30'));
+    check('CHANGE(40) written', reparsed.keywords.some((k) => k.name === 'CHANGE' && k.parameters.trim() === '40'));
+    check('KEEP from the earlier General step is still there (independent panels)', reparsed.keywords.some((k) => k.name === 'KEEP'));
 
     runWindowPickerScenario();
   }, 0);

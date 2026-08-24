@@ -1465,17 +1465,13 @@
     panels.general = g;
 
     // --- Indicator ---
-    var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
-    var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
-    var ind = '<div class="section-label">Indicator text (INDTXT)</div>';
-    ind += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="sm-indtxt-on" ' + (indtxt.present ? 'checked' : '') + ' /> Enabled</label>';
-    ind += '<div class="two-col"><input type="text" id="sm-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
-      '<input type="text" id="sm-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
-    var setof = DspfWriter.getFileFlagKeyword(kw, 'SETOF');
-    ind += '<div class="section-label">Set off indicators when record is written (SETOF)</div>';
-    ind += flagRowHtml('sm-setof', 'Enabled', setof.present, setof.parameters, 'space-separated indicators, e.g. 30 31 32');
-    ind += '<div class="hint-small">Real SDA\u2019s Indicator screen also lists CHANGE here - its record-level DDS argument shape wasn\u2019t confidently verified, so use the raw Keywords editor below if you need it.</div>';
-    panels.indicator = ind;
+    // Repeatable INDTXT/SETOF/CHANGE row list (see indicatorTextRowsHtml
+    // above) - real DDS takes exactly one indicator per SETOF/CHANGE
+    // instance (multiple instances for multiple indicators, not a
+    // space-separated list in one keyword), and CHANGE's shape is now
+    // verified (indicator-only, no text) rather than the "not confidently
+    // verified" placeholder this screen originally shipped with.
+    panels.indicator = indicatorTextRowsHtml(kw, 'sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6);
 
     return panels;
   }
@@ -1592,6 +1588,119 @@
     if (prtLib) prtLib.addEventListener('change', commitPrtFile);
   }
 
+  /** Renders a fixed-size (`rowCount`, default 6) repeatable table of
+   *  { keyword dropdown (one of `names`), indicator, text } rows, backed
+   *  by DspfWriter.getIndicatorTextRows/setIndicatorTextRows - real DDS
+   *  allows MULTIPLE INDTXT/SETOF/CHANGE keywords on one record (a
+   *  different response indicator each), which a single flagRowHtml()
+   *  checkbox can't express. Shared between Task R3's SFL panel and Task
+   *  R5's SFLMSG panel (same underlying category on both real SDA
+   *  screens) rather than duplicated - `idPrefix` keeps their DOM ids
+   *  from colliding when both could theoretically render at once. Text
+   *  only applies to INDTXT (see setIndicatorTextRows) - the Text column
+   *  stays enabled for every row regardless of which keyword is picked,
+   *  same as real SDA's own screen; a stray value there is silently
+   *  dropped for SETOF/CHANGE rows rather than erroring. */
+  function indicatorTextRowsHtml(keywords, idPrefix, names, rowCount) {
+    rowCount = rowCount || 6;
+    var rows = DspfWriter.getIndicatorTextRows(keywords, names);
+    var html = '<div class="section-label">' + names.join(' / ') + ' (repeatable)</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    html += '<thead><tr><th style="text-align:left;">Keyword</th><th style="text-align:left;">Indicator</th><th style="text-align:left;">Text</th></tr></thead><tbody>';
+    for (var i = 0; i < rowCount; i++) {
+      var r = rows[i] || { keyword: '', indicator: '', text: '' };
+      html += '<tr>';
+      html += '<td><select id="' + idPrefix + '-row' + i + '-kw" style="width:100%;">';
+      html += '<option value=""' + (r.keyword ? '' : ' selected') + '></option>';
+      names.forEach(function (n) {
+        html += '<option value="' + n + '"' + (r.keyword === n ? ' selected' : '') + '>' + n + '</option>';
+      });
+      html += '</select></td>';
+      html += '<td><input type="text" id="' + idPrefix + '-row' + i + '-ind" value="' + escapeHtml(r.indicator) + '" placeholder="nn" style="width:100%;" /></td>';
+      html += '<td><input type="text" id="' + idPrefix + '-row' + i + '-text" value="' + escapeHtml(r.text) + '" placeholder="text (INDTXT only)" style="width:100%;" /></td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    html += '<button class="secondary ' + idPrefix + '-apply" style="width:100%;margin-top:8px;">Apply</button>';
+    return html;
+  }
+
+  /** Wires an indicatorTextRowsHtml() table's Apply button - reads all
+   *  `rowCount` rows and replaces every existing instance of any keyword
+   *  in `names` via DspfWriter.setIndicatorTextRows in one commit
+   *  (batch, same convention as the other multi-field Apply-button
+   *  panels - see wireGeneralFieldKeywordsEditor). */
+  function wireIndicatorTextRows(idPrefix, names, rowCount, getKeywords, onChange) {
+    rowCount = rowCount || 6;
+    var applyBtn = document.querySelector('.' + idPrefix + '-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      var rows = [];
+      for (var i = 0; i < rowCount; i++) {
+        var kwEl = document.getElementById(idPrefix + '-row' + i + '-kw');
+        if (!kwEl) continue;
+        var indEl = document.getElementById(idPrefix + '-row' + i + '-ind');
+        var textEl = document.getElementById(idPrefix + '-row' + i + '-text');
+        rows.push({ keyword: kwEl.value, indicator: indEl ? indEl.value : '', text: textEl ? textEl.value : '' });
+      }
+      onChange(DspfWriter.setIndicatorTextRows(getKeywords(), names, rows));
+    });
+  }
+
+  /** True for a plain SFL (subfile) record - has the SFL keyword but is
+   *  NOT an SFLMSG record (SFLMSG records carry SFL too, but get their
+   *  own SFLMSG tab from sflMsgPanelsHtml instead of this one, since real
+   *  SDA's SFLMSG screen already covers this same ground plus its own
+   *  Message Record category - showing both would be redundant). */
+  function isSflRecord(rec) {
+    return (rec.keywords || []).some(function (k) { return k.name === 'SFL'; }) && !isSflMsgRecord(rec);
+  }
+
+  /** Builds Task R3's 2 SFL-specific sub-panels' inner HTML at once -
+   *  { general, indicator } - for the record properties panel's SFL tab
+   *  (see isSflRecord above for when that tab appears). CHGINPDFT (shown
+   *  on real SDA's own "Select Subfile Keywords \u2192 General" screen) is
+   *  deliberately NOT repeated here - it's already on Task R1's base
+   *  Record Keywords \u2192 General tab, shown for every record type
+   *  including SFL, so adding it again here would just be two controls
+   *  fighting over the same keyword. */
+  function sflKeywordsPanelsHtml(keywords, idPrefix) {
+    var kw = keywords || [];
+    var p = idPrefix;
+    var panels = {};
+
+    var g = '';
+    g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG').present);
+    g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
+    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
+    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
+    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
+    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
+    panels.general = g;
+
+    panels.indicator = indicatorTextRowsHtml(kw, p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6);
+
+    return panels;
+  }
+
+  /** Wires every row across both sflKeywordsPanelsHtml() panels. */
+  function wireSflKeywordsPanels(idPrefix, getKeywords, onChange) {
+    var p = idPrefix;
+    function simple(id, name, hasParams) {
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '');
+      });
+    }
+    simple(p + '-sflnxtchg', 'SFLNXTCHG');
+    simple(p + '-logout', 'LOGOUT');
+    simple(p + '-loginp', 'LOGINP');
+    simple(p + '-keep', 'KEEP');
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'AB'); });
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'RL'); });
+    wireIndicatorTextRows(p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
+  }
+
   /** Wires every row across all 3 sflMsgPanelsHtml() panels - same
    *  "getKeywords is a function so a commit from one row sees any change
    *  a previous commit in the same render already made" contract as
@@ -1619,20 +1728,7 @@
     wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
     simple('sm-chginpdft', 'CHGINPDFT', true);
 
-    var indtxtOn = document.getElementById('sm-indtxt-on');
-    var indtxtInd = document.getElementById('sm-indtxt-ind');
-    var indtxtText = document.getElementById('sm-indtxt-text');
-    function commitIndtxt() {
-      var indv = (indtxtInd.value || '').trim();
-      var text = (indtxtText.value || '').trim();
-      var params = indv ? indv + (text ? " '" + text.replace(/'/g, "''") + "'" : '') : '';
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params));
-    }
-    if (indtxtOn) indtxtOn.addEventListener('change', commitIndtxt);
-    if (indtxtInd) indtxtInd.addEventListener('change', commitIndtxt);
-    if (indtxtText) indtxtText.addEventListener('change', commitIndtxt);
-
-    simple('sm-setof', 'SETOF', true);
+    wireIndicatorTextRows('sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
   }
 
   // -----------------------------------------------------------------------
@@ -1770,5 +1866,10 @@
     isWindowRecord: isWindowRecord,
     windowPanelsHtml: windowPanelsHtml,
     wireWindowPanels: wireWindowPanels,
+    isSflRecord: isSflRecord,
+    sflKeywordsPanelsHtml: sflKeywordsPanelsHtml,
+    wireSflKeywordsPanels: wireSflKeywordsPanels,
+    indicatorTextRowsHtml: indicatorTextRowsHtml,
+    wireIndicatorTextRows: wireIndicatorTextRows,
   };
 });
