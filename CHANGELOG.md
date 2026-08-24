@@ -69,6 +69,32 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     visibility, MNUBAR's own pre-fill/commit, and MNUBARSW/MNUCNL
     committing independently of MNUBAR and of each other.
 
+## [0.9.55] - Unreleased
+
+### Added
+- **Task R8 - WNDSFL (Window + Subfile combination)**, the first of the
+  Wave 4 "combination type" tasks (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`). Required **zero new
+  production code**: R3's `isSflRecord` and R7's `isWindowRecord` tab-
+  visibility gates are independent boolean checks with no mutual
+  exclusion between them, so a record carrying BOTH `SFL` and `WINDOW`
+  already gets the SFL tab and the Window tab simultaneously, and each
+  panel commits its own keywords (via a fresh `model.records.find(...)`
+  read at commit time) without disturbing the other's - confirmed via a
+  dedicated test rather than assumed. Real SDA's own WNDSFL General/
+  Indicator screens are byte-for-byte identical to R3's own screens,
+  confirming no new keywords were needed either.
+  - New `runWndSflScenario` in `dspfWebview.test.js` (14 checks): a
+    plain record gets neither tab; a `SFL`+`WINDOW` record gets both at
+    once; editing the SFL tab's `LOGOUT` flag leaves `WINDOW` (and `SFL`
+    itself) untouched; editing the Window tab's geometry leaves `SFL`
+    (and the `LOGOUT` just added) untouched.
+  - `PICKER-SCREENS-PLAN.md` and README both updated; the remaining
+    combination types (`SFLMSGCTL`/`WNDSFCTL`/`PULDWNSFL`/`PDNSFLCTL` -
+    tasks R6/R9/R11/R12) likely need the same verify-and-test treatment
+    rather than new picker code, but that should be confirmed per-task
+    rather than assumed from this one.
+
 ## [0.9.54] - Unreleased
 
 ### Added
