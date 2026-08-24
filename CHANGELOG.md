@@ -3,6 +3,50 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.50] - Unreleased
+
+### Added
+- **SFL-specific "Select Subfile Keywords" picker (SDA parity plan task
+  R3 - see `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, on top of Task
+  R1's base 8-category Record Keywords set (shown for every record type
+  including SFL already). New "SFL" tab, shown only for plain subfile
+  records (an SFLMSG record - which also carries the `SFL` keyword - gets
+  its own SFLMSG tab instead, not a redundant second one):
+  - **General**: `SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP` (simple flags) and
+    `CHECK(AB)`/`CHECK(RL)` (independent toggles sharing one `CHECK`
+    keyword, reusing Task F1's `getFileFlagKeyword`'s `fixedParam` mode -
+    no new primitive needed). `CHGINPDFT` (also on real SDA's screen) is
+    deliberately not repeated - it's already on Task R1's base General
+    tab, shown for every record type.
+  - **Indicator**: a new repeatable `INDTXT`/`SETOF`/`CHANGE` row list -
+    real DDS allows MULTIPLE instances of these on one record (each with
+    its own response indicator; verified against IBM's own DDS reference
+    that `SETOF`/`CHANGE` each take exactly one indicator per instance,
+    not a space-separated list in one keyword), which neither Task R1's
+    base panel nor the previous SFLMSG picker's single-instance flags
+    could express.
+  - New `dspfWriter.js` primitives: `getIndicatorTextRows`/
+    `setIndicatorTextRows`, generic over any keyword-name list (not SFL-
+    specific), full-replace semantics matching `setCheckOptions`/
+    `setDisplaySizesList`.
+  - New shared `webviewClientHelpers.js` component -
+    `indicatorTextRowsHtml`/`wireIndicatorTextRows` (6-row fixed-size
+    table, Apply-button batch commit) - plus `sflKeywordsPanelsHtml`/
+    `wireSflKeywordsPanels`/`isSflRecord`.
+  - New `src/test/sflRecordKeywordsPicker.test.js` (26 checks) plus 15 new
+    `dspfWebview.test.js` checks.
+- **Retrofit: Task R5's SFLMSG Indicator panel now uses the same
+  `indicatorTextRowsHtml` component**, closing a gap that panel's own
+  CHANGELOG entry explicitly flagged - it previously modeled `SETOF` as
+  taking a space-separated list of indicators in one keyword (incorrect;
+  real DDS takes one indicator per `SETOF` instance) and left `CHANGE` out
+  entirely pending verification of its DDS argument shape. Both are now
+  correct and supported, shared with Task R3's SFL panel rather than
+  duplicated. `dspfWebview.test.js`'s existing SFLMSG Indicator checks
+  were updated to match the new row-based UI (element ids changed from
+  `sm-indtxt-*`/`sm-setof-*` to `sm-ind-row<N>-*` + a `.sm-ind-apply`
+  button).
+
 ## [0.9.49] - Unreleased
 
 ### Added

@@ -1147,6 +1147,46 @@
     return next;
   }
 
+  /** Reads every instance of any keyword in `names` (e.g. `['INDTXT',
+   *  'SETOF', 'CHANGE']`) as a repeatable row list - real DDS allows
+   *  MULTIPLE `SETOF`/`CHANGE`/`INDTXT` keywords on one record (a
+   *  different response indicator each), unlike the single-instance
+   *  keywords `getFileFlagKeyword` covers. Each row is
+   *  `{ keyword, indicator, text }` - `text` only applies to `INDTXT`
+   *  (`SETOF(nn)`/`CHANGE(nn)` are indicator-only in real DDS; `text`
+   *  comes back empty for those, verified against IBM's DDS reference,
+   *  not guessed). Order matches source order. */
+  function getIndicatorTextRows(keywords, names) {
+    var list = names || [];
+    return (keywords || [])
+      .filter(function (k) { return list.indexOf(k.name) >= 0; })
+      .map(function (k) {
+        var m = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((k.parameters || '').trim()) || [];
+        return { keyword: k.name, indicator: m[1] || '', text: (m[2] || '').replace(/''/g, "'") };
+      });
+  }
+
+  /** Returns a NEW keywords array with every existing instance of any
+   *  keyword in `names` removed, replaced by one keyword per row in
+   *  `rows` (`{ keyword, indicator, text }`, `keyword` must be one of
+   *  `names`) - rows with no indicator are skipped. `text` is only
+   *  written for keywords that take it (currently just `INDTXT`); other
+   *  keywords ignore `text` even if a row supplies one, so switching a
+   *  row's keyword dropdown from INDTXT to SETOF silently drops stray
+   *  text rather than writing invalid DDS. */
+  function setIndicatorTextRows(keywords, names, rows) {
+    var list = names || [];
+    var next = (keywords || []).filter(function (k) { return list.indexOf(k.name) < 0; });
+    (rows || []).forEach(function (r) {
+      var indicator = (r.indicator || '').trim();
+      if (!r.keyword || list.indexOf(r.keyword) < 0 || !indicator) return;
+      var text = r.keyword === 'INDTXT' ? (r.text || '').trim() : '';
+      var params = text ? indicator + " '" + text.replace(/'/g, "''") + "'" : indicator;
+      next = next.concat([{ name: r.keyword, parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -2044,6 +2084,8 @@
     setUnlockKeyword: setUnlockKeyword,
     getFileTwoFieldKeyword: getFileTwoFieldKeyword,
     setFileTwoFieldKeyword: setFileTwoFieldKeyword,
+    getIndicatorTextRows: getIndicatorTextRows,
+    setIndicatorTextRows: setIndicatorTextRows,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
     serializeDisplaySizes: serializeDisplaySizes,
   };
