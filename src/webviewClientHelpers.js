@@ -921,6 +921,60 @@
   ];
 
   /**
+   * Builds the Window Border (WDWBORDER) sub-panel's inner HTML - shared
+   * between the file-level picker (Task F1) and the record-level WINDOW
+   * picker (Task R7, screens/record-level/window/border-parameters etc -
+   * identical "Define Window Border Parameters" screen, just scoped to a
+   * record's keywords instead of the file's), rather than the two
+   * duplicating this ~20-line block. `idPrefix` namespaces every element
+   * id/class so two instances (one file-level, one per open WINDOW
+   * record) can coexist in the DOM without id collisions - same
+   * reasoning R1's recordKeywordsPanelsHtml takes an idPrefix for the
+   * same purpose.
+   */
+  function windowBorderPanelHtml(keywords, idPrefix) {
+    var wb = DspfWriter.getWdwBorder(keywords);
+    var wbEnabled = { color: !!wb.color, attrs: wb.attrs.length > 0, chars: wb.chars.some(function (c) { return c; }) };
+    var win = '<div class="section-label">Color</div>';
+    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-color-on" ' + (wbEnabled.color ? 'checked' : '') + ' /> Define parameters</label>';
+    win += '<select id="' + idPrefix + '-color">' + COLOR_VALUES.map(function (c) { return '<option value="' + c + '"' + (wb.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>'; }).join('') + '</select>';
+    win += '<div class="section-label">Display attributes</div>';
+    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-attrs-on" ' + (wbEnabled.attrs ? 'checked' : '') + ' /> Define parameters</label>';
+    win += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+      var checked = wb.attrs.indexOf(a) >= 0;
+      return '<label class="attr-check"><input type="checkbox" class="' + idPrefix + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+    }).join('') + '</div>';
+    win += '<div class="section-label">Border Characters</div>';
+    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-chars-on" ' + (wbEnabled.chars ? 'checked' : '') + ' /> Define parameters</label>';
+    BORDER_POSITIONS.forEach(function (p) {
+      win += '<div class="field-row" style="margin-bottom:6px;"><label>' + escapeHtml(p.label) + '</label><input type="text" maxlength="1" id="' + idPrefix + '-char-' + p.key + '" value="' + escapeHtml(wb.chars[p.key] || '') + '" style="width:40px;" /></div>';
+    });
+    win += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:8px;">Apply window border</button>';
+    return win;
+  }
+
+  /** Wires a windowBorderPanelHtml()-produced panel. Same `getKeywords`
+   *  function / `onChange` callback contract every other dedicated picker
+   *  here uses. */
+  function wireWindowBorderPanel(idPrefix, getKeywords, onChange) {
+    var wdwApply = document.getElementById(idPrefix + '-apply');
+    if (!wdwApply) return;
+    wdwApply.addEventListener('click', function () {
+      var attrs = Array.prototype.slice.call(document.querySelectorAll('.' + idPrefix + '-attr:checked')).map(function (el) { return el.value; });
+      var chars = BORDER_POSITIONS.map(function (p) { return (document.getElementById(idPrefix + '-char-' + p.key).value || '').slice(0, 1); });
+      var state = {
+        colorEnabled: document.getElementById(idPrefix + '-color-on').checked,
+        color: document.getElementById(idPrefix + '-color').value,
+        attrsEnabled: document.getElementById(idPrefix + '-attrs-on').checked,
+        attrs: attrs,
+        charsEnabled: document.getElementById(idPrefix + '-chars-on').checked,
+        chars: chars,
+      };
+      onChange(DspfWriter.setWdwBorder(getKeywords(), state));
+    });
+  }
+
+  /**
    * Builds all 9 category panels' inner HTML at once - { general,
    * indicatorKeywords, print, help, displaySizes, dbcsConversion,
    * alternate, windowBorder, menuBar }, keyed to match the tab ids the
@@ -1029,24 +1083,7 @@
     panels.alternate = alt;
 
     // --- Window Border (WDWBORDER) ---
-    var wb = DspfWriter.getWdwBorder(kw);
-    var wbEnabled = { color: !!wb.color, attrs: wb.attrs.length > 0, chars: wb.chars.some(function (c) { return c; }) };
-    var win = '<div class="section-label">Color</div>';
-    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="fk-wdw-color-on" ' + (wbEnabled.color ? 'checked' : '') + ' /> Define parameters</label>';
-    win += '<select id="fk-wdw-color">' + COLOR_VALUES.map(function (c) { return '<option value="' + c + '"' + (wb.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>'; }).join('') + '</select>';
-    win += '<div class="section-label">Display attributes</div>';
-    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="fk-wdw-attrs-on" ' + (wbEnabled.attrs ? 'checked' : '') + ' /> Define parameters</label>';
-    win += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
-      var checked = wb.attrs.indexOf(a) >= 0;
-      return '<label class="attr-check"><input type="checkbox" class="fk-wdw-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
-    }).join('') + '</div>';
-    win += '<div class="section-label">Border Characters</div>';
-    win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="fk-wdw-chars-on" ' + (wbEnabled.chars ? 'checked' : '') + ' /> Define parameters</label>';
-    BORDER_POSITIONS.forEach(function (p) {
-      win += '<div class="field-row" style="margin-bottom:6px;"><label>' + escapeHtml(p.label) + '</label><input type="text" maxlength="1" id="fk-wdw-char-' + p.key + '" value="' + escapeHtml(wb.chars[p.key] || '') + '" style="width:40px;" /></div>';
-    });
-    win += '<button class="secondary" id="fk-wdw-apply" style="width:100%;margin-top:8px;">Apply window border</button>';
-    panels.windowBorder = win;
+    panels.windowBorder = windowBorderPanelHtml(kw, 'fk-wdw');
 
     // --- Menu-bar keywords ---
     var mnubarsw = DspfWriter.getFileFlagKeyword(kw, 'MNUBARSW');
@@ -1168,22 +1205,7 @@
     simple('fk-altpagedwn', 'ALTPAGEDWN', true);
 
     // Window Border
-    var wdwApply = document.getElementById('fk-wdw-apply');
-    if (wdwApply) {
-      wdwApply.addEventListener('click', function () {
-        var attrs = Array.prototype.slice.call(document.querySelectorAll('.fk-wdw-attr:checked')).map(function (el) { return el.value; });
-        var chars = BORDER_POSITIONS.map(function (p) { return (document.getElementById('fk-wdw-char-' + p.key).value || '').slice(0, 1); });
-        var state = {
-          colorEnabled: document.getElementById('fk-wdw-color-on').checked,
-          color: document.getElementById('fk-wdw-color').value,
-          attrsEnabled: document.getElementById('fk-wdw-attrs-on').checked,
-          attrs: attrs,
-          charsEnabled: document.getElementById('fk-wdw-chars-on').checked,
-          chars: chars,
-        };
-        onChange(DspfWriter.setWdwBorder(getKeywords(), state));
-      });
-    }
+    wireWindowBorderPanel('fk-wdw', getKeywords, onChange);
 
     // Menu-bar
     var mnubarswOn = document.getElementById('fk-mnubarsw-on');
@@ -1613,6 +1635,96 @@
     simple('sm-setof', 'SETOF', true);
   }
 
+  // -----------------------------------------------------------------------
+  // Task R7 - WINDOW-specific picker (Window Parameters: size/roll +
+  // Border Parameters/Color/Attributes/Characters - see docs/sda-reference/
+  // screens/record-level/window/ and PICKER-SCREENS-PLAN.md). Border
+  // Parameters/Color/Attributes/Characters reuse windowBorderPanelHtml/
+  // wireWindowBorderPanel above as-is (confirmed identical to the
+  // file-level WDWBORDER screen). Window Title already has its own
+  // dedicated panel on the record's Basic tab (getWindowTitleText/
+  // setWindowTitleText) - not rebuilt here.
+  // -----------------------------------------------------------------------
+
+  /** Whether `rec` carries a WINDOW keyword - drives whether
+   *  renderRecordProps shows the "Window" tab at all (parallel to
+   *  isSflMsgRecord above for the SFLMSG tab). */
+  function isWindowRecord(rec) {
+    return (rec.keywords || []).some(function (k) { return k.name === 'WINDOW'; });
+  }
+
+  /**
+   * Builds the 2 Window sub-panels' inner HTML at once - { windowParameters,
+   * borderParameters } - for the record properties panel's Window tab (see
+   * isWindowRecord above for when that tab appears). `idPrefix` namespaces
+   * every element id, same reasoning as recordKeywordsPanelsHtml.
+   */
+  function windowPanelsHtml(keywords, idPrefix) {
+    var panels = {};
+
+    // --- Window Parameters (the WINDOW keyword's own parameters) ---
+    var geom = DspfWriter.getWindowParamsKeyword(keywords);
+    var mode = geom.mode === 'none' ? 'positioned' : geom.mode; // no WINDOW yet -> default to filling in an explicit position
+    var wp = '<div class="section-label">Window definition</div>';
+    [
+      ['reference', 'Referenced window - inherit another WINDOW record\u2019s geometry'],
+      ['sized', 'Default start positioning - system positions it, you set the size'],
+      ['positioned', 'Start line / Start position - explicit top-left position and size'],
+    ].forEach(function (opt) {
+      wp += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="radio" name="' + idPrefix + '-mode" class="' + idPrefix + '-mode" value="' + opt[0] + '" ' + (mode === opt[0] ? 'checked' : '') + ' /> ' + opt[1] + '</label>';
+    });
+    wp += '<div class="' + idPrefix + '-mode-reference" style="margin-top:6px;' + (mode === 'reference' ? '' : 'display:none;') + '"><input type="text" id="' + idPrefix + '-reference" placeholder="Referenced window record name" value="' + escapeHtml(geom.referenceName || '') + '" style="width:100%;" /></div>';
+    wp += '<div class="' + idPrefix + '-mode-position" style="margin-top:6px;' + (mode === 'positioned' ? '' : 'display:none;') + '"><div class="two-col"><input type="text" id="' + idPrefix + '-startline" placeholder="Start line (1-25, or a field name)" value="' + escapeHtml(geom.startLine || '') + '" /><input type="text" id="' + idPrefix + '-startcol" placeholder="Start position (1-128, or a field name)" value="' + escapeHtml(geom.startColumn || '') + '" /></div></div>';
+    wp += '<div class="' + idPrefix + '-mode-size" style="margin-top:6px;' + (mode === 'reference' ? 'display:none;' : '') + '"><div class="two-col"><input type="text" id="' + idPrefix + '-lines" placeholder="Window lines (1-25)" value="' + escapeHtml(geom.lines || '') + '" /><input type="text" id="' + idPrefix + '-cols" placeholder="Window position/width (1-128)" value="' + escapeHtml(geom.columns || '') + '" /></div></div>';
+    if (geom.mode === 'other') {
+      wp += '<div class="hint-small">This record\u2019s WINDOW keyword has a parameter shape the picker doesn\u2019t recognize (' + escapeHtml(geom.raw) + ') - edit it via the raw Keywords editor below instead of this panel.</div>';
+    }
+    wp += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:10px;">Apply window parameters</button>';
+    wp += flagRowHtml(idPrefix + '-rstcsr', 'Restrict cursor to window (RSTCSR)', DspfWriter.getFileFlagKeyword(keywords, 'RSTCSR').present);
+    wp += '<div class="hint-small">Real SDA\u2019s Window Parameters screen also shows a "Message line" row and per-row "Display size"/"Roll" columns - "Roll" is SDA\u2019s own in-terminal editing convenience (not a DDS keyword), "Display size" conditions a value by *DS3/*DS4 (multiple conditioned keyword instances, the same cross-cutting limitation R1/F1/D1 already defer), and "Message line" wasn\u2019t confidently matched to a real DDS keyword - all three are left for the raw Keywords editor.</div>';
+    panels.windowParameters = wp;
+
+    // --- Border Parameters (shared with F1's file-level Window Border) ---
+    panels.borderParameters = windowBorderPanelHtml(keywords, idPrefix + '-wdw');
+
+    return panels;
+  }
+
+  /** Wires both windowPanelsHtml() panels. Same `getKeywords`/`onChange`
+   *  contract every other dedicated picker here uses. */
+  function wireWindowPanels(idPrefix, getKeywords, onChange) {
+    // Window Parameters
+    document.querySelectorAll('.' + idPrefix + '-mode').forEach(function (radio) {
+      radio.addEventListener('change', function () {
+        var refDiv = document.querySelector('.' + idPrefix + '-mode-reference');
+        var posDiv = document.querySelector('.' + idPrefix + '-mode-position');
+        var sizeDiv = document.querySelector('.' + idPrefix + '-mode-size');
+        if (refDiv) refDiv.style.display = radio.value === 'reference' ? '' : 'none';
+        if (posDiv) posDiv.style.display = radio.value === 'positioned' ? '' : 'none';
+        if (sizeDiv) sizeDiv.style.display = radio.value === 'reference' ? 'none' : '';
+      });
+    });
+    var wpApply = document.getElementById(idPrefix + '-apply');
+    if (wpApply) {
+      wpApply.addEventListener('click', function () {
+        var modeEl = document.querySelector('.' + idPrefix + '-mode:checked');
+        var state = {
+          mode: modeEl ? modeEl.value : 'positioned',
+          referenceName: document.getElementById(idPrefix + '-reference').value,
+          startLine: document.getElementById(idPrefix + '-startline').value,
+          startColumn: document.getElementById(idPrefix + '-startcol').value,
+          lines: document.getElementById(idPrefix + '-lines').value,
+          columns: document.getElementById(idPrefix + '-cols').value,
+        };
+        onChange(DspfWriter.setWindowParamsKeyword(getKeywords(), state));
+      });
+    }
+    wireFlagRow(idPrefix + '-rstcsr', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'RSTCSR', present, ''); });
+
+    // Border Parameters
+    wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -1653,5 +1765,10 @@
     isSflMsgRecord: isSflMsgRecord,
     sflMsgPanelsHtml: sflMsgPanelsHtml,
     wireSflMsgPanels: wireSflMsgPanels,
+    windowBorderPanelHtml: windowBorderPanelHtml,
+    wireWindowBorderPanel: wireWindowBorderPanel,
+    isWindowRecord: isWindowRecord,
+    windowPanelsHtml: windowPanelsHtml,
+    wireWindowPanels: wireWindowPanels,
   };
 });

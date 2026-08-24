@@ -51,7 +51,7 @@ Display Attributes and Colors) rather than genuinely new keyword handling.
 | --- | --- | --- | --- |
 | **R2** | USRDFN wiring | *(reuses R1 General/Application Help/Help/Print only — no screens of its own)* | R1 |
 | **R3** | SFL-specific (Subfile keywords + its own General + Indicator) | `screens/record-level/subfile-sfl/*` | — (independent, but grouped here since it feeds R4/R8/R11) |
-| **R7** | WINDOW-specific (Window Parameters: size/roll + Border Parameters/Color/Attributes/Characters) + wire WINDOW to R1 | `screens/record-level/window/*` | R1. Window Title is already covered by the existing dedicated panel — don't rebuild. | in progress |
+| **R7** | WINDOW-specific (Window Parameters: size/roll + Border Parameters/Color/Attributes/Characters) + wire WINDOW to R1 | `screens/record-level/window/*` | R1. Window Title is already covered by the existing dedicated panel — don't rebuild. | done |
 | **D2** | Character field wiring (Usage B/I/O) | `screens/field-level/character/*` | D1 (uses the full set, no additions) - **done**, see Known limitations for scope notes |
 | **D3** | Numeric field additions (Editing Keywords, Subfile Keywords) + wire Numeric to D1 | `screens/field-level/numeric/*` | D1. Editing Keywords ≈ existing Edit code/word panel — reuse. |
 | **D4** | Constant field wiring (Display Attributes, Colors, General) + new Menu-Bar Keywords screen | `screens/field-level/constant/*` | D1 |

@@ -6,6 +6,43 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.49] - Unreleased
 
 ### Added
+- **WINDOW-specific record picker (SDA parity plan task R7 - see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, a new "Window" tab on
+  the record properties panel shown only for records carrying `WINDOW`,
+  with two accordions:
+  - **Window Parameters**: the `WINDOW` keyword's own geometry, as a
+    3-way mode picker matching real SDA's "Referenced window -OR- Window
+    definition (Default start positioning -OR- Start line/Start
+    position)" screen - `reference` (a bare record name, inherits another
+    WINDOW record's geometry), `sized` (`*DFT lines columns` - the system
+    positions it), and `positioned` (`start-line start-col lines columns`
+    - each of the 4 can be a literal number or a field name, matching
+    DDS's own flexibility there). New `DspfWriter.getWindowParamsKeyword`/
+    `setWindowParamsKeyword`, deliberately named to avoid colliding with
+    the existing drag-and-resize `setWindowGeometry(record, sourceLines,
+    geometry)` - the `*DFT`-prefixed 3-token form for `sized` was cross-
+    checked against that function's own (already-verified) reading of the
+    DDS spec rather than re-derived from the screenshot alone. Also wires
+    up `RSTCSR` (restrict cursor to window) as a plain flag.
+  - **Border Parameters**: identical `WDWBORDER` (Color/Display
+    attributes/Border Characters) screen the file-level picker (Task F1)
+    already built - refactored `windowBorderPanelHtml`/
+    `wireWindowBorderPanel` out of that picker into shared, `idPrefix`-
+    parameterized functions so both reuse the same ~50 lines instead of
+    duplicating them; the file-level panel's own ids/behavior are
+    unchanged.
+  - Deliberately not wired: the real SDA screen's "Message line" row
+    (DDS keyword not confidently verified) and its per-row "Display
+    size"/"Roll" columns - "Roll" turned out to be SDA's own in-terminal
+    roll-key editing convenience rather than a DDS keyword at all, and
+    "Display size" is the same cross-cutting multiple-DSPSIZ-conditioned-
+    instances limitation R1/F1/D1 already defer elsewhere. All three
+    route through the raw Keywords editor instead.
+  - New `runWindowPickerScenario` in `dspfWebview.test.js` (20+ checks):
+    tab visibility gating, geometry pre-fill for both the 4-token and
+    `*DFT` 3-token forms, mode switching, and the shared Border Parameters
+    panel producing the same `WDWBORDER` output as the file-level picker.
+
 - **Base Record Keywords picker (SDA parity plan task R1 - see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, mapped against real
   SDA's own record-level "Select/Define ___ Keywords" screens

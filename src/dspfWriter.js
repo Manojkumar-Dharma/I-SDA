@@ -1974,6 +1974,104 @@
     return sourceLines.slice(0, range[0] - 1).concat(sourceLines.slice(range[1]));
   }
 
+  // ---------------------------------------------------------------------
+  // Task R7 - WINDOW-specific picker (Window Parameters: size/roll +
+  // Border Parameters/Color/Attributes/Characters - see docs/sda-reference/
+  // screens/record-level/window/ and PICKER-SCREENS-PLAN.md). Border
+  // Parameters/Color/Attributes/Characters are the SAME WDWBORDER keyword
+  // F1 already built getWdwBorder/setWdwBorder for (confirmed against
+  // screens/record-level/window/border-*/ - identical "Define Window
+  // Border Parameters" screen, just scoped to a record's keywords instead
+  // of the file's) - reused as-is, no new functions needed for that half.
+  //
+  // Only the WINDOW keyword's OWN parameters (Window Parameters screen)
+  // are new here. Two controls shown on that real SDA screen are
+  // deliberately NOT wired into the picker: the per-row "Display size"
+  // column (conditions a value by *DS3/*DS4 - i.e. multiple DSPSIZ-
+  // conditioned instances of the SAME keyword, the cross-cutting
+  // limitation R1/F1/D1 already document and defer the same way
+  // everywhere else in this codebase) and the "Roll +/-" column (this is
+  // SDA's own in-terminal editing convenience - rolling through candidate
+  // values with the 5250 roll keys while designing - not a DDS keyword at
+  // all, so there's nothing to write). "Message line" wasn't confidently
+  // matched to a real DDS keyword, so it's also left for the raw Keywords
+  // editor rather than guessed at.
+  // ---------------------------------------------------------------------
+
+  /**
+   * Reads the WINDOW keyword's own parameters into one of three shapes,
+   * matching the three mutually-exclusive choices on the real "Define
+   * Window Parameters" screen (Referenced window -OR- Window definition
+   * with either Default start positioning -OR- an explicit Start line/
+   * Start position) - and the exact same 3 forms setWindowGeometry's own
+   * doc comment above already documents from reverse-engineering
+   * dspfEngine.js's resolveWindow (that function is the actual on-screen
+   * renderer, so its reading of the DDS spec is the authoritative one
+   * this reuses rather than re-deriving from the screenshot alone):
+   *   - no WINDOW keyword at all -> { mode: 'none' }
+   *   - ONE parameter, not `*DFT`, e.g. `WINDOW(OTHERWDW)` ->
+   *     { mode: 'reference', referenceName }: inherits geometry from
+   *     another WINDOW record ("Referenced window").
+   *   - THREE parameters starting with the literal `*DFT`, e.g.
+   *     `WINDOW(*DFT 10 40)` -> { mode: 'sized', lines, columns }: size
+   *     only, the system positions it at runtime ("Default start
+   *     positioning" Y=Yes).
+   *   - FOUR parameters, e.g. `WINDOW(2 2 10 40)` -> { mode: 'positioned',
+   *     startLine, startColumn, lines, columns }: explicit top-left
+   *     position + size. Each of the 4 can be a literal number OR a field
+   *     name per DDS's own *VAR-style flexibility for WINDOW - kept as
+   *     plain strings rather than parsed as numbers so a field name
+   *     round-trips untouched.
+   *   - anything else (an unrecognized shape) -> { mode: 'other', raw:
+   *     the parameters text } so the picker can show a clear "use the raw
+   *     Keywords editor for this" state instead of silently mis-rendering
+   *     it.
+   */
+  function getWindowParamsKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'WINDOW'; });
+    if (!k) return { mode: 'none' };
+    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 1 && tokens[0].toUpperCase() !== '*DFT') return { mode: 'reference', referenceName: tokens[0] };
+    if (tokens.length === 3 && tokens[0].toUpperCase() === '*DFT') return { mode: 'sized', lines: tokens[1], columns: tokens[2] };
+    if (tokens.length === 4) return { mode: 'positioned', startLine: tokens[0], startColumn: tokens[1], lines: tokens[2], columns: tokens[3] };
+    return { mode: 'other', raw: k.parameters || '' };
+  }
+
+  /**
+   * Returns a NEW keywords array with WINDOW built from `state` (same
+   * shape getWindowParamsKeyword returns, minus 'none'/'other' which both
+   * mean "leave WINDOW out" here - 'other' is read-only in the picker,
+   * edited via the raw Keywords editor instead). Removes WINDOW entirely
+   * if the mode's required fields aren't all filled in, same
+   * "incomplete input just means not-present-yet, not a thrown error"
+   * stance setFilePrtFileKeyword/setFileRefKeyword already take (unlike
+   * the throw-on-bad-input drag/resize setWindowGeometry above, which is
+   * reacting to a mouse gesture on an EXISTING geometry rather than a
+   * form a person is still filling in).
+   */
+  function setWindowParamsKeyword(keywords, state) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'WINDOW'; });
+    var params = null;
+    if (state.mode === 'reference') {
+      var ref = (state.referenceName || '').trim();
+      if (ref) params = ref;
+    } else if (state.mode === 'sized') {
+      var lines1 = (state.lines || '').toString().trim();
+      var cols1 = (state.columns || '').toString().trim();
+      if (lines1 && cols1) params = '*DFT ' + lines1 + ' ' + cols1;
+    } else if (state.mode === 'positioned') {
+      var sl = (state.startLine || '').toString().trim();
+      var sc = (state.startColumn || '').toString().trim();
+      var lines2 = (state.lines || '').toString().trim();
+      var cols2 = (state.columns || '').toString().trim();
+      if (sl && sc && lines2 && cols2) params = sl + ' ' + sc + ' ' + lines2 + ' ' + cols2;
+    }
+    if (params) {
+      next = next.concat([{ name: 'WINDOW', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
@@ -2038,6 +2136,8 @@
     setFilePrtFileKeyword: setFilePrtFileKeyword,
     getWdwBorder: getWdwBorder,
     setWdwBorder: setWdwBorder,
+    getWindowParamsKeyword: getWindowParamsKeyword,
+    setWindowParamsKeyword: setWindowParamsKeyword,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,
     getUnlockKeyword: getUnlockKeyword,

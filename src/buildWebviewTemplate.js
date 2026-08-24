@@ -1975,6 +1975,17 @@ const htmlTemplate = `<!DOCTYPE html>
       sflMsgPanels = WebviewClientHelpers.sflMsgPanelsHtml(rec);
     }
 
+    // --- Window tab: only for records carrying WINDOW (Task R7) - Window
+    // Parameters/Border Parameters stacked as accordions within one tab,
+    // same shape as the SFLMSG tab above. Reuses hasWindow (already
+    // computed above for the Basic tab's Window Title field) rather than
+    // calling WebviewClientHelpers.isWindowRecord separately - same check.
+    const rwPrefix = 'rw-' + rec.name;
+    let windowPanels = null;
+    if (hasWindow) {
+      windowPanels = WebviewClientHelpers.windowPanelsHtml(rec.keywords, rwPrefix);
+    }
+
     const tabs = [
       { id: 'basic', label: 'Basic', content: basicHtml },
       { id: 'keywords', label: 'Keywords', content: keywordsHtml },
@@ -1988,6 +1999,12 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('General', sflMsgPanels.general, false) +
         accordionHtml('Indicator', sflMsgPanels.indicator, false);
       tabs.push({ id: 'sflmsg', label: 'SFLMSG', content: sflMsgHtml });
+    }
+    if (hasWindow) {
+      const windowHtml =
+        accordionHtml('Window Parameters', windowPanels.windowParameters, true) +
+        accordionHtml('Border Parameters', windowPanels.borderParameters, false);
+      tabs.push({ id: 'window', label: 'Window', content: windowHtml });
     }
     html += tabsHtml(tabs, activeRecordTab);
 
@@ -2035,6 +2052,9 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
     if (isSflMsg) {
       WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
+    if (hasWindow) {
+      WebviewClientHelpers.wireWindowPanels(rwPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
   }
 

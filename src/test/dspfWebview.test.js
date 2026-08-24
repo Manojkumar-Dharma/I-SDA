@@ -2008,6 +2008,122 @@ function runSflMsgPickerScenario() {
     check('SETOF written with the space-separated indicator list', reparsed.keywords.find((k) => k.name === 'SETOF').parameters.trim() === '30 31 32');
     check('INDTXT from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'INDTXT'));
 
+    runWindowPickerScenario();
+  }, 0);
+}
+
+function runWindowPickerScenario() {
+  console.log('\nWindow picker (Task R7): Window Parameters (reference/sized/positioned) + Border Parameters, only on WINDOW-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(2 2 10 40)' }),
+      buildLine({ seq: '00020', func: 'RSTCSR' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'WIN2', func: 'WINDOW(*DFT 8 30)' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'WINDOW.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no WINDOW) does not get the Window tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no Window tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'Window'));
+
+    console.log('  a WINDOW record gets the Window tab, and its 4-token WINDOW keyword pre-fills the "positioned" mode');
+    recordSelect.value = 'WIN1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const windowTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Window');
+    check('Window tab button rendered', !!windowTabBtn);
+    windowTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const rwPrefix = 'rw-WIN1';
+    const modePositioned = doc.querySelector('.' + rwPrefix + '-mode[value="positioned"]');
+    check('"positioned" mode is pre-selected for a 4-token WINDOW', modePositioned && modePositioned.checked);
+    check('start line pre-filled', doc.getElementById(rwPrefix + '-startline').value === '2');
+    check('start column pre-filled', doc.getElementById(rwPrefix + '-startcol').value === '2');
+    check('lines pre-filled', doc.getElementById(rwPrefix + '-lines').value === '10');
+    check('columns pre-filled', doc.getElementById(rwPrefix + '-cols').value === '40');
+    check('RSTCSR starts checked (already present in the source)', doc.getElementById(rwPrefix + '-rstcsr-on').checked);
+
+    console.log('  editing the positioned fields and applying commits a new 4-token WINDOW, other keywords untouched');
+    doc.getElementById(rwPrefix + '-startline').value = '3';
+    doc.getElementById(rwPrefix + '-startcol').value = '5';
+    doc.getElementById(rwPrefix + '-lines').value = '12';
+    doc.getElementById(rwPrefix + '-cols').value = '50';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW updated to the new 4-token geometry', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50');
+    check('RSTCSR still present, untouched', reparsed.keywords.some((k) => k.name === 'RSTCSR'));
+    posted.length = 0;
+
+    console.log('  switching to "sized" mode and applying writes the *DFT 3-token form');
+    const modeSized = doc.querySelector('.' + rwPrefix + '-mode[value="sized"]');
+    modeSized.checked = true;
+    modeSized.dispatchEvent(new Event('change', { bubbles: true }));
+    check('the size fields are visible, position fields hidden', doc.querySelector('.' + rwPrefix + '-mode-size').style.display !== 'none' && doc.querySelector('.' + rwPrefix + '-mode-position').style.display === 'none');
+    doc.getElementById(rwPrefix + '-lines').value = '9';
+    doc.getElementById(rwPrefix + '-cols').value = '35';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW written as *DFT 9 35', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '*DFT 9 35');
+    posted.length = 0;
+
+    console.log('  switching to "reference" mode and applying writes a single record-name parameter');
+    const modeReference = doc.querySelector('.' + rwPrefix + '-mode[value="reference"]');
+    modeReference.checked = true;
+    modeReference.dispatchEvent(new Event('change', { bubbles: true }));
+    check('the reference field is visible, size/position fields hidden', doc.querySelector('.' + rwPrefix + '-mode-reference').style.display !== 'none' && doc.querySelector('.' + rwPrefix + '-mode-size').style.display === 'none');
+    doc.getElementById(rwPrefix + '-reference').value = 'WIN2';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW written as a bare reference to WIN2', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === 'WIN2');
+    posted.length = 0;
+
+    console.log('  a WINDOW(*DFT ...) record (WIN2) pre-fills the "sized" mode');
+    recordSelect.value = 'WIN2';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Window').dispatchEvent(new Event('click', { bubbles: true }));
+    const rwPrefix2 = 'rw-WIN2';
+    const modeSized2 = doc.querySelector('.' + rwPrefix2 + '-mode[value="sized"]');
+    check('"sized" mode is pre-selected for a *DFT WINDOW', modeSized2 && modeSized2.checked);
+    check('lines pre-filled from *DFT form', doc.getElementById(rwPrefix2 + '-lines').value === '8');
+    check('columns pre-filled from *DFT form', doc.getElementById(rwPrefix2 + '-cols').value === '30');
+    check('RSTCSR starts unchecked (not in WIN2\u2019s source)', !doc.getElementById(rwPrefix2 + '-rstcsr-on').checked);
+
+    console.log('  Border Parameters: applying color/attributes/characters writes WDWBORDER, same as the file-level picker');
+    doc.getElementById(rwPrefix2 + '-wdw-color-on').checked = true;
+    doc.getElementById(rwPrefix2 + '-wdw-color').value = 'BLU';
+    doc.querySelector('.' + rwPrefix2 + '-wdw-attr[value="HI"]').checked = true;
+    doc.getElementById(rwPrefix2 + '-wdw-attrs-on').checked = true;
+    doc.getElementById(rwPrefix2 + '-wdw-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN2');
+    const wdwBorderKw = reparsed.keywords.find((k) => k.name === 'WDWBORDER');
+    check('WDWBORDER written with *COLOR BLU', wdwBorderKw && /\*COLOR BLU/.test(wdwBorderKw.parameters));
+    check('WDWBORDER written with *DSPATR HI', wdwBorderKw && /\*DSPATR HI/.test(wdwBorderKw.parameters));
+    check("WIN2's own WINDOW keyword is untouched by the border edit", reparsed.keywords.some((k) => k.name === 'WINDOW' && k.parameters.trim() === '*DFT 8 30'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
