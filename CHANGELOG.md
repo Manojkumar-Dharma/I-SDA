@@ -6,6 +6,45 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.52] - Unreleased
 
 ### Added
+- **Task R4 - SFLCTL-specific record picker** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "SFLCTL" tab on the
+  record properties panel shown only for records carrying `SFLCTL`
+  (mutually exclusive with the SFL tab - a control record gets SFLCTL,
+  not SFL), with four accordions:
+  - **General**: `SFLCTL`/`SFLCSRRRN`/`SFLMODE` (name parameters),
+    `SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLRNA` (plain
+    flags), `SFLEND` (`*MORE`/`*SCRBAR`/blank), `SFLDROP`/`SFLFOLD`/
+    `SFLENTER` (a `CFnn`/`CAnn` parameter) - plus R3's Subfile Keywords
+    (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK(AB)`/`CHECK(RL)`) folded
+    into the same accordion rather than showing a separate "SFL" tab on a
+    control record, since those DDS keywords aren't restricted to the SFL
+    detail record and real SDA's own SFLCTL screen groups `CHECK(AB)`/
+    `CHECK(RL)` alongside SFLCTL's own keywords.
+  - **Indicator**: R3's repeatable `INDTXT`/`SETOF`/`CHANGE` component,
+    reused as-is (same rows, same Apply-button batch commit).
+  - **Display Layout**: `SFLSIZ`/`SFLPAG` (each a literal number OR a
+    field name, matching the real screen's "Program-to-system field"
+    alternate entry) and `SFLLIN`. New `DspfWriter.getSflDisplayLayout`/
+    `setSflDisplayLayout`.
+  - **Subfile Messages**: `SFLMSG` (single quoted message, reusing the
+    existing `getFileQuotedText`/`setFileQuotedText` shape) and
+    `SFLMSGID` (message-id/message-file/library, new
+    `DspfWriter.getSflMsgId`/`setSflMsgId`).
+  - Deliberately not modeled as repeatable, despite the real screens
+    showing 4 blank rows each: `SFLMSG`/`SFLMSGID` can appear multiple
+    times in real DDS, each independently conditioned by its own
+    up-to-3-indicator set (not an embedded parameter the way `INDTXT`'s
+    response indicator is) - the same "multiple conditioned instances of
+    a keyword" limitation R1/F1/D1/R3 already document and defer
+    everywhere else. `SFLMSGID`'s trailing "Ind"/"Name" columns on the
+    real screen aren't modeled either - only the documented msgid/
+    message-file/library 3-parameter form was confidently verified.
+  - New `runSflCtlPickerScenario` in `dspfWebview.test.js`: tab
+    visibility/mutual-exclusivity with the SFL tab, General pre-fill and
+    independent commits (including the reused R3 keywords), the reused
+    Indicator component, Display Layout's field-name-or-number handling,
+    and Subfile Messages' independent SFLMSG/SFLMSGID commits.
+
 - **Task R2 - USRDFN wiring**: real SDA's own "Select Record Keywords"
   menu for a USRDFN record (`docs/sda-reference/screens/record-level/
   usrdfn/_menu-example/image26.png`) offers only 4 of R1's 8 categories -

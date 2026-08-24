@@ -2048,6 +2048,19 @@ const htmlTemplate = `<!DOCTYPE html>
       sflPanels = WebviewClientHelpers.sflKeywordsPanelsHtml(rec.keywords, 'sfl-' + rec.name);
     }
 
+    // --- SFLCTL tab: only for subfile CONTROL records (Task R4) - General/
+    // Indicator/Display Layout/Subfile Messages stacked as accordions
+    // within one tab, same shape as the other record-type-specific tabs
+    // above. General's own accordion folds in R3's Subfile Keywords
+    // (SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK) directly rather than showing a
+    // separate "SFL" tab on a control record, which would be confusing.
+    const sflCtlPrefix = 'sflctl-' + rec.name;
+    const isSflCtl = WebviewClientHelpers.isSflCtlRecord(rec);
+    let sflCtlPanels = null;
+    if (isSflCtl) {
+      sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec.keywords, sflCtlPrefix);
+    }
+
     const tabs = [
       { id: 'basic', label: 'Basic', content: basicHtml },
       { id: 'keywords', label: 'Keywords', content: keywordsHtml },
@@ -2073,6 +2086,14 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('General', sflPanels.general, true) +
         accordionHtml('Indicator', sflPanels.indicator, false);
       tabs.push({ id: 'sfl', label: 'SFL', content: sflHtml });
+    }
+    if (isSflCtl) {
+      const sflCtlHtml =
+        accordionHtml('General', sflCtlPanels.general, true) +
+        accordionHtml('Indicator', sflCtlPanels.indicator, false) +
+        accordionHtml('Display Layout', sflCtlPanels.displayLayout, false) +
+        accordionHtml('Subfile Messages', sflCtlPanels.subfileMessages, false);
+      tabs.push({ id: 'sflctl', label: 'SFLCTL', content: sflCtlHtml });
     }
     html += tabsHtml(tabs, activeRecordTab);
 
@@ -2126,6 +2147,9 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (isSfl) {
       WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    }
+    if (isSflCtl) {
+      WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
   }
 

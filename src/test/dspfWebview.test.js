@@ -2406,6 +2406,149 @@ function runUsrDfnPickerScenario() {
     check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
     check('USRDFN keyword itself is untouched', reparsed.keywords.some((k) => k.name === 'USRDFN'));
 
+    runSflCtlPickerScenario();
+  }, 0);
+}
+
+function runSflCtlPickerScenario() {
+  console.log('\nSFLCTL picker (Task R4): General (own + reused R3 Subfile Keywords) / Indicator / Display Layout / Subfile Messages, only on SFLCTL-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'DTL', func: 'SFL' }),
+      buildLine({ seq: '00020', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'DTLCTL', func: 'SFLCTL(DTL)' }),
+      buildLine({ seq: '00040', func: 'SFLSIZ(20)' }),
+      buildLine({ seq: '00050', func: 'SFLPAG(10)' }),
+      buildLine({ seq: '00060', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00070', name: 'FLD2', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'SFLCTL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no SFLCTL) does not get the SFLCTL tab; a plain SFL record gets the SFL tab, not SFLCTL');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no SFLCTL tab button for PLAIN', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFLCTL'));
+    recordSelect.value = 'DTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('DTL (plain SFL) gets the SFL tab', Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFL'));
+    check('DTL does NOT get the SFLCTL tab', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFLCTL'));
+
+    console.log('  DTLCTL (carries SFLCTL) gets the SFLCTL tab, not the SFL tab');
+    recordSelect.value = 'DTLCTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const sflctlTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLCTL');
+    check('SFLCTL tab button rendered', !!sflctlTabBtn);
+    check('no separate SFL tab shown on the control record', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFL'));
+    sflctlTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const p = 'sflctl-DTLCTL';
+    console.log('  General: SFLCTL(DTL) pre-filled from the source, editing it commits a new SFLCTL parameter');
+    check('SFLCTL checkbox starts checked', doc.getElementById(p + '-sflctl-on').checked);
+    check('SFLCTL param pre-filled with DTL', doc.getElementById(p + '-sflctl-params').value === 'DTL');
+    doc.getElementById(p + '-sflctl-params').value = 'DTL2';
+    doc.getElementById(p + '-sflctl-params').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('SFLCTL updated to DTL2', reparsed.keywords.find((k) => k.name === 'SFLCTL').parameters.trim() === 'DTL2');
+    posted.length = 0;
+
+    console.log('  General: reused R3 Subfile Keywords (SFLNXTCHG etc.) and SFLCTL-own flags commit independently');
+    doc.getElementById(p + '-sflnxtchg-on').checked = true;
+    doc.getElementById(p + '-sflnxtchg-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('SFLNXTCHG was added', reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
+    check('SFLDSP was NOT added (independent toggle)', !reparsed.keywords.some((k) => k.name === 'SFLDSP'));
+    posted.length = 0;
+
+    doc.getElementById(p + '-sfldsp-on').checked = true;
+    doc.getElementById(p + '-sfldsp-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('SFLDSP was added', reparsed.keywords.some((k) => k.name === 'SFLDSP'));
+    check('SFLNXTCHG from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
+    posted.length = 0;
+
+    console.log('  General: SFLDROP/SFLFOLD/SFLENTER take a free-text CFnn/CAnn parameter');
+    doc.getElementById(p + '-sfldrop-on').checked = true;
+    doc.getElementById(p + '-sfldrop-params').value = 'CF03';
+    doc.getElementById(p + '-sfldrop-params').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('SFLDROP(CF03) written', reparsed.keywords.find((k) => k.name === 'SFLDROP').parameters.trim() === 'CF03');
+    posted.length = 0;
+
+    console.log('  Indicator: reused R3 component (INDTXT) commits the same as on a plain SFL record');
+    doc.getElementById(p + '-ind-row0-kw').value = 'INDTXT';
+    doc.getElementById(p + '-ind-row0-ind').value = '60';
+    doc.getElementById(p + '-ind-row0-text').value = 'No records found';
+    doc.querySelector('.' + p + '-ind-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    const indtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
+    check('INDTXT written with indicator 60 and quoted text', indtxtKw && /^60\s+'No records found'/.test(indtxtKw.parameters.trim()));
+    posted.length = 0;
+
+    console.log('  Display Layout: SFLSIZ(20)/SFLPAG(10) pre-filled from source, editing commits all three keywords together');
+    check('SFLSIZ pre-filled', doc.getElementById(p + '-sflsiz').value === '20');
+    check('SFLPAG pre-filled', doc.getElementById(p + '-sflpag').value === '10');
+    check('SFLLIN starts blank', doc.getElementById(p + '-sfllin').value === '');
+    doc.getElementById(p + '-sflsiz').value = 'SIZEFLD';
+    doc.getElementById(p + '-sflpag').value = '5';
+    doc.getElementById(p + '-sfllin').value = '1';
+    doc.getElementById(p + '-layout-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('SFLSIZ accepts a field name', reparsed.keywords.find((k) => k.name === 'SFLSIZ').parameters.trim() === 'SIZEFLD');
+    check('SFLPAG updated to 5', reparsed.keywords.find((k) => k.name === 'SFLPAG').parameters.trim() === '5');
+    check('SFLLIN written as 1', reparsed.keywords.find((k) => k.name === 'SFLLIN').parameters.trim() === '1');
+    posted.length = 0;
+
+    console.log('  Subfile Messages: SFLMSG (quoted text) and SFLMSGID (msgid/file/library) commit independently');
+    doc.getElementById(p + '-sflmsg').value = 'No records in subfile';
+    doc.getElementById(p + '-sflmsg-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check("SFLMSG written as a quoted string", /^'No records in subfile'$/.test(reparsed.keywords.find((k) => k.name === 'SFLMSG').parameters.trim()));
+    posted.length = 0;
+
+    doc.getElementById(p + '-sflmsgid-id').value = 'MSG0001';
+    doc.getElementById(p + '-sflmsgid-file').value = 'MYMSGF';
+    doc.getElementById(p + '-sflmsgid-lib').value = 'MYLIB';
+    doc.getElementById(p + '-sflmsgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('SFLMSGID written as msgid+file+library', reparsed.keywords.find((k) => k.name === 'SFLMSGID').parameters.trim() === 'MSG0001 MYMSGF MYLIB');
+    check("SFLMSG from the previous step is still there (independent commits)", reparsed.keywords.some((k) => k.name === 'SFLMSG'));
+    posted.length = 0;
+
+    console.log('  Subfile Messages: SFLMSGID is not written without both a message ID and a message file');
+    doc.getElementById(p + '-sflmsgid-id').value = '';
+    doc.getElementById(p + '-sflmsgid-file').value = 'ONLYFILE';
+    doc.getElementById(p + '-sflmsgid-lib').value = '';
+    doc.getElementById(p + '-sflmsgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('SFLMSGID removed when the message ID is blank', !reparsed.keywords.some((k) => k.name === 'SFLMSGID'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

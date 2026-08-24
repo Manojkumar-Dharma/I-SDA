@@ -2148,6 +2148,152 @@
     wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);
   }
 
+  // -----------------------------------------------------------------------
+  // Task R4 - SFLCTL-specific picker (Subfile Control menu: General/
+  // Display Layout/Subfile Messages - see docs/sda-reference/screens/
+  // record-level/subfile-control-sflctl/ and PICKER-SCREENS-PLAN.md).
+  // Indicator reuses indicatorTextRowsHtml/wireIndicatorTextRows (R3) as-is
+  // for the same INDTXT/SETOF/CHANGE rows - see dspfWriter.js's own Task R4
+  // section comment for why these apply to SFLCTL too, and why SFLMSG/
+  // SFLMSGID are single-instance here rather than repeatable despite the
+  // real screen showing 4 blank rows of each.
+  // -----------------------------------------------------------------------
+
+  /** Whether `rec` is a subfile CONTROL record - carries SFLCTL, distinct
+   *  from isSflRecord above (which is the plain SFL DETAIL record and
+   *  explicitly excludes SFLMSG records). Drives whether renderRecordProps
+   *  shows the "SFLCTL" tab at all. */
+  function isSflCtlRecord(rec) {
+    return (rec.keywords || []).some(function (k) { return k.name === 'SFLCTL'; });
+  }
+
+  /**
+   * Builds the 4 SFLCTL sub-panels' inner HTML at once - { general,
+   * indicator, displayLayout, subfileMessages } - for the record
+   * properties panel's SFLCTL tab (see isSflCtlRecord above for when that
+   * tab appears). `idPrefix` namespaces every element id.
+   */
+  function sflCtlPanelsHtml(keywords, idPrefix) {
+    var kw = keywords || [];
+    var p = idPrefix;
+    var panels = {};
+
+    // --- General (SFLCTL's own keywords + R3's Subfile Keywords, reused) ---
+    var g = '<div class="section-label">Subfile control</div>';
+    g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', DspfWriter.getFileFlagKeyword(kw, 'SFLCTL').present, DspfWriter.getFileFlagKeyword(kw, 'SFLCTL').parameters, 'subfile record name');
+    g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN').present, DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN').parameters, 'field name');
+    g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', DspfWriter.getFileFlagKeyword(kw, 'SFLMODE').present, DspfWriter.getFileFlagKeyword(kw, 'SFLMODE').parameters, 'field name');
+    g += '<div class="section-label">Subfile display state</div>';
+    g += flagRowHtml(p + '-sfldsp', 'Display subfile records (SFLDSP)', DspfWriter.getFileFlagKeyword(kw, 'SFLDSP').present);
+    g += flagRowHtml(p + '-sfldspctl', 'Display control record (SFLDSPCTL)', DspfWriter.getFileFlagKeyword(kw, 'SFLDSPCTL').present);
+    g += flagRowHtml(p + '-sflinz', 'Initialize subfile fields (SFLINZ)', DspfWriter.getFileFlagKeyword(kw, 'SFLINZ').present);
+    g += flagRowHtml(p + '-sfldlt', 'Delete subfile area (SFLDLT)', DspfWriter.getFileFlagKeyword(kw, 'SFLDLT').present);
+    g += flagRowHtml(p + '-sflclr', 'Clear subfile records (SFLCLR)', DspfWriter.getFileFlagKeyword(kw, 'SFLCLR').present);
+    g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', DspfWriter.getFileFlagKeyword(kw, 'SFLRNA').present);
+    g += flagRowHtml(p + '-sflend', 'Indicate more records (SFLEND)', DspfWriter.getFileFlagKeyword(kw, 'SFLEND').present, DspfWriter.getFileFlagKeyword(kw, 'SFLEND').parameters, '*MORE, *SCRBAR, or blank');
+    g += '<div class="section-label">Subfile behavior</div>';
+    g += flagRowHtml(p + '-sfldrop', 'Subfile initially truncated (SFLDROP)', DspfWriter.getFileFlagKeyword(kw, 'SFLDROP').present, DspfWriter.getFileFlagKeyword(kw, 'SFLDROP').parameters, 'CFnn or CAnn');
+    g += flagRowHtml(p + '-sflfold', 'Subfile initially folded (SFLFOLD)', DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD').present, DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD').parameters, 'CFnn or CAnn');
+    g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', DspfWriter.getFileFlagKeyword(kw, 'SFLENTER').present, DspfWriter.getFileFlagKeyword(kw, 'SFLENTER').parameters, 'CFnn or CAnn');
+    g += '<div class="section-label">Subfile Keywords (shared with plain SFL records)</div>';
+    g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG').present);
+    g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
+    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
+    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
+    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
+    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
+    panels.general = g;
+
+    // --- Indicator (reused from R3 as-is) ---
+    panels.indicator = indicatorTextRowsHtml(kw, p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6);
+
+    // --- Display Layout ---
+    var layout = DspfWriter.getSflDisplayLayout(kw);
+    var dl = '<div class="field-row"><label>Records in subfile (SFLSIZ)</label><input type="text" id="' + p + '-sflsiz" placeholder="number, or a field name" value="' + escapeHtml(layout.sflsiz) + '" /></div>';
+    dl += '<div class="field-row"><label>Records per display (SFLPAG)</label><input type="text" id="' + p + '-sflpag" placeholder="number, or a field name" value="' + escapeHtml(layout.sflpag) + '" /></div>';
+    dl += '<div class="field-row"><label>Spaces between records (SFLLIN)</label><input type="text" id="' + p + '-sfllin" placeholder="0 or 1" value="' + escapeHtml(layout.sfllin) + '" /></div>';
+    dl += '<button class="secondary" id="' + p + '-layout-apply" style="width:100%;margin-top:8px;">Apply display layout</button>';
+    panels.displayLayout = dl;
+
+    // --- Subfile Messages ---
+    var msgId = DspfWriter.getSflMsgId(kw);
+    var sm = '<div class="section-label">Message text (SFLMSG)</div>';
+    sm += '<input type="text" id="' + p + '-sflmsg" placeholder="message text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'SFLMSG')) + '" style="width:100%;" />';
+    sm += '<button class="secondary" id="' + p + '-sflmsg-apply" style="width:100%;margin-top:8px;">Apply message text</button>';
+    sm += '<div class="section-label" style="margin-top:14px;">Message ID (SFLMSGID)</div>';
+    sm += '<div class="two-col"><input type="text" id="' + p + '-sflmsgid-id" placeholder="message ID" value="' + escapeHtml(msgId.msgId) + '" /><input type="text" id="' + p + '-sflmsgid-file" placeholder="message file" value="' + escapeHtml(msgId.msgFile) + '" /></div>';
+    sm += '<input type="text" id="' + p + '-sflmsgid-lib" placeholder="library (optional)" value="' + escapeHtml(msgId.library) + '" style="width:100%;margin-top:6px;" />';
+    sm += '<button class="secondary" id="' + p + '-sflmsgid-apply" style="width:100%;margin-top:8px;">Apply message ID</button>';
+    sm += '<div class="hint-small">Real SDA also shows "Ind"/"Name" columns for SFLMSGID and lets both SFLMSG and SFLMSGID repeat, each independently conditioned - only one primary instance of each is managed here (same deferral R1/F1/D1/R3 already document); use the raw Keywords editor below for more.</div>';
+    panels.subfileMessages = sm;
+
+    return panels;
+  }
+
+  /** Wires every row across all 4 sflCtlPanelsHtml() panels. Same
+   *  `getKeywords`/`onChange` contract every other dedicated picker here
+   *  uses. */
+  function wireSflCtlPanels(idPrefix, getKeywords, onChange) {
+    var p = idPrefix;
+
+    // General
+    wireFlagRow(p + '-sflctl', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCTL', present, params); });
+    wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params); });
+    wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params); });
+    wireFlagRow(p + '-sfldsp', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSP', present, ''); });
+    wireFlagRow(p + '-sfldspctl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSPCTL', present, ''); });
+    wireFlagRow(p + '-sflinz', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLINZ', present, ''); });
+    wireFlagRow(p + '-sfldlt', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDLT', present, ''); });
+    wireFlagRow(p + '-sflclr', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCLR', present, ''); });
+    wireFlagRow(p + '-sflrna', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLRNA', present, ''); });
+    wireFlagRow(p + '-sflend', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLEND', present, params); });
+    wireFlagRow(p + '-sfldrop', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDROP', present, params); });
+    wireFlagRow(p + '-sflfold', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLFOLD', present, params); });
+    wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params); });
+    wireFlagRow(p + '-sflnxtchg', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLNXTCHG', present, ''); });
+    wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, ''); });
+    wireFlagRow(p + '-loginp', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGINP', present, ''); });
+    wireFlagRow(p + '-keep', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'KEEP', present, ''); });
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+
+    // Indicator (reused from R3)
+    wireIndicatorTextRows(p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
+
+    // Display Layout
+    var layoutApply = document.getElementById(p + '-layout-apply');
+    if (layoutApply) {
+      layoutApply.addEventListener('click', function () {
+        var state = {
+          sflsiz: document.getElementById(p + '-sflsiz').value,
+          sflpag: document.getElementById(p + '-sflpag').value,
+          sfllin: document.getElementById(p + '-sfllin').value,
+        };
+        onChange(DspfWriter.setSflDisplayLayout(getKeywords(), state));
+      });
+    }
+
+    // Subfile Messages
+    var sflmsgApply = document.getElementById(p + '-sflmsg-apply');
+    if (sflmsgApply) {
+      sflmsgApply.addEventListener('click', function () {
+        onChange(DspfWriter.setFileQuotedText(getKeywords(), 'SFLMSG', document.getElementById(p + '-sflmsg').value));
+      });
+    }
+    var sflmsgidApply = document.getElementById(p + '-sflmsgid-apply');
+    if (sflmsgidApply) {
+      sflmsgidApply.addEventListener('click', function () {
+        var state = {
+          msgId: document.getElementById(p + '-sflmsgid-id').value,
+          msgFile: document.getElementById(p + '-sflmsgid-file').value,
+          library: document.getElementById(p + '-sflmsgid-lib').value,
+        };
+        onChange(DspfWriter.setSflMsgId(getKeywords(), state));
+      });
+    }
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -2204,6 +2350,9 @@
     isWindowRecord: isWindowRecord,
     windowPanelsHtml: windowPanelsHtml,
     wireWindowPanels: wireWindowPanels,
+    isSflCtlRecord: isSflCtlRecord,
+    sflCtlPanelsHtml: sflCtlPanelsHtml,
+    wireSflCtlPanels: wireSflCtlPanels,
     isSflRecord: isSflRecord,
     sflKeywordsPanelsHtml: sflKeywordsPanelsHtml,
     wireSflKeywordsPanels: wireSflKeywordsPanels,

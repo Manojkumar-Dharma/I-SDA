@@ -2404,6 +2404,119 @@
     return next;
   }
 
+  // ---------------------------------------------------------------------
+  // Task R4 - SFLCTL-specific picker (Subfile Control menu: General/
+  // Display Layout/Subfile Messages - see docs/sda-reference/screens/
+  // record-level/subfile-control-sflctl/ and PICKER-SCREENS-PLAN.md).
+  // Also wires SFLCTL to R1's base 8-category set (already automatic -
+  // R1's Keywords subtabs apply to every record type except USRDFN,
+  // narrowed by R2) and to R3's Subfile Keywords screen (SFLNXTCHG/
+  // LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL) + repeatable INDTXT/SETOF/
+  // CHANGE rows) - those DDS keywords aren't syntactically restricted to
+  // the SFL detail record, and real SDA's own SFLCTL "General Keywords"
+  // screen groups CHECK(AB)/CHECK(RL) alongside SFLCTL's own keywords, so
+  // this reuses R3's getIndicatorTextRows/setIndicatorTextRows and
+  // getFileFlagKeyword calls directly rather than duplicating them or
+  // building a second "SFL tab" that would be confusing to show on a
+  // control record.
+  //
+  // Most of SFLCTL's own General-category keywords are a simple "present,
+  // optionally with one free-text parameter" shape - getFileFlagKeyword
+  // covers SFLCTL/SFLCSRRRN/SFLMODE (name parameters), SFLDSP/SFLDSPCTL/
+  // SFLINZ/SFLDLT/SFLCLR/SFLRNA (plain flags), SFLDROP/SFLFOLD/SFLENTER
+  // (a CFnn/CAnn command-key parameter - free text rather than validated,
+  // same fallback the rest of this codebase uses for a keyword whose
+  // parameter isn't a fixed enum), and SFLEND (a *MORE/*SCRBAR parameter -
+  // free text for the same reason, even though only 2 values are
+  // documented, since a blank SFLEND is also valid DDS and worth keeping
+  // reachable without a synthetic third option). SFLMSG (single quoted
+  // message) reuses getFileQuotedText/setFileQuotedText, the same
+  // WDWTITLE/HLPTITLE shape.
+  //
+  // Two things from the real SDA screens are deliberately NOT modeled as
+  // repeatable, despite the screens showing 4 blank rows each for SFLMSG
+  // and SFLMSGID: real DDS lets SFLMSG/SFLMSGID appear multiple times,
+  // each independently conditioned by its OWN up-to-3-indicator set (not
+  // an embedded parameter the way INDTXT/SETOF/CHANGE's response
+  // indicator is) - the same "multiple CONDITIONED instances of a
+  // keyword" limitation R1/F1/D1/R3 already document and defer everywhere
+  // else (one primary instance per keyword; the Advanced/raw keywords
+  // accordion and its per-keyword Conditioning toggle still reach the
+  // rest). SFLMSGID's trailing "Ind"/"Name" columns shown on the real
+  // screen aren't modeled either - only msgid/message-file/library
+  // (IBM's own documented 3-parameter form) were confidently verified;
+  // getting a keyword's parameter ORDER wrong risks writing invalid DDS,
+  // which is worse than leaving a column for the raw editor.
+  // ---------------------------------------------------------------------
+
+  /**
+   * Display Layout screen: SFLSIZ (records in subfile) and SFLPAG
+   * (records per page) each accept EITHER a literal number OR a field
+   * name (real DDS's own "Program-to-system field" alternate entry,
+   * confirmed on the screen) - kept as plain strings rather than parsed
+   * as numbers so a field name round-trips untouched, same reasoning
+   * getWindowParamsKeyword's position parameters already take. SFLLIN
+   * (spacing between records) is a plain literal number only (0 or 1 in
+   * practice; DDS doesn't document a field-name form for it). Any of the
+   * three can be absent independently.
+   */
+  function getSflDisplayLayout(keywords) {
+    var kw = keywords || [];
+    var sflsiz = kw.find(function (k) { return k.name === 'SFLSIZ'; });
+    var sflpag = kw.find(function (k) { return k.name === 'SFLPAG'; });
+    var sfllin = kw.find(function (k) { return k.name === 'SFLLIN'; });
+    return {
+      sflsiz: sflsiz ? (sflsiz.parameters || '').trim() : '',
+      sflpag: sflpag ? (sflpag.parameters || '').trim() : '',
+      sfllin: sfllin ? (sfllin.parameters || '').trim() : '',
+    };
+  }
+
+  /** Returns a NEW keywords array with SFLSIZ/SFLPAG/SFLLIN each
+   *  independently set from `state` (same shape getSflDisplayLayout
+   *  returns) or removed if its field is blank. */
+  function setSflDisplayLayout(keywords, state) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'SFLSIZ' && k.name !== 'SFLPAG' && k.name !== 'SFLLIN'; });
+    ['sflsiz', 'sflpag', 'sfllin'].forEach(function (field) {
+      var value = ((state && state[field]) || '').toString().trim();
+      if (!value) return;
+      var keywordName = field === 'sflsiz' ? 'SFLSIZ' : field === 'sflpag' ? 'SFLPAG' : 'SFLLIN';
+      next = next.concat([{ name: keywordName, parameters: value, conditions: [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
+  /**
+   * Subfile Messages screen's SFLMSGID row: reads only the message-id/
+   * message-file/library-name portion of a SINGLE primary SFLMSGID
+   * instance (see this section's own doc comment above for why this
+   * isn't modeled as repeatable, and why the real screen's trailing
+   * "Ind"/"Name" columns aren't included).
+   */
+  function getSflMsgId(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'SFLMSGID'; });
+    if (!k) return { msgId: '', msgFile: '', library: '' };
+    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    return { msgId: tokens[0] || '', msgFile: tokens[1] || '', library: tokens[2] || '' };
+  }
+
+  /** Returns a NEW keywords array with SFLMSGID built from `state`
+   *  ({ msgId, msgFile, library }, same shape getSflMsgId returns) -
+   *  library is only written if msgId and msgFile are both present too
+   *  (a library with no message-id/file would be meaningless DDS).
+   *  Removed entirely if msgId or msgFile is blank. */
+  function setSflMsgId(keywords, state) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'SFLMSGID'; });
+    var msgId = ((state && state.msgId) || '').trim();
+    var msgFile = ((state && state.msgFile) || '').trim();
+    var library = ((state && state.library) || '').trim();
+    if (msgId && msgFile) {
+      var params = msgId + ' ' + msgFile + (library ? ' ' + library : '');
+      next = next.concat([{ name: 'SFLMSGID', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
@@ -2492,6 +2605,10 @@
     setFileTwoFieldKeyword: setFileTwoFieldKeyword,
     getIndicatorTextRows: getIndicatorTextRows,
     setIndicatorTextRows: setIndicatorTextRows,
+    getSflDisplayLayout: getSflDisplayLayout,
+    setSflDisplayLayout: setSflDisplayLayout,
+    getSflMsgId: getSflMsgId,
+    setSflMsgId: setSflMsgId,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
     serializeDisplaySizes: serializeDisplaySizes,
   };
