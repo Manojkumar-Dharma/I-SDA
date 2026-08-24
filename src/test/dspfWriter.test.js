@@ -1109,5 +1109,123 @@ console.log('\nDspfWriter.setWindowGeometry() - rejects a record with no WINDOW 
   check('rejects a record with no WINDOW keyword', threw);
 }
 
+console.log('\nDspfWriter D5 - menu-bar choice fields (MNUBARCHC, MNUBARSEP, Choice Selection Type, CHOICE, CHCACCEL, CHCCTL, CHCAVAIL/CHCUNAVAIL/CHCSLT)');
+{
+  console.log('  getMenubarChoices()/setMenubarChoices() - MNUBARCHC(id record \'text\'), one per top-level menu-bar choice');
+  const none = DspfWriter.getMenubarChoices([]);
+  check('no MNUBARCHC -> empty array', Array.isArray(none) && none.length === 0);
+
+  const withChoices = DspfWriter.setMenubarChoices([], [
+    { id: '1', pulldownRecord: 'PULLFILE', text: '>FILE' },
+    { id: '2', pulldownRecord: 'PULLEDIT', text: '>EDIT' },
+  ]);
+  const read = DspfWriter.getMenubarChoices(withChoices);
+  check('two MNUBARCHC entries written and read back in order', read.length === 2 && read[0].id === '1' && read[0].pulldownRecord === 'PULLFILE' && read[0].text === '>FILE' && read[1].id === '2' && read[1].pulldownRecord === 'PULLEDIT');
+  check('blank/incomplete entries are skipped', DspfWriter.getMenubarChoices(DspfWriter.setMenubarChoices([], [{ id: '1', pulldownRecord: '', text: 'x' }])).length === 0);
+  check('an existing embedded single-quote round-trips (DDS-doubled on write)', (() => {
+    const kw = DspfWriter.setMenubarChoices([], [{ id: '1', pulldownRecord: 'PULLFILE', text: "It's here" }]);
+    check('  ...written with doubled quote', kw[0].parameters.indexOf("It''s here") >= 0);
+    return DspfWriter.getMenubarChoices(kw)[0].text === "It's here";
+  })());
+  check('unrelated keywords are preserved', DspfWriter.setMenubarChoices([{ name: 'USRDFN', parameters: '', conditions: [], raw: '', sourceLines: [] }], [{ id: '1', pulldownRecord: 'P', text: 'x' }]).some((k) => k.name === 'USRDFN'));
+
+  console.log('  getMenubarSeparator()/setMenubarSeparator() - MNUBARSEP color/attrs/separator-char sub-groups');
+  const noSep = DspfWriter.getMenubarSeparator([]);
+  check('no MNUBARSEP -> all blank', noSep.color === '' && noSep.attrs.length === 0 && noSep.char === '');
+  let sepKw = DspfWriter.setMenubarSeparator([], { colorEnabled: true, color: 'WHT', attrsEnabled: false, attrs: [], charEnabled: true, char: '.' });
+  check('exactly one MNUBARSEP keyword written', sepKw.filter((k) => k.name === 'MNUBARSEP').length === 1);
+  let sepRead = DspfWriter.getMenubarSeparator(sepKw);
+  check('color round-trips, attrs group omitted since disabled', sepRead.color === 'WHT' && sepRead.attrs.length === 0);
+  check('separator character round-trips', sepRead.char === '.');
+  check('disabling every sub-group removes MNUBARSEP entirely', DspfWriter.setMenubarSeparator(sepKw, { colorEnabled: false, attrsEnabled: false, charEnabled: false }).some((k) => k.name === 'MNUBARSEP') === false);
+
+  console.log('  getChoiceSelectionType()/setChoiceSelectionType() - SNGCHCFLD/MLTCHCFLD + *param flags/numeric args');
+  const noType = DspfWriter.getChoiceSelectionType([]);
+  check('neither keyword -> blank kind', noType.kind === '');
+  let typeKw = DspfWriter.setChoiceSelectionType([], { kind: 'SNGCHCFLD', flags: ['*AUTOENT', '*SLTIND'], numCol: '3', numRow: '', gutter: '2' });
+  check('exactly one selection-type keyword written', typeKw.filter((k) => k.name === 'SNGCHCFLD' || k.name === 'MLTCHCFLD').length === 1);
+  let typeRead = DspfWriter.getChoiceSelectionType(typeKw);
+  check('kind round-trips as SNGCHCFLD', typeRead.kind === 'SNGCHCFLD');
+  check('flags round-trip', typeRead.flags.indexOf('*AUTOENT') >= 0 && typeRead.flags.indexOf('*SLTIND') >= 0);
+  check('numCol/gutter round-trip, numRow stays blank', typeRead.numCol === '3' && typeRead.gutter === '2' && typeRead.numRow === '');
+  check('switching kind removes the other keyword entirely (mutually exclusive)', DspfWriter.setChoiceSelectionType(typeKw, { kind: 'MLTCHCFLD', flags: [] }).some((k) => k.name === 'SNGCHCFLD') === false);
+  check('blank kind removes both entirely', DspfWriter.setChoiceSelectionType(typeKw, { kind: '', flags: [] }).some((k) => k.name === 'SNGCHCFLD' || k.name === 'MLTCHCFLD') === false);
+
+  console.log('  getChoices()/setChoices() - CHOICE(id \'text\'), one per choice on a SNGCHCFLD/MLTCHCFLD field');
+  let choiceKw = DspfWriter.setChoices([], [{ id: '1', text: '>ONE' }, { id: '2', text: '>TWO' }, { id: '3', text: '>THREE' }]);
+  check('three CHOICE entries written', choiceKw.filter((k) => k.name === 'CHOICE').length === 3);
+  let choiceRead = DspfWriter.getChoices(choiceKw);
+  check('all three read back in order with correct text', choiceRead.length === 3 && choiceRead[1].id === '2' && choiceRead[1].text === '>TWO');
+  check('a &variable choice text round-trips unquoted', DspfWriter.getChoices(DspfWriter.setChoices([], [{ id: '1', text: '&VARTXT' }]))[0].text === '&VARTXT');
+
+  console.log('  getChoiceAccelerators()/setChoiceAccelerators() - CHCACCEL(id \'text\'), same list shape as CHOICE');
+  let accelKw = DspfWriter.setChoiceAccelerators([], [{ id: '1', text: 'F6=Save' }]);
+  check('one CHCACCEL entry written', accelKw.filter((k) => k.name === 'CHCACCEL').length === 1);
+  check('reads back correctly', DspfWriter.getChoiceAccelerators(accelKw)[0].text === 'F6=Save');
+
+  console.log('  getChoiceControls()/setChoiceControls() - CHCCTL(id control-field [message-id message-file [library]])');
+  const noCtl = DspfWriter.getChoiceControls([]);
+  check('no CHCCTL -> empty array', noCtl.length === 0);
+  let ctlKw = DspfWriter.setChoiceControls([], [
+    { id: '1', controlField: '&C1', messageId: 'MSG0001', messageFile: 'XZY1337', library: '' },
+    { id: '2', controlField: '&C2', messageId: '', messageFile: '', library: '' },
+    { id: '3', controlField: '&C3', messageId: '&MSG1', messageFile: '&MSGF', library: '&LIB' },
+  ]);
+  check('three CHCCTL entries written', ctlKw.filter((k) => k.name === 'CHCCTL').length === 3);
+  let ctlRead = DspfWriter.getChoiceControls(ctlKw);
+  check('control field alone (no message) round-trips with blank message fields', ctlRead[1].controlField === '&C2' && ctlRead[1].messageId === '' && ctlRead[1].messageFile === '');
+  check('control field + message id/file round-trip', ctlRead[0].controlField === '&C1' && ctlRead[0].messageId === 'MSG0001' && ctlRead[0].messageFile === 'XZY1337');
+  check('a library-qualified message file round-trips split into messageFile + library', ctlRead[2].messageFile === '&MSGF' && ctlRead[2].library === '&LIB');
+  check('an entry missing controlField is skipped entirely', DspfWriter.setChoiceControls([], [{ id: '9', controlField: '' }]).length === 0);
+
+  console.log('  getChoiceColorState()/setChoiceColorState() - CHCAVAIL/CHCUNAVAIL/CHCSLT color/attrs (no *CHAR group)');
+  ['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT'].forEach((kwName) => {
+    const noState = DspfWriter.getChoiceColorState([], kwName);
+    check(kwName + ': absent -> blank color/attrs', noState.color === '' && noState.attrs.length === 0);
+    const stateKw = DspfWriter.setChoiceColorState([], kwName, 'BLU', ['HI', 'UL']);
+    check(kwName + ': exactly one keyword written', stateKw.filter((k) => k.name === kwName).length === 1);
+    const stateRead = DspfWriter.getChoiceColorState(stateKw, kwName);
+    check(kwName + ': color/attrs round-trip', stateRead.color === 'BLU' && stateRead.attrs.indexOf('HI') >= 0 && stateRead.attrs.indexOf('UL') >= 0);
+    check(kwName + ': blank color and attrs removes the keyword entirely', DspfWriter.setChoiceColorState(stateKw, kwName, '', []).some((k) => k.name === kwName) === false);
+  });
+  check('the three choice-color-state keywords coexist independently on the same field', (() => {
+    let kw = DspfWriter.setChoiceColorState([], 'CHCAVAIL', 'GRN', []);
+    kw = DspfWriter.setChoiceColorState(kw, 'CHCUNAVAIL', 'RED', []);
+    kw = DspfWriter.setChoiceColorState(kw, 'CHCSLT', 'BLU', []);
+    return DspfWriter.getChoiceColorState(kw, 'CHCAVAIL').color === 'GRN' && DspfWriter.getChoiceColorState(kw, 'CHCUNAVAIL').color === 'RED' && DspfWriter.getChoiceColorState(kw, 'CHCSLT').color === 'BLU';
+  })());
+
+  console.log('  End-to-end: the real worked MNUBAR/PULLDOWN/CHCCTL example round-trips through serialize + reparse');
+  {
+    const src = [
+      buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
+      buildLine({ seq: '00020', name: 'MNUFLD', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'PULLFILE', func: 'PULLDOWN' }),
+      buildLine({ seq: '00040', name: 'F1', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
+    ].join('\n') + '\n';
+    const model = DspfParser.parseDspf(src);
+    const lines = src.split(/\r\n|\r|\n/);
+    const mbRecord = model.records.find((r) => r.name === 'MB');
+    const mbField = mbRecord.fields.find((f) => f.name === 'MNUFLD');
+    let newLines = DspfWriter.applyFieldUpdate(mbField, lines, { keywords: DspfWriter.setMenubarChoices(mbField.keywords, [{ id: '1', pulldownRecord: 'PULLFILE', text: '>FILE' }]) });
+
+    const reparsed1 = DspfParser.parseDspf(newLines.join('\n'));
+    const f1Field = reparsed1.records.find((r) => r.name === 'PULLFILE').fields.find((f) => f.name === 'F1');
+    let f1Keywords = DspfWriter.setChoiceSelectionType(f1Field.keywords, { kind: 'SNGCHCFLD', flags: ['*AUTOENT'] });
+    f1Keywords = DspfWriter.setChoices(f1Keywords, [{ id: '1', text: '>ONE' }]);
+    f1Keywords = DspfWriter.setChoiceControls(f1Keywords, [{ id: '1', controlField: '&C1', messageId: 'MSG0001', messageFile: 'XZY1337' }]);
+    newLines = DspfWriter.applyFieldUpdate(f1Field, newLines, { keywords: f1Keywords });
+
+    const reparsed2 = DspfParser.parseDspf(newLines.join('\n'));
+    const mnufldFinal = reparsed2.records.find((r) => r.name === 'MB').fields.find((f) => f.name === 'MNUFLD');
+    check('MNUBARCHC survives the full round-trip', DspfWriter.getMenubarChoices(mnufldFinal.keywords).length === 1 && DspfWriter.getMenubarChoices(mnufldFinal.keywords)[0].pulldownRecord === 'PULLFILE');
+    const f1Final = reparsed2.records.find((r) => r.name === 'PULLFILE').fields.find((f) => f.name === 'F1');
+    check('SNGCHCFLD survives the full round-trip', DspfWriter.getChoiceSelectionType(f1Final.keywords).kind === 'SNGCHCFLD');
+    check('CHOICE survives the full round-trip', DspfWriter.getChoices(f1Final.keywords).length === 1);
+    check('CHCCTL survives the full round-trip', DspfWriter.getChoiceControls(f1Final.keywords)[0].messageId === 'MSG0001');
+    check('DspfEngine still renders this as a menubar widget after the edit (render/write stay in sync)', DspfEngine.resolveScreen(reparsed2, reparsed2.records.find((r) => r.name === 'MB').name, new Set()).fields.some((f) => f.widget && f.widget.type === 'menubar'));
+  }
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

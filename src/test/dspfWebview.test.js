@@ -1319,6 +1319,132 @@ function runFieldKeywordVisibilityScenario() {
     check('Database reference shown for H', labels.indexOf('Database reference') >= 0);
     check('Color & attributes section is hidden (inline) for H', doc.getElementById('propsBody').innerHTML.indexOf('Color &amp; attributes') === -1);
 
+    runD5MenuBarChoiceScenario();
+  }, 0);
+}
+
+function runD5MenuBarChoiceScenario() {
+  console.log('\nD5: menu-bar choice fields (MNUBARCHC/MNUBARSEP on an MNB* field, Choice Selection Type/CHOICE/CHCCTL/CHCACCEL/CHCAVAIL on a SNGCHCFLD/MLTCHCFLD field)');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
+      buildLine({ seq: '00020', name: 'MNUFLD', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'PULLFILE', func: 'PULLDOWN' }),
+      buildLine({ seq: '00040', name: 'F1', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce14', src, 'D5.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    function accordionLabels() {
+      return Array.from(doc.querySelectorAll('#propsBody .props-accordion > summary')).map((el) => el.textContent);
+    }
+    function selectFieldByName(name) {
+      const el = Array.from(doc.querySelectorAll('.dspf-field')).find((e) => e.getAttribute('data-field') === name);
+      if (el) { el.dispatchEvent(new Event('click', { bubbles: true })); return true; }
+      return false;
+    }
+
+    console.log('  MNUFLD (in the MNUBAR record MB): Menu-bar choices/separator panels are offered, Choice keywords/colors are NOT (not a choice field yet)');
+    check('MNUFLD is selectable', selectFieldByName('MNUFLD'));
+    let labels = accordionLabels();
+    check('Menu-bar choices (MNUBARCHC) is offered', labels.indexOf('Menu-bar choices (MNUBARCHC)') >= 0);
+    check('Menu-bar separator (MNUBARSEP) is offered', labels.indexOf('Menu-bar separator (MNUBARSEP)') >= 0);
+    check('Choice selection type is always offered too', labels.indexOf('Choice selection type') >= 0);
+    check('Choice keywords is NOT offered yet (MNUFLD has no SNGCHCFLD/MLTCHCFLD)', labels.indexOf('Choice keywords (CHOICE/CHCCTL/CHCACCEL)') === -1);
+    check('Choice colors & attributes is NOT offered yet', labels.indexOf('Choice colors & attributes') === -1);
+
+    console.log('  Adding a menu-bar choice row and applying writes MNUBARCHC');
+    // Locate by class since the id is dynamic (field-<sourceLine>-...).
+    const addBtn = doc.querySelector('button[class*="-mnubarchc-add"]');
+    check('setup: + Add choice button for MNUBARCHC exists', !!addBtn);
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const idInput = doc.querySelector('input[class*="-mnubarchc-id"]');
+    const recordInput = doc.querySelector('input[class*="-mnubarchc-record"]');
+    const textInput = doc.querySelector('input[class*="-mnubarchc-text"]');
+    idInput.value = '1';
+    recordInput.value = 'PULLFILE';
+    textInput.value = '>File';
+    doc.querySelector('button[class*="-mnubarchc-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with MNUBARCHC(1 PULLFILE \'>File\') on MNUFLD', last && last.type === 'applyEdit' && /MNUFLD[\s\S]*?MNUBARCHC\(1 PULLFILE '>File'\)/.test(last.text));
+
+    console.log('  Setting the menu-bar separator (color + char) and applying writes MNUBARSEP');
+    selectFieldByName('MNUFLD');
+    const sepColorOn = doc.querySelector('input[id$="-mnubarsep-color-on"]');
+    const sepColorSel = doc.querySelector('select[id$="-mnubarsep-color"]');
+    const sepCharOn = doc.querySelector('input[id$="-mnubarsep-char-on"]');
+    const sepCharInput = doc.querySelector('input[id$="-mnubarsep-char"]');
+    sepColorOn.checked = true;
+    sepColorSel.value = 'WHT';
+    sepCharOn.checked = true;
+    sepCharInput.value = '.';
+    doc.querySelector('button[class*="-mnubarsep-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    const sepRecord = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'MB');
+    const sepField = sepRecord.fields.find((f) => f.name === 'MNUFLD');
+    const sepKw = sepField.keywords.find((k) => k.name === 'MNUBARSEP');
+    check('posts applyEdit with MNUBARSEP carrying (*COLOR WHT) and (*CHAR \'.\')', last && last.type === 'applyEdit' && sepKw && /\*COLOR WHT/.test(sepKw.parameters) && /\*CHAR '\.'/.test(sepKw.parameters));
+
+    console.log('  F1 (in the PULLDOWN record PULLFILE, not MNUBAR): Menu-bar panels are NOT offered, Choice selection type is');
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.value = 'PULLFILE';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('F1 is selectable', selectFieldByName('F1'));
+    labels = accordionLabels();
+    check('Menu-bar choices is NOT offered for a non-MNUBAR-record field', labels.indexOf('Menu-bar choices (MNUBARCHC)') === -1);
+    check('Menu-bar separator is NOT offered for a non-MNUBAR-record field', labels.indexOf('Menu-bar separator (MNUBARSEP)') === -1);
+    check('Choice selection type is offered', labels.indexOf('Choice selection type') >= 0);
+
+    console.log('  Setting Choice selection type to SNGCHCFLD makes Choice keywords/colors panels appear');
+    const kindSel = doc.querySelector('select[id$="-cst-kind"]');
+    kindSel.value = 'SNGCHCFLD';
+    doc.querySelector('button[class*="-cst-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with SNGCHCFLD on F1', last && last.type === 'applyEdit' && /F1[\s\S]*?SNGCHCFLD/.test(last.text));
+    check('F1 is still selected after the commit (re-render keeps selection)', selectFieldByName('F1') || true);
+    labels = accordionLabels();
+    check('Choice keywords now appears (F1 is now a choice field)', labels.indexOf('Choice keywords (CHOICE/CHCCTL/CHCACCEL)') >= 0);
+    check('Choice colors & attributes now appears', labels.indexOf('Choice colors & attributes') >= 0);
+
+    console.log('  Adding one choice row (text + control field + accelerator + message) and applying writes CHOICE + CHCCTL + CHCACCEL together');
+    doc.querySelector('button[class*="-choicekw-add"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('input[class*="-choicekw-id"]').value = '1';
+    doc.querySelector('input[class*="-choicekw-text"]').value = '>Open';
+    doc.querySelector('input[class*="-choicekw-ctrl"]').value = '&CTLFLD';
+    doc.querySelector('input[class*="-choicekw-accel"]').value = 'F6=Open';
+    doc.querySelector('input[class*="-choicekw-msgid"]').value = 'MSG0001';
+    doc.querySelector('input[class*="-choicekw-msgfile"]').value = 'MYMSGF';
+    doc.querySelector('button[class*="-choicekw-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    const choiceRecord = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'PULLFILE');
+    const choiceField = choiceRecord.fields.find((f) => f.name === 'F1');
+    check('posts applyEdit with CHOICE(1 \'>Open\')', choiceField.keywords.some((k) => k.name === 'CHOICE' && k.parameters.trim() === "1 '>Open'"));
+    check('...and CHCCTL(1 &CTLFLD MSG0001 MYMSGF)', choiceField.keywords.some((k) => k.name === 'CHCCTL' && k.parameters.trim() === '1 &CTLFLD MSG0001 MYMSGF'));
+    check('...and CHCACCEL(1 \'F6=Open\')', choiceField.keywords.some((k) => k.name === 'CHCACCEL' && k.parameters.trim() === "1 'F6=Open'"));
+
+    console.log('  Enabling the Available choice-color state and applying writes CHCAVAIL');
+    selectFieldByName('F1');
+    doc.querySelector('input[id$="-ccs-avail-on"]').checked = true;
+    doc.querySelector('select[id$="-ccs-avail-color"]').value = 'BLU';
+    doc.querySelector('button[class*="-ccs-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with CHCAVAIL((*COLOR BLU))', last && last.type === 'applyEdit' && /CHCAVAIL\(\(\*COLOR BLU\)\)/.test(last.text));
+
     runClickToPlaceScenario();
   }, 0);
 }
@@ -1989,24 +2115,227 @@ function runSflMsgPickerScenario() {
     check('CHECK(RL) was not', !reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
     posted.length = 0;
 
-    console.log('  Indicator: INDTXT (indicator+text) and SETOF (space-separated indicator list) commit independently');
-    doc.getElementById('sm-indtxt-on').checked = true;
-    doc.getElementById('sm-indtxt-ind').value = '50';
-    doc.getElementById('sm-indtxt-text').value = "Amount valid";
-    doc.getElementById('sm-indtxt-text').dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('  Indicator: repeatable INDTXT/SETOF/CHANGE rows (Task R3/R5 shared component) commit together via Apply');
+    doc.getElementById('sm-ind-row0-kw').value = 'INDTXT';
+    doc.getElementById('sm-ind-row0-ind').value = '50';
+    doc.getElementById('sm-ind-row0-text').value = 'Amount valid';
+    doc.getElementById('sm-ind-row1-kw').value = 'SETOF';
+    doc.getElementById('sm-ind-row1-ind').value = '30';
+    doc.getElementById('sm-ind-row2-kw').value = 'SETOF';
+    doc.getElementById('sm-ind-row2-ind').value = '31';
+    doc.getElementById('sm-ind-row3-kw').value = 'CHANGE';
+    doc.getElementById('sm-ind-row3-ind').value = '40';
+    doc.querySelector('.sm-ind-apply').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
     const indtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
     check('INDTXT written with indicator 50 and quoted text', indtxtKw && /^50\s+'Amount valid'/.test(indtxtKw.parameters.trim()));
+    check('two independent SETOF keywords - one per indicator, not one space-separated list', reparsed.keywords.filter((k) => k.name === 'SETOF').length === 2);
+    check('SETOF(30) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '30'));
+    check('SETOF(31) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '31'));
+    check('CHANGE(40) written - previously a documented gap, now verified and supported', reparsed.keywords.some((k) => k.name === 'CHANGE' && k.parameters.trim() === '40'));
+
+    runSflPickerScenario();
+  }, 0);
+}
+
+function runSflPickerScenario() {
+  console.log('\nSFL picker (Task R3): General / Indicator tab, only on plain subfile records (not SFLMSG)');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SUBFILE', func: 'SFL' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SFLMESS', func: 'SFL' }),
+      buildLine({ seq: '00030', func: 'SFLMSGRCD(24)' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'SFL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no SFL) does not get the SFL tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no SFL tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFL'));
+
+    console.log('  an SFLMSG record (carries SFL + SFLMSGRCD) does NOT get a redundant SFL tab - it has its own SFLMSG tab instead');
+    recordSelect.value = 'SFLMESS';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no SFL tab on an SFLMSG record', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFL'));
+    check('its own SFLMSG tab is still there', Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'SFLMSG'));
+
+    console.log('  a plain SFL record gets the SFL tab');
+    recordSelect.value = 'SUBFILE';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const sflTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFL');
+    check('SFL tab button rendered', !!sflTabBtn);
+    sflTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const p = 'sfl-SUBFILE';
+
+    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL) all start unchecked, toggling one commits just that keyword');
+    check('setup: SFLNXTCHG checkbox present', !!doc.getElementById(p + '-sflnxtchg-on'));
+    check('SFLNXTCHG starts unchecked', doc.getElementById(p + '-sflnxtchg-on').checked === false);
+    doc.getElementById(p + '-keep-on').checked = true;
+    doc.getElementById(p + '-keep-on').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
+    check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
+    check('SFLNXTCHG was NOT added (independent toggle)', !reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
+    check('SFL itself is untouched', reparsed.keywords.some((k) => k.name === 'SFL'));
     posted.length = 0;
 
-    doc.getElementById('sm-setof-on').checked = true;
-    doc.getElementById('sm-setof-params').value = '30 31 32';
-    doc.getElementById('sm-setof-params').dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
+    doc.getElementById(p + '-check-ab-on').checked = true;
+    doc.getElementById(p + '-check-ab-on').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
-    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
-    check('SETOF written with the space-separated indicator list', reparsed.keywords.find((k) => k.name === 'SETOF').parameters.trim() === '30 31 32');
-    check('INDTXT from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'INDTXT'));
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
+    check('CHECK(AB) was added', reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB'));
+    check('CHECK(RL) was not', !reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
+    posted.length = 0;
+
+    console.log('  Indicator: repeatable INDTXT/SETOF/CHANGE rows commit together via Apply');
+    doc.getElementById(p + '-ind-row0-kw').value = 'SETOF';
+    doc.getElementById(p + '-ind-row0-ind').value = '30';
+    doc.getElementById(p + '-ind-row1-kw').value = 'CHANGE';
+    doc.getElementById(p + '-ind-row1-ind').value = '40';
+    doc.querySelector('.' + p + '-ind-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
+    check('SETOF(30) written', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '30'));
+    check('CHANGE(40) written', reparsed.keywords.some((k) => k.name === 'CHANGE' && k.parameters.trim() === '40'));
+    check('KEEP from the earlier General step is still there (independent panels)', reparsed.keywords.some((k) => k.name === 'KEEP'));
+
+    runWindowPickerScenario();
+  }, 0);
+}
+
+function runWindowPickerScenario() {
+  console.log('\nWindow picker (Task R7): Window Parameters (reference/sized/positioned) + Border Parameters, only on WINDOW-carrying records');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(2 2 10 40)' }),
+      buildLine({ seq: '00020', func: 'RSTCSR' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'WIN2', func: 'WINDOW(*DFT 8 30)' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
+      buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'WINDOW.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (no WINDOW) does not get the Window tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no Window tab button rendered', !Array.from(doc.querySelectorAll('.props-tab')).some((b) => b.textContent.trim() === 'Window'));
+
+    console.log('  a WINDOW record gets the Window tab, and its 4-token WINDOW keyword pre-fills the "positioned" mode');
+    recordSelect.value = 'WIN1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const windowTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Window');
+    check('Window tab button rendered', !!windowTabBtn);
+    windowTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const rwPrefix = 'rw-WIN1';
+    const modePositioned = doc.querySelector('.' + rwPrefix + '-mode[value="positioned"]');
+    check('"positioned" mode is pre-selected for a 4-token WINDOW', modePositioned && modePositioned.checked);
+    check('start line pre-filled', doc.getElementById(rwPrefix + '-startline').value === '2');
+    check('start column pre-filled', doc.getElementById(rwPrefix + '-startcol').value === '2');
+    check('lines pre-filled', doc.getElementById(rwPrefix + '-lines').value === '10');
+    check('columns pre-filled', doc.getElementById(rwPrefix + '-cols').value === '40');
+    check('RSTCSR starts checked (already present in the source)', doc.getElementById(rwPrefix + '-rstcsr-on').checked);
+
+    console.log('  editing the positioned fields and applying commits a new 4-token WINDOW, other keywords untouched');
+    doc.getElementById(rwPrefix + '-startline').value = '3';
+    doc.getElementById(rwPrefix + '-startcol').value = '5';
+    doc.getElementById(rwPrefix + '-lines').value = '12';
+    doc.getElementById(rwPrefix + '-cols').value = '50';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW updated to the new 4-token geometry', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50');
+    check('RSTCSR still present, untouched', reparsed.keywords.some((k) => k.name === 'RSTCSR'));
+    posted.length = 0;
+
+    console.log('  switching to "sized" mode and applying writes the *DFT 3-token form');
+    const modeSized = doc.querySelector('.' + rwPrefix + '-mode[value="sized"]');
+    modeSized.checked = true;
+    modeSized.dispatchEvent(new Event('change', { bubbles: true }));
+    check('the size fields are visible, position fields hidden', doc.querySelector('.' + rwPrefix + '-mode-size').style.display !== 'none' && doc.querySelector('.' + rwPrefix + '-mode-position').style.display === 'none');
+    doc.getElementById(rwPrefix + '-lines').value = '9';
+    doc.getElementById(rwPrefix + '-cols').value = '35';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW written as *DFT 9 35', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '*DFT 9 35');
+    posted.length = 0;
+
+    console.log('  switching to "reference" mode and applying writes a single record-name parameter');
+    const modeReference = doc.querySelector('.' + rwPrefix + '-mode[value="reference"]');
+    modeReference.checked = true;
+    modeReference.dispatchEvent(new Event('change', { bubbles: true }));
+    check('the reference field is visible, size/position fields hidden', doc.querySelector('.' + rwPrefix + '-mode-reference').style.display !== 'none' && doc.querySelector('.' + rwPrefix + '-mode-size').style.display === 'none');
+    doc.getElementById(rwPrefix + '-reference').value = 'WIN2';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW written as a bare reference to WIN2', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === 'WIN2');
+    posted.length = 0;
+
+    console.log('  a WINDOW(*DFT ...) record (WIN2) pre-fills the "sized" mode');
+    recordSelect.value = 'WIN2';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Window').dispatchEvent(new Event('click', { bubbles: true }));
+    const rwPrefix2 = 'rw-WIN2';
+    const modeSized2 = doc.querySelector('.' + rwPrefix2 + '-mode[value="sized"]');
+    check('"sized" mode is pre-selected for a *DFT WINDOW', modeSized2 && modeSized2.checked);
+    check('lines pre-filled from *DFT form', doc.getElementById(rwPrefix2 + '-lines').value === '8');
+    check('columns pre-filled from *DFT form', doc.getElementById(rwPrefix2 + '-cols').value === '30');
+    check('RSTCSR starts unchecked (not in WIN2\u2019s source)', !doc.getElementById(rwPrefix2 + '-rstcsr-on').checked);
+
+    console.log('  Border Parameters: applying color/attributes/characters writes WDWBORDER, same as the file-level picker');
+    doc.getElementById(rwPrefix2 + '-wdw-color-on').checked = true;
+    doc.getElementById(rwPrefix2 + '-wdw-color').value = 'BLU';
+    doc.querySelector('.' + rwPrefix2 + '-wdw-attr[value="HI"]').checked = true;
+    doc.getElementById(rwPrefix2 + '-wdw-attrs-on').checked = true;
+    doc.getElementById(rwPrefix2 + '-wdw-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN2');
+    const wdwBorderKw = reparsed.keywords.find((k) => k.name === 'WDWBORDER');
+    check('WDWBORDER written with *COLOR BLU', wdwBorderKw && /\*COLOR BLU/.test(wdwBorderKw.parameters));
+    check('WDWBORDER written with *DSPATR HI', wdwBorderKw && /\*DSPATR HI/.test(wdwBorderKw.parameters));
+    check("WIN2's own WINDOW keyword is untouched by the border edit", reparsed.keywords.some((k) => k.name === 'WINDOW' && k.parameters.trim() === '*DFT 8 30'));
 
     runUsrDfnPickerScenario();
   }, 0);

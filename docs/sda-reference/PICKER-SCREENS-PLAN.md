@@ -43,36 +43,36 @@ Display Attributes and Colors) rather than genuinely new keyword handling.
 | **R1** | Base Record Keywords (General, Indicator, Application Help, Help, Output, Input, Overlay, Print) | `screens/record-level/base-record-keywords/*` | **Highest-leverage task.** Reused as-is (all 8) by `RECORD`, and wired into `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`, `MNUBAR` by later tasks. `USRDFN` uses a 4-of-8 subset (see R2). Built as one component with 8 sub-panels (nested subtabs inside record props' Keywords tab), shipped in v0.9.49. Deliberately deferred, same reasoning as F1/D1: multiple conditioned instances of a keyword — the picker manages one primary instance per keyword; the Advanced/raw keywords accordion still reaches the rest. | done |
 | **D1** | Field base keywords (Display Attributes, Colors, Keying Options, Validity Check, Input Keywords, General, Database Reference, Error Messages, Message ID) | `screens/field-level/character/*` (this is the full set; numeric/constant reuse subsets) | Colors/Display Attributes ≈ existing Color & attributes panel, split into SDA's two screens. Validity Check ≈ existing panel. Error Messages ≈ existing panel. Database Reference overlaps with the already-shipped "Resolve Referenced Field via Code for i" feature (v0.9.34, `resolveReferenceTarget()` / `fetchReferencedFieldAttributes()`) — this screen should be the UI front-end for that, not a new resolver. Message ID and Keying Options are the genuinely new pieces. Shipped in v0.9.47: Keying options, Input keywords, General keywords, Database reference overrides, Message ID, plus extended Validity check (CHECK's AB/VN/VNE/M10/M11) and Display Attributes (7→11 DSPATR values). Deliberately deferred: multiple conditioned instances of the same keyword (e.g. COLOR varying by indicator) — existing single-instance model kept. | done |
 | **R5** | SFLMSG-specific (Message Record, General, Indicator) | `screens/record-level/subfile-message-sflmsg/*` | Standalone — `SFLMSG` doesn't use the base Record Keywords set at all. Safe to build independently of R1. | done |
-| **D5** | Menu-bar choice fields (`MNB*`/`MNUACT`): Choice Selection Type, Choice Keywords, Choice Colors & Attributes, Separator | `screens/field-level/menu-bar-choice/*` | Standalone, low overlap with D1. The same screen repeats per choice number in the screenshots — that's SDA showing the flow multiple times, not multiple designs; build one "choice" picker that the user can invoke per choice/action. | not started |
+| **D5** | Menu-bar choice fields (`MNB*`/`MNUACT`): Choice Selection Type, Choice Keywords, Choice Colors & Attributes, Separator | `screens/field-level/menu-bar-choice/*` | Standalone, low overlap with D1. The same screen repeats per choice number in the screenshots — that's SDA showing the flow multiple times, not multiple designs; build one "choice" picker that the user can invoke per choice/action. **Done** in v0.9.51: `MNUBARCHC`/`MNUBARSEP` (gated on the field's owning record carrying `MNUBAR`), `SNGCHCFLD`/`MLTCHCFLD` + all `*param` flags, `CHOICE`/`CHCCTL`/`CHCACCEL` merged into one row per choice number, `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT`. Deliberately deferred: `MNUBARCHC`'s "Text field"/"Return field" variable-argument forms shown on the real SDA screen (`choice-keyword/image193.png`) - only the literal-text form (`id record 'text'`) is modeled, matching what `DspfEngine.parseMenubarChoice` already renders. | done |
 
 ## Wave 2 — first-level wiring (depends on one Wave 1 task each)
 
-| Task | Component | Screens | Depends on |
-| --- | --- | --- | --- |
-| **R2** | USRDFN wiring | *(reuses R1 General/Application Help/Help/Print only — no screens of its own)* | R1 — **done**, shipped in v0.9.50 (`WebviewClientHelpers.isUsrDfnRecord` narrows R1's Keywords subtabs; USRDFN's own keyword parameter stays on the raw editor) |
-| **R3** | SFL-specific (Subfile keywords + its own General + Indicator) | `screens/record-level/subfile-sfl/*` | — (independent, but grouped here since it feeds R4/R8/R11) |
-| **R7** | WINDOW-specific (Window Parameters: size/roll + Border Parameters/Color/Attributes/Characters) + wire WINDOW to R1 | `screens/record-level/window/*` | R1. Window Title is already covered by the existing dedicated panel — don't rebuild. |
-| **D2** | Character field wiring (Usage B/I/O) | `screens/field-level/character/*` | D1 (uses the full set, no additions) - **done**, see Known limitations for scope notes |
-| **D3** | Numeric field additions (Editing Keywords, Subfile Keywords) + wire Numeric to D1 | `screens/field-level/numeric/*` | D1. Editing Keywords ≈ existing Edit code/word panel — reuse. |
-| **D4** | Constant field wiring (Display Attributes, Colors, General) + new Menu-Bar Keywords screen | `screens/field-level/constant/*` | D1 |
+| Task | Component | Screens | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| **R2** | USRDFN wiring | *(reuses R1 General/Application Help/Help/Print only — no screens of its own)* | R1. Shipped in v0.9.50: `WebviewClientHelpers.isUsrDfnRecord` narrows R1's Keywords subtabs to the 4-of-8 subset; USRDFN's own keyword parameter stays reachable via the raw editor. | done |
+| **R3** | SFL-specific (Subfile keywords + its own General + Indicator) | `screens/record-level/subfile-sfl/*` | — (independent, but grouped here since it feeds R4/R8/R11). Shipped in v0.9.50. Also retrofitted the new repeatable Indicator component into Task R5's SFLMSG picker, closing a gap R5 had explicitly flagged (SETOF/CHANGE argument shape). | done |
+| **R7** | WINDOW-specific (Window Parameters: size/roll + Border Parameters/Color/Attributes/Characters) + wire WINDOW to R1 | `screens/record-level/window/*` | R1. Window Title is already covered by the existing dedicated panel — don't rebuild. | done |
+| **D2** | Character field wiring (Usage B/I/O) | `screens/field-level/character/*` | D1 (uses the full set, no additions) — see README's Known limitations for scope notes | done |
+| **D3** | Numeric field additions (Editing Keywords, Subfile Keywords) + wire Numeric to D1 | `screens/field-level/numeric/*` | D1. Editing Keywords ≈ existing Edit code/word panel — reuse. | not started |
+| **D4** | Constant field wiring (Display Attributes, Colors, General) + new Menu-Bar Keywords screen | `screens/field-level/constant/*` | D1 | not started |
 
 ## Wave 3 — second-level wiring (depends on two Wave 1/2 components)
 
-| Task | Component | Screens | Depends on |
-| --- | --- | --- | --- |
-| **R4** | SFLCTL-specific (Subfile Control menu: General/Display Layout/Subfile Messages) + wire SFLCTL to R1 (all 8) + R3's Subfile Keywords screen | `screens/record-level/subfile-control-sflctl/*` | R1, R3 |
-| **R10** | PULLDOWN-specific (General ×2 + Border set, no window-parameters) + wire to R1 | `screens/record-level/pulldown-puldwn/*` | R1, R7 (reuses the border sub-panels built for Window) |
-| **R13** | MNUBAR-specific (General + Menu-Bar Display Keywords) + wire to R1 | `screens/record-level/menu-bar-record-mnubar/*` | R1 |
+| Task | Component | Screens | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| **R4** | SFLCTL-specific (Subfile Control menu: General/Display Layout/Subfile Messages) + wire SFLCTL to R1 (all 8) + R3's Subfile Keywords screen | `screens/record-level/subfile-control-sflctl/*` | R1, R3 | not started |
+| **R10** | PULLDOWN-specific (General ×2 + Border set, no window-parameters) + wire to R1 | `screens/record-level/pulldown-puldwn/*` | R1, R7 (reuses the border sub-panels built for Window) | not started |
+| **R13** | MNUBAR-specific (General + Menu-Bar Display Keywords) + wire to R1 | `screens/record-level/menu-bar-record-mnubar/*` | R1 | not started |
 
 ## Wave 4 — combination types (Window+Subfile / Pulldown+Subfile)
 
-| Task | Component | Screens | Depends on |
-| --- | --- | --- | --- |
-| **R6** | SFLMSGCTL-specific (same shape as R4: General/Display Layout/Subfile Messages) + wire to R1 | `screens/record-level/subfile-message-sflmsg/*` (control variant) | R4 (reuse the Subfile Control Keywords pattern built there) |
-| **R8** | WNDSFL-specific | `screens/record-level/window-subfile-wndsfl/*` | R3 (subfile General/Indicator), R7 (window/border set) |
-| **R9** | WNDSFCTL-specific | `screens/record-level/window-subfile-control-wndsfctl/*` | R4 (subfile control pattern), R7 (window/border set) |
-| **R11** | PULDWNSFL-specific | `screens/record-level/pulldown-subfile-puldwnsfl/*` | R3, R10 |
-| **R12** | PDNSFLCTL-specific | `screens/record-level/pulldown-subfile-control-pdnsflctl/*` | R4, R10 |
+| Task | Component | Screens | Depends on | Status |
+| --- | --- | --- | --- | --- |
+| **R6** | SFLMSGCTL-specific (same shape as R4: General/Display Layout/Subfile Messages) + wire to R1 | `screens/record-level/subfile-message-sflmsg/*` (control variant) | R4 (reuse the Subfile Control Keywords pattern built there) | not started |
+| **R8** | WNDSFL-specific | `screens/record-level/window-subfile-wndsfl/*` | R3 (subfile General/Indicator), R7 (window/border set) | not started |
+| **R9** | WNDSFCTL-specific | `screens/record-level/window-subfile-control-wndsfctl/*` | R4 (subfile control pattern), R7 (window/border set) | not started |
+| **R11** | PULDWNSFL-specific | `screens/record-level/pulldown-subfile-puldwnsfl/*` | R3, R10 | not started |
+| **R12** | PDNSFLCTL-specific | `screens/record-level/pulldown-subfile-control-pdnsflctl/*` | R4, R10 | not started |
 
 ---
 

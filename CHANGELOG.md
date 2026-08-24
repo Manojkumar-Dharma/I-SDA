@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.50] - Unreleased
+## [0.9.52] - Unreleased
 
 ### Added
 - **Task R2 - USRDFN wiring**: real SDA's own "Select Record Keywords"
@@ -26,8 +26,130 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Advanced/raw keywords accordion, same reasoning.
   - 14 new `dspfWebview.test.js` checks covering both the narrowed tab
     set and that the General panel still commits normally underneath it.
+- **SFL-specific "Select Subfile Keywords" picker (SDA parity plan task
+  R3 - see `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, on top of Task
+  R1's base 8-category Record Keywords set (shown for every record type
+  including SFL already). New "SFL" tab, shown only for plain subfile
+  records (an SFLMSG record - which also carries the `SFL` keyword - gets
+  its own SFLMSG tab instead, not a redundant second one):
+  - **General**: `SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP` (simple flags) and
+    `CHECK(AB)`/`CHECK(RL)` (independent toggles sharing one `CHECK`
+    keyword, reusing Task F1's `getFileFlagKeyword`'s `fixedParam` mode -
+    no new primitive needed). `CHGINPDFT` (also on real SDA's screen) is
+    deliberately not repeated - it's already on Task R1's base General
+    tab, shown for every record type.
+  - **Indicator**: a new repeatable `INDTXT`/`SETOF`/`CHANGE` row list -
+    real DDS allows MULTIPLE instances of these on one record (each with
+    its own response indicator; verified against IBM's own DDS reference
+    that `SETOF`/`CHANGE` each take exactly one indicator per instance,
+    not a space-separated list in one keyword), which neither Task R1's
+    base panel nor the previous SFLMSG picker's single-instance flags
+    could express.
+  - New `dspfWriter.js` primitives: `getIndicatorTextRows`/
+    `setIndicatorTextRows`, generic over any keyword-name list (not SFL-
+    specific), full-replace semantics matching `setCheckOptions`/
+    `setDisplaySizesList`.
+  - New shared `webviewClientHelpers.js` component -
+    `indicatorTextRowsHtml`/`wireIndicatorTextRows` (6-row fixed-size
+    table, Apply-button batch commit) - plus `sflKeywordsPanelsHtml`/
+    `wireSflKeywordsPanels`/`isSflRecord`.
+  - New `src/test/sflRecordKeywordsPicker.test.js` (26 checks) plus 15 new
+    `dspfWebview.test.js` checks.
+- **Retrofit: Task R5's SFLMSG Indicator panel now uses the same
+  `indicatorTextRowsHtml` component**, closing a gap that panel's own
+  CHANGELOG entry explicitly flagged - it previously modeled `SETOF` as
+  taking a space-separated list of indicators in one keyword (incorrect;
+  real DDS takes one indicator per `SETOF` instance) and left `CHANGE` out
+  entirely pending verification of its DDS argument shape. Both are now
+  correct and supported, shared with Task R3's SFL panel rather than
+  duplicated. `dspfWebview.test.js`'s existing SFLMSG Indicator checks
+  were updated to match the new row-based UI (element ids changed from
+  `sm-indtxt-*`/`sm-setof-*` to `sm-ind-row<N>-*` + a `.sm-ind-apply`
+  button).
+
+## [0.9.51] - Unreleased
+
+### Added
+- **Task D5 - Menu-bar choice fields (`MNB*`/`MNUACT`)**: five new panels
+  covering `docs/sda-reference/screens/field-level/menu-bar-choice/*`,
+  verified against IBM's own DDS reference and a real worked MNUBAR/
+  PULLDOWN/CHCCTL example rather than guessed:
+  - **Menu-bar choices (`MNUBARCHC`)** and **Menu-bar separator
+    (`MNUBARSEP`)** - list/single-instance editors, gated on the field's
+    *owning record* carrying `MNUBAR` (a brand-new field in that record
+    hasn't been turned into the bar's own choice field yet).
+  - **Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`)** - the opt-in
+    entry point for the remaining two panels, always offered on any
+    non-constant field, with every `*param` flag from the real SDA
+    screen (`*RSTCSR`/`*SLTIND`/`*AUTOSLT`/`*AUTOENT` families plus
+    `*NUMCOL`/`*NUMROW`/`*GUTTER`).
+  - **Choice keywords (`CHOICE`/`CHCCTL`/`CHCACCEL`)** - merged into one
+    row per choice number (a choice's text, its optional control field/
+    message, and its accelerator text are conceptually "the same
+    choice", matching real SDA's own screen).
+  - **Choice colors & attributes (`CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT`)** -
+    three independent color/attribute states.
+  - Both list-style choice panels (Choice keywords and Menu-bar choices)
+    only appear once a field already carries `SNGCHCFLD`/`MLTCHCFLD` (or,
+    for menu-bar choices, once its owning record carries `MNUBAR`),
+    avoiding an empty, confusing choice-list editor on unrelated fields.
+  - New `DspfWriter` primitives: `getMenubarChoices`/`setMenubarChoices`,
+    `getMenubarSeparator`/`setMenubarSeparator`,
+    `getChoiceSelectionType`/`setChoiceSelectionType`,
+    `getChoices`/`setChoices`,
+    `getChoiceAccelerators`/`setChoiceAccelerators`,
+    `getChoiceControls`/`setChoiceControls`,
+    `getChoiceColorState`/`setChoiceColorState`.
+  - Deliberately deferred: `MNUBARCHC`'s "Text field"/"Return field"
+    variable-argument forms shown on the real SDA screen - only the
+    literal-text form (`id record 'text'`) is modeled, matching what
+    `DspfEngine.parseMenubarChoice` already renders.
+  - 47 new `dspfWriter.test.js` checks (including a full end-to-end
+    round-trip against the real worked MNUBAR/PULLDOWN/CHCCTL example)
+    plus 21 new `dspfWebview.test.js` checks driving all five panels
+    live, across both an MNB* field and a choice field.
 
 ## [0.9.49] - Unreleased
+
+### Added
+- **WINDOW-specific record picker (SDA parity plan task R7 - see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`)**, a new "Window" tab on
+  the record properties panel shown only for records carrying `WINDOW`,
+  with two accordions:
+  - **Window Parameters**: the `WINDOW` keyword's own geometry, as a
+    3-way mode picker matching real SDA's "Referenced window -OR- Window
+    definition (Default start positioning -OR- Start line/Start
+    position)" screen - `reference` (a bare record name, inherits another
+    WINDOW record's geometry), `sized` (`*DFT lines columns` - the system
+    positions it), and `positioned` (`start-line start-col lines columns`
+    - each of the 4 can be a literal number or a field name, matching
+    DDS's own flexibility there). New `DspfWriter.getWindowParamsKeyword`/
+    `setWindowParamsKeyword`, deliberately named to avoid colliding with
+    the existing drag-and-resize `setWindowGeometry(record, sourceLines,
+    geometry)` - the `*DFT`-prefixed 3-token form for `sized` was cross-
+    checked against that function's own (already-verified) reading of the
+    DDS spec rather than re-derived from the screenshot alone. Also wires
+    up `RSTCSR` (restrict cursor to window) as a plain flag.
+  - **Border Parameters**: identical `WDWBORDER` (Color/Display
+    attributes/Border Characters) screen the file-level picker (Task F1)
+    already built - refactored `windowBorderPanelHtml`/
+    `wireWindowBorderPanel` out of that picker into shared, `idPrefix`-
+    parameterized functions so both reuse the same ~50 lines instead of
+    duplicating them; the file-level panel's own ids/behavior are
+    unchanged.
+  - Deliberately not wired: the real SDA screen's "Message line" row
+    (DDS keyword not confidently verified) and its per-row "Display
+    size"/"Roll" columns - "Roll" turned out to be SDA's own in-terminal
+    roll-key editing convenience rather than a DDS keyword at all, and
+    "Display size" is the same cross-cutting multiple-DSPSIZ-conditioned-
+    instances limitation R1/F1/D1 already defer elsewhere. All three
+    route through the raw Keywords editor instead.
+  - New `runWindowPickerScenario` in `dspfWebview.test.js` (20+ checks):
+    tab visibility gating, geometry pre-fill for both the 4-token and
+    `*DFT` 3-token forms, mode switching, and the shared Border Parameters
+    panel producing the same `WDWBORDER` output as the file-level picker.
+
+## [0.9.48] - Unreleased
 
 ### Added
 - **Base Record Keywords picker (SDA parity plan task R1 - see

@@ -146,6 +146,26 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   under indicator 20 on the same field, or several `ERRMSG`/`ERRMSGID`
   entries tried in order. Not modeled here; would need its own follow-up
   since it affects several keywords at once, not just one panel.
+- As of v0.9.49, records get the same dedicated-picker treatment fields
+  already had, mapped against real SDA's own record-level "Select/Define
+  \_\_\_ Keywords" screens (see
+  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)'s
+  R-numbered tasks): a **Base Record Keywords** picker (task R1) with 8 sub-panels -
+  General, Indicator, Application Help, Help, Output, Input, Overlay,
+  Print - as nested subtabs inside the record props Keywords tab, reused
+  as-is by every record type; a **SFL-specific** picker (R3) adding the
+  subfile's own General/Indicator categories plus a repeatable
+  `INDTXT`/`SETOF`/`CHANGE` row list (real DDS allows multiple instances,
+  one indicator each); a **SFLMSG-specific** picker (R5) for the Message
+  Record itself; and a **WINDOW-specific** picker (R7) with Window
+  Parameters (`WINDOW`'s own 3-way reference/sized/positioned geometry
+  modes) and Border Parameters (reusing the same `WDWBORDER` panel
+  already built for the file-level picker). Same "one instance per
+  keyword" limitation as the field-level pickers above applies here too.
+  R7 deliberately left out the real SDA screen's "Message line" row (DDS
+  keyword not confidently verified) and its "Roll" column (turned out to
+  be SDA's own in-terminal roll-key editing convenience, not a DDS
+  keyword at all) - both still reachable via the raw Keywords editor.
 - As of v0.9.48, D1's field-keyword panels are gated by the field's
   current Usage (and, for Validity check, data type) to match real SDA's
   own "For Field Type" column (task D2 in
@@ -162,6 +182,17 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   nothing to report; and M/P (Message text/Program-to-system) usages,
   which SDA's own table never covers, fail open (show every category)
   rather than guessing.
+- As of v0.9.51, menu-bar choice fields (task D5) have dedicated panels:
+  Menu-bar choices (`MNUBARCHC`) and Menu-bar separator (`MNUBARSEP`) on
+  a field whose owning record carries `MNUBAR`; Choice selection type
+  (`SNGCHCFLD`/`MLTCHCFLD`) always offered as the opt-in entry point,
+  with Choice keywords (`CHOICE`/`CHCCTL`/`CHCACCEL`, merged into one row
+  per choice number) and Choice colors & attributes (`CHCAVAIL`/
+  `CHCUNAVAIL`/`CHCSLT`) appearing once a field is already one of those.
+  Not modeled: `MNUBARCHC`'s "Text field"/"Return field" variable-
+  argument forms shown on the real SDA screen - only the literal-text
+  form (`id record 'text'`) is supported, matching what
+  `DspfEngine.parseMenubarChoice` already renders on screen.
 
 ### Menu designer
 
@@ -234,12 +265,12 @@ picked up after the current round of fixes.
   | Level | Component | Task ID(s) | Reused by |
   | --- | --- | --- | --- |
   | File | Single picker, all 9 categories | F1 ✅ | - (one record type only) |
-  | Record | Base Record Keywords (General/Indicator/App Help/Help/Output/Input/Overlay/Print) | R1 | `RECORD`, `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`, `MNUBAR` (full or partial) |
+  | Record | Base Record Keywords (General/Indicator/App Help/Help/Output/Input/Overlay/Print) | R1 ✅ | `RECORD`, `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`, `MNUBAR` (full or partial) |
   | Record | `USRDFN` wiring (subset of R1) | R2 | - |
-  | Record | `SFL` (Subfile keywords + General + Indicator) | R3 | `WNDSFL`, `PULDWNSFL` |
+  | Record | `SFL` (Subfile keywords + General + Indicator) | R3 ✅ | `WNDSFL`, `PULDWNSFL` |
   | Record | `SFLCTL` (Subfile Control: General/Display Layout/Subfile Messages) | R4 | `SFLMSGCTL`, `WNDSFCTL`, `PDNSFLCTL` |
-  | Record | `SFLMSG` (Message Record + General + Indicator) | R5 | - |
-  | Record | `WINDOW` (Window Parameters + Border set) | R7 | `WNDSFL`, `WNDSFCTL`, `PULLDOWN`, `PULDWNSFL`, `PDNSFLCTL` (border set) |
+  | Record | `SFLMSG` (Message Record + General + Indicator) | R5 ✅ | - |
+  | Record | `WINDOW` (Window Parameters + Border set) | R7 ✅ | `WNDSFL`, `WNDSFCTL`, `PULLDOWN`, `PULDWNSFL`, `PDNSFLCTL` (border set) |
   | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 | `PULDWNSFL`, `PDNSFLCTL` |
   | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 | - |
   | Record | Combination types (`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | R6, R8, R9, R11, R12 | wiring-only, depend on the rows above |
@@ -247,7 +278,7 @@ picked up after the current round of fixes.
   | Field | Character wiring | D2 ✅ | - |
   | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 | - |
   | Field | Constant (subset + Menu-Bar Keywords) | D4 | - |
-  | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 | - |
+  | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 ✅ | - |
 
   Status per task is tracked in
   [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)
