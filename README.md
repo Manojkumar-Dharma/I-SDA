@@ -13,7 +13,14 @@ changes straight back into the original source — all inside VS Code.
 Early but functional. The parser, screen resolver, and interactive editor
 have been verified against IBM's own published DDS examples and round-trip
 tested (edit → regenerate source lines → re-parse → confirm nothing else
-changed).
+changed). Every DDS keyword category - file-, record-, and field-level -
+now has a dedicated SDA-style picker screen mapped against real SDA's own
+"Select/Define \_\_\_ Keywords" panels, replacing free-typed keyword entry
+with pick-from-a-screen UI; see
+[`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md) and
+[`CHANGELOG.md`](CHANGELOG.md) for the full task-by-task history. The
+generic Keywords tab (free-text name/parameters) remains the catch-all
+for anything without a dedicated screen.
 
 ## Architecture
 
@@ -200,41 +207,16 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 ## Planned enhancements
 
 Forward-looking work, distinct from Known limitations above (which
-describes what's true about the current build) - not yet started, to be
-picked up after the current round of fixes.
+describes what's true about the current build) - not yet started.
 
-- **SDA-style picker screens for keywords, attributes, and conditioning**,
-  replacing free-typed keyword entry with pick-from-a-screen UI, the way
-  real SDA prompts for each keyword's own fields rather than having you
-  type `COLOR(RED)` by hand, mapped directly against real SDA's own
-  "Select/Define \_\_\_ Keywords" screens (from screenshots of an actual
-  STRSDA session - see [`docs/sda-reference/`](docs/sda-reference/))
-  rather than from the DDS keyword reference alone, since SDA groups
-  keywords by function differently than the reference does. The work is
-  split **by screen, not by record/field type**, so each screen is built
-  once as a shared component and wired into every type that uses it.
-
-  Done: the file-level picker, every field type (Character, Numeric,
-  Constant, plus Menu-bar choice fields), and every record type (base
-  Record Keywords plus every specific type - Subfile, Subfile Control,
-  Message Subfile, Window, Pull-down, Menu Bar, and their combinations -
-  `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`). All five
-  combination record types turned out to be ordinary existing record
-  types wearing two keywords at once, needing no new code beyond
-  verification and test coverage. The generic Keywords tab (free-text
-  name/parameters) remains the catch-all for anything without a
-  dedicated screen.
-
-  Full task-by-task history and current status are tracked in
-  [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)
-  and [`CHANGELOG.md`](CHANGELOG.md). Two further directions now that the
-  picker-screens work is complete:
-  - Surface the per-keyword Conditioning toggle directly on each
-    dedicated picker panel (today it only lives in the raw Keywords tab),
-    so conditioning a color/attribute/edit-code pick doesn't require
-    dropping into free-text keyword entry.
-  - Menu designer options get the same treatment - its per-option
-    Conditioning panel already follows a similar structure to build on.
+- **Surface the per-keyword Conditioning toggle directly on each
+  dedicated picker panel** (color/attribute, edit-code, record-level
+  pickers, etc.) - today it only lives in the raw Keywords tab, so
+  conditioning a pick (e.g. `COLOR(RED)` under indicator 10) still
+  requires dropping into free-text keyword entry.
+- **Menu designer options get the same dedicated-picker treatment** the
+  DSPF designer's keywords now have - its per-option Conditioning panel
+  already follows a similar structure to build on.
 
 ## License
 
