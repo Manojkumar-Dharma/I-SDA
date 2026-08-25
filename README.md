@@ -214,24 +214,21 @@ picked up after the current round of fixes.
   split **by screen, not by record/field type**, so each screen is built
   once as a shared component and wired into every type that uses it.
 
-  Essentially done: the file-level picker, every field type (Character,
-  Numeric, Constant, plus Menu-bar choice fields), and every record type
-  (base Record Keywords plus every specific type - Subfile, Subfile
-  Control, Message Subfile, Window, Pull-down, Menu Bar, and their
-  combinations). The only piece left is **`PDNSFLCTL`** (a pull-down
-  subfile's control record) - its siblings (`SFLMSGCTL`, `WNDSFL`,
-  `WNDSFCTL`, `PULDWNSFL`) all turned out to be ordinary existing record
+  Done: the file-level picker, every field type (Character, Numeric,
+  Constant, plus Menu-bar choice fields), and every record type (base
+  Record Keywords plus every specific type - Subfile, Subfile Control,
+  Message Subfile, Window, Pull-down, Menu Bar, and their combinations -
+  `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`). All five
+  combination record types turned out to be ordinary existing record
   types wearing two keywords at once, needing no new code beyond
-  verification and test coverage; `PDNSFLCTL` likely follows the same
-  pattern but isn't confirmed yet. The generic Keywords tab (free-text
+  verification and test coverage. The generic Keywords tab (free-text
   name/parameters) remains the catch-all for anything without a
   dedicated screen.
 
   Full task-by-task history and current status are tracked in
   [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)
-  and [`CHANGELOG.md`](CHANGELOG.md) - update the plan doc's Status
-  column when picking up or finishing a task so parallel sessions don't
-  duplicate work. Two further directions once `PDNSFLCTL` lands:
+  and [`CHANGELOG.md`](CHANGELOG.md). Two further directions now that the
+  picker-screens work is complete:
   - Surface the per-keyword Conditioning toggle directly on each
     dedicated picker panel (today it only lives in the raw Keywords tab),
     so conditioning a color/attribute/edit-code pick doesn't require

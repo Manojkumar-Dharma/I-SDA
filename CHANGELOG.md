@@ -61,6 +61,55 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     → `runWndSflScenario` → `runPuldwnsflPickerScenario` all run in
     sequence from the same `npm test` entry point.
 
+- **Task R9 - WNDSFCTL wiring** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`): same finding as Task R6 -
+  "WNDSFCTL" isn't a distinct DDS keyword either. A windowed subfile
+  control record is an entirely ordinary `SFLCTL` record (`SFLCTL(name)`,
+  same `SFLDSP`/`SFLSIZ`/`SFLPAG`/etc. as any other subfile control
+  record) that also happens to carry a `WINDOW` keyword. Task R4's
+  `isSflCtlRecord`/`sflCtlPanelsHtml` and Task R7's `isWindowRecord`/
+  `windowPanelsHtml` each key purely off the record's own keywords, with
+  no awareness of each other, and `renderRecordProps` already renders
+  their tabs from independent `if` blocks rather than mutually-exclusive
+  branches - so a record carrying both keywords already gets BOTH the
+  SFLCTL tab and the Window tab, each with a fully working picker. Zero
+  new `dspfWriter.js` primitives or `webviewClientHelpers.js` panels
+  needed, the same "no screens of its own, existing wiring already
+  applies" shape Task R6 took for SFLMSGCTL.
+  - New `runWndSfCtlPickerScenario` in `dspfWebview.test.js`: builds a
+    genuine SFL detail record paired with an `SFLCTL(name)` + `WINDOW(...)`
+    control record, and confirms the control record gets both the SFLCTL
+    tab (General pre-fills/commits exactly as Task R4's own test) and the
+    Window tab (Window Parameters pre-fill/commit exactly as Task R7's own
+    test), with edits on either tab leaving the other tab's keywords - and
+    the paired detail record's own `SFL` keyword - untouched.
+
+- **Task R12 - PDNSFLCTL wiring** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`): same finding again, this
+  time for the pull-down/subfile combination. A pull-down subfile control
+  record is an entirely ordinary `SFLCTL` record that also happens to
+  carry a `PULLDOWN` keyword. Task R4's `isSflCtlRecord`/
+  `sflCtlPanelsHtml` and Task R10's `isPulldownRecord`/`pulldownPanelsHtml`
+  each key purely off the record's own keywords, with no awareness of
+  each other, and `renderRecordProps` already renders their tabs from
+  independent `if` blocks - so a record carrying both keywords already
+  gets BOTH the SFLCTL tab and the Pull-down tab, each with a fully
+  working picker. Zero new `dspfWriter.js` primitives or
+  `webviewClientHelpers.js` panels needed, the same shape Tasks R6 and R9
+  already established for their own combination records.
+  - New `runPdnSflCtlPickerScenario` in `dspfWebview.test.js`: builds a
+    genuine SFL detail record paired with an `SFLCTL(name)` +
+    `PULLDOWN(*SLTIND)` control record, and confirms the control record
+    gets both the SFLCTL tab (General pre-fills/commits exactly as Task
+    R4's own test) and the Pull-down tab (General + Border Parameters
+    pre-fill/commit exactly as Task R10's own test), with edits on either
+    tab leaving the other tab's keywords - and the paired detail record's
+    own `SFL` keyword - untouched.
+
+  With Task R12 landing, every row in `PICKER-SCREENS-PLAN.md` is now
+  `done` - the SDA-style picker-screens effort from the "Planned
+  enhancements" section of the README is complete.
+
 ## [0.9.53] - Unreleased
 
 ### Added
@@ -152,29 +201,6 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - 3 new `dspfWriter.test.js` checks (`HLPID` round-trip) plus 8 new
     `dspfWebview.test.js` checks (constant-in-a-MNUBAR-record scenario,
     confirming Menu-bar panels appear but Choice selection type doesn't).
-
-- **Task R9 - WNDSFCTL wiring** (see
-  `docs/sda-reference/PICKER-SCREENS-PLAN.md`): same finding as Task R6 -
-  "WNDSFCTL" isn't a distinct DDS keyword either. A windowed subfile
-  control record is an entirely ordinary `SFLCTL` record (`SFLCTL(name)`,
-  same `SFLDSP`/`SFLSIZ`/`SFLPAG`/etc. as any other subfile control
-  record) that also happens to carry a `WINDOW` keyword. Task R4's
-  `isSflCtlRecord`/`sflCtlPanelsHtml` and Task R7's `isWindowRecord`/
-  `windowPanelsHtml` each key purely off the record's own keywords, with
-  no awareness of each other, and `renderRecordProps` already renders
-  their tabs from independent `if` blocks rather than mutually-exclusive
-  branches - so a record carrying both keywords already gets BOTH the
-  SFLCTL tab and the Window tab, each with a fully working picker. Zero
-  new `dspfWriter.js` primitives or `webviewClientHelpers.js` panels
-  needed, the same "no screens of its own, existing wiring already
-  applies" shape Task R6 took for SFLMSGCTL.
-  - New `runWndSfCtlPickerScenario` in `dspfWebview.test.js`: builds a
-    genuine SFL detail record paired with an `SFLCTL(name)` + `WINDOW(...)`
-    control record, and confirms the control record gets both the SFLCTL
-    tab (General pre-fills/commits exactly as Task R4's own test) and the
-    Window tab (Window Parameters pre-fill/commit exactly as Task R7's own
-    test), with edits on either tab leaving the other tab's keywords - and
-    the paired detail record's own `SFL` keyword - untouched.
 
 ## [0.9.52] - Unreleased
 

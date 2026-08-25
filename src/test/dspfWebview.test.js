@@ -3261,6 +3261,114 @@ function runPuldwnsflPickerScenario() {
     const dtlRecFinal = reparsed.records.find((r) => r.name === 'PDTL1');
     check("PDTL1's own SFL/KEEP are untouched by the control record's edit", dtlRecFinal.keywords.some((k) => k.name === 'SFL') && dtlRecFinal.keywords.some((k) => k.name === 'KEEP'));
 
+    runPdnSflCtlPickerScenario();
+  }, 0);
+}
+
+// Task R12 - "PDNSFLCTL" isn't a distinct DDS keyword either, same shape as
+// Task R6 (SFLMSGCTL), Task R9 (WNDSFCTL), and Task R11 (PULDWNSFL): it's an
+// ordinary SFLCTL record that ALSO carries a PULLDOWN keyword, making it a
+// pull-down subfile control record. Task R4's isSflCtlRecord/sflCtlPanelsHtml and
+// Task R10's isPulldownRecord/pulldownPanelsHtml each key purely off the
+// record's own keywords (SFLCTL / PULLDOWN respectively), with no
+// awareness of each other or of any paired record - and
+// renderRecordProps already renders their tabs from independent `if`
+// blocks, so a record carrying both keywords already gets BOTH the
+// SFLCTL tab and the Pull-down tab, each with its own picker, with zero
+// new dspfWriter.js primitives or webviewClientHelpers.js panels needed.
+// This scenario is the verification: a genuine pull-down subfile control
+// record gets both tabs, each panel pre-fills and commits independently
+// without disturbing the other's keywords or the paired SFL detail
+// record.
+function runPdnSflCtlPickerScenario() {
+  console.log('\nPDNSFLCTL wiring (Task R12): a pull-down subfile control record is an ordinary SFLCTL record that also carries PULLDOWN - Task R4\u2019s and Task R10\u2019s pickers already apply as-is, no new code needed');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'PSFDTL', func: 'SFL' }),
+      buildLine({ seq: '00020', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'PSFCTL', func: 'SFLCTL(PSFDTL)' }),
+      buildLine({ seq: '00040', func: 'SFLSIZ(20)' }),
+      buildLine({ seq: '00050', func: 'SFLPAG(10)' }),
+      buildLine({ seq: '00060', func: 'PULLDOWN(*SLTIND)' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', src, 'PDNSFLCTL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+    const tabLabels = () => Array.from(doc.querySelectorAll('.props-tab')).map((b) => b.textContent.trim());
+
+    console.log('  PSFDTL (plain SFL detail record) is unaffected - gets SFL, not SFLCTL or Pull-down');
+    recordSelect.value = 'PSFDTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('PSFDTL gets the SFL tab', tabLabels().includes('SFL'));
+    check('PSFDTL does NOT get the SFLCTL tab', !tabLabels().includes('SFLCTL'));
+    check('PSFDTL does NOT get the Pull-down tab', !tabLabels().includes('Pull-down'));
+
+    console.log('  PSFCTL (SFLCTL + PULLDOWN together) gets BOTH the SFLCTL tab and the Pull-down tab, not SFL');
+    recordSelect.value = 'PSFCTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('PSFCTL gets the SFLCTL tab', tabLabels().includes('SFLCTL'));
+    check('PSFCTL gets the Pull-down tab', tabLabels().includes('Pull-down'));
+    check('PSFCTL does NOT get the SFL tab', !tabLabels().includes('SFL'));
+
+    const sflctlTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLCTL');
+    sflctlTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const p = 'sflctl-PSFCTL';
+    console.log('  SFLCTL tab: General pre-fills exactly as on a plain SFLCTL record (Task R4\u2019s panel, unmodified)');
+    check('SFLSIZ pre-filled', doc.getElementById(p + '-sflsiz').value === '20');
+    check('SFLPAG pre-filled', doc.getElementById(p + '-sflpag').value === '10');
+    doc.getElementById(p + '-sfldsp-on').checked = true;
+    doc.getElementById(p + '-sfldsp-on').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('SFLDSP was added to PSFCTL', reparsed.keywords.some((k) => k.name === 'SFLDSP'));
+    check("PSFCTL's PULLDOWN keyword is untouched by the SFLCTL-tab edit", reparsed.keywords.find((k) => k.name === 'PULLDOWN').parameters.trim() === '*SLTIND');
+    posted.length = 0;
+
+    const pulldownTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Pull-down');
+    pulldownTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const rpdPrefix = 'rpd-PSFCTL';
+    console.log('  Pull-down tab: General pre-fills exactly as on a plain PULLDOWN record (Task R10\u2019s panel, unmodified)');
+    check('PULLDOWN starts checked (already present in the source)', doc.getElementById(rpdPrefix + '-on').checked);
+    check('*SLTIND starts checked (already present in the source)', doc.getElementById(rpdPrefix + '-sltind').checked);
+    check('*RSTCSR starts unchecked (not in the source)', !doc.getElementById(rpdPrefix + '-rstcsr').checked);
+
+    doc.getElementById(rpdPrefix + '-rstcsr').checked = true;
+    doc.getElementById(rpdPrefix + '-rstcsr').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('PULLDOWN now carries both *SLTIND and *RSTCSR', /\*SLTIND/.test(reparsed.keywords.find((k) => k.name === 'PULLDOWN').parameters) && /\*RSTCSR/.test(reparsed.keywords.find((k) => k.name === 'PULLDOWN').parameters));
+    check("PSFCTL's SFLCTL keyword is untouched by the Pull-down-tab edit", reparsed.keywords.find((k) => k.name === 'SFLCTL').parameters.trim() === 'PSFDTL');
+    check("PSFCTL's SFLDSP (added on the SFLCTL tab above) survived the Pull-down-tab edit", reparsed.keywords.some((k) => k.name === 'SFLDSP'));
+    posted.length = 0;
+
+    console.log('  Border Parameters (Pull-down tab): applying color writes WDWBORDER, same shared F1/R7/R10 panel, other keywords untouched');
+    doc.getElementById(rpdPrefix + '-wdw-color-on').checked = true;
+    doc.getElementById(rpdPrefix + '-wdw-color').value = 'RED';
+    doc.getElementById(rpdPrefix + '-wdw-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    const wdwBorderKw = reparsed.keywords.find((k) => k.name === 'WDWBORDER');
+    check('WDWBORDER written with *COLOR RED', wdwBorderKw && /\*COLOR RED/.test(wdwBorderKw.parameters));
+    check("PSFCTL's own SFLCTL keyword is untouched by the border edit", reparsed.keywords.find((k) => k.name === 'SFLCTL').parameters.trim() === 'PSFDTL');
+    const dtlRec = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFDTL');
+    check("PSFDTL's own SFL keyword is untouched throughout", dtlRec.keywords.some((k) => k.name === 'SFL'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
