@@ -295,6 +295,31 @@ const htmlTemplate = `<!DOCTYPE html>
     transition: border-color 150ms var(--ease-out);
   }
   body[data-ui-style="modern"] .panel-toggle-btn { transition: color 150ms var(--ease-out); }
+
+  /* Static (non-interaction) differences - these are the ones actually
+     visible without hovering/clicking/tabbing, since everything above this
+     point only changes appearance ON a state change. Kept intentionally
+     modest so the retro/monospace identity still reads as the same app,
+     not a redesign. */
+  body[data-ui-style="modern"] .props-tab.active {
+    background: rgba(51, 255, 102, 0.12);
+    border-radius: 3px 3px 0 0;
+  }
+  body[data-ui-style="modern"] .keyword-chip {
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+  body[data-ui-style="modern"] .section-label {
+    border-left: 2px solid var(--accent);
+    padding-left: 6px;
+  }
+  body[data-ui-style="modern"] button:not(.ui-style-toggle):not(.panel-toggle-btn) {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  }
+  body[data-ui-style="modern"] .props-panel,
+  body[data-ui-style="modern"] aside {
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+  }
 </style>
 </head>
 <body data-ui-style="${UI_STYLE_TOKEN}">

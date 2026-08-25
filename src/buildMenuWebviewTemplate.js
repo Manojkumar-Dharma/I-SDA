@@ -215,6 +215,27 @@ const htmlTemplate = `<!DOCTYPE html>
     animation: isda-fade-in 150ms var(--ease-out);
   }
   @keyframes isda-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Static (non-interaction) differences - see buildWebviewTemplate.js's
+     copy of this comment for why these exist alongside the transition
+     rules above. */
+  body[data-ui-style="modern"] .keyword-chip {
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+  body[data-ui-style="modern"] .section-label {
+    border-left: 2px solid var(--accent);
+    padding-left: 6px;
+  }
+  body[data-ui-style="modern"] button:not(.ui-style-toggle) {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  }
+  body[data-ui-style="modern"] .option-row {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  body[data-ui-style="modern"] aside {
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+  }
 </style>
 </head>
 <body data-ui-style="${UI_STYLE_TOKEN}">
