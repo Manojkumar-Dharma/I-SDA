@@ -6,6 +6,46 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.55] - Unreleased
 
 ### Added
+- **Task L1 - multi-instance conditioned keywords: foundation** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Every dedicated keyword
+  picker today (Color & attributes, Error message, Subfile Messages,
+  etc.) manages ONE instance of its keyword(s) at a time, conditioned as
+  a whole via the generic keyword editor's Conditioning toggle - real
+  DDS additionally allows MULTIPLE independently-conditioned instances
+  of the same keyword (e.g. `COLOR(RED)` under indicator 10 and
+  `COLOR(GRN)` under indicator 20 on the same field). This task builds
+  the reusable "repeatable conditioned instance" primitive any picker
+  panel can wrap around its own `getX`/`setX` pair - the same shape
+  Task R3's `INDTXT`/`SETOF`/`CHANGE` repeatable-row list already proved
+  out, generalized two ways: full AND/OR conditioning per instance
+  (reusing the existing `conditionsEditorHtml`/`wireConditionsEditor`
+  pair the generic keyword editor's own Conditioning toggle already
+  uses, instead of a single bare indicator number), and an arbitrary
+  caller-defined payload per instance, so it isn't tied to
+  indicator+text shape or the SFL panel. No picker panel wires into this
+  yet - that's L1a (Color & attributes), L1b (Error message), and L1c
+  (Subfile Messages), each trackable independently once this lands.
+  - `dspfWriter.js`: `getRepeatableKeywordInstances`/
+    `setRepeatableKeywordInstances` - reads/writes every instance of a
+    given keyword-name list as `{ name, parameters, conditions }[]`,
+    preserving each instance's own full `conditions` array (unlike
+    `getIndicatorTextRows`/`setIndicatorTextRows`, which collapse each
+    instance to a single indicator number).
+  - `webviewClientHelpers.js`: `repeatableConditionedInstancesHtml`/
+    `wireRepeatableConditionedInstances` - the matching generic UI shell
+    (repeatable list, per-instance Conditioning accordion, add/remove),
+    delegating the keyword-specific payload entirely to the caller via
+    `renderPayload`/`wirePayload`/`makeDefaultInstance`.
+  - New `src/test/repeatableConditionedInstances.test.js` (jsdom,
+    actually runs the generated click/change handlers rather than
+    string-matching the HTML): writer-layer round-trips including
+    multiple keyword names sharing one repeatable group and malformed-
+    entry handling; client-layer rendering, remove/add, conditioning-
+    accordion expand+edit, and payload-merge behavior, each confirming
+    other instances are left untouched; one end-to-end scenario chaining
+    both layers the way a future picker will.
+  - `LIMITATIONS-PLAN.md` and README both updated.
+
 - **Task R8 - WNDSFL (Window + Subfile combination)**, the first of the
   Wave 4 "combination type" tasks (see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`). Required **zero new

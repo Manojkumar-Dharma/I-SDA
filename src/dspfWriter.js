@@ -1493,6 +1493,79 @@
     return next;
   }
 
+  // -----------------------------------------------------------------------
+  // Task L1 - generic repeatable, independently-conditioned keyword
+  // instances. getIndicatorTextRows/setIndicatorTextRows above already
+  // generalize "one keyword name, multiple instances" across INDTXT/SETOF/
+  // CHANGE, but collapse each instance down to a single response indicator
+  // (SETOF(nn)/CHANGE(nn)/INDTXT(nn 'text') are genuinely indicator-only in
+  // real DDS, so that was enough there). Real SDA's other multi-instance
+  // screens - Color & attributes (COLOR/DSPATR), Error message (ERRMSG/
+  // ERRMSGID), Subfile Messages (SFLMSG/SFLMSGID) - condition each instance
+  // with a FULL indicator expression the same way any other keyword can
+  // (AND'd groups, OR'd alternatives, a display-size condition), not just
+  // one bare indicator number. These two functions are that generalization:
+  // same "read every instance of these keyword names, write back a fresh
+  // set" shape, but preserving/accepting each instance's own `conditions`
+  // array verbatim (the same shape conditionsEditorHtml/wireConditionsEditor
+  // in webviewClientHelpers.js already edit for a keyword's Conditioning
+  // toggle), instead of parsing/re-serializing an indicator out of
+  // `parameters`.
+  //
+  // This is the L1 "foundation" - no picker wires into it yet (see
+  // repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances in
+  // webviewClientHelpers.js for the matching generic UI piece). L1a/L1b/L1c
+  // wire this pair into the Color & attributes, Error message, and Subfile
+  // Messages pickers respectively; each of those needs its own decision
+  // about what a single "instance" bundles together (e.g. Color &
+  // attributes pairs one COLOR with one DSPATR under a SHARED condition,
+  // which is a picker-level concern, not something this generic primitive
+  // needs to know about - a caller there would call this twice, once per
+  // keyword name, and pair up entries whose `conditions` match).
+  // -----------------------------------------------------------------------
+
+  /** Reads every instance of any keyword in `names` (e.g. `['COLOR']` or
+   *  `['ERRMSG', 'ERRMSGID']`) as a repeatable, independently-conditioned
+   *  instance list - `{ name, parameters, conditions }[]`, in source order.
+   *  `conditions` is each instance's OWN full condition-group array (not
+   *  collapsed to a single indicator like getIndicatorTextRows) - callers
+   *  that only need a bare indicator number can still read `conditions[0]
+   *  .indicators[0].number` themselves, same as any other keyword's
+   *  conditioning already works. `parameters` is left as raw, already-
+   *  formatted DDS parameter text (quoting/escaping is the caller's job,
+   *  same convention as the generic keyword editor's own add-keyword box) -
+   *  this primitive doesn't know or care what shape a given keyword's
+   *  parameters take. */
+  function getRepeatableKeywordInstances(keywords, names) {
+    var list = names || [];
+    return (keywords || [])
+      .filter(function (k) { return list.indexOf(k.name) >= 0; })
+      .map(function (k) {
+        return { name: k.name, parameters: k.parameters || '', conditions: k.conditions || [] };
+      });
+  }
+
+  /** Returns a NEW keywords array with every existing instance of any
+   *  keyword in `names` removed, replaced by one keyword per entry in
+   *  `instances` (`{ name, parameters, conditions }`, `name` must be one of
+   *  `names`) - entries with a blank/unrecognized `name` are skipped.
+   *  Unlike setColorAttr/setErrorMessageText/etc (which always write
+   *  `conditions: []`, leaving conditioning to the generic keyword editor's
+   *  own toggle), each instance here keeps its OWN `conditions` - this is
+   *  what lets e.g. COLOR(RED) conditioned on indicator 10 and COLOR(GRN)
+   *  conditioned on indicator 20 coexist as two separate, independently-
+   *  conditioned COLOR keywords instead of one shared toggle covering
+   *  both. */
+  function setRepeatableKeywordInstances(keywords, names, instances) {
+    var list = names || [];
+    var next = (keywords || []).filter(function (k) { return list.indexOf(k.name) < 0; });
+    (instances || []).forEach(function (inst) {
+      if (!inst || !inst.name || list.indexOf(inst.name) < 0) return;
+      next = next.concat([{ name: inst.name, parameters: inst.parameters || '', conditions: inst.conditions || [], raw: '', sourceLines: [] }]);
+    });
+    return next;
+  }
+
   /**
    * Applies `updates` (currently just { keywords }) to a record format's own
    * entry line(s). Renaming isn't supported in v1 - other parts of the file
@@ -2670,6 +2743,8 @@
     setFileTwoFieldKeyword: setFileTwoFieldKeyword,
     getIndicatorTextRows: getIndicatorTextRows,
     setIndicatorTextRows: setIndicatorTextRows,
+    getRepeatableKeywordInstances: getRepeatableKeywordInstances,
+    setRepeatableKeywordInstances: setRepeatableKeywordInstances,
     getSflDisplayLayout: getSflDisplayLayout,
     setSflDisplayLayout: setSflDisplayLayout,
     getSflMsgId: getSflMsgId,

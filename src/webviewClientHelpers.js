@@ -2083,6 +2083,137 @@
     });
   }
 
+  // -----------------------------------------------------------------------
+  // Task L1 - generic "repeatable conditioned instance" component. The
+  // foundation piece any dedicated picker panel can wrap around its own
+  // getX/setX pair to move from managing ONE instance of a keyword
+  // (conditioned as a whole via keywordEditorHtml's own Conditioning
+  // toggle - see e.g. colorAttrEditorHtml) to managing MULTIPLE
+  // independently-conditioned instances - e.g. COLOR(RED) under indicator
+  // 10 and COLOR(GRN) under indicator 20 on the same field. This
+  // generalizes indicatorTextRowsHtml/wireIndicatorTextRows just above
+  // (fixed-row table, one bare indicator per row, SFL-specific) two ways:
+  // full AND/OR conditioning per instance (reusing the SAME
+  // conditionsEditorHtml/wireConditionsEditor pair the generic keyword
+  // editor's Conditioning toggle already uses, instead of a plain text
+  // box), and an arbitrary caller-supplied payload per instance, so it
+  // isn't tied to indicator+text shape or the SFL panel.
+  //
+  // This component owns the repeatable-list shell (add/remove an instance,
+  // expand/collapse its Conditioning accordion) and delegates the
+  // keyword-specific part entirely to the caller:
+  //   - `renderPayload(instance, instIdPrefix)` returns the HTML for one
+  //     instance's own fields (e.g. a COLOR select + DSPATR checkboxes) -
+  //     called once per instance during rendering.
+  //   - `wirePayload(instIdPrefix, instance, updatePayload)` wires those
+  //     fields' event listeners - called once per instance after render.
+  //     `updatePayload(partialFields)` merges `partialFields` onto that ONE
+  //     instance (shallow, e.g. `updatePayload({ parameters: 'RED' })`) and
+  //     commits the whole instances array via `onChange`.
+  //   - `makeDefaultInstance()` returns a fresh `{ conditions: [], ...}`
+  //     for the "+ Add" button to append - lets the caller decide a new
+  //     instance's starting payload (e.g. `{ name: 'COLOR', parameters: '' }`).
+  //
+  // `instances` is expected in the shape DspfWriter.
+  // getRepeatableKeywordInstances returns (or any caller-defined object
+  // that carries its own `conditions` array the same way) - this component
+  // never reads/writes DDS keyword text itself, only the `conditions`
+  // field and whatever `renderPayload`/`wirePayload` choose to look at.
+  // `idPrefix` follows the same per-owner-uniqueness convention as
+  // keywordEditorHtml/indicatorTextRowsHtml above. `expandedSet` is a
+  // caller-owned Set of "idPrefix:idx" strings that survives across
+  // re-renders (same convention keywordEditorHtml's own Conditioning
+  // toggle uses) so the accordion doesn't collapse itself on an unrelated
+  // re-render; `rerender` (never `onChange`) is called when a toggle
+  // flips, since that's pure UI state, not a document edit.
+  // -----------------------------------------------------------------------
+
+  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel) {
+    var list = instances || [];
+    var html = '<div id="' + idPrefix + '-instances">';
+    if (list.length === 0) {
+      html += '<div class="empty-state" style="margin-bottom:6px;">None defined.</div>';
+    }
+    list.forEach(function (inst, idx) {
+      var conditions = inst.conditions || [];
+      var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
+      var isExpanded = !!(expandedSet && expandedSet.has(idPrefix + ':' + idx));
+      var instIdPrefix = idPrefix + '-inst' + idx;
+      html += '<div class="repeat-inst" data-prefix="' + idPrefix + '" data-idx="' + idx + '">';
+      html += '<div class="repeat-inst-main">';
+      html += renderPayload(inst, instIdPrefix);
+      html += '<span class="repeat-inst-cond-toggle" data-prefix="' + idPrefix + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      html += '<button class="repeat-inst-remove" data-prefix="' + idPrefix + '" data-idx="' + idx + '">\u00d7 Remove</button>';
+      html += '</div>';
+      if (isExpanded) {
+        html += '<div class="repeat-inst-cond-body">' + conditionsEditorHtml(conditions, instIdPrefix) + '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<button class="secondary repeat-inst-add" data-prefix="' + idPrefix + '" style="width:100%;margin-top:8px;">' + (addLabel || '+ Add instance') + '</button>';
+    return html;
+  }
+
+  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, makeDefaultInstance) {
+    var list = instances || [];
+
+    function replaceAt(idx, updater) {
+      var next = list.map(function (inst, i) { return i === idx ? updater(inst) : inst; });
+      onChange(next);
+    }
+
+    document.querySelectorAll('.repeat-inst-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(btn.getAttribute('data-idx'), 10);
+        var next = list.slice();
+        next.splice(idx, 1);
+        onChange(next);
+      });
+    });
+
+    document.querySelectorAll('.repeat-inst-cond-toggle[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
+      var idx = parseInt(btn.getAttribute('data-idx'), 10);
+      var expandKey = idPrefix + ':' + idx;
+      btn.addEventListener('click', function () {
+        if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+        else expandedSet.add(expandKey);
+        if (rerender) rerender();
+      });
+      if (expandedSet && expandedSet.has(expandKey) && list[idx]) {
+        wireConditionsEditor(idPrefix + '-inst' + idx, list[idx].conditions, function (newConditions) {
+          replaceAt(idx, function (inst) {
+            var copy = {};
+            for (var k in inst) { if (Object.prototype.hasOwnProperty.call(inst, k)) copy[k] = inst[k]; }
+            copy.conditions = newConditions;
+            return copy;
+          });
+        });
+      }
+    });
+
+    if (wirePayload) {
+      list.forEach(function (inst, idx) {
+        wirePayload(idPrefix + '-inst' + idx, inst, function (partialFields) {
+          replaceAt(idx, function (existing) {
+            var copy = {};
+            for (var k in existing) { if (Object.prototype.hasOwnProperty.call(existing, k)) copy[k] = existing[k]; }
+            for (var pk in partialFields) { if (Object.prototype.hasOwnProperty.call(partialFields, pk)) copy[pk] = partialFields[pk]; }
+            return copy;
+          });
+        });
+      });
+    }
+
+    var addBtn = document.querySelector('.repeat-inst-add[data-prefix="' + idPrefix + '"]');
+    if (addBtn) {
+      addBtn.addEventListener('click', function () {
+        var fresh = makeDefaultInstance ? makeDefaultInstance() : { conditions: [] };
+        onChange(list.concat([fresh]));
+      });
+    }
+  }
+
   /** True for a plain SFL (subfile) record - has the SFL keyword but is
    *  NOT an SFLMSG record (SFLMSG records carry SFL too, but get their
    *  own SFLMSG tab from sflMsgPanelsHtml instead of this one, since real
@@ -2598,5 +2729,7 @@
     wireSflKeywordsPanels: wireSflKeywordsPanels,
     indicatorTextRowsHtml: indicatorTextRowsHtml,
     wireIndicatorTextRows: wireIndicatorTextRows,
+    repeatableConditionedInstancesHtml: repeatableConditionedInstancesHtml,
+    wireRepeatableConditionedInstances: wireRepeatableConditionedInstances,
   };
 });
