@@ -68,7 +68,7 @@ Display Attributes and Colors) rather than genuinely new keyword handling.
 
 | Task | Component | Screens | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| **R6** | SFLMSGCTL-specific (same shape as R4: General/Display Layout/Subfile Messages) + wire to R1 | `screens/record-level/subfile-message-sflmsg/*` (control variant) | R4 (reuse the Subfile Control Keywords pattern built there) | not started |
+| **R6** | SFLMSGCTL wiring — confirmed "SFLMSGCTL" isn't a distinct DDS keyword: a message subfile's control record is an ordinary `SFLCTL` record (its "message" flavor lives entirely on the paired detail record's own `SFLMSGRCD`, Task R5). Task R4's `isSflCtlRecord`/`sflCtlPanelsHtml`/`wireSflCtlPanels` key only off the control record's own keywords, so they already cover this correctly — zero new dspfWriter.js/webviewClientHelpers.js code needed, same "no screens of its own" shape R2 took. `runSflMsgCtlPickerScenario` in `dspfWebview.test.js` verifies the SFLCTL tab/panels on a genuine SFL+SFLMSGRCD-paired control record. | `screens/record-level/subfile-message-sflmsg/*` (control variant) | R4 (reuse the Subfile Control Keywords pattern built there) | done |
 | **R8** | WNDSFL-specific | `screens/record-level/window-subfile-wndsfl/*` | R3 (subfile General/Indicator), R7 (window/border set) | not started |
 | **R9** | WNDSFCTL-specific | `screens/record-level/window-subfile-control-wndsfctl/*` | R4 (subfile control pattern), R7 (window/border set) | not started |
 | **R11** | PULDWNSFL-specific | `screens/record-level/pulldown-subfile-puldwnsfl/*` | R3, R10 | not started |

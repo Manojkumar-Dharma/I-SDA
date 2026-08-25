@@ -2705,6 +2705,99 @@ function runPulldownPickerScenario() {
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PDN1');
     check('PULLDOWN removed', !reparsed.keywords.some((k) => k.name === 'PULLDOWN'));
 
+    runSflMsgCtlPickerScenario();
+  }, 0);
+}
+
+// Task R6 - "SFLMSGCTL" isn't a distinct DDS keyword: a message subfile's
+// control record is a completely ordinary SFLCTL record (SFLCTL(name),
+// same SFLDSP/SFLSIZ/SFLPAG/etc. as any other subfile control record) -
+// the "message" flavor lives entirely on the DETAIL record (SFL +
+// SFLMSGRCD, Task R5's own tab), not on anything the control record
+// itself carries. Task R4's isSflCtlRecord/sflCtlPanelsHtml/
+// wireSflCtlPanels already key purely off the control record's OWN
+// SFLCTL keyword, with no awareness of what its paired detail record
+// looks like - so they already cover this case correctly, with zero new
+// dspfWriter.js primitives or webviewClientHelpers.js panels needed, the
+// same "no screens of its own, existing wiring already applies" shape
+// Task R2 (USRDFN) took for R1. This scenario is the verification: an
+// SFLCTL record paired with a genuine SFLMSG (not plain SFL) detail
+// record still gets the SFLCTL tab, still commits normally, and doesn't
+// bleed into or get confused with the detail record's own SFLMSG tab.
+function runSflMsgCtlPickerScenario() {
+  console.log('\nSFLMSGCTL wiring (Task R6): a message subfile\u2019s SFLCTL control record is an ordinary SFLCTL record - Task R4\u2019s picker already applies as-is, no new code needed');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'MSGDTL', func: 'SFL' }),
+      buildLine({ seq: '00020', func: 'SFLMSGRCD(24)' }),
+      buildLine({ seq: '00030', name: 'MSGKEY', dataType: 'A', length: '4', usage: 'H', func: 'SFLMSGKEY' }),
+      buildLine({ seq: '00040', name: 'PGMQ', dataType: 'A', length: '10', usage: 'H', func: 'SFLPGMQ' }),
+      buildLine({ seq: '00050', nameType: 'R', name: 'MSGCTL', func: 'SFLCTL(MSGDTL)' }),
+      buildLine({ seq: '00060', func: 'SFLSIZ(20)' }),
+      buildLine({ seq: '00070', func: 'SFLPAG(10)' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLMSGCTL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  MSGDTL (SFL + SFLMSGRCD) gets the SFLMSG tab, not SFL or SFLCTL');
+    recordSelect.value = 'MSGDTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const tabLabels = () => Array.from(doc.querySelectorAll('.props-tab')).map((b) => b.textContent.trim());
+    check('MSGDTL gets the SFLMSG tab', tabLabels().includes('SFLMSG'));
+    check('MSGDTL does NOT get the SFL tab', !tabLabels().includes('SFL'));
+    check('MSGDTL does NOT get the SFLCTL tab', !tabLabels().includes('SFLCTL'));
+
+    console.log('  MSGCTL (SFLCTL paired with a message-subfile detail record) gets the SFLCTL tab, not SFLMSG or SFL - same as any other SFLCTL record');
+    recordSelect.value = 'MSGCTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('MSGCTL gets the SFLCTL tab', tabLabels().includes('SFLCTL'));
+    check('MSGCTL does NOT get the SFLMSG tab', !tabLabels().includes('SFLMSG'));
+    check('MSGCTL does NOT get the SFL tab', !tabLabels().includes('SFL'));
+    const sflctlTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLCTL');
+    sflctlTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    const p = 'sflctl-MSGCTL';
+    console.log('  General/Display Layout commit exactly as they do on a plain SFLCTL record (Task R4\u2019s panel, unmodified)');
+    check('SFLSIZ pre-filled', doc.getElementById(p + '-sflsiz').value === '20');
+    check('SFLPAG pre-filled', doc.getElementById(p + '-sflpag').value === '10');
+    doc.getElementById(p + '-sfldsp-on').checked = true;
+    doc.getElementById(p + '-sfldsp-on').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text);
+    let ctlRec = reparsed.records.find((r) => r.name === 'MSGCTL');
+    check('SFLDSP was added to MSGCTL', ctlRec.keywords.some((k) => k.name === 'SFLDSP'));
+    const dtlRec = reparsed.records.find((r) => r.name === 'MSGDTL');
+    check("MSGDTL's own SFL/SFLMSGRCD are untouched by the control record's edit", dtlRec.keywords.some((k) => k.name === 'SFL') && dtlRec.keywords.some((k) => k.name === 'SFLMSGRCD' && k.parameters.trim() === '24'));
+    posted.length = 0;
+
+    console.log('  Subfile Messages: SFLMSGID commits on the control record without disturbing the detail record\u2019s SFLMSGRCD-based message handling');
+    doc.getElementById(p + '-sflmsgid-id').value = 'MSG0001';
+    doc.getElementById(p + '-sflmsgid-file').value = 'MYMSGF';
+    doc.getElementById(p + '-sflmsgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text);
+    ctlRec = reparsed.records.find((r) => r.name === 'MSGCTL');
+    check('SFLMSGID written on MSGCTL', ctlRec.keywords.find((k) => k.name === 'SFLMSGID').parameters.trim() === 'MSG0001 MYMSGF');
+    const dtlRec2 = reparsed.records.find((r) => r.name === 'MSGDTL');
+    check("MSGDTL's SFLMSGRCD is still 24, untouched by the control record's own message-keyword edit", dtlRec2.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === '24');
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

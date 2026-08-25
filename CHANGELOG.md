@@ -6,6 +6,32 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.53] - Unreleased
 
 ### Added
+- **Task R6 - SFLMSGCTL wiring** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`): confirmed "SFLMSGCTL"
+  isn't a distinct DDS keyword - a message subfile's control record is
+  an entirely ordinary `SFLCTL` record (`SFLCTL(name)`, same
+  `SFLDSP`/`SFLSIZ`/`SFLPAG`/etc. as any other subfile control record).
+  The "message" flavor lives entirely on the paired DETAIL record's own
+  `SFLMSGRCD` (Task R5's SFLMSG tab), not on anything the control record
+  itself carries. Task R4's `isSflCtlRecord`/`sflCtlPanelsHtml`/
+  `wireSflCtlPanels` already key purely off the control record's own
+  `SFLCTL` keyword, with no awareness of what its paired detail record
+  looks like - so they already cover this case correctly, exactly the
+  same "no screens of its own, existing wiring already applies" shape
+  Task R2 (USRDFN) took for R1. Zero new `dspfWriter.js` primitives or
+  `webviewClientHelpers.js` panels needed.
+  - New `runSflMsgCtlPickerScenario` in `dspfWebview.test.js`: builds a
+    genuine SFL+`SFLMSGRCD`-paired detail/control pair (not the plain
+    SFL/SFLCTL pair Task R4's own test already covers), and confirms the
+    detail record gets the SFLMSG tab while the control record gets the
+    SFLCTL tab (General/Display Layout/Subfile Messages all commit
+    normally), with edits to either record leaving the other's keywords
+    untouched.
+  - Docs sync: also added the missing "done" checkmark for Task R2
+    (USRDFN wiring) in README's picker-screens table - it was already
+    `done` in the plan doc and upstream, this just brings README in line
+    (Task R4's own checkmark was already fixed in the R10 commit).
+
 - **Task R13 - MNUBAR-specific record picker** (see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "MNUBAR" tab on the
   record properties panel shown only for records carrying `MNUBAR`, with
