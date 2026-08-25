@@ -162,7 +162,7 @@ setTimeout(() => {
 }, 0);
 
 function runDeleteWarningScenario() {
-  console.log('\ndeleting a named field warns if something else looks like it references it (e.g. REFFLD)');
+  console.log('\ndeleting a named field with likely references (e.g. REFFLD) is blocked on confirmation first (Task L2)');
   const delSource =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
@@ -185,15 +185,49 @@ function runDeleteWarningScenario() {
 
   setTimeout(() => {
     const delDoc = delDom.window.document;
+    const { Event, KeyboardEvent } = delDom.window;
     const target = Array.from(delDoc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('SRCFLD'));
     check('setup: the target field is present', !!target);
-    target.dispatchEvent(new delDom.window.Event('click', { bubbles: true }));
-    delDoc.body.dispatchEvent(new delDom.window.KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+    target.dispatchEvent(new Event('click', { bubbles: true }));
+    delDoc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+
+    check('nothing is deleted yet - a confirmation dialog blocks it first', !delPosted.some((m) => m.type === 'applyEdit'));
+    const dialog = delDoc.querySelector('.confirm-overlay');
+    check('a confirmation dialog is shown', !!dialog);
+    check('the dialog names the likely reference (REFFLD / SRCFLD / the reference line)', dialog && /REFFLD/.test(dialog.textContent) && /SRCFLD/.test(dialog.textContent) && /3/.test(dialog.textContent));
+    check('no post-hoc error message either - the confirmation IS the warning now', !delPosted.some((m) => m.type === 'error'));
+
+    console.log('  pressing Delete again while the dialog is open does not stack a second one or delete early');
+    delDoc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+    check('still exactly one dialog', delDoc.querySelectorAll('.confirm-overlay').length === 1);
+    check('still nothing deleted', !delPosted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  Cancel dismisses the dialog without deleting anything');
+    dialog.querySelector('.confirm-dialog-cancel').dispatchEvent(new Event('click', { bubbles: true }));
+    check('dialog is gone', !delDoc.querySelector('.confirm-overlay'));
+    check('field was never deleted', !delPosted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  Delete -> confirm dialog -> "Delete anyway" actually deletes, leaving the REFFLD reference dangling (no auto-fix)');
+    target.dispatchEvent(new Event('click', { bubbles: true }));
+    delDoc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+    const dialog2 = delDoc.querySelector('.confirm-overlay');
+    check('dialog reappears for the confirm-then-delete path', !!dialog2);
+    dialog2.querySelector('.confirm-dialog-confirm').dispatchEvent(new Event('click', { bubbles: true }));
 
     const applyEdit = delPosted.find((m) => m.type === 'applyEdit');
-    check('deletes the field', applyEdit && !applyEdit.text.includes('SRCFLD    10A'));
-    check('warns that REFFLD(SRCFLD) still looks like a reference', delPosted.some((m) => m.type === 'error' && /REFFLD/.test(m.message) && /SRCFLD/.test(m.message)));
+    check('deletes the field once confirmed', applyEdit && !applyEdit.text.includes('SRCFLD    10A'));
     check('does not rewrite the REFFLD reference itself (delete only warns, never auto-fixes)', applyEdit && applyEdit.text.includes('REFFLD(SRCFLD)'));
+    check('dialog is closed after confirming', !delDoc.querySelector('.confirm-overlay'));
+
+    console.log('  a field with NO detected references still deletes immediately - no confirmation click added to the common case');
+    delPosted.length = 0;
+    const othTarget = Array.from(delDoc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('OTHFLD'));
+    check('setup: OTHFLD (no incoming references) is present', !!othTarget);
+    othTarget.dispatchEvent(new Event('click', { bubbles: true }));
+    delDoc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+    check('no confirmation dialog for a field nothing references', !delDoc.querySelector('.confirm-overlay'));
+    const othApplyEdit = delPosted.find((m) => m.type === 'applyEdit');
+    check('deletes immediately', othApplyEdit && !othApplyEdit.text.includes('OTHFLD'));
 
     runSizeBoundsScenario();
   }, 0);

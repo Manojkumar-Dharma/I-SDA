@@ -46,6 +46,40 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     both layers the way a future picker will.
   - `LIMITATIONS-PLAN.md` and README both updated.
 
+- **Task L2 - delete-field reference cleanup** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Deleting a named field with
+  a likely reference elsewhere in the source (the same advisory
+  `findLikelyNameReferences` scan rename already falls back on) used to
+  delete immediately and only warn afterward via a passive error toast -
+  easy to miss, and the field was already gone by the time it showed.
+  Now it's blocked on an actionable confirmation dialog FIRST, naming
+  the reference count/lines, so the person can back out before losing
+  the field. Confirming still leaves the reference unrewritten - same as
+  before, there's nothing sensible to auto-fix it TO (rename's own
+  documented limitation) - so this is the "turn the warning into an
+  actionable prompt" option from the two the task description named,
+  not "auto-remove/comment-out the dangling reference": blindly rewriting
+  an arbitrary keyword's free-text parameters from a substring match
+  risked corrupting valid DDS worse than leaving it for manual review. A
+  field with NO detected references still deletes immediately, exactly
+  as before - no confirmation click added to the common case.
+  - New `showConfirmDialog` in `buildWebviewTemplate.js`: a small,
+    reusable, DOM-built modal overlay (not `window.confirm`, which would
+    block the whole webview process and doesn't match the app's dark
+    theme) - Cancel/backdrop-click dismiss without acting, only the
+    confirm button proceeds. Scoped to field deletion for this task;
+    record deletion (`commitDeleteRecord`) has the identical gap but is
+    a separate, untracked limitation, left alone here.
+  - `runDeleteWarningScenario` in `dspfWebview.test.js` rewritten for the
+    new flow: confirms nothing is deleted (and no dialog is stacked) on
+    a repeated Delete keypress while the dialog is open, Cancel leaves
+    the field untouched, confirming deletes and leaves `REFFLD` dangling
+    as before, and a field with no references still deletes with zero
+    added clicks.
+  - README's Known limitations updated to describe the new (still
+    manual-cleanup) behavior; removed from `LIMITATIONS-PLAN.md`'s open
+    task list.
+
 - **Task R8 - WNDSFL (Window + Subfile combination)**, the first of the
   Wave 4 "combination type" tasks (see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`). Required **zero new

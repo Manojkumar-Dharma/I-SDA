@@ -130,6 +130,12 @@ const htmlTemplate = `<!DOCTYPE html>
   .rename-btn:hover { border-color: var(--accent); }
   .rename-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
   .delete-hint { color: var(--ink-dim); font-size: 11px; margin-top: 10px; }
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .confirm-dialog { background: var(--panel); border: 1px solid var(--warn); border-radius: 6px; padding: 18px; max-width: 380px; font-family: var(--mono); }
+  .confirm-dialog-title { color: var(--warn); font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .confirm-dialog-body { font-size: 12px; color: var(--ink); line-height: 1.5; margin-bottom: 14px; }
+  .confirm-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .confirm-dialog-actions button.danger { color: var(--warn); border-color: var(--warn); }
   button { background: #14261c; color: var(--accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
@@ -2257,30 +2263,74 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   }
 
-  // No confirmation prompt - deleting is a normal WorkspaceEdit like every
-  // other change here, so Ctrl+Z undoes it the same way. Unlike rename,
-  // there's no auto-fix target for a deleted field's references (nothing
-  // sensible to rewrite them TO), so this only scans and warns - using the
-  // same advisory findLikelyNameReferences scan rename falls back on. Only
-  // runs for a genuinely named field (REFFLD and similar keywords reference
-  // fields by name); a bare, unnamed constant has nothing to search for.
+  // Generic blocking confirmation dialog: a small modal overlay appended to
+  // <body>, used before an action whose effects the DDS model can't verify
+  // are actually safe (see commitDelete / Task L2 in
+  // docs/sda-reference/LIMITATIONS-PLAN.md). A plain window.confirm() would
+  // block the whole webview process and doesn't match this app's theme, so
+  // this is a DOM-built equivalent instead. Removes any dialog already open
+  // first (last one wins) rather than stacking them. Clicking the backdrop
+  // or Cancel dismisses without calling onConfirm; only the confirm button
+  // does.
+  function showConfirmDialog(title, bodyText, confirmLabel, onConfirm) {
+    const existing = document.querySelector('.confirm-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML =
+      '<div class="confirm-dialog">' +
+      '<div class="confirm-dialog-title">' + DspfEngine.escapeHtml(title) + '</div>' +
+      '<div class="confirm-dialog-body">' + DspfEngine.escapeHtml(bodyText) + '</div>' +
+      '<div class="confirm-dialog-actions">' +
+      '<button class="secondary confirm-dialog-cancel">Cancel</button>' +
+      '<button class="danger confirm-dialog-confirm">' + DspfEngine.escapeHtml(confirmLabel) + '</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('.confirm-dialog-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('.confirm-dialog-confirm').addEventListener('click', () => {
+      overlay.remove();
+      onConfirm();
+    });
+  }
+
+  // Task L2 (docs/sda-reference/LIMITATIONS-PLAN.md): a field with likely
+  // references elsewhere in the source (the same advisory
+  // findLikelyNameReferences scan rename already falls back on) is no
+  // longer deleted immediately with only a passive post-hoc warning toast -
+  // it's blocked on an actionable confirmation FIRST, naming exactly which
+  // lines look affected, so the person can back out before losing the field
+  // rather than discovering the problem after the fact. There's still no
+  // auto-fix target to rewrite those references TO (same reasoning rename
+  // itself documents), so confirming still leaves them dangling - the
+  // dialog says so up front. A field with NO detected references (the
+  // common case) deletes immediately, exactly as before - this doesn't add
+  // a click to the common path. Only runs for a genuinely named field
+  // (REFFLD and similar keywords reference fields by name); a bare,
+  // unnamed constant has nothing to search for and always deletes
+  // immediately too.
   function commitDelete(field) {
     const references = field.name
       ? WebviewClientHelpers.findLikelyNameReferences(sourceText, field.name, DspfWriter.getFieldLineRange(field))
       : [];
+    if (references.length > 0) {
+      showConfirmDialog(
+        'Delete "' + field.name + '"?',
+        'Line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + field.name +
+          '" (e.g. REFFLD) - deleting a field never rewrites other keywords that reference it, so those references ' +
+          'will be left dangling. Delete anyway?',
+        'Delete anyway',
+        () => performFieldDelete(field)
+      );
+      return;
+    }
+    performFieldDelete(field);
+  }
+
+  function performFieldDelete(field) {
     commitSourceChange(
       (lines) => DspfWriter.deleteField(field, lines),
-      () => {
-        selectedKey = null;
-        if (references.length > 0) {
-          vscode.postMessage({
-            type: 'error',
-            message:
-              'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + field.name +
-              '" (e.g. REFFLD) - deleting a field never rewrites other keywords that reference it. Review those manually.',
-          });
-        }
-      }
+      () => { selectedKey = null; }
     );
   }
 
@@ -2466,6 +2516,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isDeleteShortcut = e.key === 'Delete' || e.key === 'Backspace';
     if (!isCopyShortcut && !isDeleteShortcut) return;
     if (dragState) return;
+    if (document.querySelector('.confirm-overlay')) return;
     const tag = (e.target && e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (!selectedKey) return;

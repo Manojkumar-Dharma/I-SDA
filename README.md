@@ -129,11 +129,14 @@ not open work.
   how SDA's own multi-format compare looked before the dimmed backdrop
   was added. Switch off "Full overlay" (or Compare entirely) to go back
   to editing.
-- **[L2 - High]** Deleting a field only warns (never rewrites) if
-  something else looks like it references it by name - unlike rename,
-  there's nothing sensible to auto-fix a deleted field's reference TO.
-  Only named fields are checked; deleting an unnamed constant never
-  warns, since there's nothing to search for.
+- Deleting a named field that something else in the source looks like it
+  references by name (e.g. `REFFLD`) is blocked on a confirmation dialog
+  naming those lines before the delete goes through - confirming still
+  doesn't rewrite the reference itself, since (like rename) there's
+  nothing sensible to auto-fix it TO. Only named fields are checked;
+  deleting an unnamed constant never prompts, since there's nothing to
+  search for. A field nothing references still deletes immediately, with
+  no added click.
 - **[L4 - Medium]** "Create New Display File" won't create the source
   physical file itself if it doesn't exist yet (`CRTSRCPF`) - only adds a
   member to one that already exists.

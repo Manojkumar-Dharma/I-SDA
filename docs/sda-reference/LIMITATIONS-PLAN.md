@@ -34,7 +34,7 @@ model at all today, or a data-integrity risk.
 | **L1a** | Wire L1's component into the **Color & attributes** picker (`COLOR`/`DSPATR`) — the single most common multi-instance case in real DDS (state-dependent field styling). | L1 | not started |
 | **L1b** | Wire L1's component into the **Error message** picker (`ERRMSG`/`ERRMSGID`) — several message/condition pairs tried in order. | L1 | not started |
 | **L1c** | Wire L1's component into the **Subfile Messages** panel (`SFLMSG`/`SFLMSGID`) on the SFLCTL picker (Task R4). | L1, R4 (already done) | not started |
-| **L2** | **Delete-field reference cleanup.** Deleting a field only warns (never rewrites) if something else looks like it references it by name — unlike rename, which does fix up references. Risk: silently broken DDS after a delete that the person may not notice or know how to fix. Scope: when a named field is deleted, find the same reference patterns rename already detects, and either auto-remove/comment-out the dangling reference or turn the warning into an actionable prompt (e.g. "N other places reference this field — remove them too?") rather than a passive notice. Decide the exact UX before writing code — this is as much a design decision as an implementation one. | — (standalone) | not started |
+| **L2** | **Delete-field reference cleanup.** Done — deleting a field with likely references elsewhere (the same advisory `findLikelyNameReferences` scan rename falls back on) is now blocked on an actionable confirmation dialog FIRST (naming the reference count/lines and warning they'll be left dangling) rather than deleting immediately and only warning afterward via a passive toast. Confirming still leaves the references unrewritten — there's still no sensible auto-fix target, same as rename's own limitation — so this is the "actionable prompt" option from the two named in the original task description, not the "auto-remove/comment-out" one (blindly rewriting an arbitrary keyword's free-text parameters from a substring match risked corrupting valid DDS worse than leaving it for the person to review). A field with no detected references still deletes immediately, unchanged — no confirmation click added to the common case. New generic `showConfirmDialog` UI helper in `buildWebviewTemplate.js` (a DOM-built modal, not `window.confirm`, to match the app's theme and avoid blocking the whole webview process) — scoped to field deletion only per this task; record deletion (`commitDeleteRecord`) has the identical gap but is out of scope here. See `runDeleteWarningScenario` in `dspfWebview.test.js`. | — (standalone) | done |
 | **L3** | **`MNUBARCHC` Text field / Return field variants.** Only the literal-text form (`id record 'text'`) is modeled today; the "Text field" and "Return field" variable-argument forms shown on the real SDA screen (`screens/field-level/menu-bar-choice/choice-keyword/image193.png`) aren't. Blocks full picker coverage for MNUBAR-based menu screens using dynamic (non-literal) choice text. Needs `DspfEngine.parseMenubarChoice` extended to recognize the two new argument shapes before the picker can round-trip them. | D5 (already done — this extends its existing choice picker) | not started |
 
 ## Medium priority
@@ -53,8 +53,8 @@ tier above.
 - L1 (the foundation component) should land before L1a/L1b/L1c — those
   three are independent of each other once L1 exists, so up to 3
   developers can take one panel each in parallel.
-- L2, L3, and L4 are all standalone and independent of L1 and each other
-  — pick any one up without waiting on the others.
+- L2 is done. L3 and L4 are standalone and independent of L1 and each
+  other — pick either one up without waiting on the other.
 - Same collision risk as the picker screens effort: sync (`git fetch` +
   drift check) before every push, and update this doc's Status column
   the moment you pick up or finish a task.
