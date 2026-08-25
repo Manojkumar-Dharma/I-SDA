@@ -175,10 +175,8 @@ const htmlTemplate = `<!DOCTYPE html>
    * styles, same as the DSPF designer.
    * --------------------------------------------------------------------- */
   .ui-style-toggle {
-    position: fixed; top: 6px; right: 10px; z-index: 50;
-    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
-    border-radius: 3px; padding: 3px 9px; font-family: var(--mono); font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+    width: 100%; background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
+    border-radius: 3px; padding: 5px 9px; font-family: var(--mono); font-size: 11px; cursor: pointer;
   }
   .ui-style-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
 
@@ -247,27 +245,19 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   /* Color themes - modern style only. See buildWebviewTemplate.js's copy of
-     this comment for the full explanation; identical mechanism here. */
-  .ui-theme-select {
-    position: fixed; top: 6px; right: 118px; z-index: 50;
-    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
-    border-radius: 3px; padding: 3px 6px; font-family: var(--mono); font-size: 10px;
-    cursor: pointer; display: none;
-  }
-  body[data-ui-style="modern"] .ui-theme-select { display: inline-block; }
+     this comment for the full explanation; identical mechanism here. Both
+     controls now live in the aside's "UI Settings" section (see below)
+     rather than floating over the page, so there's no display-toggling
+     needed here beyond hiding the theme row entirely in classic mode. */
+  #uiThemeRow { display: none; }
+  body[data-ui-style="modern"] #uiThemeRow { display: block; }
+  .ui-theme-select { width: 100%; }
   body[data-ui-style="modern"][data-ui-theme="amber"] { --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
   body[data-ui-style="modern"][data-ui-theme="cyan"] { --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
   body[data-ui-style="modern"][data-ui-theme="violet"] { --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
 </style>
 </head>
 <body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
-<button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
-<select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
-  <option value="green">Green</option>
-  <option value="amber">Amber</option>
-  <option value="cyan">Cyan</option>
-  <option value="violet">Violet</option>
-</select>
 <aside>
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
@@ -292,6 +282,24 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="status" id="cmdStatus" style="margin-top:6px;"></div>
   <button class="compile-btn" id="compileBtn" style="margin-top:20px;">Compile Menu (CRTMNU)</button>
   <div class="status" style="margin-top:6px;">Runs CRTDSPF, rebuilds the message file, then CRTMNU on your connected IBM i. Requires Code for i.</div>
+  <details style="margin-top:20px;border:1px solid var(--panel-border);border-radius:3px;">
+    <summary style="cursor:pointer;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-dim);">&#9881; UI Settings</summary>
+    <div style="padding:8px;">
+      <div style="margin-bottom:10px;">
+        <label style="display:block;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Style</label>
+        <button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
+      </div>
+      <div id="uiThemeRow">
+        <label style="display:block;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Theme</label>
+        <select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
+          <option value="green">Green</option>
+          <option value="amber">Amber</option>
+          <option value="cyan">Cyan</option>
+          <option value="violet">Violet</option>
+        </select>
+      </div>
+    </div>
+  </details>
 </aside>
 <main>
   <div class="screen-frame"><div id="screenOutput"></div></div>

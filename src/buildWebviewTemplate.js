@@ -262,12 +262,13 @@ const htmlTemplate = `<!DOCTYPE html>
    * STRSDA-accurate preview behaves identically no matter which is active.
    * --------------------------------------------------------------------- */
   .ui-style-toggle {
-    position: fixed; top: 6px; right: 10px; z-index: 50;
-    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
-    border-radius: 3px; padding: 3px 9px; font-family: var(--mono); font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+    width: 100%; background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
+    border-radius: 3px; padding: 5px 9px; font-family: var(--mono); font-size: 11px; cursor: pointer;
   }
   .ui-style-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
+  #uiThemeRow { display: none; }
+  body[data-ui-style="modern"] #uiThemeRow { display: block; }
+  .ui-theme-select { width: 100%; }
 
   body[data-ui-style="modern"] button,
   body[data-ui-style="modern"] .rename-btn,
@@ -340,27 +341,18 @@ const htmlTemplate = `<!DOCTYPE html>
      --chrome-accent-rgb (see the :root comment above for why --accent
      itself is never touched), so every chrome rule above - already keyed
      off --chrome-accent - repaints automatically. "green" isn't listed
-     since it's just the :root default with no override needed. */
-  .ui-theme-select {
-    position: fixed; top: 6px; right: 118px; z-index: 50;
-    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
-    border-radius: 3px; padding: 3px 6px; font-family: var(--mono); font-size: 10px;
-    cursor: pointer; display: none;
-  }
-  body[data-ui-style="modern"] .ui-theme-select { display: inline-block; }
+     since it's just the :root default with no override needed. The
+     #uiThemeRow / .ui-theme-select rules that show/style the control
+     itself live earlier in this stylesheet, next to .ui-style-toggle -
+     both now live in the aside's "UI Settings" section rather than
+     floating over the page (see below), so there's nothing display-related
+     left to do here. */
   body[data-ui-style="modern"][data-ui-theme="amber"] { --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
   body[data-ui-style="modern"][data-ui-theme="cyan"] { --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
   body[data-ui-style="modern"][data-ui-theme="violet"] { --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
 </style>
 </head>
 <body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
-<button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
-<select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
-  <option value="green">Green</option>
-  <option value="amber">Amber</option>
-  <option value="cyan">Cyan</option>
-  <option value="violet">Violet</option>
-</select>
 <aside>
   <button class="panel-toggle-btn" id="leftPanelToggle" title="Hide this panel">&#9664; Hide panel</button>
   <div class="panel-body" id="leftPanelBody">
@@ -414,6 +406,24 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="section-label">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
+  <details class="props-accordion" id="uiSettingsAccordion" style="margin-top:10px;">
+    <summary>&#9881; UI Settings</summary>
+    <div class="props-accordion-body">
+      <div class="field-row">
+        <label>Style</label>
+        <button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
+      </div>
+      <div class="field-row" id="uiThemeRow">
+        <label>Theme</label>
+        <select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
+          <option value="green">Green</option>
+          <option value="amber">Amber</option>
+          <option value="cyan">Cyan</option>
+          <option value="violet">Violet</option>
+        </select>
+      </div>
+    </div>
+  </details>
   </div>
 </aside>
 <main>
