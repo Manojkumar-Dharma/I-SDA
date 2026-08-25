@@ -55,9 +55,16 @@ const DDS_LANGUAGE_SELECTOR: vscode.DocumentSelector = [
 // (now 'classic') look - with a one-click way back via #uiStyleToggle in
 // each webview.
 const UI_STYLE_KEY = 'isda.uiStyle';
+// Independent of UI_STYLE_KEY - a theme picked while in modern style is
+// remembered even if the person later reverts to classic and comes back.
+const UI_THEME_KEY = 'isda.uiTheme';
 
 function getUiStyle(context: vscode.ExtensionContext): string {
   return context.globalState.get<string>(UI_STYLE_KEY, 'modern');
+}
+
+function getUiTheme(context: vscode.ExtensionContext): string {
+  return context.globalState.get<string>(UI_THEME_KEY, 'green');
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -619,7 +626,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
 
     const nonce = getNonce();
     const fileName = document.fileName.split(/[\\/]/).pop() || '';
-    webviewPanel.webview.html = getWebviewHtml(webviewPanel.webview.cspSource, nonce, document.getText(), fileName, getUiStyle(this.context));
+    webviewPanel.webview.html = getWebviewHtml(webviewPanel.webview.cspSource, nonce, document.getText(), fileName, getUiStyle(this.context), getUiTheme(this.context));
 
     // Scoped per editor instance (resolveCustomTextEditor runs once per opened tab),
     // same echo-suppression pattern as before: ignore the onDidChangeTextDocument
@@ -647,6 +654,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await handleResolveReferencedField(document, msg);
       } else if (msg.type === 'setUiStyle') {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
+      } else if (msg.type === 'setUiTheme') {
+        await this.context.globalState.update(UI_THEME_KEY, msg.value);
       }
       // 'ready' needs no response; initial content was already embedded in the HTML.
     });
@@ -709,7 +718,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       fileName,
       commandFileName,
       commandStatus,
-      getUiStyle(this.context)
+      getUiStyle(this.context),
+      getUiTheme(this.context)
     );
 
     // Same echo-suppression pattern as DspfDesignerEditorProvider, scoped to this
@@ -780,6 +790,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'setUiStyle') {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
+      } else if (msg.type === 'setUiTheme') {
+        await this.context.globalState.update(UI_THEME_KEY, msg.value);
       }
     });
 

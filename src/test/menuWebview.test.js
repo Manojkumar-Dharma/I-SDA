@@ -856,6 +856,11 @@ function runCrossRecordOptionScopingScenario() {
     labels = Array.from(doc.querySelectorAll('.option-label-input')).map((i) => i.value);
     check('MAINMENU shows its original text, not SUBMENU\'s edit leaking across', labels[0] === 'Display library list');
 
+    console.log('\ngetMenuWebviewHtml() defaults when uiStyle/uiTheme args are omitted (same regression as dspfWebview.test.js)');
+    const defaultsHtml = getMenuWebviewHtml('vscode-webview://fake', 'n', menuSource, commandSource, 'D.MNUDDS', 'DQQ.MNUCMD', 'loaded');
+    check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));
+    check('data-ui-theme defaults to "green", not ","', /data-ui-theme="green"/.test(defaultsHtml));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 100);

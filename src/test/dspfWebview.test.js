@@ -3403,6 +3403,11 @@ function runPdnSflCtlPickerScenario() {
     const dtlRec = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFDTL');
     check("PSFDTL's own SFL keyword is untouched throughout", dtlRec.keywords.some((k) => k.name === 'SFL'));
 
+    console.log('\ngetWebviewHtml() defaults when uiStyle/uiTheme args are omitted (regression: these used to silently become "," via Array.prototype.join(undefined))');
+    const defaultsHtml = getWebviewHtml('vscode-webview://fake', 'n', dspfSource, 'DEFAULTS.DSPF');
+    check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));
+    check('data-ui-theme defaults to "green", not ","', /data-ui-theme="green"/.test(defaultsHtml));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);

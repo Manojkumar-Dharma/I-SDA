@@ -24,6 +24,11 @@ const INITIAL_SOURCE_JSON_TOKEN = '%%DSPF_INITIAL_SOURCE_JSON%%';
 // reflected in the other next time it's opened. Baked into the initial HTML
 // (rather than only set client-side) to avoid a flash of the wrong style.
 const UI_STYLE_TOKEN = '%%DSPF_UI_STYLE%%';
+// 'green' (default, no CSS override needed) | 'amber' | 'cyan' | 'violet'.
+// Only ever affects --chrome-accent (panel chrome), never --accent (the
+// grid emulation) - see the --chrome-accent comment in the <style> block.
+// Same persistence/sharing story as UI_STYLE_TOKEN.
+const UI_THEME_TOKEN = '%%DSPF_UI_THEME%%';
 
 const htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -38,13 +43,23 @@ const htmlTemplate = `<!DOCTYPE html>
     --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    /* Panel-chrome-only accent, deliberately separate from --accent above.
+       --accent stays fixed and only ever colors the .dspf-* / .dspf-window-*
+       / .dspf-menubar-* grid emulation, so a theme change can NEVER alter
+       the STRSDA-accurate screen preview. Only --chrome-accent is themed
+       (see the body[data-ui-theme=...] block below), and only chrome rules
+       (panels/buttons/tabs/chips) reference it. Defaults to the same value
+       as --accent so classic mode - and modern mode before a theme is
+       picked - look identical to the original single-accent design. */
+    --chrome-accent: var(--accent);
+    --chrome-accent-rgb: 51, 255, 102;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 240px 1fr 300px; min-height: 100vh; }
   aside, .props-panel { background: var(--panel); border-right: 1px solid var(--panel-border); padding: 16px; overflow-y: auto; }
   .props-panel { border-right: none; border-left: 1px solid var(--panel-border); }
   h1 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 4px; }
-  h2 { font-size: 16px; margin: 0 0 14px; color: var(--accent); font-weight: 600; }
+  h2 { font-size: 16px; margin: 0 0 14px; color: var(--chrome-accent); font-weight: 600; }
   select, input[type=text], input[type=number] { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 13px; }
   .field-row { margin-bottom: 10px; }
   .field-row label { display: block; font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
@@ -115,7 +130,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .dspf-field.dspf-widget-button { background: transparent; z-index: 1; }
   .dspf-widget-button {
-    width: 100%; height: 100%; background: #14261c; color: var(--accent);
+    width: 100%; height: 100%; background: #14261c; color: var(--chrome-accent);
     border: 1px solid #3a5a45; border-radius: 3px; font-family: var(--mono);
     font-size: 12px; cursor: grab; padding: 2px 8px;
   }
@@ -133,8 +148,8 @@ const htmlTemplate = `<!DOCTYPE html>
   #sizeBoundsWarning { white-space: pre-line; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
-  .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
-  .rename-btn:hover { border-color: var(--accent); }
+  .rename-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .rename-btn:hover { border-color: var(--chrome-accent); }
   .rename-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
   .delete-hint { color: var(--ink-dim); font-size: 11px; margin-top: 10px; }
   .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -143,7 +158,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .confirm-dialog-body { font-size: 12px; color: var(--ink); line-height: 1.5; margin-bottom: 14px; }
   .confirm-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
   .confirm-dialog-actions button.danger { color: var(--warn); border-color: var(--warn); }
-  button { background: #14261c; color: var(--accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
+  button { background: #14261c; color: var(--chrome-accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
@@ -154,14 +169,14 @@ const htmlTemplate = `<!DOCTYPE html>
   .kw-row { margin-bottom: 4px; }
   .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .kw-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; }
-  .kw-cond-toggle:hover { color: var(--accent); }
+  .kw-cond-toggle:hover { color: var(--chrome-accent); }
   .kw-cond-body { margin: 4px 0 8px 0; padding-left: 8px; border-left: 2px solid var(--panel-border); }
   .empty-state { color: var(--ink-dim); font-size: 13px; }
   .help-entry-row {
     background: #0d1310; border: 1px solid var(--panel-border); border-radius: 3px;
     padding: 6px 8px; margin-bottom: 6px; font-size: 12px; cursor: pointer;
   }
-  .help-entry-row:hover { border-color: var(--accent); }
+  .help-entry-row:hover { border-color: var(--chrome-accent); }
   .field-order-row {
     display: flex; align-items: center; gap: 6px; background: #0d1310;
     border: 1px solid var(--panel-border); border-radius: 3px;
@@ -174,7 +189,7 @@ const htmlTemplate = `<!DOCTYPE html>
     border-radius: 3px; cursor: pointer;
   }
   .field-order-row button:disabled { opacity: 0.35; cursor: default; }
-  .field-order-row button:not(:disabled):hover { border-color: var(--accent); }
+  .field-order-row button:not(:disabled):hover { border-color: var(--chrome-accent); }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 16px 0 8px; }
   .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
   .compare-toggle input { accent-color: var(--warn); }
@@ -190,16 +205,16 @@ const htmlTemplate = `<!DOCTYPE html>
   .cond-group > button.cond-group-remove { display: block; margin-top: 6px; font-size: 11px; }
   .fkey-legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--panel-border); }
   .fkey-chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--panel-border); border-radius: 3px; color: var(--ink-dim); }
-  .fkey-chip.fkey-active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
+  .fkey-chip.fkey-active { color: var(--chrome-accent); border-color: var(--chrome-accent); background: #0d1310; }
   .props-breadcrumb { font-size: 11px; color: var(--ink-dim); margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
   .props-breadcrumb .crumb { cursor: pointer; }
-  .props-breadcrumb .crumb:hover { color: var(--accent); }
+  .props-breadcrumb .crumb:hover { color: var(--chrome-accent); }
   .props-breadcrumb .crumb.current { color: var(--ink); cursor: default; font-weight: 600; }
   .props-breadcrumb .crumb-sep { color: var(--panel-border); }
   .props-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--panel-border); margin-bottom: 12px; flex-wrap: wrap; }
   .props-tab { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--ink-dim); font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 8px; cursor: pointer; border-radius: 0; }
   .props-tab:hover { color: var(--ink); background: transparent; }
-  .props-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .props-tab.active { color: var(--chrome-accent); border-bottom-color: var(--chrome-accent); }
   .props-tab-panel { display: none; }
   .props-tab-panel.active { display: block; }
   /* A second, visually-lighter tab strip (subtabsHtml/wireSubTabs) for nesting inside
@@ -210,25 +225,25 @@ const htmlTemplate = `<!DOCTYPE html>
   .props-subtabs { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 10px; }
   .props-subtab { background: var(--panel-alt); border: 1px solid var(--panel-border); color: var(--ink-dim); font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 7px; cursor: pointer; border-radius: 3px; }
   .props-subtab:hover { color: var(--ink); }
-  .props-subtab.active { color: var(--accent); border-color: var(--accent); }
+  .props-subtab.active { color: var(--chrome-accent); border-color: var(--chrome-accent); }
   .props-subtab-panel { display: none; }
   .props-subtab-panel.active { display: block; }
   .props-accordion { border: 1px solid var(--panel-border); border-radius: 3px; margin-bottom: 10px; }
   .props-accordion > summary { cursor: pointer; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); list-style: none; }
   .props-accordion > summary::-webkit-details-marker { display: none; }
-  .props-accordion > summary:hover { color: var(--accent); }
-  .props-accordion[open] > summary { border-bottom: 1px solid var(--panel-border); color: var(--accent); }
+  .props-accordion > summary:hover { color: var(--chrome-accent); }
+  .props-accordion[open] > summary { border-bottom: 1px solid var(--panel-border); color: var(--chrome-accent); }
   .props-accordion-body { padding: 8px; }
   .place-btn-row { display: flex; gap: 6px; margin-top: 8px; }
   .place-btn-row button { flex: 1; }
-  .place-btn-row button.active { color: var(--accent); border-color: var(--accent); background: #0d1310; }
+  .place-btn-row button.active { color: var(--chrome-accent); border-color: var(--chrome-accent); background: #0d1310; }
   .dspf-screen.placing { cursor: crosshair; }
   .panel-toggle-btn {
     position: sticky; top: 0; display: block; width: 100%; background: var(--panel); color: var(--ink-dim);
     border: none; border-bottom: 1px solid var(--panel-border); cursor: pointer; padding: 6px 0;
     font-family: var(--mono); font-size: 12px; z-index: 2; margin-bottom: 10px;
   }
-  .panel-toggle-btn:hover { color: var(--accent); }
+  .panel-toggle-btn:hover { color: var(--chrome-accent); }
   aside.panel-collapsed, .props-panel.panel-collapsed { padding: 0; overflow: hidden; }
   .panel-collapsed .panel-body { display: none; }
   .panel-collapsed .panel-toggle-btn { margin-bottom: 0; writing-mode: vertical-rl; height: 100%; padding: 10px 0; }
@@ -252,7 +267,7 @@ const htmlTemplate = `<!DOCTYPE html>
     border-radius: 3px; padding: 3px 9px; font-family: var(--mono); font-size: 10px;
     text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
   }
-  .ui-style-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .ui-style-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
 
   body[data-ui-style="modern"] button,
   body[data-ui-style="modern"] .rename-btn,
@@ -276,7 +291,7 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-ui-style="modern"] .props-tab:focus-visible,
   body[data-ui-style="modern"] .props-subtab:focus-visible,
   body[data-ui-style="modern"] .props-breadcrumb .crumb:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 1px;
+    outline: 2px solid var(--chrome-accent); outline-offset: 1px;
   }
 
   body[data-ui-style="modern"] .props-tab-panel.active,
@@ -302,7 +317,7 @@ const htmlTemplate = `<!DOCTYPE html>
      modest so the retro/monospace identity still reads as the same app,
      not a redesign. */
   body[data-ui-style="modern"] .props-tab.active {
-    background: rgba(51, 255, 102, 0.12);
+    background: rgba(var(--chrome-accent-rgb), 0.12);
     border-radius: 3px 3px 0 0;
   }
   body[data-ui-style="modern"] .keyword-chip {
@@ -310,7 +325,7 @@ const htmlTemplate = `<!DOCTYPE html>
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
   body[data-ui-style="modern"] .section-label {
-    border-left: 2px solid var(--accent);
+    border-left: 2px solid var(--chrome-accent);
     padding-left: 6px;
   }
   body[data-ui-style="modern"] button:not(.ui-style-toggle):not(.panel-toggle-btn) {
@@ -320,10 +335,32 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-ui-style="modern"] aside {
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
   }
+
+  /* Color themes - modern style only. Each only overrides --chrome-accent /
+     --chrome-accent-rgb (see the :root comment above for why --accent
+     itself is never touched), so every chrome rule above - already keyed
+     off --chrome-accent - repaints automatically. "green" isn't listed
+     since it's just the :root default with no override needed. */
+  .ui-theme-select {
+    position: fixed; top: 6px; right: 118px; z-index: 50;
+    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
+    border-radius: 3px; padding: 3px 6px; font-family: var(--mono); font-size: 10px;
+    cursor: pointer; display: none;
+  }
+  body[data-ui-style="modern"] .ui-theme-select { display: inline-block; }
+  body[data-ui-style="modern"][data-ui-theme="amber"] { --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
+  body[data-ui-style="modern"][data-ui-theme="cyan"] { --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
+  body[data-ui-style="modern"][data-ui-theme="violet"] { --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
 </style>
 </head>
-<body data-ui-style="${UI_STYLE_TOKEN}">
+<body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
 <button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
+<select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
+  <option value="green">Green</option>
+  <option value="amber">Amber</option>
+  <option value="cyan">Cyan</option>
+  <option value="violet">Violet</option>
+</select>
 <aside>
   <button class="panel-toggle-btn" id="leftPanelToggle" title="Hide this panel">&#9664; Hide panel</button>
   <div class="panel-body" id="leftPanelBody">
@@ -425,6 +462,21 @@ const htmlTemplate = `<!DOCTYPE html>
         : 'Try the new animated look';
       vscode.setState(Object.assign({}, vscode.getState(), { uiStyle }));
       vscode.postMessage({ type: 'setUiStyle', value: uiStyle });
+    });
+  })();
+
+  // Color theme (modern style only) - same persistence pattern as the style
+  // toggle above, in a separate globalState key so the two are independent.
+  (function () {
+    const select = document.getElementById('uiThemeSelect');
+    let uiTheme = (vscode.getState() && vscode.getState().uiTheme) || document.body.dataset.uiTheme || 'green';
+    document.body.dataset.uiTheme = uiTheme;
+    select.value = uiTheme;
+    select.addEventListener('change', () => {
+      uiTheme = select.value;
+      document.body.dataset.uiTheme = uiTheme;
+      vscode.setState(Object.assign({}, vscode.getState(), { uiTheme }));
+      vscode.postMessage({ type: 'setUiTheme', value: uiTheme });
     });
   })();
 
@@ -2690,13 +2742,14 @@ const output = `/**
 
 const HTML_TEMPLATE: string = ${JSON.stringify(htmlTemplate)};
 
-export function getWebviewHtml(cspSource: string, nonce: string, initialSource: string, fileName: string, uiStyle: string): string {
+export function getWebviewHtml(cspSource: string, nonce: string, initialSource: string, fileName: string, uiStyle: string = 'modern', uiTheme: string = 'green'): string {
   return HTML_TEMPLATE
     .split(${JSON.stringify(CSP_TOKEN)}).join(cspSource)
     .split(${JSON.stringify(NONCE_TOKEN)}).join(nonce)
     .split(${JSON.stringify(FILENAME_TOKEN)}).join(fileName)
     .split(${JSON.stringify(INITIAL_SOURCE_JSON_TOKEN)}).join(JSON.stringify(initialSource))
-    .split(${JSON.stringify(UI_STYLE_TOKEN)}).join(uiStyle);
+    .split(${JSON.stringify(UI_STYLE_TOKEN)}).join(uiStyle)
+    .split(${JSON.stringify(UI_THEME_TOKEN)}).join(uiTheme);
 }
 `;
 

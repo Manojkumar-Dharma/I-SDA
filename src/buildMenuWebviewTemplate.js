@@ -22,6 +22,10 @@ const COMMAND_FILENAME_JSON_TOKEN = '%%MNU_COMMAND_FILENAME_JSON%%';
 // designer applies to both. See that file's UI_STYLE_TOKEN comment for why
 // this is baked into the initial HTML rather than only set client-side.
 const UI_STYLE_TOKEN = '%%MNU_UI_STYLE%%';
+// Same 'green'/'amber'/'cyan'/'violet' theme as the DSPF designer, shared
+// via the same extension-globalState key - see that file's UI_THEME_TOKEN
+// comment for the full explanation.
+const UI_THEME_TOKEN = '%%MNU_UI_THEME%%';
 
 const htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -36,13 +40,18 @@ const htmlTemplate = `<!DOCTYPE html>
     --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    /* See buildWebviewTemplate.js's copy of this comment - same split,
+       same reason: --accent stays fixed for .dspf-field (the MNUDDS
+       screen preview text color), only --chrome-accent is themed. */
+    --chrome-accent: var(--accent);
+    --chrome-accent-rgb: 51, 255, 102;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 200px 1fr 340px; min-height: 100vh; }
   aside, .options-panel { background: var(--panel); border-right: 1px solid var(--panel-border); padding: 16px; overflow-y: auto; }
   .options-panel { border-right: none; border-left: 1px solid var(--panel-border); }
   h1 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 4px; }
-  h2 { font-size: 16px; margin: 0 0 14px; color: var(--accent); font-weight: 600; }
+  h2 { font-size: 16px; margin: 0 0 14px; color: var(--chrome-accent); font-weight: 600; }
   select { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 13px; }
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
@@ -90,31 +99,31 @@ const htmlTemplate = `<!DOCTYPE html>
     transition: border-color 0.12s ease, background-color 0.12s ease;
   }
   .option-row:hover { border-color: #33553f; }
-  .option-row.drag-over { border-color: var(--accent); background: rgba(51,255,102,0.07); }
+  .option-row.drag-over { border-color: var(--chrome-accent); background: rgba(var(--chrome-accent-rgb), 0.07); }
   .option-row.dragging { opacity: 0.4; }
   .option-drag-handle { flex: 0 0 12px; color: var(--ink-dim); font-size: 12px; line-height: 1.6; padding-top: 5px; user-select: none; text-align: center; letter-spacing: -1px; }
   .option-num-badge {
     flex: 0 0 26px; height: 26px; border-radius: 50%; background: #142018; border: 1px solid #2c4335;
-    color: var(--accent); font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;
+    color: var(--chrome-accent); font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center;
   }
   .option-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
   .option-field-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); }
   .option-delete-btn { flex: 0 0 auto; align-self: flex-start; background: #1a1010; color: var(--warn); border: 1px solid var(--panel-border); padding: 4px 8px; font-family: var(--mono); font-size: 13px; cursor: pointer; line-height: 1; }
   .option-delete-btn:hover { border-color: var(--warn); }
   .option-copy-btn { flex: 0 0 auto; align-self: flex-start; background: #142018; color: var(--ink); border: 1px solid var(--panel-border); padding: 4px 8px; font-family: var(--mono); font-size: 13px; cursor: pointer; line-height: 1; }
-  .option-copy-btn:hover { border-color: var(--accent); }
+  .option-copy-btn:hover { border-color: var(--chrome-accent); }
   .option-label-input {
     width: 100%; background: #050705; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 3px;
     padding: 5px 7px; font-family: var(--mono); font-size: 12px;
   }
-  .option-label-input:focus { border-color: var(--accent); outline: none; }
+  .option-label-input:focus { border-color: var(--chrome-accent); outline: none; }
   .option-cmd-row { display: flex; align-items: center; gap: 6px; }
   .option-cmd-prompt { color: var(--ink-dim); font-size: 10px; flex: 0 0 auto; letter-spacing: 0.03em; }
   .option-cmd {
-    flex: 1; min-width: 0; background: #050705; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 3px;
+    flex: 1; min-width: 0; background: #050705; color: var(--chrome-accent); border: 1px solid var(--panel-border); border-radius: 3px;
     padding: 5px 7px; font-family: var(--mono); font-size: 12px;
   }
-  .option-cmd:focus { border-color: var(--accent); outline: none; }
+  .option-cmd:focus { border-color: var(--chrome-accent); outline: none; }
   .option-cmd::placeholder { color: #3d5346; }
 
   .add-option { border: 1px dashed var(--panel-border); border-radius: 6px; padding: 12px; }
@@ -123,23 +132,23 @@ const htmlTemplate = `<!DOCTYPE html>
   .add-option-num { flex: 0 0 46px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 6px; font-family: var(--mono); font-size: 12px; }
   .add-option-label { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
   .add-option-pos { flex: 1; min-width: 0; background: #0d1310; color: var(--ink-dim); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
-  .add-option-pos:focus { color: var(--ink); border-color: var(--accent); outline: none; }
-  .add-option-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 7px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
-  .add-option-btn:hover { border-color: var(--accent); }
+  .add-option-pos:focus { color: var(--ink); border-color: var(--chrome-accent); outline: none; }
+  .add-option-btn { width: 100%; background: #142018; color: var(--chrome-accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 7px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .add-option-btn:hover { border-color: var(--chrome-accent); }
   .add-option-btn:disabled { opacity: 0.5; cursor: default; }
   .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
-  .compile-btn { width: 100%; background: #142018; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .compile-btn { width: 100%; background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
   .compile-btn:hover { background: #1b2c22; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
-  .rename-btn { background: #142018; color: var(--accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
-  .rename-btn:hover { border-color: var(--accent); }
+  .rename-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .rename-btn:hover { border-color: var(--chrome-accent); }
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
   .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
   .two-col { display: flex; gap: 6px; }
   .two-col > * { flex: 1; min-width: 0; }
   button.secondary { background: #142018; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; border-radius: 3px; }
-  button.secondary:hover { border-color: var(--accent); }
+  button.secondary:hover { border-color: var(--chrome-accent); }
   .cond-group { border: 1px solid var(--panel-border); border-radius: 3px; padding: 6px 8px; margin-bottom: 6px; }
   .cond-group-label { font-size: 10px; color: var(--ink-dim); margin-bottom: 4px; }
   .cond-add-row { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
@@ -147,16 +156,16 @@ const htmlTemplate = `<!DOCTYPE html>
   .cond-add-row input.cond-ind-num { width: 36px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 3px 4px; font-family: var(--mono); font-size: 11px; }
   .cond-group > button.cond-group-remove { display: block; margin-top: 6px; font-size: 11px; }
   .option-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 6px; padding: 4px 6px; border: 1px solid var(--panel-border); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; }
-  .option-cond-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .option-cond-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
   .option-cond-body { margin-top: 6px; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
   .hidden { display: none; }
   .kw-row { margin-bottom: 4px; }
   .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   .kw-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; }
-  .kw-cond-toggle:hover { color: var(--accent); }
+  .kw-cond-toggle:hover { color: var(--chrome-accent); }
   .kw-cond-body { margin: 4px 0 8px 0; padding-left: 8px; border-left: 2px solid var(--panel-border); }
   .file-attrs-toggle { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 20px; padding: 6px 8px; border: 1px solid var(--panel-border); border-radius: 3px; }
-  .file-attrs-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .file-attrs-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
   .file-attrs-body { margin-top: 0; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
 
   /* ---------------------------------------------------------------------
@@ -171,7 +180,7 @@ const htmlTemplate = `<!DOCTYPE html>
     border-radius: 3px; padding: 3px 9px; font-family: var(--mono); font-size: 10px;
     text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
   }
-  .ui-style-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .ui-style-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
 
   body[data-ui-style="modern"] button,
   body[data-ui-style="modern"] .rename-btn,
@@ -199,7 +208,7 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-ui-style="modern"] button:focus-visible,
   body[data-ui-style="modern"] select:focus-visible,
   body[data-ui-style="modern"] input:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 1px;
+    outline: 2px solid var(--chrome-accent); outline-offset: 1px;
   }
 
   body[data-ui-style="modern"] .option-row,
@@ -224,7 +233,7 @@ const htmlTemplate = `<!DOCTYPE html>
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
   body[data-ui-style="modern"] .section-label {
-    border-left: 2px solid var(--accent);
+    border-left: 2px solid var(--chrome-accent);
     padding-left: 6px;
   }
   body[data-ui-style="modern"] button:not(.ui-style-toggle) {
@@ -236,10 +245,29 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-ui-style="modern"] aside {
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
   }
+
+  /* Color themes - modern style only. See buildWebviewTemplate.js's copy of
+     this comment for the full explanation; identical mechanism here. */
+  .ui-theme-select {
+    position: fixed; top: 6px; right: 118px; z-index: 50;
+    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
+    border-radius: 3px; padding: 3px 6px; font-family: var(--mono); font-size: 10px;
+    cursor: pointer; display: none;
+  }
+  body[data-ui-style="modern"] .ui-theme-select { display: inline-block; }
+  body[data-ui-style="modern"][data-ui-theme="amber"] { --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
+  body[data-ui-style="modern"][data-ui-theme="cyan"] { --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
+  body[data-ui-style="modern"][data-ui-theme="violet"] { --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
 </style>
 </head>
-<body data-ui-style="${UI_STYLE_TOKEN}">
+<body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
 <button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
+<select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
+  <option value="green">Green</option>
+  <option value="amber">Amber</option>
+  <option value="cyan">Cyan</option>
+  <option value="violet">Violet</option>
+</select>
 <aside>
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
@@ -323,6 +351,19 @@ const htmlTemplate = `<!DOCTYPE html>
         : 'Try the new animated look';
       vscode.setState(Object.assign({}, vscode.getState(), { uiStyle }));
       vscode.postMessage({ type: 'setUiStyle', value: uiStyle });
+    });
+  })();
+
+  (function () {
+    const select = document.getElementById('uiThemeSelect');
+    let uiTheme = (vscode.getState() && vscode.getState().uiTheme) || document.body.dataset.uiTheme || 'green';
+    document.body.dataset.uiTheme = uiTheme;
+    select.value = uiTheme;
+    select.addEventListener('change', () => {
+      uiTheme = select.value;
+      document.body.dataset.uiTheme = uiTheme;
+      vscode.setState(Object.assign({}, vscode.getState(), { uiTheme }));
+      vscode.postMessage({ type: 'setUiTheme', value: uiTheme });
     });
   })();
 
@@ -1264,7 +1305,8 @@ export function getMenuWebviewHtml(
   fileName: string,
   commandFileName: string,
   commandSourceStatus: MenuCommandSourceStatus,
-  uiStyle: string
+  uiStyle: string = 'modern',
+  uiTheme: string = 'green'
 ): string {
   return MNU_TEMPLATE
     .split(${JSON.stringify(NONCE_TOKEN)}).join(nonce)
@@ -1274,7 +1316,8 @@ export function getMenuWebviewHtml(
     .split(${JSON.stringify(INITIAL_COMMAND_JSON_TOKEN)}).join(JSON.stringify(initialCommandSource))
     .split(${JSON.stringify(COMMAND_STATUS_JSON_TOKEN)}).join(JSON.stringify(commandSourceStatus))
     .split(${JSON.stringify(COMMAND_FILENAME_JSON_TOKEN)}).join(JSON.stringify(commandFileName))
-    .split(${JSON.stringify(UI_STYLE_TOKEN)}).join(uiStyle);
+    .split(${JSON.stringify(UI_STYLE_TOKEN)}).join(uiStyle)
+    .split(${JSON.stringify(UI_THEME_TOKEN)}).join(uiTheme);
 }
 `;
 
