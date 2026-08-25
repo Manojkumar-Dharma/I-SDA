@@ -402,7 +402,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
-  <div id="fileCommandKeys"></div>
   <div class="section-label">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
@@ -536,7 +535,6 @@ const htmlTemplate = `<!DOCTYPE html>
   const sizeSelect = document.getElementById('sizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
   const fileAttrsBtn = document.getElementById('fileAttrsBtn');
-  const fileCommandKeysEl = document.getElementById('fileCommandKeys');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
   const newRecordToggleBtn = document.getElementById('newRecordToggleBtn');
   const newRecordForm = document.getElementById('newRecordForm');
@@ -1073,17 +1071,6 @@ const htmlTemplate = `<!DOCTYPE html>
     // own pointer-events:none on the wrapper backs this up too.
   }
 
-  function renderFileCommandKeys(currentRecord) {
-    const recordKeywords = currentRecord ? currentRecord.keywords : [];
-    const available = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, recordKeywords);
-    fileCommandKeysEl.innerHTML = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, available, 'file');
-    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileKeywordsEdit(newKeywords));
-  }
-
-  function commitFileKeywordsEdit(newKeywords) {
-    commitSourceChange((lines) => DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords));
-  }
-
   // Full overlay compare (the older, pre-dimmed-backdrop behavior - see
   // compareFullOverlay's own doc comment above): every checked record PLUS
   // whichever is currently selected in the dropdown, combined via
@@ -1100,7 +1087,6 @@ const htmlTemplate = `<!DOCTYPE html>
       Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n))
     );
     fkeyLegendEl.innerHTML = '';
-    renderFileCommandKeys(null);
     const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex);
     lastScreen = screen;
     mainHint.classList.add('hint-readonly');
@@ -1124,7 +1110,7 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildNewRecordDepOptions();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; renderFileCommandKeys(null); screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
+    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
     updateSizeBoundsWarning(recordName);
@@ -1137,7 +1123,6 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
-    renderFileCommandKeys(currentRecord);
 
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
     lastScreen = screen;
@@ -1669,14 +1654,32 @@ const htmlTemplate = `<!DOCTYPE html>
    * add/remove via DspfWriter.applyFileUpdate - same "no separate Apply
    * button, keywords commit themselves" pattern the Record and Help-entry
    * panels already use (they have nothing else to Apply either).
+   *
+   * Command keys (CAxx/CFxx) get their own "Cmd keys" tab here, the same
+   * shape a record's own Command keys tab already uses (see
+   * renderRecordProps) - this used to be a separate, always-visible panel
+   * in the left-hand aside, independent of whether File attributes or
+   * Record properties was showing on the right; moved here so File
+   * attributes is the single place to find every file-level keyword,
+   * command keys included, matching how record-level command keys already
+   * live inside that record's own properties rather than somewhere else.
+   * availableCommandKeyNumbers still needs BOTH scopes (file keywords AND
+   * the CURRENTLY SELECTED record's own keywords) for its cross-scope
+   * exclusion - same numbers this tab would have shown when it lived in
+   * the aside, just recomputed here against recordSelect's current value.
    */
 
   function renderFileProps() {
     const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords);
-    let html = '<div class="status" style="margin-bottom:12px;">SDA-style keyword picker for the whole display file - not tied to any one record format. Command keys (CAxx/CFxx) have their own dedicated panel above and are best edited there.</div>';
+    const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+    const currentRecord = model.records.find((r) => r.name === recordName);
+    const availableForFile = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, currentRecord ? currentRecord.keywords : []);
+    const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, availableForFile, 'file');
+    let html = '<div class="status" style="margin-bottom:12px;">SDA-style keyword picker for the whole display file - not tied to any one record format.</div>';
     html += tabsHtml([
       { id: 'general', label: 'General', content: panels.general },
       { id: 'indicator', label: 'Indicator', content: panels.indicatorKeywords },
+      { id: 'commandkeys', label: 'Cmd keys', content: commandKeysHtml },
       { id: 'print', label: 'Print', content: panels.print },
       { id: 'help', label: 'Help', content: panels.help },
       { id: 'sizes', label: 'Display sizes', content: panels.displaySizes },
@@ -1690,6 +1693,7 @@ const htmlTemplate = `<!DOCTYPE html>
     wireTabs(propsBody, (id) => { activeFileTab = id; });
 
     WebviewClientHelpers.wireFileKeywordsPanels(() => model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
+    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
   }
 

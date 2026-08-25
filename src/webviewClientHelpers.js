@@ -946,9 +946,21 @@
   // -----------------------------------------------------------------------
 
   /** MNUBARCHC list editor - one row per top-level menu-bar choice
-   *  (id, pulldown record name, text). Rows commit together via one Apply
-   *  button, same "batch-edit a list" pattern as the file-level Display
-   *  Sizes editor - editing choice N shouldn't require N separate applies. */
+   *  (id, pulldown record name, text, optional return field). Rows commit
+   *  together via one Apply button, same "batch-edit a list" pattern as
+   *  the file-level Display Sizes editor - editing choice N shouldn't
+   *  require N separate applies.
+   *
+   *  Task L3: real SDA's own "Define Menu-Bar Choice Keyword" screen
+   *  (docs/sda-reference/screens/field-level/menu-bar-choice/
+   *  choice-keyword/image193.png) shows "Text field" and "Text" as two
+   *  separate, mutually-exclusive entry fields, plus a separate "Return
+   *  field". This editor collapses "Text field"/"Text" into the SAME
+   *  single text box - typing a &fieldname there is a text-field
+   *  reference, anything else is a literal - matching the &-prefix
+   *  convention this codebase already uses for the sibling CHOICE
+   *  keyword's own text box (see choiceKeywordRowHtml above); "Return
+   *  field" gets its own box since it's a genuinely separate DDS token. */
   function menuBarChoicesHtml(keywords, ownerKey) {
     var choices = DspfWriter.getMenubarChoices(keywords);
     var html = '<div class="section-label">Menu-bar choices (MNUBARCHC)</div>';
@@ -963,11 +975,12 @@
   }
 
   function menuBarChoiceRowHtml(ownerKey, idx, c) {
-    c = c || { id: '', pulldownRecord: '', text: '' };
+    c = c || { id: '', pulldownRecord: '', text: '', returnField: '' };
     return '<div class="choice-row" data-idx="' + idx + '">' +
       '<input type="text" class="' + ownerKey + '-mnubarchc-id" placeholder="#" maxlength="3" value="' + escapeHtml(c.id) + '" style="width:36px;" />' +
       '<input type="text" class="' + ownerKey + '-mnubarchc-record" placeholder="pulldown record" maxlength="10" value="' + escapeHtml(c.pulldownRecord) + '" style="width:110px;" />' +
-      '<input type="text" class="' + ownerKey + '-mnubarchc-text" placeholder="text" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
+      '<input type="text" class="' + ownerKey + '-mnubarchc-text" placeholder="text, or &field" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
+      '<input type="text" class="' + ownerKey + '-mnubarchc-returnfield" placeholder="return field (opt.)" maxlength="11" value="' + escapeHtml(c.returnField || '') + '" style="width:130px;" />' +
       '<button class="secondary ' + ownerKey + '-mnubarchc-remove" data-idx="' + idx + '" title="Remove">&times;</button>' +
       '</div>';
   }
@@ -994,6 +1007,7 @@
           id: row.querySelector('.' + ownerKey + '-mnubarchc-id').value,
           pulldownRecord: row.querySelector('.' + ownerKey + '-mnubarchc-record').value,
           text: row.querySelector('.' + ownerKey + '-mnubarchc-text').value,
+          returnField: row.querySelector('.' + ownerKey + '-mnubarchc-returnfield').value,
         };
       });
       onChange(DspfWriter.setMenubarChoices(keywords, choices));

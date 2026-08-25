@@ -35,7 +35,7 @@ model at all today, or a data-integrity risk.
 | **L1b** | Wire L1's component into the **Error message** picker (`ERRMSG`/`ERRMSGID`) — several message/condition pairs tried in order. | L1 | not started |
 | **L1c** | Wire L1's component into the **Subfile Messages** panel (`SFLMSG`/`SFLMSGID`) on the SFLCTL picker (Task R4). | L1, R4 (already done) | not started |
 | **L2** | **Delete-field reference cleanup.** Done — deleting a field with likely references elsewhere (the same advisory `findLikelyNameReferences` scan rename falls back on) is now blocked on an actionable confirmation dialog FIRST (naming the reference count/lines and warning they'll be left dangling) rather than deleting immediately and only warning afterward via a passive toast. Confirming still leaves the references unrewritten — there's still no sensible auto-fix target, same as rename's own limitation — so this is the "actionable prompt" option from the two named in the original task description, not the "auto-remove/comment-out" one (blindly rewriting an arbitrary keyword's free-text parameters from a substring match risked corrupting valid DDS worse than leaving it for the person to review). A field with no detected references still deletes immediately, unchanged — no confirmation click added to the common case. New generic `showConfirmDialog` UI helper in `buildWebviewTemplate.js` (a DOM-built modal, not `window.confirm`, to match the app's theme and avoid blocking the whole webview process) — scoped to field deletion only per this task; record deletion (`commitDeleteRecord`) has the identical gap but is out of scope here. See `runDeleteWarningScenario` in `dspfWebview.test.js`. | — (standalone) | done |
-| **L3** | **`MNUBARCHC` Text field / Return field variants.** Only the literal-text form (`id record 'text'`) is modeled today; the "Text field" and "Return field" variable-argument forms shown on the real SDA screen (`screens/field-level/menu-bar-choice/choice-keyword/image193.png`) aren't. Blocks full picker coverage for MNUBAR-based menu screens using dynamic (non-literal) choice text. Needs `DspfEngine.parseMenubarChoice` extended to recognize the two new argument shapes before the picker can round-trip them. | D5 (already done — this extends its existing choice picker) | not started |
+| **L3** | **`MNUBARCHC` Text field / Return field variants.** Done — `DspfEngine.parseMenubarChoice` now recognizes a `&text-field` reference as an alternative to the literal-text form, plus an optional trailing `&return-field` token (both verified against IBM's own MNUBARCHC keyword reference, Figures 213/214, and the real SDA screen `screens/field-level/menu-bar-choice/choice-keyword/image193.png`). `DspfWriter.getMenubarChoices`/`setMenubarChoices` carry `returnField` through symmetrically (writer already half-supported `&text-field` on write; this closes the read-side gap and adds the return field on both sides). The picker's MNUBARCHC row editor deliberately collapses SDA's separate "Text field"/"Text" entries into the SAME text box - typing `&NAME` there is a field reference, anything else a literal - matching the codebase's existing `&`-prefix convention for the sibling `CHOICE` keyword, plus a new "Return field" box. See `src/test/dspfEngine.test.js`, `src/test/dspfWriter.test.js`, and `src/test/dspfWebview.test.js` (Task L3 sections) and CHANGELOG. | D5 (already done — this extends its existing choice picker) | done |
 
 ## Medium priority
 
@@ -44,7 +44,7 @@ tier above.
 
 | Task | Description | Depends on | Status |
 | --- | --- | --- | --- |
-| **L4** | **`CRTSRCPF` support in "Create New Display File."** The wizard currently only adds a member to a source physical file that already exists; it doesn't offer to create the source physical file itself first. One-time setup friction with an easy manual workaround, so lower urgency than L1-L3. | — (standalone) | not started |
+| **L4** | **`CRTSRCPF` support in "Create New Display File."** Done — the remote-path wizard now checks whether the source physical file exists (`CHKOBJ`) before running `ADDPFM`, and if it doesn't, offers to create it (`CRTSRCPF`) via a confirmation prompt naming the file, rather than letting `ADDPFM` fail with a raw CPF error. Declining is a silent cancel (same as every other prompt in this flow); if `CRTSRCPF` itself fails, that failure is surfaced and `ADDPFM` is never attempted. `RCDLEN` is left to `CRTSRCPF`'s own default (`*SRC`/112, the standard DDS source PF record length) rather than hardcoded. Scoped to the DSPF designer's "Create New Display File" only, per this task; "Create New Menu" has the identical gap on its own remote path but is a separate, untracked limitation, left alone here. See the new scenarios in `src/test/createNewDspf.test.js`. | — (standalone) | done |
 
 ---
 
@@ -53,8 +53,9 @@ tier above.
 - L1 (the foundation component) should land before L1a/L1b/L1c — those
   three are independent of each other once L1 exists, so up to 3
   developers can take one panel each in parallel.
-- L2 is done. L3 and L4 are standalone and independent of L1 and each
-  other — pick either one up without waiting on the other.
+- L2, L3, and L4 are all done. Only L1a/L1b/L1c remain open (each
+  independent of the others, see above) - everything else in this
+  doc's High and Medium priority tiers is finished.
 - Same collision risk as the picker screens effort: sync (`git fetch` +
   drift check) before every push, and update this doc's Status column
   the moment you pick up or finish a task.

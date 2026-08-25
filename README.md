@@ -137,9 +137,10 @@ not open work.
   deleting an unnamed constant never prompts, since there's nothing to
   search for. A field nothing references still deletes immediately, with
   no added click.
-- **[L4 - Medium]** "Create New Display File" won't create the source
-  physical file itself if it doesn't exist yet (`CRTSRCPF`) - only adds a
-  member to one that already exists.
+- "Create New Display File" (remote path) checks whether the source
+  physical file exists first, and if it doesn't, offers to create it
+  (`CRTSRCPF`) before adding the member (`ADDPFM`), rather than letting
+  `ADDPFM` fail outright. Declining leaves everything untouched.
 - Numeric fields with an `EDTCDE` or `EDTWRD` edit code get an exact
   display width - commas, decimal point, sign/CR reservation, and a
   floating currency symbol for `EDTCDE` (per IBM's own worked examples in
@@ -187,11 +188,6 @@ not open work.
   validity check has nothing to report; and M/P (Message text/
   Program-to-system) usages, which SDA's own table never covers, fail
   open (show every category) rather than guessing.
-- **[L3 - High]** Menu-bar choice fields' `MNUBARCHC` keyword only
-  supports the literal-text form (`id record 'text'`) - its "Text
-  field"/"Return field" variable-argument forms shown on the real SDA
-  screen aren't modeled, matching what `DspfEngine.parseMenubarChoice`
-  already renders on screen.
 - Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`), Choice keywords, and
   Choice colors & attributes stay constant-excluded, since they require
   real, named, indicator-controlled field semantics a constant

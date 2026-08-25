@@ -912,25 +912,35 @@
     return "'" + t.replace(/'/g, "''") + "'";
   }
 
-  /** MNUBARCHC(id pulldown-record-name 'text') - one per top-level menu-bar
-   *  choice, field-level on the MNB* field, read back in the SAME order
-   *  DspfEngine.widgetFromKeywords sorts them (ascending by id) so what
-   *  round-trips through the picker matches what's already on screen. */
+  /** MNUBARCHC(id pulldown-record-name ['text' | &text-field] [&return-field])
+   *  - one per top-level menu-bar choice, field-level on the MNB* field,
+   *  read back in the SAME order DspfEngine.widgetFromKeywords sorts them
+   *  (ascending by id) so what round-trips through the picker matches
+   *  what's already on screen. `text` accepts either a literal or a
+   *  &field reference through the SAME single input box, following the
+   *  same &-prefix convention formatChoiceText/getChoices already use for
+   *  plain CHOICE - see DspfEngine.parseMenubarChoice's own doc comment
+   *  for the DDS reference this matches (Task L3). `returnField`, when
+   *  present, is always a &field reference (real SDA's "Return field"). */
   function getMenubarChoices(keywords) {
     return (keywords || [])
       .filter(function (k) { return k.name === 'MNUBARCHC'; })
       .map(function (k) {
-        var m = (k.parameters || '').trim().match(/^(\d+)\s+(\S+)\s+((?:&\S+)|(?:'(?:[^']|'')*'))/);
-        if (!m) return { id: '', pulldownRecord: '', text: (k.parameters || '').trim() };
+        var m = (k.parameters || '').trim().match(/^(\d+)\s+(\S+)\s+((?:&\S+)|(?:'(?:[^']|'')*'))(?:\s+(&\S+))?/);
+        if (!m) return { id: '', pulldownRecord: '', text: (k.parameters || '').trim(), returnField: '' };
         var text = m[3].charAt(0) === '&' ? m[3] : m[3].slice(1, -1).replace(/''/g, "'");
-        return { id: m[1], pulldownRecord: m[2], text: text };
+        return { id: m[1], pulldownRecord: m[2], text: text, returnField: m[4] || '' };
       });
   }
 
   /** Returns a NEW keywords array with every existing MNUBARCHC removed and
-   *  replaced by one per entry in `choices` ({ id, pulldownRecord, text }),
-   *  in the given order - blank/incomplete entries (no id, record, or
-   *  text) are skipped rather than writing a malformed keyword. */
+   *  replaced by one per entry in `choices`
+   *  ({ id, pulldownRecord, text, returnField }), in the given order -
+   *  blank/incomplete entries (no id, record, or text) are skipped rather
+   *  than writing a malformed keyword. `returnField` is optional (real
+   *  SDA's own screen leaves it blank most of the time); when supplied
+   *  without a leading '&' one is added, since it's always a field
+   *  reference, never a literal. */
   function setMenubarChoices(keywords, choices) {
     var next = (keywords || []).filter(function (k) { return k.name !== 'MNUBARCHC'; });
     (choices || []).forEach(function (c) {
@@ -938,7 +948,10 @@
       var record = (c.pulldownRecord || '').trim();
       var text = (c.text || '').trim();
       if (!id || !record || !text) return;
-      next = next.concat([{ name: 'MNUBARCHC', parameters: id + ' ' + record + ' ' + formatChoiceText(text), conditions: [], raw: '', sourceLines: [] }]);
+      var params = id + ' ' + record + ' ' + formatChoiceText(text);
+      var returnField = (c.returnField || '').trim();
+      if (returnField) params += ' ' + (returnField.charAt(0) === '&' ? returnField : '&' + returnField);
+      next = next.concat([{ name: 'MNUBARCHC', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
     });
     return next;
   }

@@ -1133,6 +1133,27 @@ console.log('\nDspfWriter D5 - menu-bar choice fields (MNUBARCHC, MNUBARSEP, Cho
   })());
   check('unrelated keywords are preserved', DspfWriter.setMenubarChoices([{ name: 'USRDFN', parameters: '', conditions: [], raw: '', sourceLines: [] }], [{ id: '1', pulldownRecord: 'P', text: 'x' }]).some((k) => k.name === 'USRDFN'));
 
+  console.log('  Task L3: MNUBARCHC Text field (&var) and Return field variants (IBM DDS ref Figures 213/214)');
+  const withTextField = DspfWriter.setMenubarChoices([], [{ id: '1', pulldownRecord: 'PULLFILE', text: '&FILETXT' }]);
+  check('a &field choice text is written unquoted', withTextField[0].parameters.trim() === '1 PULLFILE &FILETXT');
+  check('a &field choice text round-trips as the raw &NAME token', DspfWriter.getMenubarChoices(withTextField)[0].text === '&FILETXT');
+
+  const withReturnField = DspfWriter.setMenubarChoices([], [{ id: '4', pulldownRecord: 'PULLOPT', text: '>Options', returnField: '&RTNFLD' }]);
+  check('return field written as the trailing token', withReturnField[0].parameters.trim() === "4 PULLOPT '>Options' &RTNFLD");
+  const readBack = DspfWriter.getMenubarChoices(withReturnField)[0];
+  check('return field round-trips', readBack.returnField === '&RTNFLD');
+  check('literal text alongside a return field still round-trips correctly', readBack.text === '>Options');
+
+  check('a return field without a leading & gets one added on write', DspfWriter.setMenubarChoices([], [{ id: '1', pulldownRecord: 'P', text: 'x', returnField: 'RTNFLD' }])[0].parameters.indexOf('&RTNFLD') >= 0);
+  check('no return field supplied -> no trailing token written', DspfWriter.setMenubarChoices([], [{ id: '1', pulldownRecord: 'P', text: 'x' }])[0].parameters.trim() === "1 P 'x'");
+  check('blank return field on read -> empty string, not null/undefined', DspfWriter.getMenubarChoices(DspfWriter.setMenubarChoices([], [{ id: '1', pulldownRecord: 'P', text: 'x' }]))[0].returnField === '');
+
+  check('both a &text-field AND a return field together round-trip (IBM Figure 214 shape)', (() => {
+    const kw = DspfWriter.setMenubarChoices([], [{ id: '4', pulldownRecord: 'PULLOPT', text: '&OPTTXT', returnField: '&RTNFLD' }]);
+    const r = DspfWriter.getMenubarChoices(kw)[0];
+    return r.text === '&OPTTXT' && r.returnField === '&RTNFLD';
+  })());
+
   console.log('  getMenubarSeparator()/setMenubarSeparator() - MNUBARSEP color/attrs/separator-char sub-groups');
   const noSep = DspfWriter.getMenubarSeparator([]);
   check('no MNUBARSEP -> all blank', noSep.color === '' && noSep.attrs.length === 0 && noSep.char === '');

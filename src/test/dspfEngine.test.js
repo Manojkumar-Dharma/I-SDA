@@ -808,4 +808,45 @@ console.log('\nEDTCDE/EDTWRD on a DATE/TIME/PAGNBR system-value CONSTANT (no dat
   check('a DATE system-value constant picks up its EDTWRD template width (8) even with no length column', dateConst && dateConst.length === 8);
 }
 
+console.log('\nTask L3: MNUBARCHC Text field (&var) / Return field variants render as a menubar widget (IBM DDS ref MNUBARCHC keyword, Figures 213/214)');
+{
+  // Figure 213 shape: literal text, no return field.
+  const literalSrc = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
+    buildLine({ seq: '00020', name: 'MNUFLD', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '1', col: '2', func: "MNUBARCHC(1 PULLFILE '>File')" }),
+  ].join('\n') + '\n';
+  const literalModel = DspfParser.parseDspf(literalSrc);
+  const literalScreen = DspfEngine.resolveScreen(literalModel, 'MB', new Set());
+  const literalField = literalScreen.fields.find((f) => f.name === 'MNUFLD');
+  check('literal-text choice still renders as a menubar widget (unchanged existing behavior)', literalField.widget.type === 'menubar');
+  check('literal-text choice keeps its quoted text', literalField.widget.choices[0].text === '>File');
+  check('literal-text choice has no return field', literalField.widget.choices[0].returnField == null);
+
+  // Figure 214 shape: text supplied via a program-to-system &field instead
+  // of a literal - this is the case that used to fail to parse at all.
+  const varTextSrc = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
+    buildLine({ seq: '00020', name: 'MNUFLD', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '1', col: '2', func: 'MNUBARCHC(1 PULLFILE &FILETXT)' }),
+    buildLine({ seq: '00030', name: 'FILETXT', length: '15', dataType: 'A', usage: 'P' }),
+  ].join('\n') + '\n';
+  const varTextModel = DspfParser.parseDspf(varTextSrc);
+  const varTextScreen = DspfEngine.resolveScreen(varTextModel, 'MB', new Set());
+  const varTextField = varTextScreen.fields.find((f) => f.name === 'MNUFLD');
+  check('a &text-field choice still parses as a menubar widget instead of falling through', varTextField.widget.type === 'menubar');
+  check('a &text-field choice keeps the raw &NAME token as its design-time label (matches CHOICE\u2019s own &var convention)', varTextField.widget.choices[0].text === '&FILETXT');
+  check('a &text-field choice keeps its pulldown record', varTextField.widget.choices[0].pulldownRecord === 'PULLFILE');
+
+  // Figure 213's own "Options" choice: literal text PLUS a trailing return field.
+  const returnFieldSrc = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
+    buildLine({ seq: '00020', name: 'MNUFLD', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '1', col: '2', func: "MNUBARCHC(4 PULLOPT 'Opt' &RTNFLD)" }),
+    buildLine({ seq: '00030', name: 'RTNFLD', length: '2', dataType: 'Y', decimals: '0', usage: 'H' }),
+  ].join('\n') + '\n';
+  const returnFieldModel = DspfParser.parseDspf(returnFieldSrc);
+  const returnFieldScreen = DspfEngine.resolveScreen(returnFieldModel, 'MB', new Set());
+  const returnFieldField = returnFieldScreen.fields.find((f) => f.name === 'MNUFLD');
+  check('literal text with a trailing return field still parses the text correctly', returnFieldField.widget.choices[0].text === 'Opt');
+  check('the trailing return field is captured separately from the text', returnFieldField.widget.choices[0].returnField === '&RTNFLD');
+}
+
 

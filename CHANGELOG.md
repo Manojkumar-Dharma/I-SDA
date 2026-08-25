@@ -3,7 +3,88 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.59] - Unreleased
+
+### Added
+## [0.9.60] - Unreleased
+
+### Added
+- **Task L4 - `CRTSRCPF` support in "Create New Display File"** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). The remote-path wizard
+  (Code for i connected) used to only run `ADDPFM` to add the new
+  member, which requires the source physical file to already exist -
+  if it didn't, `ADDPFM` just failed with a raw CPF error the person
+  then had to go fix manually. Now it checks first with `CHKOBJ`, and
+  if the file doesn't appear to exist, offers to create it with
+  `CRTSRCPF` via a confirmation dialog naming the file, before
+  proceeding to `ADDPFM`. Declining is a silent cancel - same as every
+  other prompt in this flow, no error toast for an intentional
+  decline. If `CRTSRCPF` itself fails, that failure is surfaced and
+  `ADDPFM` is never attempted. `RCDLEN` is deliberately left off the
+  `CRTSRCPF` command - its own default (`*SRC`, 112) is exactly the
+  standard DDS source PF record length, so there was nothing to gain
+  by hardcoding it.
+  - New `ensureSourcePhysicalFileExists()` in `extension.ts`, called
+    from `createRemoteMember()` before the existing `ADDPFM` logic.
+  - Scoped to the DSPF designer's "Create New Display File" only, per
+    this task. "Create New Menu" has the identical gap on its own
+    remote path (`createMenuRemoteMembers` or similar) but that's a
+    separate, untracked limitation - left alone here.
+  - `src/test/createNewDspf.test.js` rewritten: the old single
+    "ADDPFM fails" scenario is now four scenarios covering the new
+    branch points - source file already exists (straight to ADDPFM,
+    which can still fail on its own for unrelated reasons), missing +
+    declined (silent no-op), missing + confirmed + `CRTSRCPF` succeeds
+    (proceeds to `ADDPFM`), and missing + confirmed + `CRTSRCPF` fails
+    (stops before `ADDPFM`, surfaces the real CPF text).
+  - `LIMITATIONS-PLAN.md` and README's Known limitations both updated.
+
+## [0.9.59] - Unreleased
+
+### Added
+- **Task L3 - `MNUBARCHC` Text field / Return field variants** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's "Define
+  Menu-Bar Choice Keyword" screen
+  (`docs/sda-reference/screens/field-level/menu-bar-choice/choice-keyword/image193.png`)
+  and IBM's own DDS reference for `MNUBARCHC` (Figures 213/214) allow a
+  choice's text to be EITHER a quoted literal OR a `&text-field`
+  reference (a program-to-system field resolved at runtime), plus an
+  optional trailing `&return-field` reference that receives extra data
+  when that choice is picked. `DspfEngine.parseMenubarChoice` previously
+  only matched the literal-text form, so a `&text-field` choice failed
+  to parse into a menubar widget at all; it now recognizes both text
+  forms and captures the optional return field. `DspfWriter.getMenubarChoices`/
+  `setMenubarChoices` already half-supported `&text-field` on write (via
+  the shared `formatChoiceText` helper) but had no return-field support
+  on either side and couldn't read a `&text-field` choice back correctly
+  once written - both are now symmetric with the parser. The MNUBARCHC
+  picker row editor gets a new "Return field" input; choice text keeps
+  its existing single text box (typing `&NAME` there is a field
+  reference, anything else a literal), matching this codebase's existing
+  `&`-prefix convention for the sibling `CHOICE` keyword rather than
+  reproducing SDA's separate "Text field"/"Text" entries as two boxes.
+  New coverage in `src/test/dspfEngine.test.js` (render-side parsing,
+  all three `MNUBARCHC` shapes from IBM's own Figures 213/214),
+  `src/test/dspfWriter.test.js` (read/write round-trip, including a
+  `&text-field` + `&return-field` combination together), and
+  `src/test/dspfWebview.test.js` (picker UI round-trip through
+  `applyEdit`).
+
 ## [0.9.55] - Unreleased
+
+### Changed
+- **File-level Command keys (CAxx/CFxx) moved into File attributes.** These
+  used to live in their own always-visible section in the left-hand aside,
+  separate from every other file-level keyword and inconsistent with how
+  record-level command keys already live inside that record's own
+  properties (its "Cmd keys" tab). File attributes now has a matching "Cmd
+  keys" tab alongside General/Indicator/Print/etc, so every file-level
+  keyword - command keys included - lives in one place. Cross-scope
+  exclusion (a number already used by the currently-selected record isn't
+  offered at file level, and vice versa) is unchanged, just recomputed from
+  the new location. `src/test/dspfWebview.test.js`'s command-keys scenario
+  updated to open File attributes / switch back to the record view where
+  the old test relied on both living in the DOM simultaneously.
 
 ### Added
 - **Task L1 - multi-instance conditioned keywords: foundation** (see
