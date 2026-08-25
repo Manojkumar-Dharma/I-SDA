@@ -3065,6 +3065,92 @@ function runWndSfCtlPickerScenario() {
     const dtlRec = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WSFDTL');
     check("WSFDTL's own SFL keyword is untouched throughout", dtlRec.keywords.some((k) => k.name === 'SFL'));
 
+    runWndSflScenario();
+  }, 0);
+}
+
+// Task R8 - a record carrying BOTH SFL and WINDOW (a windowed subfile,
+// WNDSFL). Same finding as R6/R9: R3's isSflRecord and R7's isWindowRecord
+// tab-visibility gates are independent boolean checks with no mutual
+// exclusion, so a record carrying both already gets the SFL tab and the
+// Window tab simultaneously, and each commits its own keywords without
+// disturbing the other's - zero new production code needed.
+function runWndSflScenario() {
+  console.log('\nWNDSFL (Task R8): a record carrying BOTH SFL and WINDOW gets the SFL tab (R3) AND the Window tab (R7) together, each committing independently');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'WINDOWSFL', func: 'SFL' }),
+      buildLine({ seq: '00020', func: 'WINDOW(2 2 10 40)' }),
+      buildLine({ seq: '00030', name: 'F1', dataType: 'A', length: '10', usage: 'O', line: '1', col: '2' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  a plain record (neither SFL nor WINDOW) gets neither tab');
+    recordSelect.value = 'PLAIN';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    let tabLabels = Array.from(doc.querySelectorAll('.props-tab')).map((b) => b.textContent.trim());
+    check('no SFL tab for a plain record', tabLabels.indexOf('SFL') === -1);
+    check('no Window tab for a plain record', tabLabels.indexOf('Window') === -1);
+
+    console.log('  WINDOWSFL (SFL + WINDOW together) gets BOTH the SFL tab and the Window tab at once');
+    recordSelect.value = 'WINDOWSFL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    tabLabels = Array.from(doc.querySelectorAll('.props-tab')).map((b) => b.textContent.trim());
+    check('SFL tab is present', tabLabels.indexOf('SFL') >= 0);
+    check('Window tab is present', tabLabels.indexOf('Window') >= 0);
+
+    console.log('  editing the SFL General panel (R3) commits LOGOUT without disturbing the WINDOW keyword');
+    const sflTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFL');
+    sflTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const sflPrefix = 'sfl-WINDOWSFL';
+    const logoutCheckbox = doc.getElementById(sflPrefix + '-logout-on');
+    check('setup: LOGOUT checkbox exists on the SFL General panel', !!logoutCheckbox);
+    logoutCheckbox.checked = true;
+    logoutCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WINDOWSFL');
+    check('LOGOUT was added', reparsed.keywords.some((k) => k.name === 'LOGOUT'));
+    check("WINDOW is still there, untouched by the SFL-tab edit", reparsed.keywords.some((k) => k.name === 'WINDOW' && k.parameters.trim() === '2 2 10 40'));
+    check('SFL itself is still there too', reparsed.keywords.some((k) => k.name === 'SFL'));
+    posted.length = 0;
+
+    console.log('  editing the Window tab (R7) changes the geometry without disturbing SFL/LOGOUT');
+    recordSelect.value = 'WINDOWSFL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const windowTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Window');
+    windowTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const rwPrefix = 'rw-WINDOWSFL';
+    const startLineInput = doc.getElementById(rwPrefix + '-startline');
+    check('setup: Window start-line input exists on the Window Parameters panel', !!startLineInput);
+    startLineInput.value = '5';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WINDOWSFL');
+    const windowKw = reparsed.keywords.find((k) => k.name === 'WINDOW');
+    check('WINDOW geometry now starts at line 5', windowKw && /^5\s/.test(windowKw.parameters.trim()));
+    check("SFL is still there, untouched by the Window-tab edit", reparsed.keywords.some((k) => k.name === 'SFL'));
+    check('LOGOUT (added on the SFL tab a moment ago) is still there too', reparsed.keywords.some((k) => k.name === 'LOGOUT'));
+
     runPuldwnsflPickerScenario();
   }, 0);
 }
@@ -3084,7 +3170,7 @@ function runWndSfCtlPickerScenario() {
 // through its own dedicated picker without cross-contamination. Zero new
 // dspfWriter.js primitives or webviewClientHelpers.js panels needed - this
 // scenario is the verification, same "no screens of its own, existing
-// wiring already applies" shape R2/R6/R9 already took.
+// wiring already applies" shape R2/R6/R8/R9 already took.
 function runPuldwnsflPickerScenario() {
   console.log('\nPULDWNSFL wiring (Task R11): a pull-down subfile\u2019s detail record is a plain SFL record and its control record is an ordinary SFLCTL record that also carries PULLDOWN - Task R3/R4/R10\u2019s pickers already apply as-is, no new code needed');
   const src =

@@ -166,6 +166,19 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   keyword not confidently verified) and its "Roll" column (turned out to
   be SDA's own in-terminal roll-key editing convenience, not a DDS
   keyword at all) - both still reachable via the raw Keywords editor.
+- Three of Wave 4's "combination type" record tasks turned out not to be
+  DDS keywords at all - `SFLMSGCTL` (task R6), `WNDSFL` (task R8), and
+  `WNDSFCTL` (task R9) are all just ordinary `SFLCTL`/`SFL` records that
+  also happen to carry `WINDOW` or a paired `SFLMSGRCD` detail record.
+  R3/R4/R7's own tab-visibility checks are independent boolean gates
+  with no mutual exclusion between them, so a record carrying more than
+  one of `SFL`/`SFLCTL`/`WINDOW` already gets every applicable tab
+  simultaneously, and each commits its own keywords without disturbing
+  the others' - confirmed via dedicated tests rather than assumed, for
+  all three. Required zero new production code. The remaining
+  combination types (`PULDWNSFL`, `PDNSFLCTL` - tasks R11/R12) likely
+  need the same verify-and-test treatment, but that should be confirmed
+  per-task rather than assumed from this pattern.
 - As of v0.9.48, D1's field-keyword panels are gated by the field's
   current Usage (and, for Validity check, data type) to match real SDA's
   own "For Field Type" column (task D2 in
@@ -287,9 +300,10 @@ picked up after the current round of fixes.
   | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 ✅ | `PULDWNSFL`, `PDNSFLCTL` |
   | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 ✅ | - |
   | Record | `SFLMSGCTL` wiring (ordinary `SFLCTL` record; no keyword of its own) | R6 ✅ | - |
+  | Record | `WNDSFL` (ordinary `SFL` + `WINDOW` record; no keyword of its own) | R8 ✅ | - |
   | Record | `WNDSFCTL` wiring (ordinary `SFLCTL` record that also carries `WINDOW`; no keyword of its own) | R9 ✅ | - |
   | Record | `PULDWNSFL` wiring (ordinary `SFL` detail record paired with an `SFLCTL`+`PULLDOWN` control record; no keyword of its own) | R11 ✅ | - |
-  | Record | Remaining combination types (`WNDSFL`, `PDNSFLCTL`) | R8, R12 | wiring-only, depend on the rows above |
+  | Record | Remaining combination types (`PDNSFLCTL`) | R12 | wiring-only, depend on the rows above |
   | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
   | Field | Character wiring | D2 ✅ | - |
   | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 ✅ | - |
