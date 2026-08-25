@@ -109,11 +109,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - Compare mode (previewing several record formats together) has two
   styles: the default dimmed backdrop (the currently-edited record stays
   fully interactive; the others render behind it, dimmed and read-only),
-  and an opt-in "Full overlay" toggle (as of v0.9.40) that instead shows
-  every checked record together at full brightness, with nothing
-  editable - closer to how SDA's own multi-format compare looked before
-  the dimmed backdrop was added. Switch off "Full overlay" (or Compare
-  entirely) to go back to editing.
+  and an opt-in "Full overlay" toggle that instead shows every checked
+  record together at full brightness, with nothing editable - closer to
+  how SDA's own multi-format compare looked before the dimmed backdrop
+  was added. Switch off "Full overlay" (or Compare entirely) to go back
+  to editing.
 - Deleting a field only warns (never rewrites) if something else looks
   like it references it by name - unlike rename, there's nothing sensible
   to auto-fix a deleted field's reference TO. Only named fields are
@@ -122,103 +122,62 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - "Create New Display File" won't create the source physical file itself
   if it doesn't exist yet (`CRTSRCPF`) - only adds a member to one that
   already exists.
-- As of v0.9.44, numeric fields with an `EDTCDE` or `EDTWRD` edit code get
-  an exact display width - commas, decimal point, sign/CR reservation,
-  and a floating currency symbol for `EDTCDE` (per IBM's own worked
-  examples in the EDTCDE reference), and the literal template's own
-  character count for `EDTWRD` - instead of the field's raw undecorated
-  digit length. This also applies to `DATE`/`TIME`/`PAGNBR` system-value
-  constants carrying `EDTCDE`/`EDTWRD` (e.g. slashes inserted into a
-  `DATE` placeholder), since those parse as `CONSTANT` the same as an
-  ordinary literal but commonly carry edit keywords in real DDS. The
+- Numeric fields with an `EDTCDE` or `EDTWRD` edit code get an exact
+  display width - commas, decimal point, sign/CR reservation, and a
+  floating currency symbol for `EDTCDE` (per IBM's own worked examples in
+  the EDTCDE reference), and the literal template's own character count
+  for `EDTWRD` - instead of the field's raw undecorated digit length.
+  This also applies to `DATE`/`TIME`/`PAGNBR` system-value constants
+  carrying `EDTCDE`/`EDTWRD` (e.g. slashes inserted into a `DATE`
+  placeholder), since those parse as `CONSTANT` the same as an ordinary
+  literal but commonly carry edit keywords in real DDS. The
   `EDTCDE(Y)`/`EDTCDE(W)` "date edit" codes are left at the field's coded
   length rather than guessed at, since their separator width depends on
   the job's `DATSEP` attribute - not knowable at design time, the same
   runtime-only ambiguity that keeps `WINDOW(*DFT)` a placeholder above.
-- Field-level keyword panels (Color & attributes, Validity check, Error
-  message, and the new v0.9.47 Keying options/Input keywords/General
-  keywords/Database reference/Message ID panels - see task D1 in
-  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md))
-  each manage ONE instance of their keyword(s) at a time, conditioned as a
-  whole via the generic keyword editor's Conditioning toggle. Real SDA
-  additionally allows MULTIPLE independently-conditioned instances of the
-  same keyword - e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)`
-  under indicator 20 on the same field, or several `ERRMSG`/`ERRMSGID`
-  entries tried in order. Not modeled here; would need its own follow-up
-  since it affects several keywords at once, not just one panel.
-- As of v0.9.49, records get the same dedicated-picker treatment fields
-  already had, mapped against real SDA's own record-level "Select/Define
-  \_\_\_ Keywords" screens (see
-  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)'s
-  R-numbered tasks): a **Base Record Keywords** picker (task R1) with 8 sub-panels -
-  General, Indicator, Application Help, Help, Output, Input, Overlay,
-  Print - as nested subtabs inside the record props Keywords tab, reused
-  as-is by every record type; a **SFL-specific** picker (R3) adding the
-  subfile's own General/Indicator categories plus a repeatable
-  `INDTXT`/`SETOF`/`CHANGE` row list (real DDS allows multiple instances,
-  one indicator each); a **SFLMSG-specific** picker (R5) for the Message
-  Record itself; and a **WINDOW-specific** picker (R7) with Window
-  Parameters (`WINDOW`'s own 3-way reference/sized/positioned geometry
-  modes) and Border Parameters (reusing the same `WDWBORDER` panel
-  already built for the file-level picker). Same "one instance per
-  keyword" limitation as the field-level pickers above applies here too.
-  R7 deliberately left out the real SDA screen's "Message line" row (DDS
-  keyword not confidently verified) and its "Roll" column (turned out to
-  be SDA's own in-terminal roll-key editing convenience, not a DDS
-  keyword at all) - both still reachable via the raw Keywords editor.
-- Three of Wave 4's "combination type" record tasks turned out not to be
-  DDS keywords at all - `SFLMSGCTL` (task R6), `WNDSFL` (task R8), and
-  `WNDSFCTL` (task R9) are all just ordinary `SFLCTL`/`SFL` records that
-  also happen to carry `WINDOW` or a paired `SFLMSGRCD` detail record.
-  R3/R4/R7's own tab-visibility checks are independent boolean gates
-  with no mutual exclusion between them, so a record carrying more than
-  one of `SFL`/`SFLCTL`/`WINDOW` already gets every applicable tab
-  simultaneously, and each commits its own keywords without disturbing
-  the others' - confirmed via dedicated tests rather than assumed, for
-  all three. Required zero new production code. The remaining
-  combination types (`PULDWNSFL`, `PDNSFLCTL` - tasks R11/R12) likely
-  need the same verify-and-test treatment, but that should be confirmed
-  per-task rather than assumed from this pattern.
-- As of v0.9.48, D1's field-keyword panels are gated by the field's
-  current Usage (and, for Validity check, data type) to match real SDA's
-  own "For Field Type" column (task D2 in
-  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md);
-  see `WebviewClientHelpers.fieldKeywordCategoryVisibility()`'s own doc
-  comment for the exact rule table). This only hides panels for a field's
-  CURRENT usage - it never deletes a keyword the field already carries
-  just because Usage changed, and an already-set keyword from a now-
-  hidden category stays intact and editable via the raw Keywords tab,
-  which is never gated. Two scoping choices worth knowing: Error message
-  is tied to Validity check's own gate (both live in one combined panel)
-  rather than getting SDA's separately-listed Input/Output/Both rule,
-  since an error message without an associated validity check has
-  nothing to report; and M/P (Message text/Program-to-system) usages,
-  which SDA's own table never covers, fail open (show every category)
-  rather than guessing.
-- As of v0.9.51, menu-bar choice fields (task D5) have dedicated panels:
-  Menu-bar choices (`MNUBARCHC`) and Menu-bar separator (`MNUBARSEP`) on
-  a field whose owning record carries `MNUBAR`; Choice selection type
-  (`SNGCHCFLD`/`MLTCHCFLD`) always offered as the opt-in entry point,
-  with Choice keywords (`CHOICE`/`CHCCTL`/`CHCACCEL`, merged into one row
-  per choice number) and Choice colors & attributes (`CHCAVAIL`/
-  `CHCUNAVAIL`/`CHCSLT`) appearing once a field is already one of those.
-  Not modeled: `MNUBARCHC`'s "Text field"/"Return field" variable-
-  argument forms shown on the real SDA screen - only the literal-text
-  form (`id record 'text'`) is supported, matching what
-  `DspfEngine.parseMenubarChoice` already renders on screen.
-- As of v0.9.54, constant field wiring (task D4) is done - but most of
-  its scope turned out to already exist: Colors, Display Attributes, and
-  most of General Keywords were never gated to exclude constants in the
-  first place (they're the same shared panels D1 built for named
-  fields). The two genuinely new pieces were `HLPID` (added to the
-  General keywords panel - a "constant field-level keyword" per IBM's
-  own DDS reference, linking the constant to a `HLPARA`-referenced help
-  panel) and relaxing D5's Menu-bar choices/separator gate so a constant
-  living in a `MNUBAR` record can carry `MNUBARCHC`/`MNUBARSEP` too
-  (valid regardless of whether the entry has a name). Choice selection
-  type/Choice keywords/Choice colors stay constant-excluded, since
-  `SNGCHCFLD`/`MLTCHCFLD` require real, named, indicator-controlled
-  field semantics a constant structurally can't have.
+- Every dedicated keyword picker (file-, record-, and field-level -
+  Color & attributes, Validity check, Error message, Keying options,
+  Input keywords, General keywords, Database reference, Message ID, and
+  the record-level pickers) manages ONE instance of its keyword(s) at a
+  time, conditioned as a whole via the generic keyword editor's
+  Conditioning toggle. Real SDA additionally allows MULTIPLE
+  independently-conditioned instances of the same keyword - e.g.
+  `COLOR(RED)` under indicator 10 and `COLOR(GRN)` under indicator 20 on
+  the same field, or several `ERRMSG`/`ERRMSGID` entries tried in order,
+  or repeated `SFLMSG`/`SFLMSGID` instances on a subfile control record.
+  Not modeled here; would need its own follow-up since it affects
+  several keywords at once, not just one panel. The `SFL`-specific
+  picker's `INDTXT`/`SETOF`/`CHANGE` rows are the one exception - real
+  DDS allows multiple instances there (one indicator each), and the
+  picker models that as a repeatable row list.
+- The `WINDOW`-specific picker deliberately leaves out the real SDA
+  screen's "Message line" row (DDS keyword not confidently verified) and
+  its "Roll" column (turned out to be SDA's own in-terminal roll-key
+  editing convenience, not a DDS keyword at all) - both still reachable
+  via the raw Keywords editor.
+- Field-keyword panels are gated by the field's current Usage (and, for
+  Validity check, data type) to match real SDA's own "For Field Type"
+  column (see `WebviewClientHelpers.fieldKeywordCategoryVisibility()`'s
+  own doc comment for the exact rule table). This only hides panels for
+  a field's CURRENT usage - it never deletes a keyword the field already
+  carries just because Usage changed, and an already-set keyword from a
+  now-hidden category stays intact and editable via the raw Keywords
+  tab, which is never gated. Two scoping choices worth knowing: Error
+  message is tied to Validity check's own gate (both live in one
+  combined panel) rather than getting SDA's separately-listed
+  Input/Output/Both rule, since an error message without an associated
+  validity check has nothing to report; and M/P (Message text/
+  Program-to-system) usages, which SDA's own table never covers, fail
+  open (show every category) rather than guessing.
+- Menu-bar choice fields' `MNUBARCHC` keyword only supports the
+  literal-text form (`id record 'text'`) - its "Text field"/"Return
+  field" variable-argument forms shown on the real SDA screen aren't
+  modeled, matching what `DspfEngine.parseMenubarChoice` already renders
+  on screen.
+- Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`), Choice keywords, and
+  Choice colors & attributes stay constant-excluded, since they require
+  real, named, indicator-controlled field semantics a constant
+  structurally can't have.
 
 ### Menu designer
 
@@ -238,24 +197,6 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 - Deleting an option doesn't scan for other references to it (unlike
   rename, which does).
 
-### Editor UI / workflow
-
-Filed from an SDA parity review (see
-[`docs/sda-reference/`](docs/sda-reference/) "Issues" list) - fixed in
-0.9.44:
-
-- ~~The preview/compare default should be **Active** rather than
-  **Beside** in settings.~~ Default flipped; `beside` remains available.
-- ~~The left/right side panels need a hide/minimize control...~~ Each
-  panel now has its own hide/minimize toggle.
-- ~~The "Record type" + dependent-record-creation controls should only be
-  visible when the Add-record button is selected...~~ Now behind a
-  "+ Add record" toggle.
-- ~~Adding a record should offer the real SDA record-type set...~~ Type
-  picker now offers `RECORD`, `USRDFN`, `SFL`, `SFLMSG`, `WINDOW`,
-  `WDWSFL`, `PULDWN`, `PDNSFL`, `MNUBAR`, and SFL-family types
-  auto-create their paired `SFLCTL` record.
-
 ## Planned enhancements
 
 Forward-looking work, distinct from Known limitations above (which
@@ -265,71 +206,38 @@ picked up after the current round of fixes.
 - **SDA-style picker screens for keywords, attributes, and conditioning**,
   replacing free-typed keyword entry with pick-from-a-screen UI, the way
   real SDA prompts for each keyword's own fields rather than having you
-  type `COLOR(RED)` by hand. A few keyword categories already get this
-  treatment - Color & attributes, Validity check (RANGE/COMP/VALUES), Edit
-  code/word, Command keys, Window title, Error message - each with its own
-  `getX`/`setX` pair in `dspfWriter.js` plus a dedicated panel in
-  `webviewClientHelpers.js`. The generic Keywords tab (free-text
-  name/parameters) remains the catch-all for anything without a dedicated
-  screen yet.
+  type `COLOR(RED)` by hand, mapped directly against real SDA's own
+  "Select/Define \_\_\_ Keywords" screens (from screenshots of an actual
+  STRSDA session - see [`docs/sda-reference/`](docs/sda-reference/))
+  rather than from the DDS keyword reference alone, since SDA groups
+  keywords by function differently than the reference does. The work is
+  split **by screen, not by record/field type**, so each screen is built
+  once as a shared component and wired into every type that uses it.
 
-  This round of the work is mapped directly against real SDA's own
-  "Select Keywords" panels (from screenshots of an actual STRSDA session -
-  see [`docs/sda-reference/`](docs/sda-reference/)) rather than from the
-  DDS keyword reference alone, since SDA groups keywords by function
-  differently than the reference does, and the same "Select/Define \_\_\_
-  Keywords" screen repeats verbatim across many record types (e.g.
-  General/Indicator/Application Help/Help/Output/Input/Overlay/Print looks
-  and behaves identically on a plain `RECORD`, a `SFLCTL`, a `WINDOW`, or a
-  `PULLDOWN` record). The work is split **by screen, not by record type**,
-  so each screen is built once as a shared component and then wired into
-  every record/field type that uses it - see
-  [`docs/sda-reference/PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)
-  for the full task table, dependency waves, and a suggested 3-developer
-  parallelization. Summary of the split:
+  Essentially done: the file-level picker, every field type (Character,
+  Numeric, Constant, plus Menu-bar choice fields), and every record type
+  (base Record Keywords plus every specific type - Subfile, Subfile
+  Control, Message Subfile, Window, Pull-down, Menu Bar, and their
+  combinations). The only piece left is **`PDNSFLCTL`** (a pull-down
+  subfile's control record) - its siblings (`SFLMSGCTL`, `WNDSFL`,
+  `WNDSFCTL`, `PULDWNSFL`) all turned out to be ordinary existing record
+  types wearing two keywords at once, needing no new code beyond
+  verification and test coverage; `PDNSFLCTL` likely follows the same
+  pattern but isn't confirmed yet. The generic Keywords tab (free-text
+  name/parameters) remains the catch-all for anything without a
+  dedicated screen.
 
-  | Level | Component | Task ID(s) | Reused by |
-  | --- | --- | --- | --- |
-  | File | Single picker, all 9 categories | F1 ✅ | - (one record type only) |
-  | Record | Base Record Keywords (General/Indicator/App Help/Help/Output/Input/Overlay/Print) | R1 ✅ | `RECORD`, `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`, `MNUBAR` (full or partial) |
-  | Record | `USRDFN` wiring (subset of R1) | R2 ✅ | - |
-  | Record | `SFL` (Subfile keywords + General + Indicator) | R3 ✅ | `WNDSFL`, `PULDWNSFL` |
-  | Record | `SFLCTL` (Subfile Control: General/Display Layout/Subfile Messages) | R4 ✅ | `SFLMSGCTL`, `WNDSFCTL`, `PDNSFLCTL` |
-  | Record | `SFLMSG` (Message Record + General + Indicator) | R5 ✅ | - |
-  | Record | `WINDOW` (Window Parameters + Border set) | R7 ✅ | `WNDSFL`, `WNDSFCTL`, `PULLDOWN`, `PULDWNSFL`, `PDNSFLCTL` (border set) |
-  | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 ✅ | `PULDWNSFL`, `PDNSFLCTL` |
-  | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 ✅ | - |
-  | Record | `SFLMSGCTL` wiring (ordinary `SFLCTL` record; no keyword of its own) | R6 ✅ | - |
-  | Record | `WNDSFL` (ordinary `SFL` + `WINDOW` record; no keyword of its own) | R8 ✅ | - |
-  | Record | `WNDSFCTL` wiring (ordinary `SFLCTL` record that also carries `WINDOW`; no keyword of its own) | R9 ✅ | - |
-  | Record | `PULDWNSFL` wiring (ordinary `SFL` detail record paired with an `SFLCTL`+`PULLDOWN` control record; no keyword of its own) | R11 ✅ | - |
-  | Record | Remaining combination types (`PDNSFLCTL`) | R12 | wiring-only, depend on the rows above |
-  | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
-  | Field | Character wiring | D2 ✅ | - |
-  | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 ✅ | - |
-  | Field | Constant (subset + Menu-Bar Keywords) | D4 ✅ | - |
-  | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 ✅ | - |
-
-  Status per task is tracked in
+  Full task-by-task history and current status are tracked in
   [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md)
-  (`not started` / `in progress` / `done`) - update it there when picking
-  up or finishing a task so parallel sessions don't duplicate work. Within
-  each task: map every option shown on the real SDA screenshot to its
-  underlying DDS keyword(s) (checking `dspfWriter.js` for an existing
-  `getX`/`setX` pair before adding a new one - several keywords are
-  already covered under a different panel's umbrella, e.g. `DSPATR` under
-  Color & attributes), note anything genuinely new, then build the panel
-  following the existing dedicated-picker pattern and wire it into the
-  matching tab (Basic/Position/Attributes/Keywords for fields; Basic/
-  Keywords/Cmd keys/Structure for records). Two further directions once
-  all tasks are done:
+  and [`CHANGELOG.md`](CHANGELOG.md) - update the plan doc's Status
+  column when picking up or finishing a task so parallel sessions don't
+  duplicate work. Two further directions once `PDNSFLCTL` lands:
   - Surface the per-keyword Conditioning toggle directly on each
     dedicated picker panel (today it only lives in the raw Keywords tab),
     so conditioning a color/attribute/edit-code pick doesn't require
     dropping into free-text keyword entry.
-  - Menu designer options get the same treatment once the DSPF designer
-    rows above are done - its per-option Conditioning panel already
-    follows a similar structure to build on.
+  - Menu designer options get the same treatment - its per-option
+    Conditioning panel already follows a similar structure to build on.
 
 ## License
 
