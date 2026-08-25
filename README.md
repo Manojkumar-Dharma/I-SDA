@@ -104,6 +104,14 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
 ### DSPF (screen) designer
 
+Actionable follow-up items below are tagged with their task ID and
+priority, tracked in
+[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) the same
+way the picker screens were - pick one, mark it `in progress` there, and
+sync before pushing to avoid colliding with other parallel sessions.
+Untagged bullets are accepted constraints or already-reasonable defaults,
+not open work.
+
 - `WINDOW` positions that depend on a runtime value (`*DFT`, or a
   program-to-system field name) can't be known at design time, so they
   render at a fixed placeholder position with a dashed border (staggered
@@ -121,14 +129,14 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   how SDA's own multi-format compare looked before the dimmed backdrop
   was added. Switch off "Full overlay" (or Compare entirely) to go back
   to editing.
-- Deleting a field only warns (never rewrites) if something else looks
-  like it references it by name - unlike rename, there's nothing sensible
-  to auto-fix a deleted field's reference TO. Only named fields are
-  checked; deleting an unnamed constant never warns, since there's
-  nothing to search for.
-- "Create New Display File" won't create the source physical file itself
-  if it doesn't exist yet (`CRTSRCPF`) - only adds a member to one that
-  already exists.
+- **[L2 - High]** Deleting a field only warns (never rewrites) if
+  something else looks like it references it by name - unlike rename,
+  there's nothing sensible to auto-fix a deleted field's reference TO.
+  Only named fields are checked; deleting an unnamed constant never
+  warns, since there's nothing to search for.
+- **[L4 - Medium]** "Create New Display File" won't create the source
+  physical file itself if it doesn't exist yet (`CRTSRCPF`) - only adds a
+  member to one that already exists.
 - Numeric fields with an `EDTCDE` or `EDTWRD` edit code get an exact
   display width - commas, decimal point, sign/CR reservation, and a
   floating currency symbol for `EDTCDE` (per IBM's own worked examples in
@@ -142,21 +150,21 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   length rather than guessed at, since their separator width depends on
   the job's `DATSEP` attribute - not knowable at design time, the same
   runtime-only ambiguity that keeps `WINDOW(*DFT)` a placeholder above.
-- Every dedicated keyword picker (file-, record-, and field-level -
-  Color & attributes, Validity check, Error message, Keying options,
-  Input keywords, General keywords, Database reference, Message ID, and
-  the record-level pickers) manages ONE instance of its keyword(s) at a
-  time, conditioned as a whole via the generic keyword editor's
-  Conditioning toggle. Real SDA additionally allows MULTIPLE
-  independently-conditioned instances of the same keyword - e.g.
-  `COLOR(RED)` under indicator 10 and `COLOR(GRN)` under indicator 20 on
-  the same field, or several `ERRMSG`/`ERRMSGID` entries tried in order,
-  or repeated `SFLMSG`/`SFLMSGID` instances on a subfile control record.
-  Not modeled here; would need its own follow-up since it affects
-  several keywords at once, not just one panel. The `SFL`-specific
-  picker's `INDTXT`/`SETOF`/`CHANGE` rows are the one exception - real
-  DDS allows multiple instances there (one indicator each), and the
-  picker models that as a repeatable row list.
+- **[L1/L1a/L1b/L1c - High]** Every dedicated keyword picker (file-,
+  record-, and field-level - Color & attributes, Validity check, Error
+  message, Keying options, Input keywords, General keywords, Database
+  reference, Message ID, and the record-level pickers) manages ONE
+  instance of its keyword(s) at a time, conditioned as a whole via the
+  generic keyword editor's Conditioning toggle. Real SDA additionally
+  allows MULTIPLE independently-conditioned instances of the same
+  keyword - e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)` under
+  indicator 20 on the same field, or several `ERRMSG`/`ERRMSGID` entries
+  tried in order, or repeated `SFLMSG`/`SFLMSGID` instances on a subfile
+  control record. Not modeled here; would need its own follow-up since
+  it affects several keywords at once, not just one panel. The
+  `SFL`-specific picker's `INDTXT`/`SETOF`/`CHANGE` rows are the one
+  exception - real DDS allows multiple instances there (one indicator
+  each), and the picker models that as a repeatable row list.
 - The `WINDOW`-specific picker deliberately leaves out the real SDA
   screen's "Message line" row (DDS keyword not confidently verified) and
   its "Roll" column (turned out to be SDA's own in-terminal roll-key
@@ -176,11 +184,11 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   validity check has nothing to report; and M/P (Message text/
   Program-to-system) usages, which SDA's own table never covers, fail
   open (show every category) rather than guessing.
-- Menu-bar choice fields' `MNUBARCHC` keyword only supports the
-  literal-text form (`id record 'text'`) - its "Text field"/"Return
-  field" variable-argument forms shown on the real SDA screen aren't
-  modeled, matching what `DspfEngine.parseMenubarChoice` already renders
-  on screen.
+- **[L3 - High]** Menu-bar choice fields' `MNUBARCHC` keyword only
+  supports the literal-text form (`id record 'text'`) - its "Text
+  field"/"Return field" variable-argument forms shown on the real SDA
+  screen aren't modeled, matching what `DspfEngine.parseMenubarChoice`
+  already renders on screen.
 - Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`), Choice keywords, and
   Choice colors & attributes stay constant-excluded, since they require
   real, named, indicator-controlled field semantics a constant
