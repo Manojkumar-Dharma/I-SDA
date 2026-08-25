@@ -630,20 +630,23 @@
     return next;
   }
 
-  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD'];
+  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD', 'EDTMSK'];
 
-  /** Same one-at-a-time rule as validity checks - a field can't carry both an
-   *  edit code and an edit word - { kind: ''|'EDTCDE'|'EDTWRD', parameters: string }. */
+  /** Same one-at-a-time rule as validity checks - a field can't carry more
+   *  than one of an edit code, an edit word, or an edit mask -
+   *  { kind: ''|'EDTCDE'|'EDTWRD'|'EDTMSK', parameters: string }. */
   function getEditKeyword(keywords) {
     var k = (keywords || []).find(function (k) { return EDIT_KEYWORDS.indexOf(k.name) >= 0; });
     return k ? { kind: k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
   }
 
-  /** Returns a NEW keywords array with any existing EDTCDE/EDTWRD removed and,
-   *  if `kind` is non-empty, one new keyword added with `parameters` (a bare
-   *  edit-code letter for EDTCDE, e.g. "J", or the full quoted substitution
-   *  string for EDTWRD, e.g. "'  DR  CR'" - the caller supplies quoting for
-   *  EDTWRD itself since its internal structure is meaningful). */
+  /** Returns a NEW keywords array with any existing EDTCDE/EDTWRD/EDTMSK
+   *  removed and, if `kind` is non-empty, one new keyword added with
+   *  `parameters` (a bare edit-code letter for EDTCDE, e.g. "J"; the full
+   *  quoted substitution string for EDTWRD, e.g. "'  DR  CR'"; or the full
+   *  quoted mask string for EDTMSK, e.g. "'(999) 999-9999'" - the caller
+   *  supplies quoting for EDTWRD/EDTMSK itself since their internal
+   *  structure is meaningful). */
   function setEditKeyword(keywords, kind, parameters) {
     var next = (keywords || []).filter(function (k) { return EDIT_KEYWORDS.indexOf(k.name) < 0; });
     if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
@@ -768,7 +771,17 @@
    *  CNTFLD is handled by dspfEngine.js's continued-entry preview, ALIAS is
    *  just plain text here). Text-bearing keywords come back as their raw
    *  (already-quoted-if-needed) parameter string for the caller to display/
-   *  edit; boolean ones as true/false. */
+   *  edit; boolean ones as true/false. HLPID (task D4 - a CONSTANT
+   *  field-level keyword per IBM's own DDS reference, linking the constant
+   *  to a HLPARA-referenced help panel) is included here rather than as
+   *  its own picker since it's a single bare-identifier keyword, the same
+   *  shape as ALIAS/FLDCSRPRG already handled below - no separate D4
+   *  General-keywords screen was needed since generalFieldKeywordsHtml
+   *  already covers every other keyword real SDA's constant-specific
+   *  General screen shows (ALIAS/INDTXT/DFT/PUTRETAIN/OVRDTA/OVRATR/
+   *  NOCCSID), and Colors/Display Attributes are likewise already covered
+   *  by the shared colorAttrEditorHtml (D1) - constants were never gated
+   *  out of either. */
   function getGeneralFieldKeywords(keywords) {
     var find = function (name) { var k = (keywords || []).find(function (k) { return k.name === name; }); return k ? (k.parameters || '') : ''; };
     var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
@@ -778,6 +791,7 @@
       dft: find('DFT'),
       dftval: find('DFTVAL'),
       fldcsrprg: find('FLDCSRPRG'),
+      hlpid: find('HLPID'),
       putretain: has('PUTRETAIN'),
       ovrdta: has('OVRDTA'),
       ovratr: has('OVRATR'),
@@ -791,12 +805,12 @@
    *  getGeneralFieldKeywords returns) - text fields take the parameter
    *  string as-is (caller supplies quoting, matching how the generic
    *  keyword editor already works, since these vary too much in shape -
-   *  e.g. ALIAS/FLDCSRPRG take a bare name, DFT/DFTVAL/INDTXT take a
+   *  e.g. ALIAS/FLDCSRPRG/HLPID take a bare name, DFT/DFTVAL/INDTXT take a
    *  quoted string - to usefully auto-quote here); blank/false removes the
    *  keyword entirely. */
   function setGeneralFieldKeywords(keywords, state) {
     var s = state || {};
-    var TEXT = { alias: 'ALIAS', indtxt: 'INDTXT', dft: 'DFT', dftval: 'DFTVAL', fldcsrprg: 'FLDCSRPRG' };
+    var TEXT = { alias: 'ALIAS', indtxt: 'INDTXT', dft: 'DFT', dftval: 'DFTVAL', fldcsrprg: 'FLDCSRPRG', hlpid: 'HLPID' };
     var BOOL = { putretain: 'PUTRETAIN', ovrdta: 'OVRDTA', ovratr: 'OVRATR', chrid: 'CHRID', igcalttyp: 'IGCALTTYP', noccsid: 'NOCCSID' };
     var removeNames = Object.keys(TEXT).map(function (k) { return TEXT[k]; }).concat(Object.keys(BOOL).map(function (k) { return BOOL[k]; }));
     var next = (keywords || []).filter(function (k) { return removeNames.indexOf(k.name) < 0; });

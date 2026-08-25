@@ -950,15 +950,17 @@ console.log('\nDspfWriter.getInputKeywords()/setInputKeywords() - DUP/BLANKS/CHA
   check('leaves the still-on one alone', toggledOff.some((k) => k.name === 'CHANGE'));
 }
 
-console.log('\nDspfWriter.getGeneralFieldKeywords()/setGeneralFieldKeywords() - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG + boolean flags');
+console.log('\nDspfWriter.getGeneralFieldKeywords()/setGeneralFieldKeywords() - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/HLPID + boolean flags');
 {
   const none = DspfWriter.getGeneralFieldKeywords([]);
   check('none present -> empty text, false flags', none.alias === '' && none.putretain === false);
+  check('none present -> HLPID empty too', none.hlpid === '');
 
   const set = DspfWriter.setGeneralFieldKeywords([], {
     alias: 'CUST_NAME',
     dft: "'N/A'",
     fldcsrprg: 'NEXTFLD',
+    hlpid: 'FLDHELP1',
     putretain: true,
     ovrdta: false,
     chrid: true,
@@ -966,16 +968,18 @@ console.log('\nDspfWriter.getGeneralFieldKeywords()/setGeneralFieldKeywords() - 
   check('ALIAS written as bare name (caller-supplied form)', set.find((k) => k.name === 'ALIAS').parameters === 'CUST_NAME');
   check('DFT written with caller-supplied quoting', set.find((k) => k.name === 'DFT').parameters === "'N/A'");
   check('FLDCSRPRG written', set.find((k) => k.name === 'FLDCSRPRG').parameters === 'NEXTFLD');
+  check('HLPID written as a bare identifier (task D4 - constant field-level keyword)', set.find((k) => k.name === 'HLPID').parameters === 'FLDHELP1');
   check('PUTRETAIN boolean added bare', set.some((k) => k.name === 'PUTRETAIN' && k.parameters === ''));
   check('OVRDTA left off since it was false', !set.some((k) => k.name === 'OVRDTA'));
   check('CHRID boolean added', set.some((k) => k.name === 'CHRID'));
 
   const roundTrip = DspfWriter.getGeneralFieldKeywords(set);
   check('round-trips text fields back out', roundTrip.alias === 'CUST_NAME' && roundTrip.dft === "'N/A'");
+  check('round-trips HLPID back out', roundTrip.hlpid === 'FLDHELP1');
   check('round-trips boolean flags back out', roundTrip.putretain === true && roundTrip.chrid === true && roundTrip.ovrdta === false);
 
   const cleared = DspfWriter.setGeneralFieldKeywords(set, {});
-  check('blank/false state clears everything this pair manages', !cleared.some((k) => ['ALIAS', 'DFT', 'FLDCSRPRG', 'PUTRETAIN', 'CHRID'].includes(k.name)));
+  check('blank/false state clears everything this pair manages', !cleared.some((k) => ['ALIAS', 'DFT', 'FLDCSRPRG', 'HLPID', 'PUTRETAIN', 'CHRID'].includes(k.name)));
 }
 
 console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');

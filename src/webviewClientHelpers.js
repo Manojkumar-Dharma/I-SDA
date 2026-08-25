@@ -516,6 +516,7 @@
 
   function validityAndEditHtml(keywords, ownerKey, options) {
     var includeValidity = !options || options.includeValidity !== false;
+    var includeEditKeyword = !options || options.includeEditKeyword !== false;
     var ec = DspfWriter.getEditKeyword(keywords);
 
     var html = '';
@@ -544,15 +545,17 @@
       html += '</div>';
     }
 
-    html += '<div class="section-label"' + (includeValidity ? ' style="margin-top:10px;"' : '') + '>Edit code / word</div>';
-    html += '<div class="two-col">' +
-      '<select id="' + ownerKey + '-ec-kind">' +
-      ['', 'EDTCDE', 'EDTWRD'].map(function (k) {
-        return '<option value="' + k + '"' + (ec.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
-      }).join('') +
-      '</select>' +
-      '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
-      '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string</div>';
+    if (includeEditKeyword) {
+      html += '<div class="section-label"' + (includeValidity ? ' style="margin-top:10px;"' : '') + '>Edit code / word / mask</div>';
+      html += '<div class="two-col">' +
+        '<select id="' + ownerKey + '-ec-kind">' +
+        ['', 'EDTCDE', 'EDTWRD', 'EDTMSK'].map(function (k) {
+          return '<option value="' + k + '"' + (ec.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
+        }).join('') +
+        '</select>' +
+        '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
+        '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>';
+    }
 
     if (includeValidity) {
       html += '<div class="section-label" style="margin-top:10px;">Error message</div>';
@@ -560,12 +563,13 @@
       html += '<input type="text" id="' + ownerKey + '-errmsg" placeholder="Shown when the validity check fails" style="width:100%;" value="' + escapeHtml(errText) + '" />';
     }
 
-    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit/message' : 'edit code/word') + '</button>';
+    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit/message' : 'edit code/word/mask') + '</button>';
     return html;
   }
 
   function wireValidityAndEdit(keywords, onChange, ownerKey, options) {
     var includeValidity = !options || options.includeValidity !== false;
+    var includeEditKeyword = !options || options.includeEditKeyword !== false;
     var applyBtn = document.querySelector('.' + ownerKey + '-vc-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
@@ -597,9 +601,11 @@
           .map(function (el) { return immedFor[el.value] || el.value; });
         next = DspfWriter.setCheckOptions(next, existingNonValidity.concat(chosenValidity));
       }
-      var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
-      var ecParams = document.getElementById(ownerKey + '-ec-params').value;
-      next = DspfWriter.setEditKeyword(next, ecKind, ecParams);
+      if (includeEditKeyword) {
+        var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
+        var ecParams = document.getElementById(ownerKey + '-ec-params').value;
+        next = DspfWriter.setEditKeyword(next, ecKind, ecParams);
+      }
       if (includeValidity) {
         var errText = document.getElementById(ownerKey + '-errmsg').value;
         next = DspfWriter.setErrorMessageText(next, errText);
@@ -662,6 +668,7 @@
         generalKeywords: true,
         databaseReference: true,
         messageId: true,
+        editingKeywords: true,
       };
     }
     var isIOB = u === 'I' || u === 'B'; // Input or Both
@@ -673,8 +680,19 @@
       generalKeywords: true,
       databaseReference: true, // H/I/O/B are exactly SDA's own "Hidden, Input, Output, Both" list
       messageId: u === 'O' || u === 'B',
+      // Task D3 - real SDA's numeric "For Field Type" column lists Editing
+      // keywords (EDTCDE/EDTWRD/EDTMSK) as "Numeric Output or Both" - a
+      // narrower, separate gate from validityAndErrorMessage's "Input or
+      // Both, not float" (they cover different usages entirely: edit
+      // keywords format OUTPUT values, validity checks constrain INPUT).
+      // Only meaningful for numeric fields in practice, but the gate itself
+      // doesn't need dataType - the caller only renders this section for
+      // non-constant fields, and non-numeric fields simply won't carry
+      // EDTCDE/EDTWRD/EDTMSK even if the section is technically reachable.
+      editingKeywords: u === 'O' || u === 'B',
     };
   }
+
 
 
   var KEYING_OPTION_CODES = [
@@ -703,6 +721,20 @@
       html += '<label class="attr-check" title="' + escapeHtml(c.label) + '"><input type="checkbox" class="' + ownerKey + '-keying-code" value="' + c.code + '" ' + (checked ? 'checked' : '') + '/>' + c.code + '</label>';
     });
     html += '</div>';
+    // Task D3 - Keyboard shift attribute (KEYBRD), numeric-only real DDS
+    // keyword shown on the same "Select Keying Options" screen. Values are
+    // exactly the single letters real SDA's screen shows (S/N/Y/I/D) -
+    // modeled as a plain present/absent + one-letter-parameter keyword via
+    // DspfWriter.getFileFlagKeyword/setFileFlagKeyword (generic over any
+    // keywords array), same as several of Task R1's record-level keywords -
+    // no dedicated getX/setX pair needed for a single-letter parameter.
+    var keybrd = DspfWriter.getFileFlagKeyword(keywords, 'KEYBRD');
+    html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute (KEYBRD)</div>';
+    html += '<select class="' + ownerKey + '-keybrd">' +
+      ['', 'S', 'N', 'Y', 'I', 'D'].map(function (v) {
+        return '<option value="' + v + '"' + (keybrd.parameters === v ? ' selected' : '') + '>' + (v || '(none)') + '</option>';
+      }).join('') +
+      '</select>';
     return html;
   }
 
@@ -718,7 +750,14 @@
     document.querySelectorAll('.' + ownerKey + '-keying-code').forEach(function (el) {
       el.addEventListener('change', commit);
     });
+    var keybrdEl = document.querySelector('.' + ownerKey + '-keybrd');
+    if (keybrdEl) {
+      keybrdEl.addEventListener('change', function () {
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'KEYBRD', !!keybrdEl.value, keybrdEl.value));
+      });
+    }
   }
+
 
   /** "Select Input Keywords" - DUP/BLANKS/CHANGE/CHGINPDFT (see
    *  DspfWriter.getInputKeywords/setInputKeywords). Real DDS requires a
@@ -766,6 +805,7 @@
     html += '<div class="field-row"><label>DFT <span class="hint-small">(input-only)</span></label><input type="text" id="' + ownerKey + '-gen-dft" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dft) + '" /></div>';
     html += '<div class="field-row"><label>DFTVAL <span class="hint-small">(output/both)</span></label><input type="text" id="' + ownerKey + '-gen-dftval" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dftval) + '" /></div>';
     html += '<div class="field-row"><label>FLDCSRPRG</label><input type="text" id="' + ownerKey + '-gen-fldcsrprg" placeholder="Cursor-progression field name" value="' + escapeHtml(s.fldcsrprg) + '" /></div>';
+    html += '<div class="field-row"><label>HLPID <span class="hint-small">(constant help identifier)</span></label><input type="text" id="' + ownerKey + '-gen-hlpid" placeholder="e.g. FLDHELP1" value="' + escapeHtml(s.hlpid) + '" /></div>';
     html += '<div class="attr-checks" style="margin-top:6px;">';
     [
       ['putretain', 'PUTRETAIN', 'Retain field on display'],
@@ -792,6 +832,7 @@
         dft: document.getElementById(ownerKey + '-gen-dft').value,
         dftval: document.getElementById(ownerKey + '-gen-dftval').value,
         fldcsrprg: document.getElementById(ownerKey + '-gen-fldcsrprg').value,
+        hlpid: document.getElementById(ownerKey + '-gen-hlpid').value,
         putretain: !!document.getElementById(ownerKey + '-gen-putretain').checked,
         ovrdta: !!document.getElementById(ownerKey + '-gen-ovrdta').checked,
         ovratr: !!document.getElementById(ownerKey + '-gen-ovratr').checked,
@@ -845,6 +886,53 @@
     applyBtn.addEventListener('click', function () {
       onChange(DspfWriter.setMessageId(keywords, document.getElementById(ownerKey + '-msgid').value));
     });
+  }
+
+  // -----------------------------------------------------------------------
+  // Task D3 - Subfile Keywords (numeric field, within an SFL/SFLCTL
+  // record - docs/sda-reference/screens/field-level/numeric/
+  // subfile-keywords/image186.png). SFLRCDNBR marks this field as the one
+  // the operator can type a record number into to reposition the subfile
+  // page - its own parameter is one of two fixed literal values (CURSOR:
+  // put the cursor there too, *TOP: also reposition to the top of the
+  // page), modeled as a select rather than free text since those are the
+  // only two DDS accepts. SFLROLVAL marks this field as the one the
+  // operator can type a roll value into. Both are simple present/absent
+  // keywords - DspfWriter.getFileFlagKeyword/setFileFlagKeyword (generic
+  // over any keywords array) cover them, no new primitives needed.
+  // -----------------------------------------------------------------------
+
+  function subfileFieldKeywordsHtml(keywords, ownerKey) {
+    var rcdnbr = DspfWriter.getFileFlagKeyword(keywords, 'SFLRCDNBR');
+    var rolval = DspfWriter.getFileFlagKeyword(keywords, 'SFLROLVAL');
+    var html = '<div class="status" style="margin-bottom:8px;">For a field within a subfile (SFL) or subfile control (SFLCTL) record that lets the operator type a record number or roll value directly.</div>';
+    html += '<div class="section-label">Operator can specify the record number to display (SFLRCDNBR)</div>';
+    html += '<select id="' + ownerKey + '-sflrcdnbr">' +
+      [
+        ['', '(none)'],
+        ['CURSOR', 'CURSOR - cursor at first input field'],
+        ['*TOP', '*TOP - position to top of page'],
+      ].map(function (opt) {
+        return '<option value="' + opt[0] + '"' + (rcdnbr.parameters === opt[0] && rcdnbr.present ? ' selected' : '') + '>' + opt[1] + '</option>';
+      }).join('') +
+      '</select>';
+    html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflrolval" ' + (rolval.present ? 'checked' : '') + '/>Operator can specify the number of records to roll (SFLROLVAL)</label>';
+    return html;
+  }
+
+  function wireSubfileFieldKeywords(keywords, onChange, ownerKey) {
+    var rcdnbrEl = document.getElementById(ownerKey + '-sflrcdnbr');
+    if (rcdnbrEl) {
+      rcdnbrEl.addEventListener('change', function () {
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLRCDNBR', !!rcdnbrEl.value, rcdnbrEl.value));
+      });
+    }
+    var rolvalEl = document.getElementById(ownerKey + '-sflrolval');
+    if (rolvalEl) {
+      rolvalEl.addEventListener('change', function () {
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLROLVAL', rolvalEl.checked));
+      });
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -2475,6 +2563,8 @@
     wireReferenceOverridesEditor: wireReferenceOverridesEditor,
     messageIdHtml: messageIdHtml,
     wireMessageIdEditor: wireMessageIdEditor,
+    subfileFieldKeywordsHtml: subfileFieldKeywordsHtml,
+    wireSubfileFieldKeywords: wireSubfileFieldKeywords,
     menuBarChoicesHtml: menuBarChoicesHtml,
     wireMenuBarChoicesEditor: wireMenuBarChoicesEditor,
     menuBarSeparatorHtml: menuBarSeparatorHtml,

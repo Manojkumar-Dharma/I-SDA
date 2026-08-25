@@ -32,6 +32,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `done` in the plan doc and upstream, this just brings README in line
     (Task R4's own checkmark was already fixed in the R10 commit).
 
+- **Task D3 - Numeric field wiring** (`docs/sda-reference/screens/field-level/numeric/`, see `PICKER-SCREENS-PLAN.md`). Most of D1's panels (Display attrs/Colors/Keying options/Validity check/Input keywords/Database reference/General keywords/Message ID) already matched numeric's own "For Field Type" table exactly and were already correctly wired via D2's generic, non-data-type-specific `fieldKeywordCategoryVisibility` gate - so this task's real work was the genuine gaps:
+  - **`EDTMSK`** added as a third mutually-exclusive option alongside `EDTCDE`/`EDTWRD` in the existing Edit code/word editor (now "Edit code / word / mask").
+  - **Fixed a real gating gap**: the Edit code/word section previously rendered unconditionally for every field usage, including Hidden - real SDA's numeric screen lists it as "Numeric Output or Both" only, a narrower and separate gate from Validity check's "Input or Both, not float" (edit keywords format OUTPUT values; validity checks constrain INPUT). New `editingKeywords` entry in `fieldKeywordCategoryVisibility`; `validityAndEditHtml`/`wireValidityAndEdit` gained an independent `includeEditKeyword` option (previously bundled with `includeValidity`) so the two can now show/hide separately. System-value constants (DATE/TIME/PAGNBR) are unaffected - they keep unconditional edit-keyword access, same as before.
+  - **`KEYBRD`** (Keyboard shift attribute - S/N/Y/I/D) added to the Keying options panel, gated the same as the rest of that panel (Hidden/Input/Both).
+  - New **Subfile keywords** panel (`SFLRCDNBR` - CURSOR/*TOP select, `SFLROLVAL` - flag) for a numeric field living directly in an SFL or SFLCTL record, reusing R3/R4's existing `isSflRecord`/`isSflCtlRecord` detectors for the gate.
+  - No new `dspfWriter.js` primitives needed - `KEYBRD` and both new Subfile keywords reuse the existing generic `getFileFlagKeyword`/`setFileFlagKeyword` pair (present/absent + a free-text or fixed-option parameter), same as several of Task R1's record-level keywords.
+  - 16 new `dspfWebview.test.js` checks.
 - **Task R13 - MNUBAR-specific record picker** (see
   `docs/sda-reference/PICKER-SCREENS-PLAN.md`), a new "MNUBAR" tab on the
   record properties panel shown only for records carrying `MNUBAR`, with
@@ -61,6 +68,32 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - New `runMnuBarPickerScenario` in `dspfWebview.test.js`: tab
     visibility, MNUBAR's own pre-fill/commit, and MNUBARSW/MNUCNL
     committing independently of MNUBAR and of each other.
+
+## [0.9.54] - Unreleased
+
+### Added
+- **Task D4 - Constant field wiring** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`), the last of the field-level
+  picker tasks. Turned out to be a small, well-scoped addition rather than
+  a new set of screens: three of the four SDA screens for constants
+  (Colors, Display Attributes, most of General Keywords) were ALREADY
+  covered by the shared D1 panels, which were never gated to exclude
+  constants in the first place. The two genuinely new pieces:
+  - **`HLPID`** added to the General keywords panel - verified against
+    IBM's own DDS reference as a "constant field-level keyword" (links
+    the constant to a `HLPARA`-referenced help panel), the same bare-
+    identifier shape as `ALIAS`/`FLDCSRPRG` already handled there.
+  - **Relaxed Task D5's Menu-bar choices/separator gate** so a constant
+    living in a `MNUBAR` record can carry `MNUBARCHC`/`MNUBARSEP` too
+    (real SDA's own "Select Menu-Bar Keywords" screen shows the
+    identical keyword set for this case) - valid regardless of whether
+    the DDS entry has a name. Choice selection type (`SNGCHCFLD`/
+    `MLTCHCFLD`)/Choice keywords/Choice colors stay constant-excluded:
+    those require real, named, indicator-controlled field semantics a
+    constant structurally can't have.
+  - 3 new `dspfWriter.test.js` checks (`HLPID` round-trip) plus 8 new
+    `dspfWebview.test.js` checks (constant-in-a-MNUBAR-record scenario,
+    confirming Menu-bar panels appear but Choice selection type doesn't).
 
 ## [0.9.52] - Unreleased
 

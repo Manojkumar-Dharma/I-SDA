@@ -1584,7 +1584,7 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += '<button id="p-resolve-ref" class="secondary" style="width:100%;margin-bottom:12px;">Resolve Referenced Field (Code for i)</button>';
     }
     if (!isConstant) {
-      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage });
+      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords });
     } else if (isSystemValueConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false });
     }
@@ -1611,21 +1611,39 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!isConstant && catVis.messageId) {
       attrsHtml += accordionHtml('Message ID', WebviewClientHelpers.messageIdHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
+    // Task D3 - Subfile Keywords (SFLRCDNBR/SFLROLVAL), for a numeric field
+    // living directly in an SFL or SFLCTL record - gated on the OWNING
+    // RECORD (found.record, computed just below), same convention as D5's
+    // MNUBARCHC/MNUBARSEP gate.
+    const isSflOrSflCtlRecord = !isConstant && (WebviewClientHelpers.isSflRecord(found.record) || WebviewClientHelpers.isSflCtlRecord(found.record));
+    if (isSflOrSflCtlRecord) {
+      attrsHtml += accordionHtml('Subfile keywords (SFLRCDNBR/SFLROLVAL)', WebviewClientHelpers.subfileFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+    }
     // D5 - Menu-bar choice fields (docs/sda-reference/ task D5). Two
     // distinct gates, since these serve two different field kinds:
-    //   - MNUBARCHC/MNUBARSEP only make sense on a field that lives in a
-    //     record carrying its own MNUBAR keyword (see the record-type
-    //     wizard's MNUBAR/PULLDOWN/PDNSFL types) - gated on the OWNING
-    //     RECORD, not the field itself, since a brand-new field in that
-    //     record hasn't been turned into the bar's own choice field yet.
-    //   - Choice selection type is always offered (it's the opt-in entry
-    //     point, same spirit as D1's Keying options always being offered);
-    //     the per-choice keyword list and the three color states only
-    //     appear once a field IS already a SNGCHCFLD/MLTCHCFLD choice
-    //     field, so a random unrelated field's Attributes tab doesn't get
-    //     cluttered with an empty, confusing choice-list editor.
+    //   - MNUBARCHC/MNUBARSEP only make sense on a field OR CONSTANT that
+    //     lives in a record carrying its own MNUBAR keyword (see the
+    //     record-type wizard's MNUBAR/PULLDOWN/PDNSFL types) - gated on
+    //     the OWNING RECORD, not the field itself, since a brand-new entry
+    //     in that record hasn't been turned into the bar's own choice
+    //     element yet. Constants ARE included here (task D4's own "Select
+    //     Menu-Bar Keywords" screen shows the identical MNUBARCHC/
+    //     MNUBARSEP/CHCAVAIL/CHCSLT set) - unlike Choice selection type
+    //     below, MNUBARCHC/MNUBARSEP are valid DDS entries regardless of
+    //     whether the entry has a name, so a constant serving as a
+    //     menu-bar label/separator can carry them too.
+    //   - Choice selection type is always offered for non-constant fields
+    //     (it's the opt-in entry point, same spirit as D1's Keying options
+    //     always being offered); the per-choice keyword list and the
+    //     three color states only appear once a field IS already a
+    //     SNGCHCFLD/MLTCHCFLD choice field, so a random unrelated field's
+    //     Attributes tab doesn't get cluttered with an empty, confusing
+    //     choice-list editor. These stay CONSTANT-EXCLUDED (unlike
+    //     MNUBARCHC/MNUBARSEP above) because SNGCHCFLD/MLTCHCFLD are
+    //     genuinely field semantics - a nameless constant structurally
+    //     cannot be an interactive, indicator-controlled choice field.
     const ownerRecord = found.record;
-    const isMenuBarRecord = !isConstant && ownerRecord.keywords.some((k) => k.name === 'MNUBAR');
+    const isMenuBarRecord = ownerRecord.keywords.some((k) => k.name === 'MNUBAR');
     if (isMenuBarRecord) {
       attrsHtml += accordionHtml('Menu-bar choices (MNUBARCHC)', WebviewClientHelpers.menuBarChoicesHtml(field.keywords, 'field-' + field.sourceLine), false);
       attrsHtml += accordionHtml('Menu-bar separator (MNUBARSEP)', WebviewClientHelpers.menuBarSeparatorHtml(field.keywords, 'field-' + field.sourceLine), false);
@@ -1684,7 +1702,7 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
     WebviewClientHelpers.wireColorAttrEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
     if (!isConstant) {
-      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords });
     } else if (isSystemValueConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false });
     }
@@ -1696,6 +1714,9 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!isConstant) {
       WebviewClientHelpers.wireReferenceOverridesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
       WebviewClientHelpers.wireMessageIdEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    }
+    if (isSflOrSflCtlRecord) {
+      WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
     }
     if (isMenuBarRecord) {
       WebviewClientHelpers.wireMenuBarChoicesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);

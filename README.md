@@ -193,6 +193,19 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
   argument forms shown on the real SDA screen - only the literal-text
   form (`id record 'text'`) is supported, matching what
   `DspfEngine.parseMenubarChoice` already renders on screen.
+- As of v0.9.54, constant field wiring (task D4) is done - but most of
+  its scope turned out to already exist: Colors, Display Attributes, and
+  most of General Keywords were never gated to exclude constants in the
+  first place (they're the same shared panels D1 built for named
+  fields). The two genuinely new pieces were `HLPID` (added to the
+  General keywords panel - a "constant field-level keyword" per IBM's
+  own DDS reference, linking the constant to a `HLPARA`-referenced help
+  panel) and relaxing D5's Menu-bar choices/separator gate so a constant
+  living in a `MNUBAR` record can carry `MNUBARCHC`/`MNUBARSEP` too
+  (valid regardless of whether the entry has a name). Choice selection
+  type/Choice keywords/Choice colors stay constant-excluded, since
+  `SNGCHCFLD`/`MLTCHCFLD` require real, named, indicator-controlled
+  field semantics a constant structurally can't have.
 
 ### Menu designer
 
@@ -277,8 +290,8 @@ picked up after the current round of fixes.
   | Record | Remaining combination types (`WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | R8, R9, R11, R12 | wiring-only, depend on the rows above |
   | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
   | Field | Character wiring | D2 ✅ | - |
-  | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 | - |
-  | Field | Constant (subset + Menu-Bar Keywords) | D4 | - |
+  | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 ✅ | - |
+  | Field | Constant (subset + Menu-Bar Keywords) | D4 ✅ | - |
   | Field | Menu-bar choice fields (`MNB*`/`MNUACT`) | D5 ✅ | - |
 
   Status per task is tracked in
