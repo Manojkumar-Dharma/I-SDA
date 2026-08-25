@@ -111,14 +111,19 @@ async function run() {
     check('member path includes the library segment', writtenUri.path === '/MYLIB/QDDSSRC/SCREEN3.dspf');
   }
 
-  console.log('\nremote path: ADDPFM fails (e.g. source physical file does not exist)');
+  console.log('\nremote path: source physical file already exists (CHKOBJ succeeds) - no CRTSRCPF offer, straight to ADDPFM (e.g. duplicate member still fails on its own)');
   {
+    const commandsRun = [];
     vscodeMock.extensions.getExtension = () => ({
       isActive: true,
       exports: {
         instance: {
           getConnection: () => ({
-            runCommand: () => Promise.resolve({ code: 1, stdout: '', stderr: 'CPF7302 - File QDDSSRC in library MYLIB not found.' }),
+            runCommand: (info) => {
+              commandsRun.push(info.command);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 0, stdout: '', stderr: '' });
+              return Promise.resolve({ code: 1, stdout: '', stderr: 'CPF7304 - Member SCREEN4 in file MYLIB/QDDSSRC already exists.' });
+            },
           }),
         },
       },
@@ -126,12 +131,106 @@ async function run() {
     let wroteAnything = false;
     vscodeMock.workspace.fs.writeFile = () => { wroteAnything = true; return Promise.resolve(); };
     vscodeMock.__lastError = null;
+    vscodeMock.__mockWarningResponse = undefined;
 
     scriptPrompts(['SCREEN4', 'RECORD1', 'Title', 'MYLIB', 'QDDSSRC'], { value: 'remote' });
     await createNewDspf();
 
+    check('ran CHKOBJ first to check the source file', commandsRun[0] && commandsRun[0].startsWith('CHKOBJ') && commandsRun[0].includes('OBJ(MYLIB/QDDSSRC)'));
+    check('no CRTSRCPF offer/run since CHKOBJ said it exists', !commandsRun.some((c) => c.startsWith('CRTSRCPF')));
+    check('proceeded straight to ADDPFM, which then failed on its own', commandsRun.some((c) => c.startsWith('ADDPFM')));
     check('did not write any member content after ADDPFM failed', !wroteAnything);
-    check('surfaced the real CPF error message to the user', vscodeMock.__lastError && vscodeMock.__lastError.includes('CPF7302'));
+    check('surfaced the real CPF error message to the user', vscodeMock.__lastError && vscodeMock.__lastError.includes('CPF7304'));
+  }
+
+  console.log('\nremote path (Task L4): source physical file missing (CHKOBJ fails) - offers CRTSRCPF, declining leaves everything untouched');
+  {
+    const commandsRun = [];
+    vscodeMock.extensions.getExtension = () => ({
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runCommand: (info) => { commandsRun.push(info.command); return Promise.resolve({ code: 1, stdout: '', stderr: '' }); },
+          }),
+        },
+      },
+    });
+    let wroteAnything = false;
+    vscodeMock.workspace.fs.writeFile = () => { wroteAnything = true; return Promise.resolve(); };
+    vscodeMock.__lastError = null;
+    vscodeMock.__mockWarningResponse = undefined; // dismiss/decline the "Create it?" prompt
+
+    scriptPrompts(['SCREEN5', 'RECORD1', 'Title', '', 'NEWSRCPF'], { value: 'remote' });
+    await createNewDspf();
+
+    check('ran CHKOBJ', commandsRun.some((c) => c.startsWith('CHKOBJ')));
+    check('offered to create it (a warning was shown)', !!vscodeMock.__lastWarning && vscodeMock.__lastWarning.includes('NEWSRCPF'));
+    check('declining runs neither CRTSRCPF nor ADDPFM', !commandsRun.some((c) => c.startsWith('CRTSRCPF') || c.startsWith('ADDPFM')));
+    check('nothing written, and no error toast either (a decline is a silent cancel, same as every other prompt here)', !wroteAnything && !vscodeMock.__lastError);
+  }
+
+  console.log('\nremote path (Task L4): source physical file missing - confirming creates it (CRTSRCPF) and then proceeds to ADDPFM');
+  {
+    const commandsRun = [];
+    vscodeMock.extensions.getExtension = () => ({
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runCommand: (info) => {
+              commandsRun.push(info.command);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 1, stdout: '', stderr: '' });
+              return Promise.resolve({ code: 0, stdout: '', stderr: '' });
+            },
+          }),
+        },
+      },
+    });
+    let writtenUri = null;
+    vscodeMock.workspace.fs.writeFile = (uri) => { writtenUri = uri; return Promise.resolve(); };
+    vscodeMock.__mockWarningResponse = 'Create it';
+
+    scriptPrompts(['SCREEN6', 'RECORD1', 'Title', '', 'NEWSRCPF'], { value: 'remote' });
+    await createNewDspf();
+
+    const crtsrcpf = commandsRun.find((c) => c.startsWith('CRTSRCPF'));
+    check('ran CRTSRCPF for the missing source file', !!crtsrcpf && crtsrcpf.includes('FILE(NEWSRCPF)'));
+    check('CRTSRCPF leaves RCDLEN to its own default (*SRC/112) rather than hardcoding one', crtsrcpf && !crtsrcpf.includes('RCDLEN'));
+    check('proceeded to ADDPFM after CRTSRCPF succeeded', commandsRun.some((c) => c.startsWith('ADDPFM')));
+    check('CRTSRCPF ran before ADDPFM', commandsRun.indexOf(crtsrcpf) < commandsRun.findIndex((c) => c.startsWith('ADDPFM')));
+    check('member content was written', !!writtenUri && writtenUri.scheme === 'member');
+  }
+
+  console.log('\nremote path (Task L4): source physical file missing - confirming, but CRTSRCPF itself fails - stops before ADDPFM');
+  {
+    const commandsRun = [];
+    vscodeMock.extensions.getExtension = () => ({
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runCommand: (info) => {
+              commandsRun.push(info.command);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 1, stdout: '', stderr: '' });
+              return Promise.resolve({ code: 1, stdout: '', stderr: 'CPF3283 - Library MYLIB not found.' });
+            },
+          }),
+        },
+      },
+    });
+    let wroteAnything = false;
+    vscodeMock.workspace.fs.writeFile = () => { wroteAnything = true; return Promise.resolve(); };
+    vscodeMock.__lastError = null;
+    vscodeMock.__mockWarningResponse = 'Create it';
+
+    scriptPrompts(['SCREEN7', 'RECORD1', 'Title', 'MYLIB', 'NEWSRCPF'], { value: 'remote' });
+    await createNewDspf();
+
+    check('attempted CRTSRCPF', commandsRun.some((c) => c.startsWith('CRTSRCPF')));
+    check('never reached ADDPFM after CRTSRCPF failed', !commandsRun.some((c) => c.startsWith('ADDPFM')));
+    check('nothing written', !wroteAnything);
+    check('surfaced the real CRTSRCPF failure text', vscodeMock.__lastError && vscodeMock.__lastError.includes('CPF3283'));
   }
 
   console.log('\nremote path: user picks "local" from the destination choice, even with Code for i connected');
@@ -141,10 +240,11 @@ async function run() {
       exports: { instance: { getConnection: () => ({ runCommand: () => Promise.resolve({ code: 0, stdout: '', stderr: '' }) }) } },
     });
     vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    vscodeMock.__mockWarningResponse = undefined;
     let writtenUri = null;
     vscodeMock.workspace.fs.writeFile = (uri) => { writtenUri = uri; return Promise.resolve(); };
 
-    scriptPrompts(['SCREEN5', 'RECORD1', 'Title'], { value: 'local' });
+    scriptPrompts(['SCREEN8', 'RECORD1', 'Title'], { value: 'local' });
     await createNewDspf();
 
     check('respects an explicit "local" choice even though Code for i is connected', writtenUri && writtenUri.scheme === 'file');

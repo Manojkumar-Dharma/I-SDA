@@ -137,9 +137,10 @@ not open work.
   deleting an unnamed constant never prompts, since there's nothing to
   search for. A field nothing references still deletes immediately, with
   no added click.
-- **[L4 - Medium]** "Create New Display File" won't create the source
-  physical file itself if it doesn't exist yet (`CRTSRCPF`) - only adds a
-  member to one that already exists.
+- "Create New Display File" (remote path) checks whether the source
+  physical file exists first, and if it doesn't, offers to create it
+  (`CRTSRCPF`) before adding the member (`ADDPFM`), rather than letting
+  `ADDPFM` fail outright. Declining leaves everything untouched.
 - Numeric fields with an `EDTCDE` or `EDTWRD` edit code get an exact
   display width - commas, decimal point, sign/CR reservation, and a
   floating currency symbol for `EDTCDE` (per IBM's own worked examples in

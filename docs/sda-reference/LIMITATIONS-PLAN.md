@@ -44,7 +44,7 @@ tier above.
 
 | Task | Description | Depends on | Status |
 | --- | --- | --- | --- |
-| **L4** | **`CRTSRCPF` support in "Create New Display File."** The wizard currently only adds a member to a source physical file that already exists; it doesn't offer to create the source physical file itself first. One-time setup friction with an easy manual workaround, so lower urgency than L1-L3. | — (standalone) | not started |
+| **L4** | **`CRTSRCPF` support in "Create New Display File."** Done — the remote-path wizard now checks whether the source physical file exists (`CHKOBJ`) before running `ADDPFM`, and if it doesn't, offers to create it (`CRTSRCPF`) via a confirmation prompt naming the file, rather than letting `ADDPFM` fail with a raw CPF error. Declining is a silent cancel (same as every other prompt in this flow); if `CRTSRCPF` itself fails, that failure is surfaced and `ADDPFM` is never attempted. `RCDLEN` is left to `CRTSRCPF`'s own default (`*SRC`/112, the standard DDS source PF record length) rather than hardcoded. Scoped to the DSPF designer's "Create New Display File" only, per this task; "Create New Menu" has the identical gap on its own remote path but is a separate, untracked limitation, left alone here. See the new scenarios in `src/test/createNewDspf.test.js`. | — (standalone) | done |
 
 ---
 
@@ -53,8 +53,9 @@ tier above.
 - L1 (the foundation component) should land before L1a/L1b/L1c — those
   three are independent of each other once L1 exists, so up to 3
   developers can take one panel each in parallel.
-- L2 and L3 are done. L4 is standalone and independent of L1 — pick it
-  up without waiting on anything else.
+- L2, L3, and L4 are all done. Only L1a/L1b/L1c remain open (each
+  independent of the others, see above) - everything else in this
+  doc's High and Medium priority tiers is finished.
 - Same collision risk as the picker screens effort: sync (`git fetch` +
   drift check) before every push, and update this doc's Status column
   the moment you pick up or finish a task.

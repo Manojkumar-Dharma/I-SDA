@@ -6,6 +6,42 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.59] - Unreleased
 
 ### Added
+## [0.9.60] - Unreleased
+
+### Added
+- **Task L4 - `CRTSRCPF` support in "Create New Display File"** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). The remote-path wizard
+  (Code for i connected) used to only run `ADDPFM` to add the new
+  member, which requires the source physical file to already exist -
+  if it didn't, `ADDPFM` just failed with a raw CPF error the person
+  then had to go fix manually. Now it checks first with `CHKOBJ`, and
+  if the file doesn't appear to exist, offers to create it with
+  `CRTSRCPF` via a confirmation dialog naming the file, before
+  proceeding to `ADDPFM`. Declining is a silent cancel - same as every
+  other prompt in this flow, no error toast for an intentional
+  decline. If `CRTSRCPF` itself fails, that failure is surfaced and
+  `ADDPFM` is never attempted. `RCDLEN` is deliberately left off the
+  `CRTSRCPF` command - its own default (`*SRC`, 112) is exactly the
+  standard DDS source PF record length, so there was nothing to gain
+  by hardcoding it.
+  - New `ensureSourcePhysicalFileExists()` in `extension.ts`, called
+    from `createRemoteMember()` before the existing `ADDPFM` logic.
+  - Scoped to the DSPF designer's "Create New Display File" only, per
+    this task. "Create New Menu" has the identical gap on its own
+    remote path (`createMenuRemoteMembers` or similar) but that's a
+    separate, untracked limitation - left alone here.
+  - `src/test/createNewDspf.test.js` rewritten: the old single
+    "ADDPFM fails" scenario is now four scenarios covering the new
+    branch points - source file already exists (straight to ADDPFM,
+    which can still fail on its own for unrelated reasons), missing +
+    declined (silent no-op), missing + confirmed + `CRTSRCPF` succeeds
+    (proceeds to `ADDPFM`), and missing + confirmed + `CRTSRCPF` fails
+    (stops before `ADDPFM`, surfaces the real CPF text).
+  - `LIMITATIONS-PLAN.md` and README's Known limitations both updated.
+
+## [0.9.59] - Unreleased
+
+### Added
 - **Task L3 - `MNUBARCHC` Text field / Return field variants** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's "Define
   Menu-Bar Choice Keyword" screen
