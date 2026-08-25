@@ -41,7 +41,7 @@ const menuSource =
   ].join('\n') + '\n';
 
 function freshContext() {
-  const context = { subscriptions: [] };
+  const context = vscodeMock.__mockExtensionContext();
   ext.activate(context);
   return vscodeMock.__registeredCommands['dspfDesigner.compileMenu'];
 }

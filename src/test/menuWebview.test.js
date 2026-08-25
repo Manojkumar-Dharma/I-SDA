@@ -45,7 +45,7 @@ const dom = new JSDOM(html, {
   resources: 'usable',
   pretendToBeVisual: true,
   beforeParse(window) {
-    window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
   },
 });
 
@@ -224,7 +224,7 @@ function runCrossReferenceWarningScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => refPosted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => refPosted.push(m) });
     },
   });
 
@@ -274,7 +274,7 @@ function runSplitConstantScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => splitPosted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => splitPosted.push(m) });
     },
   });
 
@@ -329,7 +329,7 @@ function runScreenSpaceScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => roomyPosted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => roomyPosted.push(m) });
     },
   });
 
@@ -360,7 +360,7 @@ function runScreenSpaceScenario() {
       resources: 'usable',
       pretendToBeVisual: true,
       beforeParse(window) {
-        window.acquireVsCodeApi = () => ({ postMessage: (m) => fullPosted.push(m) });
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => fullPosted.push(m) });
       },
     });
 
@@ -390,7 +390,7 @@ function runScreenSpaceScenario() {
         resources: 'usable',
         pretendToBeVisual: true,
         beforeParse(window) {
-          window.acquireVsCodeApi = () => ({ postMessage: (m) => overridePosted.push(m) });
+          window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => overridePosted.push(m) });
         },
       });
 
@@ -432,7 +432,7 @@ function runFirstOptionPlacementScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => titledPosted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => titledPosted.push(m) });
     },
   });
 
@@ -457,7 +457,7 @@ function runFirstOptionPlacementScenario() {
       resources: 'usable',
       pretendToBeVisual: true,
       beforeParse(window) {
-        window.acquireVsCodeApi = () => ({ postMessage: (m) => emptyPosted.push(m) });
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => emptyPosted.push(m) });
       },
     });
 
@@ -497,7 +497,7 @@ function runChosenPlacementScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -566,7 +566,7 @@ function runOptionConditioningScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -609,7 +609,7 @@ function runCopyOptionScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -651,7 +651,7 @@ function runCopySplitOptionScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -690,7 +690,7 @@ function runCopyMenuFileAttrsScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -747,7 +747,7 @@ function runMenuRecordCrudScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -821,7 +821,7 @@ function runCrossRecordOptionScopingScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 

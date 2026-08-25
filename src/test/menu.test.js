@@ -64,7 +64,7 @@ function run() {
   check('creates a well-formed single-line file', fromScratch === '0001 DSPLIBL\n');
 
   console.log('\nactivate()');
-  const context = { subscriptions: [] };
+  const context = vscodeMock.__mockExtensionContext();
   ext.activate(context);
   const menuProviderEntry = vscodeMock.__registeredCustomEditorProviders['dspfDesigner.menuEditor'];
   check('registers the menu editor provider under the right viewType', !!menuProviderEntry);

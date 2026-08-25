@@ -47,7 +47,7 @@ const dom = new JSDOM(html, {
   resources: 'usable',
   pretendToBeVisual: true,
   beforeParse(window) {
-    window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
   },
 });
 
@@ -140,7 +140,7 @@ setTimeout(() => {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => refPosted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => refPosted.push(m) });
     },
   });
 
@@ -179,7 +179,7 @@ function runDeleteWarningScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => delPosted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => delPosted.push(m) });
     },
   });
 
@@ -251,7 +251,7 @@ function runSizeBoundsScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: () => {} });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
   });
 
@@ -293,7 +293,7 @@ function runConstantTextEditScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -337,7 +337,7 @@ function runCopyFieldScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -412,7 +412,7 @@ function runFileAttrsScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -482,7 +482,7 @@ function runCommandKeysScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -556,7 +556,7 @@ function runConditionsScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -609,7 +609,7 @@ function runPerKeywordConditioningScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -662,7 +662,7 @@ function runRecordCrudScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -747,7 +747,7 @@ function runRecordTypeWizardScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -1016,7 +1016,7 @@ function runHiddenFieldsScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -1096,7 +1096,7 @@ function runFieldPropertyHelpersScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -1285,7 +1285,7 @@ function runFieldKeywordVisibilityScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: () => {} });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
   });
 
@@ -1376,7 +1376,7 @@ function runD5MenuBarChoiceScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -1500,7 +1500,7 @@ function runD4ConstantWiringScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -1566,7 +1566,7 @@ function runClickToPlaceScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // jsdom does no real layout, so getBoundingClientRect() is always all-zero -
       // gridMetrics() (used by both drag and click-to-place) needs a non-zero
       // rect to convert a pixel click into a line/column. 800x480 for an 80x24
@@ -1660,7 +1660,7 @@ function runWindowTitleScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -1713,7 +1713,7 @@ function runWindowMoveResizeScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // Same 10px/col x 20px/row mock as runClickToPlaceScenario above.
       window.Element.prototype.getBoundingClientRect = function () {
         return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
@@ -1796,7 +1796,7 @@ function runSubfileControlEditScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
         return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
       };
@@ -1858,7 +1858,7 @@ function runPulldownEditScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
         return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
       };
@@ -1927,7 +1927,7 @@ function runDimmedCompareScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2014,7 +2014,7 @@ function runFullOverlayCompareScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2087,7 +2087,7 @@ function runPanelCollapseScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: () => {} });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
   });
 
@@ -2148,7 +2148,7 @@ function runSflMsgPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2258,7 +2258,7 @@ function runSflPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2344,7 +2344,7 @@ function runWindowPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2459,7 +2459,7 @@ function runUsrDfnPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2531,7 +2531,7 @@ function runSflCtlPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2671,7 +2671,7 @@ function runNumericFieldPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2769,7 +2769,7 @@ function runMnuBarPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2849,7 +2849,7 @@ function runPulldownPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -2944,7 +2944,7 @@ function runSflMsgCtlPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -3040,7 +3040,7 @@ function runWndSfCtlPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -3128,7 +3128,7 @@ function runWndSflScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -3226,7 +3226,7 @@ function runPuldwnsflPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 
@@ -3335,7 +3335,7 @@ function runPdnSflCtlPickerScenario() {
     resources: 'usable',
     pretendToBeVisual: true,
     beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
   });
 

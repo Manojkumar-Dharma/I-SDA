@@ -34,7 +34,7 @@ function check(label, condition) {
 
 async function run() {
   console.log('activate()');
-  const context = { subscriptions: [] };
+  const context = vscodeMock.__mockExtensionContext();
   ext.activate(context);
   check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 5);
   check('registers openPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openPreview'] === 'function');

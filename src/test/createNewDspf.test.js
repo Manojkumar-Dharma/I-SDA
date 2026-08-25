@@ -37,7 +37,7 @@ function scriptPrompts(inputBoxAnswers, quickPickAnswer) {
 }
 
 async function run() {
-  const context = { subscriptions: [] };
+  const context = vscodeMock.__mockExtensionContext();
   ext.activate(context);
   const createNewDspf = vscodeMock.__registeredCommands['dspfDesigner.createNewDspf'];
   check('command registered', typeof createNewDspf === 'function');
