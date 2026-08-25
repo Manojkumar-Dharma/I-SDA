@@ -3,6 +3,36 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.55] - Unreleased
+
+### Added
+- **Task R11 - PULDWNSFL wiring** (see
+  `docs/sda-reference/PICKER-SCREENS-PLAN.md`): confirmed "PULDWNSFL"
+  isn't a distinct DDS keyword either, the same finding Task R6 already
+  made for `SFLMSGCTL`. Real SDA's General/Indicator screens for this
+  record (`docs/sda-reference/screens/record-level/pulldown-subfile-puldwnsfl/`)
+  are identical to plain `SFL`'s, because a pull-down subfile's DETAIL
+  record is an entirely ordinary `SFL` record with no `PULLDOWN` of its
+  own - `PULLDOWN` lives on its paired `SFLCTL` control record instead
+  (Task R12/`PDNSFLCTL`). Task R3's `isSflRecord`/`sflKeywordsPanelsHtml`
+  and Task R4/R10's `isSflCtlRecord`/`isPulldownRecord` already key
+  independently off each record's own keywords, with no awareness of
+  what it's paired with - so a record carrying both `SFLCTL` and
+  `PULLDOWN` already gets the SFLCTL tab and the Pull-down tab side by
+  side, each committing through its own dedicated picker with zero
+  cross-contamination. Zero new `dspfWriter.js` primitives or
+  `webviewClientHelpers.js` panels needed, same "no screens of its own,
+  existing wiring already applies" shape Task R6 took.
+  - New `runPuldwnsflPickerScenario` in `dspfWebview.test.js`: builds a
+    genuine `SFL` detail record paired with an `SFLCTL`+`PULLDOWN`(*SLTIND)
+    control record (mirroring the shape the Record Type Wizard's existing
+    `PDNSFL` branch already generates), and confirms the detail record
+    gets only the SFL tab (General/Indicator commit normally) while the
+    control record gets both the Pull-down and SFLCTL tabs, with edits on
+    either tab or either record leaving everything else untouched.
+  - Docs sync: `PICKER-SCREENS-PLAN.md` and README's picker-screens
+    summary table both updated to `done` for Task R11.
+
 ## [0.9.53] - Unreleased
 
 ### Added

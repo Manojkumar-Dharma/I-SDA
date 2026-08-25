@@ -288,7 +288,8 @@ picked up after the current round of fixes.
   | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 ✅ | - |
   | Record | `SFLMSGCTL` wiring (ordinary `SFLCTL` record; no keyword of its own) | R6 ✅ | - |
   | Record | `WNDSFCTL` wiring (ordinary `SFLCTL` record that also carries `WINDOW`; no keyword of its own) | R9 ✅ | - |
-  | Record | Remaining combination types (`WNDSFL`, `PULDWNSFL`, `PDNSFLCTL`) | R8, R11, R12 | wiring-only, depend on the rows above |
+  | Record | `PULDWNSFL` wiring (ordinary `SFL` detail record paired with an `SFLCTL`+`PULLDOWN` control record; no keyword of its own) | R11 ✅ | - |
+  | Record | Remaining combination types (`WNDSFL`, `PDNSFLCTL`) | R8, R12 | wiring-only, depend on the rows above |
   | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
   | Field | Character wiring | D2 ✅ | - |
   | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 ✅ | - |
