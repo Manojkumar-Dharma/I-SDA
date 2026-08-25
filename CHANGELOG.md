@@ -36,6 +36,20 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.9.55] - Unreleased
 
+### Changed
+- **File-level Command keys (CAxx/CFxx) moved into File attributes.** These
+  used to live in their own always-visible section in the left-hand aside,
+  separate from every other file-level keyword and inconsistent with how
+  record-level command keys already live inside that record's own
+  properties (its "Cmd keys" tab). File attributes now has a matching "Cmd
+  keys" tab alongside General/Indicator/Print/etc, so every file-level
+  keyword - command keys included - lives in one place. Cross-scope
+  exclusion (a number already used by the currently-selected record isn't
+  offered at file level, and vice versa) is unchanged, just recomputed from
+  the new location. `src/test/dspfWebview.test.js`'s command-keys scenario
+  updated to open File attributes / switch back to the record view where
+  the old test relied on both living in the DOM simultaneously.
+
 ### Added
 - **Task L1 - multi-instance conditioned keywords: foundation** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). Every dedicated keyword

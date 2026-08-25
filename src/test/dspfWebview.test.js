@@ -492,6 +492,10 @@ function runCommandKeysScenario() {
 
     check('function-key legend starts empty (no keys defined yet)', doc.getElementById('fkeyLegend').querySelectorAll('.fkey-chip').length === 0);
 
+    console.log('  file-level command keys now live under File attributes > Cmd keys, not a standalone left-panel section');
+    doc.getElementById('fileAttrsBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.props-tab[data-tab="commandkeys"]').dispatchEvent(new Event('click', { bubbles: true }));
+
     console.log('  add a file-level key');
     const fileTypeSel = doc.querySelector('.cmdkey-type[data-prefix="file"]');
     const fileNumSel = doc.querySelector('.cmdkey-number[data-prefix="file"]');
@@ -505,8 +509,10 @@ function runCommandKeysScenario() {
     let last = posted[posted.length - 1];
     check('posts applyEdit containing the new CA03 file-level key', last && last.type === 'applyEdit' && /CA03\(90 'Exit'\)/.test(last.text));
     check('the function-key legend now shows F3', /F3/.test(doc.getElementById('fkeyLegend').textContent));
+    check('the File attributes view is still showing after committing (does not bounce back to record view)', doc.getElementById('crumb-file').classList.contains('current'));
 
-    console.log('  the record-level picker (on SCR1, currently selected) excludes 03');
+    console.log('  back to the record view (SCR1, currently selected) - its own Cmd keys tab excludes 03');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
     const recordNumSel = doc.querySelector('.cmdkey-number[data-prefix="record"]');
     check('key 03 is no longer offered at record level', !Array.from(recordNumSel.options).some((o) => o.value === '03'));
     check('23 numbers remain available', recordNumSel.options.length === 23);
@@ -526,10 +532,12 @@ function runCommandKeysScenario() {
     const legendText = doc.getElementById('fkeyLegend').textContent;
     check('F3 still shown (file-level)', /F3/.test(legendText));
     check('F5 not shown (that was SCR1-only)', !/F5/.test(legendText));
+    check('switching records returns to the record view (not stuck on File attributes)', !doc.getElementById('crumb-file').classList.contains('current'));
 
     console.log('  remove the file-level key');
     recordSelect.value = 'SCR1';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById('fileAttrsBtn').dispatchEvent(new Event('click', { bubbles: true }));
     doc.querySelector('.cmdkey-remove[data-prefix="file"][data-number="03"]').dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check('CA03 is gone after removal', last && !/CA03/.test(last.text));
