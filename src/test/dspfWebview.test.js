@@ -1417,6 +1417,26 @@ function runD5MenuBarChoiceScenario() {
     let last = posted[posted.length - 1];
     check('posts applyEdit with MNUBARCHC(1 PULLFILE \'>File\') on MNUFLD', last && last.type === 'applyEdit' && /MNUFLD[\s\S]*?MNUBARCHC\(1 PULLFILE '>File'\)/.test(last.text));
 
+    console.log('  Task L3: a &field for choice text, plus a Return field, both round-trip through the same MNUBARCHC row');
+    selectFieldByName('MNUFLD');
+    doc.querySelector('button[class*="-mnubarchc-add"]').dispatchEvent(new Event('click', { bubbles: true }));
+    const mnubarchcRows = doc.querySelectorAll('.choice-row');
+    const newMnubarchcRow = mnubarchcRows[mnubarchcRows.length - 1];
+    newMnubarchcRow.querySelector('input[class*="-mnubarchc-id"]').value = '4';
+    newMnubarchcRow.querySelector('input[class*="-mnubarchc-record"]').value = 'PULLOPT';
+    newMnubarchcRow.querySelector('input[class*="-mnubarchc-text"]').value = '&OPTTXT';
+    const returnFieldInput = newMnubarchcRow.querySelector('input[class*="-mnubarchc-returnfield"]');
+    check('setup: Return field input exists on the row', !!returnFieldInput);
+    returnFieldInput.value = 'RTNFLD';
+    doc.querySelector('button[class*="-mnubarchc-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    // Long enough to wrap onto a DDS continuation line ('+' + a fresh
+    // 44-char column-1-44 prefix on the next line) - strip that fixed
+    // prefix before matching so this check doesn't care where the wrap
+    // point happens to fall.
+    const unwrapped = last && last.text ? last.text.replace(/\+\r?\n.{44}/g, '') : '';
+    check('posts applyEdit with the &field text form and a leading & added to the return field', last && last.type === 'applyEdit' && /MNUBARCHC\(4 PULLOPT &OPTTXT &RTNFLD\)/.test(unwrapped));
+
     console.log('  Setting the menu-bar separator (color + char) and applying writes MNUBARSEP');
     selectFieldByName('MNUFLD');
     const sepColorOn = doc.querySelector('input[id$="-mnubarsep-color-on"]');

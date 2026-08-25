@@ -414,13 +414,26 @@
     return m ? m[1].replace(/''/g, "'") : parameters.trim();
   }
 
-  /** MNUBARCHC(choice-id pulldown-record-name 'text') - note this is a field-level
-   *  keyword even though it describes the whole menu bar; a menu-bar field
-   *  typically has one MNUBARCHC per menu item. */
+  /** MNUBARCHC(choice-id pulldown-record-name ['text' | &text-field] [&return-field])
+   *  - note this is a field-level keyword even though it describes the whole
+   *  menu bar; a menu-bar field typically has one MNUBARCHC per menu item.
+   *  Per IBM's DDS reference (MNUBARCHC keyword, Figures 213/214 - and the
+   *  real SDA "Define Menu-Bar Choice Keyword" screen, docs/sda-reference/
+   *  screens/field-level/menu-bar-choice/choice-keyword/image193.png), the
+   *  choice text can be EITHER a quoted literal ('File ') OR a
+   *  program-to-system field reference (&FILETXT, resolved at runtime) -
+   *  and an optional fourth token, always a &field reference, receives
+   *  extra return data when that choice is picked (SDA's "Return field").
+   *  `text` here mirrors parseChoiceParams' own &var convention (the raw
+   *  &NAME token, not resolved) so a &text-field choice still has SOME
+   *  design-time label to render. */
   function parseMenubarChoice(parameters) {
-    var m = parameters.trim().match(/^(\d+)\s+(\S+)\s+'((?:[^']|'')*)'/);
-    if (m) return { id: m[1], pulldownRecord: m[2], text: m[3].replace(/''/g, "'") };
-    return { id: parameters.trim(), pulldownRecord: null, text: parameters.trim() };
+    var m = parameters.trim().match(/^(\d+)\s+(\S+)\s+((?:&\S+)|(?:'(?:[^']|'')*'))(?:\s+(&\S+))?/);
+    if (m) {
+      var text = m[3].charAt(0) === '&' ? m[3] : m[3].slice(1, -1).replace(/''/g, "'");
+      return { id: m[1], pulldownRecord: m[2], text: text, returnField: m[4] || null };
+    }
+    return { id: parameters.trim(), pulldownRecord: null, text: parameters.trim(), returnField: null };
   }
 
   function widgetFromKeywords(field) {

@@ -3,6 +3,37 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.59] - Unreleased
+
+### Added
+- **Task L3 - `MNUBARCHC` Text field / Return field variants** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's "Define
+  Menu-Bar Choice Keyword" screen
+  (`docs/sda-reference/screens/field-level/menu-bar-choice/choice-keyword/image193.png`)
+  and IBM's own DDS reference for `MNUBARCHC` (Figures 213/214) allow a
+  choice's text to be EITHER a quoted literal OR a `&text-field`
+  reference (a program-to-system field resolved at runtime), plus an
+  optional trailing `&return-field` reference that receives extra data
+  when that choice is picked. `DspfEngine.parseMenubarChoice` previously
+  only matched the literal-text form, so a `&text-field` choice failed
+  to parse into a menubar widget at all; it now recognizes both text
+  forms and captures the optional return field. `DspfWriter.getMenubarChoices`/
+  `setMenubarChoices` already half-supported `&text-field` on write (via
+  the shared `formatChoiceText` helper) but had no return-field support
+  on either side and couldn't read a `&text-field` choice back correctly
+  once written - both are now symmetric with the parser. The MNUBARCHC
+  picker row editor gets a new "Return field" input; choice text keeps
+  its existing single text box (typing `&NAME` there is a field
+  reference, anything else a literal), matching this codebase's existing
+  `&`-prefix convention for the sibling `CHOICE` keyword rather than
+  reproducing SDA's separate "Text field"/"Text" entries as two boxes.
+  New coverage in `src/test/dspfEngine.test.js` (render-side parsing,
+  all three `MNUBARCHC` shapes from IBM's own Figures 213/214),
+  `src/test/dspfWriter.test.js` (read/write round-trip, including a
+  `&text-field` + `&return-field` combination together), and
+  `src/test/dspfWebview.test.js` (picker UI round-trip through
+  `applyEdit`).
+
 ## [0.9.55] - Unreleased
 
 ### Added

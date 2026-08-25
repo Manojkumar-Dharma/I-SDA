@@ -187,11 +187,6 @@ not open work.
   validity check has nothing to report; and M/P (Message text/
   Program-to-system) usages, which SDA's own table never covers, fail
   open (show every category) rather than guessing.
-- **[L3 - High]** Menu-bar choice fields' `MNUBARCHC` keyword only
-  supports the literal-text form (`id record 'text'`) - its "Text
-  field"/"Return field" variable-argument forms shown on the real SDA
-  screen aren't modeled, matching what `DspfEngine.parseMenubarChoice`
-  already renders on screen.
 - Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`), Choice keywords, and
   Choice colors & attributes stay constant-excluded, since they require
   real, named, indicator-controlled field semantics a constant
