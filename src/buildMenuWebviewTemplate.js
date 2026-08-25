@@ -17,6 +17,11 @@ const INITIAL_SOURCE_JSON_TOKEN = '%%MNU_INITIAL_SOURCE_JSON%%';
 const INITIAL_COMMAND_JSON_TOKEN = '%%MNU_INITIAL_COMMAND_JSON%%';
 const COMMAND_STATUS_JSON_TOKEN = '%%MNU_COMMAND_STATUS_JSON%%';
 const COMMAND_FILENAME_JSON_TOKEN = '%%MNU_COMMAND_FILENAME_JSON%%';
+// Same 'modern'/'classic' toggle as the DSPF designer (buildWebviewTemplate.js) -
+// shares the same extension-globalState key, so switching styles in either
+// designer applies to both. See that file's UI_STYLE_TOKEN comment for why
+// this is baked into the initial HTML rather than only set client-side.
+const UI_STYLE_TOKEN = '%%MNU_UI_STYLE%%';
 
 const htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -29,6 +34,8 @@ const htmlTemplate = `<!DOCTYPE html>
     --bg: #0b0f0d; --panel: #111815; --panel-border: #23312b; --ink: #cfe8d8; --ink-dim: #6f8c7d;
     --accent: #33ff66; --warn: #ff8a5c;
     --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 200px 1fr 340px; min-height: 100vh; }
@@ -151,9 +158,67 @@ const htmlTemplate = `<!DOCTYPE html>
   .file-attrs-toggle { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 20px; padding: 6px 8px; border: 1px solid var(--panel-border); border-radius: 3px; }
   .file-attrs-toggle:hover { color: var(--accent); border-color: var(--accent); }
   .file-attrs-body { margin-top: 0; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
+
+  /* ---------------------------------------------------------------------
+   * "Modern" UI style layer - see buildWebviewTemplate.js for the full
+   * explanation; identical mechanism, mirrored here for the menu designer's
+   * own class names. .dspf-* grid-emulation classes are untouched in both
+   * styles, same as the DSPF designer.
+   * --------------------------------------------------------------------- */
+  .ui-style-toggle {
+    position: fixed; top: 6px; right: 10px; z-index: 50;
+    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
+    border-radius: 3px; padding: 3px 9px; font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+  }
+  .ui-style-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+  body[data-ui-style="modern"] button,
+  body[data-ui-style="modern"] .rename-btn,
+  body[data-ui-style="modern"] .option-delete-btn,
+  body[data-ui-style="modern"] .option-copy-btn,
+  body[data-ui-style="modern"] .add-option-btn,
+  body[data-ui-style="modern"] .compile-btn,
+  body[data-ui-style="modern"] button.secondary {
+    transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out),
+      border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+  }
+  body[data-ui-style="modern"] button:active:not(:disabled) { transform: scale(0.97); }
+
+  body[data-ui-style="modern"] select,
+  body[data-ui-style="modern"] .rename-input,
+  body[data-ui-style="modern"] .option-label-input,
+  body[data-ui-style="modern"] .option-cmd,
+  body[data-ui-style="modern"] .add-option-num,
+  body[data-ui-style="modern"] .add-option-label,
+  body[data-ui-style="modern"] .add-option-pos,
+  body[data-ui-style="modern"] .cond-add-row input.cond-ind-num {
+    transition: border-color 150ms var(--ease-out), color 150ms var(--ease-out);
+  }
+
+  body[data-ui-style="modern"] button:focus-visible,
+  body[data-ui-style="modern"] select:focus-visible,
+  body[data-ui-style="modern"] input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+
+  body[data-ui-style="modern"] .option-row,
+  body[data-ui-style="modern"] .keyword-chip,
+  body[data-ui-style="modern"] .cond-group,
+  body[data-ui-style="modern"] .option-cond-toggle,
+  body[data-ui-style="modern"] .kw-cond-toggle,
+  body[data-ui-style="modern"] .file-attrs-toggle {
+    transition: border-color 150ms var(--ease-out), color 150ms var(--ease-out), background-color 150ms var(--ease-out);
+  }
+  body[data-ui-style="modern"] .option-cond-body:not(.hidden),
+  body[data-ui-style="modern"] .file-attrs-body:not(.hidden) {
+    animation: isda-fade-in 150ms var(--ease-out);
+  }
+  @keyframes isda-fade-in { from { opacity: 0; } to { opacity: 1; } }
 </style>
 </head>
-<body>
+<body data-ui-style="${UI_STYLE_TOKEN}">
+<button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
 <aside>
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
@@ -212,6 +277,34 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
 <script nonce="${NONCE_TOKEN}">
   const vscode = acquireVsCodeApi();
+
+  // UI style toggle - identical mechanism to the DSPF designer (see that
+  // file's own copy of this block for the full explanation). Shares the
+  // same extension-globalState key, so this stays in sync with the DSPF
+  // designer's toggle across both editors.
+  (function () {
+    const toggleBtn = document.getElementById('uiStyleToggle');
+    function labelFor(style) {
+      return style === 'modern' ? 'Classic UI' : 'New UI \u2728';
+    }
+    let uiStyle = (vscode.getState() && vscode.getState().uiStyle) || document.body.dataset.uiStyle || 'modern';
+    document.body.dataset.uiStyle = uiStyle;
+    toggleBtn.textContent = labelFor(uiStyle);
+    toggleBtn.title = uiStyle === 'modern'
+      ? 'Switch back to the classic (no-animation) look'
+      : 'Try the new animated look';
+    toggleBtn.addEventListener('click', () => {
+      uiStyle = uiStyle === 'modern' ? 'classic' : 'modern';
+      document.body.dataset.uiStyle = uiStyle;
+      toggleBtn.textContent = labelFor(uiStyle);
+      toggleBtn.title = uiStyle === 'modern'
+        ? 'Switch back to the classic (no-animation) look'
+        : 'Try the new animated look';
+      vscode.setState(Object.assign({}, vscode.getState(), { uiStyle }));
+      vscode.postMessage({ type: 'setUiStyle', value: uiStyle });
+    });
+  })();
+
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
   let commandText = ${INITIAL_COMMAND_JSON_TOKEN};
   const commandStatus = ${COMMAND_STATUS_JSON_TOKEN};
@@ -1149,7 +1242,8 @@ export function getMenuWebviewHtml(
   initialCommandSource: string,
   fileName: string,
   commandFileName: string,
-  commandSourceStatus: MenuCommandSourceStatus
+  commandSourceStatus: MenuCommandSourceStatus,
+  uiStyle: string
 ): string {
   return MNU_TEMPLATE
     .split(${JSON.stringify(NONCE_TOKEN)}).join(nonce)
@@ -1158,7 +1252,8 @@ export function getMenuWebviewHtml(
     .split(${JSON.stringify(INITIAL_SOURCE_JSON_TOKEN)}).join(JSON.stringify(initialSource))
     .split(${JSON.stringify(INITIAL_COMMAND_JSON_TOKEN)}).join(JSON.stringify(initialCommandSource))
     .split(${JSON.stringify(COMMAND_STATUS_JSON_TOKEN)}).join(JSON.stringify(commandSourceStatus))
-    .split(${JSON.stringify(COMMAND_FILENAME_JSON_TOKEN)}).join(JSON.stringify(commandFileName));
+    .split(${JSON.stringify(COMMAND_FILENAME_JSON_TOKEN)}).join(JSON.stringify(commandFileName))
+    .split(${JSON.stringify(UI_STYLE_TOKEN)}).join(uiStyle);
 }
 `;
 

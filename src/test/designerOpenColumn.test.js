@@ -31,7 +31,7 @@ function check(label, condition) {
 }
 
 async function run() {
-  const context = { subscriptions: [] };
+  const context = vscodeMock.__mockExtensionContext();
   ext.activate(context);
   const openPreview = vscodeMock.__registeredCommands['dspfDesigner.openPreview'];
 

@@ -49,8 +49,19 @@ const DDS_LANGUAGE_SELECTOR: vscode.DocumentSelector = [
   { scheme: 'streamfile' },
 ];
 
+// Shared between the DSPF and menu designers, so toggling the UI style in
+// either one is reflected in the other next time it's opened. Defaults to
+// 'modern' - the animation/focus/spacing layer added on top of the original
+// (now 'classic') look - with a one-click way back via #uiStyleToggle in
+// each webview.
+const UI_STYLE_KEY = 'isda.uiStyle';
+
+function getUiStyle(context: vscode.ExtensionContext): string {
+  return context.globalState.get<string>(UI_STYLE_KEY, 'modern');
+}
+
 export function activate(context: vscode.ExtensionContext): void {
-  const provider = new DspfDesignerEditorProvider();
+  const provider = new DspfDesignerEditorProvider(context);
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(DspfDesignerEditorProvider.viewType, provider, {
       webviewOptions: { retainContextWhenHidden: true },
@@ -61,7 +72,7 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  const menuProvider = new MenuDesignerEditorProvider();
+  const menuProvider = new MenuDesignerEditorProvider(context);
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(MenuDesignerEditorProvider.viewType, menuProvider, {
       webviewOptions: { retainContextWhenHidden: true },
@@ -601,12 +612,14 @@ function openMenuDesigner(uri: vscode.Uri): void {
 class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
   static readonly viewType = 'dspfDesigner.editor';
 
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
   resolveCustomTextEditor(document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): void {
     webviewPanel.webview.options = { enableScripts: true };
 
     const nonce = getNonce();
     const fileName = document.fileName.split(/[\\/]/).pop() || '';
-    webviewPanel.webview.html = getWebviewHtml(webviewPanel.webview.cspSource, nonce, document.getText(), fileName);
+    webviewPanel.webview.html = getWebviewHtml(webviewPanel.webview.cspSource, nonce, document.getText(), fileName, getUiStyle(this.context));
 
     // Scoped per editor instance (resolveCustomTextEditor runs once per opened tab),
     // same echo-suppression pattern as before: ignore the onDidChangeTextDocument
@@ -632,6 +645,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'resolveReferencedField' || msg.type === 'resolveAllReferencedFields') {
         await handleResolveReferencedField(document, msg);
+      } else if (msg.type === 'setUiStyle') {
+        await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       }
       // 'ready' needs no response; initial content was already embedded in the HTML.
     });
@@ -664,6 +679,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
 class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
   static readonly viewType = 'dspfDesigner.menuEditor';
 
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
   async resolveCustomTextEditor(document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): Promise<void> {
     webviewPanel.webview.options = { enableScripts: true };
 
@@ -691,7 +708,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       commandSource,
       fileName,
       commandFileName,
-      commandStatus
+      commandStatus,
+      getUiStyle(this.context)
     );
 
     // Same echo-suppression pattern as DspfDesignerEditorProvider, scoped to this
@@ -760,6 +778,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await compileMenu(document.uri);
       } else if (msg.type === 'error') {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
+      } else if (msg.type === 'setUiStyle') {
+        await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       }
     });
 

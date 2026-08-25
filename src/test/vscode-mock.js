@@ -185,3 +185,17 @@ function mockDocument(text, uri, options) {
 
 module.exports = vscodeMock;
 module.exports.__mockDocument = mockDocument;
+// In-memory globalState mock, matching the subset of vscode.ExtensionContext
+// the extension actually uses (getUiStyle()/setUiStyle handling in
+// extension.ts). Each call returns a fresh store so tests stay isolated from
+// one another, mirroring a real ExtensionContext's per-activation state.
+module.exports.__mockExtensionContext = function () {
+  const store = new Map();
+  return {
+    subscriptions: [],
+    globalState: {
+      get: (key, defaultValue) => (store.has(key) ? store.get(key) : defaultValue),
+      update: (key, value) => { store.set(key, value); return Promise.resolve(); },
+    },
+  };
+};

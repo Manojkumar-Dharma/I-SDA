@@ -19,6 +19,11 @@ const NONCE_TOKEN = '%%DSPF_NONCE%%';
 const CSP_TOKEN = '%%DSPF_CSP_SOURCE%%';
 const FILENAME_TOKEN = '%%DSPF_FILENAME%%';
 const INITIAL_SOURCE_JSON_TOKEN = '%%DSPF_INITIAL_SOURCE_JSON%%';
+// 'modern' or 'classic' - persisted extension-host-side (see extension.ts) and
+// shared with the menu designer, so switching styles in one designer is
+// reflected in the other next time it's opened. Baked into the initial HTML
+// (rather than only set client-side) to avoid a flash of the wrong style.
+const UI_STYLE_TOKEN = '%%DSPF_UI_STYLE%%';
 
 const htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -31,6 +36,8 @@ const htmlTemplate = `<!DOCTYPE html>
     --bg: #0b0f0d; --panel: #111815; --panel-border: #23312b; --ink: #cfe8d8; --ink-dim: #6f8c7d;
     --accent: #33ff66; --warn: #ff8a5c;
     --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 240px 1fr 300px; min-height: 100vh; }
@@ -220,9 +227,72 @@ const htmlTemplate = `<!DOCTYPE html>
   .panel-collapsed .panel-body { display: none; }
   .panel-collapsed .panel-toggle-btn { margin-bottom: 0; writing-mode: vertical-rl; height: 100%; padding: 10px 0; }
   #newRecordForm { border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px; margin-top: 8px; }
+
+  /* ---------------------------------------------------------------------
+   * "Modern" UI style layer - opt-in via body[data-ui-style="modern"],
+   * toggled by #uiStyleToggle below and persisted in extension globalState
+   * (see extension.ts). Purely additive: everything above this point is
+   * the "classic" style and stays completely unchanged when the modern
+   * layer is off.
+   *
+   * Scope is deliberately limited to chrome - panels, buttons, tabs, chips,
+   * inputs. Every .dspf-* / .screen-frame / #screenOutput / .dspf-window-*
+   * selector (the 5250 grid emulation) is untouched in BOTH styles, so the
+   * STRSDA-accurate preview behaves identically no matter which is active.
+   * --------------------------------------------------------------------- */
+  .ui-style-toggle {
+    position: fixed; top: 6px; right: 10px; z-index: 50;
+    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
+    border-radius: 3px; padding: 3px 9px; font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+  }
+  .ui-style-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+  body[data-ui-style="modern"] button,
+  body[data-ui-style="modern"] .rename-btn,
+  body[data-ui-style="modern"] .props-tab,
+  body[data-ui-style="modern"] .field-order-row button {
+    transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out),
+      border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+  }
+  body[data-ui-style="modern"] button:active:not(:disabled) { transform: scale(0.97); }
+
+  body[data-ui-style="modern"] select,
+  body[data-ui-style="modern"] input[type=text],
+  body[data-ui-style="modern"] input[type=number],
+  body[data-ui-style="modern"] .rename-input {
+    transition: border-color 150ms var(--ease-out);
+  }
+
+  body[data-ui-style="modern"] button:focus-visible,
+  body[data-ui-style="modern"] select:focus-visible,
+  body[data-ui-style="modern"] input:focus-visible,
+  body[data-ui-style="modern"] .props-tab:focus-visible,
+  body[data-ui-style="modern"] .props-subtab:focus-visible,
+  body[data-ui-style="modern"] .props-breadcrumb .crumb:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+
+  body[data-ui-style="modern"] .props-tab-panel.active,
+  body[data-ui-style="modern"] .props-subtab-panel.active {
+    animation: isda-fade-in 150ms var(--ease-out);
+  }
+  @keyframes isda-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  body[data-ui-style="modern"] .props-accordion > summary {
+    transition: color 150ms var(--ease-out), border-color 150ms var(--ease-out);
+  }
+  body[data-ui-style="modern"] .keyword-chip,
+  body[data-ui-style="modern"] .field-order-row,
+  body[data-ui-style="modern"] .help-entry-row,
+  body[data-ui-style="modern"] .cond-group {
+    transition: border-color 150ms var(--ease-out);
+  }
+  body[data-ui-style="modern"] .panel-toggle-btn { transition: color 150ms var(--ease-out); }
 </style>
 </head>
-<body>
+<body data-ui-style="${UI_STYLE_TOKEN}">
+<button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
 <aside>
   <button class="panel-toggle-btn" id="leftPanelToggle" title="Hide this panel">&#9664; Hide panel</button>
   <div class="panel-body" id="leftPanelBody">
@@ -298,6 +368,35 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
 <script nonce="${NONCE_TOKEN}">
   const vscode = acquireVsCodeApi();
+
+  // UI style toggle (modern/classic - see the CSS block above for what "modern"
+  // actually changes). Initial value comes from the extension-host-persisted
+  // token baked into the body tag; vscode.getState() is only consulted as a
+  // same-session override in case the user just toggled it and the webview
+  // got rebuilt before the extension host's globalState round-trip landed.
+  (function () {
+    const toggleBtn = document.getElementById('uiStyleToggle');
+    function labelFor(style) {
+      return style === 'modern' ? 'Classic UI' : 'New UI \u2728';
+    }
+    let uiStyle = (vscode.getState() && vscode.getState().uiStyle) || document.body.dataset.uiStyle || 'modern';
+    document.body.dataset.uiStyle = uiStyle;
+    toggleBtn.textContent = labelFor(uiStyle);
+    toggleBtn.title = uiStyle === 'modern'
+      ? 'Switch back to the classic (no-animation) look'
+      : 'Try the new animated look';
+    toggleBtn.addEventListener('click', () => {
+      uiStyle = uiStyle === 'modern' ? 'classic' : 'modern';
+      document.body.dataset.uiStyle = uiStyle;
+      toggleBtn.textContent = labelFor(uiStyle);
+      toggleBtn.title = uiStyle === 'modern'
+        ? 'Switch back to the classic (no-animation) look'
+        : 'Try the new animated look';
+      vscode.setState(Object.assign({}, vscode.getState(), { uiStyle }));
+      vscode.postMessage({ type: 'setUiStyle', value: uiStyle });
+    });
+  })();
+
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
   let model = DspfParser.parseDspf(sourceText);
   let selectedKey = null;
@@ -2515,12 +2614,13 @@ const output = `/**
 
 const HTML_TEMPLATE: string = ${JSON.stringify(htmlTemplate)};
 
-export function getWebviewHtml(cspSource: string, nonce: string, initialSource: string, fileName: string): string {
+export function getWebviewHtml(cspSource: string, nonce: string, initialSource: string, fileName: string, uiStyle: string): string {
   return HTML_TEMPLATE
     .split(${JSON.stringify(CSP_TOKEN)}).join(cspSource)
     .split(${JSON.stringify(NONCE_TOKEN)}).join(nonce)
     .split(${JSON.stringify(FILENAME_TOKEN)}).join(fileName)
-    .split(${JSON.stringify(INITIAL_SOURCE_JSON_TOKEN)}).join(JSON.stringify(initialSource));
+    .split(${JSON.stringify(INITIAL_SOURCE_JSON_TOKEN)}).join(JSON.stringify(initialSource))
+    .split(${JSON.stringify(UI_STYLE_TOKEN)}).join(uiStyle);
 }
 `;
 
