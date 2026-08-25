@@ -287,7 +287,8 @@ picked up after the current round of fixes.
   | Record | `PULLDOWN` (General + Border, no window-parameters) | R10 ✅ | `PULDWNSFL`, `PDNSFLCTL` |
   | Record | `MNUBAR` (General + Menu-Bar Display Keywords) | R13 ✅ | - |
   | Record | `SFLMSGCTL` wiring (ordinary `SFLCTL` record; no keyword of its own) | R6 ✅ | - |
-  | Record | Remaining combination types (`WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | R8, R9, R11, R12 | wiring-only, depend on the rows above |
+  | Record | `WNDSFCTL` wiring (ordinary `SFLCTL` record that also carries `WINDOW`; no keyword of its own) | R9 ✅ | - |
+  | Record | Remaining combination types (`WNDSFL`, `PULDWNSFL`, `PDNSFLCTL`) | R8, R11, R12 | wiring-only, depend on the rows above |
   | Field | Field base keywords (Display Attrs/Colors/Keying Options/Validity Check/Input/General/Database Reference/Error Messages/Message ID) | D1 ✅ | Character (full set), Numeric & Constant (subsets) |
   | Field | Character wiring | D2 ✅ | - |
   | Field | Numeric (adds Editing Keywords + Subfile Keywords) | D3 ✅ | - |

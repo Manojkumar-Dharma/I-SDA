@@ -2962,6 +2962,109 @@ function runSflMsgCtlPickerScenario() {
     const dtlRec2 = reparsed.records.find((r) => r.name === 'MSGDTL');
     check("MSGDTL's SFLMSGRCD is still 24, untouched by the control record's own message-keyword edit", dtlRec2.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === '24');
 
+    runWndSfCtlPickerScenario();
+  }, 0);
+}
+
+// Task R9 - "WNDSFCTL" isn't a distinct DDS keyword either, same shape as
+// Task R6's SFLMSGCTL finding: it's an ordinary SFLCTL record (SFLCTL(name),
+// same SFLSIZ/SFLPAG/SFLDSP/etc. as any other subfile control record) that
+// ALSO happens to carry a WINDOW keyword, making it a windowed subfile
+// control record. Task R4's isSflCtlRecord/sflCtlPanelsHtml and Task R7's
+// isWindowRecord/windowPanelsHtml each key purely off the record's own
+// keywords (SFLCTL / WINDOW respectively), with no awareness of each
+// other or of what any paired record looks like - and renderRecordProps
+// already renders their tabs from independent `if` blocks (not
+// mutually-exclusive branches), so a record carrying both keywords already
+// gets BOTH the SFLCTL tab and the Window tab, each with its own picker,
+// with zero new dspfWriter.js primitives or webviewClientHelpers.js panels
+// needed - the same "no screens of its own, existing wiring already
+// applies" shape Task R6 took for SFLMSGCTL (and Task R2 took for USRDFN
+// against R1). This scenario is the verification: a genuine windowed
+// subfile control record gets both tabs, each panel pre-fills and commits
+// independently without disturbing the other's keywords or the paired
+// detail record.
+function runWndSfCtlPickerScenario() {
+  console.log('\nWNDSFCTL wiring (Task R9): a windowed subfile control record is an ordinary SFLCTL record that also carries WINDOW - Task R4\u2019s and Task R7\u2019s pickers already apply as-is, no new code needed');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'WSFDTL', func: 'SFL' }),
+      buildLine({ seq: '00020', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'WSFCTL', func: 'SFLCTL(WSFDTL)' }),
+      buildLine({ seq: '00040', func: 'SFLSIZ(20)' }),
+      buildLine({ seq: '00050', func: 'SFLPAG(10)' }),
+      buildLine({ seq: '00060', func: 'WINDOW(2 2 10 40)' }),
+      buildLine({ seq: '00070', func: 'RSTCSR' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFCTL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+    const tabLabels = () => Array.from(doc.querySelectorAll('.props-tab')).map((b) => b.textContent.trim());
+
+    console.log('  WSFDTL (plain SFL detail record) is unaffected - gets SFL, not SFLCTL or Window');
+    recordSelect.value = 'WSFDTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('WSFDTL gets the SFL tab', tabLabels().includes('SFL'));
+    check('WSFDTL does NOT get the SFLCTL tab', !tabLabels().includes('SFLCTL'));
+    check('WSFDTL does NOT get the Window tab', !tabLabels().includes('Window'));
+
+    console.log('  WSFCTL (SFLCTL + WINDOW together) gets BOTH the SFLCTL tab and the Window tab, not SFL');
+    recordSelect.value = 'WSFCTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('WSFCTL gets the SFLCTL tab', tabLabels().includes('SFLCTL'));
+    check('WSFCTL gets the Window tab', tabLabels().includes('Window'));
+    check('WSFCTL does NOT get the SFL tab', !tabLabels().includes('SFL'));
+
+    const sflctlTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLCTL');
+    sflctlTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const p = 'sflctl-WSFCTL';
+    console.log('  SFLCTL tab: General pre-fills exactly as on a plain SFLCTL record (Task R4\u2019s panel, unmodified)');
+    check('SFLSIZ pre-filled', doc.getElementById(p + '-sflsiz').value === '20');
+    check('SFLPAG pre-filled', doc.getElementById(p + '-sflpag').value === '10');
+    doc.getElementById(p + '-sfldsp-on').checked = true;
+    doc.getElementById(p + '-sfldsp-on').dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WSFCTL');
+    check('SFLDSP was added to WSFCTL', reparsed.keywords.some((k) => k.name === 'SFLDSP'));
+    check("WSFCTL's WINDOW keyword is untouched by the SFLCTL-tab edit", reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '2 2 10 40');
+    posted.length = 0;
+
+    const windowTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Window');
+    windowTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const rwPrefix = 'rw-WSFCTL';
+    console.log('  Window tab: Window Parameters pre-fill exactly as on a plain WINDOW record (Task R7\u2019s panel, unmodified)');
+    const modePositioned = doc.querySelector('.' + rwPrefix + '-mode[value="positioned"]');
+    check('"positioned" mode pre-selected for a 4-token WINDOW', modePositioned && modePositioned.checked);
+    check('start line pre-filled', doc.getElementById(rwPrefix + '-startline').value === '2');
+    check('lines pre-filled', doc.getElementById(rwPrefix + '-lines').value === '10');
+    check('RSTCSR starts checked (already present in the source)', doc.getElementById(rwPrefix + '-rstcsr-on').checked);
+
+    doc.getElementById(rwPrefix + '-startline').value = '4';
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WSFCTL');
+    check('WINDOW start line updated', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '4 2 10 40');
+    check("WSFCTL's SFLCTL keyword is untouched by the Window-tab edit", reparsed.keywords.find((k) => k.name === 'SFLCTL').parameters.trim() === 'WSFDTL');
+    check("WSFCTL's SFLDSP (added on the SFLCTL tab above) survived the Window-tab edit", reparsed.keywords.some((k) => k.name === 'SFLDSP'));
+    const dtlRec = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WSFDTL');
+    check("WSFDTL's own SFL keyword is untouched throughout", dtlRec.keywords.some((k) => k.name === 'SFL'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
