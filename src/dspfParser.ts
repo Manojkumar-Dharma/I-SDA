@@ -234,7 +234,7 @@ function buildLogicalEntries(lines: string[]): {
 
   let current: LogicalEntry | null = null;
   let pendingContinuation = false; // true if previous function-area chunk ended in +/-
-  let pendingJoiner: '' | ' ' = ''; // '' for '+', ' ' for '-'
+  let pendingJoiner: '' | ' ' = ''; // ' ' for '+' (insert one blank), '' for '-' (no blank - direct concatenation)
 
   for (let idx = 0; idx < lines.length; idx++) {
     const rawLine = lines[idx];
@@ -255,7 +255,7 @@ function buildLogicalEntries(lines: string[]): {
         current.functionSourceLines.push(sourceLine);
 
         if (endsWithContinuation) {
-          pendingJoiner = chunk.trimEnd().endsWith('+') ? '' : ' ';
+          pendingJoiner = chunk.trimEnd().endsWith('+') ? ' ' : '';
           continue; // still pending
         } else {
           pendingContinuation = false;
@@ -292,7 +292,7 @@ function buildLogicalEntries(lines: string[]): {
 
     if (endsWithContinuation) {
       pendingContinuation = true;
-      pendingJoiner = funcChunk.trimEnd().endsWith('+') ? '' : ' ';
+      pendingJoiner = funcChunk.trimEnd().endsWith('+') ? ' ' : '';
     }
   }
 

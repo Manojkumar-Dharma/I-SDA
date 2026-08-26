@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.63] - Unreleased
+## [0.9.64] - Unreleased
 
 ### Added
 - **Task L1c - wire the L1 repeatable-instance component into the
@@ -46,8 +46,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     instance scenarios are now full repeatable-instance coverage -
     adding a second independently-conditioned SFLMSG instance
     alongside the first, SFLMSGID committing independently of SFLMSG,
-    the incomplete-SFLMSGID guard, and removing one SFLMSG instance
-    leaving the other (and SFLMSGID) untouched.
+    the incomplete-SFLMSGID guard, removing one SFLMSG instance
+    leaving the other (and SFLMSGID) untouched, and a regression check
+    confirming "+ Add" alone never writes an invalid blank-parameter
+    instance (same placeholder-seeding fix as the bullet above).
   - `LIMITATIONS-PLAN.md` updated: L1c marked done. Merged alongside
     Tasks L1a and L1b landing in parallel (see the entries below) -
     all three L1-based pickers (Color & attributes, Error messages,
@@ -101,8 +103,6 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   in `webviewClientHelpers.js` for any future L1-based picker (L1a/L1c)
   to watch for the same trap.
 
-## [0.9.60] - Unreleased
-
 ### Added
 - **Task L4 - `CRTSRCPF` support in "Create New Display File"** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). The remote-path wizard
@@ -134,7 +134,44 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     (stops before `ADDPFM`, surfaces the real CPF text).
   - `LIMITATIONS-PLAN.md` and README's Known limitations both updated.
 
-## [0.9.59] - Unreleased
+## [0.9.63] - 2026-08-26
+
+### Fixed
+- **Keywords added to a record/field with existing keywords were being
+  appended onto a shared, `+`-continued line instead of getting their own
+  new line.** `groupKeywordsByCondition` previously merged adjacent
+  keywords sharing identical conditions (including "no conditions") into
+  one combined physical line/continuation block; adding a new keyword
+  joined it onto whatever block the field's existing unconditioned
+  keywords already occupied. Real SDA (and DDS's own indicator-column
+  rules - conditioning applies per physical line/continuation group, not
+  per keyword within a shared line) always gives each keyword its own
+  line, so it can be independently conditioned afterward. Fixed:
+  `groupKeywordsByCondition` no longer merges separate keyword entries at
+  all; `serializeFieldEntry`/`serializeRecordEntry`/
+  `serializeFileKeywordsEntry` now only let the FIRST unconditioned
+  keyword (or a constant's own literal) ride the entity's own content
+  line - every other keyword, conditioned or not, gets its own dedicated
+  line. `+` continuation is still used, but only to wrap a SINGLE
+  keyword's own overly-long text across physical lines, never to
+  concatenate separate keywords together. New
+  `src/test/keywordLineLayout.test.js`.
+- **A constant literal continued across source lines with `-` (DDS's
+  "no blank inserted at the split point" convention, used for mid-word
+  wraps like `'...pres-` / `s Enter.'` -> "press Enter.") was rendering
+  with an extra space inserted at the split point instead.**
+  `dspfParser.ts`'s continuation-joiner logic had the `+`/`-` convention
+  backwards: real DDS uses `-` for direct concatenation (no blank) and
+  `+` for "insert one blank" - the code had these swapped. Confirmed
+  against a real STRSDA-generated DDS example. Fixed the joiner logic in
+  `buildLogicalEntries`, and updated `dspfWriter.js`'s
+  `serializeFunctionAreaLines` to match: it previously always continued
+  wrapped text with `+`, which under the corrected convention would have
+  started inserting a phantom blank into any newly-written long
+  keyword/constant text on the very next edit - it now uses `-`, matching
+  its own intent (mechanically splitting one already-complete string
+  without adding or removing any character). New
+  `src/test/continuationJoiner.test.js`.
 
 ### Added
 - **Task L1a - multi-instance Color & attributes picker** (see
