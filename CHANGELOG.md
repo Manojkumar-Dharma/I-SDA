@@ -3,6 +3,47 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.62] - Unreleased
+
+### Added
+- **Task L1c - wire the L1 repeatable-instance component into the
+  Subfile Messages panel (`SFLMSG`/`SFLMSGID`)** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). The SFLCTL picker's
+  Subfile Messages section used to manage one primary `SFLMSG`
+  instance and one primary `SFLMSGID` instance each, conditioned as a
+  whole - real DDS lets both repeat independently, each instance with
+  its own up-to-3-indicator condition set (SFLMSG and SFLMSGID are
+  NOT paired together the way a future Color & attributes picker
+  would pair `COLOR`+`DSPATR`; each repeats on its own). Both are now
+  wired through Task L1's generic
+  `repeatableConditionedInstancesHtml`/`wireRepeatableConditionedInstances`
+  component as two separate repeatable groups.
+  - `dspfWriter.js`: replaced the old single-primary-instance
+    `getSflMsgId`/`setSflMsgId` with per-instance
+    `parseSflMsgIdParams`/`formatSflMsgIdParams`, operating directly
+    on one instance's raw `parameters` string rather than a whole
+    keywords array. An incomplete SFLMSGID (blank message ID or file)
+    is still never committed to the document - same guarantee the
+    superseded functions gave, now enforced in the SFLCTL picker's
+    commit handler instead.
+  - Also factored `quoteDdsLiteral`/`unquoteDdsLiteral` out of
+    `getFileQuotedText`/`setFileQuotedText` (used elsewhere for
+    `WDWTITLE`/`HLPTITLE`) so SFLMSG's per-instance text reuses the
+    exact same quoting/escaping convention rather than a second copy
+    of the same regex.
+  - `webviewClientHelpers.js`: `sflCtlPanelsHtml`/`wireSflCtlPanels`
+    now take the shared `expandedKeywordConditioning` Set and a
+    `rerender` callback (same pattern the generic keyword editor
+    already uses), threaded through from `buildWebviewTemplate.js`.
+  - `src/test/dspfWebview.test.js` rewritten: the old two single-
+    instance scenarios are now full repeatable-instance coverage -
+    adding a second independently-conditioned SFLMSG instance
+    alongside the first, SFLMSGID committing independently of SFLMSG,
+    the incomplete-SFLMSGID guard, and removing one SFLMSG instance
+    leaving the other (and SFLMSGID) untouched.
+  - `LIMITATIONS-PLAN.md` updated: L1c marked done, parallelization
+    note updated (only L1a/L1b remain open).
+
 ## [0.9.59] - Unreleased
 
 ### Added

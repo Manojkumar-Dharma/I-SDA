@@ -2286,7 +2286,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isSflCtl = WebviewClientHelpers.isSflCtlRecord(rec);
     let sflCtlPanels = null;
     if (isSflCtl) {
-      sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec.keywords, sflCtlPrefix);
+      sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec.keywords, sflCtlPrefix, expandedKeywordConditioning);
     }
 
     // --- MNUBAR tab: only for menu-bar records (Task R13) - single
@@ -2401,7 +2401,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
     if (isSflCtl) {
-      WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+      WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (isMnuBar) {
       WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));

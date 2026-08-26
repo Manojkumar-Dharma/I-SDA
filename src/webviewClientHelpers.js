@@ -2489,7 +2489,7 @@
    * properties panel's SFLCTL tab (see isSflCtlRecord above for when that
    * tab appears). `idPrefix` namespaces every element id.
    */
-  function sflCtlPanelsHtml(keywords, idPrefix) {
+  function sflCtlPanelsHtml(keywords, idPrefix, expandedSet) {
     var kw = keywords || [];
     var p = idPrefix;
     var panels = {};
@@ -2532,16 +2532,29 @@
     dl += '<button class="secondary" id="' + p + '-layout-apply" style="width:100%;margin-top:8px;">Apply display layout</button>';
     panels.displayLayout = dl;
 
-    // --- Subfile Messages ---
-    var msgId = DspfWriter.getSflMsgId(kw);
+    // --- Subfile Messages (Task L1c - repeatable, independently
+    // conditioned SFLMSG/SFLMSGID instances via the generic L1 component;
+    // see dspfWriter.js's own Task L1c section comment for why these two
+    // are NOT paired into one shared instance list the way e.g. a future
+    // Color & attributes picker would pair COLOR+DSPATR - SFLMSG and
+    // SFLMSGID each repeat independently in real DDS). ---
+    var sflMsgInstances = DspfWriter.getRepeatableKeywordInstances(kw, ['SFLMSG']);
+    var sflMsgIdInstances = DspfWriter.getRepeatableKeywordInstances(kw, ['SFLMSGID']);
     var sm = '<div class="section-label">Message text (SFLMSG)</div>';
-    sm += '<input type="text" id="' + p + '-sflmsg" placeholder="message text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'SFLMSG')) + '" style="width:100%;" />';
-    sm += '<button class="secondary" id="' + p + '-sflmsg-apply" style="width:100%;margin-top:8px;">Apply message text</button>';
+    sm += repeatableConditionedInstancesHtml(sflMsgInstances, p + '-sflmsg-rep', function (inst, instIdPrefix) {
+      return '<input type="text" id="' + instIdPrefix + '-text" placeholder="message text" value="' + escapeHtml(DspfWriter.unquoteDdsLiteral(inst.parameters)) + '" style="width:100%;" />';
+    }, expandedSet, '+ Add SFLMSG instance');
     sm += '<div class="section-label" style="margin-top:14px;">Message ID (SFLMSGID)</div>';
-    sm += '<div class="two-col"><input type="text" id="' + p + '-sflmsgid-id" placeholder="message ID" value="' + escapeHtml(msgId.msgId) + '" /><input type="text" id="' + p + '-sflmsgid-file" placeholder="message file" value="' + escapeHtml(msgId.msgFile) + '" /></div>';
-    sm += '<input type="text" id="' + p + '-sflmsgid-lib" placeholder="library (optional)" value="' + escapeHtml(msgId.library) + '" style="width:100%;margin-top:6px;" />';
-    sm += '<button class="secondary" id="' + p + '-sflmsgid-apply" style="width:100%;margin-top:8px;">Apply message ID</button>';
-    sm += '<div class="hint-small">Real SDA also shows "Ind"/"Name" columns for SFLMSGID and lets both SFLMSG and SFLMSGID repeat, each independently conditioned - only one primary instance of each is managed here (same deferral R1/F1/D1/R3 already document); use the raw Keywords editor below for more.</div>';
+    sm += repeatableConditionedInstancesHtml(sflMsgIdInstances, p + '-sflmsgid-rep', function (inst, instIdPrefix) {
+      var parsed = DspfWriter.parseSflMsgIdParams(inst.parameters);
+      var html = '<div class="two-col">';
+      html += '<input type="text" id="' + instIdPrefix + '-id" placeholder="message ID" value="' + escapeHtml(parsed.msgId) + '" />';
+      html += '<input type="text" id="' + instIdPrefix + '-file" placeholder="message file" value="' + escapeHtml(parsed.msgFile) + '" />';
+      html += '</div>';
+      html += '<input type="text" id="' + instIdPrefix + '-lib" placeholder="library (optional)" value="' + escapeHtml(parsed.library) + '" style="width:100%;margin-top:4px;" />';
+      return html;
+    }, expandedSet, '+ Add SFLMSGID instance');
+    sm += '<div class="hint-small">Each instance above is independently conditioned (its own Conditioning toggle) - add as many as needed for different messages/message-IDs under different indicators. Real SDA also shows "Ind"/"Name" columns for SFLMSGID beyond msgid/message-file/library - not modeled here (getting a keyword\'s parameter order wrong risks writing invalid DDS); use the raw Keywords editor below for those.</div>';
     panels.subfileMessages = sm;
 
     return panels;
@@ -2550,7 +2563,7 @@
   /** Wires every row across all 4 sflCtlPanelsHtml() panels. Same
    *  `getKeywords`/`onChange` contract every other dedicated picker here
    *  uses. */
-  function wireSflCtlPanels(idPrefix, getKeywords, onChange) {
+  function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     var p = idPrefix;
 
     // General
@@ -2590,24 +2603,45 @@
       });
     }
 
-    // Subfile Messages
-    var sflmsgApply = document.getElementById(p + '-sflmsg-apply');
-    if (sflmsgApply) {
-      sflmsgApply.addEventListener('click', function () {
-        onChange(DspfWriter.setFileQuotedText(getKeywords(), 'SFLMSG', document.getElementById(p + '-sflmsg').value));
+    // Subfile Messages (Task L1c)
+    wireRepeatableConditionedInstances(p + '-sflmsg-rep', DspfWriter.getRepeatableKeywordInstances(getKeywords(), ['SFLMSG']), function (nextInstances) {
+      onChange(DspfWriter.setRepeatableKeywordInstances(getKeywords(), ['SFLMSG'], nextInstances));
+    }, function (instIdPrefix, inst, updatePayload) {
+      var input = document.getElementById(instIdPrefix + '-text');
+      if (!input) return;
+      input.addEventListener('change', function () {
+        updatePayload({ parameters: DspfWriter.quoteDdsLiteral(input.value) });
       });
-    }
-    var sflmsgidApply = document.getElementById(p + '-sflmsgid-apply');
-    if (sflmsgidApply) {
-      sflmsgidApply.addEventListener('click', function () {
-        var state = {
-          msgId: document.getElementById(p + '-sflmsgid-id').value,
-          msgFile: document.getElementById(p + '-sflmsgid-file').value,
-          library: document.getElementById(p + '-sflmsgid-lib').value,
-        };
-        onChange(DspfWriter.setSflMsgId(getKeywords(), state));
-      });
-    }
+    }, expandedSet, rerender, function makeDefaultSflMsg() {
+      return { name: 'SFLMSG', parameters: '', conditions: [] };
+    });
+
+    wireRepeatableConditionedInstances(p + '-sflmsgid-rep', DspfWriter.getRepeatableKeywordInstances(getKeywords(), ['SFLMSGID']), function (nextInstances) {
+      onChange(DspfWriter.setRepeatableKeywordInstances(getKeywords(), ['SFLMSGID'], nextInstances));
+    }, function (instIdPrefix, inst, updatePayload) {
+      var idInput = document.getElementById(instIdPrefix + '-id');
+      var fileInput = document.getElementById(instIdPrefix + '-file');
+      var libInput = document.getElementById(instIdPrefix + '-lib');
+      if (!idInput || !fileInput || !libInput) return;
+      function commit() {
+        var formatted = DspfWriter.formatSflMsgIdParams({ msgId: idInput.value, msgFile: fileInput.value, library: libInput.value });
+        // Mirrors the superseded setSflMsgId's own guarantee: never write an
+        // incomplete SFLMSGID (blank msgId or msgFile is invalid DDS - a
+        // keyword needs SOME parameter). formatSflMsgIdParams returns '' in
+        // that case; skip the commit entirely rather than writing a blank-
+        // parameters instance - the instance card stays in the UI mid-edit
+        // (so the user can keep typing), it just doesn't hit the document
+        // until both fields are filled. Deliberately blanking it back out
+        // is what the card's own Remove (\u00d7) button is for.
+        if (!formatted) return;
+        updatePayload({ parameters: formatted });
+      }
+      idInput.addEventListener('change', commit);
+      fileInput.addEventListener('change', commit);
+      libInput.addEventListener('change', commit);
+    }, expandedSet, rerender, function makeDefaultSflMsgId() {
+      return { name: 'SFLMSGID', parameters: '', conditions: [] };
+    });
   }
 
   // -----------------------------------------------------------------------

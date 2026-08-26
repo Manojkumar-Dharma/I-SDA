@@ -1269,23 +1269,44 @@
     return next;
   }
 
+  /** Unquotes a single DDS quoted-string LITERAL parameter (e.g. SFLMSG's
+   *  'Some message' or 'It''s here' with doubled-up embedded quotes) down
+   *  to its plain text - the inverse of quoteDdsLiteral below. Returns ''
+   *  for anything that isn't a leading quoted literal (blank parameters, a
+   *  bare field name, etc). Factored out of getFileQuotedText so Task L1c's
+   *  per-instance repeatable SFLMSG editing can reuse the exact same
+   *  quoting convention without going through a keywords array. */
+  function unquoteDdsLiteral(parameters) {
+    var m = /^'((?:[^']|'')*)'/.exec((parameters || '').trim());
+    return m ? m[1].replace(/''/g, "'") : '';
+  }
+
+  /** Quotes+escapes plain `text` into a DDS quoted-string LITERAL parameter
+   *  (the inverse of unquoteDdsLiteral above) - '' for blank input, same
+   *  "don't write a keyword with no meaningful value" convention
+   *  setFileQuotedText already follows (its caller decides whether '' means
+   *  dropping the keyword/instance entirely). */
+  function quoteDdsLiteral(text) {
+    var trimmed = (text || '').trim();
+    return trimmed ? "'" + trimmed.replace(/'/g, "''") + "'" : '';
+  }
+
   /** Plain-text getter for a quoted-string file-level keyword (HLPTITLE) -
    *  same shape as getErrorMessageText/getWindowTitleText, unquoting so the
    *  editor input shows plain text rather than DDS's own quote escaping. */
   function getFileQuotedText(keywords, name) {
     var k = (keywords || []).find(function (kw) { return kw.name === name; });
     if (!k) return '';
-    var m = /^'((?:[^']|'')*)'/.exec((k.parameters || '').trim());
-    return m ? m[1].replace(/''/g, "'") : '';
+    return unquoteDdsLiteral(k.parameters);
   }
 
   /** Returns a NEW keywords array with `name` set to the quoted+escaped
    *  form of `text` (removed entirely if `text` is blank). */
   function setFileQuotedText(keywords, name, text) {
     var next = (keywords || []).filter(function (kw) { return kw.name !== name; });
-    var trimmed = (text || '').trim();
-    if (trimmed) {
-      next = next.concat([{ name: name, parameters: "'" + trimmed.replace(/'/g, "''") + "'", conditions: [], raw: '', sourceLines: [] }]);
+    var quoted = quoteDdsLiteral(text);
+    if (quoted) {
+      next = next.concat([{ name: name, parameters: quoted, conditions: [], raw: '', sourceLines: [] }]);
     }
     return next;
   }
@@ -2582,20 +2603,32 @@
   // message) reuses getFileQuotedText/setFileQuotedText, the same
   // WDWTITLE/HLPTITLE shape.
   //
-  // Two things from the real SDA screens are deliberately NOT modeled as
-  // repeatable, despite the screens showing 4 blank rows each for SFLMSG
-  // and SFLMSGID: real DDS lets SFLMSG/SFLMSGID appear multiple times,
-  // each independently conditioned by its OWN up-to-3-indicator set (not
-  // an embedded parameter the way INDTXT/SETOF/CHANGE's response
-  // indicator is) - the same "multiple CONDITIONED instances of a
-  // keyword" limitation R1/F1/D1/R3 already document and defer everywhere
-  // else (one primary instance per keyword; the Advanced/raw keywords
-  // accordion and its per-keyword Conditioning toggle still reach the
-  // rest). SFLMSGID's trailing "Ind"/"Name" columns shown on the real
-  // screen aren't modeled either - only msgid/message-file/library
-  // (IBM's own documented 3-parameter form) were confidently verified;
-  // getting a keyword's parameter ORDER wrong risks writing invalid DDS,
-  // which is worse than leaving a column for the raw editor.
+  // Two things from the real SDA screens: getFileFlagKeyword/
+  // getFileQuotedText above cover every OTHER SFLCTL keyword as a single
+  // primary instance, same limitation R1/F1/D1/R3 document elsewhere (one
+  // primary instance per keyword; the Advanced/raw keywords accordion and
+  // its per-keyword Conditioning toggle still reach the rest) - genuinely
+  // out of scope here, unchanged by this task. SFLMSG/SFLMSGID themselves,
+  // though, are NOW modeled as fully repeatable - Task L1c wires the
+  // generic L1 "repeatable conditioned instance" component
+  // (repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances
+  // in webviewClientHelpers.js) into both, since real DDS lets each appear
+  // multiple times with its own independent up-to-3-indicator condition
+  // set (not an embedded parameter the way INDTXT/SETOF/CHANGE's response
+  // indicator is). parseSflMsgIdParams/formatSflMsgIdParams below are the
+  // per-INSTANCE version of what used to be getSflMsgId/setSflMsgId (a
+  // single-primary-instance getter/setter over a whole keywords array) -
+  // those two are now superseded and removed; SFLMSG itself never had its
+  // own keywords-array-level getter beyond the generic
+  // getFileQuotedText/setFileQuotedText already used for HLPTITLE/WDWTITLE,
+  // which L1c's per-instance UI bypasses in favor of
+  // quoteDdsLiteral/unquoteDdsLiteral directly (each instance's own raw
+  // `parameters`, not a single keywords-array lookup). SFLMSGID's trailing
+  // "Ind"/"Name" columns shown on the real screen still aren't modeled -
+  // only msgid/message-file/library (IBM's own documented 3-parameter
+  // form) were confidently verified; getting a keyword's parameter ORDER
+  // wrong risks writing invalid DDS, which is worse than leaving those two
+  // columns for the raw editor.
   // ---------------------------------------------------------------------
 
   /**
@@ -2636,34 +2669,33 @@
   }
 
   /**
-   * Subfile Messages screen's SFLMSGID row: reads only the message-id/
-   * message-file/library-name portion of a SINGLE primary SFLMSGID
-   * instance (see this section's own doc comment above for why this
-   * isn't modeled as repeatable, and why the real screen's trailing
-   * "Ind"/"Name" columns aren't included).
+   * Parses a raw SFLMSGID parameter string (msgid/message-file/[library],
+   * IBM's documented 3-token form) into { msgId, msgFile, library } - the
+   * per-INSTANCE version of what used to be getSflMsgId's whole-keywords-
+   * array lookup (see this section's own doc comment above for why it's
+   * superseded, and why the real screen's trailing "Ind"/"Name" columns
+   * still aren't modeled). Works directly on one instance's raw
+   * `parameters` string, the shape Task L1's
+   * getRepeatableKeywordInstances/setRepeatableKeywordInstances pass
+   * around.
    */
-  function getSflMsgId(keywords) {
-    var k = (keywords || []).find(function (kw) { return kw.name === 'SFLMSGID'; });
-    if (!k) return { msgId: '', msgFile: '', library: '' };
-    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+  function parseSflMsgIdParams(parameters) {
+    var tokens = (parameters || '').trim().split(/\s+/).filter(Boolean);
     return { msgId: tokens[0] || '', msgFile: tokens[1] || '', library: tokens[2] || '' };
   }
 
-  /** Returns a NEW keywords array with SFLMSGID built from `state`
-   *  ({ msgId, msgFile, library }, same shape getSflMsgId returns) -
-   *  library is only written if msgId and msgFile are both present too
-   *  (a library with no message-id/file would be meaningless DDS).
-   *  Removed entirely if msgId or msgFile is blank. */
-  function setSflMsgId(keywords, state) {
-    var next = (keywords || []).filter(function (k) { return k.name !== 'SFLMSGID'; });
+  /** Inverse of parseSflMsgIdParams - library only included if both msgId
+   *  and msgFile are present too (same rule the superseded setSflMsgId
+   *  used). Returns '' (an instance with a blank payload) when msgId or
+   *  msgFile is blank; the caller (Task L1c's SFLMSGID wiring in
+   *  webviewClientHelpers.js) decides what an empty-parameters instance
+   *  means, same as any other repeatable instance's payload. */
+  function formatSflMsgIdParams(state) {
     var msgId = ((state && state.msgId) || '').trim();
     var msgFile = ((state && state.msgFile) || '').trim();
     var library = ((state && state.library) || '').trim();
-    if (msgId && msgFile) {
-      var params = msgId + ' ' + msgFile + (library ? ' ' + library : '');
-      next = next.concat([{ name: 'SFLMSGID', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
-    }
-    return next;
+    if (!msgId || !msgFile) return '';
+    return msgId + ' ' + msgFile + (library ? ' ' + library : '');
   }
 
   return {
@@ -2738,6 +2770,8 @@
     setFileFlagKeyword: setFileFlagKeyword,
     getFileQuotedText: getFileQuotedText,
     setFileQuotedText: setFileQuotedText,
+    quoteDdsLiteral: quoteDdsLiteral,
+    unquoteDdsLiteral: unquoteDdsLiteral,
     getFileRefKeyword: getFileRefKeyword,
     setFileRefKeyword: setFileRefKeyword,
     getFilePrtFileKeyword: getFilePrtFileKeyword,
@@ -2760,8 +2794,8 @@
     setRepeatableKeywordInstances: setRepeatableKeywordInstances,
     getSflDisplayLayout: getSflDisplayLayout,
     setSflDisplayLayout: setSflDisplayLayout,
-    getSflMsgId: getSflMsgId,
-    setSflMsgId: setSflMsgId,
+    parseSflMsgIdParams: parseSflMsgIdParams,
+    formatSflMsgIdParams: formatSflMsgIdParams,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
     serializeDisplaySizes: serializeDisplaySizes,
   };

@@ -2649,32 +2649,56 @@ function runSflCtlPickerScenario() {
     check('SFLLIN written as 1', reparsed.keywords.find((k) => k.name === 'SFLLIN').parameters.trim() === '1');
     posted.length = 0;
 
-    console.log('  Subfile Messages: SFLMSG (quoted text) and SFLMSGID (msgid/file/library) commit independently');
-    doc.getElementById(p + '-sflmsg').value = 'No records in subfile';
-    doc.getElementById(p + '-sflmsg-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    console.log('  Subfile Messages (Task L1c): SFLMSG and SFLMSGID are each independently repeatable, independently conditioned instances');
+    check('no SFLMSG instances yet - empty state shown', doc.getElementById(p + '-sflmsg-rep-instances').textContent.indexOf('None defined.') >= 0);
+    doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-sflmsg-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
+    doc.getElementById(p + '-sflmsg-rep-inst0-text').value = 'No records in subfile';
+    doc.getElementById(p + '-sflmsg-rep-inst0-text').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
-    check("SFLMSG written as a quoted string", /^'No records in subfile'$/.test(reparsed.keywords.find((k) => k.name === 'SFLMSG').parameters.trim()));
+    check('first SFLMSG written as a quoted string', /^'No records in subfile'$/.test(reparsed.keywords.find((k) => k.name === 'SFLMSG').parameters.trim()));
     posted.length = 0;
 
-    doc.getElementById(p + '-sflmsgid-id').value = 'MSG0001';
-    doc.getElementById(p + '-sflmsgid-file').value = 'MYMSGF';
-    doc.getElementById(p + '-sflmsgid-lib').value = 'MYLIB';
-    doc.getElementById(p + '-sflmsgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    console.log('  Subfile Messages: a SECOND independently-conditioned SFLMSG instance coexists with the first (Task L1\\u2019s whole point)');
+    doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-sflmsg-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
+    doc.getElementById(p + '-sflmsg-rep-inst1-text').value = 'More records exist';
+    doc.getElementById(p + '-sflmsg-rep-inst1-text').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    const sflMsgKws = reparsed.keywords.filter((k) => k.name === 'SFLMSG');
+    check('BOTH SFLMSG keywords now coexist as separate instances', sflMsgKws.length === 2);
+    check('first instance unchanged by adding the second', /^'No records in subfile'$/.test(sflMsgKws[0].parameters.trim()));
+    check('second instance carries its own text', /^'More records exist'$/.test(sflMsgKws[1].parameters.trim()));
+    posted.length = 0;
+
+    console.log('  Subfile Messages: SFLMSGID (msgid/file/library) commits independently of SFLMSG, via the same repeatable component');
+    doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-sflmsgid-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
+    doc.getElementById(p + '-sflmsgid-rep-inst0-id').value = 'MSG0001';
+    doc.getElementById(p + '-sflmsgid-rep-inst0-file').value = 'MYMSGF';
+    doc.getElementById(p + '-sflmsgid-rep-inst0-lib').value = 'MYLIB';
+    doc.getElementById(p + '-sflmsgid-rep-inst0-lib').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
     check('SFLMSGID written as msgid+file+library', reparsed.keywords.find((k) => k.name === 'SFLMSGID').parameters.trim() === 'MSG0001 MYMSGF MYLIB');
-    check("SFLMSG from the previous step is still there (independent commits)", reparsed.keywords.some((k) => k.name === 'SFLMSG'));
+    check('both SFLMSG instances from the previous steps are still there (independent commits)', reparsed.keywords.filter((k) => k.name === 'SFLMSG').length === 2);
     posted.length = 0;
 
-    console.log('  Subfile Messages: SFLMSGID is not written without both a message ID and a message file');
-    doc.getElementById(p + '-sflmsgid-id').value = '';
-    doc.getElementById(p + '-sflmsgid-file').value = 'ONLYFILE';
-    doc.getElementById(p + '-sflmsgid-lib').value = '';
-    doc.getElementById(p + '-sflmsgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    console.log('  Subfile Messages: an incomplete SFLMSGID (blank message file) is never committed - avoids writing invalid DDS');
+    doc.getElementById(p + '-sflmsgid-rep-inst0-file').value = '';
+    doc.getElementById(p + '-sflmsgid-rep-inst0-file').dispatchEvent(new Event('change', { bubbles: true }));
+    check('no new edit was posted for the incomplete entry', posted.filter((m) => m.type === 'applyEdit').length === 0);
+
+    console.log('  Subfile Messages: removing an SFLMSG instance leaves the other untouched');
+    doc.querySelectorAll('.repeat-inst-remove[data-prefix="' + p + '-sflmsg-rep"]')[0].dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
-    check('SFLMSGID removed when the message ID is blank', !reparsed.keywords.some((k) => k.name === 'SFLMSGID'));
+    const remainingSflMsg = reparsed.keywords.filter((k) => k.name === 'SFLMSG');
+    check('exactly one SFLMSG instance remains', remainingSflMsg.length === 1);
+    check('the REMAINING one is the second instance, not the removed first', /^'More records exist'$/.test(remainingSflMsg[0].parameters.trim()));
+    check('SFLMSGID (a completely different keyword group) is untouched by removing an SFLMSG instance', reparsed.keywords.some((k) => k.name === 'SFLMSGID'));
 
     runNumericFieldPickerScenario();
   }, 0);
@@ -3014,9 +3038,11 @@ function runSflMsgCtlPickerScenario() {
     posted.length = 0;
 
     console.log('  Subfile Messages: SFLMSGID commits on the control record without disturbing the detail record\u2019s SFLMSGRCD-based message handling');
-    doc.getElementById(p + '-sflmsgid-id').value = 'MSG0001';
-    doc.getElementById(p + '-sflmsgid-file').value = 'MYMSGF';
-    doc.getElementById(p + '-sflmsgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-sflmsgid-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
+    doc.getElementById(p + '-sflmsgid-rep-inst0-id').value = 'MSG0001';
+    doc.getElementById(p + '-sflmsgid-rep-inst0-file').value = 'MYMSGF';
+    doc.getElementById(p + '-sflmsgid-rep-inst0-file').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text);
     ctlRec = reparsed.records.find((r) => r.name === 'MSGCTL');
