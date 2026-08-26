@@ -1331,18 +1331,24 @@
   // EDTWRD - safer than silently mis-ordering a multi-argument keyword.
   // ---------------------------------------------------------------------
 
-  /** Reads a simple file-level keyword's current state - { present, parameters }.
-   *  `fixedParam` (optional) narrows the match to a keyword instance whose
-   *  parameter text equals it exactly (case-insensitive) - used for keywords
-   *  like CHECK that appear multiple times with different fixed arguments,
-   *  each acting as its own independent toggle. */
+  /** Reads a simple file-level keyword's current state - { present, parameters,
+   *  conditions }. `fixedParam` (optional) narrows the match to a keyword
+   *  instance whose parameter text equals it exactly (case-insensitive) -
+   *  used for keywords like CHECK that appear multiple times with different
+   *  fixed arguments, each acting as its own independent toggle.
+   *  `conditions` is that keyword instance's own indicator conditioning
+   *  (e.g. SFLDSP conditioned on indicator 30) - callers that only care
+   *  about presence/parameters can keep ignoring it, but flagRowHtml/
+   *  wireFlagRow use it so a flag row can show and edit conditioning that
+   *  was already there instead of silently hiding it (see setFileFlagKeyword
+   *  below for why previously this got silently DESTROYED, not just hidden). */
   function getFileFlagKeyword(keywords, name, fixedParam) {
     var k = (keywords || []).find(function (kw) {
       if (kw.name !== name) return false;
       if (fixedParam == null) return true;
       return (kw.parameters || '').trim().toUpperCase() === String(fixedParam).toUpperCase();
     });
-    return { present: !!k, parameters: k ? (k.parameters || '') : '' };
+    return { present: !!k, parameters: k ? (k.parameters || '') : '', conditions: k ? (k.conditions || []) : [] };
   }
 
   /** Returns a NEW keywords array with the given keyword set on/off. When
@@ -1351,8 +1357,25 @@
    *  CHECK(...) variants, are left alone); otherwise any existing keyword
    *  of this name is replaced (single-instance keywords like INDARA,
    *  PRINT, HLPPNLGRP). `parameters` is ignored when `fixedParam` is set
-   *  (the fixed text IS the parameter). */
-  function setFileFlagKeyword(keywords, name, present, parameters, fixedParam) {
+   *  (the fixed text IS the parameter).
+   *
+   *  `conditions` (optional) - when OMITTED (undefined), any indicator
+   *  conditioning already on the existing keyword instance is PRESERVED as-is.
+   *  This used to be unconditional data loss: every call here rebuilt the
+   *  keyword with `conditions: []`, so toggling ANY flag-row keyword through
+   *  this function - even ones with nothing to do with conditioning, like
+   *  flipping a completely different checkbox on the same panel that
+   *  happens to also go through setFileFlagKeyword - silently stripped an
+   *  existing indicator off keywords like SFLDSP/SFLDSPCTL/SFLCLR the moment
+   *  the panel re-committed. Pass an explicit `conditions` array (including
+   *  `[]` to deliberately clear it) when the caller actually means to change
+   *  the conditioning; omit it for every other kind of edit. */
+  function setFileFlagKeyword(keywords, name, present, parameters, fixedParam, conditions) {
+    var existing = (keywords || []).find(function (kw) {
+      if (kw.name !== name) return false;
+      if (fixedParam == null) return true;
+      return (kw.parameters || '').trim().toUpperCase() === String(fixedParam).toUpperCase();
+    });
     var next = (keywords || []).filter(function (kw) {
       if (kw.name !== name) return true;
       if (fixedParam == null) return false;
@@ -1360,7 +1383,8 @@
     });
     if (present) {
       var params = fixedParam != null ? String(fixedParam) : (parameters || '');
-      next = next.concat([{ name: name, parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: name, parameters: params, conditions: nextConditions, raw: '', sourceLines: [] }]);
     }
     return next;
   }

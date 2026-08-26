@@ -587,7 +587,13 @@ function runConditionsScenario() {
 
     console.log('  record conditioning: default view on load is the record props panel, starts unconditioned');
     check('starts unconditioned', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
+    const postedBeforeRecordAddGroup = posted.length;
     doc.querySelector('.cond-add-group[data-prefix="record"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on the record does NOT write an indicator yet (pending, not committed)', posted.length === postedBeforeRecordAddGroup);
+    const recordPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for the record', !!recordPendingNumInput);
+    recordPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="record"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     let last = posted[posted.length - 1];
     check('posts applyEdit adding indicator 01 to the record itself', last && last.type === 'applyEdit' && /A\s+01\s+R\s+SCR1/.test(last.text));
 
@@ -601,7 +607,13 @@ function runConditionsScenario() {
     fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
     check('field starts unconditioned', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
 
+    const postedBeforeFieldAddGroup = posted.length;
     doc.querySelector('.cond-add-group[data-prefix="field"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on the field does NOT write an indicator yet (pending, not committed)', posted.length === postedBeforeFieldAddGroup);
+    const fieldPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for the field', !!fieldPendingNumInput);
+    fieldPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="field"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check("posts applyEdit adding indicator 01 as the field's condition", last && last.type === 'applyEdit' && /01.*NAME/.test(last.text.replace(/\n/g, ' ')));
 
@@ -654,6 +666,10 @@ function runPerKeywordConditioningScenario() {
     const addGroupBtn = doc.querySelector('.cond-add-group[data-prefix="' + ownerKey + '-kw0"]');
     check('expanding the toggle mounts a conditions editor scoped to that one keyword', !!addGroupBtn);
     addGroupBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const kwPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for this one keyword', !!kwPendingNumInput);
+    kwPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="' + ownerKey + '-kw0"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     const last = posted[posted.length - 1];
     check('posts applyEdit with indicator 01 conditioning JUST the DSPATR keyword line', last && last.type === 'applyEdit' && /01\s+DSPATR\(HI\)/.test(last.text));
     check("the field's own NAME line stays unconditioned (no 01 before the name)", last && !/01\s+NAME/.test(last.text));
@@ -1216,6 +1232,11 @@ function runFieldPropertyHelpersScenario() {
     console.log('  conditioning ONLY the second state does not condition the first');
     doc.querySelector('.repeat-inst-cond-toggle[data-prefix="' + colorattrOwnerPrefix + '"][data-idx="1"]').dispatchEvent(new Event('click', { bubbles: true }));
     doc.querySelector('.cond-add-group[data-prefix="' + colorInstPrefix1 + '"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on the color/attr state does NOT write yet (pending, not committed)', posted.length === 0);
+    const colorAttrPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for the color/attr state', !!colorAttrPendingNumInput);
+    colorAttrPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="' + colorInstPrefix1 + '"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     let condEdit = posted.find((m) => m.type === 'applyEdit');
     check('posts an applyEdit that still carries both COLOR keywords after conditioning just the second', condEdit && condEdit.text.includes('COLOR(GRN)') && condEdit.text.includes('COLOR(RED)'));
 
@@ -2738,6 +2759,30 @@ function runSflCtlPickerScenario() {
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
     check('SFLDSP was added', reparsed.keywords.some((k) => k.name === 'SFLDSP'));
     check('SFLNXTCHG from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
+    posted.length = 0;
+
+    console.log('  General: SFLDSP/SFLDSPCTL/SFLCLR support indicator conditioning - it shows when present, and survives unrelated edits on the same panel');
+    check('SFLDSP starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + p + '-sfldsp"]').textContent));
+    doc.querySelector('.kw-cond-toggle[data-flag-id="' + p + '-sfldsp"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + p + '-sfldsp-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on SFLDSP does not write yet (pending, not committed)', posted.length === 0);
+    const sfldspPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    sfldspPendingNumInput.value = '30';
+    doc.querySelector('.cond-ind-add[data-prefix="' + p + '-sfldsp-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    const sfldspKw = reparsed.keywords.find((k) => k.name === 'SFLDSP');
+    check('SFLDSP is now conditioned on indicator 30', sfldspKw.conditions.length === 1 && sfldspKw.conditions[0].indicators[0].number === '30');
+    posted.length = 0;
+
+    check('re-rendering shows the Conditioning(1) summary on the SFLDSP row, not hidden', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + p + '-sfldsp"]').textContent));
+    check("SFLDSP's pending indicator input is pre-filled with the committed 30 (existing conditioning is genuinely displayed, not just accepted)", doc.querySelector('.cond-group[data-group="0"] .keyword-chip').textContent.trim().startsWith('30'));
+
+    doc.getElementById(p + '-sflinz-on').checked = true;
+    doc.getElementById(p + '-sflinz-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('toggling an unrelated flag (SFLINZ) on the same panel does not wipe SFLDSP\'s indicator 30 conditioning', reparsed.keywords.find((k) => k.name === 'SFLDSP').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'SFLDSP').conditions[0].indicators[0].number === '30');
     posted.length = 0;
 
     console.log('  General: SFLDROP/SFLFOLD/SFLENTER take a free-text CFnn/CAnn parameter');

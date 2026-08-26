@@ -3,6 +3,93 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.65] - Unreleased
+
+### Fixed
+- **"+ OR condition" no longer silently defaults a new condition to
+  indicator `01`.** The indicator conditioning editor
+  (`conditionsEditorHtml`/`wireConditionsEditor` in
+  `webviewClientHelpers.js`, used for field/record/keyword/menu-option
+  conditioning everywhere) used to seed a brand-new OR group with
+  indicator `01` the instant "+ OR condition" was clicked, because
+  `normalizeConditionGroups` drops any group with zero indicators and
+  every change here commits straight to the DDS source (no local
+  "draft" state) - an empty group had nowhere to survive between
+  renders. That meant clicking "+ OR condition" conditioned the
+  entity on indicator 01 whether the user wanted that indicator or
+  not, with no confirmation step.
+  - Clicking "+ OR condition" now adds a *pending* group tracked as
+    pure UI state (reusing the same `expandedKeywordConditioning`/
+    `expandedOptionConditioning` Sets already used for Conditioning
+    toggle expand/collapse, under a distinct `idPrefix:pending-or`
+    key) - the empty IF/OR-IF row renders with just its own indicator
+    input and a Cancel button. Nothing is written to the document
+    until the user actually types an indicator and clicks
+    "+ indicator"; Cancel discards it with no document edit at all.
+  - `conditionsEditorHtml(conditions, idPrefix, pendingGroupSet)` and
+    `wireConditionsEditor(idPrefix, conditions, onChange,
+    pendingGroupSet, rerender)` take two new optional trailing
+    params; omitting them falls back to the old immediate-01 behavior
+    for safety, but every call site (generic keyword editor, the L1
+    repeatable-conditioned-instance component, the field/record
+    entity-level Conditioning panels, and the menu designer's
+    per-option Conditioning panel) now passes its existing
+    expand-tracking Set through.
+  - Updated the 4 existing tests that hardcoded the old immediate-01
+    assertion (`dspfWebview.test.js`: record conditioning, field
+    conditioning, per-keyword conditioning, Color & attributes
+    conditioning; `menuWebview.test.js`: per-option conditioning) to
+    exercise the new pending-group flow instead.
+
+- **Indicator conditioning on flag-row keywords (`SFLDSP`,
+  `SFLDSPCTL`, `SFLCLR`, and every other boolean keyword rendered via
+  the generic `flagRowHtml`/`wireFlagRow` primitive - 100+ call
+  sites) was invisible in the UI, AND silently destroyed the moment
+  anything else on the same panel was edited.** Root cause was in
+  the shared primitive, not any one keyword:
+  - `DspfWriter.getFileFlagKeyword` only ever returned `{ present,
+    parameters }` - it dropped a matched keyword's `conditions`
+    entirely, so an existing indicator on e.g. `SFLDSP` never showed.
+  - `DspfWriter.setFileFlagKeyword` unconditionally rebuilt the
+    keyword with `conditions: []` on every call - so toggling *any*
+    flag row on a panel (even a completely unrelated one) silently
+    stripped indicator conditioning off every other flag-row keyword
+    on that same panel the next time the panel committed.
+  - Fixed at the root: `getFileFlagKeyword` now also returns
+    `conditions`. `setFileFlagKeyword` gained an optional trailing
+    `conditions` param - when omitted (as ~100 existing call sites
+    still do, unchanged), it now *preserves* whatever conditioning
+    already existed on that keyword instead of dropping it; passing
+    an explicit array (including `[]`) still lets a caller
+    deliberately change it. This fixes the data-loss half of the bug
+    for every flag-row keyword everywhere, with zero call-site
+    changes required.
+  - `flagRowHtml`/`wireFlagRow` gained optional trailing
+    `conditions`/`expandedSet`(/`rerender`) params that opt a given
+    row into a "Conditioning" toggle + editor, identical in shape to
+    the generic keyword editor's own per-keyword toggle (reusing
+    `conditionsEditorHtml`/`wireConditionsEditor`, including this
+    release's own pending-group fix above). Existing call sites that
+    don't pass these keep rendering the plain checkbox-only row,
+    unchanged.
+  - Wired this into every flag row in the SFLCTL picker's General
+    panel (`sflCtlPanelsHtml`/`wireSflCtlPanels` - `SFLCTL`,
+    `SFLCSRRRN`, `SFLMODE`, `SFLDSP`, `SFLDSPCTL`, `SFLINZ`,
+    `SFLDLT`, `SFLCLR`, `SFLRNA`, `SFLEND`, `SFLDROP`, `SFLFOLD`,
+    `SFLENTER`, `SFLNXTCHG`, `LOGOUT`, `LOGINP`, `KEEP`,
+    `CHECK(AB)`/`CHECK(RL)`), since that's the panel the reported bug
+    was on and every one of those keywords can legally carry
+    conditioning in real DDS. Other `flagRowHtml`/`wireFlagRow` call
+    sites elsewhere in the codebase are unaffected for now (still
+    safe from the data-loss half above, just not yet showing their
+    own Conditioning toggle) and are candidates for the same
+    treatment later.
+  - New coverage in `dspfWebview.test.js`'s SFLCTL picker scenario:
+    conditioning `SFLDSP` on indicator 30 via the pending-group flow,
+    confirming the indicator is genuinely displayed on re-render (not
+    just accepted), then toggling an unrelated flag (`SFLINZ`) on the
+    same panel and confirming `SFLDSP`'s conditioning survives.
+
 ## [0.9.64] - Unreleased
 
 ### Added

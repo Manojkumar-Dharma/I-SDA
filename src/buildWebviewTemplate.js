@@ -1858,7 +1858,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     // --- Keywords tab: the dense raw-keyword chip editor + conditioning, each collapsed by default ---
     let keywordsHtml = accordionHtml('Keywords', WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), true);
-    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field'), false);
+    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field', expandedKeywordConditioning), false);
 
     html += tabsHtml([
       { id: 'basic', label: isConstant ? 'Text' : 'Basic', content: basicHtml },
@@ -1898,7 +1898,7 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     }
     WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
-    WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
+    WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords });
@@ -2223,7 +2223,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
     let keywordsHtml = subtabsHtml(rkTabs, rkActiveTab);
     keywordsHtml += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
-    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record'), false);
+    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record', expandedKeywordConditioning), false);
 
     // --- Command keys tab ---
     const availableForRecord = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, rec.keywords);
@@ -2393,7 +2393,7 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
-    WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
+    WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
       WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }

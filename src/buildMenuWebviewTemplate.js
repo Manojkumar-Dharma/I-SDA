@@ -861,8 +861,8 @@ const htmlTemplate = `<!DOCTYPE html>
       const condToggle = row.querySelector('.option-cond-toggle');
       const condBody = row.querySelector('.option-cond-body');
       if (isExpanded) {
-        condBody.innerHTML = WebviewClientHelpers.conditionsEditorHtml(conditions, 'opt' + numLabel);
-        WebviewClientHelpers.wireConditionsEditor('opt' + numLabel, conditions, (newConditions) => updateOptionConditions(opt.recordName, opt.numberValue, newConditions));
+        condBody.innerHTML = WebviewClientHelpers.conditionsEditorHtml(conditions, 'opt' + numLabel, expandedOptionConditioning);
+        WebviewClientHelpers.wireConditionsEditor('opt' + numLabel, conditions, (newConditions) => updateOptionConditions(opt.recordName, opt.numberValue, newConditions), expandedOptionConditioning, renderOptions);
       }
       condToggle.addEventListener('click', () => {
         if (expandedOptionConditioning.has(opt.numberValue)) expandedOptionConditioning.delete(opt.numberValue);
