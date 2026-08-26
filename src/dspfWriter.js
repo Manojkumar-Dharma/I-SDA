@@ -207,13 +207,17 @@
   }
 
   /** Builds the full function-area text (unwrapped) for a field: implicit constant literal + the given
-   *  keyword list, space-separated. Callers pass only the UNCONDITIONED keywords here - conditioned
-   *  keywords get their own dedicated line(s) via serializeConditionedKeywordLines instead, since a
-   *  keyword's condition lives on lines that precede just that keyword, not the whole field. */
+   *  keyword list, space-separated. Callers pass only the keyword(s) that belong on THIS line - normally
+   *  just the field's first unconditioned keyword (see serializeFieldEntry), everything else gets its own
+   *  dedicated line via serializeConditionedKeywordLines instead, one keyword per physical DDS line so each
+   *  keyword has its own room for conditioning indicators (cols 7-16), matching real SDA's own output.
+   *  The constant-literal/DFT check looks at field.keywords (the field's FULL keyword list) rather than the
+   *  passed-in subset, since that decision has to be correct regardless of which keyword(s) happen to be on
+   *  this particular line. */
   function buildFunctionAreaText(field, keywords) {
     var parts = [];
     if (field.nameType === 'CONSTANT' && field.constantValue != null) {
-      var hasDft = (keywords || []).some(function (k) {
+      var hasDft = (field.keywords || []).some(function (k) {
         return k.name === 'DFT';
       });
       if (!hasDft) {
@@ -226,23 +230,18 @@
     return parts.join(' ');
   }
 
-  function conditionsEqual(a, b) {
-    return JSON.stringify(a || []) === JSON.stringify(b || []);
-  }
-
-  /** Groups keywords into runs that share identical conditions (preserving order), so keywords
-   *  conditioned together end up back on the same line group they'd naturally occupy. */
+  /** Splits keywords into one group PER KEYWORD, in order - never merging two different keyword
+   *  entries onto a shared physical line, even when their conditions happen to match. Each keyword
+   *  gets its own dedicated line(s), with room for its own conditioning indicators (cols 7-16),
+   *  matching real SDA's own picker-generated output: adding a keyword always starts a new line
+   *  rather than appending onto/continuing an existing one. (Previously merged adjacent keywords
+   *  that shared identical conditions into one shared continuation block - that broke the ability
+   *  to independently condition a keyword after the fact, since DDS indicator columns apply to a
+   *  whole physical line/continuation group, not to one keyword within a shared line.) */
   function groupKeywordsByCondition(keywords) {
-    var groups = [];
-    (keywords || []).forEach(function (k) {
-      var last = groups[groups.length - 1];
-      if (last && conditionsEqual(last.conditions, k.conditions)) {
-        last.keywords.push(k);
-      } else {
-        groups.push({ conditions: k.conditions || [], keywords: [k] });
-      }
+    return (keywords || []).map(function (k) {
+      return { conditions: k.conditions || [], keywords: [k] };
     });
-    return groups;
   }
 
   /** Serializes one or more keywords that share the same (non-empty) condition: the condition's
@@ -270,15 +269,24 @@
   }
 
   /** Wraps function-area text into 80-col lines with +/- continuation, cols 1-44 blank (except 'A' in col 6). */
+  /** Wraps function-area text into 80-col lines with '-' line-continuation (no
+   *  blank inserted at the split point - see dspfParser.ts's pendingJoiner doc
+   *  comment for the real DDS convention this matches: '-' = direct
+   *  concatenation, '+' = insert one blank). This function's own wrapping is
+   *  purely mechanical - splitting one already-complete string, which already
+   *  contains any semantically-real spaces as literal characters in `text` -
+   *  so it must never ADD a character at the split point; '-' is the
+   *  continuation character that guarantees that. Cols 1-44 blank (except 'A'
+   *  in col 6). */
   function serializeFunctionAreaLines(text) {
     var lines = [];
     var remaining = text;
     while (remaining.length > FUNCTION_AREA_WIDTH) {
       var isLast = false;
-      var chunkWidth = FUNCTION_AREA_WIDTH - 1; // reserve 1 col for '+'
+      var chunkWidth = FUNCTION_AREA_WIDTH - 1; // reserve 1 col for '-'
       var chunk = remaining.slice(0, chunkWidth);
       remaining = remaining.slice(chunkWidth);
-      lines.push({ text: chunk, continuation: '+' });
+      lines.push({ text: chunk, continuation: '-' });
     }
     lines.push({ text: remaining, continuation: null });
 
@@ -294,17 +302,21 @@
   }
 
   /** Serializes a full field entry from current field state: the field's OWN condition prefix
-   *  lines (if field.conditions spans multiple groups/lines), its content line(s) built from
-   *  unconditioned keywords, then each run of identically-conditioned keywords as their own
-   *  dedicated line(s) - preserving per-keyword conditioning instead of silently dropping it. */
+   *  lines (if field.conditions spans multiple groups/lines), a content line built from the
+   *  constant literal (if any) plus at most its FIRST unconditioned keyword, then every remaining
+   *  keyword (further unconditioned ones, plus every conditioned one) as its own dedicated line -
+   *  one keyword per physical DDS line, each with room for its own conditioning indicators,
+   *  matching real SDA's own output rather than packing multiple keywords onto a shared line. */
   function serializeFieldEntry(field, originalLine1to6) {
     var allKeywords = field.keywords || [];
     var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
     var conditioned = allKeywords.filter(function (k) { return k.conditions && k.conditions.length > 0; });
+    var firstUnconditioned = unconditioned.slice(0, 1);
+    var restKeywords = unconditioned.slice(1).concat(conditioned);
 
     var fieldPrefixLines = serializeConditionPrefixLines(field.conditions, originalLine1to6);
     var posCols = serializePositionalCols(field, originalLine1to6);
-    var functionText = buildFunctionAreaText(field, unconditioned);
+    var functionText = buildFunctionAreaText(field, firstUnconditioned);
 
     var contentLines;
     if (functionText.length === 0) {
@@ -316,7 +328,7 @@
     }
 
     var keywordLines = [];
-    groupKeywordsByCondition(conditioned).forEach(function (g) {
+    groupKeywordsByCondition(restKeywords).forEach(function (g) {
       keywordLines = keywordLines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, originalLine1to6));
     });
 
@@ -380,15 +392,19 @@
       .join(' ');
   }
 
-  /** Same per-keyword-conditioning treatment as serializeFieldEntry, applied to a record's own keywords. */
+  /** Same per-keyword-conditioning treatment as serializeFieldEntry, applied to a record's own
+   *  keywords: at most its first unconditioned keyword rides the R-line itself, everything else
+   *  (further unconditioned keywords, plus every conditioned one) gets its own dedicated line. */
   function serializeRecordEntry(record, originalLine1to6) {
     var allKeywords = record.keywords || [];
     var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
     var conditioned = allKeywords.filter(function (k) { return k.conditions && k.conditions.length > 0; });
+    var firstUnconditioned = unconditioned.slice(0, 1);
+    var restKeywords = unconditioned.slice(1).concat(conditioned);
 
     var recordPrefixLines = serializeConditionPrefixLines(record.conditions, originalLine1to6);
     var posCols = serializeRecordPositionalCols(record, originalLine1to6);
-    var functionText = buildRecordFunctionAreaText(unconditioned);
+    var functionText = buildRecordFunctionAreaText(firstUnconditioned);
 
     var contentLines;
     if (functionText.length === 0) {
@@ -400,7 +416,7 @@
     }
 
     var keywordLines = [];
-    groupKeywordsByCondition(conditioned).forEach(function (g) {
+    groupKeywordsByCondition(restKeywords).forEach(function (g) {
       keywordLines = keywordLines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, originalLine1to6));
     });
 
@@ -438,16 +454,20 @@
     return min == null ? null : [min, max];
   }
 
+  /** Same one-keyword-per-line treatment as serializeFieldEntry/serializeRecordEntry: at most the
+   *  first unconditioned file keyword rides the very first line, everything else gets its own. */
   function serializeFileKeywordsEntry(fileKeywords, originalLine1to6) {
     var unconditioned = (fileKeywords || []).filter(function (k) { return !k.conditions || k.conditions.length === 0; });
     var conditioned = (fileKeywords || []).filter(function (k) { return k.conditions && k.conditions.length > 0; });
+    var firstUnconditioned = unconditioned.slice(0, 1);
+    var restKeywords = unconditioned.slice(1).concat(conditioned);
 
     var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
     var posChars = new Array(44).fill(' ');
     for (var i = 0; i < 6; i++) posChars[i] = seqForm[i];
     var posCols = posChars.join('');
 
-    var functionText = buildRecordFunctionAreaText(unconditioned); // generic keyword-list join, despite the name
+    var functionText = buildRecordFunctionAreaText(firstUnconditioned); // generic keyword-list join, despite the name
     var contentLines = [];
     if (functionText.length > 0) {
       var funcLines = serializeFunctionAreaLines(functionText);
@@ -456,7 +476,7 @@
     }
 
     var keywordLines = [];
-    groupKeywordsByCondition(conditioned).forEach(function (g) {
+    groupKeywordsByCondition(restKeywords).forEach(function (g) {
       keywordLines = keywordLines.concat(serializeConditionedKeywordLines(g.conditions, g.keywords, originalLine1to6));
     });
 
