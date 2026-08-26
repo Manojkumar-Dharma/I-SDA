@@ -483,6 +483,81 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task L1a - multi-instance Color & attributes editor, built on Task L1's
+  // repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances
+  // and DspfWriter.getColorAttrStates/setColorAttrStates. Renders each
+  // independently-conditioned color/attribute state as its own card (color
+  // select + DSPATR checkboxes as the payload, a Conditioning accordion
+  // per card via the L1 shell) instead of colorAttrEditorHtml/
+  // wireColorAttrEditor's single always-unconditioned pair above. Callers
+  // choose between the two - this one for a full multi-state picker (see
+  // its call site in the field/constant props panel), the single-pair one
+  // above stays available for anywhere a simpler always-unconditioned
+  // COLOR/DSPATR editor is still wanted.
+  // -----------------------------------------------------------------------
+
+  function colorAttrStatesHtml(keywords, ownerKey, expandedSet) {
+    var states = DspfWriter.getColorAttrStates(keywords);
+    var html = '<div class="section-label">Color &amp; attributes</div>';
+    html += repeatableConditionedInstancesHtml(states, ownerKey + '-colorattr', function (inst, instIdPrefix) {
+      var payload = '<div class="field-row"><label>Color</label><select id="' + instIdPrefix + '-color">' +
+        COLOR_VALUES.map(function (c) {
+          return '<option value="' + c + '"' + (inst.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
+        }).join('') + '</select></div>';
+      payload += '<div class="attr-checks">';
+      DSPATR_ATTRS.forEach(function (a) {
+        var checked = inst.attrs.indexOf(a) >= 0;
+        payload += '<label class="attr-check"><input type="checkbox" class="' + instIdPrefix + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+      });
+      payload += '</div>';
+      return payload;
+    }, expandedSet, '+ Add color/attribute state', function renderStaging(stagingIdPrefix) {
+      // A permanently-visible "new state" row (same pattern
+      // commandKeysSectionHtml uses for CAxx/CFxx) - "+ Add" reads THESE
+      // inputs rather than appending a blank card, since a state with no
+      // color and no attributes checked would write nothing and simply
+      // vanish on the very next re-render (see readColorAttrStaging below).
+      var staging = '<div class="field-row"><label>Color</label><select id="' + stagingIdPrefix + '-color">' +
+        COLOR_VALUES.map(function (c) { return '<option value="' + c + '">' + (c || '(none)') + '</option>'; }).join('') + '</select></div>';
+      staging += '<div class="attr-checks">';
+      DSPATR_ATTRS.forEach(function (a) {
+        staging += '<label class="attr-check"><input type="checkbox" class="' + stagingIdPrefix + '-attr" value="' + a + '"/>' + a + '</label>';
+      });
+      staging += '</div>';
+      return staging;
+    });
+    return html;
+  }
+
+  function wireColorAttrStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var states = DspfWriter.getColorAttrStates(keywords);
+    wireRepeatableConditionedInstances(ownerKey + '-colorattr', states, function (newStates) {
+      onChange(DspfWriter.setColorAttrStates(keywords, newStates));
+    }, function (instIdPrefix, inst, updatePayload) {
+      var colorSel = document.getElementById(instIdPrefix + '-color');
+      function commit() {
+        var color = colorSel ? colorSel.value : '';
+        var attrs = Array.prototype.slice
+          .call(document.querySelectorAll('.' + instIdPrefix + '-attr:checked'))
+          .map(function (el) { return el.value; });
+        updatePayload({ color: color, attrs: attrs });
+      }
+      if (colorSel) colorSel.addEventListener('change', commit);
+      document.querySelectorAll('.' + instIdPrefix + '-attr').forEach(function (el) {
+        el.addEventListener('change', commit);
+      });
+    }, expandedSet, rerender, function readNewInstance(stagingIdPrefix) {
+      var colorSel = document.getElementById(stagingIdPrefix + '-color');
+      var color = colorSel ? colorSel.value : '';
+      var attrs = Array.prototype.slice
+        .call(document.querySelectorAll('.' + stagingIdPrefix + '-attr:checked'))
+        .map(function (el) { return el.value; });
+      if (!color && attrs.length === 0) return null; // nothing to add
+      return { conditions: [], color: color, attrs: attrs };
+    });
+  }
+
+  // -----------------------------------------------------------------------
   // Validity check (RANGE/COMP/VALUES), edit code/word (EDTCDE/EDTWRD), and
   // error message (ERRMSG) - dedicated helpers instead of the generic
   // keyword box, for named fields (validity check + edit code/word + error
@@ -557,13 +632,7 @@
         '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>';
     }
 
-    if (includeValidity) {
-      html += '<div class="section-label" style="margin-top:10px;">Error message</div>';
-      var errText = DspfWriter.getErrorMessageText(keywords);
-      html += '<input type="text" id="' + ownerKey + '-errmsg" placeholder="Shown when the validity check fails" style="width:100%;" value="' + escapeHtml(errText) + '" />';
-    }
-
-    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit/message' : 'edit code/word/mask') + '</button>';
+    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit' : 'edit code/word/mask') + '</button>';
     return html;
   }
 
@@ -574,7 +643,7 @@
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
       // Same keyword insertion order as before includeValidity existed
-      // (validity check, then edit code/word, then error message) - DDS
+      // (validity check, then edit code/word) - DDS
       // doesn't care about keyword order, but preserving it keeps output
       // byte-for-byte identical for the includeValidity:true (named-field)
       // path, rather than incidentally shifting where an 80-column
@@ -606,12 +675,112 @@
         var ecParams = document.getElementById(ownerKey + '-ec-params').value;
         next = DspfWriter.setEditKeyword(next, ecKind, ecParams);
       }
-      if (includeValidity) {
-        var errText = document.getElementById(ownerKey + '-errmsg').value;
-        next = DspfWriter.setErrorMessageText(next, errText);
-      }
       onChange(next);
     });
+  }
+
+  // -----------------------------------------------------------------------
+  // Task L1b - ERRMSG/ERRMSGID wired onto the Task L1 generic repeatable-
+  // conditioned-instance component (repeatableConditionedInstancesHtml/
+  // wireRepeatableConditionedInstances further below). Real SDA's own
+  // "Define Error Messages" screen (docs/sda-reference/screens/field-level/
+  // character/error-messages/image171.png, identical for numeric fields)
+  // shows two repeatable lists on ONE screen - up to 4 ERRMSG rows (message
+  // text + a response indicator) and up to 4 ERRMSGID rows (msgid/file/
+  // library/response indicator/&name) - each row independently conditioned
+  // by up to 3 ANDed option indicators. This editor merges both lists into
+  // ONE repeatable list with a per-row "kind" selector instead of two fixed
+  // 4-row tables, since DspfWriter.getErrorMessageInstances/
+  // setErrorMessageInstances already treats ERRMSG/ERRMSGID as one ordered
+  // list and real DDS doesn't cap the count at 4 (SDA's own screen does,
+  // being a fixed-size 3270-style form) - see that pair's own doc comment
+  // in dspfWriter.js for the exact keyword shapes.
+  // -----------------------------------------------------------------------
+
+  function errorMessageInstanceRowHtml(inst, p) {
+    var kind = inst.kind === 'ERRMSGID' ? 'ERRMSGID' : 'ERRMSG';
+    var html = '<div class="two-col" style="margin-bottom:4px;">';
+    html += '<select class="' + p + '-kind">' +
+      '<option value="ERRMSG"' + (kind === 'ERRMSG' ? ' selected' : '') + '>ERRMSG (literal text)</option>' +
+      '<option value="ERRMSGID"' + (kind === 'ERRMSGID' ? ' selected' : '') + '>ERRMSGID (by message ID)</option>' +
+      '</select>';
+    html += '<input type="text" class="' + p + '-respind" placeholder="Response ind. (opt.)" value="' + escapeHtml(inst.responseIndicator || '') + '" />';
+    html += '</div>';
+    if (kind === 'ERRMSG') {
+      html += '<input type="text" class="' + p + '-text" placeholder="Message text" style="width:100%;" value="' + escapeHtml(inst.text || '') + '" />';
+    } else {
+      html += '<div class="two-col">' +
+        '<input type="text" class="' + p + '-msgid" placeholder="Message ID" value="' + escapeHtml(inst.msgId || '') + '" />' +
+        '<input type="text" class="' + p + '-msgfile" placeholder="Message file" value="' + escapeHtml(inst.msgFile || '') + '" />' +
+        '</div>' +
+        '<div class="two-col" style="margin-top:4px;">' +
+        '<input type="text" class="' + p + '-library" placeholder="Library (opt.)" value="' + escapeHtml(inst.library || '') + '" />' +
+        '<input type="text" class="' + p + '-msgdata" placeholder="&amp;field for replacement text (opt.)" value="' + escapeHtml(inst.msgDataField || '') + '" />' +
+        '</div>';
+    }
+    return html;
+  }
+
+  /** Error Messages panel (Task L1b) - see doc comment above. */
+  function errorMessageInstancesHtml(keywords, ownerKey, expandedSet) {
+    var instances = DspfWriter.getErrorMessageInstances(keywords);
+    return repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-errmsg',
+      function renderPayload(inst, instIdPrefix) { return errorMessageInstanceRowHtml(inst, instIdPrefix); },
+      expandedSet,
+      '+ Add error message'
+    );
+  }
+
+  function wireErrorMessageInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var instances = DspfWriter.getErrorMessageInstances(keywords);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-errmsg',
+      instances,
+      function (next) { onChange(DspfWriter.setErrorMessageInstances(keywords, next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var kindEl = document.querySelector('.' + instIdPrefix + '-kind');
+        if (kindEl) {
+          kindEl.addEventListener('change', function () {
+            // Same non-blank-placeholder reasoning as makeDefaultInstance
+            // above - switching TO ERRMSGID without also seeding its two
+            // required fields (msgId/msgFile) would make this instance
+            // round-trip to nothing and the row would vanish on the very
+            // next re-render, before the user can fill them in.
+            if (kindEl.value === 'ERRMSGID') {
+              updatePayload({ kind: 'ERRMSGID', msgId: inst.msgId || 'MSGID', msgFile: inst.msgFile || 'MSGFILE' });
+            } else {
+              updatePayload({ kind: 'ERRMSG', text: inst.text || 'New message' });
+            }
+          });
+        }
+        var respIndEl = document.querySelector('.' + instIdPrefix + '-respind');
+        if (respIndEl) respIndEl.addEventListener('change', function () { updatePayload({ responseIndicator: respIndEl.value }); });
+        var textEl = document.querySelector('.' + instIdPrefix + '-text');
+        if (textEl) textEl.addEventListener('change', function () { updatePayload({ text: textEl.value }); });
+        var msgIdEl = document.querySelector('.' + instIdPrefix + '-msgid');
+        if (msgIdEl) msgIdEl.addEventListener('change', function () { updatePayload({ msgId: msgIdEl.value }); });
+        var msgFileEl = document.querySelector('.' + instIdPrefix + '-msgfile');
+        if (msgFileEl) msgFileEl.addEventListener('change', function () { updatePayload({ msgFile: msgFileEl.value }); });
+        var libraryEl = document.querySelector('.' + instIdPrefix + '-library');
+        if (libraryEl) libraryEl.addEventListener('change', function () { updatePayload({ library: libraryEl.value }); });
+        var msgDataEl = document.querySelector('.' + instIdPrefix + '-msgdata');
+        if (msgDataEl) msgDataEl.addEventListener('change', function () { updatePayload({ msgDataField: msgDataEl.value }); });
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        // Non-blank placeholder text, not '' - this component commits on
+        // EVERY change immediately (no batch Apply button, unlike e.g. the
+        // MNUBARCHC list editor), so a genuinely blank ERRMSG would be
+        // dropped by setErrorMessageInstances (matching real SDA: a blank
+        // row on its own screen never emits a keyword either) and the
+        // freshly-added row would vanish again on the very next re-render,
+        // before the user gets a chance to type into it.
+        return { kind: 'ERRMSG', conditions: [], text: 'New message', responseIndicator: '', msgId: '', library: '', msgFile: '', msgDataField: '' };
+      }
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -664,6 +833,7 @@
         colorAndAttributes: true,
         keyingOptions: true,
         validityAndErrorMessage: dataType !== 'F',
+        errorMessages: true,
         inputKeywords: true,
         generalKeywords: true,
         databaseReference: true,
@@ -676,6 +846,15 @@
       colorAndAttributes: u !== 'H',
       keyingOptions: u === 'H' || isIOB,
       validityAndErrorMessage: isIOB && dataType !== 'F',
+      // Task L1b - ERRMSG/ERRMSGID have their OWN, broader visibility rule
+      // than the Validity check keywords just above: IBM's own DDS
+      // reference states they're valid for output-only, input-only, or
+      // output/input fields (not hidden, constant, program-to-system, or
+      // message fields) - Output-only is explicitly included, unlike
+      // validityAndErrorMessage's isIOB (Input or Both) gate, since a
+      // RANGE/COMP/VALUES/CHECK validity check is inherently input-only
+      // but an error message can still be shown for an output field.
+      errorMessages: u === 'I' || u === 'O' || u === 'B',
       inputKeywords: isIOB,
       generalKeywords: true,
       databaseReference: true, // H/I/O/B are exactly SDA's own "Hidden, Input, Output, Both" list
@@ -2124,15 +2303,34 @@
   //     `updatePayload(partialFields)` merges `partialFields` onto that ONE
   //     instance (shallow, e.g. `updatePayload({ parameters: 'RED' })`) and
   //     commits the whole instances array via `onChange`.
-  //   - `makeDefaultInstance()` returns a fresh `{ conditions: [], ...}`
-  //     for the "+ Add" button to append - lets the caller decide a new
-  //     instance's starting payload (e.g. `{ name: 'COLOR', parameters: '' }`).
+  //   - `renderStaging(idPrefix)` (optional) returns HTML for a
+  //     PERMANENTLY-VISIBLE "new instance" input row, rendered just above
+  //     the "+ Add" button - same shape commandKeysSectionHtml/
+  //     wireCommandKeysSection already use for CAxx/CFxx (type/number/
+  //     indicator/text inputs sit there always, "+ Add command key" reads
+  //     them). This is NOT optional in practice for any instance whose
+  //     payload can be entirely empty (e.g. Color & attributes, where "no
+  //     color, no attributes" is indistinguishable from "nothing to
+  //     write") - creating a blank instance and committing it immediately,
+  //     the way an earlier version of this component did, means an empty
+  //     instance just evaporates on the very next re-render, since the
+  //     document has nothing to re-parse it back out of. Reading a
+  //     filled-in staging row instead sidesteps that entirely: nothing
+  //     commits until there's something real to write.
+  //   - `readNewInstance(idPrefix)` (paired with `renderStaging`) reads
+  //     that staging row's current values when "+ Add" is clicked and
+  //     returns the new instance to append, or a falsy value to no-op
+  //     (mirrors commandKeysSectionHtml's own `if (!number) return;`
+  //     validation gate) - e.g. Color & attributes returns falsy when
+  //     BOTH the color is blank and no attribute is checked, since that
+  //     combination has nothing to add.
   //
   // `instances` is expected in the shape DspfWriter.
   // getRepeatableKeywordInstances returns (or any caller-defined object
   // that carries its own `conditions` array the same way) - this component
   // never reads/writes DDS keyword text itself, only the `conditions`
-  // field and whatever `renderPayload`/`wirePayload` choose to look at.
+  // field and whatever `renderPayload`/`wirePayload`/`renderStaging`/
+  // `readNewInstance` choose to look at.
   // `idPrefix` follows the same per-owner-uniqueness convention as
   // keywordEditorHtml/indicatorTextRowsHtml above. `expandedSet` is a
   // caller-owned Set of "idPrefix:idx" strings that survives across
@@ -2142,7 +2340,7 @@
   // flips, since that's pure UI state, not a document edit.
   // -----------------------------------------------------------------------
 
-  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel) {
+  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel, renderStaging) {
     var list = instances || [];
     var html = '<div id="' + idPrefix + '-instances">';
     if (list.length === 0) {
@@ -2165,11 +2363,12 @@
       html += '</div>';
     });
     html += '</div>';
+    if (renderStaging) html += renderStaging(idPrefix + '-new');
     html += '<button class="secondary repeat-inst-add" data-prefix="' + idPrefix + '" style="width:100%;margin-top:8px;">' + (addLabel || '+ Add instance') + '</button>';
     return html;
   }
 
-  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, makeDefaultInstance) {
+  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, readNewInstance) {
     var list = instances || [];
 
     function replaceAt(idx, updater) {
@@ -2222,7 +2421,8 @@
     var addBtn = document.querySelector('.repeat-inst-add[data-prefix="' + idPrefix + '"]');
     if (addBtn) {
       addBtn.addEventListener('click', function () {
-        var fresh = makeDefaultInstance ? makeDefaultInstance() : { conditions: [] };
+        var fresh = readNewInstance ? readNewInstance(idPrefix + '-new') : { conditions: [] };
+        if (!fresh) return;
         onChange(list.concat([fresh]));
       });
     }
@@ -2613,7 +2813,14 @@
         updatePayload({ parameters: DspfWriter.quoteDdsLiteral(input.value) });
       });
     }, expandedSet, rerender, function makeDefaultSflMsg() {
-      return { name: 'SFLMSG', parameters: '', conditions: [] };
+      // Non-blank placeholder text, not '' - unlike Error messages (Task
+      // L1b, see makeDefaultInstance's own comment above), a blank SFLMSG
+      // wouldn't vanish on the next re-render (setRepeatableKeywordInstances
+      // writes every instance unconditionally, blank or not) - but it WOULD
+      // write a bare `SFLMSG` keyword with no parameter at all, which is
+      // invalid DDS (SFLMSG requires a quoted message-text parameter). Same
+      // fix as L1b's, different failure mode it prevents.
+      return { name: 'SFLMSG', parameters: DspfWriter.quoteDdsLiteral('New message'), conditions: [] };
     });
 
     wireRepeatableConditionedInstances(p + '-sflmsgid-rep', DspfWriter.getRepeatableKeywordInstances(getKeywords(), ['SFLMSGID']), function (nextInstances) {
@@ -2640,7 +2847,15 @@
       fileInput.addEventListener('change', commit);
       libInput.addEventListener('change', commit);
     }, expandedSet, rerender, function makeDefaultSflMsgId() {
-      return { name: 'SFLMSGID', parameters: '', conditions: [] };
+      // Same non-blank-placeholder reasoning as makeDefaultSflMsg above,
+      // and matching L1b's own 'MSGID'/'MSGFILE' convention for ERRMSGID -
+      // formatSflMsgIdParams needs BOTH msgId and msgFile non-blank to
+      // produce anything at all, so a blank default here would leave the
+      // freshly-added instance's commit() guard (above) skipping every
+      // change until the user fills both fields from scratch anyway;
+      // seeding valid placeholders means the instance is immediately
+      // syntactically valid DDS, ready to be overwritten.
+      return { name: 'SFLMSGID', parameters: DspfWriter.formatSflMsgIdParams({ msgId: 'MSGID', msgFile: 'MSGFILE' }), conditions: [] };
     });
   }
 
@@ -2725,8 +2940,12 @@
     functionKeyLegendHtml: functionKeyLegendHtml,
     colorAttrEditorHtml: colorAttrEditorHtml,
     wireColorAttrEditor: wireColorAttrEditor,
+    colorAttrStatesHtml: colorAttrStatesHtml,
+    wireColorAttrStatesEditor: wireColorAttrStatesEditor,
     validityAndEditHtml: validityAndEditHtml,
     wireValidityAndEdit: wireValidityAndEdit,
+    errorMessageInstancesHtml: errorMessageInstancesHtml,
+    wireErrorMessageInstances: wireErrorMessageInstances,
     fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,
     wireFileKeywordsPanels: wireFileKeywordsPanels,
     recordKeywordsPanelsHtml: recordKeywordsPanelsHtml,

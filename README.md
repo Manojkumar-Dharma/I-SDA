@@ -154,22 +154,26 @@ not open work.
   length rather than guessed at, since their separator width depends on
   the job's `DATSEP` attribute - not knowable at design time, the same
   runtime-only ambiguity that keeps `WINDOW(*DFT)` a placeholder above.
-- **[L1a/L1b - High]** Every dedicated keyword picker (file-, record-,
-  and field-level - Color & attributes, Validity check, Error message,
-  Keying options, Input keywords, General keywords, Database
-  reference, Message ID, and the record-level pickers) manages ONE
-  instance of its keyword(s) at a time, conditioned as a whole via the
-  generic keyword editor's Conditioning toggle. Real SDA additionally
-  allows MULTIPLE independently-conditioned instances of the same
-  keyword - e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)`
-  under indicator 20 on the same field, or several `ERRMSG`/`ERRMSGID`
-  entries tried in order. Not modeled here yet; would need its own
-  follow-up since it affects several keywords at once, not just one
-  panel. The generic "repeatable conditioned instance" component this
-  would use already exists (Task L1) and is proven out on two panels:
-  the `SFL`-specific picker's `INDTXT`/`SETOF`/`CHANGE` rows (its own
-  earlier precedent), and the SFLCTL picker's Subfile Messages panel,
-  where `SFLMSG`/`SFLMSGID` now each repeat independently (Task L1c).
+- **[High]** Most dedicated keyword pickers (file-, record-, and
+  field-level - Validity check, Keying options, Input keywords,
+  General keywords, Database reference, Message ID, and the
+  record-level pickers) manage ONE instance of their keyword(s) at a
+  time, conditioned as a whole via the generic keyword editor's
+  Conditioning toggle, rather than the MULTIPLE independently-
+  conditioned instances real SDA additionally allows for some
+  keywords - e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)`
+  under indicator 20 on the same field. Three panels have already
+  been moved onto the generic "repeatable conditioned instance"
+  component (Task L1) that solves this, and no longer have the
+  limitation: **Color & attributes** (`COLOR`/`DSPATR`, Task L1a),
+  **Error message** (`ERRMSG`/`ERRMSGID`, Task L1b), and the SFLCTL
+  picker's **Subfile Messages** panel (`SFLMSG`/`SFLMSGID`, Task
+  L1c) - alongside the `SFL`-specific picker's `INDTXT`/`SETOF`/
+  `CHANGE` rows, an even earlier repeatable-row precedent. The
+  remaining pickers listed above would each need their own follow-up
+  to move onto the same component, since it affects several keywords
+  at once, not just one panel - no such follow-up is currently
+  tracked in `docs/sda-reference/LIMITATIONS-PLAN.md`.
 - The `WINDOW`-specific picker deliberately leaves out the real SDA
   screen's "Message line" row (DDS keyword not confidently verified) and
   its "Roll" column (turned out to be SDA's own in-terminal roll-key

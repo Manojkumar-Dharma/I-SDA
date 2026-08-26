@@ -13,6 +13,19 @@ const { JSDOM } = require('jsdom');
 const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 const DspfParser = require('../../dist/dspfParser.js');
+const DspfWriter = require('../../dist/dspfWriter.js');
+
+/** Strips DDS keyword-area line-continuation (a trailing '+' followed by a
+ *  continuation line whose first 44 columns are just blank padding/the 'A'
+ *  marker - see dspfWriter.js's own wrapping comment) so a plain
+ *  `.includes('KEYWORD(params)')` check doesn't spuriously fail just
+ *  because OTHER keywords earlier on the same line pushed this one's
+ *  parameters across the 80-column wrap boundary. Only used for substring
+ *  assertions in this file - never for anything that gets fed back through
+ *  the parser, which understands real DDS continuation on its own. */
+function dewrapDds(text) {
+  return (text || '').replace(/\+\r?\n.{44}/g, '');
+}
 
 let failures = 0;
 function check(label, condition) {
@@ -1138,31 +1151,91 @@ function runFieldPropertyHelpersScenario() {
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('applying commits the filled text and the centered column together', applyEdit && applyEdit.text.includes("'-----'"));
 
-    console.log('  Colors & attributes on a named field');
+    console.log('  Colors & attributes on a named field (Task L1a: multi-instance states)');
     posted.length = 0;
     const amountEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('AMOUNT') || el.getAttribute('data-field') === 'AMOUNT');
     check('setup: the AMOUNT field is present', !!amountEl);
     amountEl.dispatchEvent(new Event('click', { bubbles: true }));
 
-    const colorSelEl = doc.querySelector('select[id$="-color"]');
-    check('setup: the dedicated Color select is present (not just the generic keyword box)', !!colorSelEl);
-    const fieldKey = colorSelEl.id.replace(/-color$/, '');
-    const colorSel = colorSelEl;
-    colorSel.value = 'RED';
-    colorSel.dispatchEvent(new Event('change', { bubbles: true }));
+    // AMOUNT starts with no COLOR/DSPATR at all, so the states list starts
+    // EMPTY (unlike the old single-pair editor, which always showed one
+    // select+checkboxes even with nothing set). A permanently-visible
+    // staging row (same pattern Command keys already uses) feeds the
+    // "+ Add" button - filling it in and clicking Add is what creates
+    // state 0, not clicking Add first and editing an initially-blank card
+    // (a truly blank state would write nothing and vanish on re-render).
+    const addStateBtn = Array.from(doc.querySelectorAll('.repeat-inst-add')).find((b) => /-colorattr$/.test(b.getAttribute('data-prefix')));
+    check('setup: the "+ Add color/attribute state" button is present (list starts empty)', !!addStateBtn);
+    const colorattrOwnerPrefix = addStateBtn.getAttribute('data-prefix');
+    const fieldKey = colorattrOwnerPrefix.replace(/-colorattr$/, '');
+    const stagingPrefix = colorattrOwnerPrefix + '-new';
+    const stagingColorSel = doc.getElementById(stagingPrefix + '-color');
+    check('setup: the staging Color select is present', !!stagingColorSel);
+    stagingColorSel.value = 'RED';
+    const stagingHiCheck = doc.querySelector('.' + stagingPrefix + '-attr[value="HI"]');
+    check('setup: the staging HI attribute checkbox is present', !!stagingHiCheck);
+    stagingHiCheck.checked = true;
+    addStateBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
     let colorEdit = posted.find((m) => m.type === 'applyEdit');
-    check('picking a color commits immediately, without needing Apply changes', colorEdit && colorEdit.text.includes('COLOR(RED)'));
+    check('"+ Add" reads the staging row and commits COLOR(RED) and DSPATR(HI) together as the new state', colorEdit && colorEdit.text.includes('COLOR(RED)') && colorEdit.text.includes('DSPATR(HI)'));
 
+    console.log('  editing the now-EXISTING state 0 (not the staging row) still commits per-change');
     posted.length = 0;
-    const hiCheck = doc.querySelector('.' + fieldKey + '-attr[value="HI"]');
-    check('setup: the HI attribute checkbox is present', !!hiCheck);
-    hiCheck.checked = true;
-    hiCheck.dispatchEvent(new Event('change', { bubbles: true }));
+    const colorInstPrefix = fieldKey + '-colorattr-inst0';
+    const colorSel0 = doc.getElementById(colorInstPrefix + '-color');
+    check('setup: state 0\'s own Color select is present, pre-filled with RED', !!colorSel0 && colorSel0.value === 'RED');
+    const hiCheck0 = doc.querySelector('.' + colorInstPrefix + '-attr[value="HI"]');
+    check('setup: state 0\'s own HI checkbox is present and pre-checked', !!hiCheck0 && hiCheck0.checked === true);
+    const blCheck0 = doc.querySelector('.' + colorInstPrefix + '-attr[value="BL"]');
+    blCheck0.checked = true;
+    blCheck0.dispatchEvent(new Event('change', { bubbles: true }));
     let attrEdit = posted.find((m) => m.type === 'applyEdit');
-    check('checking an attribute commits DSPATR immediately', attrEdit && attrEdit.text.includes('DSPATR(HI)'));
-    check('the earlier COLOR choice survives (both were set on the same field)', attrEdit && attrEdit.text.includes('COLOR(RED)'));
+    check('checking a second attribute on the existing card commits immediately, without touching Add', attrEdit && attrEdit.text.includes('DSPATR(HI BL)'));
+    check('the color set earlier survives', attrEdit && attrEdit.text.includes('COLOR(RED)'));
 
-    console.log('  Validity check / Edit code / Error message on a named field');
+    console.log('  a SECOND, independently-conditioned color/attribute state can be added alongside the first, again via the staging row');
+    posted.length = 0;
+    const stagingColorSel2 = doc.getElementById(stagingPrefix + '-color');
+    stagingColorSel2.value = 'GRN';
+    doc.querySelector('.repeat-inst-add[data-prefix="' + colorattrOwnerPrefix + '"]').dispatchEvent(new Event('click', { bubbles: true }));
+    const colorInstPrefix1 = fieldKey + '-colorattr-inst1';
+    const colorSel1 = doc.getElementById(colorInstPrefix1 + '-color');
+    check('setup: a second state (state 1) now has its own card', !!colorSel1 && colorSel1.value === 'GRN');
+    let secondColorEdit = posted.find((m) => m.type === 'applyEdit');
+    check('the new state writes its own COLOR(GRN)', secondColorEdit && secondColorEdit.text.includes('COLOR(GRN)'));
+    check('the FIRST state (RED/HI/BL) is completely untouched by adding the second', secondColorEdit && secondColorEdit.text.includes('COLOR(RED)') && secondColorEdit.text.includes('DSPATR(HI BL)'));
+
+    console.log('  clicking "+ Add" with an EMPTY staging row (no color, nothing checked) is a no-op');
+    posted.length = 0;
+    const stagingColorSel3 = doc.getElementById(stagingPrefix + '-color');
+    check('setup: staging row reset back to blank after the previous add', stagingColorSel3.value === '');
+    doc.querySelector('.repeat-inst-add[data-prefix="' + colorattrOwnerPrefix + '"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('nothing was posted for an empty add', posted.length === 0);
+
+    console.log('  conditioning ONLY the second state does not condition the first');
+    doc.querySelector('.repeat-inst-cond-toggle[data-prefix="' + colorattrOwnerPrefix + '"][data-idx="1"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + colorInstPrefix1 + '"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let condEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts an applyEdit that still carries both COLOR keywords after conditioning just the second', condEdit && condEdit.text.includes('COLOR(GRN)') && condEdit.text.includes('COLOR(RED)'));
+
+    const parsedAfterCond = DspfParser.parseDspf(condEdit.text);
+    const amountAfterCond = parsedAfterCond.records.find((r) => r.name === 'SCR1').fields.find((f) => f.name === 'AMOUNT');
+    const statesAfterCond = DspfWriter.getColorAttrStates(amountAfterCond.keywords);
+    check('exactly two Color & attributes states round-trip back out', statesAfterCond.length === 2);
+    const redState = statesAfterCond.find((s) => s.color === 'RED');
+    const grnState = statesAfterCond.find((s) => s.color === 'GRN');
+    check('the RED/HI/BL state is still completely unconditioned', !!redState && redState.attrs.indexOf('HI') >= 0 && redState.attrs.indexOf('BL') >= 0 && redState.conditions.length === 0);
+    check('the GRN state is now conditioned on indicator 01, independent of the RED state', !!grnState && grnState.conditions.length === 1 && grnState.conditions[0].indicators[0].number === '01');
+
+    console.log('  removing the second state leaves the first alone');
+    posted.length = 0;
+    doc.querySelector('.repeat-inst-remove[data-prefix="' + colorattrOwnerPrefix + '"][data-idx="1"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let removeEdit = posted.find((m) => m.type === 'applyEdit');
+    check('COLOR(GRN) is gone after removing state 1', removeEdit && !removeEdit.text.includes('COLOR(GRN)'));
+    check('COLOR(RED)/DSPATR(HI BL) (state 0) survives the removal of the unrelated state', removeEdit && removeEdit.text.includes('COLOR(RED)') && removeEdit.text.includes('DSPATR(HI BL)'));
+
+    console.log('  Validity check / Edit code on a named field');
     posted.length = 0;
     // Re-select: the color/attribute edits above re-rendered the panel, so
     // earlier element references for this field are stale.
@@ -1177,18 +1250,71 @@ function runFieldPropertyHelpersScenario() {
     doc.getElementById(fieldKey + '-vc-params').value = '0 999';
     doc.getElementById(fieldKey + '-ec-kind').value = 'EDTCDE';
     doc.getElementById(fieldKey + '-ec-params').value = 'J';
-    doc.getElementById(fieldKey + '-errmsg').value = "Amount can't be negative";
     doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
 
     const vcEdit = posted.find((m) => m.type === 'applyEdit');
-    check('posts RANGE with the entered bounds', vcEdit && vcEdit.text.includes('RANGE(0 999)'));
+    check('posts RANGE with the entered bounds', vcEdit && dewrapDds(vcEdit.text).includes('RANGE(0 999)'));
     check('posts EDTCDE with the chosen code', vcEdit && vcEdit.text.includes('EDTCDE(J)'));
+
+    console.log('  Task L1b: Error messages (ERRMSG/ERRMSGID) as repeatable, independently-conditioned instances');
+    posted.length = 0;
+    const amountEl2b = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2b.dispatchEvent(new Event('click', { bubbles: true }));
+    const errmsgAddBtn = doc.querySelector('.repeat-inst-add[data-prefix="' + fieldKey + '-errmsg"]');
+    check('setup: the + Add error message button is present', !!errmsgAddBtn);
+    errmsgAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    let addEdit = posted.find((m) => m.type === 'applyEdit');
+    check('adding an instance immediately writes ERRMSG with its non-blank placeholder text (so the row survives the very next re-render)', addEdit && addEdit.text.includes("ERRMSG('New message')"));
+
+    // Re-select after the add re-rendered the panel.
+    const amountEl2c = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2c.dispatchEvent(new Event('click', { bubbles: true }));
+    const errmsgTextEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-text');
+    check('setup: the new instance defaults to kind ERRMSG (text box shown, not msgid/file)', !!errmsgTextEl);
+    errmsgTextEl.value = "Amount can't be negative";
+    errmsgTextEl.dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    const respIndEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-respind');
+    respIndEl.value = '90';
+    respIndEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const errEdit = posted.find((m) => m.type === 'applyEdit');
     // ERRMSG's own text is long enough to line-wrap with a continuation '+'
-    // (same convention as TEXT), so check the round-tripped MODEL rather than
-    // raw source text.
-    const reparsedAmount = DspfParser.parseDspf(vcEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT');
-    const errKw = reparsedAmount && reparsedAmount.keywords.find((k) => k.name === 'ERRMSG');
-    check("posts ERRMSG with the text, apostrophe correctly doubled", errKw && errKw.parameters === "'Amount can''t be negative'");
+    // (same convention as TEXT), so check the round-tripped MODEL rather
+    // than raw source text.
+    const reparsedForErr = DspfParser.parseDspf(errEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT');
+    const errKw = reparsedForErr && reparsedForErr.keywords.find((k) => k.name === 'ERRMSG');
+    check('posts ERRMSG with the text (apostrophe correctly doubled) AND the response indicator, both fields surviving the earlier separate commit', errKw && errKw.parameters === "'Amount can''t be negative' 90");
+
+    console.log('  Task L1b: switching an error-message row\u2019s kind to ERRMSGID swaps in msgid/file/library/name inputs');
+    posted.length = 0;
+    const amountEl2d = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2d.dispatchEvent(new Event('click', { bubbles: true }));
+    const kindSelEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-kind');
+    kindSelEl.value = 'ERRMSGID';
+    kindSelEl.dispatchEvent(new Event('change', { bubbles: true }));
+    let kindEdit = posted.find((m) => m.type === 'applyEdit');
+    check('switching kind writes ERRMSGID with placeholder msgid/file (so the row survives), no more ERRMSG', kindEdit && kindEdit.text.includes('ERRMSGID(MSGID MSGFILE') && !kindEdit.text.includes('ERRMSG('));
+
+    const amountEl2e = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2e.dispatchEvent(new Event('click', { bubbles: true }));
+    const msgIdEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-msgid');
+    const msgFileEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-msgfile');
+    check('setup: switching kind re-renders msgid/file inputs in place of the text box', !!msgIdEl && !!msgFileEl);
+    posted.length = 0;
+    msgIdEl.value = 'MSG0001';
+    msgIdEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Re-select: that change just re-rendered the panel (same convention as
+    // every other edit in this file), so msgFileEl above is now stale.
+    const amountEl2f = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2f.dispatchEvent(new Event('click', { bubbles: true }));
+    const msgFileEl2 = doc.querySelector('.' + fieldKey + '-errmsg-inst0-msgfile');
+    msgFileEl2.value = 'APPLMSGS';
+    msgFileEl2.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const idEdit = posted[posted.length - 1];
+    check('posts ERRMSGID with both the msgid and message file the user actually typed, each surviving the OTHER field\'s separate commit', idEdit && idEdit.type === 'applyEdit' && dewrapDds(idEdit.text).includes('ERRMSGID(MSG0001 APPLMSGS') && !idEdit.text.includes('ERRMSG('));
 
     console.log('  Keying options (CHECK) on a named field');
     posted.length = 0;
@@ -2652,6 +2778,11 @@ function runSflCtlPickerScenario() {
     console.log('  Subfile Messages (Task L1c): SFLMSG and SFLMSGID are each independently repeatable, independently conditioned instances');
     check('no SFLMSG instances yet - empty state shown', doc.getElementById(p + '-sflmsg-rep-instances').textContent.indexOf('None defined.') >= 0);
     doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-sflmsg-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    console.log('  Subfile Messages: clicking "+ Add" alone never writes an invalid bare SFLMSG (no parameter) - seeds a non-blank placeholder instead');
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    const seededSflMsg = reparsed.keywords.find((k) => k.name === 'SFLMSG');
+    check('the freshly-added SFLMSG instance has a non-blank, validly-quoted placeholder', /^'.+'$/.test(seededSflMsg.parameters.trim()));
     posted.length = 0;
     doc.getElementById(p + '-sflmsg-rep-inst0-text').value = 'No records in subfile';
     doc.getElementById(p + '-sflmsg-rep-inst0-text').dispatchEvent(new Event('change', { bubbles: true }));
@@ -2675,6 +2806,10 @@ function runSflCtlPickerScenario() {
 
     console.log('  Subfile Messages: SFLMSGID (msgid/file/library) commits independently of SFLMSG, via the same repeatable component');
     doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-sflmsgid-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    console.log('  Subfile Messages: clicking "+ Add" alone never writes an invalid blank-parameters SFLMSGID - seeds a valid MSGID/MSGFILE placeholder instead');
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('the freshly-added SFLMSGID instance has a non-blank placeholder (msgId + msgFile both present)', /^\S+\s+\S+$/.test(reparsed.keywords.find((k) => k.name === 'SFLMSGID').parameters.trim()));
     posted.length = 0;
     doc.getElementById(p + '-sflmsgid-rep-inst0-id').value = 'MSG0001';
     doc.getElementById(p + '-sflmsgid-rep-inst0-file').value = 'MYMSGF';

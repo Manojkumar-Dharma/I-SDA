@@ -113,7 +113,7 @@ global.Node = dom.window.Node;
 // document exists.
 const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-function renderInto(instances, idPrefix, expandedSet, addLabel) {
+function renderInto(instances, idPrefix, expandedSet, addLabel, renderStaging) {
   document.getElementById('root').innerHTML = Helpers.repeatableConditionedInstancesHtml(
     instances,
     idPrefix,
@@ -121,7 +121,8 @@ function renderInto(instances, idPrefix, expandedSet, addLabel) {
       return '<input type="text" class="payload-input" id="' + instIdPrefix + '-val" value="' + (inst.parameters || '') + '" />';
     },
     expandedSet,
-    addLabel
+    addLabel,
+    renderStaging
   );
 }
 
@@ -233,27 +234,62 @@ console.log('\nwireRepeatableConditionedInstances - payload edits go through wir
   check('instance 1 name/conditions preserved by the shallow merge', committed[1].name === 'COLOR' && Array.isArray(committed[1].conditions));
 }
 
-console.log('\nwireRepeatableConditionedInstances - "+ Add instance" appends makeDefaultInstance()\'s result');
+console.log('\nwireRepeatableConditionedInstances - "+ Add instance" appends readNewInstance()\'s result');
 {
   const instances = [{ name: 'COLOR', parameters: 'RED', conditions: [] }];
   renderInto(instances, 'l1a', new Set());
   let committed = null;
-  Helpers.wireRepeatableConditionedInstances('l1a', instances, function (next) { committed = next; }, wirePayloadFn, new Set(), function () {}, function makeDefault() {
+  Helpers.wireRepeatableConditionedInstances('l1a', instances, function (next) { committed = next; }, wirePayloadFn, new Set(), function () {}, function readNewInstance() {
     return { name: 'COLOR', parameters: '', conditions: [] };
   });
 
   document.querySelector('.repeat-inst-add[data-prefix="l1a"]').dispatchEvent(new dom.window.Event('click'));
   check('onChange committed with the original instance plus one new one', committed && committed.length === 2);
-  check('new instance came from makeDefaultInstance()', committed[1].name === 'COLOR' && committed[1].parameters === '' && committed[1].conditions.length === 0);
+  check('new instance came from readNewInstance()', committed[1].name === 'COLOR' && committed[1].parameters === '' && committed[1].conditions.length === 0);
 }
 
-console.log('\nwireRepeatableConditionedInstances - falls back to a bare { conditions: [] } instance when makeDefaultInstance is omitted');
+console.log('\nwireRepeatableConditionedInstances - falls back to a bare { conditions: [] } instance when readNewInstance is omitted');
 {
   renderInto([], 'l1d', new Set());
   let committed = null;
   Helpers.wireRepeatableConditionedInstances('l1d', [], function (next) { committed = next; }, wirePayloadFn, new Set(), function () {}, null);
   document.querySelector('.repeat-inst-add[data-prefix="l1d"]').dispatchEvent(new dom.window.Event('click'));
   check('default fallback instance has an empty conditions array', committed && committed.length === 1 && Array.isArray(committed[0].conditions) && committed[0].conditions.length === 0);
+}
+
+console.log('\nrepeatableConditionedInstancesHtml - renderStaging renders a PERMANENTLY-VISIBLE row (independent of the instance list)');
+{
+  const stagingHtml = (idPrefix) => '<input type="text" class="staging-input" id="' + idPrefix + '-value" />';
+  renderInto([{ name: 'COLOR', parameters: 'RED', conditions: [] }], 'l1s', new Set(), '+ Add', stagingHtml);
+  check('staging input rendered even though the list is non-empty', !!document.getElementById('l1s-new-value'));
+  renderInto([], 'l1s', new Set(), '+ Add', stagingHtml);
+  check('staging input still rendered when the list is EMPTY (this is the whole point - it must survive to seed the first instance)', !!document.getElementById('l1s-new-value'));
+}
+
+console.log('\nwireRepeatableConditionedInstances - readNewInstance returning a FALSY value is a no-op (nothing committed, list unchanged)');
+{
+  const stagingHtml = (idPrefix) => '<input type="text" class="staging-input" id="' + idPrefix + '-value" />';
+  renderInto([], 'l1n', new Set(), '+ Add', stagingHtml);
+  let onChangeCalls = 0;
+  Helpers.wireRepeatableConditionedInstances('l1n', [], function () { onChangeCalls++; }, wirePayloadFn, new Set(), function () {}, function readNewInstance(stagingIdPrefix) {
+    // Mirrors colorAttrStatesHtml's own validation gate: nothing typed in
+    // the staging input -> nothing to add.
+    const val = document.getElementById(stagingIdPrefix + '-value').value;
+    return val ? { conditions: [], value: val } : null;
+  });
+  document.querySelector('.repeat-inst-add[data-prefix="l1n"]').dispatchEvent(new dom.window.Event('click'));
+  check('onChange was never called for an empty/invalid staging row', onChangeCalls === 0);
+
+  document.getElementById('l1n-new-value').value = 'something';
+  renderInto([], 'l1n', new Set(), '+ Add', stagingHtml);
+  document.getElementById('l1n-new-value').value = 'something';
+  let committed = null;
+  Helpers.wireRepeatableConditionedInstances('l1n', [], function (next) { committed = next; }, wirePayloadFn, new Set(), function () {}, function readNewInstance(stagingIdPrefix) {
+    const val = document.getElementById(stagingIdPrefix + '-value').value;
+    return val ? { conditions: [], value: val } : null;
+  });
+  document.querySelector('.repeat-inst-add[data-prefix="l1n"]').dispatchEvent(new dom.window.Event('click'));
+  check('a filled-in staging row DOES commit', committed && committed.length === 1 && committed[0].value === 'something');
 }
 
 // ===========================================================================

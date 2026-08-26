@@ -1769,7 +1769,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // doesn't change a constant's existing Color & attributes visibility.
     const catVis = WebviewClientHelpers.fieldKeywordCategoryVisibility(field.usage, field.dataType);
     let attrsHtml = '';
-    if (catVis.colorAndAttributes) attrsHtml += WebviewClientHelpers.colorAttrEditorHtml(field.keywords, 'field-' + field.sourceLine);
+    if (catVis.colorAndAttributes) attrsHtml += WebviewClientHelpers.colorAttrStatesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning);
     if (!isConstant && field.isReference) {
       // Position 29 'R' - this field's length/type/decimals come from a
       // referenced database field (REF/REFFLD - see DspfEngine.resolveReferenceTarget)
@@ -1783,6 +1783,9 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords });
     } else if (isSystemValueConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false });
+    }
+    if (!isConstant && catVis.errorMessages) {
+      attrsHtml += accordionHtml('Error messages', WebviewClientHelpers.errorMessageInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     // Remaining SDA "Select Field Keywords" categories (docs/sda-reference/
     // task D1) - collapsed by default, same as the Keywords/Conditioning
@@ -1896,11 +1899,14 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
-    WebviewClientHelpers.wireColorAttrEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords });
     } else if (isSystemValueConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false });
+    }
+    if (!isConstant && catVis.errorMessages) {
+      WebviewClientHelpers.wireErrorMessageInstances(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     if (!isConstant) {
       WebviewClientHelpers.wireKeyingOptionsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);

@@ -896,19 +896,64 @@ console.log('\nDspfWriter.getEditKeyword()/setEditKeyword() - EDTCDE/EDTWRD are 
   check('and adds the new EDTWRD with its parameters', switched.find((k) => k.name === 'EDTWRD').parameters === "'  DR  CR'");
 }
 
-console.log('\nDspfWriter.getErrorMessageText()/setErrorMessageText() - ERRMSG auto-quotes and escapes for the caller');
+console.log('\nDspfWriter.getErrorMessageInstances()/setErrorMessageInstances() - Task L1b, ERRMSG/ERRMSGID as repeatable conditioned instances (IBM DDS ref V4R5, ERRMSG/ERRMSGID keyword section, Figure 174)');
 {
-  const none = DspfWriter.getErrorMessageText([]);
-  check('no ERRMSG -> empty text', none === '');
+  const none = DspfWriter.getErrorMessageInstances([]);
+  check('no ERRMSG/ERRMSGID -> empty list', Array.isArray(none) && none.length === 0);
 
-  const set = DspfWriter.setErrorMessageText([], "Value can't be blank");
-  const kw = set.find((k) => k.name === 'ERRMSG');
-  check('embedded single quote is doubled per DDS literal escaping', kw.parameters === "'Value can''t be blank'");
-  check('round-trips back to the original unescaped text', DspfWriter.getErrorMessageText(set) === "Value can't be blank");
+  // ERRMSG('message-text' [response-indicator])
+  const withErrmsg = DspfWriter.setErrorMessageInstances([], [
+    { kind: 'ERRMSG', text: "Value can't be blank", responseIndicator: '61', conditions: [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '61', not: false }] }] },
+  ]);
+  const errmsgKw = withErrmsg.find((k) => k.name === 'ERRMSG');
+  check('embedded single quote is doubled per DDS literal escaping', errmsgKw.parameters === "'Value can''t be blank' 61");
+  check('outer conditioning is preserved as its own conditions array', errmsgKw.conditions[0].indicators[0].number === '61');
+  const backErrmsg = DspfWriter.getErrorMessageInstances(withErrmsg)[0];
+  check('round-trips kind', backErrmsg.kind === 'ERRMSG');
+  check('round-trips unescaped text', backErrmsg.text === "Value can't be blank");
+  check('round-trips the bare response indicator', backErrmsg.responseIndicator === '61');
 
-  const cleared = DspfWriter.setErrorMessageText(set, '');
-  check('blank text removes ERRMSG entirely', !cleared.some((k) => k.name === 'ERRMSG'));
+  // ERRMSG with no response indicator - trailing token omitted entirely.
+  const noRespInd = DspfWriter.setErrorMessageInstances([], [{ kind: 'ERRMSG', text: 'Plain message', conditions: [] }]);
+  check('no response indicator -> no trailing token written', noRespInd.find((k) => k.name === 'ERRMSG').parameters === "'Plain message'");
+
+  // ERRMSGID(msgid [library/]msgfile [response-indicator] [&msg-data]) - IBM's own Figure 174 example.
+  const withErrmsgid = DspfWriter.setErrorMessageInstances([], [
+    { kind: 'ERRMSGID', msgId: 'MSG2000', library: 'CONSOLEMSG', msgFile: 'CONSOLEMSG', responseIndicator: '63', msgDataField: '&RPLTXT', conditions: [] },
+  ]);
+  check('library/msgfile written as ONE slash-qualified token, not two space-separated ones', withErrmsgid.find((k) => k.name === 'ERRMSGID').parameters === 'MSG2000 CONSOLEMSG/CONSOLEMSG 63 &RPLTXT');
+  const backErrmsgid = DspfWriter.getErrorMessageInstances(withErrmsgid)[0];
+  check('round-trips msgId', backErrmsgid.msgId === 'MSG2000');
+  check('round-trips library parsed back out of the slash-qualified token', backErrmsgid.library === 'CONSOLEMSG');
+  check('round-trips msgFile parsed back out of the slash-qualified token', backErrmsgid.msgFile === 'CONSOLEMSG');
+  check('round-trips response indicator', backErrmsgid.responseIndicator === '63');
+  check('round-trips msg-data field', backErrmsgid.msgDataField === '&RPLTXT');
+
+  // ERRMSGID with no library - IBM's own *LIBL-implied form, single unqualified token.
+  const noLibrary = DspfWriter.setErrorMessageInstances([], [{ kind: 'ERRMSGID', msgId: 'ID00001', msgFile: 'MSGF001', conditions: [] }]);
+  check('no library -> msgfile written unqualified (relies on *LIBL at runtime)', noLibrary.find((k) => k.name === 'ERRMSGID').parameters === 'ID00001 MSGF001');
+  check('unqualified msgfile round-trips with an empty library', DspfWriter.getErrorMessageInstances(noLibrary)[0].library === '');
+
+  // ERRMSG and ERRMSGID coexisting, each independently conditioned, matching real SDA's own screen.
+  const both = DspfWriter.setErrorMessageInstances([], [
+    { kind: 'ERRMSG', text: 'No stock available', conditions: [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '10', not: false }] }] },
+    { kind: 'ERRMSGID', msgId: 'XYZ9999', msgFile: 'APPLMSGS', conditions: [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '20', not: false }] }] },
+  ]);
+  check('both keywords coexist', both.filter((k) => k.name === 'ERRMSG' || k.name === 'ERRMSGID').length === 2);
+  const bothBack = DspfWriter.getErrorMessageInstances(both);
+  check('each keeps its OWN, different conditioning', bothBack[0].conditions[0].indicators[0].number === '10' && bothBack[1].conditions[0].indicators[0].number === '20');
+
+  // Incomplete entries are skipped, not written as malformed DDS.
+  const incomplete = DspfWriter.setErrorMessageInstances([], [
+    { kind: 'ERRMSG', text: '', conditions: [] },
+    { kind: 'ERRMSGID', msgId: 'ID1', msgFile: '', conditions: [] },
+    { kind: 'ERRMSGID', msgId: '', msgFile: 'F1', conditions: [] },
+  ]);
+  check('blank-text ERRMSG and incomplete ERRMSGID entries are all dropped', incomplete.length === 0);
+
+  check('unrelated keywords are preserved', DspfWriter.setErrorMessageInstances([{ name: 'DSPATR', parameters: 'HI', conditions: [], raw: '', sourceLines: [] }], []).some((k) => k.name === 'DSPATR'));
 }
+
 
 console.log('\nDspfWriter.getCheckOptions()/setCheckOptions() - CHECK(...) shared by SDA\u2019s Keying options + Validity check screens');
 {
