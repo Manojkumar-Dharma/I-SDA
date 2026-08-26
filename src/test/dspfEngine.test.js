@@ -399,6 +399,43 @@ console.log("a bare constant's resolved width reflects its real text length, not
   check("width matches the literal text's real length (25 chars)", screen.fields[0].length === 'Metadata Building Process'.length);
 }
 
+console.log('\nBug fix: WDWBORDER on a WINDOW record actually reflects in the resolved screen and rendered HTML (was previously parsed/written but never shown in the preview)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 8 30)' }),
+    buildLine({ seq: '00020', func: 'WDWBORDER((*COLOR BLU) (*DSPATR HI))' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('resolved window carries the *COLOR as a CSS hex color (BLU)', screen.window.border.color === DspfEngine.COLOR_HEX.BLU);
+  check('resolved window carries the *DSPATR attribute list', screen.window.border.attrs.indexOf('HI') >= 0);
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('the rendered window div carries the border color as an inline style', html.includes('border-color:' + DspfEngine.COLOR_HEX.BLU));
+  check('the rendered window div carries the HI-attribute class', /dspf-window-border[^"]*dspf-window-border-hi/.test(html) || /dspf-window-border-hi[^"]*dspf-window-border/.test(html));
+}
+
+console.log('\nWDWBORDER: record-level keyword takes precedence over a file-level default (matches every other record-vs-file DDS keyword)');
+{
+  const src = [
+    buildLine({ seq: '00005', func: 'WDWBORDER((*COLOR GRN))' }),
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 8 30)' }),
+    buildLine({ seq: '00020', func: 'WDWBORDER((*COLOR RED))' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+    buildLine({ seq: '00040', nameType: 'R', name: 'WIN2', func: 'WINDOW(3 10 8 30)' }),
+    buildLine({ seq: '00050', line: '1', col: '2', func: "'World'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const win1 = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const win2 = DspfEngine.resolveScreen(model, 'WIN2', new Set());
+  check("WIN1's own WDWBORDER overrides the file-level default (RED, not GRN)", win1.window.border.color === DspfEngine.COLOR_HEX.RED);
+  check("WIN2 (no record-level WDWBORDER) falls back to the file-level default (GRN)", win2.window.border.color === DspfEngine.COLOR_HEX.GRN);
+}
+
+console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+process.exit(failures === 0 ? 0 : 1);
+
 console.log('two indicator-conditioned constants at the identical position: exactly one shows, switching correctly with the indicator');
 {
   const src = [

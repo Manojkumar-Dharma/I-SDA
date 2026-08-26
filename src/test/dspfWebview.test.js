@@ -1816,6 +1816,79 @@ function runClickToPlaceScenario() {
   }, 0);
 }
 
+function runWindowBorderAndDefaultColorScenario() {
+  console.log('\nBug fix: WDWBORDER *COLOR/*DSPATR now actually shows up on the rendered window preview');
+  const src =
+    [
+      '     A          R WIN1',
+      '     A                                      WINDOW(3 10 8 30)',
+      '     A                                      WDWBORDER((*COLOR RED) (*DSPATR HI))',
+      "     A                                  1  2'Hello'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce16', src, 'WDWBORDER.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const windowEl = doc.querySelector('.dspf-window-border');
+    check('setup: the window renders', !!windowEl);
+    check('WDWBORDER *COLOR RED is applied as the window\u2019s own border color (COLOR_HEX.RED = #ff5c5c)', windowEl.style.borderColor === 'rgb(255, 92, 92)' || /#ff5c5c/i.test(windowEl.getAttribute('style') || ''));
+    check('WDWBORDER *DSPATR HI adds the bolder-border class', windowEl.classList.contains('dspf-window-border-hi'));
+
+    runDefaultColorScenario();
+  }, 0);
+}
+
+function runDefaultColorScenario() {
+  console.log('\nBug fix: an unstyled constant defaults to the same green/accent color as an unstyled named field, not a hardcoded gray');
+  const src =
+    [
+      '     A          R SCR1',
+      "     A                                  1  2'A constant'",
+      '     A            NAMEDFLD     10A  B  2  2',
+      '     A            COLOREDFLD   10A  B  3  2',
+      '     A                                      COLOR(RED)',
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'DEFAULTCOLOR.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  check('the old hardcoded gray constant override is gone from the generated CSS', !/\.dspf-constant\s*\{\s*color:\s*#b7c9bf/.test(html));
+  check('modern UI style now themes the screen\u2019s own default color, not just chrome', /body\[data-ui-style="modern"\]\s*\.dspf-field\s*\{\s*color:\s*var\(--chrome-accent\);?\s*\}/.test(html));
+
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const constantEl = doc.querySelector('.dspf-constant');
+    check('setup: the constant renders', !!constantEl);
+    check('an unstyled constant has NO inline color override (inherits the CSS default, exactly like an unstyled field)', !/color\s*:/.test(constantEl.getAttribute('style') || ''));
+
+    const coloredEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.dataset.field === 'COLOREDFLD');
+    check('a field with an explicit COLOR keyword still gets its own inline color, unaffected by the default-color fix', /#ff5c5c/i.test(coloredEl.getAttribute('style') || ''));
+
+    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+    process.exit(failures === 0 ? 0 : 1);
+  }, 0);
+}
+
 function runWindowTitleScenario() {
   console.log('\nChange Window Title by clicking it directly on the preview');
   const src =
@@ -3642,7 +3715,6 @@ function runPdnSflCtlPickerScenario() {
     check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));
     check('data-ui-theme defaults to "green", not ","', /data-ui-theme="green"/.test(defaultsHtml));
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    runWindowBorderAndDefaultColorScenario();
   }, 0);
 }

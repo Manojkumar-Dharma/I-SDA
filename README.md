@@ -119,6 +119,14 @@ not open work.
   render on top of each other - but the position itself is still a
   placeholder). `WINDOW(record-format-name)` (inheriting another record's
   geometry) is fully resolved.
+- `WDWBORDER`'s `*COLOR` and `*DSPATR` groups (record-level overriding a
+  file-level default, matching every other record-vs-file DDS keyword)
+  are reflected on the window preview - `*COLOR` as the border color,
+  `*DSPATR HI`/`BL` as a bolder/blinking border. The `*CHAR` group (the 8
+  literal border-position characters a real 5250 terminal draws) has no
+  meaningful equivalent in this box-model CSS-border renderer and isn't
+  visually represented, though it still round-trips correctly in the
+  source and the Window Border picker.
 - `CHCCTL` (per-choice runtime field-setting logic) has no visual
   representation - it's a logic construct, not a layout one.
 - Compare mode (previewing several record formats together) has two

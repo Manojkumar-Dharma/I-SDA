@@ -3,6 +3,37 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.66] - 2026-08-27
+
+### Fixed
+- **Constants/fields defaulted to a hardcoded gray instead of green.**
+  Real IBM i SDA shows any unstyled constant or named field in green by
+  default (classic green-screen behavior) - a `COLOR` keyword is what
+  overrides that, not the absence of one. `.dspf-constant` was
+  hardcoding every constant to a light gray (`#b7c9bf`) regardless of
+  whether it carried a `COLOR` keyword, which is why constants looked
+  washed-out/white next to normally-colored fields. Removed that
+  override so constants inherit `.dspf-field`'s own default color the
+  same way named fields already did; an explicit `COLOR` keyword still
+  applies as an inline style and overrides this regardless of UI style.
+  While in there: New UI (modern style) now themes the screen's own
+  default text color to match the chosen chrome accent (amber/cyan/
+  violet) instead of staying pinned to green regardless of theme -
+  Classic UI is unaffected and still always shows the fixed
+  green-screen default.
+- **`WDWBORDER` (Window Border) parameters were parsed and written
+  correctly by the picker, but never actually showed up on the window
+  preview** - the rendered `.dspf-window-border` div always used the
+  same hardcoded border color/style no matter what `*COLOR`/`*DSPATR`
+  said. `dspfEngine.js` now resolves a window's border (record-level
+  `WDWBORDER` overriding a file-level default, same precedence as any
+  other record-vs-file DDS keyword) and applies `*COLOR` as the actual
+  border color and `*DSPATR HI`/`BL` as a bolder/blinking border on the
+  preview. `*CHAR` (literal per-position border characters) has no
+  meaningful equivalent in this box-model CSS-border renderer and stays
+  a documented limitation (see README) - it still round-trips correctly
+  through the source and the picker, just isn't visually drawn.
+
 ## [0.9.65] - Unreleased
 
 ### Fixed
@@ -145,7 +176,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.9.62] - Unreleased
 
-### Added
+
 - **Task L1b - Error message picker (`ERRMSG`/`ERRMSGID`) wired onto
   Task L1's repeatable-conditioned-instance component** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's own "Define

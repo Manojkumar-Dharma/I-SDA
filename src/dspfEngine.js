@@ -507,6 +507,40 @@
   }
 
   /**
+   * WDWBORDER (Window Border) - resolves the border color/attributes that
+   * should actually be drawn for a given window, matching real SDA's own
+   * precedence: a record's OWN WDWBORDER keyword (set via the record-level
+   * Window Parameters/PULLDOWN pickers - see DspfWriter.getWdwBorder/
+   * setWdwBorder) always wins over the FILE-level WDWBORDER default (set
+   * via the file-level picker), the same "record overrides file" precedence
+   * DDS gives every other record-vs-file keyword. Only *COLOR and *DSPATR
+   * are resolved to visual styling here - *CHAR (the 8 literal border-
+   * position characters real 5250 terminals draw) has no meaningful CSS-
+   * border equivalent in this box-model-based renderer and is left as a
+   * documented limitation (see README).
+   * @returns {{color: string|null, attrs: string[]}} color is a CSS hex
+   *   string (via COLOR_HEX) or null if no *COLOR group was set anywhere
+   *   in scope; attrs is the DSPATR code list (possibly empty).
+   */
+  function resolveWdwBorder(record, dspfFile) {
+    function parse(keywords) {
+      var kw = (keywords || []).find(function (k) { return k.name === 'WDWBORDER'; });
+      if (!kw) return null;
+      var text = kw.parameters || '';
+      var result = { color: null, attrs: [] };
+      var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
+      if (colorM) {
+        var name = colorM[1].toUpperCase();
+        if (COLOR_HEX[name]) result.color = COLOR_HEX[name];
+      }
+      var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
+      if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+      return result;
+    }
+    return parse(record && record.keywords) || parse(dspfFile && dspfFile.fileKeywords) || { color: null, attrs: [] };
+  }
+
+  /**
    * @param {number} [placeholderIndex] when this window's position can't be
    *   known at design time (*DFT or a field name - see below), which "slot"
    *   to stagger it into so it doesn't land exactly on top of another
@@ -536,6 +570,12 @@
       // (there's no room for one alongside the single record-name token), so
       // it's always inherited from the referenced window's own WINDOW keyword.
       var ownTitle = resolveWindowTitle(record);
+      // Border resolution is scoped to THIS record first (same "own record
+      // beats referenced/file default" precedence resolveWdwBorder already
+      // gives record-vs-file) - only falls through to the inherited
+      // window's own resolved border if this record has neither its own
+      // WDWBORDER nor a file-level default to fall back to.
+      var ownBorder = resolveWdwBorder(record, dspfFile);
       return {
         line: inherited.line,
         col: inherited.col,
@@ -545,6 +585,7 @@
         positionIsDefault: inherited.positionIsDefault,
         inheritedFrom: parts[0],
         msgLine: inherited.msgLine,
+        border: ownBorder.color || ownBorder.attrs.length > 0 ? ownBorder : inherited.border,
       };
     }
 
@@ -587,7 +628,7 @@
       }
     }
 
-    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record), positionIsDefault: positionIsDefault, inheritedFrom: null, msgLine: msgLine };
+    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record), positionIsDefault: positionIsDefault, inheritedFrom: null, msgLine: msgLine, border: resolveWdwBorder(record, dspfFile) };
   }
 
   // ---------------------------------------------------------------------
@@ -1322,7 +1363,17 @@
         if (w.positionIsDefault) titleParts.push('position set at runtime');
         if (w.inheritedFrom) titleParts.push('window shared with ' + w.inheritedFrom);
         var titleHtml = titleParts.length > 0 ? '<div class="dspf-window-title">' + escapeHtml(titleParts.join(' \u00b7 ')) + '</div>' : '';
-        var windowClasses = 'dspf-window-border' + (w.positionIsDefault ? ' dspf-window-default-position' : '');
+        var border = w.border || { color: null, attrs: [] };
+        var windowClasses = 'dspf-window-border' +
+          (w.positionIsDefault ? ' dspf-window-default-position' : '') +
+          (border.attrs.indexOf('BL') >= 0 ? ' dspf-window-border-blink' : '') +
+          (border.attrs.indexOf('HI') >= 0 ? ' dspf-window-border-hi' : '');
+        // Inline style always wins over the CSS class rules above (including
+        // .dspf-window-default-position's own border-color), matching WDWBORDER's
+        // real precedence: an explicit *COLOR always overrides the generic
+        // preview styling, whether or not the window's position also happens
+        // to be runtime-determined.
+        var borderStyle = border.color ? 'border-color:' + border.color + ';' : '';
         var handleHtml = '<div class="dspf-window-move-handle" title="Drag to move"></div><div class="dspf-window-resize-handle" title="Drag to resize"></div>';
         return (
           '<div class="' +
@@ -1335,7 +1386,9 @@
           w.col +
           ' / span ' +
           w.width +
-          ';" data-window-line="' +
+          ';' +
+          borderStyle +
+          '" data-window-line="' +
           w.line +
           '" data-window-col="' +
           w.col +
