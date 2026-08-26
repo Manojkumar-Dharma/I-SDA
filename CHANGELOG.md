@@ -3,6 +3,33 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.68] - 2026-08-27
+
+### Fixed
+- **`SNGCHCFLD`/`MLTCHCFLD` (radio/checkbox choice groups) rendered with
+  clipped or wrapped choice text.** `resolveRecordFields` sized a
+  radio/checkbox widget's grid cell using a single `text.length + 4`
+  formula for both glyph styles, but `widgetInnerHtml`'s actual markup
+  differs by type: checkbox's `[ ]` glyph plus its trailing space is 4
+  characters (matched the formula), while radio's `( ● )` / `(   )`
+  glyph plus its trailing space is 6 - two characters more. Every radio
+  choice row was therefore sized 2 columns too narrow, so with
+  `white-space: normal` in effect on `.dspf-field.dspf-widget-radio` the
+  choice text wrapped or visually overran its neighbors instead of
+  rendering as a clean vertical list, most noticeably on `PULLDOWN`
+  records' `SNGCHCFLD` menu-style fields (the reported "choice
+  pulldown/menu" case). Also fixed a related gap: a field carrying
+  `SNGCHCFLD`/`MLTCHCFLD` with no `CHOICE` entries yet still renders
+  `widgetInnerHtml`'s `"(no CHOICE entries)"` placeholder row, but the
+  cell was left at the field's raw (often 1-2 char) declared length,
+  so the placeholder overflowed badly. `resolveRecordFields` now uses
+  the correct per-type glyph-prefix width (radio: 6, checkbox: 4) and
+  accounts for the placeholder text's own width when there are no
+  choices yet, so the rendered cell is always exactly as wide as its
+  actual content. New regression coverage in
+  `src/test/dspfEngine.test.js` for both the widest-choice sizing and
+  the empty-choices placeholder case.
+
 ## [0.9.67] - 2026-08-27
 
 ### Added

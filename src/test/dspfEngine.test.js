@@ -500,6 +500,50 @@ console.log('\nWDWBORDER: record-level keyword takes precedence over a file-leve
   check("WIN2 (no record-level WDWBORDER) falls back to the file-level default (GRN)", win2.window.border.color === DspfEngine.COLOR_HEX.GRN);
 }
 
+console.log('\nBug fix: SNGCHCFLD/MLTCHCFLD (radio/checkbox) choice rows are sized wide enough to actually fit their rendered glyph+text, not just the raw field length');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'PREFS' }),
+    buildLine({ seq: '00020', name: 'SHIPOPT', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '3', col: '5', func: 'SNGCHCFLD' }),
+    buildLine({ seq: '00021', func: "CHOICE(1 'Standard')" }),
+    buildLine({ seq: '00022', func: "CHOICE(2 'Express')" }),
+    buildLine({ seq: '00023', func: "CHOICE(3 'Overnight')" }),
+    buildLine({ seq: '00030', name: 'TOPPINGS', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '8', col: '5', func: 'MLTCHCFLD' }),
+    buildLine({ seq: '00031', func: "CHOICE(1 'Cheese')" }),
+    buildLine({ seq: '00032', func: "CHOICE(2 'Pepperoni')" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'PREFS', new Set());
+  const radio = screen.fields.find((f) => f.name === 'SHIPOPT');
+  const checkbox = screen.fields.find((f) => f.name === 'TOPPINGS');
+
+  // Radio glyph as actually emitted by widgetInnerHtml() is "( \u25CF )" / "(   )"
+  // (5 chars) plus one literal space before the choice text (6 total) - the
+  // widest choice here is "Overnight" (9 chars), so the cell must be >= 15.
+  check('radio widget width fits its widest choice\u2019s actual glyph + text ("( \u25CF ) Overnight" = 15 cols)', radio.length >= 15);
+
+  // Checkbox glyph is "[ ]" (3 chars) + 1 literal space (4 total); widest
+  // choice is "Pepperoni" (9 chars), so the cell must be >= 13.
+  check('checkbox widget width fits its widest choice\u2019s actual glyph + text ("[ ] Pepperoni" = 13 cols)', checkbox.length >= 13);
+
+  check('radio widget height is one row per choice', radio.height === 3);
+  check('checkbox widget height is one row per choice', checkbox.height === 2);
+}
+
+console.log('\nBug fix: a SNGCHCFLD/MLTCHCFLD field with no CHOICE entries yet is sized for its own "(no CHOICE entries)" placeholder, not left at the raw field length');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'EMPTYR' }),
+    buildLine({ seq: '00020', name: 'OPT', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '2', col: '2', func: 'SNGCHCFLD' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'EMPTYR', new Set());
+  const opt = screen.fields.find((f) => f.name === 'OPT');
+  // "( \u25CF ) (no CHOICE entries)" = 6 + 19 = 25 columns.
+  check('placeholder-only radio widget is wide enough for "(no CHOICE entries)" plus its glyph prefix', opt.length >= 25);
+  check('placeholder-only radio widget is still exactly one row tall', opt.height === 1);
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
 

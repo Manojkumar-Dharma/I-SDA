@@ -753,9 +753,22 @@
         renderLength = Math.max(len, col, 1);
       } else if (widget && (widget.type === 'radio' || widget.type === 'checkbox')) {
         renderHeight = Math.max(widget.choices.length, 1);
-        widget.choices.forEach(function (c) {
-          renderLength = Math.max(renderLength, c.text.length + 4); // "( ) " / "[ ] " prefix
-        });
+        // Must match widgetInnerHtml()'s actual glyph markup exactly, or the
+        // grid cell is sized narrower than its rendered content and the
+        // choice text wraps/clips inside the fixed-width column track.
+        // Radio: "( \u25CF )" / "(   )" glyph = 5 chars, + 1 literal space before the text = 6.
+        // Checkbox: "[ ]" glyph = 3 chars, + 1 literal space before the text = 4.
+        var choicePrefixLen = widget.type === 'radio' ? 6 : 4;
+        if (widget.choices.length === 0) {
+          // No CHOICE entries yet - widgetInnerHtml() falls back to a single
+          // placeholder row ("(no CHOICE entries)"); size the cell for that
+          // exact fallback text, same prefix width as a real choice row.
+          renderLength = Math.max(renderLength, '(no CHOICE entries)'.length + choicePrefixLen);
+        } else {
+          widget.choices.forEach(function (c) {
+            renderLength = Math.max(renderLength, c.text.length + choicePrefixLen);
+          });
+        }
       } else if (widget && widget.type === 'button') {
         renderLength = Math.max(len, widget.label.length + 2);
       } else if (cntfld) {
