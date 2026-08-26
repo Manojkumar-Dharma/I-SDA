@@ -483,6 +483,81 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task L1a - multi-instance Color & attributes editor, built on Task L1's
+  // repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances
+  // and DspfWriter.getColorAttrStates/setColorAttrStates. Renders each
+  // independently-conditioned color/attribute state as its own card (color
+  // select + DSPATR checkboxes as the payload, a Conditioning accordion
+  // per card via the L1 shell) instead of colorAttrEditorHtml/
+  // wireColorAttrEditor's single always-unconditioned pair above. Callers
+  // choose between the two - this one for a full multi-state picker (see
+  // its call site in the field/constant props panel), the single-pair one
+  // above stays available for anywhere a simpler always-unconditioned
+  // COLOR/DSPATR editor is still wanted.
+  // -----------------------------------------------------------------------
+
+  function colorAttrStatesHtml(keywords, ownerKey, expandedSet) {
+    var states = DspfWriter.getColorAttrStates(keywords);
+    var html = '<div class="section-label">Color &amp; attributes</div>';
+    html += repeatableConditionedInstancesHtml(states, ownerKey + '-colorattr', function (inst, instIdPrefix) {
+      var payload = '<div class="field-row"><label>Color</label><select id="' + instIdPrefix + '-color">' +
+        COLOR_VALUES.map(function (c) {
+          return '<option value="' + c + '"' + (inst.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
+        }).join('') + '</select></div>';
+      payload += '<div class="attr-checks">';
+      DSPATR_ATTRS.forEach(function (a) {
+        var checked = inst.attrs.indexOf(a) >= 0;
+        payload += '<label class="attr-check"><input type="checkbox" class="' + instIdPrefix + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+      });
+      payload += '</div>';
+      return payload;
+    }, expandedSet, '+ Add color/attribute state', function renderStaging(stagingIdPrefix) {
+      // A permanently-visible "new state" row (same pattern
+      // commandKeysSectionHtml uses for CAxx/CFxx) - "+ Add" reads THESE
+      // inputs rather than appending a blank card, since a state with no
+      // color and no attributes checked would write nothing and simply
+      // vanish on the very next re-render (see readColorAttrStaging below).
+      var staging = '<div class="field-row"><label>Color</label><select id="' + stagingIdPrefix + '-color">' +
+        COLOR_VALUES.map(function (c) { return '<option value="' + c + '">' + (c || '(none)') + '</option>'; }).join('') + '</select></div>';
+      staging += '<div class="attr-checks">';
+      DSPATR_ATTRS.forEach(function (a) {
+        staging += '<label class="attr-check"><input type="checkbox" class="' + stagingIdPrefix + '-attr" value="' + a + '"/>' + a + '</label>';
+      });
+      staging += '</div>';
+      return staging;
+    });
+    return html;
+  }
+
+  function wireColorAttrStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var states = DspfWriter.getColorAttrStates(keywords);
+    wireRepeatableConditionedInstances(ownerKey + '-colorattr', states, function (newStates) {
+      onChange(DspfWriter.setColorAttrStates(keywords, newStates));
+    }, function (instIdPrefix, inst, updatePayload) {
+      var colorSel = document.getElementById(instIdPrefix + '-color');
+      function commit() {
+        var color = colorSel ? colorSel.value : '';
+        var attrs = Array.prototype.slice
+          .call(document.querySelectorAll('.' + instIdPrefix + '-attr:checked'))
+          .map(function (el) { return el.value; });
+        updatePayload({ color: color, attrs: attrs });
+      }
+      if (colorSel) colorSel.addEventListener('change', commit);
+      document.querySelectorAll('.' + instIdPrefix + '-attr').forEach(function (el) {
+        el.addEventListener('change', commit);
+      });
+    }, expandedSet, rerender, function readNewInstance(stagingIdPrefix) {
+      var colorSel = document.getElementById(stagingIdPrefix + '-color');
+      var color = colorSel ? colorSel.value : '';
+      var attrs = Array.prototype.slice
+        .call(document.querySelectorAll('.' + stagingIdPrefix + '-attr:checked'))
+        .map(function (el) { return el.value; });
+      if (!color && attrs.length === 0) return null; // nothing to add
+      return { conditions: [], color: color, attrs: attrs };
+    });
+  }
+
+  // -----------------------------------------------------------------------
   // Validity check (RANGE/COMP/VALUES), edit code/word (EDTCDE/EDTWRD), and
   // error message (ERRMSG) - dedicated helpers instead of the generic
   // keyword box, for named fields (validity check + edit code/word + error
@@ -2228,15 +2303,34 @@
   //     `updatePayload(partialFields)` merges `partialFields` onto that ONE
   //     instance (shallow, e.g. `updatePayload({ parameters: 'RED' })`) and
   //     commits the whole instances array via `onChange`.
-  //   - `makeDefaultInstance()` returns a fresh `{ conditions: [], ...}`
-  //     for the "+ Add" button to append - lets the caller decide a new
-  //     instance's starting payload (e.g. `{ name: 'COLOR', parameters: '' }`).
+  //   - `renderStaging(idPrefix)` (optional) returns HTML for a
+  //     PERMANENTLY-VISIBLE "new instance" input row, rendered just above
+  //     the "+ Add" button - same shape commandKeysSectionHtml/
+  //     wireCommandKeysSection already use for CAxx/CFxx (type/number/
+  //     indicator/text inputs sit there always, "+ Add command key" reads
+  //     them). This is NOT optional in practice for any instance whose
+  //     payload can be entirely empty (e.g. Color & attributes, where "no
+  //     color, no attributes" is indistinguishable from "nothing to
+  //     write") - creating a blank instance and committing it immediately,
+  //     the way an earlier version of this component did, means an empty
+  //     instance just evaporates on the very next re-render, since the
+  //     document has nothing to re-parse it back out of. Reading a
+  //     filled-in staging row instead sidesteps that entirely: nothing
+  //     commits until there's something real to write.
+  //   - `readNewInstance(idPrefix)` (paired with `renderStaging`) reads
+  //     that staging row's current values when "+ Add" is clicked and
+  //     returns the new instance to append, or a falsy value to no-op
+  //     (mirrors commandKeysSectionHtml's own `if (!number) return;`
+  //     validation gate) - e.g. Color & attributes returns falsy when
+  //     BOTH the color is blank and no attribute is checked, since that
+  //     combination has nothing to add.
   //
   // `instances` is expected in the shape DspfWriter.
   // getRepeatableKeywordInstances returns (or any caller-defined object
   // that carries its own `conditions` array the same way) - this component
   // never reads/writes DDS keyword text itself, only the `conditions`
-  // field and whatever `renderPayload`/`wirePayload` choose to look at.
+  // field and whatever `renderPayload`/`wirePayload`/`renderStaging`/
+  // `readNewInstance` choose to look at.
   // `idPrefix` follows the same per-owner-uniqueness convention as
   // keywordEditorHtml/indicatorTextRowsHtml above. `expandedSet` is a
   // caller-owned Set of "idPrefix:idx" strings that survives across
@@ -2246,7 +2340,7 @@
   // flips, since that's pure UI state, not a document edit.
   // -----------------------------------------------------------------------
 
-  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel) {
+  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel, renderStaging) {
     var list = instances || [];
     var html = '<div id="' + idPrefix + '-instances">';
     if (list.length === 0) {
@@ -2269,11 +2363,12 @@
       html += '</div>';
     });
     html += '</div>';
+    if (renderStaging) html += renderStaging(idPrefix + '-new');
     html += '<button class="secondary repeat-inst-add" data-prefix="' + idPrefix + '" style="width:100%;margin-top:8px;">' + (addLabel || '+ Add instance') + '</button>';
     return html;
   }
 
-  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, makeDefaultInstance) {
+  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, readNewInstance) {
     var list = instances || [];
 
     function replaceAt(idx, updater) {
@@ -2326,7 +2421,8 @@
     var addBtn = document.querySelector('.repeat-inst-add[data-prefix="' + idPrefix + '"]');
     if (addBtn) {
       addBtn.addEventListener('click', function () {
-        var fresh = makeDefaultInstance ? makeDefaultInstance() : { conditions: [] };
+        var fresh = readNewInstance ? readNewInstance(idPrefix + '-new') : { conditions: [] };
+        if (!fresh) return;
         onChange(list.concat([fresh]));
       });
     }
@@ -2795,6 +2891,8 @@
     functionKeyLegendHtml: functionKeyLegendHtml,
     colorAttrEditorHtml: colorAttrEditorHtml,
     wireColorAttrEditor: wireColorAttrEditor,
+    colorAttrStatesHtml: colorAttrStatesHtml,
+    wireColorAttrStatesEditor: wireColorAttrStatesEditor,
     validityAndEditHtml: validityAndEditHtml,
     wireValidityAndEdit: wireValidityAndEdit,
     errorMessageInstancesHtml: errorMessageInstancesHtml,

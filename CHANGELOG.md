@@ -86,6 +86,55 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.9.59] - Unreleased
 
 ### Added
+- **Task L1a - multi-instance Color & attributes picker** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Wires Task L1's generic
+  repeatable-conditioned-instance component into the Color & attributes
+  panel: a field/constant/record can now carry MULTIPLE independently-
+  conditioned COLOR/DSPATR pairs (e.g. `COLOR(RED)` unconditioned as a
+  base look, `COLOR(GRN) DSPATR(HI)` under indicator 30 for an error
+  state) instead of only one always-unconditioned pair.
+  - `dspfWriter.js`: `getColorAttrStates`/`setColorAttrStates`, built on
+    Task L1's `getRepeatableKeywordInstances`/
+    `setRepeatableKeywordInstances`. Groups COLOR/DSPATR instances by
+    matching conditions, then pairs same-condition COLOR/DSPATR
+    instances POSITIONALLY (1st with 1st, 2nd with 2nd, ...) rather than
+    collapsing same-signature instances into one - two COLOR keywords
+    that happen to share identical conditions (most commonly: both
+    unconditioned) are legal, if unusual, DDS and stay as two SEPARATE
+    states; an earlier version of this collapsed them into one, silently
+    discarding whichever COLOR lost the collision.
+  - `webviewClientHelpers.js`: `colorAttrStatesHtml`/
+    `wireColorAttrStatesEditor` - each state gets its own card (Color
+    select + DSPATR checkboxes as the L1 component's "payload") with its
+    own Conditioning accordion.
+  - **L1 correction, discovered while building this**: the "+ Add"
+    button used to append a blank instance and commit it immediately -
+    for a payload that CAN be entirely empty (no color, no attributes
+    checked), that blank instance writes nothing to the document and
+    simply evaporates on the very next re-render. Reworked to match the
+    pattern `commandKeysSectionHtml`/`wireCommandKeysSection` already
+    used for CAxx/CFxx: a permanently-visible staging row feeds "+ Add",
+    which reads it (`readNewInstance`) and validates before committing,
+    the same way command keys already gate on "no number picked, do
+    nothing." `repeatableConditionedInstancesHtml`/
+    `wireRepeatableConditionedInstances` gained `renderStaging`/
+    `readNewInstance` params (backward compatible with the older
+    `makeDefaultInstance` callers - `readNewInstance` is just called
+    with an id prefix instead of no arguments).
+  - `buildWebviewTemplate.js`: field/constant props panel now uses
+    `colorAttrStatesHtml`/`wireColorAttrStatesEditor` in place of the
+    single-pair `colorAttrEditorHtml`/`wireColorAttrEditor` (which stays
+    available for anywhere a simpler always-unconditioned editor is
+    still wanted).
+  - New `src/test/colorAttrStates.test.js` (writer-layer, including a
+    dedicated regression case for the same-condition collision bug
+    above) and an extended Color & attributes scenario in
+    `src/test/dspfWebview.test.js` (staging row -> commit -> edit
+    existing state -> add a second, independently-conditioned state ->
+    condition just the second -> remove it, confirming the first is
+    untouched throughout). `src/test/repeatableConditionedInstances.test.js`
+    extended with coverage for `renderStaging`/`readNewInstance`.
+
 - **Task L3 - `MNUBARCHC` Text field / Return field variants** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's "Define
   Menu-Bar Choice Keyword" screen

@@ -608,6 +608,103 @@
     return next;
   }
 
+  // -----------------------------------------------------------------------
+  // Task L1a - multi-instance Color & attributes, built on Task L1's
+  // getRepeatableKeywordInstances/setRepeatableKeywordInstances. Real DDS
+  // lets a field/record/constant carry MULTIPLE independently-conditioned
+  // COLOR/DSPATR pairs - e.g. COLOR(RED) DSPATR(HI) under indicator 10,
+  // COLOR(GRN) under indicator 20 - getColorAttr/setColorAttr just above
+  // only manage ONE always-unconditioned pair (conditioning either keyword
+  // still has to go through the generic keyword editor's own Conditioning
+  // toggle, which conditions the pair as a whole rather than letting each
+  // color choice carry its own indicator).
+  //
+  // A "state" here is { conditions, color, attrs } - one color plus one set
+  // of DSPATR attributes sharing the SAME conditions, the natural pairing
+  // real SDA's Color & attributes screen presents as a single row/entry.
+  // COLOR and DSPATR are read/written as ONE combined repeatable group via
+  // getRepeatableKeywordInstances(['COLOR','DSPATR'])/
+  // setRepeatableKeywordInstances(['COLOR','DSPATR']) - grouping same-
+  // condition COLOR+DSPATR instances into one state (and splitting a state
+  // back into up to one COLOR keyword and up to one DSPATR keyword) is
+  // exactly the picker-level "pairing" concern L1's own doc comment called
+  // out as deferred to this task.
+  // -----------------------------------------------------------------------
+
+  /** Two conditions arrays are "the same state" if they'd produce
+   *  byte-identical DDS conditioning - a plain structural comparison, since
+   *  `conditions` is already plain JSON-safe data (no functions/dates) built
+   *  the same way everywhere it's constructed. Good enough to group
+   *  same-source-order COLOR/DSPATR instances within ONE document; not
+   *  intended as a general-purpose deep-equal. */
+  function conditionsSignature(conditions) {
+    return JSON.stringify(conditions || []);
+  }
+
+  /** Reads every COLOR/DSPATR instance off `keywords` and groups them into
+   *  states - `{ conditions, color, attrs }[]`, in the order each distinct
+   *  condition first appears in the source. Instances are grouped by
+   *  matching `conditions` (conditionsSignature), and WITHIN one shared
+   *  condition, COLOR and DSPATR instances are paired up POSITIONALLY in
+   *  source order (1st COLOR with 1st DSPATR, 2nd with 2nd, ...) rather
+   *  than collapsed into a single state - two COLOR keywords that happen
+   *  to carry the exact same conditions (most commonly: both
+   *  unconditioned) are legal, if unusual, DDS and stay as two SEPARATE
+   *  states here. Collapsing them into one would silently discard
+   *  whichever COLOR lost the collision - exactly the failure mode this
+   *  positional pairing avoids. `color` is '' and/or `attrs` is [] for a
+   *  slot that only has the other keyword (e.g. a DSPATR(HI) with no
+   *  matching COLOR under that condition). */
+  function getColorAttrStates(keywords) {
+    var instances = getRepeatableKeywordInstances(keywords, ['COLOR', 'DSPATR']);
+    var order = [];
+    var buckets = {};
+    instances.forEach(function (inst) {
+      var sig = conditionsSignature(inst.conditions);
+      if (!buckets[sig]) { buckets[sig] = { conditions: inst.conditions, colors: [], attrsList: [] }; order.push(sig); }
+      if (inst.name === 'COLOR') {
+        buckets[sig].colors.push((inst.parameters || '').trim().toUpperCase());
+      } else if (inst.name === 'DSPATR') {
+        buckets[sig].attrsList.push((inst.parameters || '').trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); }));
+      }
+    });
+    var states = [];
+    order.forEach(function (sig) {
+      var bucket = buckets[sig];
+      var slots = Math.max(bucket.colors.length, bucket.attrsList.length);
+      for (var i = 0; i < slots; i++) {
+        states.push({
+          conditions: bucket.conditions,
+          color: bucket.colors[i] || '',
+          attrs: bucket.attrsList[i] || [],
+        });
+      }
+    });
+    return states;
+  }
+
+  /** Returns a NEW keywords array with every existing COLOR/DSPATR instance
+   *  replaced by the given `states` (`{ conditions, color, attrs }[]`) - for
+   *  each state, writes a COLOR keyword when `color` is non-empty and a
+   *  DSPATR keyword (attributes joined into ONE keyword, e.g. DSPATR(HI
+   *  UL), the way real DDS allows multiple attributes per keyword) when
+   *  `attrs` is non-empty, both conditioned on that state's OWN
+   *  `conditions` - so two states can carry the same color/attrs under
+   *  different indicators, or different colors that never overlap. A state
+   *  with neither `color` nor `attrs` set writes nothing for that state
+   *  (the picker's own "+ Add" default starts empty, and an emptied-out
+   *  state should just disappear rather than leave a bare, meaningless
+   *  entry in the source). */
+  function setColorAttrStates(keywords, states) {
+    var flat = [];
+    (states || []).forEach(function (state) {
+      var conditions = (state && state.conditions) || [];
+      if (state && state.color) flat.push({ name: 'COLOR', parameters: state.color, conditions: conditions });
+      if (state && state.attrs && state.attrs.length > 0) flat.push({ name: 'DSPATR', parameters: state.attrs.join(' '), conditions: conditions });
+    });
+    return setRepeatableKeywordInstances(keywords, ['COLOR', 'DSPATR'], flat);
+  }
+
   var VALIDITY_CHECK_KEYWORDS = ['RANGE', 'COMP', 'VALUES'];
 
   /** A field carries at most ONE validity-check keyword at a time, so this just
@@ -2773,6 +2870,8 @@
     reorderFields: reorderFields,
     getColorAttr: getColorAttr,
     setColorAttr: setColorAttr,
+    getColorAttrStates: getColorAttrStates,
+    setColorAttrStates: setColorAttrStates,
     getValidityCheck: getValidityCheck,
     setValidityCheck: setValidityCheck,
     getEditKeyword: getEditKeyword,
