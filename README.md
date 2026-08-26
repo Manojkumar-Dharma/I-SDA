@@ -102,146 +102,106 @@ See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
 ## Known limitations
 
-### DSPF (screen) designer
+These are accepted constraints or inherent DDS/CRTMNU behaviors, not
+open work - nothing actionable below is being tracked as a task. See
+[Planned enhancements](#planned-enhancements) for the fixable gaps.
 
-Actionable follow-up items below are tagged with their task ID and
-priority, tracked in
-[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) the same
-way the picker screens were - pick one, mark it `in progress` there, and
-sync before pushing to avoid colliding with other parallel sessions.
-Untagged bullets are accepted constraints or already-reasonable defaults,
-not open work.
+### DSPF (screen) designer
 
 - `WINDOW` positions that depend on a runtime value (`*DFT`, or a
   program-to-system field name) can't be known at design time, so they
-  render at a fixed placeholder position with a dashed border (staggered
-  from other placeholder windows in compare mode, so multiple ones don't
-  render on top of each other - but the position itself is still a
-  placeholder). `WINDOW(record-format-name)` (inheriting another record's
-  geometry) is fully resolved.
-- `WDWBORDER`'s `*COLOR`, `*DSPATR`, and `*CHAR` groups (record-level
-  overriding a file-level default, matching every other record-vs-file DDS
-  keyword) are all reflected on the window preview - `*COLOR` as the
-  border color, `*DSPATR HI`/`BL` as a bolder/blinking border, and `*CHAR`
-  (the 8 literal border-position characters a real 5250 terminal draws)
-  as an actual character overlay - one glyph per border cell (corners,
-  plus each edge repeated along its length), rendered as grid-positioned
-  cells alongside the fields rather than approximated by a single CSS box
-  border. When any `*CHAR` position is set, the plain box border is
-  suppressed in favor of this overlay (the two aren't drawn together); a
-  blank `*CHAR` position renders nothing there, matching IBM's own
-  behavior. `*COLOR`, when combined with `*CHAR`, tints the rendered
-  characters themselves instead of a box edge.
+  render at a fixed placeholder position with a dashed border instead
+  (staggered per-window in compare mode so multiple placeholders don't
+  overlap). `WINDOW(record-format-name)` (inheriting another record's
+  geometry) is fully resolved, as is every other `WINDOW`/`WDWBORDER`
+  form.
 - `CHCCTL` (per-choice runtime field-setting logic) has no visual
   representation - it's a logic construct, not a layout one.
-- Compare mode (previewing several record formats together) has two
-  styles: the default dimmed backdrop (the currently-edited record stays
-  fully interactive; the others render behind it, dimmed and read-only),
-  and an opt-in "Full overlay" toggle that instead shows every checked
-  record together at full brightness, with nothing editable - closer to
-  how SDA's own multi-format compare looked before the dimmed backdrop
-  was added. Switch off "Full overlay" (or Compare entirely) to go back
-  to editing.
 - Deleting a named field that something else in the source looks like it
   references by name (e.g. `REFFLD`) is blocked on a confirmation dialog
-  naming those lines before the delete goes through - confirming still
-  doesn't rewrite the reference itself, since (like rename) there's
-  nothing sensible to auto-fix it TO. Only named fields are checked;
-  deleting an unnamed constant never prompts, since there's nothing to
-  search for. A field nothing references still deletes immediately, with
-  no added click.
-- "Create New Display File" (remote path) checks whether the source
-  physical file exists first, and if it doesn't, offers to create it
-  (`CRTSRCPF`) before adding the member (`ADDPFM`), rather than letting
-  `ADDPFM` fail outright. Declining leaves everything untouched.
-- Numeric fields with an `EDTCDE` or `EDTWRD` edit code get an exact
-  display width - commas, decimal point, sign/CR reservation, and a
-  floating currency symbol for `EDTCDE` (per IBM's own worked examples in
-  the EDTCDE reference), and the literal template's own character count
-  for `EDTWRD` - instead of the field's raw undecorated digit length.
-  This also applies to `DATE`/`TIME`/`PAGNBR` system-value constants
-  carrying `EDTCDE`/`EDTWRD` (e.g. slashes inserted into a `DATE`
-  placeholder), since those parse as `CONSTANT` the same as an ordinary
-  literal but commonly carry edit keywords in real DDS. The
-  `EDTCDE(Y)`/`EDTCDE(W)` "date edit" codes are left at the field's coded
-  length rather than guessed at, since their separator width depends on
-  the job's `DATSEP` attribute - not knowable at design time, the same
-  runtime-only ambiguity that keeps `WINDOW(*DFT)` a placeholder above.
-- **[High]** Most dedicated keyword pickers (file-, record-, and
-  field-level - Validity check, Keying options, Input keywords,
-  General keywords, Database reference, Message ID, and the
-  record-level pickers) manage ONE instance of their keyword(s) at a
-  time, conditioned as a whole via the generic keyword editor's
-  Conditioning toggle, rather than the MULTIPLE independently-
-  conditioned instances real SDA additionally allows for some
-  keywords - e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)`
-  under indicator 20 on the same field. Three panels have already
-  been moved onto the generic "repeatable conditioned instance"
-  component (Task L1) that solves this, and no longer have the
-  limitation: **Color & attributes** (`COLOR`/`DSPATR`, Task L1a),
-  **Error message** (`ERRMSG`/`ERRMSGID`, Task L1b), and the SFLCTL
-  picker's **Subfile Messages** panel (`SFLMSG`/`SFLMSGID`, Task
-  L1c) - alongside the `SFL`-specific picker's `INDTXT`/`SETOF`/
-  `CHANGE` rows, an even earlier repeatable-row precedent. The
-  remaining pickers listed above would each need their own follow-up
-  to move onto the same component, since it affects several keywords
-  at once, not just one panel - no such follow-up is currently
-  tracked in `docs/sda-reference/LIMITATIONS-PLAN.md`.
-- The `WINDOW`-specific picker deliberately leaves out the real SDA
-  screen's "Message line" row (DDS keyword not confidently verified) and
-  its "Roll" column (turned out to be SDA's own in-terminal roll-key
-  editing convenience, not a DDS keyword at all) - both still reachable
-  via the raw Keywords editor.
-- Field-keyword panels are gated by the field's current Usage (and, for
-  Validity check, data type) to match real SDA's own "For Field Type"
-  column (see `WebviewClientHelpers.fieldKeywordCategoryVisibility()`'s
-  own doc comment for the exact rule table). This only hides panels for
-  a field's CURRENT usage - it never deletes a keyword the field already
-  carries just because Usage changed, and an already-set keyword from a
-  now-hidden category stays intact and editable via the raw Keywords
-  tab, which is never gated. Two scoping choices worth knowing: Error
-  message is tied to Validity check's own gate (both live in one
-  combined panel) rather than getting SDA's separately-listed
-  Input/Output/Both rule, since an error message without an associated
-  validity check has nothing to report; and M/P (Message text/
-  Program-to-system) usages, which SDA's own table never covers, fail
-  open (show every category) rather than guessing.
+  naming those lines, but confirming still doesn't rewrite the reference
+  itself - there's nothing sensible to auto-fix it TO (same reasoning as
+  rename's own limitation below).
+- `EDTCDE(Y)`/`EDTCDE(W)` "date edit" codes are left at the field's coded
+  length rather than a guessed display width, since their separator
+  width depends on the job's runtime `DATSEP` attribute - not knowable
+  at design time, the same ambiguity that keeps `WINDOW(*DFT)` a
+  placeholder above. Every other `EDTCDE`/`EDTWRD` case gets an exact
+  computed width.
+- M/P (Message text/Program-to-system) field usages aren't covered by
+  real SDA's own field-keyword "For Field Type" table, so their keyword
+  panels fail open (show every category) by design rather than guessing
+  which apply.
 - Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`), Choice keywords, and
   Choice colors & attributes stay constant-excluded, since they require
   real, named, indicator-controlled field semantics a constant
   structurally can't have.
+- The real SDA `WINDOW` screen's "Roll" column isn't a DDS keyword at
+  all - it turned out to be SDA's own in-terminal roll-key editing
+  convenience, so there's nothing to model.
 
 ### Menu designer
 
+- **Compile Menu (CRTMNU)** requires the DDS record format to be named
+  exactly the same as the menu member - CRTMNU's own requirement, not an
+  iSDA choice.
 - No command-key (`CAxx`/`CFxx`) assignment UI, unlike the DSPF designer -
   CRTMNU-compiled numbered-option menus don't use them in practice (F3=Exit,
   F12=Cancel etc. are handled by CRTMNU's own generated program logic, not
   by DDS command keys the menu designer would let you assign).
-- "Create New Menu" won't create the source physical file itself
-  (`CRTSRCPF`) on the remote path - only adds members to one that already
-  exists.
-- The companion commands file (`QQ` member, or local/streamfile sibling)
-  stays in sync if it's open in its own editor tab. Two menu designer
-  instances racing to write it at once is unhandled.
-- **Compile Menu (CRTMNU)** requires the DDS record format to be named
-  exactly the same as the menu member (CRTMNU's own requirement). Only
-  handles `TYPE(*DSPF)` menus.
-- Deleting an option doesn't scan for other references to it (unlike
-  rename, which does).
 
 ## Planned enhancements
 
-Forward-looking work, distinct from Known limitations above (which
-describes what's true about the current build) - not yet started.
+Forward-looking, fixable work - not yet started. Items tagged with a
+task ID are tracked in
+[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) the same
+way the picker screens were - pick one, mark it `in progress` there, and
+sync before pushing to avoid colliding with other parallel sessions.
+Untagged items aren't yet broken into a tracked task.
 
-- **Surface the per-keyword Conditioning toggle directly on each
-  dedicated picker panel** (color/attribute, edit-code, record-level
-  pickers, etc.) - today it only lives in the raw Keywords tab, so
-  conditioning a pick (e.g. `COLOR(RED)` under indicator 10) still
-  requires dropping into free-text keyword entry.
+### DSPF (screen) designer
+
+- **[High, Task L5]** Most dedicated keyword pickers (file-, record-,
+  and field-level - Validity check, Keying options, Input keywords,
+  General keywords, Database reference, Message ID, and the
+  record-level pickers) manage ONE instance of their keyword(s) at a
+  time, conditioned as a whole via the generic keyword editor's
+  Conditioning toggle, rather than the MULTIPLE independently-
+  conditioned instances real SDA additionally allows for some keywords -
+  e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)` under indicator
+  20 on the same field. Three panels already moved onto the generic
+  "repeatable conditioned instance" component (Task L1) that solves
+  this - **Color & attributes** (Task L1a), **Error message** (Task
+  L1b), and SFLCTL's **Subfile Messages** panel (Task L1c) - so the
+  remaining pickers above just need the same wiring.
+- Surface the per-keyword Conditioning toggle directly on each dedicated
+  picker panel (color/attribute, edit-code, record-level pickers, etc.)
+  - today it only lives in the raw Keywords tab, so conditioning a pick
+  (e.g. `COLOR(RED)` under indicator 10) still requires dropping into
+  free-text keyword entry.
+- Verify the real DDS keyword (if any) behind the real SDA `WINDOW`
+  screen's "Message line" row and add it to the `WINDOW`-specific
+  picker if confirmed - currently left out as unconfirmed, reachable
+  only via the raw Keywords editor in the meantime.
+
+### Menu designer
+
 - **Menu designer options get the same dedicated-picker treatment** the
   DSPF designer's keywords now have - its per-option Conditioning panel
   already follows a similar structure to build on.
+- "Create New Menu" won't create the source physical file itself
+  (`CRTSRCPF`) on the remote path, only adds members to one that already
+  exists - the DSPF designer's "Create New Display File" already solved
+  the identical gap (Task L4); this just needs the same fix applied to
+  the menu wizard's remote path.
+- Deleting an option doesn't scan for other references to it, unlike
+  rename - the DSPF designer's field-deletion reference check (Task L2)
+  is the precedent to follow here.
+- The companion commands file (`QQ` member, or local/streamfile sibling)
+  only stays in sync if it's open in its own editor tab; two menu
+  designer instances racing to write it at once is unhandled.
+- Support menu types beyond `TYPE(*DSPF)` (currently the only one Compile
+  Menu handles).
 
 ## License
 

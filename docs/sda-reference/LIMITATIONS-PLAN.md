@@ -36,6 +36,7 @@ model at all today, or a data-integrity risk.
 | **L1c** | Wire L1's component into the **Subfile Messages** panel (`SFLMSG`/`SFLMSGID`) on the SFLCTL picker (Task R4). | L1, R4 (already done) | **done** — `sflCtlPanelsHtml`/`wireSflCtlPanels` in `webviewClientHelpers.js` now wire L1's generic component into SFLMSG and SFLMSGID as two SEPARATE repeatable groups (not paired the way Color & attributes pairs COLOR+DSPATR - real DDS lets each of SFLMSG/SFLMSGID repeat independently, per this doc's own L1 entry). Replaced the old single-primary-instance `getSflMsgId`/`setSflMsgId` with per-instance `parseSflMsgIdParams`/`formatSflMsgIdParams` in `dspfWriter.js` (an incomplete SFLMSGID - blank message ID or file - is still never committed, same guarantee the superseded functions gave). Also factored `quoteDdsLiteral`/`unquoteDdsLiteral` out of `getFileQuotedText`/`setFileQuotedText` so SFLMSG's per-instance quoting reuses the exact same convention. Uses the same non-blank-placeholder default (`'New message'`, `MSGID`/`MSGFILE`) L1b's own `makeDefaultInstance`-style approach uses, rather than L1a's newer staging-row mechanism - both are backward-compatible, optional-param approaches on the same shared component, so either is a valid pattern for a future picker to follow. See the Task L1c scenarios in `src/test/dspfWebview.test.js` and CHANGELOG. |
 | **L2** | **Delete-field reference cleanup.** Done — deleting a field with likely references elsewhere (the same advisory `findLikelyNameReferences` scan rename falls back on) is now blocked on an actionable confirmation dialog FIRST (naming the reference count/lines and warning they'll be left dangling) rather than deleting immediately and only warning afterward via a passive toast. Confirming still leaves the references unrewritten — there's still no sensible auto-fix target, same as rename's own limitation — so this is the "actionable prompt" option from the two named in the original task description, not the "auto-remove/comment-out" one (blindly rewriting an arbitrary keyword's free-text parameters from a substring match risked corrupting valid DDS worse than leaving it for the person to review). A field with no detected references still deletes immediately, unchanged — no confirmation click added to the common case. New generic `showConfirmDialog` UI helper in `buildWebviewTemplate.js` (a DOM-built modal, not `window.confirm`, to match the app's theme and avoid blocking the whole webview process) — scoped to field deletion only per this task; record deletion (`commitDeleteRecord`) has the identical gap but is out of scope here. See `runDeleteWarningScenario` in `dspfWebview.test.js`. | — (standalone) | done |
 | **L3** | **`MNUBARCHC` Text field / Return field variants.** Done — `DspfEngine.parseMenubarChoice` now recognizes a `&text-field` reference as an alternative to the literal-text form, plus an optional trailing `&return-field` token (both verified against IBM's own MNUBARCHC keyword reference, Figures 213/214, and the real SDA screen `screens/field-level/menu-bar-choice/choice-keyword/image193.png`). `DspfWriter.getMenubarChoices`/`setMenubarChoices` carry `returnField` through symmetrically (writer already half-supported `&text-field` on write; this closes the read-side gap and adds the return field on both sides). The picker's MNUBARCHC row editor deliberately collapses SDA's separate "Text field"/"Text" entries into the SAME text box - typing `&NAME` there is a field reference, anything else a literal - matching the codebase's existing `&`-prefix convention for the sibling `CHOICE` keyword, plus a new "Return field" box. See `src/test/dspfEngine.test.js`, `src/test/dspfWriter.test.js`, and `src/test/dspfWebview.test.js` (Task L3 sections) and CHANGELOG. | D5 (already done — this extends its existing choice picker) | done |
+| **L5** | **Extend L1's repeatable-conditioned-instance component to the remaining single-instance pickers.** Validity check, Keying options, Input keywords, General keywords, Database reference, Message ID, and the record-level pickers each still manage ONE instance of their keyword(s) at a time via the generic Conditioning toggle, unlike Color & attributes (L1a), Error message (L1b), and Subfile Messages (L1c), which already moved onto L1's component. Each of these needs its own follow-up in the same shape as L1a/L1b/L1c — wire the existing `getX`/`setX` pair per keyword into `repeatableConditionedInstancesHtml`/`wireRepeatableConditionedInstances`, following either the staging-row pattern (L1a) or the non-blank-placeholder-default pattern (L1b/L1c), whichever fits the panel better. Can be split across parallel sessions one panel at a time — update this row (or split it into L5a/L5b/etc. sub-tasks, same convention as L1a/L1b/L1c) as pieces land. | L1 (done) | not started |
 
 ## Medium priority
 
@@ -50,14 +51,12 @@ tier above.
 
 ## Suggested parallelization
 
-- L1 (the foundation component) is done, and so are L1a, L1b, and L1c
-  — everything in this doc's High and Medium priority tiers is
-  finished. No further L1-family follow-up is currently tracked; a
-  future picker moving onto the same component can follow either the
-  staging-row pattern (L1a) or the non-blank-placeholder-default
-  pattern (L1b/L1c) - both are backward-compatible, optional-param
-  approaches on `repeatableConditionedInstancesHtml`/
-  `wireRepeatableConditionedInstances`.
+- L1 (the foundation component), L1a, L1b, L1c, L2, L3, and L4 are all
+  done. **L5 is the one open task** — extending L1's component to the
+  remaining single-instance pickers (see the High priority table above).
+  It can be split across parallel sessions one panel at a time; whoever
+  picks up a panel should mark it (or a new L5x sub-task row) `in
+  progress` here first.
 - Same collision risk as the picker screens effort: sync (`git fetch` +
   drift check) before every push, and update this doc's Status column
   the moment you pick up or finish a task.
@@ -67,9 +66,11 @@ tier above.
 The "not really fixable" and "already handled reasonably" items noted in
 README's Known limitations list (e.g. `WINDOW(*DFT)`'s placeholder
 position, `CHCCTL` having no visual form, `EDTCDE`/`EDTWRD` width
-estimation edge cases, the `WINDOW` picker's missing Message
-line/Roll row, M/P usage fail-open behavior, constants staying
-Choice-keyword-excluded) are accepted constraints or reasonable defaults,
-not tracked as tasks. If any of those turns out to be more fixable than
-it looks, raise it as a new task here rather than silently reinterpreting
-its priority.
+estimation edge cases, the `WINDOW` picker's missing Roll row, M/P
+usage fail-open behavior, constants staying Choice-keyword-excluded)
+are accepted constraints or reasonable defaults, not tracked as tasks.
+If any of those turns out to be more fixable than it looks, raise it as
+a new task here rather than silently reinterpreting its priority. (The
+`WINDOW` picker's missing Message line row, by contrast, IS potentially
+fixable — see README's Planned enhancements — it just isn't broken into
+a tracked task yet.)
