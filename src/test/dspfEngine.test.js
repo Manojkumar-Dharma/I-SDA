@@ -416,6 +416,73 @@ console.log('\nBug fix: WDWBORDER on a WINDOW record actually reflects in the re
   check('the rendered window div carries the HI-attribute class', /dspf-window-border[^"]*dspf-window-border-hi/.test(html) || /dspf-window-border-hi[^"]*dspf-window-border/.test(html));
 }
 
+console.log('\nWDWBORDER *CHAR: the 8 border-position characters render as an actual character overlay, not just a plain CSS box border');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*CHAR '1' '2' '3' '4' '5-" }),
+    buildLine({ seq: '00025', func: "' '6' '7' '8'))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('resolved window carries all 8 border characters in order', screen.window.border.chars.join(',') === '1,2,3,4,5,6,7,8');
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  // WINDOW(3 10 4 6): top=3, left=10, height=4, width=6 -> bottom=6, right=15
+  check('top-left corner (1) rendered at row 3, col 10', /class="dspf-window-char" style="grid-row:3;grid-column:10;[^>]*>1</.test(html));
+  check('top-right corner (3) rendered at row 3, col 15', /class="dspf-window-char" style="grid-row:3;grid-column:15;[^>]*>3</.test(html));
+  check('bottom-left corner (6) rendered at row 6, col 10', /class="dspf-window-char" style="grid-row:6;grid-column:10;[^>]*>6</.test(html));
+  check('bottom-right corner (8) rendered at row 6, col 15', /class="dspf-window-char" style="grid-row:6;grid-column:15;[^>]*>8</.test(html));
+  check('top border (2) repeated across the top row interior cells', /class="dspf-window-char" style="grid-row:3;grid-column:1[1-4];[^>]*>2</.test(html));
+  check('left border (4) repeated down the left column interior rows', /class="dspf-window-char" style="grid-row:[45];grid-column:10;[^>]*>4</.test(html));
+  check('right border (5) repeated down the right column interior rows', /class="dspf-window-char" style="grid-row:[45];grid-column:15;[^>]*>5</.test(html));
+  check('bottom border (7) repeated across the bottom row interior cells', /class="dspf-window-char" style="grid-row:6;grid-column:1[1-4];[^>]*>7</.test(html));
+  check('the window div itself is switched into char-mode (plain box border suppressed)', /dspf-window-border[^"]*dspf-window-border-charmode/.test(html));
+}
+
+console.log('\nWDWBORDER *CHAR: a blank position renders no character cell (matches real DDS "blank means nothing drawn there")');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*CHAR ' ' '2' '3' '4' '5-" }),
+    buildLine({ seq: '00025', func: "' '6' '7' '8'))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('the blank top-left corner has no rendered char cell at that position', !/class="dspf-window-char" style="grid-row:3;grid-column:10;/.test(html));
+}
+
+console.log('\nWDWBORDER *CHAR: *COLOR applies to the rendered characters themselves (not a suppressed box border) when both are set together');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*COLOR BLU) (*CHAR '1' '-" }),
+    buildLine({ seq: '00025', func: "2' '3' '4' '5' '6' '7' '8'))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('a rendered border-char cell carries the *COLOR as its own inline color', new RegExp('dspf-window-char" style="grid-row:3;grid-column:10;color:' + DspfEngine.COLOR_HEX.BLU).test(html));
+}
+
+console.log('\nWDWBORDER: no *CHAR group at all still falls back to the plain CSS box border, unaffected');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: 'WDWBORDER((*COLOR RED))' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('no dspf-window-char cells rendered when *CHAR is absent', !/dspf-window-char/.test(html));
+  check('the window div is NOT switched into char-mode', !/dspf-window-border-charmode/.test(html));
+}
+
 console.log('\nWDWBORDER: record-level keyword takes precedence over a file-level default (matches every other record-vs-file DDS keyword)');
 {
   const src = [

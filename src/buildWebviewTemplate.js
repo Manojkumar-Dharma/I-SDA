@@ -116,6 +116,17 @@ const htmlTemplate = `<!DOCTYPE html>
      since it varies per-window and always overrides these defaults. */
   .dspf-window-border.dspf-window-border-hi { border-width: 3px; }
   .dspf-window-border.dspf-window-border-blink { animation: dspf-blink 1s steps(1) infinite; }
+  /* WDWBORDER's *CHAR group - once any of the 8 border-position characters
+     is set, the plain CSS box border above is suppressed entirely (no
+     border/shadow) in favor of the actual character overlay rendered as
+     .dspf-window-char cells (see dspfEngine.js's renderWindowBorderCharsHtml) -
+     the two are alternative representations of the same keyword group, not
+     meant to be layered together. */
+  .dspf-window-border.dspf-window-border-charmode { border-color: transparent; box-shadow: none; }
+  .dspf-window-char {
+    white-space: pre; color: var(--ink-dim); pointer-events: none; user-select: none;
+    position: relative; z-index: 1; text-align: center;
+  }
   .dspf-window-title {
     position: absolute; top: -1px; left: 8px; transform: translateY(-50%);
     background: #0a0f0c; padding: 0 6px; font-size: 11px; color: var(--ink-dim);

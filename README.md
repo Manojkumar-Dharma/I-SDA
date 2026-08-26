@@ -119,14 +119,19 @@ not open work.
   render on top of each other - but the position itself is still a
   placeholder). `WINDOW(record-format-name)` (inheriting another record's
   geometry) is fully resolved.
-- `WDWBORDER`'s `*COLOR` and `*DSPATR` groups (record-level overriding a
-  file-level default, matching every other record-vs-file DDS keyword)
-  are reflected on the window preview - `*COLOR` as the border color,
-  `*DSPATR HI`/`BL` as a bolder/blinking border. The `*CHAR` group (the 8
-  literal border-position characters a real 5250 terminal draws) has no
-  meaningful equivalent in this box-model CSS-border renderer and isn't
-  visually represented, though it still round-trips correctly in the
-  source and the Window Border picker.
+- `WDWBORDER`'s `*COLOR`, `*DSPATR`, and `*CHAR` groups (record-level
+  overriding a file-level default, matching every other record-vs-file DDS
+  keyword) are all reflected on the window preview - `*COLOR` as the
+  border color, `*DSPATR HI`/`BL` as a bolder/blinking border, and `*CHAR`
+  (the 8 literal border-position characters a real 5250 terminal draws)
+  as an actual character overlay - one glyph per border cell (corners,
+  plus each edge repeated along its length), rendered as grid-positioned
+  cells alongside the fields rather than approximated by a single CSS box
+  border. When any `*CHAR` position is set, the plain box border is
+  suppressed in favor of this overlay (the two aren't drawn together); a
+  blank `*CHAR` position renders nothing there, matching IBM's own
+  behavior. `*COLOR`, when combined with `*CHAR`, tints the rendered
+  characters themselves instead of a box edge.
 - `CHCCTL` (per-choice runtime field-setting logic) has no visual
   representation - it's a logic construct, not a layout one.
 - Compare mode (previewing several record formats together) has two

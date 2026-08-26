@@ -3,6 +3,36 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.67] - 2026-08-27
+
+### Added
+- **`WDWBORDER`'s `*CHAR` group now renders visually.** The 8 literal
+  border-position characters (top-left/top/top-right/left/right/
+  bottom-left/bottom/bottom-right, real 5250 terminals draw these
+  directly) were already parsed and written correctly
+  (`DspfWriter.getWdwBorder`/`setWdwBorder`) but had no visual
+  representation in the preview - a documented limitation, since the
+  window preview is otherwise a plain CSS box border and a box border
+  can't show 8 independent glyphs. `DspfEngine.resolveWdwBorder` now
+  also resolves the `*CHAR` array (previously skipped entirely), and a
+  new `renderWindowBorderCharsHtml` renders one grid-positioned
+  character cell per border position - corners plus each edge
+  repeated along its length - as siblings of the field divs in the
+  same CSS grid, the same technique already used for fields, so the
+  glyphs land in the exact cells a real terminal would draw them in.
+  When any `*CHAR` position is set the window's own plain box border
+  is suppressed (`dspf-window-border-charmode`) so the two
+  representations don't visually double up; a blank `*CHAR` position
+  (empty string or a literal space) renders nothing there, matching
+  IBM's own "blank means no character displayed" behavior. `*COLOR`,
+  when combined with `*CHAR`, now tints the rendered characters
+  themselves (since they're grid siblings of the window div, not
+  descendants that could inherit a border-color style from it) rather
+  than a box edge. The record-vs-file precedence `resolveWdwBorder`
+  already gave `*COLOR`/`*DSPATR` now also covers `*CHAR`. See
+  `src/test/dspfEngine.test.js` (new WDWBORDER *CHAR scenarios) and
+  the updated README Known limitations bullet.
+
 ## [0.9.66] - 2026-08-27
 
 ### Fixed

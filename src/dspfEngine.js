@@ -513,21 +513,24 @@
    * Window Parameters/PULLDOWN pickers - see DspfWriter.getWdwBorder/
    * setWdwBorder) always wins over the FILE-level WDWBORDER default (set
    * via the file-level picker), the same "record overrides file" precedence
-   * DDS gives every other record-vs-file keyword. Only *COLOR and *DSPATR
-   * are resolved to visual styling here - *CHAR (the 8 literal border-
-   * position characters real 5250 terminals draw) has no meaningful CSS-
-   * border equivalent in this box-model-based renderer and is left as a
-   * documented limitation (see README).
-   * @returns {{color: string|null, attrs: string[]}} color is a CSS hex
-   *   string (via COLOR_HEX) or null if no *COLOR group was set anywhere
-   *   in scope; attrs is the DSPATR code list (possibly empty).
+   * DDS gives every other record-vs-file keyword. *COLOR and *DSPATR are
+   * resolved to CSS styling; *CHAR (the 8 literal border-position
+   * characters real 5250 terminals draw - top-left/top/top-right/left/
+   * right/bottom-left/bottom/bottom-right, same order as
+   * DspfWriter.getWdwBorder) is also resolved here and rendered as an
+   * actual character overlay (see renderScreenHtml) rather than a CSS box
+   * border, since a plain CSS border can't represent 8 independent glyphs.
+   * @returns {{color: string|null, attrs: string[], chars: string[]}} color is
+   *   a CSS hex string (via COLOR_HEX) or null if no *COLOR group was set
+   *   anywhere in scope; attrs is the DSPATR code list (possibly empty);
+   *   chars is always length 8, '' for any position not set/blank.
    */
   function resolveWdwBorder(record, dspfFile) {
     function parse(keywords) {
       var kw = (keywords || []).find(function (k) { return k.name === 'WDWBORDER'; });
       if (!kw) return null;
       var text = kw.parameters || '';
-      var result = { color: null, attrs: [] };
+      var result = { color: null, attrs: [], chars: ['', '', '', '', '', '', '', ''] };
       var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
       if (colorM) {
         var name = colorM[1].toUpperCase();
@@ -535,9 +538,25 @@
       }
       var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
       if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+      var charM = /\*CHAR\s+((?:'[^']*'\s*)+)/i.exec(text);
+      if (charM) {
+        var chars = charM[1].match(/'[^']*'/g) || [];
+        result.chars = chars.map(function (c) { return c.slice(1, -1); });
+        while (result.chars.length < 8) result.chars.push('');
+      }
       return result;
     }
-    return parse(record && record.keywords) || parse(dspfFile && dspfFile.fileKeywords) || { color: null, attrs: [] };
+    return (
+      parse(record && record.keywords) ||
+      parse(dspfFile && dspfFile.fileKeywords) || { color: null, attrs: [], chars: ['', '', '', '', '', '', '', ''] }
+    );
+  }
+
+  /** True if any of the 8 WDWBORDER *CHAR positions is a non-blank character
+   *  (a literal single space is also treated as blank, same as '' - both
+   *  mean "no character displayed there" per real DDS). */
+  function hasWdwBorderChars(border) {
+    return !!(border && border.chars && border.chars.some(function (c) { return c && c !== ' '; }));
   }
 
   /**
@@ -585,7 +604,7 @@
         positionIsDefault: inherited.positionIsDefault,
         inheritedFrom: parts[0],
         msgLine: inherited.msgLine,
-        border: ownBorder.color || ownBorder.attrs.length > 0 ? ownBorder : inherited.border,
+        border: ownBorder.color || ownBorder.attrs.length > 0 || hasWdwBorderChars(ownBorder) ? ownBorder : inherited.border,
       };
     }
 
@@ -1349,12 +1368,68 @@
     );
   }
 
+  /**
+   * WDWBORDER's *CHAR group - the 8 literal border-position characters a
+   * real 5250 terminal draws (top-left/top/top-right/left/right/
+   * bottom-left/bottom/bottom-right, same order as DspfWriter.getWdwBorder)
+   * - rendered as an actual character overlay: one grid cell per border
+   * position, each a direct sibling of the field divs in `.dspf-screen`'s
+   * own grid (same technique renderFieldDiv uses), so the glyphs land in
+   * the exact cells a real terminal would draw them in rather than being
+   * approximated by a single CSS box-border color/style. A blank ('')
+   * position renders nothing (matches IBM's own "blank means no character
+   * displayed there" behavior for *CHAR), same as a genuinely undeclared
+   * WDWBORDER. Only called when hasWdwBorderChars(w.border) is true; the
+   * window's own plain CSS box border is suppressed in that case (see
+   * dspf-window-border-charmode in buildWebviewTemplate.js) so the two
+   * don't visually double up.
+   */
+  function renderWindowBorderCharsHtml(w) {
+    var chars = w.border.chars;
+    // Siblings of the window div in the grid, not descendants of it, so the
+    // border color (when set) is applied per-cell here rather than relying
+    // on CSS inheritance from the (now border-less, in char mode) window div.
+    var colorStyle = w.border.color ? 'color:' + w.border.color + ';' : '';
+    var cells = [];
+    function cell(line, col, ch) {
+      // Blank (empty string, or a literal single space) means no character
+      // is displayed at that position - real DDS's own *CHAR convention,
+      // same as a genuinely undeclared position.
+      if (!ch || ch === ' ') return;
+      cells.push({ line: line, col: col, ch: ch });
+    }
+    var top = w.line, bottom = w.line + w.height - 1, left = w.col, right = w.col + w.width - 1;
+    cell(top, left, chars[0]); // top-left corner
+    cell(top, right, chars[2]); // top-right corner
+    cell(bottom, left, chars[5]); // bottom-left corner
+    cell(bottom, right, chars[7]); // bottom-right corner
+    var c;
+    for (c = left + 1; c <= right - 1; c++) {
+      cell(top, c, chars[1]); // top border
+      cell(bottom, c, chars[6]); // bottom border
+    }
+    var r;
+    for (r = top + 1; r <= bottom - 1; r++) {
+      cell(r, left, chars[3]); // left border
+      cell(r, right, chars[4]); // right border
+    }
+    return cells
+      .map(function (cl) {
+        return '<div class="dspf-window-char" style="grid-row:' + cl.line + ';grid-column:' + cl.col + ';' + colorStyle + '" aria-hidden="true">' + escapeHtml(cl.ch) + '</div>';
+      })
+      .join('\n');
+  }
+
   function renderScreenHtml(screen) {
     var fieldDivs = screen.fields.map(renderFieldDiv).join('\n');
 
     // Support both the single-record `window` (backward compatible) and the
     // multi-record `windows` array (display-comparison mode) with one code path.
     var windowList = screen.windows || (screen.window ? [screen.window] : []);
+    var windowBorderCharsHtml = windowList
+      .filter(function (w) { return hasWdwBorderChars(w.border); })
+      .map(renderWindowBorderCharsHtml)
+      .join('\n');
     var windowDiv = windowList
       .map(function (w) {
         var titleParts = [];
@@ -1363,17 +1438,23 @@
         if (w.positionIsDefault) titleParts.push('position set at runtime');
         if (w.inheritedFrom) titleParts.push('window shared with ' + w.inheritedFrom);
         var titleHtml = titleParts.length > 0 ? '<div class="dspf-window-title">' + escapeHtml(titleParts.join(' \u00b7 ')) + '</div>' : '';
-        var border = w.border || { color: null, attrs: [] };
+        var border = w.border || { color: null, attrs: [], chars: ['', '', '', '', '', '', '', ''] };
+        var charMode = hasWdwBorderChars(border);
         var windowClasses = 'dspf-window-border' +
           (w.positionIsDefault ? ' dspf-window-default-position' : '') +
           (border.attrs.indexOf('BL') >= 0 ? ' dspf-window-border-blink' : '') +
-          (border.attrs.indexOf('HI') >= 0 ? ' dspf-window-border-hi' : '');
+          (border.attrs.indexOf('HI') >= 0 ? ' dspf-window-border-hi' : '') +
+          (charMode ? ' dspf-window-border-charmode' : '');
         // Inline style always wins over the CSS class rules above (including
         // .dspf-window-default-position's own border-color), matching WDWBORDER's
         // real precedence: an explicit *COLOR always overrides the generic
         // preview styling, whether or not the window's position also happens
-        // to be runtime-determined.
-        var borderStyle = border.color ? 'border-color:' + border.color + ';' : '';
+        // to be runtime-determined. In char mode the box border itself is
+        // suppressed entirely (see dspf-window-border-charmode) - *COLOR is
+        // instead applied per-cell on the rendered border characters
+        // (renderWindowBorderCharsHtml), since those are grid siblings of
+        // this div, not descendants that could inherit a style from it.
+        var borderStyle = border.color && !charMode ? 'border-color:' + border.color + ';' : '';
         var handleHtml = '<div class="dspf-window-move-handle" title="Drag to move"></div><div class="dspf-window-resize-handle" title="Drag to resize"></div>';
         return (
           '<div class="' +
@@ -1463,6 +1544,8 @@
       screen.lines +
       ',1.4em);">\n' +
       windowDiv +
+      windowBorderCharsHtml +
+      '\n' +
       fieldDivs +
       '\n' +
       subfilePreviewHtml +
