@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.62] - Unreleased
+## [0.9.63] - 2026-08-26
 
 ### Added
 - **Task L1b - Error message picker (`ERRMSG`/`ERRMSGID`) wired onto
@@ -50,8 +50,6 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   in `webviewClientHelpers.js` for any future L1-based picker (L1a/L1c)
   to watch for the same trap.
 
-## [0.9.60] - Unreleased
-
 ### Added
 - **Task L4 - `CRTSRCPF` support in "Create New Display File"** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). The remote-path wizard
@@ -82,8 +80,6 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     (proceeds to `ADDPFM`), and missing + confirmed + `CRTSRCPF` fails
     (stops before `ADDPFM`, surfaces the real CPF text).
   - `LIMITATIONS-PLAN.md` and README's Known limitations both updated.
-
-## [0.9.59] - Unreleased
 
 ### Fixed
 - **Keywords added to a record/field with existing keywords were being
