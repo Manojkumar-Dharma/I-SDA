@@ -653,29 +653,6 @@
     return next;
   }
 
-  /** Plain-text getter for ERRMSG - unlike the generic keyword box (where the
-   *  user has to type the surrounding quotes themselves and hand-escape any
-   *  embedded ones), this hands back ordinary unquoted text. */
-  function getErrorMessageText(keywords) {
-    var k = (keywords || []).find(function (k) { return k.name === 'ERRMSG'; });
-    if (!k) return '';
-    var m = /^'((?:[^']|'')*)'/.exec((k.parameters || '').trim());
-    return m ? m[1].replace(/''/g, "'") : '';
-  }
-
-  /** Returns a NEW keywords array with ERRMSG set to `text` (auto-quoted, with
-   *  embedded single quotes doubled per DDS literal escaping - same convention
-   *  setCommandKey uses for a command key's on-screen text), or removed
-   *  entirely if `text` is blank. */
-  function setErrorMessageText(keywords, text) {
-    var next = (keywords || []).filter(function (k) { return k.name !== 'ERRMSG'; });
-    var trimmed = (text || '').trim();
-    if (trimmed) {
-      next = next.concat([{ name: 'ERRMSG', parameters: "'" + trimmed.replace(/'/g, "''") + "'", conditions: [], raw: '', sourceLines: [] }]);
-    }
-    return next;
-  }
-
   // -----------------------------------------------------------------------
   // Field-level keyword pickers modeled on real SDA's "Select Field
   // Keywords" screens (see docs/sda-reference/, task D1) - CHECK(...)
@@ -691,13 +668,15 @@
   // coexist with them; FLDCSRPRG is genuinely "Cursor Progression Field",
   // not a typo of CSRLOC).
   //
-  // Multiple conditioned instances of the SAME keyword (e.g. two ERRMSG
-  // entries, each active under a different indicator, same as real SDA's
-  // "Error Messages" screen allows) aren't modeled here - like
-  // getColorAttr/setColorAttr and getErrorMessageText/setErrorMessageText
-  // above, these getters/setters manage ONE instance, conditioned as a
-  // whole via the generic keyword editor's own Conditioning toggle. See
-  // Known limitations in the README.
+  // ERRMSG/ERRMSGID's own multi-instance, independently-conditioned
+  // handling (Task L1b) lives with getErrorMessageInstances/
+  // setErrorMessageInstances near getRepeatableKeywordInstances above,
+  // not here - real SDA's own "Error Messages" screen is a repeatable
+  // list (several message/condition pairs tried in order), so it's built
+  // on the L1 foundation rather than a single-instance getX/setX pair
+  // like the keywords in this section. Color & attributes (COLOR/DSPATR)
+  // and Subfile Messages (SFLMSG/SFLMSGID) still work the single-instance
+  // way for now (Tasks L1a/L1c) - see Known limitations in the README.
   // -----------------------------------------------------------------------
 
   var CHECK_CODES = ['ME', 'ER', 'MF', 'FE', 'RB', 'RZ', 'RL', 'LC', 'AB', 'VN', 'VNE', 'M10', 'M10F', 'M11', 'M11F'];
@@ -1174,7 +1153,7 @@
   }
 
 
-  /** Plain-text getter for WDWTITLE - same shape as getErrorMessageText, unlike
+  /** Plain-text getter for WDWTITLE - same shape as getFileQuotedText, unlike
    *  the generic keyword box where the user has to type the quotes themselves.
    *  DspfEngine.resolveWindowTitle already does this same extraction for the
    *  preview; this is the writer-side equivalent for the editor to pre-fill
@@ -1270,7 +1249,7 @@
   }
 
   /** Plain-text getter for a quoted-string file-level keyword (HLPTITLE) -
-   *  same shape as getErrorMessageText/getWindowTitleText, unquoting so the
+   *  same shape as getWindowTitleText, unquoting so the
    *  editor input shows plain text rather than DDS's own quote escaping. */
   function getFileQuotedText(keywords, name) {
     var k = (keywords || []).find(function (kw) { return kw.name === name; });
@@ -1562,7 +1541,7 @@
    *  keyword in `names` removed, replaced by one keyword per entry in
    *  `instances` (`{ name, parameters, conditions }`, `name` must be one of
    *  `names`) - entries with a blank/unrecognized `name` are skipped.
-   *  Unlike setColorAttr/setErrorMessageText/etc (which always write
+   *  Unlike setColorAttr/etc (which always write
    *  `conditions: []`, leaving conditioning to the generic keyword editor's
    *  own toggle), each instance here keeps its OWN `conditions` - this is
    *  what lets e.g. COLOR(RED) conditioned on indicator 10 and COLOR(GRN)
@@ -1577,6 +1556,98 @@
       next = next.concat([{ name: inst.name, parameters: inst.parameters || '', conditions: inst.conditions || [], raw: '', sourceLines: [] }]);
     });
     return next;
+  }
+
+  var ERROR_MESSAGE_NAMES = ['ERRMSG', 'ERRMSGID'];
+
+  /** Task L1b - ERRMSG/ERRMSGID wired onto the L1 foundation above. Real
+   *  SDA's own "Define Error Messages" screen (docs/sda-reference/screens/
+   *  field-level/character/error-messages/image171.png, confirmed
+   *  identical for numeric fields) shows two repeatable, independently-
+   *  conditioned lists sharing one screen - ERRMSG rows (message text +
+   *  a response indicator) and ERRMSGID rows (msgid/file/library/response
+   *  indicator/&name) - matching IBM's own DDS reference exactly:
+   *    ERRMSG('message-text' [response-indicator])
+   *    ERRMSGID(msgid [library-name/]msg-file [response-indicator] [&msg-data])
+   *  (IBM DDS Reference V4R5, ERRMSG/ERRMSGID keyword section, Figure 174 -
+   *  note library-name/msg-file is ONE slash-qualified token in the actual
+   *  keyword text, even though SDA's own screen shows File/Library as two
+   *  separate entry fields). The bare `response-indicator` here is a
+   *  keyword-internal parameter (turned off again on the next input
+   *  operation, same convention as INDTXT/SETOF/CHANGE's own response
+   *  indicator elsewhere in this file) - it is NOT the same thing as an
+   *  instance's own outer conditioning, which is what
+   *  getRepeatableKeywordInstances/setRepeatableKeywordInstances above
+   *  already carries via each instance's `conditions` array. Real DDS
+   *  allows ERRMSG and ERRMSGID to coexist and each repeat on one field;
+   *  at runtime the first one whose own conditioning is satisfied wins
+   *  (IBM's own "Priority among Selected Keywords" rules) - this pair just
+   *  reads/writes the list, the priority rule itself is a runtime concern
+   *  outside what a design-time picker manages. */
+  function getErrorMessageInstances(keywords) {
+    return getRepeatableKeywordInstances(keywords, ERROR_MESSAGE_NAMES).map(function (inst) {
+      if (inst.name === 'ERRMSG') {
+        var m = /^'((?:[^']|'')*)'(?:\s+(\d+))?/.exec((inst.parameters || '').trim());
+        return {
+          kind: 'ERRMSG',
+          conditions: inst.conditions,
+          text: m ? m[1].replace(/''/g, "'") : '',
+          responseIndicator: (m && m[2]) || '',
+          msgId: '', library: '', msgFile: '', msgDataField: '',
+        };
+      }
+      // ERRMSGID(msgid [library/]msgfile [response-indicator] [&msg-data])
+      var tokens = (inst.parameters || '').trim().split(/\s+/).filter(Boolean);
+      var msgId = tokens[0] || '';
+      var qualified = tokens[1] || '';
+      var slash = qualified.indexOf('/');
+      var library = slash >= 0 ? qualified.slice(0, slash) : '';
+      var msgFile = slash >= 0 ? qualified.slice(slash + 1) : qualified;
+      var responseIndicator = '';
+      var msgDataField = '';
+      tokens.slice(2).forEach(function (t) {
+        if (t.charAt(0) === '&') msgDataField = t;
+        else if (/^\d+$/.test(t)) responseIndicator = t;
+      });
+      return {
+        kind: 'ERRMSGID',
+        conditions: inst.conditions,
+        text: '', msgId: msgId, library: library, msgFile: msgFile,
+        responseIndicator: responseIndicator, msgDataField: msgDataField,
+      };
+    });
+  }
+
+  /** Returns a NEW keywords array built from `instances` (same rich shape
+   *  getErrorMessageInstances returns), replacing every existing ERRMSG/
+   *  ERRMSGID. An ERRMSG instance needs non-blank `text`; an ERRMSGID
+   *  instance needs non-blank `msgId` AND `msgFile` - incomplete entries
+   *  are dropped rather than writing malformed DDS, same convention as
+   *  every other setX in this file. */
+  function setErrorMessageInstances(keywords, instances) {
+    var raw = (instances || []).map(function (inst) {
+      if (!inst) return null;
+      if (inst.kind === 'ERRMSGID') {
+        var msgId = (inst.msgId || '').trim();
+        var msgFile = (inst.msgFile || '').trim();
+        if (!msgId || !msgFile) return null;
+        var library = (inst.library || '').trim();
+        var qualified = (library ? library + '/' : '') + msgFile;
+        var parts = [msgId, qualified];
+        var respInd = (inst.responseIndicator || '').trim();
+        if (respInd) parts.push(respInd);
+        var msgDataField = (inst.msgDataField || '').trim();
+        if (msgDataField) parts.push(msgDataField.charAt(0) === '&' ? msgDataField : '&' + msgDataField);
+        return { name: 'ERRMSGID', parameters: parts.join(' '), conditions: inst.conditions || [] };
+      }
+      var text = (inst.text || '').trim();
+      if (!text) return null;
+      var parts2 = ["'" + text.replace(/'/g, "''") + "'"];
+      var respInd2 = (inst.responseIndicator || '').trim();
+      if (respInd2) parts2.push(respInd2);
+      return { name: 'ERRMSG', parameters: parts2.join(' '), conditions: inst.conditions || [] };
+    }).filter(Boolean);
+    return setRepeatableKeywordInstances(keywords, ERROR_MESSAGE_NAMES, raw);
   }
 
   /**
@@ -2706,8 +2777,8 @@
     setValidityCheck: setValidityCheck,
     getEditKeyword: getEditKeyword,
     setEditKeyword: setEditKeyword,
-    getErrorMessageText: getErrorMessageText,
-    setErrorMessageText: setErrorMessageText,
+    getErrorMessageInstances: getErrorMessageInstances,
+    setErrorMessageInstances: setErrorMessageInstances,
     getCheckOptions: getCheckOptions,
     setCheckOptions: setCheckOptions,
     getInputKeywords: getInputKeywords,

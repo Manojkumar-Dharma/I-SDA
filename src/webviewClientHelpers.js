@@ -557,13 +557,7 @@
         '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>';
     }
 
-    if (includeValidity) {
-      html += '<div class="section-label" style="margin-top:10px;">Error message</div>';
-      var errText = DspfWriter.getErrorMessageText(keywords);
-      html += '<input type="text" id="' + ownerKey + '-errmsg" placeholder="Shown when the validity check fails" style="width:100%;" value="' + escapeHtml(errText) + '" />';
-    }
-
-    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit/message' : 'edit code/word/mask') + '</button>';
+    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit' : 'edit code/word/mask') + '</button>';
     return html;
   }
 
@@ -574,7 +568,7 @@
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
       // Same keyword insertion order as before includeValidity existed
-      // (validity check, then edit code/word, then error message) - DDS
+      // (validity check, then edit code/word) - DDS
       // doesn't care about keyword order, but preserving it keeps output
       // byte-for-byte identical for the includeValidity:true (named-field)
       // path, rather than incidentally shifting where an 80-column
@@ -606,12 +600,112 @@
         var ecParams = document.getElementById(ownerKey + '-ec-params').value;
         next = DspfWriter.setEditKeyword(next, ecKind, ecParams);
       }
-      if (includeValidity) {
-        var errText = document.getElementById(ownerKey + '-errmsg').value;
-        next = DspfWriter.setErrorMessageText(next, errText);
-      }
       onChange(next);
     });
+  }
+
+  // -----------------------------------------------------------------------
+  // Task L1b - ERRMSG/ERRMSGID wired onto the Task L1 generic repeatable-
+  // conditioned-instance component (repeatableConditionedInstancesHtml/
+  // wireRepeatableConditionedInstances further below). Real SDA's own
+  // "Define Error Messages" screen (docs/sda-reference/screens/field-level/
+  // character/error-messages/image171.png, identical for numeric fields)
+  // shows two repeatable lists on ONE screen - up to 4 ERRMSG rows (message
+  // text + a response indicator) and up to 4 ERRMSGID rows (msgid/file/
+  // library/response indicator/&name) - each row independently conditioned
+  // by up to 3 ANDed option indicators. This editor merges both lists into
+  // ONE repeatable list with a per-row "kind" selector instead of two fixed
+  // 4-row tables, since DspfWriter.getErrorMessageInstances/
+  // setErrorMessageInstances already treats ERRMSG/ERRMSGID as one ordered
+  // list and real DDS doesn't cap the count at 4 (SDA's own screen does,
+  // being a fixed-size 3270-style form) - see that pair's own doc comment
+  // in dspfWriter.js for the exact keyword shapes.
+  // -----------------------------------------------------------------------
+
+  function errorMessageInstanceRowHtml(inst, p) {
+    var kind = inst.kind === 'ERRMSGID' ? 'ERRMSGID' : 'ERRMSG';
+    var html = '<div class="two-col" style="margin-bottom:4px;">';
+    html += '<select class="' + p + '-kind">' +
+      '<option value="ERRMSG"' + (kind === 'ERRMSG' ? ' selected' : '') + '>ERRMSG (literal text)</option>' +
+      '<option value="ERRMSGID"' + (kind === 'ERRMSGID' ? ' selected' : '') + '>ERRMSGID (by message ID)</option>' +
+      '</select>';
+    html += '<input type="text" class="' + p + '-respind" placeholder="Response ind. (opt.)" value="' + escapeHtml(inst.responseIndicator || '') + '" />';
+    html += '</div>';
+    if (kind === 'ERRMSG') {
+      html += '<input type="text" class="' + p + '-text" placeholder="Message text" style="width:100%;" value="' + escapeHtml(inst.text || '') + '" />';
+    } else {
+      html += '<div class="two-col">' +
+        '<input type="text" class="' + p + '-msgid" placeholder="Message ID" value="' + escapeHtml(inst.msgId || '') + '" />' +
+        '<input type="text" class="' + p + '-msgfile" placeholder="Message file" value="' + escapeHtml(inst.msgFile || '') + '" />' +
+        '</div>' +
+        '<div class="two-col" style="margin-top:4px;">' +
+        '<input type="text" class="' + p + '-library" placeholder="Library (opt.)" value="' + escapeHtml(inst.library || '') + '" />' +
+        '<input type="text" class="' + p + '-msgdata" placeholder="&amp;field for replacement text (opt.)" value="' + escapeHtml(inst.msgDataField || '') + '" />' +
+        '</div>';
+    }
+    return html;
+  }
+
+  /** Error Messages panel (Task L1b) - see doc comment above. */
+  function errorMessageInstancesHtml(keywords, ownerKey, expandedSet) {
+    var instances = DspfWriter.getErrorMessageInstances(keywords);
+    return repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-errmsg',
+      function renderPayload(inst, instIdPrefix) { return errorMessageInstanceRowHtml(inst, instIdPrefix); },
+      expandedSet,
+      '+ Add error message'
+    );
+  }
+
+  function wireErrorMessageInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var instances = DspfWriter.getErrorMessageInstances(keywords);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-errmsg',
+      instances,
+      function (next) { onChange(DspfWriter.setErrorMessageInstances(keywords, next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var kindEl = document.querySelector('.' + instIdPrefix + '-kind');
+        if (kindEl) {
+          kindEl.addEventListener('change', function () {
+            // Same non-blank-placeholder reasoning as makeDefaultInstance
+            // above - switching TO ERRMSGID without also seeding its two
+            // required fields (msgId/msgFile) would make this instance
+            // round-trip to nothing and the row would vanish on the very
+            // next re-render, before the user can fill them in.
+            if (kindEl.value === 'ERRMSGID') {
+              updatePayload({ kind: 'ERRMSGID', msgId: inst.msgId || 'MSGID', msgFile: inst.msgFile || 'MSGFILE' });
+            } else {
+              updatePayload({ kind: 'ERRMSG', text: inst.text || 'New message' });
+            }
+          });
+        }
+        var respIndEl = document.querySelector('.' + instIdPrefix + '-respind');
+        if (respIndEl) respIndEl.addEventListener('change', function () { updatePayload({ responseIndicator: respIndEl.value }); });
+        var textEl = document.querySelector('.' + instIdPrefix + '-text');
+        if (textEl) textEl.addEventListener('change', function () { updatePayload({ text: textEl.value }); });
+        var msgIdEl = document.querySelector('.' + instIdPrefix + '-msgid');
+        if (msgIdEl) msgIdEl.addEventListener('change', function () { updatePayload({ msgId: msgIdEl.value }); });
+        var msgFileEl = document.querySelector('.' + instIdPrefix + '-msgfile');
+        if (msgFileEl) msgFileEl.addEventListener('change', function () { updatePayload({ msgFile: msgFileEl.value }); });
+        var libraryEl = document.querySelector('.' + instIdPrefix + '-library');
+        if (libraryEl) libraryEl.addEventListener('change', function () { updatePayload({ library: libraryEl.value }); });
+        var msgDataEl = document.querySelector('.' + instIdPrefix + '-msgdata');
+        if (msgDataEl) msgDataEl.addEventListener('change', function () { updatePayload({ msgDataField: msgDataEl.value }); });
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        // Non-blank placeholder text, not '' - this component commits on
+        // EVERY change immediately (no batch Apply button, unlike e.g. the
+        // MNUBARCHC list editor), so a genuinely blank ERRMSG would be
+        // dropped by setErrorMessageInstances (matching real SDA: a blank
+        // row on its own screen never emits a keyword either) and the
+        // freshly-added row would vanish again on the very next re-render,
+        // before the user gets a chance to type into it.
+        return { kind: 'ERRMSG', conditions: [], text: 'New message', responseIndicator: '', msgId: '', library: '', msgFile: '', msgDataField: '' };
+      }
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -664,6 +758,7 @@
         colorAndAttributes: true,
         keyingOptions: true,
         validityAndErrorMessage: dataType !== 'F',
+        errorMessages: true,
         inputKeywords: true,
         generalKeywords: true,
         databaseReference: true,
@@ -676,6 +771,15 @@
       colorAndAttributes: u !== 'H',
       keyingOptions: u === 'H' || isIOB,
       validityAndErrorMessage: isIOB && dataType !== 'F',
+      // Task L1b - ERRMSG/ERRMSGID have their OWN, broader visibility rule
+      // than the Validity check keywords just above: IBM's own DDS
+      // reference states they're valid for output-only, input-only, or
+      // output/input fields (not hidden, constant, program-to-system, or
+      // message fields) - Output-only is explicitly included, unlike
+      // validityAndErrorMessage's isIOB (Input or Both) gate, since a
+      // RANGE/COMP/VALUES/CHECK validity check is inherently input-only
+      // but an error message can still be shown for an output field.
+      errorMessages: u === 'I' || u === 'O' || u === 'B',
       inputKeywords: isIOB,
       generalKeywords: true,
       databaseReference: true, // H/I/O/B are exactly SDA's own "Hidden, Input, Output, Both" list
@@ -2693,6 +2797,8 @@
     wireColorAttrEditor: wireColorAttrEditor,
     validityAndEditHtml: validityAndEditHtml,
     wireValidityAndEdit: wireValidityAndEdit,
+    errorMessageInstancesHtml: errorMessageInstancesHtml,
+    wireErrorMessageInstances: wireErrorMessageInstances,
     fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,
     wireFileKeywordsPanels: wireFileKeywordsPanels,
     recordKeywordsPanelsHtml: recordKeywordsPanelsHtml,

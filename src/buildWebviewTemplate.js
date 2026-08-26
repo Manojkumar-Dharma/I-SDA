@@ -1784,6 +1784,9 @@ const htmlTemplate = `<!DOCTYPE html>
     } else if (isSystemValueConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false });
     }
+    if (!isConstant && catVis.errorMessages) {
+      attrsHtml += accordionHtml('Error messages', WebviewClientHelpers.errorMessageInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+    }
     // Remaining SDA "Select Field Keywords" categories (docs/sda-reference/
     // task D1) - collapsed by default, same as the Keywords/Conditioning
     // accordions below, since these are reached far less often than
@@ -1901,6 +1904,9 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords });
     } else if (isSystemValueConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false });
+    }
+    if (!isConstant && catVis.errorMessages) {
+      WebviewClientHelpers.wireErrorMessageInstances(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     if (!isConstant) {
       WebviewClientHelpers.wireKeyingOptionsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);

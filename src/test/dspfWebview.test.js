@@ -1162,7 +1162,7 @@ function runFieldPropertyHelpersScenario() {
     check('checking an attribute commits DSPATR immediately', attrEdit && attrEdit.text.includes('DSPATR(HI)'));
     check('the earlier COLOR choice survives (both were set on the same field)', attrEdit && attrEdit.text.includes('COLOR(RED)'));
 
-    console.log('  Validity check / Edit code / Error message on a named field');
+    console.log('  Validity check / Edit code on a named field');
     posted.length = 0;
     // Re-select: the color/attribute edits above re-rendered the panel, so
     // earlier element references for this field are stale.
@@ -1177,18 +1177,71 @@ function runFieldPropertyHelpersScenario() {
     doc.getElementById(fieldKey + '-vc-params').value = '0 999';
     doc.getElementById(fieldKey + '-ec-kind').value = 'EDTCDE';
     doc.getElementById(fieldKey + '-ec-params').value = 'J';
-    doc.getElementById(fieldKey + '-errmsg').value = "Amount can't be negative";
     doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
 
     const vcEdit = posted.find((m) => m.type === 'applyEdit');
     check('posts RANGE with the entered bounds', vcEdit && vcEdit.text.includes('RANGE(0 999)'));
     check('posts EDTCDE with the chosen code', vcEdit && vcEdit.text.includes('EDTCDE(J)'));
+
+    console.log('  Task L1b: Error messages (ERRMSG/ERRMSGID) as repeatable, independently-conditioned instances');
+    posted.length = 0;
+    const amountEl2b = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2b.dispatchEvent(new Event('click', { bubbles: true }));
+    const errmsgAddBtn = doc.querySelector('.repeat-inst-add[data-prefix="' + fieldKey + '-errmsg"]');
+    check('setup: the + Add error message button is present', !!errmsgAddBtn);
+    errmsgAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    let addEdit = posted.find((m) => m.type === 'applyEdit');
+    check('adding an instance immediately writes ERRMSG with its non-blank placeholder text (so the row survives the very next re-render)', addEdit && addEdit.text.includes("ERRMSG('New message')"));
+
+    // Re-select after the add re-rendered the panel.
+    const amountEl2c = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2c.dispatchEvent(new Event('click', { bubbles: true }));
+    const errmsgTextEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-text');
+    check('setup: the new instance defaults to kind ERRMSG (text box shown, not msgid/file)', !!errmsgTextEl);
+    errmsgTextEl.value = "Amount can't be negative";
+    errmsgTextEl.dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    const respIndEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-respind');
+    respIndEl.value = '90';
+    respIndEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const errEdit = posted.find((m) => m.type === 'applyEdit');
     // ERRMSG's own text is long enough to line-wrap with a continuation '+'
-    // (same convention as TEXT), so check the round-tripped MODEL rather than
-    // raw source text.
-    const reparsedAmount = DspfParser.parseDspf(vcEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT');
-    const errKw = reparsedAmount && reparsedAmount.keywords.find((k) => k.name === 'ERRMSG');
-    check("posts ERRMSG with the text, apostrophe correctly doubled", errKw && errKw.parameters === "'Amount can''t be negative'");
+    // (same convention as TEXT), so check the round-tripped MODEL rather
+    // than raw source text.
+    const reparsedForErr = DspfParser.parseDspf(errEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT');
+    const errKw = reparsedForErr && reparsedForErr.keywords.find((k) => k.name === 'ERRMSG');
+    check('posts ERRMSG with the text (apostrophe correctly doubled) AND the response indicator, both fields surviving the earlier separate commit', errKw && errKw.parameters === "'Amount can''t be negative' 90");
+
+    console.log('  Task L1b: switching an error-message row\u2019s kind to ERRMSGID swaps in msgid/file/library/name inputs');
+    posted.length = 0;
+    const amountEl2d = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2d.dispatchEvent(new Event('click', { bubbles: true }));
+    const kindSelEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-kind');
+    kindSelEl.value = 'ERRMSGID';
+    kindSelEl.dispatchEvent(new Event('change', { bubbles: true }));
+    let kindEdit = posted.find((m) => m.type === 'applyEdit');
+    check('switching kind writes ERRMSGID with placeholder msgid/file (so the row survives), no more ERRMSG', kindEdit && kindEdit.text.includes('ERRMSGID(MSGID MSGFILE') && !kindEdit.text.includes('ERRMSG('));
+
+    const amountEl2e = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2e.dispatchEvent(new Event('click', { bubbles: true }));
+    const msgIdEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-msgid');
+    const msgFileEl = doc.querySelector('.' + fieldKey + '-errmsg-inst0-msgfile');
+    check('setup: switching kind re-renders msgid/file inputs in place of the text box', !!msgIdEl && !!msgFileEl);
+    posted.length = 0;
+    msgIdEl.value = 'MSG0001';
+    msgIdEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Re-select: that change just re-rendered the panel (same convention as
+    // every other edit in this file), so msgFileEl above is now stale.
+    const amountEl2f = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl2f.dispatchEvent(new Event('click', { bubbles: true }));
+    const msgFileEl2 = doc.querySelector('.' + fieldKey + '-errmsg-inst0-msgfile');
+    msgFileEl2.value = 'APPLMSGS';
+    msgFileEl2.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const idEdit = posted[posted.length - 1];
+    check('posts ERRMSGID with both the msgid and message file the user actually typed, each surviving the OTHER field\'s separate commit', idEdit && idEdit.type === 'applyEdit' && idEdit.text.includes('ERRMSGID(MSG0001 APPLMSGS') && !idEdit.text.includes('ERRMSG('));
 
     console.log('  Keying options (CHECK) on a named field');
     posted.length = 0;

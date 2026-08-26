@@ -3,9 +3,53 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.59] - Unreleased
+## [0.9.62] - Unreleased
 
 ### Added
+- **Task L1b - Error message picker (`ERRMSG`/`ERRMSGID`) wired onto
+  Task L1's repeatable-conditioned-instance component** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's own "Define
+  Error Messages" screen
+  (`docs/sda-reference/screens/field-level/character/error-messages/image171.png`,
+  confirmed identical for numeric fields) and IBM's own DDS reference
+  (V4R5, ERRMSG/ERRMSGID keyword section, Figure 174) show each field
+  can carry SEVERAL independently-conditioned `ERRMSG`/`ERRMSGID`
+  entries, tried in order - the first whose own conditioning is
+  satisfied wins. The old picker only ever managed a single ERRMSG text
+  box, conditioned as a whole via the generic keyword editor's
+  Conditioning toggle. Replaced it with a new "Error messages"
+  accordion built on `repeatableConditionedInstancesHtml`/
+  `wireRepeatableConditionedInstances` (Task L1), with a per-row "kind"
+  selector (`ERRMSG` vs `ERRMSGID`) since real DDS treats them as one
+  mixed, ordered list rather than SDA's own two fixed 4-row tables.
+  `DspfWriter.getErrorMessageInstances`/`setErrorMessageInstances` read
+  and write both keyword shapes - `ERRMSG('text' [response-indicator])`
+  and `ERRMSGID(msgid [library/]msgfile [response-indicator]
+  [&msg-data])` - noting library/msgfile is written as ONE
+  slash-qualified token, not two separate space-separated ones.
+  Superseded (and removed) the old single-instance
+  `getErrorMessageText`/`setErrorMessageText` pair.
+
+### Fixed
+- ERRMSG/ERRMSGID's visibility in the field properties panel was
+  incorrectly tied to the same Input-or-Both gate as the neighboring
+  Validity check keywords (RANGE/COMP/VALUES/CHECK). IBM's own DDS
+  reference confirms ERRMSG/ERRMSGID are also valid on Output-only
+  fields - they now have their own, correctly-scoped `errorMessages`
+  visibility flag.
+- Task L1's generic repeatable-conditioned-instance component commits
+  every field change immediately (no batch Apply button). Combined
+  with a picker's own setX correctly dropping incomplete instances (to
+  avoid writing malformed DDS), this meant a freshly-added row, or a
+  row whose "kind" was just switched to one with different required
+  fields, could round-trip to nothing and vanish again on the very
+  next re-render - before the user got a chance to fill it in. Worked
+  around for the Error messages picker by seeding a non-blank
+  placeholder (`'New message'`, or `MSGID`/`MSGFILE`) on add/kind-switch
+  so the row survives until deliberately overwritten or removed; noted
+  in `webviewClientHelpers.js` for any future L1-based picker (L1a/L1c)
+  to watch for the same trap.
+
 ## [0.9.60] - Unreleased
 
 ### Added
