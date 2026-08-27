@@ -1929,7 +1929,11 @@ function runDefaultColorScenario() {
     ''
   );
   check('the old hardcoded gray constant override is gone from the generated CSS', !/\.dspf-constant\s*\{\s*color:\s*#b7c9bf/.test(html));
-  check('modern UI style now themes the screen\u2019s own default color, not just chrome', /body\[data-ui-style="modern"\]\s*\.dspf-field\s*\{\s*color:\s*var\(--chrome-accent\);?\s*\}/.test(html));
+  // Now reads var(--dspf-fg, var(--chrome-accent)) instead of the bare var(--chrome-accent):
+  // --dspf-fg is the per-field override for an explicit COLOR keyword (see dspfEngine.js's
+  // renderFieldDiv and the .dspf-reverse fix), falling back to the chrome theme's accent for
+  // an unstyled field/constant - same modern-theming intent this check was written for.
+  check('modern UI style now themes the screen\u2019s own default color, not just chrome', /body\[data-ui-style="modern"\]\s*\.dspf-field\s*\{\s*color:\s*var\(--dspf-fg,\s*var\(--chrome-accent\)\);?\s*\}/.test(html));
 
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
@@ -1948,6 +1952,44 @@ function runDefaultColorScenario() {
 
     const coloredEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.dataset.field === 'COLOREDFLD');
     check('a field with an explicit COLOR keyword still gets its own inline color, unaffected by the default-color fix', /#ff5c5c/i.test(coloredEl.getAttribute('style') || ''));
+
+    runIndicatorListScenario();
+  }, 0);
+}
+
+function runIndicatorListScenario() {
+  console.log('\nBug fix: conditioning indicators used ONLY on a record-level keyword (never on any field) now show up in the left-panel indicator list too');
+  const src =
+    [
+      // 51 conditions the record-level ALARM keyword only - no field or field-keyword
+      // ever references indicator 51, so before this fix indicatorsForContext() (which
+      // walked record.conditions + every field's own conditions/keywords but never
+      // record.keywords) never saw it at all, and the checkbox to toggle it never
+      // appeared in the left panel - the record's own "preview" of what indicators are
+      // in play on this screen was silently incomplete.
+      buildLine({ seq: '00010', nameType: 'R', name: 'ALARMR' }),
+      buildLine({ seq: '00020', ind1: '51', func: 'ALARM' }),
+      buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'INDLIST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const indicatorList = doc.getElementById('indicatorList');
+    check('setup: the indicator list panel is present', !!indicatorList);
+    const labels = Array.from(indicatorList.querySelectorAll('span')).map((el) => el.textContent.trim());
+    check('indicator 51 (conditioning ONLY the record-level ALARM keyword) is listed for toggling', labels.includes('Ind 51'));
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);

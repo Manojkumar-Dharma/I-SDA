@@ -90,7 +90,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; z-index: 1; }
   .dspf-screen-backdrop-layer { position: absolute; top: 0; left: 0; opacity: 0.32; filter: grayscale(0.5); pointer-events: none; z-index: 0; }
   .dspf-screen-backdrop-layer .dspf-screen { z-index: 0; }
-  .dspf-field { white-space: pre; color: var(--accent); cursor: grab; user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
+  .dspf-field { white-space: pre; color: var(--dspf-fg, var(--accent)); cursor: grab; user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
   .dspf-field:hover { border-color: rgba(51,255,102,0.4); }
   .dspf-field.selected { border-color: var(--accent); background: rgba(51,255,102,0.08); }
   .dspf-field.dragging { cursor: grabbing; opacity: 0.7; }
@@ -105,10 +105,38 @@ const htmlTemplate = `<!DOCTYPE html>
      by renderFieldDiv (dspfEngine.js) and always wins over both of these
      class rules regardless of specificity. */
   .dspf-hi { filter: brightness(1.6); font-weight: 600; }
-  .dspf-reverse { background: currentColor; color: #050705 !important; }
+  /* Real IBM i SDA reverse image swaps the field's OWN foreground/background: the
+     field's assigned color becomes the background, and the screen's background
+     becomes the text color - it stays readable and keeps the field's color
+     identity. This used to read "background: currentColor" while ALSO setting
+     "color: #050705 !important" in the very same rule - currentColor resolves
+     against the FINAL cascaded color for the element, which (because of the
+     !important here) was always that same near-black, so background and text
+     ended up identical near-black-on-near-black, indistinguishable from the
+     #050705 screen-frame background behind it - the field visually vanished
+     instead of reversing. Reading --dspf-fg (the field's original color, set as
+     its own custom property - see renderFieldDiv in dspfEngine.js) instead of
+     currentColor sidesteps that entirely: it's independent of whatever color
+     ends up being on this element. */
+  .dspf-reverse { background: var(--dspf-fg, var(--accent)); color: #050705 !important; }
   .dspf-underline { text-decoration: underline; }
   .dspf-blink { animation: dspf-blink 1s steps(1) infinite; }
   .dspf-protect { opacity: 0.65; }
+  /* DSPATR(PC) "position cursor" - real 5250 puts the cursor here on display; there's
+     no text-attribute equivalent to render, so instead overlay a solid block at the
+     field's first character that blinks like an actual terminal cursor. Only the one
+     candidate resolveScreen's markFirstCursorField() picked (screen's first eligible
+     PC field) gets this class, even if several fields in the DDS are marked PC. */
+  .dspf-cursor-pos::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0;
+    width: 1ch; height: 100%;
+    background: var(--dspf-fg, var(--accent));
+    animation: dspf-blink 1s steps(1) infinite;
+    pointer-events: none;
+    z-index: 2;
+  }
   @keyframes dspf-blink { 50% { opacity: 0; } }
   .dspf-subfile-preview {
     background: repeating-linear-gradient(45deg, rgba(255,138,92,0.06), rgba(255,138,92,0.06) 4px, transparent 4px, transparent 8px);
@@ -325,7 +353,12 @@ const htmlTemplate = `<!DOCTYPE html>
    * keyword, window borders, field positions, etc.) is unaffected by
    * either style.
    * --------------------------------------------------------------------- */
-  body[data-ui-style="modern"] .dspf-field { color: var(--chrome-accent); }
+  body[data-ui-style="modern"] .dspf-field { color: var(--dspf-fg, var(--chrome-accent)); }
+  /* Same reasoning as classic's .dspf-reverse (see above) - modern's reverse-image
+     background needs to fall back to the chrome theme's accent, not classic's fixed
+     green, when the field has no explicit COLOR keyword of its own. */
+  body[data-ui-style="modern"] .dspf-reverse { background: var(--dspf-fg, var(--chrome-accent)); }
+  body[data-ui-style="modern"] .dspf-cursor-pos::before { background: var(--dspf-fg, var(--chrome-accent)); }
   .ui-style-toggle {
     width: 100%; background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
     border-radius: 3px; padding: 5px 9px; font-family: var(--mono); font-size: 11px; cursor: pointer;
@@ -944,7 +977,15 @@ const htmlTemplate = `<!DOCTYPE html>
     const collectRecord = (rec) => {
       if (!rec) return;
       collect(rec.conditions);
+      // Record-level keywords (SFL, SFLCTL, WINDOW, ALARM, ERRMSG, etc.) can each
+      // carry their own conditioning indicator(s) independent of any field - these
+      // were previously skipped entirely, so an indicator ONLY used to condition a
+      // record-level keyword never showed up here to toggle. See also help entries
+      // below, which have the same field-like shape (conditions + keywords) but
+      // live in their own array rather than rec.fields.
+      rec.keywords.forEach((k) => collect(k.conditions));
       rec.fields.forEach((f) => { collect(f.conditions); f.keywords.forEach((k) => collect(k.conditions)); });
+      (rec.helpEntries || []).forEach((f) => { collect(f.conditions); f.keywords.forEach((k) => collect(k.conditions)); });
     };
 
     collectRecord(model.records.find((r) => r.name === recordName));

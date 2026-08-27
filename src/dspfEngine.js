@@ -367,7 +367,7 @@
   // ---------------------------------------------------------------------
 
   function styleFromKeywords(keywords, activeIndicators, activeSizeName) {
-    var style = { color: null, hi: false, reverse: false, underline: false, blink: false, hidden: false, protect: false };
+    var style = { color: null, hi: false, reverse: false, underline: false, blink: false, hidden: false, protect: false, positionCursor: false };
     keywords.forEach(function (kw) {
       if (!conditionsSatisfied(kw.conditions, activeIndicators, activeSizeName)) return;
       if (kw.name === 'COLOR') {
@@ -382,10 +382,35 @@
           else if (a === 'BL') style.blink = true;
           else if (a === 'ND') style.hidden = true;
           else if (a === 'PR') style.protect = true;
+          // PC ("position cursor") previously had NO rendering effect at all - the
+          // keyword was offered in the DSPATR checkbox editor but silently produced
+          // no visible change in the preview. Real 5250 semantics: it puts the
+          // cursor on this field when the record is displayed; that's not a text
+          // *attribute* like HI/RI/UL so it's tracked as its own flag rather than a
+          // CSS class chosen here - see the first-occurrence marking in
+          // resolveScreen, which decides which single candidate actually gets the
+          // blinking-cursor treatment.
+          else if (a === 'PC') style.positionCursor = true;
         });
       }
     });
     return style;
+  }
+
+  /** Marks the single first candidate (in the list's current order, already
+   *  line/column sorted by callers that care) whose style.positionCursor is
+   *  true with showCursorIndicator=true, mutating the list in place. Kept as
+   *  its own pass (rather than folded into the overlap-resolution loop
+   *  above) so it can also be applied to the pulldown overlay's field list,
+   *  which never goes through that loop since it's a separate, non-competing
+   *  layer - see resolveScreen. */
+  function markFirstCursorField(fields) {
+    for (var i = 0; i < fields.length; i++) {
+      if (fields[i].style.positionCursor) {
+        fields[i].showCursorIndicator = true;
+        return;
+      }
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -1070,6 +1095,17 @@
       resolved.push(f);
     });
 
+    // DSPATR(PC) positions the 5250 cursor on this field when the record is
+    // displayed - only ONE cursor exists on a real screen, so only the first
+    // eligible field (in the same line/column order used for overlap
+    // resolution above) actually gets the visible blinking-cursor treatment,
+    // even if several fields on this record (or several repeated subfile
+    // rows sharing the same field-level DSPATR(PC)) are each individually
+    // marked PC. Later occurrences keep style.positionCursor=true (still a
+    // legitimate PC field) but don't render the indicator, matching how only
+    // one of them would ever actually hold the cursor at runtime.
+    markFirstCursorField(resolved);
+
     // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
     // like the pulldown overlay below, it doesn't compete for cells with the base screen.
     var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name);
@@ -1084,6 +1120,7 @@
         var pdLineOffset = activePulldown.line - 1;
         var pdColOffset = activePulldown.col - 1;
         var pdFields = resolveRecordFields(pdRecord, activeIndicators, pdLineOffset, pdColOffset, 'pulldown', size.name, dspfFile);
+        markFirstCursorField(pdFields); // pulldown is its own independent layer/screen context - see markFirstCursorField's doc comment
         if (pdFields.length > 0) {
           var maxLine = Math.max.apply(null, pdFields.map(function (f) { return f.line + (f.height || 1) - 1; }));
           var maxCol = Math.max.apply(null, pdFields.map(function (f) { return f.column + f.length - 1; }));
@@ -1337,11 +1374,20 @@
     if (f.style.underline) classes.push('dspf-underline');
     if (f.style.blink) classes.push('dspf-blink');
     if (f.style.protect) classes.push('dspf-protect');
+    if (f.showCursorIndicator) classes.push('dspf-cursor-pos');
     if (f.widget) classes.push('dspf-widget-' + f.widget.type);
     if (f.cntfld) classes.push('dspf-cntfld');
     if (f.tag === 'pulldown') classes.push('dspf-pulldown-field');
     var recordLabel = f.sourceRecord ? ' [' + f.sourceRecord + ']' : '';
-    var colorStyle = f.style.color ? 'color:' + f.style.color + ';' : '';
+    // Set as a custom property, NOT the `color` property directly: `.dspf-reverse`
+    // (below) needs to read the field's ORIGINAL foreground via `currentColor` for
+    // its background swap, but `currentColor` resolves against the FINAL cascaded
+    // `color` value for the element - if an explicit COLOR keyword were applied via
+    // `color:` here, `.dspf-reverse`'s own (necessarily !important, to beat the base
+    // `.dspf-field` rule) `color` override would win the cascade and `currentColor`
+    // would see THAT instead of this field's real color. Routing it through
+    // `--dspf-fg` keeps the two independent - see the .dspf-reverse rule.
+    var colorStyle = f.style.color ? '--dspf-fg:' + f.style.color + ';' : '';
     var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : '') + recordLabel);
     var innerHtml = f.widget ? widgetInnerHtml(f) : (f.cntfld ? cntfldInnerHtml(f) : escapeHtml(f.text));
     var height = f.height || 1;

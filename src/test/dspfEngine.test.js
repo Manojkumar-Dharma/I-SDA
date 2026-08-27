@@ -544,9 +544,49 @@ console.log('\nBug fix: a SNGCHCFLD/MLTCHCFLD field with no CHOICE entries yet i
   check('placeholder-only radio widget is still exactly one row tall', opt.height === 1);
 }
 
+console.log('\nBug fix: DSPATR(PC) "position cursor" now has a visible effect - only the first eligible field gets the cursor indicator');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'PCR' }),
+    buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', decimals: '', usage: 'B', line: '2', col: '2' }),
+    buildLine({ seq: '00030', func: 'DSPATR(PC)' }),
+    buildLine({ seq: '00040', name: 'FLD2', length: '10', dataType: 'A', decimals: '', usage: 'B', line: '3', col: '2' }),
+    buildLine({ seq: '00050', func: 'DSPATR(PC)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'PCR', new Set());
+  const fld1 = screen.fields.find((f) => f.name === 'FLD1');
+  const fld2 = screen.fields.find((f) => f.name === 'FLD2');
+  check('FLD1 is flagged as a DSPATR(PC) field', fld1.style.positionCursor === true);
+  check('FLD2 is also flagged as a DSPATR(PC) field', fld2.style.positionCursor === true);
+  check('only the FIRST field (FLD1) actually shows the cursor indicator', fld1.showCursorIndicator === true && !fld2.showCursorIndicator);
+
+  const html = DspfEngine.renderScreenHtml(screen, {});
+  check('rendered HTML marks FLD1 with the dspf-cursor-pos class', /data-field="FLD1"[^>]*class="[^"]*dspf-cursor-pos/.test(html) || /class="[^"]*dspf-cursor-pos[^"]*"[^>]*data-field="FLD1"/.test(html));
+  check('rendered HTML does NOT mark FLD2 with the dspf-cursor-pos class', !new RegExp('data-field="FLD2"[^>]*class="[^"]*dspf-cursor-pos').test(html) && !new RegExp('class="[^"]*dspf-cursor-pos[^"]*"[^>]*data-field="FLD2"').test(html));
+}
+
+console.log('\nBug fix: DSPATR(RI) reverse image now carries the field\u2019s original color through as --dspf-fg (a custom property), instead of `color:` directly - the CSS layer is what actually fixes the vanishing-black bug (see buildWebviewTemplate.js), but the color must reach the DOM as --dspf-fg for that fix to work at all');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'RIR' }),
+    buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', decimals: '', usage: 'B', line: '2', col: '2' }),
+    buildLine({ seq: '00030', func: 'COLOR(RED)' }),
+    buildLine({ seq: '00040', func: 'DSPATR(RI)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'RIR', new Set());
+  const fld1 = screen.fields.find((f) => f.name === 'FLD1');
+  check('FLD1 is flagged reverse', fld1.style.reverse === true);
+  check('FLD1 keeps its own COLOR(RED) resolved color', fld1.style.color === '#ff5c5c');
+
+  const html = DspfEngine.renderScreenHtml(screen, {});
+  check('rendered field element carries the color as --dspf-fg, not a plain color: declaration', /--dspf-fg:#ff5c5c/.test(html));
+  check('rendered field element does NOT also set a competing inline color: (which would out-cascade .dspf-reverse\u2019s own color rule)', !/[^-]color:#ff5c5c/.test(html));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
-
 console.log('two indicator-conditioned constants at the identical position: exactly one shows, switching correctly with the indicator');
 {
   const src = [
