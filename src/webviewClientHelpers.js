@@ -869,6 +869,61 @@
     );
   }
 
+  /** Task L5 - "Define Message ID" (MSGID) as Task L1's repeatable,
+   *  independently-conditioned instances - see
+   *  DspfWriter.getMessageIdInstances/setMessageIdInstances's own doc
+   *  comment for why the argument text itself stays opaque (unchanged
+   *  from the older single-instance getMessageId/setMessageId) while this
+   *  adds the repeatable/independently-conditioned dimension. Uses the
+   *  staging-row pattern (like colorAttrStatesHtml above) rather than
+   *  L1b's non-blank-placeholder-default: MSGID's argument is raw keyword
+   *  text with no single always-valid non-empty placeholder to seed (unlike
+   *  ERRMSG's literal-text case, where "New message" is itself valid DDS),
+   *  so a permanently-visible "new instance" text box that's only read
+   *  (and only appended) when non-blank fits better here. */
+  function messageIdInstancesHtml(keywords, ownerKey, expandedSet) {
+    var instances = DspfWriter.getMessageIdInstances(keywords);
+    var html = '<div class="section-label">Message ID (MSGID)</div>';
+    html += repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-msgid',
+      function renderPayload(inst, instIdPrefix) {
+        var payload = '<input type="text" class="' + instIdPrefix + '-text" placeholder="e.g. USR &amp;FLDNAME MSGF1 MYLIB, or *NONE" style="width:100%;" value="' + escapeHtml(inst.parameters || '') + '" />';
+        payload += '<div class="hint-small">[msg-prefix] &amp;field-name, or [msgid-prefix] msg-id message-file [library]</div>';
+        return payload;
+      },
+      expandedSet,
+      '+ Add message ID',
+      function renderStaging(stagingIdPrefix) {
+        var staging = '<input type="text" class="' + stagingIdPrefix + '-text" placeholder="e.g. USR &amp;FLDNAME MSGF1 MYLIB, or *NONE" style="width:100%;" value="" />';
+        staging += '<div class="hint-small">[msg-prefix] &amp;field-name, or [msgid-prefix] msg-id message-file [library]</div>';
+        return staging;
+      }
+    );
+    return html;
+  }
+
+  function wireMessageIdInstancesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var instances = DspfWriter.getMessageIdInstances(keywords);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-msgid',
+      instances,
+      function (next) { onChange(DspfWriter.setMessageIdInstances(keywords, next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var textEl = document.querySelector('.' + instIdPrefix + '-text');
+        if (textEl) textEl.addEventListener('change', function () { updatePayload({ parameters: textEl.value }); });
+      },
+      expandedSet,
+      rerender,
+      function readNewInstance(stagingIdPrefix) {
+        var textEl = document.querySelector('.' + stagingIdPrefix + '-text');
+        var parameters = textEl ? textEl.value.trim() : '';
+        if (!parameters) return null; // nothing to add
+        return { conditions: [], parameters: parameters };
+      }
+    );
+  }
+
   // -----------------------------------------------------------------------
   // Field-level "Keying options" (CHECK's ME/ER/MF/FE/RB/RZ/RL/LC codes),
   // "Input Keywords" (DUP/BLANKS/CHANGE/CHGINPDFT), "General Keywords"
@@ -1211,25 +1266,6 @@
     ['dltchk', 'dltedt'].forEach(function (k) {
       var el = document.getElementById(ownerKey + '-ref-' + k);
       if (el) el.addEventListener('change', commit);
-    });
-  }
-
-  /** "Define Message ID" - MSGID, caller-supplied argument text (see
-   *  DspfWriter.getMessageId for why it isn't decomposed further). */
-  function messageIdHtml(keywords, ownerKey) {
-    var text = DspfWriter.getMessageId(keywords);
-    var html = '<div class="section-label">Message ID (MSGID)</div>';
-    html += '<input type="text" id="' + ownerKey + '-msgid" placeholder="e.g. USR &amp;FLDNAME MSGF1 MYLIB, or *NONE" style="width:100%;" value="' + escapeHtml(text) + '" />';
-    html += '<div class="hint-small">[msg-prefix] &amp;field-name, or [msgid-prefix] msg-id message-file [library]</div>';
-    html += '<button class="secondary ' + ownerKey + '-msgid-apply" style="width:100%;margin-top:8px;">Apply message ID</button>';
-    return html;
-  }
-
-  function wireMessageIdEditor(keywords, onChange, ownerKey) {
-    var applyBtn = document.querySelector('.' + ownerKey + '-msgid-apply');
-    if (!applyBtn) return;
-    applyBtn.addEventListener('click', function () {
-      onChange(DspfWriter.setMessageId(keywords, document.getElementById(ownerKey + '-msgid').value));
     });
   }
 
@@ -3194,8 +3230,8 @@
     wireGeneralFieldKeywordsEditor: wireGeneralFieldKeywordsEditor,
     referenceOverridesHtml: referenceOverridesHtml,
     wireReferenceOverridesEditor: wireReferenceOverridesEditor,
-    messageIdHtml: messageIdHtml,
-    wireMessageIdEditor: wireMessageIdEditor,
+    messageIdInstancesHtml: messageIdInstancesHtml,
+    wireMessageIdInstancesEditor: wireMessageIdInstancesEditor,
     subfileFieldKeywordsHtml: subfileFieldKeywordsHtml,
     wireSubfileFieldKeywords: wireSubfileFieldKeywords,
     menuBarChoicesHtml: menuBarChoicesHtml,

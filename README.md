@@ -165,23 +165,29 @@ Untagged items aren't yet broken into a tracked task.
 
 - **[High, Task L5]** Most dedicated keyword pickers (file-, record-,
   and field-level - Input keywords, General keywords, Database
-  reference, Message ID, and the record-level pickers) manage ONE
+  reference, and the record-level pickers) manage ONE
   instance of their keyword(s) at a time, conditioned as a whole via
   the generic keyword editor's Conditioning toggle, rather than the
   MULTIPLE independently-conditioned instances real SDA additionally
   allows for some keywords - e.g. `COLOR(RED)` under indicator 10 and
-  `COLOR(GRN)` under indicator 20 on the same field. Four panels
+  `COLOR(GRN)` under indicator 20 on the same field. Six panels
   already moved onto the generic "repeatable conditioned instance"
   component (Task L1) that solves this - **Color & attributes** (Task
   L1a), **Error message** (Task L1b), SFLCTL's **Subfile Messages**
-  panel (Task L1c), and **Keying options**'s `CHECK` codes
+  panel (Task L1c), **Keying options**'s `CHECK` codes
   (ME/ER/MF/FE/RB/RZ/RL/LC, Task L1d - which, since `CHECK` is shared
   with **Validity check**'s own AB/VN/VNE/M10/M11 codes, converted
   both panels together onto one shared instance list rather than
   leaving one on the old model, which would have silently collapsed
-  the other's multi-instance edits) - so the remaining pickers above
-  (plus Validity check's OWN validity keyword, `RANGE`/`COMP`/
-  `VALUES`, unrelated to `CHECK`) just need the same wiring. `KEYBRD`
+  the other's multi-instance edits), **Validity check**'s OWN validity
+  keyword (`RANGE`/`COMP`/`VALUES`, unrelated to `CHECK`), and
+  **Message ID** (`MSGID` - real DDS commonly carries several
+  independently-conditioned `MSGID` keywords on one field, e.g. a
+  message conditioned on an error indicator alongside an
+  unconditioned `MSGID(*NONE)` fallback; unlike ERRMSG/ERRMSGID, its
+  argument text needed no further decomposition, so this piece is
+  just L1's foundation directly, with no new parsing) - so the
+  remaining pickers above just need the same wiring. `KEYBRD`
   (Keying options' other keyword) was deliberately left single-
   instance in Task L1d - a single always-on-screen attribute rather
   than several message/condition pairs, so that's a scoping choice,

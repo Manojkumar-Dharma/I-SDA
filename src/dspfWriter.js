@@ -1017,7 +1017,13 @@
    *  argument is either "[msg-prefix] &field-name" or "[msgid-prefix]
    *  msg-id message-file [library/]" - too structurally varied to usefully
    *  decompose here, so (like getGeneralFieldKeywords' text fields) this
-   *  hands back the parameter text as-is for the caller to parse/display. */
+   *  hands back the parameter text as-is for the caller to parse/display.
+   *  NOTE: kept for backward compatibility with any caller still on the
+   *  single-instance shape; getMessageIdInstances/setMessageIdInstances
+   *  below are the Task L5 replacement (multiple independently-conditioned
+   *  MSGID keywords - a real, common DDS pattern: e.g. MSGID(&MIC001
+   *  HISLIB/HISMSGF) under one response indicator, coexisting with a
+   *  fallback MSGID(*NONE) with no conditioning at all). */
   function getMessageId(keywords) {
     var k = (keywords || []).find(function (k) { return k.name === 'MSGID'; });
     return k ? (k.parameters || '') : '';
@@ -1025,12 +1031,51 @@
 
   /** Returns a NEW keywords array with MSGID's parameters replaced by
    *  `parameters` (caller-supplied, already in valid MSGID argument form),
-   *  or removed entirely if blank. */
+   *  or removed entirely if blank. NOTE: single-instance - see
+   *  setMessageIdInstances below for the Task L5 replacement. */
   function setMessageId(keywords, parameters) {
     var next = (keywords || []).filter(function (k) { return k.name !== 'MSGID'; });
     var trimmed = (parameters || '').trim();
     if (trimmed) next = next.concat([{ name: 'MSGID', parameters: trimmed, conditions: [], raw: '', sourceLines: [] }]);
     return next;
+  }
+
+  /** Task L5 - MSGID as Task L1's repeatable, independently-conditioned
+   *  instances. Real DDS allows a field to carry MULTIPLE MSGID keywords,
+   *  each under its own conditioning, with the first whose condition is
+   *  satisfied winning at runtime (same "Priority among Selected
+   *  Keywords" rule ERRMSG/ERRMSGID's own L1b entry notes) - a documented,
+   *  common pattern (e.g. one MSGID(&fieldname msgfile) conditioned on an
+   *  error indicator, alongside an unconditioned fallback MSGID(*NONE)).
+   *  MSGID's own argument text stays OPAQUE here, unchanged from
+   *  getMessageId/setMessageId above - this only adds the repeatable/
+   *  independently-conditioned dimension Task L5 is about, layered on top
+   *  via Task L1's own getRepeatableKeywordInstances/
+   *  setRepeatableKeywordInstances (which already treat any keyword's
+   *  parameters as opaque, caller-formatted text - no new decomposition
+   *  needed, unlike ERRMSG/ERRMSGID's L1b, which DID need to split out a
+   *  response indicator from within the keyword's own parameters). */
+  var MESSAGE_ID_NAMES = ['MSGID'];
+
+  function getMessageIdInstances(keywords) {
+    return getRepeatableKeywordInstances(keywords, MESSAGE_ID_NAMES);
+  }
+
+  /** Returns a NEW keywords array built from `instances` (`{ parameters,
+   *  conditions }[]`, same shape getMessageIdInstances returns), replacing
+   *  every existing MSGID. An instance needs non-blank `parameters` -
+   *  incomplete/blank entries are dropped rather than writing an empty
+   *  MSGID(), same convention as every other setX in this file. */
+  function setMessageIdInstances(keywords, instances) {
+    var raw = (instances || [])
+      .map(function (inst) {
+        if (!inst) return null;
+        var trimmed = (inst.parameters || '').trim();
+        if (!trimmed) return null;
+        return { name: 'MSGID', parameters: trimmed, conditions: inst.conditions || [] };
+      })
+      .filter(Boolean);
+    return setRepeatableKeywordInstances(keywords, MESSAGE_ID_NAMES, raw);
   }
 
   // -----------------------------------------------------------------------
@@ -3034,6 +3079,8 @@
     setReferenceOverrides: setReferenceOverrides,
     getMessageId: getMessageId,
     setMessageId: setMessageId,
+    getMessageIdInstances: getMessageIdInstances,
+    setMessageIdInstances: setMessageIdInstances,
     getMenubarChoices: getMenubarChoices,
     setMenubarChoices: setMenubarChoices,
     getMenubarSeparator: getMenubarSeparator,
