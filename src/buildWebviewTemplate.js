@@ -1844,7 +1844,7 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += accordionHtml('Database reference', dbRefBody, false);
     }
     if (!isConstant && catVis.messageId) {
-      attrsHtml += accordionHtml('Message ID', WebviewClientHelpers.messageIdHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('Message ID', WebviewClientHelpers.messageIdInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     // Task D3 - Subfile Keywords (SFLRCDNBR/SFLROLVAL), for a numeric field
     // living directly in an SFL or SFLCTL record - gated on the OWNING
@@ -1951,7 +1951,7 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
     if (!isConstant) {
       WebviewClientHelpers.wireReferenceOverridesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
-      WebviewClientHelpers.wireMessageIdEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      WebviewClientHelpers.wireMessageIdInstancesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     if (isSflOrSflCtlRecord) {
       WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);

@@ -1457,17 +1457,28 @@ function runFieldPropertyHelpersScenario() {
     check('posts ALIAS with the entered name', genFields.find((k) => k.name === 'ALIAS') && genFields.find((k) => k.name === 'ALIAS').parameters === 'AMOUNT_DUE');
     check('posts PUTRETAIN bare', genFields.some((k) => k.name === 'PUTRETAIN'));
 
-    console.log('  Message ID (MSGID) on a named field');
+    console.log('  Message ID (MSGID) on a named field - Task L5: repeatable, independently-conditioned instances');
     posted.length = 0;
     const amountEl8 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl8.dispatchEvent(new Event('click', { bubbles: true }));
-    const msgidInput = doc.getElementById(fieldKey + '-msgid');
-    check('setup: the MSGID input is present', !!msgidInput);
-    msgidInput.value = 'USR &AMOUNT MSGF1 MYLIB';
-    doc.querySelector('.' + fieldKey + '-msgid-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    const msgidPrefix = fieldKey + '-msgid';
+    const msgidStagingInput = doc.querySelector('.' + msgidPrefix + '-new-text');
+    check('setup: the MSGID staging input is present', !!msgidStagingInput);
+    msgidStagingInput.value = 'USR &AMOUNT MSGF1 MYLIB';
+    const msgidAddBtn = doc.querySelector('.repeat-inst-add[data-prefix="' + msgidPrefix + '"]');
+    check('setup: the + Add message ID button is present', !!msgidAddBtn);
+    msgidAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
     let msgidEdit = posted.find((m) => m.type === 'applyEdit');
     const msgidFields = DspfParser.parseDspf(msgidEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
     check('posts MSGID with the entered argument text', msgidFields.find((k) => k.name === 'MSGID') && msgidFields.find((k) => k.name === 'MSGID').parameters === 'USR &AMOUNT MSGF1 MYLIB');
+
+    posted.length = 0;
+    const msgidStagingInput2 = doc.querySelector('.' + msgidPrefix + '-new-text');
+    msgidStagingInput2.value = '*NONE';
+    doc.querySelector('.repeat-inst-add[data-prefix="' + msgidPrefix + '"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let msgidEdit2 = posted.find((m) => m.type === 'applyEdit');
+    const msgidFields2 = DspfParser.parseDspf(msgidEdit2.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.filter((k) => k.name === 'MSGID');
+    check('a second, independently-conditioned MSGID instance coexists with the first', msgidFields2.length === 2 && msgidFields2[0].parameters === 'USR &AMOUNT MSGF1 MYLIB' && msgidFields2[1].parameters === '*NONE');
 
     runFieldKeywordVisibilityScenario();
   }, 0);

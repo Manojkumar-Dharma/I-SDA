@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.70] - Unreleased
+## [0.9.71] - Unreleased
 
 ### Fixed
 - **Surfaced the per-keyword Conditioning toggle across every remaining
@@ -58,9 +58,34 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     unrelated flag (`KEEP`) on the same tab and confirm `INZRCD`'s
     conditioning survives.
 
-## [Unreleased]
+## [0.9.70] - 2026-08-27
 
 ### Added
+- **Task L5 (piece 3) - wire the L1 repeatable-instance component into
+  Message ID (`MSGID`)** (see `docs/sda-reference/LIMITATIONS-PLAN.md`).
+  Real DDS commonly carries MULTIPLE independently-conditioned `MSGID`
+  keywords on one field - verified against a real worked example
+  (`MSGID(&MIC001 HISLIB/HISMSGF)` under a response indicator,
+  alongside an unconditioned fallback `MSGID(*NONE)`) - the same
+  repeatable shape ERRMSG/ERRMSGID (Task L1b) already has, rather than
+  Color & attributes' (Task L1a) paired-keyword shape. Unlike
+  ERRMSG/ERRMSGID, MSGID's own argument text needed NO further
+  decomposition beyond what `getRepeatableKeywordInstances`/
+  `setRepeatableKeywordInstances` (Task L1's own foundation) already
+  give for free - it stays the same opaque, caller-formatted parameter
+  string the old single-instance `getMessageId`/`setMessageId` already
+  used (kept for backward compatibility, same as `getColorAttr`/
+  `setColorAttr` and `getValidityCheck`/`setValidityCheck` were kept
+  alongside their own L5 pieces) - so
+  `DspfWriter.getMessageIdInstances`/`setMessageIdInstances` are thin
+  wrappers, not a new parser.
+  `WebviewClientHelpers.messageIdInstancesHtml`/
+  `wireMessageIdInstancesEditor` replace the old single-textbox-plus-
+  Apply-button panel, using the staging-row pattern (Task L1a's
+  approach) rather than L1b's non-blank-placeholder-default, since
+  MSGID's raw argument text has no single always-valid non-empty
+  placeholder to seed the way ERRMSG's literal text does. See the
+  Task L5 scenarios in `src/test/dspfWebview.test.js`.
 - **Task L5 (piece 1) - wire the L1 repeatable-instance component into
   Validity check's OWN validity keyword (`RANGE`/`COMP`/`VALUES`)** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). Unlike Color & attributes
