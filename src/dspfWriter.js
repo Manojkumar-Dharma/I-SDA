@@ -1635,20 +1635,25 @@
    *  keyword's own parameter list rather than separate keyword instances. */
   function getUnlockKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'UNLOCK'; });
-    if (!k) return { present: false, erase: false, mdtoff: false };
+    if (!k) return { present: false, erase: false, mdtoff: false, conditions: [] };
     var text = (k.parameters || '').toUpperCase();
-    return { present: true, erase: /\*ERASE\b/.test(text), mdtoff: /\*MDTOFF\b/.test(text) };
+    return { present: true, erase: /\*ERASE\b/.test(text), mdtoff: /\*MDTOFF\b/.test(text), conditions: k.conditions || [] };
   }
 
   /** Returns a NEW keywords array with UNLOCK set from `present`/`erase`/
-   *  `mdtoff` - removed entirely when `present` is false. */
-  function setUnlockKeyword(keywords, present, erase, mdtoff) {
+   *  `mdtoff` - removed entirely when `present` is false. `conditions`
+   *  (optional) follows the same "omit to preserve, pass an array
+   *  including [] to deliberately change it" contract as
+   *  setFileFlagKeyword above. */
+  function setUnlockKeyword(keywords, present, erase, mdtoff, conditions) {
+    var existing = (keywords || []).find(function (kw) { return kw.name === 'UNLOCK'; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'UNLOCK'; });
     if (present) {
       var vals = [];
       if (erase) vals.push('*ERASE');
       if (mdtoff) vals.push('*MDTOFF');
-      next = next.concat([{ name: 'UNLOCK', parameters: vals.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: 'UNLOCK', parameters: vals.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
     }
     return next;
   }

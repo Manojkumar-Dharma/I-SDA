@@ -3,6 +3,61 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.70] - Unreleased
+
+### Fixed
+- **Surfaced the per-keyword Conditioning toggle across every remaining
+  `flagRowHtml`/`wireFlagRow` call site** (the ~85 flag-row keywords
+  outside the SFLCTL panel that `[0.9.65]` didn't reach yet - see that
+  entry's own note that this was left as a candidate for later). Every
+  flag-row keyword in the File Keywords picker (F1), the Base Record
+  Keywords picker (R1's 8 category tabs), the SFL/SFLMSG pickers (R3/
+  R5), the Window/RSTCSR picker (R7), and the Menu-Bar pickers (R13,
+  plus the shared MNUBARSW/MNUCNL panel used by both F1 and R13) now
+  shows its own Conditioning toggle and editor, and correctly
+  preserves existing conditioning instead of it being invisible and
+  silently dropped on any unrelated edit to the same panel (same root
+  cause `[0.9.65]` fixed for SFLCTL specifically).
+  - `flagRowHtml`/`wireFlagRow` themselves were already capable of
+    this since `[0.9.65]`; this release is entirely about actually
+    passing `conditions`/`expandedSet`/`rerender` through at each
+    remaining call site, plus a few knock-on changes:
+  - Extracted `wireFlagRowConditioning(id, conditions,
+    onCommitConditions, expandedSet, rerender)` out of `wireFlagRow`
+    so hand-wired flag rows that don't go through `wireFlagRow`'s
+    generic single-param-box commit (MNUBARSW/MNUCNL, which combine
+    two-three inputs into one keyword parameter string; INDTXT and
+    IGCCNV, same shape) can still opt into Conditioning support.
+  - `UNLOCK`'s dedicated `getUnlockKeyword`/`setUnlockKeyword` (it
+    doesn't go through `getFileFlagKeyword`/`setFileFlagKeyword` at
+    all, since it packs two independent boolean sub-flags into one
+    parameter string) picked up the same "return conditions / preserve
+    unless explicitly changed" treatment as `setFileFlagKeyword`
+    itself, and its row now renders through `flagRowHtml` (previously
+    a hand-rolled checkbox `<label>`) so it gets the toggle for free.
+  - `menuBarKeysPanelHtml`/`wireMenuBarKeysPanel`,
+    `mnuBarPanelsHtml`/`wireMnuBarPanels`,
+    `sflKeywordsPanelsHtml`/`wireSflKeywordsPanels`,
+    `sflMsgPanelsHtml`/`wireSflMsgPanels`,
+    `windowPanelsHtml`/`wireWindowPanels`,
+    `fileKeywordsPanelsHtml`/`wireFileKeywordsPanels`, and
+    `recordKeywordsPanelsHtml`/`wireRecordKeywordsPanels` all gained
+    an `expandedSet` (Html side) / `expandedSet, rerender` (wire side)
+    parameter, threaded through from each caller's own
+    `expandedKeywordConditioning` Set in `buildWebviewTemplate.js` -
+    the same Set the generic keyword editor's own per-keyword toggle
+    already used, so expand/collapse state survives re-renders the
+    same way everywhere.
+  - `pulldownPanelsHtml`/`wirePulldownPanels` deliberately untouched -
+    PULLDOWN's *SLTIND/*RSTCSR are sub-flags of one combined keyword,
+    not separate `flagRowHtml` rows, so this task doesn't apply there.
+  - New coverage in `dspfWebview.test.js`: the Base Record Keywords
+    General tab's `INZRCD` row - condition it on indicator 40 via the
+    pending-group flow, confirm the indicator is genuinely displayed
+    as a chip on re-render (not just accepted), then toggle an
+    unrelated flag (`KEEP`) on the same tab and confirm `INZRCD`'s
+    conditioning survives.
+
 ## [Unreleased]
 
 ### Added

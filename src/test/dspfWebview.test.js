@@ -3764,6 +3764,38 @@ function runPdnSflCtlPickerScenario() {
     const dtlRec = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFDTL');
     check("PSFDTL's own SFL keyword is untouched throughout", dtlRec.keywords.some((k) => k.name === 'SFL'));
 
+    console.log('\nBase Record Keywords (Task R1) General tab: flag-row keywords now show and preserve their own indicator conditioning (same fix as the SFLCTL panel above), instead of it being invisible/silently dropped');
+    posted.length = 0;
+    const rkP = 'rk-PSFCTL';
+    doc.getElementById(rkP + '-inzrcd-on').checked = true;
+    doc.getElementById(rkP + '-inzrcd-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('INZRCD was added', reparsed.keywords.some((k) => k.name === 'INZRCD'));
+    posted.length = 0;
+    check('INZRCD starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-inzrcd"]').textContent));
+    doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-inzrcd"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + rkP + '-inzrcd-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on INZRCD does not write yet (pending, not committed)', posted.length === 0);
+    doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num').value = '40';
+    doc.querySelector('.cond-ind-add[data-prefix="' + rkP + '-inzrcd-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    const inzrcdKw = reparsed.keywords.find((k) => k.name === 'INZRCD');
+    check('INZRCD is now conditioned on indicator 40', inzrcdKw.conditions.length === 1 && inzrcdKw.conditions[0].indicators[0].number === '40');
+    posted.length = 0;
+
+    check('re-rendering shows the Conditioning(1) summary on the INZRCD row, not hidden', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-inzrcd"]').textContent));
+    check("INZRCD's committed indicator 40 is genuinely displayed as a chip, not just accepted", doc.querySelector('.cond-group[data-group="0"] .keyword-chip').textContent.trim().startsWith('40'));
+
+    doc.getElementById(rkP + '-keep-on').checked = true;
+    doc.getElementById(rkP + '-keep-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check("toggling an unrelated flag (KEEP) on the same General tab does not wipe INZRCD's indicator 40 conditioning", reparsed.keywords.find((k) => k.name === 'INZRCD').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'INZRCD').conditions[0].indicators[0].number === '40');
+    check('KEEP itself was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
+    posted.length = 0;
+
     console.log('\ngetWebviewHtml() defaults when uiStyle/uiTheme args are omitted (regression: these used to silently become "," via Array.prototype.join(undefined))');
     const defaultsHtml = getWebviewHtml('vscode-webview://fake', 'n', dspfSource, 'DEFAULTS.DSPF');
     check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));

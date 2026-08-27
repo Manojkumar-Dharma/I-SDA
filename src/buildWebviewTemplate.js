@@ -1706,7 +1706,7 @@ const htmlTemplate = `<!DOCTYPE html>
    */
 
   function renderFileProps() {
-    const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords);
+    const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords, expandedKeywordConditioning);
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     const currentRecord = model.records.find((r) => r.name === recordName);
     const availableForFile = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, currentRecord ? currentRecord.keywords : []);
@@ -1728,7 +1728,7 @@ const htmlTemplate = `<!DOCTYPE html>
     propsBody.innerHTML = html;
     wireTabs(propsBody, (id) => { activeFileTab = id; });
 
-    WebviewClientHelpers.wireFileKeywordsPanels(() => model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
+    WebviewClientHelpers.wireFileKeywordsPanels(() => model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), expandedKeywordConditioning, () => renderFileProps());
     WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
   }
@@ -2237,7 +2237,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // categories (see WebviewClientHelpers.isUsrDfnRecord's doc comment) -
     // narrow the subtabs to that subset for USRDFN records specifically.
     const rkPrefix = 'rk-' + rec.name;
-    const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix);
+    const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix, expandedKeywordConditioning);
     const isUsrDfn = WebviewClientHelpers.isUsrDfnRecord(rec);
     const rkTabs = isUsrDfn
       ? [
@@ -2284,7 +2284,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isSflMsg = WebviewClientHelpers.isSflMsgRecord(rec);
     let sflMsgPanels = null;
     if (isSflMsg) {
-      sflMsgPanels = WebviewClientHelpers.sflMsgPanelsHtml(rec);
+      sflMsgPanels = WebviewClientHelpers.sflMsgPanelsHtml(rec, expandedKeywordConditioning);
     }
 
     // --- Window tab: only for records carrying WINDOW (Task R7) - Window
@@ -2295,7 +2295,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const rwPrefix = 'rw-' + rec.name;
     let windowPanels = null;
     if (hasWindow) {
-      windowPanels = WebviewClientHelpers.windowPanelsHtml(rec.keywords, rwPrefix);
+      windowPanels = WebviewClientHelpers.windowPanelsHtml(rec.keywords, rwPrefix, expandedKeywordConditioning);
     }
 
     // --- Pull-down tab: only for records carrying PULLDOWN (Task R10) -
@@ -2315,7 +2315,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isSfl = WebviewClientHelpers.isSflRecord(rec);
     let sflPanels = null;
     if (isSfl) {
-      sflPanels = WebviewClientHelpers.sflKeywordsPanelsHtml(rec.keywords, 'sfl-' + rec.name);
+      sflPanels = WebviewClientHelpers.sflKeywordsPanelsHtml(rec.keywords, 'sfl-' + rec.name, expandedKeywordConditioning);
     }
 
     // --- SFLCTL tab: only for subfile CONTROL records (Task R4) - General/
@@ -2339,7 +2339,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isMnuBar = WebviewClientHelpers.isMnuBarRecord(rec);
     let mnuBarPanels = null;
     if (isMnuBar) {
-      mnuBarPanels = WebviewClientHelpers.mnuBarPanelsHtml(rec.keywords, mnuBarPrefix);
+      mnuBarPanels = WebviewClientHelpers.mnuBarPanelsHtml(rec.keywords, mnuBarPrefix, expandedKeywordConditioning);
     }
 
     const tabs = [
@@ -2427,26 +2427,26 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     }
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
-    WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
-      WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+      WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (hasWindow) {
-      WebviewClientHelpers.wireWindowPanels(rwPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+      WebviewClientHelpers.wireWindowPanels(rwPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (isPulldown) {
       WebviewClientHelpers.wirePulldownPanels(rpdPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }
     if (isSfl) {
-      WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+      WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (isSflCtl) {
       WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (isMnuBar) {
-      WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+      WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
   }
 

@@ -1661,6 +1661,33 @@
     return html;
   }
 
+  /** Wires just the Conditioning toggle + editor half of a flagRowHtml()
+   *  row - factored out of wireFlagRow so callers that build a flag row's
+   *  checkbox/param wiring by hand (MNUBARSW/MNUCNL in
+   *  menuBarKeysPanelHtml, which combine multiple param inputs into one
+   *  keyword parameter string and so can't use wireFlagRow's generic
+   *  single-param-box commit) can still opt into the same Conditioning
+   *  support. `onCommitConditions(newConditions)` is called with the
+   *  freshly-edited conditions array; it's the caller's job to also send
+   *  along whatever `present`/`parameters` state is currently on screen
+   *  (see wireFlagRow below for the common case, or wireMenuBarKeysPanel
+   *  for the hand-wired case). */
+  function wireFlagRowConditioning(id, conditions, onCommitConditions, expandedSet, rerender) {
+    if (conditions === undefined || !expandedSet || !rerender) return;
+    var toggle = document.querySelector('.kw-cond-toggle[data-flag-id="' + id + '"]');
+    var expandKey = id + ':cond';
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+        else expandedSet.add(expandKey);
+        rerender();
+      });
+    }
+    if (expandedSet.has(expandKey)) {
+      wireConditionsEditor(id + '-cond', conditions, onCommitConditions, expandedSet, rerender);
+    }
+  }
+
   /** Wires a flagRowHtml() row so any change to its checkbox or param box
    *  re-derives the file's keyword array and commits it via `onChange`.
    *  `apply(keywords, present, paramsValue)` does the actual get/set call
@@ -1684,24 +1711,11 @@
     if (onEl) onEl.addEventListener('change', commit);
     if (paramsEl) paramsEl.addEventListener('change', commit);
 
-    if (conditions !== undefined && expandedSet && rerender) {
-      var toggle = document.querySelector('.kw-cond-toggle[data-flag-id="' + id + '"]');
-      var expandKey = id + ':cond';
-      if (toggle) {
-        toggle.addEventListener('click', function () {
-          if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
-          else expandedSet.add(expandKey);
-          rerender();
-        });
-      }
-      if (expandedSet.has(expandKey)) {
-        wireConditionsEditor(id + '-cond', conditions, function (newConditions) {
-          var present = onEl.checked;
-          var params = paramsEl ? paramsEl.value : '';
-          onChange(apply(getKeywords(), present, params, newConditions));
-        }, expandedSet, rerender);
-      }
-    }
+    wireFlagRowConditioning(id, conditions, function (newConditions) {
+      var present = onEl.checked;
+      var params = paramsEl ? paramsEl.value : '';
+      onChange(apply(getKeywords(), present, params, newConditions));
+    }, expandedSet, rerender);
   }
 
   var WDWBORDER_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL'];
@@ -1781,15 +1795,15 @@
    * every element id, same reasoning windowBorderPanelHtml above takes an
    * idPrefix.
    */
-  function menuBarKeysPanelHtml(keywords, idPrefix) {
+  function menuBarKeysPanelHtml(keywords, idPrefix, expandedSet) {
     var mnubarsw = DspfWriter.getFileFlagKeyword(keywords, 'MNUBARSW');
     var mnubarswParts = (mnubarsw.parameters || '').trim().split(/\s+/);
-    var mb = flagRowHtml(idPrefix + '-mnubarsw', 'Menu-bar switch key (MNUBARSW)', mnubarsw.present);
+    var mb = flagRowHtml(idPrefix + '-mnubarsw', 'Menu-bar switch key (MNUBARSW)', mnubarsw.present, undefined, undefined, mnubarsw.conditions, expandedSet);
     mb += '<div class="two-col"><input type="text" id="' + idPrefix + '-mnubarsw-ind" placeholder="indicator" value="' + escapeHtml(mnubarswParts[0] || '') + '" />' +
       '<input type="text" id="' + idPrefix + '-mnubarsw-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnubarswParts[1] || '') + '" /></div>';
     var mnucnl = DspfWriter.getFileFlagKeyword(keywords, 'MNUCNL');
     var mnucnlParts = (mnucnl.parameters || '').trim().split(/\s+/);
-    mb += flagRowHtml(idPrefix + '-mnucnl', 'Menu-cancel key (MNUCNL)', mnucnl.present);
+    mb += flagRowHtml(idPrefix + '-mnucnl', 'Menu-cancel key (MNUCNL)', mnucnl.present, undefined, undefined, mnucnl.conditions, expandedSet);
     mb += '<div class="two-col"><input type="text" id="' + idPrefix + '-mnucnl-ind" placeholder="indicator" value="' + escapeHtml(mnucnlParts[0] || '') + '" />' +
       '<input type="text" id="' + idPrefix + '-mnucnl-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnucnlParts[1] || '') + '" /></div>';
     mb += '<input type="text" id="' + idPrefix + '-mnucnl-resp" placeholder="response indicator 01-99" value="' + escapeHtml(mnucnlParts[2] || '') + '" style="width:100%;margin-top:4px;" />';
@@ -1798,30 +1812,32 @@
 
   /** Wires a menuBarKeysPanelHtml()-produced panel. Same `getKeywords`/
    *  `onChange` contract every other dedicated picker here uses. */
-  function wireMenuBarKeysPanel(idPrefix, getKeywords, onChange) {
+  function wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     var mnubarswOn = document.getElementById(idPrefix + '-mnubarsw-on');
     var mnubarswInd = document.getElementById(idPrefix + '-mnubarsw-ind');
     var mnubarswCakey = document.getElementById(idPrefix + '-mnubarsw-cakey');
-    function commitMnubarsw() {
+    function commitMnubarsw(conditions) {
       var params = [mnubarswInd.value, mnubarswCakey.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUBARSW', mnubarswOn.checked, params));
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUBARSW', mnubarswOn.checked, params, undefined, conditions));
     }
-    if (mnubarswOn) mnubarswOn.addEventListener('change', commitMnubarsw);
-    if (mnubarswInd) mnubarswInd.addEventListener('change', commitMnubarsw);
-    if (mnubarswCakey) mnubarswCakey.addEventListener('change', commitMnubarsw);
+    if (mnubarswOn) mnubarswOn.addEventListener('change', function () { commitMnubarsw(); });
+    if (mnubarswInd) mnubarswInd.addEventListener('change', function () { commitMnubarsw(); });
+    if (mnubarswCakey) mnubarswCakey.addEventListener('change', function () { commitMnubarsw(); });
+    wireFlagRowConditioning(idPrefix + '-mnubarsw', DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUBARSW').conditions, commitMnubarsw, expandedSet, rerender);
 
     var mnucnlOn = document.getElementById(idPrefix + '-mnucnl-on');
     var mnucnlInd = document.getElementById(idPrefix + '-mnucnl-ind');
     var mnucnlCakey = document.getElementById(idPrefix + '-mnucnl-cakey');
     var mnucnlResp = document.getElementById(idPrefix + '-mnucnl-resp');
-    function commitMnucnl() {
+    function commitMnucnl(conditions) {
       var params = [mnucnlInd.value, mnucnlCakey.value, mnucnlResp.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUCNL', mnucnlOn.checked, params));
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUCNL', mnucnlOn.checked, params, undefined, conditions));
     }
-    if (mnucnlOn) mnucnlOn.addEventListener('change', commitMnucnl);
-    if (mnucnlInd) mnucnlInd.addEventListener('change', commitMnucnl);
-    if (mnucnlCakey) mnucnlCakey.addEventListener('change', commitMnucnl);
-    if (mnucnlResp) mnucnlResp.addEventListener('change', commitMnucnl);
+    if (mnucnlOn) mnucnlOn.addEventListener('change', function () { commitMnucnl(); });
+    if (mnucnlInd) mnucnlInd.addEventListener('change', function () { commitMnucnl(); });
+    if (mnucnlCakey) mnucnlCakey.addEventListener('change', function () { commitMnucnl(); });
+    if (mnucnlResp) mnucnlResp.addEventListener('change', function () { commitMnucnl(); });
+    wireFlagRowConditioning(idPrefix + '-mnucnl', DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUCNL').conditions, commitMnucnl, expandedSet, rerender);
   }
 
   /**
@@ -1833,27 +1849,37 @@
    * tab is currently visible (same "all panels exist in the DOM, CSS just
    * hides the inactive ones" approach tabsHtml already uses elsewhere).
    */
-  function fileKeywordsPanelsHtml(fileKeywords) {
+  function fileKeywordsPanelsHtml(fileKeywords, expandedSet) {
     var kw = fileKeywords || [];
     var panels = {};
 
     // --- General ---
     var refState = DspfWriter.getFileRefKeyword(kw);
     var g = '';
-    g += flagRowHtml('fk-invite', 'Invite devices for later read', DspfWriter.getFileFlagKeyword(kw, 'INVITE').present);
-    g += flagRowHtml('fk-alwgph', 'Allow graphics', DspfWriter.getFileFlagKeyword(kw, 'ALWGPH').present);
-    g += flagRowHtml('fk-msgalarm', 'Sound alarm on messages', DspfWriter.getFileFlagKeyword(kw, 'MSGALARM').present);
-    g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', DspfWriter.getFileFlagKeyword(kw, 'INDARA').present);
-    g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT').present);
-    g += flagRowHtml('fk-check-ab', 'Allow blanks', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
-    g += flagRowHtml('fk-check-rltb', 'Move cursor right-left, top-bottom', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RLTB').present);
-    g += flagRowHtml('fk-check-rl', 'Move cursor right to left', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
-    g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', DspfWriter.getFileFlagKeyword(kw, 'DSPRL').present);
+    var fInvite = DspfWriter.getFileFlagKeyword(kw, 'INVITE');
+    g += flagRowHtml('fk-invite', 'Invite devices for later read', fInvite.present, undefined, undefined, fInvite.conditions, expandedSet);
+    var fAlwgph = DspfWriter.getFileFlagKeyword(kw, 'ALWGPH');
+    g += flagRowHtml('fk-alwgph', 'Allow graphics', fAlwgph.present, undefined, undefined, fAlwgph.conditions, expandedSet);
+    var fMsgalarm = DspfWriter.getFileFlagKeyword(kw, 'MSGALARM');
+    g += flagRowHtml('fk-msgalarm', 'Sound alarm on messages', fMsgalarm.present, undefined, undefined, fMsgalarm.conditions, expandedSet);
+    var fIndara = DspfWriter.getFileFlagKeyword(kw, 'INDARA');
+    g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', fIndara.present, undefined, undefined, fIndara.conditions, expandedSet);
+    var fUsrdspmgt = DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT');
+    g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, fUsrdspmgt.conditions, expandedSet);
+    var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
+    g += flagRowHtml('fk-check-ab', 'Allow blanks', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    var fCheckRltb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RLTB');
+    g += flagRowHtml('fk-check-rltb', 'Move cursor right-left, top-bottom', fCheckRltb.present, undefined, undefined, fCheckRltb.conditions, expandedSet);
+    var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
+    g += flagRowHtml('fk-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
+    var fDsprl = DspfWriter.getFileFlagKeyword(kw, 'DSPRL');
+    g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', fDsprl.present, undefined, undefined, fDsprl.conditions, expandedSet);
     var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
-    g += flagRowHtml('fk-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)');
+    g += flagRowHtml('fk-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)', chginpdft.conditions, expandedSet);
     var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
-    g += flagRowHtml('fk-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL');
-    g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', DspfWriter.getFileFlagKeyword(kw, 'ERRSFL').present);
+    g += flagRowHtml('fk-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL', entfldatr.conditions, expandedSet);
+    var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
+    g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, fErrsfl.conditions, expandedSet);
     g += '<div class="section-label">Reference database file (REF)</div>';
     g += '<div class="two-col"><input type="text" id="fk-ref-library" placeholder="Library" value="' + escapeHtml(refState.library) + '" />' +
       '<input type="text" id="fk-ref-record" placeholder="Record/File name" value="' + escapeHtml(refState.record) + '" /></div>';
@@ -1873,31 +1899,33 @@
       ['fk-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99'],
     ].forEach(function (row) {
       var state = DspfWriter.getFileFlagKeyword(kw, row[1]);
-      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')');
+      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')', state.conditions, expandedSet);
     });
     var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
     var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
-    ind += '<div class="section-label">Indicator text (INDTXT)</div>';
-    ind += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="fk-indtxt-on" ' + (indtxt.present ? 'checked' : '') + ' /> Enabled</label>';
+    ind += flagRowHtml('fk-indtxt', 'Indicator text (INDTXT)', indtxt.present, undefined, undefined, indtxt.conditions, expandedSet);
     ind += '<div class="two-col"><input type="text" id="fk-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
       '<input type="text" id="fk-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
     panels.indicatorKeywords = ind;
 
     // --- Print ---
-    var print = flagRowHtml('fk-print', 'Enable Print key (PRINT)', DspfWriter.getFileFlagKeyword(kw, 'PRINT').present, DspfWriter.getFileFlagKeyword(kw, 'PRINT').parameters, 'response indicator (if program handles it)');
+    var filePrint = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
+    var print = flagRowHtml('fk-print', 'Enable Print key (PRINT)', filePrint.present, filePrint.parameters, 'response indicator (if program handles it)', filePrint.conditions, expandedSet);
     var prtFile = DspfWriter.getFilePrtFileKeyword(kw);
     print += '<div class="section-label">System handles print (PRTFILE)</div>';
     print += '<div class="two-col"><input type="text" id="fk-prtfile-name" placeholder="Print file" value="' + escapeHtml(prtFile.name) + '" />' +
       '<input type="text" id="fk-prtfile-library" placeholder="Library" value="' + escapeHtml(prtFile.library) + '" /></div>';
-    print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', DspfWriter.getFileFlagKeyword(kw, 'OPENPRT').present);
+    var fOpenprt = DspfWriter.getFileFlagKeyword(kw, 'OPENPRT');
+    print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', fOpenprt.present, undefined, undefined, fOpenprt.conditions, expandedSet);
     panels.print = print;
 
     // --- Help ---
     var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
-    var help = flagRowHtml('fk-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name');
+    var help = flagRowHtml('fk-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name', hlppnlgrp.conditions, expandedSet);
     var hlpschidx = DspfWriter.getFileFlagKeyword(kw, 'HLPSCHIDX');
-    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, hlpschidx.parameters, 'search-index-object library');
-    help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', DspfWriter.getFileFlagKeyword(kw, 'HLPFULL').present);
+    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, hlpschidx.parameters, 'search-index-object library', hlpschidx.conditions, expandedSet);
+    var fHlpfull = DspfWriter.getFileFlagKeyword(kw, 'HLPFULL');
+    help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, fHlpfull.conditions, expandedSet);
     help += '<div class="section-label">Help title (HLPTITLE)</div>';
     help += '<input type="text" id="fk-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
     panels.help = help;
@@ -1918,25 +1946,25 @@
     // --- DBCS conversion ---
     var igccnv = DspfWriter.getFileFlagKeyword(kw, 'IGCCNV');
     var igcParts = (igccnv.parameters || '').trim().split(/\s+/);
-    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present);
+    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present, undefined, undefined, igccnv.conditions, expandedSet);
     dbcs += '<div class="two-col"><input type="text" id="fk-igccnv-key" placeholder="CF01-CF24" value="' + escapeHtml(igcParts[0] || '') + '" />' +
       '<input type="text" id="fk-igccnv-line" placeholder="line 1-24" value="' + escapeHtml(igcParts[1] || '') + '" /></div>';
     panels.dbcsConversion = dbcs;
 
     // --- Alternate keywords ---
     var althelp = DspfWriter.getFileFlagKeyword(kw, 'ALTHELP');
-    var alt = flagRowHtml('fk-althelp', 'Alternative help (ALTHELP)', althelp.present, althelp.parameters, 'alternative key, CA01-CA24');
+    var alt = flagRowHtml('fk-althelp', 'Alternative help (ALTHELP)', althelp.present, althelp.parameters, 'alternative key, CA01-CA24', althelp.conditions, expandedSet);
     var altpageup = DspfWriter.getFileFlagKeyword(kw, 'ALTPAGEUP');
-    alt += flagRowHtml('fk-altpageup', 'Alternative page up (ALTPAGEUP)', altpageup.present, altpageup.parameters, 'alternative key, CF01-CF24');
+    alt += flagRowHtml('fk-altpageup', 'Alternative page up (ALTPAGEUP)', altpageup.present, altpageup.parameters, 'alternative key, CF01-CF24', altpageup.conditions, expandedSet);
     var altpagedwn = DspfWriter.getFileFlagKeyword(kw, 'ALTPAGEDWN');
-    alt += flagRowHtml('fk-altpagedwn', 'Alternative page down (ALTPAGEDWN)', altpagedwn.present, altpagedwn.parameters, 'alternative key, CF01-CF24');
+    alt += flagRowHtml('fk-altpagedwn', 'Alternative page down (ALTPAGEDWN)', altpagedwn.present, altpagedwn.parameters, 'alternative key, CF01-CF24', altpagedwn.conditions, expandedSet);
     panels.alternate = alt;
 
     // --- Window Border (WDWBORDER) ---
     panels.windowBorder = windowBorderPanelHtml(kw, 'fk-wdw');
 
     // --- Menu-bar keywords ---
-    panels.menuBar = menuBarKeysPanelHtml(kw, 'fk');
+    panels.menuBar = menuBarKeysPanelHtml(kw, 'fk', expandedSet);
 
     return panels;
   }
@@ -1947,11 +1975,11 @@
    *  commit in the same render already made) and `onChange` receives the
    *  new array to commit, same contract as every other dedicated picker
    *  here. */
-  function wireFileKeywordsPanels(getKeywords, onChange) {
+  function wireFileKeywordsPanels(getKeywords, onChange, expandedSet, rerender) {
     function simple(id, name, placeholderIsParams) {
-      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
-        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '');
-      });
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions);
+      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
     // General
     simple('fk-invite', 'INVITE');
@@ -1959,9 +1987,9 @@
     simple('fk-msgalarm', 'MSGALARM');
     simple('fk-indara', 'INDARA');
     simple('fk-usrdspmgt', 'USRDSPMGT');
-    wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
-    wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB'); });
-    wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+    wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
+    wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RLTB').conditions, expandedSet, rerender);
+    wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
     simple('fk-dsprl', 'DSPRL');
     simple('fk-chginpdft', 'CHGINPDFT', true);
     simple('fk-entfldatr', 'ENTFLDATR', true);
@@ -1982,15 +2010,16 @@
     var indtxtOn = document.getElementById('fk-indtxt-on');
     var indtxtInd = document.getElementById('fk-indtxt-ind');
     var indtxtText = document.getElementById('fk-indtxt-text');
-    function commitIndtxt() {
+    function commitIndtxt(conditions) {
       var ind = (indtxtInd.value || '').trim();
       var text = (indtxtText.value || '').trim();
       var params = ind ? ind + (text ? " '" + text.replace(/'/g, "''") + "'" : '') : '';
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params));
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params, undefined, conditions));
     }
-    if (indtxtOn) indtxtOn.addEventListener('change', commitIndtxt);
-    if (indtxtInd) indtxtInd.addEventListener('change', commitIndtxt);
-    if (indtxtText) indtxtText.addEventListener('change', commitIndtxt);
+    if (indtxtOn) indtxtOn.addEventListener('change', function () { commitIndtxt(); });
+    if (indtxtInd) indtxtInd.addEventListener('change', function () { commitIndtxt(); });
+    if (indtxtText) indtxtText.addEventListener('change', function () { commitIndtxt(); });
+    wireFlagRowConditioning('fk-indtxt', DspfWriter.getFileFlagKeyword(getKeywords(), 'INDTXT').conditions, commitIndtxt, expandedSet, rerender);
 
     // Print
     simple('fk-print', 'PRINT', true);
@@ -2029,14 +2058,15 @@
     var igccnvOn = document.getElementById('fk-igccnv-on');
     var igccnvKey = document.getElementById('fk-igccnv-key');
     var igccnvLine = document.getElementById('fk-igccnv-line');
-    function commitIgccnv() {
+    function commitIgccnv(conditions) {
       var key = (igccnvKey.value || '').trim();
       var line = (igccnvLine.value || '').trim();
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'IGCCNV', igccnvOn.checked, [key, line].filter(Boolean).join(' ')));
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'IGCCNV', igccnvOn.checked, [key, line].filter(Boolean).join(' '), undefined, conditions));
     }
-    if (igccnvOn) igccnvOn.addEventListener('change', commitIgccnv);
-    if (igccnvKey) igccnvKey.addEventListener('change', commitIgccnv);
-    if (igccnvLine) igccnvLine.addEventListener('change', commitIgccnv);
+    if (igccnvOn) igccnvOn.addEventListener('change', function () { commitIgccnv(); });
+    if (igccnvKey) igccnvKey.addEventListener('change', function () { commitIgccnv(); });
+    if (igccnvLine) igccnvLine.addEventListener('change', function () { commitIgccnv(); });
+    wireFlagRowConditioning('fk-igccnv', DspfWriter.getFileFlagKeyword(getKeywords(), 'IGCCNV').conditions, commitIgccnv, expandedSet, rerender);
 
     // Alternate keywords
     simple('fk-althelp', 'ALTHELP', true);
@@ -2047,7 +2077,7 @@
     wireWindowBorderPanel('fk-wdw', getKeywords, onChange);
 
     // Menu-bar
-    wireMenuBarKeysPanel('fk', getKeywords, onChange);
+    wireMenuBarKeysPanel('fk', getKeywords, onChange, expandedSet, rerender);
   }
 
   // -----------------------------------------------------------------------
@@ -2070,25 +2100,31 @@
    * `idPrefix` (e.g. 'rk-RECORD1') keeps element ids unique per record
    * when the props panel is rebuilt for a different record.
    */
-  function recordKeywordsPanelsHtml(keywords, idPrefix) {
+  function recordKeywordsPanelsHtml(keywords, idPrefix, expandedSet) {
     var kw = keywords || [];
     var p = idPrefix;
     var panels = {};
 
     // --- General ---
     var g = '';
-    g += flagRowHtml(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', DspfWriter.getFileFlagKeyword(kw, 'INZRCD').present);
-    g += flagRowHtml(p + '-keep', 'Keep record on display (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
-    g += flagRowHtml(p + '-assume', 'Assume record is on display (ASSUME)', DspfWriter.getFileFlagKeyword(kw, 'ASSUME').present);
-    g += flagRowHtml(p + '-alwrol', 'Allow rolling of lines (ALWROL)', DspfWriter.getFileFlagKeyword(kw, 'ALWROL').present);
-    g += flagRowHtml(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', DspfWriter.getFileFlagKeyword(kw, 'RETKEY').present);
-    g += flagRowHtml(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY').present);
+    var fInzrcd = DspfWriter.getFileFlagKeyword(kw, 'INZRCD');
+    g += flagRowHtml(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, fInzrcd.conditions, expandedSet);
+    var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
+    g += flagRowHtml(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
+    var fAssume = DspfWriter.getFileFlagKeyword(kw, 'ASSUME');
+    g += flagRowHtml(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, fAssume.conditions, expandedSet);
+    var fAlwrol = DspfWriter.getFileFlagKeyword(kw, 'ALWROL');
+    g += flagRowHtml(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, fAlwrol.conditions, expandedSet);
+    var fRetkey = DspfWriter.getFileFlagKeyword(kw, 'RETKEY');
+    g += flagRowHtml(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, fRetkey.conditions, expandedSet);
+    var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
+    g += flagRowHtml(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, fRetcmdkey.conditions, expandedSet);
     var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
-    g += flagRowHtml(p + '-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)');
+    g += flagRowHtml(p + '-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)', chginpdft.conditions, expandedSet);
     var mnubardsp = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP');
-    g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, mnubardsp.parameters, 'parameters (optional)');
+    g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, mnubardsp.parameters, 'parameters (optional)', mnubardsp.conditions, expandedSet);
     var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
-    g += flagRowHtml(p + '-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL');
+    g += flagRowHtml(p + '-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL', entfldatr.conditions, expandedSet);
     var rtncsrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'RTNCSRLOC');
     g += '<div class="section-label">Return cursor location (RTNCSRLOC)</div>';
     g += '<div class="two-col"><input type="text" id="' + p + '-rtncsrloc-row" placeholder="Row field name" value="' + escapeHtml(rtncsrloc.a) + '" />' +
@@ -2109,89 +2145,114 @@
       [p + '-change', 'CHANGE', 'Change', '10-99'],
     ].forEach(function (row) {
       var state = DspfWriter.getFileFlagKeyword(kw, row[1]);
-      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')');
+      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')', state.conditions, expandedSet);
     });
     var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
     var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
-    ind += '<div class="section-label">Indicator text (INDTXT)</div>';
-    ind += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="' + p + '-indtxt-on" ' + (indtxt.present ? 'checked' : '') + ' /> Enabled</label>';
+    ind += flagRowHtml(p + '-indtxt', 'Indicator text (INDTXT)', indtxt.present, undefined, undefined, indtxt.conditions, expandedSet);
     ind += '<div class="two-col"><input type="text" id="' + p + '-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
       '<input type="text" id="' + p + '-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
     panels.indicatorKeywords = ind;
 
     // --- Application help ---
     var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
-    var ah = flagRowHtml(p + '-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name');
-    ah += flagRowHtml(p + '-hlpexcld', 'Help text excluded (HLPEXCLD)', DspfWriter.getFileFlagKeyword(kw, 'HLPEXCLD').present);
-    ah += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', DspfWriter.getFileFlagKeyword(kw, 'HLPBDY').present);
-    ah += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', DspfWriter.getFileFlagKeyword(kw, 'HLPARA').present);
+    var ah = flagRowHtml(p + '-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name', hlppnlgrp.conditions, expandedSet);
+    var fHlpexcld = DspfWriter.getFileFlagKeyword(kw, 'HLPEXCLD');
+    ah += flagRowHtml(p + '-hlpexcld', 'Help text excluded (HLPEXCLD)', fHlpexcld.present, undefined, undefined, fHlpexcld.conditions, expandedSet);
+    var fHlpbdy = DspfWriter.getFileFlagKeyword(kw, 'HLPBDY');
+    ah += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', fHlpbdy.present, undefined, undefined, fHlpbdy.conditions, expandedSet);
+    var fHlpara = DspfWriter.getFileFlagKeyword(kw, 'HLPARA');
+    ah += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, undefined, undefined, fHlpara.conditions, expandedSet);
     panels.applicationHelp = ah;
 
     // --- Help ---
-    var help = flagRowHtml(p + '-hlpclr', 'Clear previous help text records (HLPCLR)', DspfWriter.getFileFlagKeyword(kw, 'HLPCLR').present);
+    var fHlpclr = DspfWriter.getFileFlagKeyword(kw, 'HLPCLR');
+    var help = flagRowHtml(p + '-hlpclr', 'Clear previous help text records (HLPCLR)', fHlpclr.present, undefined, undefined, fHlpclr.conditions, expandedSet);
     var hlpseq = DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ');
     help += '<div class="section-label">Sequence of help text records (HLPSEQ)</div>';
     help += '<div class="two-col"><input type="text" id="' + p + '-hlpseq-group" placeholder="Help group name" value="' + escapeHtml(hlpseq.a) + '" />' +
       '<input type="text" id="' + p + '-hlpseq-num" placeholder="Sequence number 0-99" value="' + escapeHtml(hlpseq.b) + '" /></div>';
-    help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', DspfWriter.getFileFlagKeyword(kw, 'HLPCMDKEY').present);
+    var fHlpcmdkey = DspfWriter.getFileFlagKeyword(kw, 'HLPCMDKEY');
+    help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, fHlpcmdkey.conditions, expandedSet);
     help += '<div class="section-label">Define help title (HLPTITLE)</div>';
     help += '<input type="text" id="' + p + '-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
     panels.help = help;
 
     // --- Output ---
-    var out = flagRowHtml(p + '-blink', 'Blink cursor (BLINK)', DspfWriter.getFileFlagKeyword(kw, 'BLINK').present);
-    out += flagRowHtml(p + '-alarm', 'Sound the alarm (ALARM)', DspfWriter.getFileFlagKeyword(kw, 'ALARM').present);
-    out += flagRowHtml(p + '-msgalarm', 'Sound alarm on messages (MSGALARM)', DspfWriter.getFileFlagKeyword(kw, 'MSGALARM').present);
-    out += flagRowHtml(p + '-lock', 'Do not unlock keyboard (LOCK)', DspfWriter.getFileFlagKeyword(kw, 'LOCK').present);
-    out += flagRowHtml(p + '-logout', 'Write record to job log (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
-    out += flagRowHtml(p + '-invite', 'Invite devices for later read (INVITE)', DspfWriter.getFileFlagKeyword(kw, 'INVITE').present);
-    out += flagRowHtml(p + '-alwgph', 'Allow graphics (ALWGPH)', DspfWriter.getFileFlagKeyword(kw, 'ALWGPH').present);
-    out += flagRowHtml(p + '-frcdta', 'Put data before buffer is full (FRCDTA)', DspfWriter.getFileFlagKeyword(kw, 'FRCDTA').present);
+    var fBlink = DspfWriter.getFileFlagKeyword(kw, 'BLINK');
+    var out = flagRowHtml(p + '-blink', 'Blink cursor (BLINK)', fBlink.present, undefined, undefined, fBlink.conditions, expandedSet);
+    var fAlarm = DspfWriter.getFileFlagKeyword(kw, 'ALARM');
+    out += flagRowHtml(p + '-alarm', 'Sound the alarm (ALARM)', fAlarm.present, undefined, undefined, fAlarm.conditions, expandedSet);
+    var fMsgalarm = DspfWriter.getFileFlagKeyword(kw, 'MSGALARM');
+    out += flagRowHtml(p + '-msgalarm', 'Sound alarm on messages (MSGALARM)', fMsgalarm.present, undefined, undefined, fMsgalarm.conditions, expandedSet);
+    var fLock = DspfWriter.getFileFlagKeyword(kw, 'LOCK');
+    out += flagRowHtml(p + '-lock', 'Do not unlock keyboard (LOCK)', fLock.present, undefined, undefined, fLock.conditions, expandedSet);
+    var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
+    out += flagRowHtml(p + '-logout', 'Write record to job log (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    var fInvite = DspfWriter.getFileFlagKeyword(kw, 'INVITE');
+    out += flagRowHtml(p + '-invite', 'Invite devices for later read (INVITE)', fInvite.present, undefined, undefined, fInvite.conditions, expandedSet);
+    var fAlwgph = DspfWriter.getFileFlagKeyword(kw, 'ALWGPH');
+    out += flagRowHtml(p + '-alwgph', 'Allow graphics (ALWGPH)', fAlwgph.present, undefined, undefined, fAlwgph.conditions, expandedSet);
+    var fFrcdta = DspfWriter.getFileFlagKeyword(kw, 'FRCDTA');
+    out += flagRowHtml(p + '-frcdta', 'Put data before buffer is full (FRCDTA)', fFrcdta.present, undefined, undefined, fFrcdta.conditions, expandedSet);
     var dspmod = DspfWriter.getFileFlagKeyword(kw, 'DSPMOD');
-    out += flagRowHtml(p + '-dspmod', 'Use alternate display mode (DSPMOD)', dspmod.present, dspmod.parameters, 'display name, e.g. *DS3');
+    out += flagRowHtml(p + '-dspmod', 'Use alternate display mode (DSPMOD)', dspmod.present, dspmod.parameters, 'display name, e.g. *DS3', dspmod.conditions, expandedSet);
     var csrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC');
     out += '<div class="section-label">Hidden fields with cursor position for output (CSRLOC)</div>';
     out += '<div class="two-col"><input type="text" id="' + p + '-csrloc-row" placeholder="Row field name" value="' + escapeHtml(csrloc.a) + '" />' +
       '<input type="text" id="' + p + '-csrloc-col" placeholder="Column field name" value="' + escapeHtml(csrloc.b) + '" /></div>';
     var slno = DspfWriter.getFileFlagKeyword(kw, 'SLNO');
-    out += flagRowHtml(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number');
+    out += flagRowHtml(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', slno.conditions, expandedSet);
     var clrl = DspfWriter.getFileFlagKeyword(kw, 'CLRL');
-    out += flagRowHtml(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...');
+    out += flagRowHtml(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...', clrl.conditions, expandedSet);
     panels.output = out;
 
     // --- Input ---
-    var inp = flagRowHtml(p + '-loginp', 'Write record to job log (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
+    var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
+    var inp = flagRowHtml(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
     var unlock = DspfWriter.getUnlockKeyword(kw);
-    inp += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="' + p + '-unlock-on" ' + (unlock.present ? 'checked' : '') + ' /> Unlock keyboard after input operation (UNLOCK)</label>';
+    inp += flagRowHtml(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, unlock.conditions, expandedSet);
     inp += '<div style="display:flex;gap:14px;margin-bottom:10px;">' +
       '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-erase" ' + (unlock.erase ? 'checked' : '') + '/>Erase input capable fields (*ERASE)</label>' +
       '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-mdtoff" ' + (unlock.mdtoff ? 'checked' : '') + '/>Reset all modified data tags (*MDTOFF)</label></div>';
-    inp += flagRowHtml(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN').present);
+    var fGetretain = DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN');
+    inp += flagRowHtml(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, fGetretain.conditions, expandedSet);
     var retlcksts = DspfWriter.getFileFlagKeyword(kw, 'RETLCKSTS');
-    inp += flagRowHtml(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, retlcksts.parameters, 'indicators (optional)');
-    inp += flagRowHtml(p + '-check-ab', 'Allow blanks in input fields', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
-    inp += flagRowHtml(p + '-check-rl', 'Move cursor right to left', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
-    inp += flagRowHtml(p + '-rtndta', 'Return same input data on next read (RTNDTA)', DspfWriter.getFileFlagKeyword(kw, 'RTNDTA').present);
+    inp += flagRowHtml(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, retlcksts.parameters, 'indicators (optional)', retlcksts.conditions, expandedSet);
+    var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
+    inp += flagRowHtml(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
+    inp += flagRowHtml(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
+    var fRtndta = DspfWriter.getFileFlagKeyword(kw, 'RTNDTA');
+    inp += flagRowHtml(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, fRtndta.conditions, expandedSet);
     panels.input = inp;
 
     // --- Overlay ---
-    var ov = flagRowHtml(p + '-overlay', 'Overlay without erasing (OVERLAY)', DspfWriter.getFileFlagKeyword(kw, 'OVERLAY').present);
-    ov += flagRowHtml(p + '-putretain', 'Retain data on re-display (PUTRETAIN)', DspfWriter.getFileFlagKeyword(kw, 'PUTRETAIN').present);
-    ov += flagRowHtml(p + '-protect', 'Protect all input fields (PROTECT)', DspfWriter.getFileFlagKeyword(kw, 'PROTECT').present);
-    ov += flagRowHtml(p + '-putovr', 'Activate OVRDTA and OVRATR (PUTOVR)', DspfWriter.getFileFlagKeyword(kw, 'PUTOVR').present);
-    ov += flagRowHtml(p + '-ovrdta', 'Override Data (OVRDTA)', DspfWriter.getFileFlagKeyword(kw, 'OVRDTA').present);
-    ov += flagRowHtml(p + '-ovratr', 'Override Attribute (OVRATR)', DspfWriter.getFileFlagKeyword(kw, 'OVRATR').present);
-    ov += flagRowHtml(p + '-inzinp', 'Initialize input fields (INZINP)', DspfWriter.getFileFlagKeyword(kw, 'INZINP').present);
+    var fOverlay = DspfWriter.getFileFlagKeyword(kw, 'OVERLAY');
+    var ov = flagRowHtml(p + '-overlay', 'Overlay without erasing (OVERLAY)', fOverlay.present, undefined, undefined, fOverlay.conditions, expandedSet);
+    var fPutretain = DspfWriter.getFileFlagKeyword(kw, 'PUTRETAIN');
+    ov += flagRowHtml(p + '-putretain', 'Retain data on re-display (PUTRETAIN)', fPutretain.present, undefined, undefined, fPutretain.conditions, expandedSet);
+    var fProtect = DspfWriter.getFileFlagKeyword(kw, 'PROTECT');
+    ov += flagRowHtml(p + '-protect', 'Protect all input fields (PROTECT)', fProtect.present, undefined, undefined, fProtect.conditions, expandedSet);
+    var fPutovr = DspfWriter.getFileFlagKeyword(kw, 'PUTOVR');
+    ov += flagRowHtml(p + '-putovr', 'Activate OVRDTA and OVRATR (PUTOVR)', fPutovr.present, undefined, undefined, fPutovr.conditions, expandedSet);
+    var fOvrdta = DspfWriter.getFileFlagKeyword(kw, 'OVRDTA');
+    ov += flagRowHtml(p + '-ovrdta', 'Override Data (OVRDTA)', fOvrdta.present, undefined, undefined, fOvrdta.conditions, expandedSet);
+    var fOvratr = DspfWriter.getFileFlagKeyword(kw, 'OVRATR');
+    ov += flagRowHtml(p + '-ovratr', 'Override Attribute (OVRATR)', fOvratr.present, undefined, undefined, fOvratr.conditions, expandedSet);
+    var fInzinp = DspfWriter.getFileFlagKeyword(kw, 'INZINP');
+    ov += flagRowHtml(p + '-inzinp', 'Initialize input fields (INZINP)', fInzinp.present, undefined, undefined, fInzinp.conditions, expandedSet);
     var mdtoff = DspfWriter.getFileFlagKeyword(kw, 'MDTOFF');
-    ov += flagRowHtml(p + '-mdtoff', 'Reset all modified data tags (MDTOFF)', mdtoff.present, mdtoff.parameters, '*UNPR or *ALL (optional)');
+    ov += flagRowHtml(p + '-mdtoff', 'Reset all modified data tags (MDTOFF)', mdtoff.present, mdtoff.parameters, '*UNPR or *ALL (optional)', mdtoff.conditions, expandedSet);
     var eraseinp = DspfWriter.getFileFlagKeyword(kw, 'ERASEINP');
-    ov += flagRowHtml(p + '-eraseinp', 'Erase all input fields (ERASEINP)', eraseinp.present, eraseinp.parameters, '*MDTON or *ALL (optional)');
-    ov += flagRowHtml(p + '-erase', 'Erase all records below (ERASE)', DspfWriter.getFileFlagKeyword(kw, 'ERASE').present);
+    ov += flagRowHtml(p + '-eraseinp', 'Erase all input fields (ERASEINP)', eraseinp.present, eraseinp.parameters, '*MDTON or *ALL (optional)', eraseinp.conditions, expandedSet);
+    var fErase = DspfWriter.getFileFlagKeyword(kw, 'ERASE');
+    ov += flagRowHtml(p + '-erase', 'Erase all records below (ERASE)', fErase.present, undefined, undefined, fErase.conditions, expandedSet);
     panels.overlay = ov;
 
     // --- Print ---
     var print = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
-    var pr = flagRowHtml(p + '-print', 'Enable Print key (PRINT)', print.present, print.parameters, 'response indicator (if program handles it)');
+    var pr = flagRowHtml(p + '-print', 'Enable Print key (PRINT)', print.present, print.parameters, 'response indicator (if program handles it)', print.conditions, expandedSet);
     var prtFile = DspfWriter.getFilePrtFileKeyword(kw);
     pr += '<div class="section-label">System handles print (PRTFILE)</div>';
     pr += '<div class="two-col"><input type="text" id="' + p + '-prtfile-name" placeholder="Print file" value="' + escapeHtml(prtFile.name) + '" />' +
@@ -2275,7 +2336,7 @@
    * rather than record-level state of their own; renaming/reassigning
    * them happens via the Hidden fields tab, not duplicated here.
    */
-  function sflMsgPanelsHtml(rec) {
+  function sflMsgPanelsHtml(rec, expandedSet) {
     var kw = rec.keywords || [];
     var panels = {};
 
@@ -2297,14 +2358,20 @@
 
     // --- General ---
     var g = '';
-    g += flagRowHtml('sm-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG').present);
-    g += flagRowHtml('sm-logout', 'Write this record to the job log on output (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
-    g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
-    g += flagRowHtml('sm-keep', 'Keep records on display when closing the file (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
-    g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
-    g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    var fSflnxtchg = DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG');
+    g += flagRowHtml('sm-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
+    var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
+    g += flagRowHtml('sm-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
+    g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
+    g += flagRowHtml('sm-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
+    var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
+    g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
+    g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
     var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
-    g += flagRowHtml('sm-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)');
+    g += flagRowHtml('sm-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)', chginpdft.conditions, expandedSet);
     panels.general = g;
 
     // --- Indicator ---
@@ -2323,12 +2390,12 @@
    *  `getKeywords`/`onChange` follow the same "current array, new array"
    *  contract as wireFileKeywordsPanels. `idPrefix` must match what was
    *  passed to recordKeywordsPanelsHtml(). */
-  function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange) {
+  function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     var p = idPrefix;
     function simple(id, name, hasParams) {
-      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
-        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '');
-      });
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
+      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
     function wireTwoField(elIdA, elIdB, name) {
       var elA = document.getElementById(elIdA);
@@ -2358,15 +2425,16 @@
     var indtxtOn = document.getElementById(p + '-indtxt-on');
     var indtxtInd = document.getElementById(p + '-indtxt-ind');
     var indtxtText = document.getElementById(p + '-indtxt-text');
-    function commitIndtxt() {
+    function commitIndtxt(conditions) {
       var ind = (indtxtInd.value || '').trim();
       var text = (indtxtText.value || '').trim();
       var params = ind ? ind + (text ? " '" + text.replace(/'/g, "''") + "'" : '') : '';
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params));
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params, undefined, conditions));
     }
-    if (indtxtOn) indtxtOn.addEventListener('change', commitIndtxt);
-    if (indtxtInd) indtxtInd.addEventListener('change', commitIndtxt);
-    if (indtxtText) indtxtText.addEventListener('change', commitIndtxt);
+    if (indtxtOn) indtxtOn.addEventListener('change', function () { commitIndtxt(); });
+    if (indtxtInd) indtxtInd.addEventListener('change', function () { commitIndtxt(); });
+    if (indtxtText) indtxtText.addEventListener('change', function () { commitIndtxt(); });
+    wireFlagRowConditioning(p + '-indtxt', DspfWriter.getFileFlagKeyword(getKeywords(), 'INDTXT').conditions, commitIndtxt, expandedSet, rerender);
 
     // Application help
     simple(p + '-hlppnlgrp', 'HLPPNLGRP', true);
@@ -2400,14 +2468,15 @@
     var unlockOn = document.getElementById(p + '-unlock-on');
     var unlockErase = document.getElementById(p + '-unlock-erase');
     var unlockMdtoff = document.getElementById(p + '-unlock-mdtoff');
-    function commitUnlock() { onChange(DspfWriter.setUnlockKeyword(getKeywords(), unlockOn.checked, unlockErase.checked, unlockMdtoff.checked)); }
-    if (unlockOn) unlockOn.addEventListener('change', commitUnlock);
-    if (unlockErase) unlockErase.addEventListener('change', commitUnlock);
-    if (unlockMdtoff) unlockMdtoff.addEventListener('change', commitUnlock);
+    function commitUnlock(conditions) { onChange(DspfWriter.setUnlockKeyword(getKeywords(), unlockOn.checked, unlockErase.checked, unlockMdtoff.checked, conditions)); }
+    if (unlockOn) unlockOn.addEventListener('change', function () { commitUnlock(); });
+    if (unlockErase) unlockErase.addEventListener('change', function () { commitUnlock(); });
+    if (unlockMdtoff) unlockMdtoff.addEventListener('change', function () { commitUnlock(); });
+    wireFlagRowConditioning(p + '-unlock', DspfWriter.getUnlockKeyword(getKeywords()).conditions, commitUnlock, expandedSet, rerender);
     simple(p + '-getretain', 'GETRETAIN');
     simple(p + '-retlcksts', 'RETLCKSTS', true);
-    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
-    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
     simple(p + '-rtndta', 'RTNDTA');
 
     // Overlay
@@ -2659,18 +2728,24 @@
    *  Record Keywords \u2192 General tab, shown for every record type
    *  including SFL, so adding it again here would just be two controls
    *  fighting over the same keyword. */
-  function sflKeywordsPanelsHtml(keywords, idPrefix) {
+  function sflKeywordsPanelsHtml(keywords, idPrefix, expandedSet) {
     var kw = keywords || [];
     var p = idPrefix;
     var panels = {};
 
     var g = '';
-    g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG').present);
-    g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
-    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
-    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
-    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
-    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    var fSflnxtchg = DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG');
+    g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
+    var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
+    g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
+    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
+    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
+    var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
+    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
+    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
     g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
@@ -2680,19 +2755,19 @@
   }
 
   /** Wires every row across both sflKeywordsPanelsHtml() panels. */
-  function wireSflKeywordsPanels(idPrefix, getKeywords, onChange) {
+  function wireSflKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     var p = idPrefix;
     function simple(id, name, hasParams) {
-      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
-        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '');
-      });
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
+      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
     simple(p + '-sflnxtchg', 'SFLNXTCHG');
     simple(p + '-logout', 'LOGOUT');
     simple(p + '-loginp', 'LOGINP');
     simple(p + '-keep', 'KEEP');
-    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'AB'); });
-    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'RL'); });
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
     wireIndicatorTextRows(p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
   }
 
@@ -2700,11 +2775,11 @@
    *  "getKeywords is a function so a commit from one row sees any change
    *  a previous commit in the same render already made" contract as
    *  wireFileKeywordsPanels above. */
-  function wireSflMsgPanels(getKeywords, onChange) {
+  function wireSflMsgPanels(getKeywords, onChange, expandedSet, rerender) {
     function simple(id, name, placeholderIsParams) {
-      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params) {
-        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '');
-      });
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions);
+      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
 
     var rcd = document.getElementById('sm-sflmsgrcd');
@@ -2719,8 +2794,8 @@
     simple('sm-logout', 'LOGOUT');
     simple('sm-loginp', 'LOGINP');
     simple('sm-keep', 'KEEP');
-    wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
-    wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+    wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
+    wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
     simple('sm-chginpdft', 'CHGINPDFT', true);
 
     wireIndicatorTextRows('sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
@@ -2750,7 +2825,7 @@
    * isWindowRecord above for when that tab appears). `idPrefix` namespaces
    * every element id, same reasoning as recordKeywordsPanelsHtml.
    */
-  function windowPanelsHtml(keywords, idPrefix) {
+  function windowPanelsHtml(keywords, idPrefix, expandedSet) {
     var panels = {};
 
     // --- Window Parameters (the WINDOW keyword's own parameters) ---
@@ -2771,7 +2846,8 @@
       wp += '<div class="hint-small">This record\u2019s WINDOW keyword has a parameter shape the picker doesn\u2019t recognize (' + escapeHtml(geom.raw) + ') - edit it via the raw Keywords editor below instead of this panel.</div>';
     }
     wp += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:10px;">Apply window parameters</button>';
-    wp += flagRowHtml(idPrefix + '-rstcsr', 'Restrict cursor to window (RSTCSR)', DspfWriter.getFileFlagKeyword(keywords, 'RSTCSR').present);
+    var rstcsr = DspfWriter.getFileFlagKeyword(keywords, 'RSTCSR');
+    wp += flagRowHtml(idPrefix + '-rstcsr', 'Restrict cursor to window (RSTCSR)', rstcsr.present, undefined, undefined, rstcsr.conditions, expandedSet);
     wp += '<div class="hint-small">Real SDA\u2019s Window Parameters screen also shows a "Message line" row and per-row "Display size"/"Roll" columns - "Roll" is SDA\u2019s own in-terminal editing convenience (not a DDS keyword), "Display size" conditions a value by *DS3/*DS4 (multiple conditioned keyword instances, the same cross-cutting limitation R1/F1/D1 already defer), and "Message line" wasn\u2019t confidently matched to a real DDS keyword - all three are left for the raw Keywords editor.</div>';
     panels.windowParameters = wp;
 
@@ -2783,7 +2859,7 @@
 
   /** Wires both windowPanelsHtml() panels. Same `getKeywords`/`onChange`
    *  contract every other dedicated picker here uses. */
-  function wireWindowPanels(idPrefix, getKeywords, onChange) {
+  function wireWindowPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     // Window Parameters
     document.querySelectorAll('.' + idPrefix + '-mode').forEach(function (radio) {
       radio.addEventListener('change', function () {
@@ -2810,7 +2886,7 @@
         onChange(DspfWriter.setWindowParamsKeyword(getKeywords(), state));
       });
     }
-    wireFlagRow(idPrefix + '-rstcsr', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'RSTCSR', present, ''); });
+    wireFlagRow(idPrefix + '-rstcsr', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'RSTCSR', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'RSTCSR').conditions, expandedSet, rerender);
 
     // Border Parameters
     wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);
@@ -3130,16 +3206,16 @@
    * { general } for symmetry with the other record-type-specific panel
    * builders (see isMnuBarRecord above for when the tab appears).
    */
-  function mnuBarPanelsHtml(keywords, idPrefix) {
+  function mnuBarPanelsHtml(keywords, idPrefix, expandedSet) {
     var kw = keywords || [];
     var p = idPrefix;
     var panels = {};
 
     var mnubar = DspfWriter.getFileFlagKeyword(kw, 'MNUBAR');
-    var g = flagRowHtml(p + '-mnubar', 'Menu-bar (MNUBAR)', mnubar.present, mnubar.parameters, 'parameters (optional - e.g. the display-separator value)');
+    var g = flagRowHtml(p + '-mnubar', 'Menu-bar (MNUBAR)', mnubar.present, mnubar.parameters, 'parameters (optional - e.g. the display-separator value)', mnubar.conditions, expandedSet);
     g += '<div class="hint-small">Real SDA\u2019s own screen shows a separate "Display separator" toggle here - its exact DDS parameter value wasn\u2019t confidently verified, so use the parameters box above or the raw Keywords editor below if you need it.</div>';
     g += '<div class="section-label" style="margin-top:14px;"></div>';
-    g += menuBarKeysPanelHtml(kw, p);
+    g += menuBarKeysPanelHtml(kw, p, expandedSet);
     g += '<div class="hint-small">Menu-Bar display (MNUBARDSP) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
@@ -3148,9 +3224,9 @@
 
   /** Wires the mnuBarPanelsHtml() panel. Same `getKeywords`/`onChange`
    *  contract every other dedicated picker here uses. */
-  function wireMnuBarPanels(idPrefix, getKeywords, onChange) {
-    wireFlagRow(idPrefix + '-mnubar', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'MNUBAR', present, params); });
-    wireMenuBarKeysPanel(idPrefix, getKeywords, onChange);
+  function wireMnuBarPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+    wireFlagRow(idPrefix + '-mnubar', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'MNUBAR', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUBAR').conditions, expandedSet, rerender);
+    wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender);
   }
 
   function escapeHtml(s) {
