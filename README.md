@@ -163,7 +163,7 @@ Untagged items aren't yet broken into a tracked task.
 
 ### DSPF (screen) designer
 
-- **[High, Task L5]** Most dedicated keyword pickers (file-, record-,
+- **[High, Tasks L5a/L5b/L5c/L5d]** Most dedicated keyword pickers (file-, record-,
   and field-level - Input keywords, General keywords, Database
   reference, and the record-level pickers) manage ONE
   instance of their keyword(s) at a time, conditioned as a whole via
@@ -187,7 +187,10 @@ Untagged items aren't yet broken into a tracked task.
   unconditioned `MSGID(*NONE)` fallback; unlike ERRMSG/ERRMSGID, its
   argument text needed no further decomposition, so this piece is
   just L1's foundation directly, with no new parsing) - so the
-  remaining pickers above just need the same wiring. `KEYBRD`
+  remaining pickers above just need the same wiring, now split into
+  four independently-workable tasks (L5a: Input keywords, L5b:
+  General keywords, L5c: Database reference, L5d: the record-level
+  pickers) so parallel sessions don't collide on one row. `KEYBRD`
   (Keying options' other keyword) was deliberately left single-
   instance in Task L1d - a single always-on-screen attribute rather
   than several message/condition pairs, so that's a scoping choice,
@@ -197,28 +200,28 @@ Untagged items aren't yet broken into a tracked task.
   - today it only lives in the raw Keywords tab, so conditioning a pick
   (e.g. `COLOR(RED)` under indicator 10) still requires dropping into
   free-text keyword entry.
-- Verify the real DDS keyword (if any) behind the real SDA `WINDOW`
-  screen's "Message line" row and add it to the `WINDOW`-specific
+- **[Task L6]** Verify the real DDS keyword (if any) behind the real SDA
+  `WINDOW` screen's "Message line" row and add it to the `WINDOW`-specific
   picker if confirmed - currently left out as unconfirmed, reachable
   only via the raw Keywords editor in the meantime.
 
 ### Menu designer
 
-- **Menu designer options get the same dedicated-picker treatment** the
+- **[Task M1]** **Menu designer options get the same dedicated-picker treatment** the
   DSPF designer's keywords now have - its per-option Conditioning panel
   already follows a similar structure to build on.
-- "Create New Menu" won't create the source physical file itself
+- **[Task M2]** "Create New Menu" won't create the source physical file itself
   (`CRTSRCPF`) on the remote path, only adds members to one that already
   exists - the DSPF designer's "Create New Display File" already solved
   the identical gap (Task L4); this just needs the same fix applied to
   the menu wizard's remote path.
-- Deleting an option doesn't scan for other references to it, unlike
+- **[Task M3]** Deleting an option doesn't scan for other references to it, unlike
   rename - the DSPF designer's field-deletion reference check (Task L2)
   is the precedent to follow here.
-- The companion commands file (`QQ` member, or local/streamfile sibling)
+- **[Task M4]** The companion commands file (`QQ` member, or local/streamfile sibling)
   only stays in sync if it's open in its own editor tab; two menu
   designer instances racing to write it at once is unhandled.
-- Support menu types beyond `TYPE(*DSPF)` (currently the only one Compile
+- **[Task M5]** Support menu types beyond `TYPE(*DSPF)` (currently the only one Compile
   Menu handles).
 
 ## License
