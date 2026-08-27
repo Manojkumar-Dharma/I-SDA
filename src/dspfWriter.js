@@ -729,7 +729,17 @@
 
   /** A field carries at most ONE validity-check keyword at a time, so this just
    *  finds whichever of RANGE/COMP/VALUES is present - { kind: ''|'RANGE'|
-   *  'COMP'|'VALUES', parameters: string (the raw parenthesized argument text) }. */
+   *  'COMP'|'VALUES', parameters: string (the raw parenthesized argument text) }.
+   *  Superseded by getValidityCheckInstances/setValidityCheckInstances (Task
+   *  L5) for the picker itself, which now supports multiple independently-
+   *  conditioned occurrences (e.g. RANGE(1 50) under indicator 30, COMP(GT 0)
+   *  under indicator 31) the same general way Task L1's foundation already
+   *  extended to COLOR/DSPATR (L1a), ERRMSG/ERRMSGID (L1b), SFLMSG/SFLMSGID
+   *  (L1c), and CHECK (L1d) - conditioning is a general per-occurrence DDS
+   *  mechanism, not something only certain keywords opt into. Kept for
+   *  backward compatibility/API completeness, same as getColorAttr/
+   *  setColorAttr were kept alongside L1a's getColorAttrStates/
+   *  setColorAttrStates. */
   function getValidityCheck(keywords) {
     var k = (keywords || []).find(function (k) { return VALIDITY_CHECK_KEYWORDS.indexOf(k.name) >= 0; });
     return k ? { kind: k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
@@ -740,11 +750,61 @@
    *  `parameters` (e.g. "10 99" for RANGE, "GT 0" for COMP, "'A' 'B' 'C'" for
    *  VALUES) - left as free text since the argument shapes differ too much per
    *  kind to model individually here; the caller supplies it already-quoted
-   *  where DDS requires quoting. */
+   *  where DDS requires quoting. Superseded by setValidityCheckInstances (Task
+   *  L5) - see getValidityCheck's own doc comment. */
   function setValidityCheck(keywords, kind, parameters) {
     var next = (keywords || []).filter(function (k) { return VALIDITY_CHECK_KEYWORDS.indexOf(k.name) < 0; });
     if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
     return next;
+  }
+
+  // -----------------------------------------------------------------------
+  // Task L5 (piece 1 of the still-open items listed in
+  // docs/sda-reference/LIMITATIONS-PLAN.md) - Validity check's OWN
+  // RANGE/COMP/VALUES keyword as Task L1's repeatable, independently-
+  // conditioned instances, the same shape ERRMSG/ERRMSGID (L1b) already
+  // uses: unlike Color & attributes (L1a), where COLOR and DSPATR are two
+  // DIFFERENT keywords paired into one state, RANGE/COMP/VALUES are three
+  // MUTUALLY EXCLUSIVE alternative keyword NAMES for the same "kind" of
+  // validity check - a single instance is exactly one of them, never a
+  // combination, so no positional pairing across keyword names is needed
+  // here the way L1a's getColorAttrStates has to do for COLOR+DSPATR. An
+  // instance is just { conditions, kind: 'RANGE'|'COMP'|'VALUES',
+  // parameters: string } - `parameters` stays free text for the same
+  // reason getValidityCheck/setValidityCheck above already left it free
+  // text (RANGE/COMP/VALUES argument shapes differ too much to model
+  // individually, and the caller supplies VALUES/COMP string args already
+  // quoted where DDS requires it).
+  // -----------------------------------------------------------------------
+
+  /** Reads every RANGE/COMP/VALUES instance off `keywords` - `{ conditions,
+   *  kind, parameters }[]`, in source order, one entry per keyword
+   *  occurrence (no grouping/pairing needed - see this section's doc
+   *  comment above). */
+  function getValidityCheckInstances(keywords) {
+    var instances = getRepeatableKeywordInstances(keywords, VALIDITY_CHECK_KEYWORDS);
+    return instances.map(function (inst) {
+      return { conditions: inst.conditions, kind: inst.name, parameters: inst.parameters || '' };
+    });
+  }
+
+  /** Returns a NEW keywords array with every existing RANGE/COMP/VALUES
+   *  instance replaced by the given `states` (`{ conditions, kind,
+   *  parameters }[]`) - each state with a non-empty `kind` writes one
+   *  keyword of that kind under that state's OWN `conditions`, so two
+   *  states can carry different validity rules under different
+   *  indicators (or the same rule unconditioned plus a stricter one under
+   *  a specific indicator). A state with an empty `kind` writes nothing
+   *  (the picker's own "+ Add" default never starts genuinely blank - see
+   *  makeDefaultInstance in webviewClientHelpers.js's
+   *  wireValidityCheckInstances - but this guard matches every other
+   *  L1-based setX's same "an emptied-out state just disappears" rule,
+   *  e.g. setColorAttrStates above). */
+  function setValidityCheckInstances(keywords, states) {
+    var flat = (states || [])
+      .filter(function (state) { return state && state.kind; })
+      .map(function (state) { return { name: state.kind, parameters: state.parameters || '', conditions: (state && state.conditions) || [] }; });
+    return setRepeatableKeywordInstances(keywords, VALIDITY_CHECK_KEYWORDS, flat);
   }
 
   var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD', 'EDTMSK'];
@@ -2958,6 +3018,8 @@
     setColorAttrStates: setColorAttrStates,
     getValidityCheck: getValidityCheck,
     setValidityCheck: setValidityCheck,
+    getValidityCheckInstances: getValidityCheckInstances,
+    setValidityCheckInstances: setValidityCheckInstances,
     getEditKeyword: getEditKeyword,
     setEditKeyword: setEditKeyword,
     getErrorMessageInstances: getErrorMessageInstances,

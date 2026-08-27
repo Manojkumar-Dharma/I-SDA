@@ -1256,26 +1256,62 @@ function runFieldPropertyHelpersScenario() {
     check('COLOR(GRN) is gone after removing state 1', removeEdit && !removeEdit.text.includes('COLOR(GRN)'));
     check('COLOR(RED)/DSPATR(HI BL) (state 0) survives the removal of the unrelated state', removeEdit && removeEdit.text.includes('COLOR(RED)') && removeEdit.text.includes('DSPATR(HI BL)'));
 
-    console.log('  Validity check / Edit code on a named field');
+    console.log('  Task L5: Validity check (RANGE/COMP/VALUES) as repeatable, independently-conditioned instances');
     posted.length = 0;
-    // Re-select: the color/attribute edits above re-rendered the panel, so
-    // earlier element references for this field are stale.
     const amountEl2 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     check('setup: AMOUNT is still findable after re-render', !!amountEl2);
     amountEl2.dispatchEvent(new Event('click', { bubbles: true }));
 
-    const vcKindId = fieldKey + '-vc-kind';
-    const vcKind = doc.getElementById(vcKindId);
-    check('setup: the Validity check kind select is present', !!vcKind);
-    vcKind.value = 'RANGE';
-    doc.getElementById(fieldKey + '-vc-params').value = '0 999';
+    const vcAddBtn = doc.querySelector('.repeat-inst-add[data-prefix="' + fieldKey + '-vc-rep"]');
+    check('setup: the + Add validity check button is present', !!vcAddBtn);
+    vcAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    let vcAddEdit = posted.find((m) => m.type === 'applyEdit');
+    check('adding an instance immediately writes the non-blank placeholder (RANGE(1 99), so the row survives the very next re-render)', vcAddEdit && vcAddEdit.text.includes('RANGE(1 99)'));
+
+    // Re-select after the add re-rendered the panel.
+    const amountVcF = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountVcF.dispatchEvent(new Event('click', { bubbles: true }));
+    const vcParamsEl = doc.querySelector('.' + fieldKey + '-vc-rep-inst0-params');
+    check('setup: the new instance\u2019s params box is present', !!vcParamsEl);
+    posted.length = 0;
+    vcParamsEl.value = '0 999';
+    vcParamsEl.dispatchEvent(new Event('change', { bubbles: true }));
+    let vcParamsEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts RANGE with the entered bounds', vcParamsEdit && dewrapDds(vcParamsEdit.text).includes('RANGE(0 999)'));
+
+    console.log('  Task L5: switching a validity-check row\u2019s kind swaps RANGE for COMP/VALUES on that SAME instance');
+    posted.length = 0;
+    const amountVcG = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountVcG.dispatchEvent(new Event('click', { bubbles: true }));
+    const vcKindEl = doc.querySelector('.' + fieldKey + '-vc-rep-inst0-kind');
+    vcKindEl.value = 'COMP';
+    vcKindEl.dispatchEvent(new Event('change', { bubbles: true }));
+    let vcKindEdit = posted.find((m) => m.type === 'applyEdit');
+    check('switching kind writes COMP with the SAME parameters text, no more RANGE', vcKindEdit && vcKindEdit.text.includes('COMP(0 999)') && !vcKindEdit.text.includes('RANGE('));
+
+    console.log('  Task L5: a second, independently-conditioned validity-check instance coexists with the first');
+    posted.length = 0;
+    const amountVcH = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountVcH.dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.repeat-inst-add[data-prefix="' + fieldKey + '-vc-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    let secondVcAddEdit = posted.find((m) => m.type === 'applyEdit');
+    check('the first instance (now COMP) survives adding a second', secondVcAddEdit && secondVcAddEdit.text.includes('COMP(0 999)'));
+    check('the second instance starts with its own RANGE(1 99) placeholder', secondVcAddEdit && secondVcAddEdit.text.includes('RANGE(1 99)'));
+    const reparsedForVc = DspfParser.parseDspf(secondVcAddEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT');
+    const vcInstances = DspfWriter.getValidityCheckInstances(reparsedForVc.keywords);
+    check('exactly two validity-check instances round-trip back out', vcInstances.length === 2);
+
+    console.log('  Edit code / word / mask on a named field (still single-instance, behind its own Apply button)');
+    posted.length = 0;
+    const amountVcI = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountVcI.dispatchEvent(new Event('click', { bubbles: true }));
     doc.getElementById(fieldKey + '-ec-kind').value = 'EDTCDE';
     doc.getElementById(fieldKey + '-ec-params').value = 'J';
     doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
 
     const vcEdit = posted.find((m) => m.type === 'applyEdit');
-    check('posts RANGE with the entered bounds', vcEdit && dewrapDds(vcEdit.text).includes('RANGE(0 999)'));
     check('posts EDTCDE with the chosen code', vcEdit && vcEdit.text.includes('EDTCDE(J)'));
+    check('the two validity-check instances from above are untouched by the edit-code Apply', vcEdit && vcEdit.text.includes('COMP(0 999)') && vcEdit.text.includes('RANGE(1 99)'));
 
     console.log('  Task L1b: Error messages (ERRMSG/ERRMSGID) as repeatable, independently-conditioned instances');
     posted.length = 0;

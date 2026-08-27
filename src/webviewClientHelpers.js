@@ -642,6 +642,71 @@
     { code: 'M11', immedCode: 'M11F', label: 'Modulus 11 self check' },
   ];
 
+  // -----------------------------------------------------------------------
+  // Task L5 (piece 1) - RANGE/COMP/VALUES as Task L1's repeatable,
+  // independently-conditioned instances - see
+  // DspfWriter.getValidityCheckInstances/setValidityCheckInstances's own
+  // doc comment for why no positional pairing is needed here (RANGE/COMP/
+  // VALUES are mutually exclusive alternative keyword names, not two
+  // keywords combined into one state the way COLOR+DSPATR are in L1a).
+  // Modeled on errorMessageInstanceRowHtml/errorMessageInstancesHtml/
+  // wireErrorMessageInstances (Task L1b) - a per-row "kind" selector that
+  // reshapes the row's own fields, same idea as ERRMSG-vs-ERRMSGID there.
+  // -----------------------------------------------------------------------
+
+  function validityCheckInstanceRowHtml(inst, p) {
+    var kind = inst.kind || 'RANGE';
+    var placeholder = kind === 'RANGE' ? 'e.g. 1 99' : kind === 'COMP' ? 'e.g. GT 0' : "e.g. 'A' 'B' 'C'";
+    var html = '<div class="two-col" style="margin-bottom:4px;">';
+    html += '<select class="' + p + '-kind">' +
+      ['RANGE', 'COMP', 'VALUES'].map(function (k) {
+        return '<option value="' + k + '"' + (kind === k ? ' selected' : '') + '>' + k + '</option>';
+      }).join('') +
+      '</select>';
+    html += '<input type="text" class="' + p + '-params" placeholder="' + placeholder + '" value="' + escapeHtml(inst.parameters || '') + '" />';
+    html += '</div>';
+    return html;
+  }
+
+  /** Validity check (RANGE/COMP/VALUES) panel (Task L5). */
+  function validityCheckInstancesHtml(keywords, ownerKey, expandedSet) {
+    var instances = DspfWriter.getValidityCheckInstances(keywords);
+    return repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-rep',
+      function renderPayload(inst, instIdPrefix) { return validityCheckInstanceRowHtml(inst, instIdPrefix); },
+      expandedSet,
+      '+ Add validity check'
+    );
+  }
+
+  function wireValidityCheckInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var instances = DspfWriter.getValidityCheckInstances(keywords);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-rep',
+      instances,
+      function (next) { onChange(DspfWriter.setValidityCheckInstances(keywords, next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var kindEl = document.querySelector('.' + instIdPrefix + '-kind');
+        if (kindEl) kindEl.addEventListener('change', function () { updatePayload({ kind: kindEl.value }); });
+        var paramsEl = document.querySelector('.' + instIdPrefix + '-params');
+        if (paramsEl) paramsEl.addEventListener('change', function () { updatePayload({ parameters: paramsEl.value }); });
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        // Non-blank placeholder parameters, not '' - this component
+        // commits on every change immediately (no batch Apply, unlike
+        // EDTCDE/EDTWRD/EDTMSK just below in this same panel), so a
+        // genuinely blank RANGE() would be invalid DDS and the
+        // freshly-added row would vanish again on the very next
+        // re-render, before the user gets to type real bounds in - same
+        // reasoning as L1b's own makeDefaultInstance for ERRMSG.
+        return { kind: 'RANGE', conditions: [], parameters: '1 99' };
+      }
+    );
+  }
+
   function validityAndEditHtml(keywords, ownerKey, options, expandedSet) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
@@ -649,27 +714,18 @@
 
     var html = '';
     if (includeValidity) {
-      var vc = DspfWriter.getValidityCheck(keywords);
       html += '<div class="section-label">Validity check</div>';
-      html += '<div class="two-col">' +
-        '<select id="' + ownerKey + '-vc-kind">' +
-        ['', 'RANGE', 'COMP', 'VALUES'].map(function (k) {
-          return '<option value="' + k + '"' + (vc.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
-        }).join('') +
-        '</select>' +
-        '<input type="text" id="' + ownerKey + '-vc-params" placeholder="e.g. 1 99" value="' + escapeHtml(vc.parameters) + '" />' +
-        '</div><div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
+      html += '<div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
+      html += '<div style="margin-top:4px;">' + validityCheckInstancesHtml(keywords, ownerKey + '-vc', expandedSet) + '</div>';
 
       // Task L1d - CHECK's AB/VN/VNE/M10/M11 codes, as L1's repeatable
       // instances (see checkInstancesHtml/wireCheckInstancesEditor's own
       // doc comment for why this is shared with the Keying options
-      // panel). Commits IMMEDIATELY per checkbox, unlike RANGE/COMP/
-      // VALUES/EDTCDE above and below - those stay batched behind the
-      // "Apply" button, but the repeatable component's add/remove/
-      // Conditioning affordances don't have a batching mechanism (and
-      // Keying options' OWN CHECK codes already commit immediately, so
-      // this at least makes the two CHECK-owning panels consistent with
-      // EACH OTHER, even if not with this panel's other keywords).
+      // panel). Commits IMMEDIATELY per checkbox/field, same as Task L5's
+      // RANGE/COMP/VALUES instances just above now do too - both live on
+      // the L1 repeatable-instance component, which has no batching
+      // mechanism of its own (unlike EDTCDE/EDTWRD/EDTMSK below, still
+      // single-instance and still behind the "Apply" button).
       html += '<div style="margin-top:6px;">' + checkInstancesHtml(keywords, ownerKey + '-validity', expandedSet, VALIDITY_CHECK_CODES, '+ Add CHECK instance') + '</div>';
     }
 
@@ -682,10 +738,9 @@
         }).join('') +
         '</select>' +
         '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
-        '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>';
+        '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>' +
+        '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply edit code/word/mask</button>';
     }
-
-    html += '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply ' + (includeValidity ? 'validity/edit' : 'edit code/word/mask') + '</button>';
     return html;
   }
 
@@ -693,29 +748,20 @@
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
     if (includeValidity) {
+      wireValidityCheckInstances(keywords, onChange, ownerKey + '-vc', expandedSet, rerender);
       wireCheckInstancesEditor(keywords, onChange, ownerKey + '-validity', expandedSet, rerender, VALIDITY_CHECK_CODES);
     }
+    if (!includeEditKeyword) return;
     var applyBtn = document.querySelector('.' + ownerKey + '-vc-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
-      // Same keyword insertion order as before includeValidity existed
-      // (validity check, then edit code/word) - DDS
-      // doesn't care about keyword order, but preserving it keeps output
-      // byte-for-byte identical for the includeValidity:true (named-field)
-      // path, rather than incidentally shifting where an 80-column
-      // continuation wrap falls.
-      var next = keywords;
-      if (includeValidity) {
-        var vcKind = document.getElementById(ownerKey + '-vc-kind').value;
-        var vcParams = document.getElementById(ownerKey + '-vc-params').value;
-        next = DspfWriter.setValidityCheck(next, vcKind, vcParams);
-      }
-      if (includeEditKeyword) {
-        var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
-        var ecParams = document.getElementById(ownerKey + '-ec-params').value;
-        next = DspfWriter.setEditKeyword(next, ecKind, ecParams);
-      }
-      onChange(next);
+      // RANGE/COMP/VALUES no longer go through this Apply button (Task
+      // L5 - they commit immediately via the repeatable-instance
+      // component now, same as the CHECK codes just above already did),
+      // so only the edit code/word/mask fields remain here.
+      var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
+      var ecParams = document.getElementById(ownerKey + '-ec-params').value;
+      onChange(DspfWriter.setEditKeyword(keywords, ecKind, ecParams));
     });
   }
 
@@ -3131,6 +3177,8 @@
     wireColorAttrStatesEditor: wireColorAttrStatesEditor,
     validityAndEditHtml: validityAndEditHtml,
     wireValidityAndEdit: wireValidityAndEdit,
+    validityCheckInstancesHtml: validityCheckInstancesHtml,
+    wireValidityCheckInstances: wireValidityCheckInstances,
     errorMessageInstancesHtml: errorMessageInstancesHtml,
     wireErrorMessageInstances: wireErrorMessageInstances,
     fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,

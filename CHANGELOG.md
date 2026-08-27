@@ -3,6 +3,33 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- **Task L5 (piece 1) - wire the L1 repeatable-instance component into
+  Validity check's OWN validity keyword (`RANGE`/`COMP`/`VALUES`)** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Unlike Color & attributes
+  (Task L1a), where `COLOR` and `DSPATR` are two different keywords
+  paired into one state, `RANGE`/`COMP`/`VALUES` are mutually exclusive
+  alternative keyword NAMES for the same kind of validity check - a
+  single instance is exactly one of them, never a combination - so
+  `DspfWriter.getValidityCheckInstances`/`setValidityCheckInstances`
+  need no positional pairing across keyword names; each instance maps
+  1:1 onto one RANGE/COMP/VALUES occurrence. The picker itself
+  (`WebviewClientHelpers.validityCheckInstancesHtml`/
+  `wireValidityCheckInstances`) follows Task L1b's ERRMSG-style per-row
+  "kind" selector instead - switching a row's kind between RANGE/COMP/
+  VALUES reshapes that instance in place, the same way switching
+  ERRMSG/ERRMSGID's kind does. Replaces the old single select+textbox
+  behind the "Apply" button in the Validity check panel; RANGE/COMP/
+  VALUES now commit immediately (add/remove/condition independently),
+  matching how the CHECK codes in that same panel (Task L1d) already
+  do - EDTCDE/EDTWRD/EDTMSK is unaffected and stays behind its own
+  Apply button. `getValidityCheck`/`setValidityCheck` are kept for
+  backward compatibility, same as `getColorAttr`/`setColorAttr` were
+  kept alongside Task L1a. See `src/test/validityCheckInstances.test.js`
+  and the Task L5 scenarios in `src/test/dspfWebview.test.js`.
+
 ## [0.9.69] - Unreleased
 
 ### Added
