@@ -1902,15 +1902,15 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += accordionHtml('Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (!isConstant && catVis.inputKeywords) {
-      attrsHtml += accordionHtml('Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (catVis.generalKeywords) {
-      attrsHtml += accordionHtml('General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (!isConstant && catVis.databaseReference) {
       let dbRefBody = '';
       if (field.isReference) dbRefBody += '<div class="hint-small">REFFLD/REF are managed by the Resolve Referenced Field button above.</div>';
-      dbRefBody += WebviewClientHelpers.referenceOverridesHtml(field.keywords, 'field-' + field.sourceLine);
+      dbRefBody += WebviewClientHelpers.referenceOverridesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning);
       attrsHtml += accordionHtml('Database reference', dbRefBody, false);
     }
     if (!isConstant && catVis.messageId) {
@@ -2016,11 +2016,11 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!isConstant) {
       WebviewClientHelpers.wireKeyingOptionsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
-      WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
-      WebviewClientHelpers.wireReferenceOverridesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      WebviewClientHelpers.wireReferenceOverridesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
       WebviewClientHelpers.wireMessageIdInstancesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     if (isSflOrSflCtlRecord) {

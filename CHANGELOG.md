@@ -3,6 +3,46 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.73] - 2026-08-27
+
+### Added
+- **Task L5 - Input keywords, General keywords, and Database reference
+  now surface per-keyword Conditioning** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Checking these panels'
+  own real SDA screens
+  (`screens/field-level/character/input-keywords/image167.png`,
+  `.../database-reference/image170.png`) showed each keyword (`DUP`/
+  `BLANKS`/`CHANGE`/`CHGINPDFT`, `DLTCHK`/`DLTEDT`, `ALIAS`/`INDTXT`/
+  `DFT`/`DFTVAL`/`FLDCSRPRG`/`HLPID`/`PUTRETAIN`/`OVRDTA`/`OVRATR`/
+  `CHRID`/`IGCALTTYP`/`NOCCSID`) with exactly ONE "Resp" indicator
+  slot, not a repeatable list - unlike `COLOR`/`DSPATR` (Task L1a) or
+  `MSGID` (Task L5's earlier piece), these are plain presence flags
+  (or a single default value) with no different "state" to switch
+  between, so Task L1's multi-instance component would have been the
+  wrong fix. What they actually needed was the simpler per-keyword
+  Conditioning toggle the parallel "Surface the per-keyword
+  Conditioning toggle" effort had just landed everywhere else
+  (`flagRowHtml`/`wireFlagRow`, commit `d363f88`) - previously these
+  three panels used plain checkboxes/textboxes with a batch Apply
+  button and zero per-keyword conditioning, reachable only via the
+  raw Keywords tab.
+  `WebviewClientHelpers.inputKeywordsHtml`/`wireInputKeywordsEditor`,
+  `generalFieldKeywordsHtml`/`wireGeneralFieldKeywordsEditor`, and
+  `referenceOverridesHtml`/`wireReferenceOverridesEditor` are rewritten
+  onto `flagRowHtml`/`wireFlagRow`, reusing
+  `DspfWriter.getFileFlagKeyword`/`setFileFlagKeyword` directly (no
+  new writer functions needed - a presence flag or a single opaque
+  text value needs no dedicated parsing); each keyword now commits
+  immediately and independently, replacing the old batch-Apply-button
+  flow. `getInputKeywords`/`setInputKeywords`,
+  `getGeneralFieldKeywords`/`setGeneralFieldKeywords`, and
+  `getReferenceOverrides`/`setReferenceOverrides` are kept for
+  backward compatibility, same as every other superseded getX/setX
+  pair from earlier L5 pieces. See the Task L5 scenarios in
+  `src/test/dspfWebview.test.js`.
+  Still open in Task L5: the record-level pickers - not yet even
+  confirmed to need either treatment.
+
 ## [0.9.72] - 2026-08-27
 
 ### Fixed

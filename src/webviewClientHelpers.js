@@ -1159,113 +1159,155 @@
   }
 
 
-  /** "Select Input Keywords" - DUP/BLANKS/CHANGE/CHGINPDFT (see
-   *  DspfWriter.getInputKeywords/setInputKeywords). Real DDS requires a
-   *  response indicator on DUP/BLANKS/CHANGE - that's set the same way any
-   *  other keyword's conditioning is, via the Conditioning accordion on
-   *  the Keywords tab, once the keyword exists here. */
-  function inputKeywordsHtml(keywords, ownerKey) {
-    var state = DspfWriter.getInputKeywords(keywords);
+  /** "Select Input Keywords" - DUP/BLANKS/CHANGE/CHGINPDFT, each its own
+   *  flagRowHtml() row (matching the real SDA screen, which gives DUP/
+   *  BLANKS/CHANGE each their own "Resp" indicator slot directly on this
+   *  panel - see screens/field-level/character/input-keywords/image167.png
+   *  - rather than a repeatable instance list; real DDS only ever needs
+   *  ONE occurrence of a boolean-flag keyword like these, since its own
+   *  indicator expression can already AND/OR multiple indicators together
+   *  without a second occurrence - unlike COLOR/DSPATR (Task L1a) or
+   *  MSGID (Task L5), which carry a DIFFERENT VALUE per occurrence).
+   *  Previously these had no per-keyword Conditioning UI at all (plain
+   *  checkboxes, condition only reachable via the raw Keywords tab) -
+   *  this gives each its own toggle, the same fix the rest of the
+   *  codebase's flagRowHtml call sites just got. Uses
+   *  DspfWriter.getFileFlagKeyword/setFileFlagKeyword directly (generic
+   *  over any keywords array, despite the name) rather than the older
+   *  getInputKeywords/setInputKeywords (kept for backward compatibility,
+   *  same as every other superseded getX/setX pair from earlier L5
+   *  pieces), since a plain present/absent flag needs no dedicated
+   *  parsing. */
+  function inputKeywordsHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label">Input keywords</div>';
-    html += '<div class="attr-checks">';
-    html += '<label class="attr-check" title="Dup key duplicates the previous record\u2019s value into this field"><input type="checkbox" id="' + ownerKey + '-inp-dup" ' + (state.dup ? 'checked' : '') + '/>DUP</label>';
-    html += '<label class="attr-check" title="Numeric field: let the program tell blank apart from zero"><input type="checkbox" id="' + ownerKey + '-inp-blanks" ' + (state.blanks ? 'checked' : '') + '/>BLANKS</label>';
-    html += '<label class="attr-check" title="Response indicator turns on if the workstation user changed this field"><input type="checkbox" id="' + ownerKey + '-inp-change" ' + (state.change ? 'checked' : '') + '/>CHANGE</label>';
-    html += '<label class="attr-check" title="Change input defaults"><input type="checkbox" id="' + ownerKey + '-inp-chginpdft" ' + (state.chginpdft ? 'checked' : '') + '/>CHGINPDFT</label>';
-    html += '</div><div class="hint-small">DUP/BLANKS/CHANGE need a response indicator - condition the keyword once it\u2019s added (Keywords tab).</div>';
-    return html;
-  }
-
-  function wireInputKeywordsEditor(keywords, onChange, ownerKey) {
-    function commit() {
-      onChange(DspfWriter.setInputKeywords(keywords, {
-        dup: !!document.getElementById(ownerKey + '-inp-dup').checked,
-        blanks: !!document.getElementById(ownerKey + '-inp-blanks').checked,
-        change: !!document.getElementById(ownerKey + '-inp-change').checked,
-        chginpdft: !!document.getElementById(ownerKey + '-inp-chginpdft').checked,
-      }));
-    }
-    ['dup', 'blanks', 'change', 'chginpdft'].forEach(function (k) {
-      var el = document.getElementById(ownerKey + '-inp-' + k);
-      if (el) el.addEventListener('change', commit);
-    });
-  }
-
-  /** "Select General Keywords" - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG (text,
-   *  caller-supplied form - see DspfWriter.getGeneralFieldKeywords for why)
-   *  + PUTRETAIN/OVRDTA/OVRATR/CHRID/IGCALTTYP/NOCCSID (booleans). Batch-
-   *  commits via its own Apply button, same reasoning as
-   *  validityAndEditHtml (several fields at once shouldn't each trigger
-   *  their own edit). */
-  function generalFieldKeywordsHtml(keywords, ownerKey) {
-    var s = DspfWriter.getGeneralFieldKeywords(keywords);
-    var html = '<div class="section-label">General keywords</div>';
-    html += '<div class="field-row"><label>ALIAS</label><input type="text" id="' + ownerKey + '-gen-alias" placeholder="Alternative (long) name" value="' + escapeHtml(s.alias) + '" /></div>';
-    html += '<div class="field-row"><label>INDTXT</label><input type="text" id="' + ownerKey + '-gen-indtxt" placeholder="e.g. 50 &#39;Amount valid&#39;" value="' + escapeHtml(s.indtxt) + '" /></div>';
-    html += '<div class="field-row"><label>DFT <span class="hint-small">(input-only)</span></label><input type="text" id="' + ownerKey + '-gen-dft" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dft) + '" /></div>';
-    html += '<div class="field-row"><label>DFTVAL <span class="hint-small">(output/both)</span></label><input type="text" id="' + ownerKey + '-gen-dftval" placeholder="e.g. &#39;N/A&#39;" value="' + escapeHtml(s.dftval) + '" /></div>';
-    html += '<div class="field-row"><label>FLDCSRPRG</label><input type="text" id="' + ownerKey + '-gen-fldcsrprg" placeholder="Cursor-progression field name" value="' + escapeHtml(s.fldcsrprg) + '" /></div>';
-    html += '<div class="field-row"><label>HLPID <span class="hint-small">(constant help identifier)</span></label><input type="text" id="' + ownerKey + '-gen-hlpid" placeholder="e.g. FLDHELP1" value="' + escapeHtml(s.hlpid) + '" /></div>';
-    html += '<div class="attr-checks" style="margin-top:6px;">';
     [
-      ['putretain', 'PUTRETAIN', 'Retain field on display'],
-      ['ovrdta', 'OVRDTA', 'Override data'],
-      ['ovratr', 'OVRATR', 'Override attributes'],
-      ['chrid', 'CHRID', 'Translate characters'],
-      ['igcalttyp', 'IGCALTTYP', 'Alter IGC type'],
-      ['noccsid', 'NOCCSID', 'No coded character set id'],
+      ['dup', 'DUP', 'Dup key duplicates the previous record\u2019s value into this field'],
+      ['blanks', 'BLANKS', 'Numeric field: let the program tell blank apart from zero'],
+      ['change', 'CHANGE', 'Response indicator turns on if the workstation user changed this field'],
+      ['chginpdft', 'CHGINPDFT', 'Change input defaults'],
     ].forEach(function (row) {
-      html += '<label class="attr-check" title="' + escapeHtml(row[2]) + '"><input type="checkbox" id="' + ownerKey + '-gen-' + row[0] + '" ' + (s[row[0]] ? 'checked' : '') + '/>' + row[1] + '</label>';
+      var id = ownerKey + '-inp-' + row[0];
+      var kw = DspfWriter.getFileFlagKeyword(keywords, row[1]);
+      html += flagRowHtml(id, row[1], kw.present, undefined, undefined, kw.conditions, expandedSet);
     });
-    html += '</div>';
-    html += '<button class="secondary ' + ownerKey + '-gen-apply" style="width:100%;margin-top:8px;">Apply general keywords</button>';
     return html;
   }
 
-  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey) {
-    var applyBtn = document.querySelector('.' + ownerKey + '-gen-apply');
-    if (!applyBtn) return;
-    applyBtn.addEventListener('click', function () {
-      onChange(DspfWriter.setGeneralFieldKeywords(keywords, {
-        alias: document.getElementById(ownerKey + '-gen-alias').value,
-        indtxt: document.getElementById(ownerKey + '-gen-indtxt').value,
-        dft: document.getElementById(ownerKey + '-gen-dft').value,
-        dftval: document.getElementById(ownerKey + '-gen-dftval').value,
-        fldcsrprg: document.getElementById(ownerKey + '-gen-fldcsrprg').value,
-        hlpid: document.getElementById(ownerKey + '-gen-hlpid').value,
-        putretain: !!document.getElementById(ownerKey + '-gen-putretain').checked,
-        ovrdta: !!document.getElementById(ownerKey + '-gen-ovrdta').checked,
-        ovratr: !!document.getElementById(ownerKey + '-gen-ovratr').checked,
-        chrid: !!document.getElementById(ownerKey + '-gen-chrid').checked,
-        igcalttyp: !!document.getElementById(ownerKey + '-gen-igcalttyp').checked,
-        noccsid: !!document.getElementById(ownerKey + '-gen-noccsid').checked,
-      }));
+  function wireInputKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    ['dup', 'blanks', 'change', 'chginpdft'].forEach(function (k, i) {
+      var name = ['DUP', 'BLANKS', 'CHANGE', 'CHGINPDFT'][i];
+      var id = ownerKey + '-inp-' + k;
+      wireFlagRow(
+        id,
+        function () { return keywords; },
+        onChange,
+        function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, name, present, params, undefined, conditions); },
+        DspfWriter.getFileFlagKeyword(keywords, name).conditions,
+        expandedSet,
+        rerender
+      );
+    });
+  }
+
+  /** "Select General Keywords" - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/HLPID
+   *  (text-bearing, caller-supplied form - see the old getGeneralFieldKeywords'
+   *  own doc comment for why: they vary too much in shape - e.g. ALIAS/
+   *  FLDCSRPRG/HLPID take a bare name, DFT/DFTVAL/INDTXT take a quoted
+   *  string - to usefully auto-quote here) + PUTRETAIN/OVRDTA/OVRATR/
+   *  CHRID/IGCALTTYP/NOCCSID (booleans). Each its own flagRowHtml() row
+   *  (checkbox + optional text param + own Conditioning toggle) rather
+   *  than the old batch-Apply-button panel with zero per-keyword
+   *  conditioning - same fix Input keywords/Database reference above just
+   *  got, and the same checkbox+param-box shape the file-level keyword
+   *  editor's own CHGINPDFT/ENTFLDATR rows already use for a
+   *  parameter-carrying flag. Uses DspfWriter.getFileFlagKeyword/
+   *  setFileFlagKeyword directly, superseding getGeneralFieldKeywords/
+   *  setGeneralFieldKeywords (kept for backward compatibility). Unlike
+   *  Task L5's other pieces (MSGID, Validity check), none of these
+   *  keywords needed the FULL repeatable-instance treatment: DFT/DFTVAL
+   *  set a field's single default value, not several different defaults
+   *  switched by state, so one occurrence (now independently
+   *  conditionable, same as everything else here) is what real DDS itself
+   *  supports. */
+  var GENERAL_FIELD_KEYWORD_ROWS = [
+    ['alias', 'ALIAS', 'Alternative (long) name', true],
+    ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true],
+    ['dft', 'DFT', "e.g. 'N/A' (input-only)", true],
+    ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true],
+    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true],
+    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true],
+    ['putretain', 'PUTRETAIN', 'Retain field on display', false],
+    ['ovrdta', 'OVRDTA', 'Override data', false],
+    ['ovratr', 'OVRATR', 'Override attributes', false],
+    ['chrid', 'CHRID', 'Translate characters', false],
+    ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false],
+    ['noccsid', 'NOCCSID', 'No coded character set id', false],
+  ];
+
+  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet) {
+    var html = '<div class="section-label">General keywords</div>';
+    GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
+      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3];
+      var id = ownerKey + '-gen-' + key;
+      var kw = DspfWriter.getFileFlagKeyword(keywords, name);
+      html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, kw.conditions, expandedSet);
+    });
+    return html;
+  }
+
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
+      var key = row[0], name = row[1];
+      var id = ownerKey + '-gen-' + key;
+      wireFlagRow(
+        id,
+        function () { return keywords; },
+        onChange,
+        function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, name, present, params, undefined, conditions); },
+        DspfWriter.getFileFlagKeyword(keywords, name).conditions,
+        expandedSet,
+        rerender
+      );
     });
   }
 
   /** "Define Database Reference" overrides - DLTCHK/DLTEDT, alongside
    *  (not replacing) the existing Resolve Referenced Field button which
-   *  owns REFFLD/REF itself. */
-  function referenceOverridesHtml(keywords, ownerKey) {
-    var s = DspfWriter.getReferenceOverrides(keywords);
+   *  owns REFFLD/REF itself. Each its own flagRowHtml() row - real SDA's
+   *  own "Define Database Reference" screen (screens/field-level/
+   *  character/database-reference/image170.png) shows DLTCHK/DLTEDT as
+   *  single Y=Yes flags with no repeatable-instance list, same reasoning
+   *  as Input keywords above - one occurrence's own indicator expression
+   *  already covers every combination real DDS allows. Uses
+   *  DspfWriter.getFileFlagKeyword/setFileFlagKeyword directly (generic
+   *  over any keywords array), superseding getReferenceOverrides/
+   *  setReferenceOverrides (kept for backward compatibility). */
+  function referenceOverridesHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label" style="margin-top:10px;">Ignore previously specified</div>';
-    html += '<div class="attr-checks">';
-    html += '<label class="attr-check" title="Ignore the referenced field\u2019s own validity-check keywords"><input type="checkbox" id="' + ownerKey + '-ref-dltchk" ' + (s.dltchk ? 'checked' : '') + '/>DLTCHK</label>';
-    html += '<label class="attr-check" title="Ignore the referenced field\u2019s own edit keywords"><input type="checkbox" id="' + ownerKey + '-ref-dltedt" ' + (s.dltedt ? 'checked' : '') + '/>DLTEDT</label>';
-    html += '</div>';
+    [
+      ['dltchk', 'DLTCHK', 'Ignore the referenced field\u2019s own validity-check keywords'],
+      ['dltedt', 'DLTEDT', 'Ignore the referenced field\u2019s own edit keywords'],
+    ].forEach(function (row) {
+      var id = ownerKey + '-ref-' + row[0];
+      var kw = DspfWriter.getFileFlagKeyword(keywords, row[1]);
+      html += flagRowHtml(id, row[1], kw.present, undefined, undefined, kw.conditions, expandedSet);
+    });
     return html;
   }
 
-  function wireReferenceOverridesEditor(keywords, onChange, ownerKey) {
-    function commit() {
-      onChange(DspfWriter.setReferenceOverrides(keywords, {
-        dltchk: !!document.getElementById(ownerKey + '-ref-dltchk').checked,
-        dltedt: !!document.getElementById(ownerKey + '-ref-dltedt').checked,
-      }));
-    }
-    ['dltchk', 'dltedt'].forEach(function (k) {
-      var el = document.getElementById(ownerKey + '-ref-' + k);
-      if (el) el.addEventListener('change', commit);
+  function wireReferenceOverridesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    ['dltchk', 'dltedt'].forEach(function (k, i) {
+      var name = ['DLTCHK', 'DLTEDT'][i];
+      var id = ownerKey + '-ref-' + k;
+      wireFlagRow(
+        id,
+        function () { return keywords; },
+        onChange,
+        function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, name, present, params, undefined, conditions); },
+        DspfWriter.getFileFlagKeyword(keywords, name).conditions,
+        expandedSet,
+        rerender
+      );
     });
   }
 

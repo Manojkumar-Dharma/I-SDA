@@ -163,43 +163,56 @@ Untagged items aren't yet broken into a tracked task.
 
 ### DSPF (screen) designer
 
-- **[High, Tasks L5a/L5b/L5c/L5d]** Most dedicated keyword pickers (file-, record-,
-  and field-level - Input keywords, General keywords, Database
-  reference, and the record-level pickers) manage ONE
+- **[High, Tasks L5a/L5b/L5c/L5d]** Most dedicated keyword pickers manage ONE
   instance of their keyword(s) at a time, conditioned as a whole via
   the generic keyword editor's Conditioning toggle, rather than the
   MULTIPLE independently-conditioned instances real SDA additionally
   allows for some keywords - e.g. `COLOR(RED)` under indicator 10 and
-  `COLOR(GRN)` under indicator 20 on the same field. Six panels
-  already moved onto the generic "repeatable conditioned instance"
-  component (Task L1) that solves this - **Color & attributes** (Task
-  L1a), **Error message** (Task L1b), SFLCTL's **Subfile Messages**
-  panel (Task L1c), **Keying options**'s `CHECK` codes
-  (ME/ER/MF/FE/RB/RZ/RL/LC, Task L1d - which, since `CHECK` is shared
-  with **Validity check**'s own AB/VN/VNE/M10/M11 codes, converted
-  both panels together onto one shared instance list rather than
-  leaving one on the old model, which would have silently collapsed
-  the other's multi-instance edits), **Validity check**'s OWN validity
-  keyword (`RANGE`/`COMP`/`VALUES`, unrelated to `CHECK`), and
-  **Message ID** (`MSGID` - real DDS commonly carries several
+  `COLOR(GRN)` under indicator 20 on the same field. Six panels have
+  moved onto the generic "repeatable conditioned instance" component
+  (Task L1) that solves this - **Color & attributes** (Task L1a),
+  **Error message** (Task L1b), SFLCTL's **Subfile Messages** panel
+  (Task L1c), **Keying options**'s `CHECK` codes (ME/ER/MF/FE/RB/RZ/
+  RL/LC, Task L1d - which, since `CHECK` is shared with **Validity
+  check**'s own AB/VN/VNE/M10/M11 codes, converted both panels
+  together onto one shared instance list), **Validity check**'s OWN
+  validity keyword (`RANGE`/`COMP`/`VALUES`, unrelated to `CHECK`),
+  and **Message ID** (`MSGID` - real DDS commonly carries several
   independently-conditioned `MSGID` keywords on one field, e.g. a
   message conditioned on an error indicator alongside an
   unconditioned `MSGID(*NONE)` fallback; unlike ERRMSG/ERRMSGID, its
   argument text needed no further decomposition, so this piece is
-  just L1's foundation directly, with no new parsing) - so the
-  remaining pickers above just need the same wiring, now split into
-  four independently-workable tasks (L5a: Input keywords, L5b:
-  General keywords, L5c: Database reference, L5d: the record-level
-  pickers) so parallel sessions don't collide on one row. `KEYBRD`
+  just L1's foundation directly, with no new parsing). `KEYBRD`
   (Keying options' other keyword) was deliberately left single-
   instance in Task L1d - a single always-on-screen attribute rather
   than several message/condition pairs, so that's a scoping choice,
   not an oversight.
-- Surface the per-keyword Conditioning toggle directly on each dedicated
-  picker panel (color/attribute, edit-code, record-level pickers, etc.)
-  - today it only lives in the raw Keywords tab, so conditioning a pick
-  (e.g. `COLOR(RED)` under indicator 10) still requires dropping into
-  free-text keyword entry.
+  **Tasks L5a, L5b, and L5c (Input keywords, General keywords, and
+  Database reference) are also done - but NOT via L1's multi-instance
+  component.** Checking their own real SDA screens
+  (`screens/field-level/character/{input-keywords,
+  database-reference}/`) showed each keyword (`DUP`/`BLANKS`/`CHANGE`/
+  `CHGINPDFT`, `DLTCHK`/`DLTEDT`, `ALIAS`/`INDTXT`/`DFT`/`DFTVAL`/
+  `FLDCSRPRG`/`HLPID` and friends) with exactly ONE "Resp" indicator
+  slot, not a repeatable list - these are plain presence flags (or a
+  single default value) with no different "state" to switch between
+  the way `COLOR(RED)`/`COLOR(GRN)` do, so a single occurrence's own
+  AND/OR indicator expression already covers everything real DDS
+  allows. What they actually needed was the simpler fix directly
+  below (per-keyword Conditioning toggles), which all three now have.
+  **Only Task L5d (the record-level pickers) remains** - not yet even
+  confirmed to need either treatment; check each keyword's own real
+  SDA screenshot first before assuming it needs L1's component.
+- Surface the per-keyword Conditioning toggle directly on every
+  dedicated picker panel that manages plain flag/single-value keywords
+  (as opposed to Task L5's repeatable-instance keywords above) - done.
+  Previously this only lived in the raw Keywords tab, so conditioning
+  a pick (e.g. a file-level keyword under indicator 10) required
+  dropping into free-text keyword entry; every `flagRowHtml`/
+  `wireFlagRow` call site across File Keywords, Base Record Keywords,
+  SFL/SFLMSG, Window/RSTCSR, Menu-Bar, and (as of Tasks L5a/L5b/L5c
+  above) field-level panels now threads its own Conditioning toggle
+  through.
 - **[Task L6]** Verify the real DDS keyword (if any) behind the real SDA
   `WINDOW` screen's "Message line" row and add it to the `WINDOW`-specific
   picker if confirmed - currently left out as unconfirmed, reachable

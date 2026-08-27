@@ -654,7 +654,7 @@ function runPerKeywordConditioningScenario() {
     const fieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.getAttribute('data-field') === 'NAME');
     check('setup: the field is present', !!fieldEl);
     fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
-    const toggles = Array.from(doc.querySelectorAll('.kw-cond-toggle'));
+    const toggles = Array.from(doc.querySelectorAll('.kw-cond-toggle[data-owner]'));
     check('two per-keyword Conditioning toggles are rendered (one per keyword)', toggles.length === 2);
     check("the entity-level (whole-field) conditioning editor is still separately present", !!doc.querySelector('.cond-add-group[data-prefix="field"]'));
 
@@ -1429,33 +1429,51 @@ function runFieldPropertyHelpersScenario() {
     check('a second CHECK keyword now exists, seeded with Validity\u2019s own placeholder (AB), independent of the first instance', secondAddChecks && secondAddChecks.length === 2 && secondAddChecks[1].parameters.trim() === 'AB');
     check('the FIRST instance (ME AB M10F) is untouched by adding the second', secondAddChecks && secondAddChecks[0].parameters.split(/\s+/).sort().join(',') === 'AB,M10F,ME');
 
-    console.log('  Input keywords (DUP/BLANKS/CHANGE/CHGINPDFT) on a named field');
+    console.log('  Input keywords (DUP/BLANKS/CHANGE/CHGINPDFT) on a named field - Task L5: each its own flagRowHtml row with per-keyword conditioning');
     posted.length = 0;
     const amountEl6 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl6.dispatchEvent(new Event('click', { bubbles: true }));
-    const dupCheck = doc.getElementById(fieldKey + '-inp-dup');
+    const dupCheck = doc.getElementById(fieldKey + '-inp-dup-on');
     check('setup: the DUP checkbox is present', !!dupCheck);
     dupCheck.checked = true;
     dupCheck.dispatchEvent(new Event('change', { bubbles: true }));
     let inputEdit = posted.find((m) => m.type === 'applyEdit');
     check('checking DUP commits it immediately', inputEdit && inputEdit.text.includes('DUP'));
 
-    console.log('  General keywords (ALIAS/DFT/... + boolean flags) on a named field');
+    console.log('  General keywords (ALIAS/DFT/... + boolean flags) on a named field - Task L5: each its own flagRowHtml row with per-keyword conditioning, committing immediately');
     posted.length = 0;
     const amountEl7 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl7.dispatchEvent(new Event('click', { bubbles: true }));
-    const aliasInput = doc.getElementById(fieldKey + '-gen-alias');
-    check('setup: the ALIAS input is present', !!aliasInput);
-    aliasInput.value = 'AMOUNT_DUE';
-    doc.getElementById(fieldKey + '-gen-putretain').checked = true;
-    doc.querySelector('.' + fieldKey + '-gen-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    const aliasOn = doc.getElementById(fieldKey + '-gen-alias-on');
+    const aliasParams = doc.getElementById(fieldKey + '-gen-alias-params');
+    check('setup: the ALIAS checkbox is present', !!aliasOn);
+    check('setup: the ALIAS param input is present', !!aliasParams);
+    aliasParams.value = 'AMOUNT_DUE';
+    aliasOn.checked = true;
+    aliasOn.dispatchEvent(new Event('change', { bubbles: true }));
     let genEdit = posted.find((m) => m.type === 'applyEdit');
-    // This field now carries enough keywords that the line wraps with a '+'
-    // continuation (same reasoning as the ERRMSG check above) - possibly
-    // mid-keyword - so check the round-tripped MODEL rather than raw text.
-    const genFields = DspfParser.parseDspf(genEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
-    check('posts ALIAS with the entered name', genFields.find((k) => k.name === 'ALIAS') && genFields.find((k) => k.name === 'ALIAS').parameters === 'AMOUNT_DUE');
-    check('posts PUTRETAIN bare', genFields.some((k) => k.name === 'PUTRETAIN'));
+    check('posts ALIAS with the entered name', genEdit && DspfParser.parseDspf(genEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE'));
+
+    posted.length = 0;
+    const putretainOn = doc.getElementById(fieldKey + '-gen-putretain-on');
+    check('setup: the PUTRETAIN checkbox is present', !!putretainOn);
+    putretainOn.checked = true;
+    putretainOn.dispatchEvent(new Event('change', { bubbles: true }));
+    let genEdit2 = posted.find((m) => m.type === 'applyEdit');
+    const genFields2 = genEdit2 && DspfParser.parseDspf(genEdit2.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
+    check('posts PUTRETAIN bare', genFields2 && genFields2.some((k) => k.name === 'PUTRETAIN'));
+    check('the earlier ALIAS commit survives this separate PUTRETAIN commit', genFields2 && genFields2.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE'));
+
+    console.log('  Database reference (DLTCHK/DLTEDT) on a named field - Task L5: each its own flagRowHtml row with per-keyword conditioning');
+    posted.length = 0;
+    const amountEl6b = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl6b.dispatchEvent(new Event('click', { bubbles: true }));
+    const dltchkOn = doc.getElementById(fieldKey + '-ref-dltchk-on');
+    check('setup: the DLTCHK checkbox is present', !!dltchkOn);
+    dltchkOn.checked = true;
+    dltchkOn.dispatchEvent(new Event('change', { bubbles: true }));
+    let refEdit = posted.find((m) => m.type === 'applyEdit');
+    check('checking DLTCHK commits it immediately', refEdit && refEdit.text.includes('DLTCHK'));
 
     console.log('  Message ID (MSGID) on a named field - Task L5: repeatable, independently-conditioned instances');
     posted.length = 0;
@@ -1767,8 +1785,9 @@ function runD4ConstantWiringScenario() {
     check('General keywords is still offered (HLPID lives there)', labels.indexOf('General keywords') >= 0);
 
     console.log('  Filling in HLPID on the constant via General keywords and applying writes HLPID');
-    doc.querySelector('input[id$="-gen-hlpid"]').value = 'CONSTHELP';
-    doc.querySelector('button[class*="-gen-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('input[id$="-gen-hlpid-params"]').value = 'CONSTHELP';
+    doc.querySelector('input[id$="-gen-hlpid-on"]').checked = true;
+    doc.querySelector('input[id$="-gen-hlpid-on"]').dispatchEvent(new Event('change', { bubbles: true }));
     let last = posted[posted.length - 1];
     check('posts applyEdit with HLPID(CONSTHELP) on the constant', last && last.type === 'applyEdit' && /HLPID\(CONSTHELP\)/.test(last.text));
 
