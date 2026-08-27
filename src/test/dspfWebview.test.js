@@ -1316,43 +1316,61 @@ function runFieldPropertyHelpersScenario() {
     const idEdit = posted[posted.length - 1];
     check('posts ERRMSGID with both the msgid and message file the user actually typed, each surviving the OTHER field\'s separate commit', idEdit && idEdit.type === 'applyEdit' && dewrapDds(idEdit.text).includes('ERRMSGID(MSG0001 APPLMSGS') && !idEdit.text.includes('ERRMSG('));
 
-    console.log('  Keying options (CHECK) on a named field');
+    console.log('  Keying options (CHECK) on a named field - Task L1d: now a repeatable, independently-conditioned instance (Task L1\u2019s foundation)');
     posted.length = 0;
     const amountEl3 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl3.dispatchEvent(new Event('click', { bubbles: true }));
-    const meCheck = doc.querySelector('.' + fieldKey + '-keying-code[value="ME"]');
-    check('setup: the ME (Mandatory entry) checkbox is present', !!meCheck);
-    meCheck.checked = true;
-    meCheck.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no CHECK instances yet - empty state shown under Keying options', doc.getElementById(fieldKey + '-keying-check-rep-instances').textContent.indexOf('None defined.') >= 0);
+    const keyingAddBtn = doc.querySelector('.repeat-inst-add[data-prefix="' + fieldKey + '-keying-check-rep"]');
+    check('setup: the + Add CHECK instance button is present under Keying options', !!keyingAddBtn);
+    keyingAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
     let keyingEdit = posted.find((m) => m.type === 'applyEdit');
-    check('checking ME commits CHECK(ME) immediately', keyingEdit && keyingEdit.text.includes('CHECK(ME)'));
+    check('adding an instance immediately writes CHECK(ME) - Keying options\u2019 own non-blank placeholder code, not a blank/invalid CHECK()', keyingEdit && keyingEdit.text.includes('CHECK(ME)'));
 
-    console.log('  Validity check\u2019s own CHECK codes (AB/VN/VNE/M10/M11) merge with Keying options\u2019, not replace them');
+    console.log('  Validity check\u2019s own CHECK codes (AB/VN/VNE/M10/M11) merge onto that SAME instance, not a separate one');
     posted.length = 0;
     const amountEl4 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl4.dispatchEvent(new Event('click', { bubbles: true }));
-    const abCheck = doc.querySelector('.' + fieldKey + '-check-code[value="AB"]');
-    check('setup: the AB (Allow blanks) checkbox is present', !!abCheck);
+    // Validity check's panel renders the SAME instance list Keying options
+    // just wrote to (both read via DspfWriter.getRepeatableKeywordInstances
+    // (keywords, ['CHECK'])) - so instance 0 (carrying ME) shows up here
+    // too, just with Validity's OWN code checkboxes (AB/VN/VNE/M10/M11)
+    // instead of Keying's.
+    const abCheck = doc.querySelector('.' + fieldKey + '-validity-check-rep-inst0-code[data-code="AB"]');
+    check('setup: instance 0\u2019s AB (Allow blanks) checkbox is present under Validity check', !!abCheck);
     abCheck.checked = true;
-    doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    abCheck.dispatchEvent(new Event('change', { bubbles: true }));
     let mergedEdit = posted.find((m) => m.type === 'applyEdit');
     const mergedCheck = DspfParser.parseDspf(mergedEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'CHECK');
-    check('CHECK ends up with BOTH the earlier ME (Keying options) and the new AB (Validity check)', mergedCheck && mergedCheck.parameters.split(/\s+/).sort().join(',') === 'AB,ME');
+    check('CHECK ends up with BOTH the earlier ME (Keying options) and the new AB (Validity check) on the SAME instance', mergedCheck && mergedCheck.parameters.split(/\s+/).sort().join(',') === 'AB,ME');
 
-    console.log('  Modulus 10/11 Immediate toggle switches M10 <-> M10F');
+    console.log('  Modulus 10/11 Immediate toggle switches M10 <-> M10F, on that same shared instance');
     posted.length = 0;
     const amountEl5 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl5.dispatchEvent(new Event('click', { bubbles: true }));
-    const m10Check = doc.querySelector('.' + fieldKey + '-check-code[value="M10"]');
-    const m10Immed = doc.querySelector('.' + fieldKey + '-check-code-immed[data-for="M10"]');
+    const m10Check = doc.querySelector('.' + fieldKey + '-validity-check-rep-inst0-code[data-code="M10"]');
+    const m10Immed = doc.querySelector('.' + fieldKey + '-validity-check-rep-inst0-code-immed[data-for="M10"]');
     check('setup: M10 checkbox and its Immed checkbox are both present', !!m10Check && !!m10Immed);
     m10Check.checked = true;
     m10Immed.checked = true;
-    doc.querySelector('.' + fieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    m10Immed.dispatchEvent(new Event('change', { bubbles: true }));
     let immedEdit = posted.find((m) => m.type === 'applyEdit');
     const immedCheck = DspfParser.parseDspf(immedEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'CHECK');
     check('Immed checked writes M10F rather than plain M10', immedCheck && immedCheck.parameters.split(/\s+/).indexOf('M10F') >= 0);
     check('and does not ALSO write plain M10', immedCheck && immedCheck.parameters.split(/\s+/).indexOf('M10') < 0);
+    check('ME and AB from the earlier steps both survive this Validity-only edit', immedCheck && immedCheck.parameters.split(/\s+/).indexOf('ME') >= 0 && immedCheck.parameters.split(/\s+/).indexOf('AB') >= 0);
+
+    console.log('  A SECOND, independently-conditioned CHECK instance coexists with the first (Task L1\u2019s whole point) - added from Validity check this time');
+    posted.length = 0;
+    const amountEl5b = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountEl5b.dispatchEvent(new Event('click', { bubbles: true }));
+    const validityAddBtn = doc.querySelector('.repeat-inst-add[data-prefix="' + fieldKey + '-validity-check-rep"]');
+    check('setup: the + Add CHECK instance button is present under Validity check too', !!validityAddBtn);
+    validityAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    let secondAddEdit = posted.find((m) => m.type === 'applyEdit');
+    const secondAddChecks = secondAddEdit && DspfParser.parseDspf(secondAddEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.filter((k) => k.name === 'CHECK');
+    check('a second CHECK keyword now exists, seeded with Validity\u2019s own placeholder (AB), independent of the first instance', secondAddChecks && secondAddChecks.length === 2 && secondAddChecks[1].parameters.trim() === 'AB');
+    check('the FIRST instance (ME AB M10F) is untouched by adding the second', secondAddChecks && secondAddChecks[0].parameters.split(/\s+/).sort().join(',') === 'AB,M10F,ME');
 
     console.log('  Input keywords (DUP/BLANKS/CHANGE/CHGINPDFT) on a named field');
     posted.length = 0;

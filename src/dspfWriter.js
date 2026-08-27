@@ -791,35 +791,43 @@
   // not here - real SDA's own "Error Messages" screen is a repeatable
   // list (several message/condition pairs tried in order), so it's built
   // on the L1 foundation rather than a single-instance getX/setX pair
-  // like the keywords in this section. Color & attributes (COLOR/DSPATR)
-  // and Subfile Messages (SFLMSG/SFLMSGID) still work the single-instance
-  // way for now (Tasks L1a/L1c) - see Known limitations in the README.
-  // -----------------------------------------------------------------------
+  // like the keywords in this section. Color & attributes (COLOR/DSPATR),
+  // Subfile Messages (SFLMSG/SFLMSGID), and CHECK's codes (Tasks L1a,
+  // L1c, L1d) are now ALSO multi-instance - see each task's own comment
+  // (CHECK's is just below, since it's shared between two UI panels and
+  // needed its own explanation) - only KEYBRD, RANGE/COMP/VALUES, and
+  // EDTCDE/EDTWRD/EDTMSK in this section remain single-instance.
+  // ---------------------------------------------------------------------
 
   var CHECK_CODES = ['ME', 'ER', 'MF', 'FE', 'RB', 'RZ', 'RL', 'LC', 'AB', 'VN', 'VNE', 'M10', 'M10F', 'M11', 'M11F'];
 
-  /** Reads the field's CHECK(...) keyword (if any) as an array of its space-
-   *  separated codes, e.g. ['ME','AB'] - real DDS allows combining any of
-   *  SDA's "Keying options" (ME/ER/MF/FE/RB/RZ/RL/LC) and "Validity check"
-   *  (AB/VN/VNE/M10/M10F/M11/M11F) codes in ONE CHECK() keyword, so both
-   *  screens share this same getter/setter rather than each owning a
-   *  separate keyword. */
-  function getCheckOptions(keywords) {
-    var k = (keywords || []).find(function (k) { return k.name === 'CHECK'; });
-    if (!k) return [];
-    return (k.parameters || '').trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+  /**
+   * Task L1d - CHECK(...) is now multi-instance (real DDS lets several
+   * CHECK() keywords coexist on one field, each independently conditioned
+   * - e.g. CHECK(ME) under indicator 30, CHECK(AB) under indicator 40),
+   * wired through Task L1's generic getRepeatableKeywordInstances/
+   * setRepeatableKeywordInstances rather than a dedicated getX/setX pair
+   * (CHECK's payload is just its raw space-separated code list already -
+   * exactly the shape L1 operates on generically, no extra parsing layer
+   * needed beyond the two small helpers below).
+   *
+   * CHECK's codes are split across TWO UI panels that both read/write
+   * this SAME keyword - Keying options (ME/ER/MF/FE/RB/RZ/RL/LC) and
+   * Validity check (AB/VN/VNE/M10/M11, plus M10F/M11F immediate variants)
+   * - see checkInstancesHtml/wireCheckInstancesEditor in
+   * webviewClientHelpers.js for how both panels share one rendering/
+   * wiring path over the same instance list without either one able to
+   * clobber the other's codes on a shared instance.
+   */
+  function parseCheckCodes(parameters) {
+    return (parameters || '').trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
   }
 
-  /** Returns a NEW keywords array with CHECK replaced by one joining every
-   *  code in `codes` (order preserved as given), or removed entirely if
-   *  `codes` is empty. Unknown codes are kept as-is (not validated against
-   *  CHECK_CODES) so a hand-typed keyword from the generic editor round-
-   *  trips untouched. */
-  function setCheckOptions(keywords, codes) {
-    var next = (keywords || []).filter(function (k) { return k.name !== 'CHECK'; });
-    var list = (codes || []).filter(Boolean);
-    if (list.length > 0) next = next.concat([{ name: 'CHECK', parameters: list.join(' '), conditions: [], raw: '', sourceLines: [] }]);
-    return next;
+  /** Inverse of parseCheckCodes - order preserved as given, '' for an
+   *  empty list (the caller decides what an empty-parameters CHECK
+   *  instance means, same as any other repeatable instance's payload). */
+  function formatCheckCodes(codes) {
+    return (codes || []).filter(Boolean).join(' ');
   }
 
   /** Reads the field's input-handling keywords - DUP (Dup key duplication,
@@ -2930,8 +2938,8 @@
     setEditKeyword: setEditKeyword,
     getErrorMessageInstances: getErrorMessageInstances,
     setErrorMessageInstances: setErrorMessageInstances,
-    getCheckOptions: getCheckOptions,
-    setCheckOptions: setCheckOptions,
+    parseCheckCodes: parseCheckCodes,
+    formatCheckCodes: formatCheckCodes,
     getInputKeywords: getInputKeywords,
     setInputKeywords: setInputKeywords,
     getGeneralFieldKeywords: getGeneralFieldKeywords,

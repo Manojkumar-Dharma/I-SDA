@@ -589,7 +589,7 @@
     { code: 'M11', immedCode: 'M11F', label: 'Modulus 11 self check' },
   ];
 
-  function validityAndEditHtml(keywords, ownerKey, options) {
+  function validityAndEditHtml(keywords, ownerKey, options, expandedSet) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
     var ec = DspfWriter.getEditKeyword(keywords);
@@ -607,17 +607,17 @@
         '<input type="text" id="' + ownerKey + '-vc-params" placeholder="e.g. 1 99" value="' + escapeHtml(vc.parameters) + '" />' +
         '</div><div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
 
-      var checkCodes = DspfWriter.getCheckOptions(keywords);
-      html += '<div class="attr-checks" style="margin-top:6px;">';
-      VALIDITY_CHECK_CODES.forEach(function (c) {
-        var isImmed = !!c.immedCode && checkCodes.indexOf(c.immedCode) >= 0;
-        var checked = checkCodes.indexOf(c.code) >= 0 || isImmed;
-        html += '<label class="attr-check" title="' + escapeHtml(c.label) + '"><input type="checkbox" class="' + ownerKey + '-check-code" value="' + c.code + '" ' + (checked ? 'checked' : '') + '/>' + c.code + '</label>';
-        if (c.immedCode) {
-          html += '<label class="attr-check" title="Immediate (check each keystroke rather than at Enter)"><input type="checkbox" class="' + ownerKey + '-check-code-immed" data-for="' + c.code + '" data-immed-code="' + c.immedCode + '" ' + (isImmed ? 'checked' : '') + '/>Immed</label>';
-        }
-      });
-      html += '</div>';
+      // Task L1d - CHECK's AB/VN/VNE/M10/M11 codes, as L1's repeatable
+      // instances (see checkInstancesHtml/wireCheckInstancesEditor's own
+      // doc comment for why this is shared with the Keying options
+      // panel). Commits IMMEDIATELY per checkbox, unlike RANGE/COMP/
+      // VALUES/EDTCDE above and below - those stay batched behind the
+      // "Apply" button, but the repeatable component's add/remove/
+      // Conditioning affordances don't have a batching mechanism (and
+      // Keying options' OWN CHECK codes already commit immediately, so
+      // this at least makes the two CHECK-owning panels consistent with
+      // EACH OTHER, even if not with this panel's other keywords).
+      html += '<div style="margin-top:6px;">' + checkInstancesHtml(keywords, ownerKey + '-validity', expandedSet, VALIDITY_CHECK_CODES, '+ Add CHECK instance') + '</div>';
     }
 
     if (includeEditKeyword) {
@@ -636,9 +636,12 @@
     return html;
   }
 
-  function wireValidityAndEdit(keywords, onChange, ownerKey, options) {
+  function wireValidityAndEdit(keywords, onChange, ownerKey, options, expandedSet, rerender) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
+    if (includeValidity) {
+      wireCheckInstancesEditor(keywords, onChange, ownerKey + '-validity', expandedSet, rerender, VALIDITY_CHECK_CODES);
+    }
     var applyBtn = document.querySelector('.' + ownerKey + '-vc-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
@@ -653,22 +656,6 @@
         var vcKind = document.getElementById(ownerKey + '-vc-kind').value;
         var vcParams = document.getElementById(ownerKey + '-vc-params').value;
         next = DspfWriter.setValidityCheck(next, vcKind, vcParams);
-
-        // Merge: keep whatever CHECK codes this field already had that
-        // AREN'T one of the validity-check codes shown here (e.g. a Keying
-        // options code like ME set via the Input Keywords panel), then
-        // apply the checkbox state for the validity-specific codes.
-        var validityCodeValues = [];
-        VALIDITY_CHECK_CODES.forEach(function (c) { validityCodeValues.push(c.code); if (c.immedCode) validityCodeValues.push(c.immedCode); });
-        var existingNonValidity = DspfWriter.getCheckOptions(next).filter(function (c) { return validityCodeValues.indexOf(c) < 0; });
-        var immedFor = {};
-        Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-check-code-immed:checked')).forEach(function (el) {
-          immedFor[el.getAttribute('data-for')] = el.getAttribute('data-immed-code');
-        });
-        var chosenValidity = Array.prototype.slice
-          .call(document.querySelectorAll('.' + ownerKey + '-check-code:checked'))
-          .map(function (el) { return immedFor[el.value] || el.value; });
-        next = DspfWriter.setCheckOptions(next, existingNonValidity.concat(chosenValidity));
       }
       if (includeEditKeyword) {
         var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
@@ -885,21 +872,106 @@
     { code: 'LC', label: 'Lowercase entry allowed' },
   ];
 
+  // -----------------------------------------------------------------------
+  // Task L1d - CHECK(...) as L1's repeatable, independently-conditioned
+  // instances. CHECK's codes are split across TWO UI panels - Keying
+  // options (KEYING_OPTION_CODES above) and Validity check
+  // (VALIDITY_CHECK_CODES further below) - both reading and writing the
+  // SAME underlying keyword. Converting only one panel to multi-instance
+  // while leaving the other on the old single-merged-instance model would
+  // be a real data-loss bug: the untouched panel's setX would collapse
+  // every instance back into one on its very next edit (the exact same
+  // class of trap Task L1a's own staging-row fix and L1b's placeholder
+  // fix both address, just at the keyword level here instead of the
+  // "freshly-added row" level).
+  //
+  // So both panels share ONE rendering/wiring pair
+  // (checkInstancesHtml/wireCheckInstancesEditor), parameterized by which
+  // code subset that particular panel owns (`codeSpecs`). Each only ever
+  // reads/writes ITS OWN codes within an instance, always re-reading
+  // (never caching) the OTHER panel's codes at commit time from a fresh
+  // getRepeatableKeywordInstances() snapshot - so neither panel can ever
+  // clobber the other's codes on the same instance, even though each
+  // panel still renders its OWN independent Conditioning UI over the same
+  // instance list (different ownerKey -> different idPrefix/expandedSet
+  // keys per panel). That's a minor, harmless UI duplication - the same
+  // instance's conditions are editable from either panel and always
+  // in sync, since both read fresh state on every render - not a
+  // data-integrity risk.
+  // -----------------------------------------------------------------------
+  function checkInstancesHtml(keywords, ownerKey, expandedSet, codeSpecs, addLabel) {
+    var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['CHECK']);
+    return repeatableConditionedInstancesHtml(instances, ownerKey + '-check-rep', function (inst, instIdPrefix) {
+      var codes = DspfWriter.parseCheckCodes(inst.parameters);
+      var html = '<div class="attr-checks">';
+      codeSpecs.forEach(function (c) {
+        var isImmed = !!c.immedCode && codes.indexOf(c.immedCode) >= 0;
+        var checked = codes.indexOf(c.code) >= 0 || isImmed;
+        html += '<label class="attr-check" title="' + escapeHtml(c.label) + '"><input type="checkbox" class="' + instIdPrefix + '-code" data-code="' + c.code + '" ' + (checked ? 'checked' : '') + '/>' + c.code + '</label>';
+        if (c.immedCode) {
+          html += '<label class="attr-check" title="Immediate (check each keystroke rather than at Enter)"><input type="checkbox" class="' + instIdPrefix + '-code-immed" data-for="' + c.code + '" data-immed-code="' + c.immedCode + '" ' + (isImmed ? 'checked' : '') + '/>Immed</label>';
+        }
+      });
+      html += '</div>';
+      return html;
+    }, expandedSet, addLabel || '+ Add CHECK instance');
+  }
+
+  function wireCheckInstancesEditor(keywords, onChange, ownerKey, expandedSet, rerender, codeSpecs) {
+    var idPrefix = ownerKey + '-check-rep';
+    var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['CHECK']);
+    var ownedCodes = [];
+    codeSpecs.forEach(function (c) { ownedCodes.push(c.code); if (c.immedCode) ownedCodes.push(c.immedCode); });
+
+    wireRepeatableConditionedInstances(idPrefix, instances, function (nextInstances) {
+      onChange(DspfWriter.setRepeatableKeywordInstances(keywords, ['CHECK'], nextInstances));
+    }, function (instIdPrefix, inst, updatePayload) {
+      var codeInputs = document.querySelectorAll('.' + instIdPrefix + '-code');
+      var immedInputs = document.querySelectorAll('.' + instIdPrefix + '-code-immed');
+      function commit() {
+        // Re-read THIS SAME instance's current full code list fresh, so any
+        // code belonging to the OTHER panel survives untouched - only ever
+        // replace the codes THIS panel owns (codeSpecs).
+        var currentInstances = DspfWriter.getRepeatableKeywordInstances(keywords, ['CHECK']);
+        var m = /-inst(\d+)$/.exec(instIdPrefix);
+        var idx = m ? parseInt(m[1], 10) : -1;
+        var currentCodes = currentInstances[idx] ? DspfWriter.parseCheckCodes(currentInstances[idx].parameters) : [];
+        var otherCodes = currentCodes.filter(function (c) { return ownedCodes.indexOf(c) < 0; });
+        var immedFor = {};
+        immedInputs.forEach(function (el) { if (el.checked) immedFor[el.getAttribute('data-for')] = el.getAttribute('data-immed-code'); });
+        var chosen = [];
+        codeInputs.forEach(function (el) {
+          if (!el.checked) return;
+          var code = el.getAttribute('data-code');
+          chosen.push(immedFor[code] || code);
+        });
+        updatePayload({ parameters: DspfWriter.formatCheckCodes(otherCodes.concat(chosen)) });
+      }
+      codeInputs.forEach(function (el) { el.addEventListener('change', commit); });
+      immedInputs.forEach(function (el) { el.addEventListener('change', commit); });
+    }, expandedSet, rerender, function makeDefaultCheckInstance() {
+      // Non-blank placeholder (this panel's own FIRST code, checked by
+      // default) rather than '' - same reasoning as every other L1-based
+      // picker's makeDefaultInstance: setRepeatableKeywordInstances writes
+      // every instance unconditionally, so a blank CHECK() the instant
+      // "+ Add" is clicked would be invalid DDS (CHECK requires at least
+      // one code). Unlike SFLMSG/SFLMSGID (Task L1c) there's no single
+      // "obvious" default shared between the two owning panels, so each
+      // seeds with its OWN first code - Keying options defaults to ME,
+      // Validity check defaults to AB.
+      return { name: 'CHECK', parameters: codeSpecs[0].code, conditions: [] };
+    });
+  }
+
   /** "Select Keying Options" - CHECK's ME/ER/MF/FE/RB/RZ/RL/LC codes, sharing
    *  the same underlying CHECK(...) keyword as the Validity check panel's
-   *  AB/VN/VNE/M10/M11 checkboxes (see DspfWriter.getCheckOptions) - each
-   *  panel only touches ITS OWN slice of the code list, merging with
-   *  whatever the other panel already set, the same way
-   *  validityAndEditHtml's Apply handler merges back in. */
-  function keyingOptionsHtml(keywords, ownerKey) {
-    var codes = DspfWriter.getCheckOptions(keywords);
+   *  AB/VN/VNE/M10/M11 checkboxes (see checkInstancesHtml/
+   *  wireCheckInstancesEditor above for how the two panels safely share
+   *  it) - each panel only touches ITS OWN slice of the code list per
+   *  instance, merging with whatever the other panel already set there. */
+  function keyingOptionsHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label">Keying options</div>';
-    html += '<div class="attr-checks">';
-    KEYING_OPTION_CODES.forEach(function (c) {
-      var checked = codes.indexOf(c.code) >= 0;
-      html += '<label class="attr-check" title="' + escapeHtml(c.label) + '"><input type="checkbox" class="' + ownerKey + '-keying-code" value="' + c.code + '" ' + (checked ? 'checked' : '') + '/>' + c.code + '</label>';
-    });
-    html += '</div>';
+    html += checkInstancesHtml(keywords, ownerKey + '-keying', expandedSet, KEYING_OPTION_CODES, '+ Add CHECK instance');
     // Task D3 - Keyboard shift attribute (KEYBRD), numeric-only real DDS
     // keyword shown on the same "Select Keying Options" screen. Values are
     // exactly the single letters real SDA's screen shows (S/N/Y/I/D) -
@@ -907,6 +979,11 @@
     // DspfWriter.getFileFlagKeyword/setFileFlagKeyword (generic over any
     // keywords array), same as several of Task R1's record-level keywords -
     // no dedicated getX/setX pair needed for a single-letter parameter.
+    // Deliberately NOT converted to a repeatable instance alongside CHECK
+    // above (Task L1d) - real DDS could in principle vary KEYBRD by
+    // indicator too, but it's a single always-on-screen attribute rather
+    // than several message/condition pairs, so this is a scoping choice,
+    // not an oversight; see Known limitations in the README.
     var keybrd = DspfWriter.getFileFlagKeyword(keywords, 'KEYBRD');
     html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute (KEYBRD)</div>';
     html += '<select class="' + ownerKey + '-keybrd">' +
@@ -917,18 +994,8 @@
     return html;
   }
 
-  function wireKeyingOptionsEditor(keywords, onChange, ownerKey) {
-    function commit() {
-      var keyingCodeValues = KEYING_OPTION_CODES.map(function (c) { return c.code; });
-      var existingOther = DspfWriter.getCheckOptions(keywords).filter(function (c) { return keyingCodeValues.indexOf(c) < 0; });
-      var chosen = Array.prototype.slice
-        .call(document.querySelectorAll('.' + ownerKey + '-keying-code:checked'))
-        .map(function (el) { return el.value; });
-      onChange(DspfWriter.setCheckOptions(keywords, existingOther.concat(chosen)));
-    }
-    document.querySelectorAll('.' + ownerKey + '-keying-code').forEach(function (el) {
-      el.addEventListener('change', commit);
-    });
+  function wireKeyingOptionsEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+    wireCheckInstancesEditor(keywords, onChange, ownerKey + '-keying', expandedSet, rerender, KEYING_OPTION_CODES);
     var keybrdEl = document.querySelector('.' + ownerKey + '-keybrd');
     if (keybrdEl) {
       keybrdEl.addEventListener('change', function () {

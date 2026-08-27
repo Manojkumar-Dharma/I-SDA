@@ -955,24 +955,33 @@ console.log('\nDspfWriter.getErrorMessageInstances()/setErrorMessageInstances() 
 }
 
 
-console.log('\nDspfWriter.getCheckOptions()/setCheckOptions() - CHECK(...) shared by SDA\u2019s Keying options + Validity check screens');
+console.log('\nDspfWriter.parseCheckCodes()/formatCheckCodes() - CHECK(...) codes shared by SDA\u2019s Keying options + Validity check screens (Task L1d)');
 {
-  const none = DspfWriter.getCheckOptions([]);
-  check('no CHECK -> empty array', Array.isArray(none) && none.length === 0);
+  check('no parameters -> empty array', DspfWriter.parseCheckCodes('').length === 0);
+  check('blank parameters -> empty array', DspfWriter.parseCheckCodes('   ').length === 0);
+  check('reads multiple codes out of one CHECK, uppercased', DspfWriter.parseCheckCodes('me ab').join(',') === 'ME,AB');
+  check('formatCheckCodes joins codes with a space, in order', DspfWriter.formatCheckCodes(['FE', 'VN']) === 'FE VN');
+  check('formatCheckCodes drops falsy entries', DspfWriter.formatCheckCodes(['FE', '', null, 'VN']) === 'FE VN');
+  check('formatCheckCodes of an empty list is empty', DspfWriter.formatCheckCodes([]) === '');
 
-  const withCheck = [{ name: 'CHECK', parameters: 'ME AB', conditions: [], raw: '', sourceLines: [] }];
-  check('reads multiple codes out of one CHECK', DspfWriter.getCheckOptions(withCheck).join(',') === 'ME,AB');
-
-  const set = DspfWriter.setCheckOptions(
+  console.log('  CHECK is now multi-instance via Task L1\\u2019s getRepeatableKeywordInstances/setRepeatableKeywordInstances (not a dedicated getX/setX pair)');
+  var withTwoChecks = DspfWriter.setRepeatableKeywordInstances(
     [{ name: 'TEXT', parameters: "'unrelated'", conditions: [], raw: '', sourceLines: [] }],
-    ['FE', 'VN']
+    ['CHECK'],
+    [
+      { name: 'CHECK', parameters: 'ME', conditions: [] },
+      { name: 'CHECK', parameters: 'AB', conditions: [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '30', not: false }] }] },
+    ]
   );
-  check('unrelated keywords are preserved', set.some((k) => k.name === 'TEXT'));
-  check('CHECK is added joining every chosen code into one keyword', set.find((k) => k.name === 'CHECK').parameters === 'FE VN');
-  check('coexists alongside a validity-check keyword (RANGE/COMP/VALUES are separate)', DspfWriter.setValidityCheck(set, 'RANGE', '1 99').some((k) => k.name === 'CHECK'));
+  check('unrelated keywords are preserved', withTwoChecks.some((k) => k.name === 'TEXT'));
+  var checkInstances = DspfWriter.getRepeatableKeywordInstances(withTwoChecks, ['CHECK']);
+  check('BOTH CHECK instances coexist as separate keywords', checkInstances.length === 2);
+  check('first instance keeps its own code and no conditioning', checkInstances[0].parameters === 'ME' && checkInstances[0].conditions.length === 0);
+  check('second instance keeps its own code AND its own conditioning, independent of the first', checkInstances[1].parameters === 'AB' && checkInstances[1].conditions.length === 1 && checkInstances[1].conditions[0].indicators[0].number === '30');
+  check('coexists alongside a validity-check keyword (RANGE/COMP/VALUES are a separate keyword entirely)', DspfWriter.setValidityCheck(withTwoChecks, 'RANGE', '1 99').some((k) => k.name === 'CHECK'));
 
-  const cleared = DspfWriter.setCheckOptions(set, []);
-  check('empty codes removes CHECK entirely', !cleared.some((k) => k.name === 'CHECK'));
+  var cleared = DspfWriter.setRepeatableKeywordInstances(withTwoChecks, ['CHECK'], []);
+  check('an empty instance list removes every CHECK', !cleared.some((k) => k.name === 'CHECK'));
   check('unrelated keywords still survive clearing', cleared.some((k) => k.name === 'TEXT'));
 }
 

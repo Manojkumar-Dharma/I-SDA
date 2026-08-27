@@ -3,6 +3,49 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.65] - Unreleased
+
+### Added
+- **Task L1d - wire the L1 repeatable-instance component into the
+  Keying options picker (`CHECK`'s ME/ER/MF/FE/RB/RZ/RL/LC codes)**
+  (see `docs/sda-reference/LIMITATIONS-PLAN.md`). `CHECK` is shared
+  between TWO UI panels - Keying options (ME/ER/MF/FE/RB/RZ/RL/LC) and
+  Validity check (AB/VN/VNE/M10/M11, plus M10F/M11F immediate
+  variants) - both reading/writing the same keyword. Converting only
+  one panel to multi-instance would have been a real data-loss bug:
+  the untouched panel's old single-merged-instance setter would
+  collapse every conditioned instance back into one on its very next
+  edit. Both panels were converted together.
+  - `webviewClientHelpers.js`: new shared
+    `checkInstancesHtml`/`wireCheckInstancesEditor`, parameterized by
+    which code subset each panel owns (`KEYING_OPTION_CODES` /
+    `VALIDITY_CHECK_CODES`). Each panel only ever reads/writes its OWN
+    codes within an instance, always re-reading (never caching) the
+    other panel's codes at commit time from a fresh
+    `getRepeatableKeywordInstances()` snapshot - verified end-to-end:
+    checking ME via Keying options then AB via Validity check on that
+    SAME instance correctly merges to `CHECK(ME AB)` on one keyword;
+    adding a second instance from either panel correctly leaves the
+    first alone.
+  - `dspfWriter.js`: replaced the old single-primary-instance
+    `getCheckOptions`/`setCheckOptions` with `parseCheckCodes`/
+    `formatCheckCodes`, used directly with Task L1's own
+    `getRepeatableKeywordInstances`/`setRepeatableKeywordInstances` -
+    CHECK's payload is just its raw code list already, no dedicated
+    instance-shape wrapper needed (unlike ERRMSG/ERRMSGID's Task L1b).
+  - Each panel seeds its own non-blank placeholder on "+ Add" (Keying
+    options: `ME`; Validity check: `AB`) - same blank-instance trap
+    every other L1-based picker's `makeDefaultInstance` already
+    guards against.
+  - `KEYBRD` (the other Keying-options keyword) deliberately left
+    single-instance - a scoping choice, not an oversight; see Known
+    limitations in the README.
+  - `src/test/dspfWriter.test.js` and `src/test/dspfWebview.test.js`
+    both rewritten for the new multi-instance model, including the
+    ME+AB same-instance merge scenario and a second-instance
+    independence scenario.
+  - `LIMITATIONS-PLAN.md` and README updated.
+
 ## [0.9.64] - Unreleased
 
 ### Added
