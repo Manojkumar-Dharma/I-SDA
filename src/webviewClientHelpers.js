@@ -2920,13 +2920,18 @@
     wp += '<div class="' + idPrefix + '-mode-reference" style="margin-top:6px;' + (mode === 'reference' ? '' : 'display:none;') + '"><input type="text" id="' + idPrefix + '-reference" placeholder="Referenced window record name" value="' + escapeHtml(geom.referenceName || '') + '" style="width:100%;" /></div>';
     wp += '<div class="' + idPrefix + '-mode-position" style="margin-top:6px;' + (mode === 'positioned' ? '' : 'display:none;') + '"><div class="two-col"><input type="text" id="' + idPrefix + '-startline" placeholder="Start line (1-25, or a field name)" value="' + escapeHtml(geom.startLine || '') + '" /><input type="text" id="' + idPrefix + '-startcol" placeholder="Start position (1-128, or a field name)" value="' + escapeHtml(geom.startColumn || '') + '" /></div></div>';
     wp += '<div class="' + idPrefix + '-mode-size" style="margin-top:6px;' + (mode === 'reference' ? 'display:none;' : '') + '"><div class="two-col"><input type="text" id="' + idPrefix + '-lines" placeholder="Window lines (1-25)" value="' + escapeHtml(geom.lines || '') + '" /><input type="text" id="' + idPrefix + '-cols" placeholder="Window position/width (1-128)" value="' + escapeHtml(geom.columns || '') + '" /></div></div>';
+    // Task L6 - "Message line" row (WINDOW's own optional trailing
+    // *MSGLIN/*NOMSGLIN token - see DspfWriter.getWindowParamsKeyword's
+    // doc comment). Not offered on the bare "Referenced window" form,
+    // same reasoning the size/position fields above already hide for it.
+    wp += '<div class="' + idPrefix + '-msgline-wrap" style="margin-top:6px;' + (mode === 'reference' ? 'display:none;' : '') + '"><label style="display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-msgline" ' + (geom.msgLine === false ? '' : 'checked') + ' /> Message line (reserve the window\u2019s own last line for messages)</label></div>';
     if (geom.mode === 'other') {
       wp += '<div class="hint-small">This record\u2019s WINDOW keyword has a parameter shape the picker doesn\u2019t recognize (' + escapeHtml(geom.raw) + ') - edit it via the raw Keywords editor below instead of this panel.</div>';
     }
     wp += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:10px;">Apply window parameters</button>';
     var rstcsr = DspfWriter.getFileFlagKeyword(keywords, 'RSTCSR');
     wp += flagRowHtml(idPrefix + '-rstcsr', 'Restrict cursor to window (RSTCSR)', rstcsr.present, undefined, undefined, rstcsr.conditions, expandedSet);
-    wp += '<div class="hint-small">Real SDA\u2019s Window Parameters screen also shows a "Message line" row and per-row "Display size"/"Roll" columns - "Roll" is SDA\u2019s own in-terminal editing convenience (not a DDS keyword), "Display size" conditions a value by *DS3/*DS4 (multiple conditioned keyword instances, the same cross-cutting limitation R1/F1/D1 already defer), and "Message line" wasn\u2019t confidently matched to a real DDS keyword - all three are left for the raw Keywords editor.</div>';
+    wp += '<div class="hint-small">Real SDA\u2019s Window Parameters screen also shows per-row "Display size"/"Roll" columns - "Roll" is SDA\u2019s own in-terminal editing convenience (not a DDS keyword), and "Display size" conditions a value by *DS3/*DS4 (multiple conditioned keyword instances, the same cross-cutting limitation R1/F1/D1 already defer) - both still left for the raw Keywords editor. "Message line" is now modeled above (Task L6).</div>';
     panels.windowParameters = wp;
 
     // --- Border Parameters (shared with F1's file-level Window Border) ---
@@ -2944,15 +2949,18 @@
         var refDiv = document.querySelector('.' + idPrefix + '-mode-reference');
         var posDiv = document.querySelector('.' + idPrefix + '-mode-position');
         var sizeDiv = document.querySelector('.' + idPrefix + '-mode-size');
+        var msglineDiv = document.querySelector('.' + idPrefix + '-msgline-wrap');
         if (refDiv) refDiv.style.display = radio.value === 'reference' ? '' : 'none';
         if (posDiv) posDiv.style.display = radio.value === 'positioned' ? '' : 'none';
         if (sizeDiv) sizeDiv.style.display = radio.value === 'reference' ? 'none' : '';
+        if (msglineDiv) msglineDiv.style.display = radio.value === 'reference' ? 'none' : '';
       });
     });
     var wpApply = document.getElementById(idPrefix + '-apply');
     if (wpApply) {
       wpApply.addEventListener('click', function () {
         var modeEl = document.querySelector('.' + idPrefix + '-mode:checked');
+        var msglineEl = document.getElementById(idPrefix + '-msgline');
         var state = {
           mode: modeEl ? modeEl.value : 'positioned',
           referenceName: document.getElementById(idPrefix + '-reference').value,
@@ -2960,6 +2968,7 @@
           startColumn: document.getElementById(idPrefix + '-startcol').value,
           lines: document.getElementById(idPrefix + '-lines').value,
           columns: document.getElementById(idPrefix + '-cols').value,
+          msgLine: msglineEl ? msglineEl.checked : true,
         };
         onChange(DspfWriter.setWindowParamsKeyword(getKeywords(), state));
       });

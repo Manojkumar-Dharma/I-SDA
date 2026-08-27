@@ -2776,9 +2776,23 @@
   // everywhere else in this codebase) and the "Roll +/-" column (this is
   // SDA's own in-terminal editing convenience - rolling through candidate
   // values with the 5250 roll keys while designing - not a DDS keyword at
-  // all, so there's nothing to write). "Message line" wasn't confidently
-  // matched to a real DDS keyword, so it's also left for the raw Keywords
-  // editor rather than guessed at.
+  // all, so there's nothing to write).
+  //
+  // Task L6 - "Message line" IS now modeled: confirmed against IBM's own
+  // WINDOW keyword reference (WINDOW(... window-lines window-positions
+  // [*MSGLIN|*NOMSGLIN] [*RSTCSR|*NORSTCSR])) and cross-checked against
+  // this codebase's OWN dspfEngine.js#resolveWindow, which already reads
+  // this exact trailing *NOMSGLIN token to decide whether the window
+  // reserves its own last usable line for messages ("msgLine" in its
+  // return shape) when rendering the grid - i.e. the sacred grid-rendering
+  // side already understood this token; only the picker's reader/writer
+  // was missing it. *MSGLIN is the default when the token is omitted
+  // (real SDA's own screen default is Y=Yes), so a picker-driven "message
+  // line" of Yes never needs to WRITE a token at all - only *NOMSGLIN
+  // (No) does. Not offered on the bare "Referenced window" form - IBM's
+  // own doc notes that single-token form has no room for it and always
+  // inherits the referenced window's own setting instead (same point
+  // resolveWindow's own comment already made).
   // ---------------------------------------------------------------------
 
   /**
@@ -2796,27 +2810,42 @@
    *     { mode: 'reference', referenceName }: inherits geometry from
    *     another WINDOW record ("Referenced window").
    *   - THREE parameters starting with the literal `*DFT`, e.g.
-   *     `WINDOW(*DFT 10 40)` -> { mode: 'sized', lines, columns }: size
-   *     only, the system positions it at runtime ("Default start
+   *     `WINDOW(*DFT 10 40)` -> { mode: 'sized', lines, columns, msgLine }:
+   *     size only, the system positions it at runtime ("Default start
    *     positioning" Y=Yes).
    *   - FOUR parameters, e.g. `WINDOW(2 2 10 40)` -> { mode: 'positioned',
-   *     startLine, startColumn, lines, columns }: explicit top-left
-   *     position + size. Each of the 4 can be a literal number OR a field
-   *     name per DDS's own *VAR-style flexibility for WINDOW - kept as
-   *     plain strings rather than parsed as numbers so a field name
-   *     round-trips untouched.
+   *     startLine, startColumn, lines, columns, msgLine }: explicit
+   *     top-left position + size. Each of the 4 can be a literal number OR
+   *     a field name per DDS's own *VAR-style flexibility for WINDOW -
+   *     kept as plain strings rather than parsed as numbers so a field
+   *     name round-trips untouched.
    *   - anything else (an unrecognized shape) -> { mode: 'other', raw:
    *     the parameters text } so the picker can show a clear "use the raw
    *     Keywords editor for this" state instead of silently mis-rendering
    *     it.
+   *
+   * `msgLine` (Task L6) - only present for 'sized'/'positioned' - is read
+   * from an optional trailing `*MSGLIN`/`*NOMSGLIN` token, stripped out of
+   * `tokens` BEFORE the shape checks above run so its presence doesn't
+   * throw an otherwise-recognized 3/4-token WINDOW into the 'other'
+   * catch-all (that token can trail either form, per IBM's own WINDOW
+   * syntax). Defaults to `true` (*MSGLIN, i.e. "has a message line") when
+   * the token is absent, matching IBM's own documented default.
    */
   function getWindowParamsKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'WINDOW'; });
     if (!k) return { mode: 'none' };
-    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var rawTokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var msgLine = true;
+    var tokens = rawTokens.filter(function (t) {
+      var u = t.toUpperCase();
+      if (u === '*NOMSGLIN') { msgLine = false; return false; }
+      if (u === '*MSGLIN') { msgLine = true; return false; }
+      return true;
+    });
     if (tokens.length === 1 && tokens[0].toUpperCase() !== '*DFT') return { mode: 'reference', referenceName: tokens[0] };
-    if (tokens.length === 3 && tokens[0].toUpperCase() === '*DFT') return { mode: 'sized', lines: tokens[1], columns: tokens[2] };
-    if (tokens.length === 4) return { mode: 'positioned', startLine: tokens[0], startColumn: tokens[1], lines: tokens[2], columns: tokens[3] };
+    if (tokens.length === 3 && tokens[0].toUpperCase() === '*DFT') return { mode: 'sized', lines: tokens[1], columns: tokens[2], msgLine: msgLine };
+    if (tokens.length === 4) return { mode: 'positioned', startLine: tokens[0], startColumn: tokens[1], lines: tokens[2], columns: tokens[3], msgLine: msgLine };
     return { mode: 'other', raw: k.parameters || '' };
   }
 
@@ -2831,23 +2860,32 @@
    * the throw-on-bad-input drag/resize setWindowGeometry above, which is
    * reacting to a mouse gesture on an EXISTING geometry rather than a
    * form a person is still filling in).
+   *
+   * Task L6 - `state.msgLine === false` appends a trailing `*NOMSGLIN`
+   * token to the 'sized'/'positioned' forms (ignored for 'reference',
+   * which has no room for it - see getWindowParamsKeyword's own doc
+   * comment). Anything other than exactly `false` (including `undefined`,
+   * so every pre-L6 caller that never set this field keeps working
+   * unchanged) omits the token entirely, since *MSGLIN is the default
+   * IBM applies when it's absent - no need to ever write it explicitly.
    */
   function setWindowParamsKeyword(keywords, state) {
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'WINDOW'; });
     var params = null;
+    var msgLinSuffix = state.msgLine === false ? ' *NOMSGLIN' : '';
     if (state.mode === 'reference') {
       var ref = (state.referenceName || '').trim();
       if (ref) params = ref;
     } else if (state.mode === 'sized') {
       var lines1 = (state.lines || '').toString().trim();
       var cols1 = (state.columns || '').toString().trim();
-      if (lines1 && cols1) params = '*DFT ' + lines1 + ' ' + cols1;
+      if (lines1 && cols1) params = '*DFT ' + lines1 + ' ' + cols1 + msgLinSuffix;
     } else if (state.mode === 'positioned') {
       var sl = (state.startLine || '').toString().trim();
       var sc = (state.startColumn || '').toString().trim();
       var lines2 = (state.lines || '').toString().trim();
       var cols2 = (state.columns || '').toString().trim();
-      if (sl && sc && lines2 && cols2) params = sl + ' ' + sc + ' ' + lines2 + ' ' + cols2;
+      if (sl && sc && lines2 && cols2) params = sl + ' ' + sc + ' ' + lines2 + ' ' + cols2 + msgLinSuffix;
     }
     if (params) {
       next = next.concat([{ name: 'WINDOW', parameters: params, conditions: [], raw: '', sourceLines: [] }]);

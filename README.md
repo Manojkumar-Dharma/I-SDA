@@ -213,10 +213,24 @@ Untagged items aren't yet broken into a tracked task.
   SFL/SFLMSG, Window/RSTCSR, Menu-Bar, and (as of Tasks L5a/L5b/L5c
   above) field-level panels now threads its own Conditioning toggle
   through.
-- **[Task L6]** Verify the real DDS keyword (if any) behind the real SDA
-  `WINDOW` screen's "Message line" row and add it to the `WINDOW`-specific
-  picker if confirmed - currently left out as unconfirmed, reachable
-  only via the raw Keywords editor in the meantime.
+- **[Task L6]** Done - Verified via IBM's DDS Reference (`WINDOW`'s own
+  optional trailing `*MSGLIN`/`*NOMSGLIN` parameter, defaulting to
+  `*MSGLIN`) and cross-checked against `dspfEngine.js`'s own
+  `resolveWindow`, which already reads that exact token for rendering -
+  only the `WINDOW`-specific picker's reader/writer was missing it. The
+  "Message line" row is now a checkbox on the Window Parameters panel,
+  hidden for the "Referenced window" form (which has no room for the
+  token and always inherits it from the referenced window instead).
+- **[Task L7]** **`WINDOW`-specific picker's "Restrict cursor to window"
+  checkbox models `RSTCSR` as a bogus standalone keyword line, not
+  `WINDOW`'s own trailing `*RSTCSR`/`*NORSTCSR` sub-parameter** - real
+  DDS has no standalone record-level `RSTCSR` keyword (confirmed
+  alongside Task L6's own research into the same "Define Window
+  Parameters" screen and its `[*MSGLIN|*NOMSGLIN] [*RSTCSR|*NORSTCSR]`
+  syntax). This predates Task L6 (from Task R7) and has its own passing
+  test coverage built on the current (incorrect) model, so fixing it
+  needs its own careful pass rather than being folded into L6's smaller,
+  already-scoped fix.
 
 ### Menu designer
 

@@ -3,6 +3,55 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.74] - 2026-08-28
+
+### Added
+- **Task L6 - `WINDOW` picker's "Message line" row, verified and
+  implemented** (see `docs/sda-reference/LIMITATIONS-PLAN.md`).
+  Confirmed against IBM's own DDS Reference that real SDA's "Message
+  line" row is `WINDOW`'s own optional trailing `*MSGLIN`/`*NOMSGLIN`
+  parameter (`WINDOW(... window-lines window-positions
+  [*MSGLIN|*NOMSGLIN] [*RSTCSR|*NORSTCSR])`, defaulting to `*MSGLIN`)
+  - NOT the `WDWMSGLIN`/`WDWMSGREC` names this task's own description
+  had guessed as likely candidates. Cross-checked against this
+  codebase's own `dspfEngine.js#resolveWindow`, which already reads
+  this exact token to decide whether a rendered window reserves its
+  own last usable line for messages - the grid-rendering side (left
+  untouched, per this codebase's sacred-grid constraint) already
+  understood it correctly; only the `WINDOW`-specific picker's
+  reader/writer had never modeled it.
+  `DspfWriter.getWindowParamsKeyword`/`setWindowParamsKeyword` now
+  read/write `msgLine` (defaults to `true` since `*MSGLIN` is IBM's
+  own documented default - a "Yes" message line never needs to WRITE
+  a token, only "No" appends `*NOMSGLIN`) alongside the existing
+  reference/sized/positioned geometry fields. New "Message line"
+  checkbox on the Window Parameters panel
+  (`WebviewClientHelpers.windowPanelsHtml`/`wireWindowPanels`), hidden
+  for the "Referenced window" form (which has no room for the token
+  and always inherits it from the referenced window instead),
+  committed via the same "Apply window parameters" button as the
+  geometry fields.
+  Along the way, fixed a real pre-existing gap the same token-parsing
+  work surfaced: a `WINDOW` keyword already carrying a trailing
+  `*MSGLIN`/`*NOMSGLIN` token used to be misclassified into the
+  picker's `'other'` (unrecognized-shape) catch-all, since the old
+  code required an exact 3-or-4-token count with nothing else
+  present - the trailing option token is now stripped out before mode
+  detection runs, for both the sized and positioned forms.
+  See the new Task L6 scenarios in `runWindowPickerScenario`,
+  `src/test/dspfWebview.test.js`.
+
+### Discovered (not fixed - tracked as Task L7)
+- The `WINDOW`-specific picker's existing "Restrict cursor to window"
+  checkbox models `RSTCSR` as a bogus standalone keyword line rather
+  than this same `WINDOW` keyword's own trailing
+  `*RSTCSR`/`*NORSTCSR` sub-parameter - real DDS has no standalone
+  record-level `RSTCSR` keyword. Predates this release (from Task
+  R7) and has its own existing passing test coverage built on the
+  current model, so it needs its own careful conversion pass rather
+  than being folded into this release's smaller, already-scoped L6
+  fix. See `docs/sda-reference/LIMITATIONS-PLAN.md`'s new Task L7 row.
+
 ## [0.9.73] - 2026-08-27
 
 ### Added
