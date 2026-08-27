@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.65] - Unreleased
+## [0.9.69] - Unreleased
 
 ### Added
 - **Task L1d - wire the L1 repeatable-instance component into the
@@ -44,7 +44,188 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     both rewritten for the new multi-instance model, including the
     ME+AB same-instance merge scenario and a second-instance
     independence scenario.
-  - `LIMITATIONS-PLAN.md` and README updated.
+  - `LIMITATIONS-PLAN.md` and README updated. Also updated Task L5's
+    own row/parallelization note (added independently around the same
+    time as this task) to reflect that Keying options' piece - and,
+    since `CHECK` is shared, Validity check's own `CHECK` codes too -
+    is now done, narrowing L5's remaining scope to Validity check's
+    OWN validity keyword (`RANGE`/`COMP`/`VALUES`) plus the other
+    still-open pickers.
+
+## [0.9.68] - 2026-08-27
+
+### Fixed
+- **`SNGCHCFLD`/`MLTCHCFLD` (radio/checkbox choice groups) rendered with
+  clipped or wrapped choice text.** `resolveRecordFields` sized a
+  radio/checkbox widget's grid cell using a single `text.length + 4`
+  formula for both glyph styles, but `widgetInnerHtml`'s actual markup
+  differs by type: checkbox's `[ ]` glyph plus its trailing space is 4
+  characters (matched the formula), while radio's `( ● )` / `(   )`
+  glyph plus its trailing space is 6 - two characters more. Every radio
+  choice row was therefore sized 2 columns too narrow, so with
+  `white-space: normal` in effect on `.dspf-field.dspf-widget-radio` the
+  choice text wrapped or visually overran its neighbors instead of
+  rendering as a clean vertical list, most noticeably on `PULLDOWN`
+  records' `SNGCHCFLD` menu-style fields (the reported "choice
+  pulldown/menu" case). Also fixed a related gap: a field carrying
+  `SNGCHCFLD`/`MLTCHCFLD` with no `CHOICE` entries yet still renders
+  `widgetInnerHtml`'s `"(no CHOICE entries)"` placeholder row, but the
+  cell was left at the field's raw (often 1-2 char) declared length,
+  so the placeholder overflowed badly. `resolveRecordFields` now uses
+  the correct per-type glyph-prefix width (radio: 6, checkbox: 4) and
+  accounts for the placeholder text's own width when there are no
+  choices yet, so the rendered cell is always exactly as wide as its
+  actual content. New regression coverage in
+  `src/test/dspfEngine.test.js` for both the widest-choice sizing and
+  the empty-choices placeholder case.
+
+## [0.9.67] - 2026-08-27
+
+### Added
+- **`WDWBORDER`'s `*CHAR` group now renders visually.** The 8 literal
+  border-position characters (top-left/top/top-right/left/right/
+  bottom-left/bottom/bottom-right, real 5250 terminals draw these
+  directly) were already parsed and written correctly
+  (`DspfWriter.getWdwBorder`/`setWdwBorder`) but had no visual
+  representation in the preview - a documented limitation, since the
+  window preview is otherwise a plain CSS box border and a box border
+  can't show 8 independent glyphs. `DspfEngine.resolveWdwBorder` now
+  also resolves the `*CHAR` array (previously skipped entirely), and a
+  new `renderWindowBorderCharsHtml` renders one grid-positioned
+  character cell per border position - corners plus each edge
+  repeated along its length - as siblings of the field divs in the
+  same CSS grid, the same technique already used for fields, so the
+  glyphs land in the exact cells a real terminal would draw them in.
+  When any `*CHAR` position is set the window's own plain box border
+  is suppressed (`dspf-window-border-charmode`) so the two
+  representations don't visually double up; a blank `*CHAR` position
+  (empty string or a literal space) renders nothing there, matching
+  IBM's own "blank means no character displayed" behavior. `*COLOR`,
+  when combined with `*CHAR`, now tints the rendered characters
+  themselves (since they're grid siblings of the window div, not
+  descendants that could inherit a border-color style from it) rather
+  than a box edge. The record-vs-file precedence `resolveWdwBorder`
+  already gave `*COLOR`/`*DSPATR` now also covers `*CHAR`. See
+  `src/test/dspfEngine.test.js` (new WDWBORDER *CHAR scenarios) and
+  the updated README Known limitations bullet.
+
+## [0.9.66] - 2026-08-27
+
+### Fixed
+- **Constants/fields defaulted to a hardcoded gray instead of green.**
+  Real IBM i SDA shows any unstyled constant or named field in green by
+  default (classic green-screen behavior) - a `COLOR` keyword is what
+  overrides that, not the absence of one. `.dspf-constant` was
+  hardcoding every constant to a light gray (`#b7c9bf`) regardless of
+  whether it carried a `COLOR` keyword, which is why constants looked
+  washed-out/white next to normally-colored fields. Removed that
+  override so constants inherit `.dspf-field`'s own default color the
+  same way named fields already did; an explicit `COLOR` keyword still
+  applies as an inline style and overrides this regardless of UI style.
+  While in there: New UI (modern style) now themes the screen's own
+  default text color to match the chosen chrome accent (amber/cyan/
+  violet) instead of staying pinned to green regardless of theme -
+  Classic UI is unaffected and still always shows the fixed
+  green-screen default.
+- **`WDWBORDER` (Window Border) parameters were parsed and written
+  correctly by the picker, but never actually showed up on the window
+  preview** - the rendered `.dspf-window-border` div always used the
+  same hardcoded border color/style no matter what `*COLOR`/`*DSPATR`
+  said. `dspfEngine.js` now resolves a window's border (record-level
+  `WDWBORDER` overriding a file-level default, same precedence as any
+  other record-vs-file DDS keyword) and applies `*COLOR` as the actual
+  border color and `*DSPATR HI`/`BL` as a bolder/blinking border on the
+  preview. `*CHAR` (literal per-position border characters) has no
+  meaningful equivalent in this box-model CSS-border renderer and stays
+  a documented limitation (see README) - it still round-trips correctly
+  through the source and the picker, just isn't visually drawn.
+
+## [0.9.65] - Unreleased
+
+### Fixed
+- **"+ OR condition" no longer silently defaults a new condition to
+  indicator `01`.** The indicator conditioning editor
+  (`conditionsEditorHtml`/`wireConditionsEditor` in
+  `webviewClientHelpers.js`, used for field/record/keyword/menu-option
+  conditioning everywhere) used to seed a brand-new OR group with
+  indicator `01` the instant "+ OR condition" was clicked, because
+  `normalizeConditionGroups` drops any group with zero indicators and
+  every change here commits straight to the DDS source (no local
+  "draft" state) - an empty group had nowhere to survive between
+  renders. That meant clicking "+ OR condition" conditioned the
+  entity on indicator 01 whether the user wanted that indicator or
+  not, with no confirmation step.
+  - Clicking "+ OR condition" now adds a *pending* group tracked as
+    pure UI state (reusing the same `expandedKeywordConditioning`/
+    `expandedOptionConditioning` Sets already used for Conditioning
+    toggle expand/collapse, under a distinct `idPrefix:pending-or`
+    key) - the empty IF/OR-IF row renders with just its own indicator
+    input and a Cancel button. Nothing is written to the document
+    until the user actually types an indicator and clicks
+    "+ indicator"; Cancel discards it with no document edit at all.
+  - `conditionsEditorHtml(conditions, idPrefix, pendingGroupSet)` and
+    `wireConditionsEditor(idPrefix, conditions, onChange,
+    pendingGroupSet, rerender)` take two new optional trailing
+    params; omitting them falls back to the old immediate-01 behavior
+    for safety, but every call site (generic keyword editor, the L1
+    repeatable-conditioned-instance component, the field/record
+    entity-level Conditioning panels, and the menu designer's
+    per-option Conditioning panel) now passes its existing
+    expand-tracking Set through.
+  - Updated the 4 existing tests that hardcoded the old immediate-01
+    assertion (`dspfWebview.test.js`: record conditioning, field
+    conditioning, per-keyword conditioning, Color & attributes
+    conditioning; `menuWebview.test.js`: per-option conditioning) to
+    exercise the new pending-group flow instead.
+
+- **Indicator conditioning on flag-row keywords (`SFLDSP`,
+  `SFLDSPCTL`, `SFLCLR`, and every other boolean keyword rendered via
+  the generic `flagRowHtml`/`wireFlagRow` primitive - 100+ call
+  sites) was invisible in the UI, AND silently destroyed the moment
+  anything else on the same panel was edited.** Root cause was in
+  the shared primitive, not any one keyword:
+  - `DspfWriter.getFileFlagKeyword` only ever returned `{ present,
+    parameters }` - it dropped a matched keyword's `conditions`
+    entirely, so an existing indicator on e.g. `SFLDSP` never showed.
+  - `DspfWriter.setFileFlagKeyword` unconditionally rebuilt the
+    keyword with `conditions: []` on every call - so toggling *any*
+    flag row on a panel (even a completely unrelated one) silently
+    stripped indicator conditioning off every other flag-row keyword
+    on that same panel the next time the panel committed.
+  - Fixed at the root: `getFileFlagKeyword` now also returns
+    `conditions`. `setFileFlagKeyword` gained an optional trailing
+    `conditions` param - when omitted (as ~100 existing call sites
+    still do, unchanged), it now *preserves* whatever conditioning
+    already existed on that keyword instead of dropping it; passing
+    an explicit array (including `[]`) still lets a caller
+    deliberately change it. This fixes the data-loss half of the bug
+    for every flag-row keyword everywhere, with zero call-site
+    changes required.
+  - `flagRowHtml`/`wireFlagRow` gained optional trailing
+    `conditions`/`expandedSet`(/`rerender`) params that opt a given
+    row into a "Conditioning" toggle + editor, identical in shape to
+    the generic keyword editor's own per-keyword toggle (reusing
+    `conditionsEditorHtml`/`wireConditionsEditor`, including this
+    release's own pending-group fix above). Existing call sites that
+    don't pass these keep rendering the plain checkbox-only row,
+    unchanged.
+  - Wired this into every flag row in the SFLCTL picker's General
+    panel (`sflCtlPanelsHtml`/`wireSflCtlPanels` - `SFLCTL`,
+    `SFLCSRRRN`, `SFLMODE`, `SFLDSP`, `SFLDSPCTL`, `SFLINZ`,
+    `SFLDLT`, `SFLCLR`, `SFLRNA`, `SFLEND`, `SFLDROP`, `SFLFOLD`,
+    `SFLENTER`, `SFLNXTCHG`, `LOGOUT`, `LOGINP`, `KEEP`,
+    `CHECK(AB)`/`CHECK(RL)`), since that's the panel the reported bug
+    was on and every one of those keywords can legally carry
+    conditioning in real DDS. Other `flagRowHtml`/`wireFlagRow` call
+    sites elsewhere in the codebase are unaffected for now (still
+    safe from the data-loss half above, just not yet showing their
+    own Conditioning toggle) and are candidates for the same
+    treatment later.
+  - New coverage in `dspfWebview.test.js`'s SFLCTL picker scenario:
+    conditioning `SFLDSP` on indicator 30 via the pending-group flow,
+    confirming the indicator is genuinely displayed on re-render (not
+    just accepted), then toggling an unrelated flag (`SFLINZ`) on the
+    same panel and confirming `SFLDSP`'s conditioning survives.
 
 ## [0.9.64] - Unreleased
 
@@ -101,7 +282,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.9.62] - Unreleased
 
-### Added
+
 - **Task L1b - Error message picker (`ERRMSG`/`ERRMSGID`) wired onto
   Task L1's repeatable-conditioned-instance component** (see
   `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's own "Define

@@ -37,6 +37,7 @@ model at all today, or a data-integrity risk.
 | **L1d** | Wire L1's component into the **Keying options** picker (`CHECK`'s ME/ER/MF/FE/RB/RZ/RL/LC codes). | L1 | **done** — `CHECK` is shared between TWO UI panels (Keying options: ME/ER/MF/FE/RB/RZ/RL/LC; Validity check: AB/VN/VNE/M10/M11 + M10F/M11F immediate variants), both reading/writing the SAME keyword - converting only one to multi-instance would have been a real data-loss bug (the untouched panel's old single-merged-instance setter would collapse every instance back into one on its very next edit), so BOTH panels were converted together via one new shared pair, `checkInstancesHtml`/`wireCheckInstancesEditor` in `webviewClientHelpers.js`, parameterized by which code subset each panel owns. Each panel only ever reads/writes its OWN codes within an instance, always re-reading (never caching) the other panel's codes at commit time - verified end-to-end in `src/test/dspfWebview.test.js` (checking ME via Keying options, then AB via Validity check on that SAME instance, correctly merges to `CHECK(ME AB)` on one keyword; adding a second instance from either panel correctly leaves the first alone). Replaced `dspfWriter.js`'s old single-primary-instance `getCheckOptions`/`setCheckOptions` with `parseCheckCodes`/`formatCheckCodes`, used directly with Task L1's own `getRepeatableKeywordInstances`/`setRepeatableKeywordInstances` (CHECK's payload is just its raw code list already - no dedicated instance-shape wrapper needed, unlike ERRMSG/ERRMSGID's Task L1b). Each panel seeds its own non-blank placeholder on "+ Add" (Keying options: `ME`; Validity check: `AB`) - same trap every other L1-based picker's `makeDefaultInstance` already guards against. `KEYBRD` (the other Keying-options keyword) was deliberately left single-instance - see Known limitations in the README. |
 | **L2** | **Delete-field reference cleanup.** Done — deleting a field with likely references elsewhere (the same advisory `findLikelyNameReferences` scan rename falls back on) is now blocked on an actionable confirmation dialog FIRST (naming the reference count/lines and warning they'll be left dangling) rather than deleting immediately and only warning afterward via a passive toast. Confirming still leaves the references unrewritten — there's still no sensible auto-fix target, same as rename's own limitation — so this is the "actionable prompt" option from the two named in the original task description, not the "auto-remove/comment-out" one (blindly rewriting an arbitrary keyword's free-text parameters from a substring match risked corrupting valid DDS worse than leaving it for the person to review). A field with no detected references still deletes immediately, unchanged — no confirmation click added to the common case. New generic `showConfirmDialog` UI helper in `buildWebviewTemplate.js` (a DOM-built modal, not `window.confirm`, to match the app's theme and avoid blocking the whole webview process) — scoped to field deletion only per this task; record deletion (`commitDeleteRecord`) has the identical gap but is out of scope here. See `runDeleteWarningScenario` in `dspfWebview.test.js`. | — (standalone) | done |
 | **L3** | **`MNUBARCHC` Text field / Return field variants.** Done — `DspfEngine.parseMenubarChoice` now recognizes a `&text-field` reference as an alternative to the literal-text form, plus an optional trailing `&return-field` token (both verified against IBM's own MNUBARCHC keyword reference, Figures 213/214, and the real SDA screen `screens/field-level/menu-bar-choice/choice-keyword/image193.png`). `DspfWriter.getMenubarChoices`/`setMenubarChoices` carry `returnField` through symmetrically (writer already half-supported `&text-field` on write; this closes the read-side gap and adds the return field on both sides). The picker's MNUBARCHC row editor deliberately collapses SDA's separate "Text field"/"Text" entries into the SAME text box - typing `&NAME` there is a field reference, anything else a literal - matching the codebase's existing `&`-prefix convention for the sibling `CHOICE` keyword, plus a new "Return field" box. See `src/test/dspfEngine.test.js`, `src/test/dspfWriter.test.js`, and `src/test/dspfWebview.test.js` (Task L3 sections) and CHANGELOG. | D5 (already done — this extends its existing choice picker) | done |
+| **L5** | **Extend L1's repeatable-conditioned-instance component to the remaining single-instance pickers.** Validity check, Keying options, Input keywords, General keywords, Database reference, Message ID, and the record-level pickers each still manage ONE instance of their keyword(s) at a time via the generic Conditioning toggle, unlike Color & attributes (L1a), Error message (L1b), and Subfile Messages (L1c), which already moved onto L1's component. Each of these needs its own follow-up in the same shape as L1a/L1b/L1c — wire the existing `getX`/`setX` pair per keyword into `repeatableConditionedInstancesHtml`/`wireRepeatableConditionedInstances`, following either the staging-row pattern (L1a) or the non-blank-placeholder-default pattern (L1b/L1c), whichever fits the panel better. Can be split across parallel sessions one panel at a time — update this row (or split it into L5a/L5b/etc. sub-tasks, same convention as L1a/L1b/L1c) as pieces land. **Keying options' piece is done — see Task L1d above**, which also picked up Validity check's own `CHECK` codes along the way (`CHECK` is shared between the two panels; converting only one would have silently collapsed the other's multi-instance edits — see L1d's row for the pattern). Still open: Validity check's OWN validity keyword (`RANGE`/`COMP`/`VALUES`, unrelated to `CHECK`), Input keywords, General keywords, Database reference, Message ID, and the record-level pickers. | L1 (done) | **in progress** — Keying options / CHECK done via L1d |
 
 ## Medium priority
 
@@ -51,17 +52,22 @@ tier above.
 
 ## Suggested parallelization
 
-- L1 (the foundation component) is done, and so are L1a, L1b, L1c, and
-  L1d — everything in this doc's High and Medium priority tiers is
-  finished. No further L1-family follow-up is currently tracked; a
-  future picker moving onto the same component can follow the
-  staging-row pattern (L1a), the non-blank-placeholder-default pattern
-  (L1b/L1c/L1d), or - if it shares a keyword with an existing picker,
-  as CHECK did between Keying options and Validity check - the
-  shared-getter/parameterized-code-subset pattern L1d introduced. All
-  are backward-compatible, optional-param approaches on
-  `repeatableConditionedInstancesHtml`/
-  `wireRepeatableConditionedInstances`.
+- L1 (the foundation component), L1a, L1b, L1c, L1d, L2, L3, and L4
+  are all done. **L5 is the one open task** — extending L1's component
+  to the remaining single-instance pickers (see the High priority
+  table above). L1d already covered one of L5's originally-named
+  pieces (Keying options' `CHECK` codes, and — since `CHECK` is
+  shared — Validity check's own `CHECK` codes too); Validity check's
+  OWN validity keyword (`RANGE`/`COMP`/`VALUES`, unrelated to `CHECK`)
+  is still single-instance and still part of L5's remaining scope,
+  alongside Input keywords, General keywords, Database reference,
+  Message ID, and the record-level pickers. It can be split across
+  parallel sessions one panel at a time; whoever picks up a panel
+  should mark it (or a new L5x sub-task row) `in progress` here first
+  — and if a keyword turns out to be shared between two panels the way
+  `CHECK` was, see L1d's own row above for the pattern that keeps both
+  panels safe (one shared getter/setter pair, parameterized by which
+  code/field subset each panel owns).
 - Same collision risk as the picker screens effort: sync (`git fetch` +
   drift check) before every push, and update this doc's Status column
   the moment you pick up or finish a task.
@@ -71,9 +77,11 @@ tier above.
 The "not really fixable" and "already handled reasonably" items noted in
 README's Known limitations list (e.g. `WINDOW(*DFT)`'s placeholder
 position, `CHCCTL` having no visual form, `EDTCDE`/`EDTWRD` width
-estimation edge cases, the `WINDOW` picker's missing Message
-line/Roll row, M/P usage fail-open behavior, constants staying
-Choice-keyword-excluded) are accepted constraints or reasonable defaults,
-not tracked as tasks. If any of those turns out to be more fixable than
-it looks, raise it as a new task here rather than silently reinterpreting
-its priority.
+estimation edge cases, the `WINDOW` picker's missing Roll row, M/P
+usage fail-open behavior, constants staying Choice-keyword-excluded)
+are accepted constraints or reasonable defaults, not tracked as tasks.
+If any of those turns out to be more fixable than it looks, raise it as
+a new task here rather than silently reinterpreting its priority. (The
+`WINDOW` picker's missing Message line row, by contrast, IS potentially
+fixable — see README's Planned enhancements — it just isn't broken into
+a tracked task yet.)

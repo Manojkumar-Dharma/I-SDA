@@ -43,14 +43,19 @@ const htmlTemplate = `<!DOCTYPE html>
     --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    /* Panel-chrome-only accent, deliberately separate from --accent above.
-       --accent stays fixed and only ever colors the .dspf-* / .dspf-window-*
-       / .dspf-menubar-* grid emulation, so a theme change can NEVER alter
-       the STRSDA-accurate screen preview. Only --chrome-accent is themed
-       (see the body[data-ui-theme=...] block below), and only chrome rules
-       (panels/buttons/tabs/chips) reference it. Defaults to the same value
-       as --accent so classic mode - and modern mode before a theme is
-       picked - look identical to the original single-accent design. */
+    /* Panel-chrome accent, separate from --accent above. --accent is the
+       CLASSIC-UI screen default (fixed green, matching real IBM i SDA's
+       own green-screen default for any unstyled constant/field). In
+       modern ("New UI") style, the screen's own default color follows the
+       chosen chrome theme too - see the body[data-ui-style="modern"]
+       .dspf-field override further down - rather than staying pinned to
+       green regardless of theme. --chrome-accent itself only ever changes
+       via the body[data-ui-theme=...] block below; defaults to the same
+       value as --accent so modern mode before a theme is picked still
+       looks identical to classic. Either way, an explicit COLOR keyword on
+       a field/constant always overrides both of these (applied as an
+       inline style - see dspfEngine.js's renderFieldDiv), matching real
+       DDS's own "explicit COLOR beats the green-screen default" behavior. */
     --chrome-accent: var(--accent);
     --chrome-accent-rgb: 51, 255, 102;
   }
@@ -78,7 +83,14 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-field.dragging { cursor: grabbing; opacity: 0.7; }
   .dspf-field.locked { cursor: not-allowed; }
   .dspf-field.locked:hover { border-color: rgba(255,138,92,0.5); }
-  .dspf-constant { color: #b7c9bf; }
+  /* No color override here on purpose: a constant/field with no COLOR
+     keyword of its own inherits .dspf-field's default color (green in
+     classic UI, the chosen theme accent in modern UI - see the
+     body[data-ui-style="modern"] override below), matching real IBM i
+     SDA where an unstyled constant is just as green as an unstyled named
+     field. A COLOR keyword, when present, is applied as an inline style
+     by renderFieldDiv (dspfEngine.js) and always wins over both of these
+     class rules regardless of specificity. */
   .dspf-hi { filter: brightness(1.6); font-weight: 600; }
   .dspf-reverse { background: currentColor; color: #050705 !important; }
   .dspf-underline { text-decoration: underline; }
@@ -97,6 +109,24 @@ const htmlTemplate = `<!DOCTYPE html>
     box-shadow: 3px 3px 0 rgba(0,0,0,0.5); pointer-events: none; z-index: 0;
   }
   .dspf-window-border.dspf-window-default-position { border-style: dashed; border-color: var(--warn); }
+  /* WDWBORDER's *DSPATR - only HI (bolder border) and BL (blinking, reusing
+     the same dspf-blink keyframes text fields already use) have a
+     meaningful CSS-border equivalent; RI/UL/ND/CS aren't rendered here.
+     *COLOR itself is applied as an inline style (see renderScreenHtml),
+     since it varies per-window and always overrides these defaults. */
+  .dspf-window-border.dspf-window-border-hi { border-width: 3px; }
+  .dspf-window-border.dspf-window-border-blink { animation: dspf-blink 1s steps(1) infinite; }
+  /* WDWBORDER's *CHAR group - once any of the 8 border-position characters
+     is set, the plain CSS box border above is suppressed entirely (no
+     border/shadow) in favor of the actual character overlay rendered as
+     .dspf-window-char cells (see dspfEngine.js's renderWindowBorderCharsHtml) -
+     the two are alternative representations of the same keyword group, not
+     meant to be layered together. */
+  .dspf-window-border.dspf-window-border-charmode { border-color: transparent; box-shadow: none; }
+  .dspf-window-char {
+    white-space: pre; color: var(--ink-dim); pointer-events: none; user-select: none;
+    position: relative; z-index: 1; text-align: center;
+  }
   .dspf-window-title {
     position: absolute; top: -1px; left: 8px; transform: translateY(-50%);
     background: #0a0f0c; padding: 0 6px; font-size: 11px; color: var(--ink-dim);
@@ -256,11 +286,17 @@ const htmlTemplate = `<!DOCTYPE html>
    * the "classic" style and stays completely unchanged when the modern
    * layer is off.
    *
-   * Scope is deliberately limited to chrome - panels, buttons, tabs, chips,
-   * inputs. Every .dspf-* / .screen-frame / #screenOutput / .dspf-window-*
-   * selector (the 5250 grid emulation) is untouched in BOTH styles, so the
-   * STRSDA-accurate preview behaves identically no matter which is active.
+   * Scope is mostly limited to chrome - panels, buttons, tabs, chips,
+   * inputs - so the STRSDA-accurate preview's layout/positions/keyword
+   * rendering behave identically no matter which style is active. The one
+   * deliberate exception is the screen's own DEFAULT text color (see the
+   * .dspf-field override just below): classic UI keeps the fixed
+   * green-screen default, modern UI follows the chosen chrome theme
+   * instead - everything else about the preview (an explicit COLOR
+   * keyword, window borders, field positions, etc.) is unaffected by
+   * either style.
    * --------------------------------------------------------------------- */
+  body[data-ui-style="modern"] .dspf-field { color: var(--chrome-accent); }
   .ui-style-toggle {
     width: 100%; background: var(--panel); color: var(--ink-dim); border: 1px solid var(--panel-border);
     border-radius: 3px; padding: 5px 9px; font-family: var(--mono); font-size: 11px; cursor: pointer;
@@ -1858,7 +1894,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     // --- Keywords tab: the dense raw-keyword chip editor + conditioning, each collapsed by default ---
     let keywordsHtml = accordionHtml('Keywords', WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), true);
-    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field'), false);
+    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field', expandedKeywordConditioning), false);
 
     html += tabsHtml([
       { id: 'basic', label: isConstant ? 'Text' : 'Basic', content: basicHtml },
@@ -1898,7 +1934,7 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     }
     WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
-    WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }));
+    WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, () => renderFieldProps(recordName));
@@ -2223,7 +2259,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
     let keywordsHtml = subtabsHtml(rkTabs, rkActiveTab);
     keywordsHtml += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
-    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record'), false);
+    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record', expandedKeywordConditioning), false);
 
     // --- Command keys tab ---
     const availableForRecord = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, rec.keywords);
@@ -2393,7 +2429,7 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
-    WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }));
+    WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
       WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
     }

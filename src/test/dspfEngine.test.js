@@ -399,6 +399,154 @@ console.log("a bare constant's resolved width reflects its real text length, not
   check("width matches the literal text's real length (25 chars)", screen.fields[0].length === 'Metadata Building Process'.length);
 }
 
+console.log('\nBug fix: WDWBORDER on a WINDOW record actually reflects in the resolved screen and rendered HTML (was previously parsed/written but never shown in the preview)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 8 30)' }),
+    buildLine({ seq: '00020', func: 'WDWBORDER((*COLOR BLU) (*DSPATR HI))' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('resolved window carries the *COLOR as a CSS hex color (BLU)', screen.window.border.color === DspfEngine.COLOR_HEX.BLU);
+  check('resolved window carries the *DSPATR attribute list', screen.window.border.attrs.indexOf('HI') >= 0);
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('the rendered window div carries the border color as an inline style', html.includes('border-color:' + DspfEngine.COLOR_HEX.BLU));
+  check('the rendered window div carries the HI-attribute class', /dspf-window-border[^"]*dspf-window-border-hi/.test(html) || /dspf-window-border-hi[^"]*dspf-window-border/.test(html));
+}
+
+console.log('\nWDWBORDER *CHAR: the 8 border-position characters render as an actual character overlay, not just a plain CSS box border');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*CHAR '1' '2' '3' '4' '5-" }),
+    buildLine({ seq: '00025', func: "' '6' '7' '8'))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('resolved window carries all 8 border characters in order', screen.window.border.chars.join(',') === '1,2,3,4,5,6,7,8');
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  // WINDOW(3 10 4 6): top=3, left=10, height=4, width=6 -> bottom=6, right=15
+  check('top-left corner (1) rendered at row 3, col 10', /class="dspf-window-char" style="grid-row:3;grid-column:10;[^>]*>1</.test(html));
+  check('top-right corner (3) rendered at row 3, col 15', /class="dspf-window-char" style="grid-row:3;grid-column:15;[^>]*>3</.test(html));
+  check('bottom-left corner (6) rendered at row 6, col 10', /class="dspf-window-char" style="grid-row:6;grid-column:10;[^>]*>6</.test(html));
+  check('bottom-right corner (8) rendered at row 6, col 15', /class="dspf-window-char" style="grid-row:6;grid-column:15;[^>]*>8</.test(html));
+  check('top border (2) repeated across the top row interior cells', /class="dspf-window-char" style="grid-row:3;grid-column:1[1-4];[^>]*>2</.test(html));
+  check('left border (4) repeated down the left column interior rows', /class="dspf-window-char" style="grid-row:[45];grid-column:10;[^>]*>4</.test(html));
+  check('right border (5) repeated down the right column interior rows', /class="dspf-window-char" style="grid-row:[45];grid-column:15;[^>]*>5</.test(html));
+  check('bottom border (7) repeated across the bottom row interior cells', /class="dspf-window-char" style="grid-row:6;grid-column:1[1-4];[^>]*>7</.test(html));
+  check('the window div itself is switched into char-mode (plain box border suppressed)', /dspf-window-border[^"]*dspf-window-border-charmode/.test(html));
+}
+
+console.log('\nWDWBORDER *CHAR: a blank position renders no character cell (matches real DDS "blank means nothing drawn there")');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*CHAR ' ' '2' '3' '4' '5-" }),
+    buildLine({ seq: '00025', func: "' '6' '7' '8'))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('the blank top-left corner has no rendered char cell at that position', !/class="dspf-window-char" style="grid-row:3;grid-column:10;/.test(html));
+}
+
+console.log('\nWDWBORDER *CHAR: *COLOR applies to the rendered characters themselves (not a suppressed box border) when both are set together');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*COLOR BLU) (*CHAR '1' '-" }),
+    buildLine({ seq: '00025', func: "2' '3' '4' '5' '6' '7' '8'))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('a rendered border-char cell carries the *COLOR as its own inline color', new RegExp('dspf-window-char" style="grid-row:3;grid-column:10;color:' + DspfEngine.COLOR_HEX.BLU).test(html));
+}
+
+console.log('\nWDWBORDER: no *CHAR group at all still falls back to the plain CSS box border, unaffected');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: 'WDWBORDER((*COLOR RED))' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('no dspf-window-char cells rendered when *CHAR is absent', !/dspf-window-char/.test(html));
+  check('the window div is NOT switched into char-mode', !/dspf-window-border-charmode/.test(html));
+}
+
+console.log('\nWDWBORDER: record-level keyword takes precedence over a file-level default (matches every other record-vs-file DDS keyword)');
+{
+  const src = [
+    buildLine({ seq: '00005', func: 'WDWBORDER((*COLOR GRN))' }),
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 8 30)' }),
+    buildLine({ seq: '00020', func: 'WDWBORDER((*COLOR RED))' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+    buildLine({ seq: '00040', nameType: 'R', name: 'WIN2', func: 'WINDOW(3 10 8 30)' }),
+    buildLine({ seq: '00050', line: '1', col: '2', func: "'World'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const win1 = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  const win2 = DspfEngine.resolveScreen(model, 'WIN2', new Set());
+  check("WIN1's own WDWBORDER overrides the file-level default (RED, not GRN)", win1.window.border.color === DspfEngine.COLOR_HEX.RED);
+  check("WIN2 (no record-level WDWBORDER) falls back to the file-level default (GRN)", win2.window.border.color === DspfEngine.COLOR_HEX.GRN);
+}
+
+console.log('\nBug fix: SNGCHCFLD/MLTCHCFLD (radio/checkbox) choice rows are sized wide enough to actually fit their rendered glyph+text, not just the raw field length');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'PREFS' }),
+    buildLine({ seq: '00020', name: 'SHIPOPT', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '3', col: '5', func: 'SNGCHCFLD' }),
+    buildLine({ seq: '00021', func: "CHOICE(1 'Standard')" }),
+    buildLine({ seq: '00022', func: "CHOICE(2 'Express')" }),
+    buildLine({ seq: '00023', func: "CHOICE(3 'Overnight')" }),
+    buildLine({ seq: '00030', name: 'TOPPINGS', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '8', col: '5', func: 'MLTCHCFLD' }),
+    buildLine({ seq: '00031', func: "CHOICE(1 'Cheese')" }),
+    buildLine({ seq: '00032', func: "CHOICE(2 'Pepperoni')" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'PREFS', new Set());
+  const radio = screen.fields.find((f) => f.name === 'SHIPOPT');
+  const checkbox = screen.fields.find((f) => f.name === 'TOPPINGS');
+
+  // Radio glyph as actually emitted by widgetInnerHtml() is "( \u25CF )" / "(   )"
+  // (5 chars) plus one literal space before the choice text (6 total) - the
+  // widest choice here is "Overnight" (9 chars), so the cell must be >= 15.
+  check('radio widget width fits its widest choice\u2019s actual glyph + text ("( \u25CF ) Overnight" = 15 cols)', radio.length >= 15);
+
+  // Checkbox glyph is "[ ]" (3 chars) + 1 literal space (4 total); widest
+  // choice is "Pepperoni" (9 chars), so the cell must be >= 13.
+  check('checkbox widget width fits its widest choice\u2019s actual glyph + text ("[ ] Pepperoni" = 13 cols)', checkbox.length >= 13);
+
+  check('radio widget height is one row per choice', radio.height === 3);
+  check('checkbox widget height is one row per choice', checkbox.height === 2);
+}
+
+console.log('\nBug fix: a SNGCHCFLD/MLTCHCFLD field with no CHOICE entries yet is sized for its own "(no CHOICE entries)" placeholder, not left at the raw field length');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'EMPTYR' }),
+    buildLine({ seq: '00020', name: 'OPT', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '2', col: '2', func: 'SNGCHCFLD' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'EMPTYR', new Set());
+  const opt = screen.fields.find((f) => f.name === 'OPT');
+  // "( \u25CF ) (no CHOICE entries)" = 6 + 19 = 25 columns.
+  check('placeholder-only radio widget is wide enough for "(no CHOICE entries)" plus its glyph prefix', opt.length >= 25);
+  check('placeholder-only radio widget is still exactly one row tall', opt.height === 1);
+}
+
+console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+process.exit(failures === 0 ? 0 : 1);
+
 console.log('two indicator-conditioned constants at the identical position: exactly one shows, switching correctly with the indicator');
 {
   const src = [

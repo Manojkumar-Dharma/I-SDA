@@ -188,10 +188,26 @@
   // this editor's own "+ OR condition" always adds an indicator group.
   // -----------------------------------------------------------------------
 
-  function conditionsEditorHtml(conditions, idPrefix) {
+  // `pendingGroupSet` (optional) is the SAME caller-owned Set already used
+  // for this owner's "Conditioning" expand/collapse state (e.g. keywordEditorHtml's
+  // `expandedSet`) - reused here under the distinct key `idPrefix + ':pending-or'`
+  // (never collides with the numeric ":idx" keys those callers use) to track
+  // "user clicked + OR condition but hasn't picked an indicator yet" as pure UI
+  // state. This used to be faked by immediately writing a real group seeded with
+  // indicator 01 into `conditions` (see wireConditionsEditor's add-group handler),
+  // because normalizeConditionGroups() below drops any group with zero indicators
+  // and every change here commits straight to the DDS source - so a genuinely
+  // empty group had nowhere to live between renders. That meant clicking "+ OR
+  // condition" silently conditioned the entity on indicator 01 whether the user
+  // wanted that indicator or not. Tracking the pending group in `pendingGroupSet`
+  // instead lets the empty IF/OR-IF row render (and accept a typed indicator)
+  // WITHOUT writing anything back until the user actually adds one.
+  function conditionsEditorHtml(conditions, idPrefix, pendingGroupSet) {
     var groups = conditions || [];
+    var pendingKey = idPrefix + ':pending-or';
+    var hasPending = !!(pendingGroupSet && pendingGroupSet.has(pendingKey));
     var html = '<div class="section-label">Conditioning indicators</div><div id="' + idPrefix + '-cond-groups">';
-    if (groups.length === 0) {
+    if (groups.length === 0 && !hasPending) {
       html += '<div class="empty-state" style="margin-bottom:6px;">Unconditioned - always shown.</div>';
     }
     groups.forEach(function (g, gi) {
@@ -216,8 +232,19 @@
       html += '<button class="secondary cond-group-remove" data-prefix="' + idPrefix + '" data-group="' + gi + '">Remove this condition</button>';
       html += '</div>';
     });
+    if (hasPending) {
+      html += '<div class="cond-group" data-group="pending">';
+      html += '<div class="cond-group-label">' + (groups.length === 0 ? 'IF' : 'OR IF') + '</div>';
+      html += '<div class="cond-add-row">' +
+        '<label><input type="checkbox" class="cond-ind-not" /> NOT</label>' +
+        '<input type="text" class="cond-ind-num" placeholder="nn" maxlength="2" />' +
+        '<button class="secondary cond-ind-add" data-prefix="' + idPrefix + '" data-group="pending">+ indicator</button>' +
+        '</div>';
+      html += '<button class="secondary cond-group-remove" data-prefix="' + idPrefix + '" data-group="pending">Cancel</button>';
+      html += '</div>';
+    }
     html += '</div>';
-    html += '<button class="secondary cond-add-group" data-prefix="' + idPrefix + '" style="width:100%;">+ OR condition</button>';
+    html += '<button class="secondary cond-add-group" data-prefix="' + idPrefix + '" style="width:100%;" ' + (hasPending ? 'disabled title="Add an indicator to the pending condition first, or cancel it"' : '') + '>+ OR condition</button>';
     return html;
   }
 
@@ -242,8 +269,13 @@
       .map(function (g, i) { return { relation: i === 0 ? 'AND' : 'OR', displaySizeCondition: g.displaySizeCondition, indicators: g.indicators }; });
   }
 
-  function wireConditionsEditor(idPrefix, conditions, onChange) {
+  // `pendingGroupSet`/`rerender` (optional, but required together to get the
+  // pending-OR-group behavior documented on conditionsEditorHtml above) - when
+  // omitted, "+ OR condition" falls back to the old immediate-01-group behavior
+  // so any caller that hasn't been updated to pass a Set/rerender still works.
+  function wireConditionsEditor(idPrefix, conditions, onChange, pendingGroupSet, rerender) {
     var groups = conditions || [];
+    var pendingKey = idPrefix + ':pending-or';
 
     document.querySelectorAll('.cond-ind-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -257,6 +289,13 @@
 
     document.querySelectorAll('.cond-group-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        if (btn.getAttribute('data-group') === 'pending') {
+          // Cancelling the pending (not-yet-committed) OR group - pure UI
+          // state, nothing was ever written to the document for it.
+          if (pendingGroupSet) pendingGroupSet.delete(pendingKey);
+          if (rerender) rerender();
+          return;
+        }
         var gi = parseInt(btn.getAttribute('data-group'), 10);
         var next = cloneConditionGroups(groups);
         next.splice(gi, 1);
@@ -266,16 +305,24 @@
 
     document.querySelectorAll('.cond-ind-add[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var gi = parseInt(btn.getAttribute('data-group'), 10);
         var container = btn.closest('.cond-group');
         var numInput = container.querySelector('.cond-ind-num');
         var notInput = container.querySelector('.cond-ind-not');
         var num = (numInput.value || '').trim();
         if (!/^\d{1,2}$/.test(num)) return;
         var padded = num.length < 2 ? '0' + num : num;
+        var groupAttr = btn.getAttribute('data-group');
         var next = cloneConditionGroups(groups);
-        if (next[gi].indicators.length >= 9) return;
-        next[gi].indicators.push({ number: padded, not: !!(notInput && notInput.checked) });
+        if (groupAttr === 'pending') {
+          // First indicator typed into the pending OR group - this is the
+          // moment it actually becomes a real group and gets written back.
+          next.push({ relation: 'OR', displaySizeCondition: null, indicators: [{ number: padded, not: !!(notInput && notInput.checked) }] });
+          if (pendingGroupSet) pendingGroupSet.delete(pendingKey);
+        } else {
+          var gi = parseInt(groupAttr, 10);
+          if (next[gi].indicators.length >= 9) return;
+          next[gi].indicators.push({ number: padded, not: !!(notInput && notInput.checked) });
+        }
         onChange(normalizeConditionGroups(next));
       });
     });
@@ -283,6 +330,12 @@
     var addGroupBtn = document.querySelector('.cond-add-group[data-prefix="' + idPrefix + '"]');
     if (addGroupBtn) {
       addGroupBtn.addEventListener('click', function () {
+        if (pendingGroupSet && rerender) {
+          pendingGroupSet.add(pendingKey);
+          rerender();
+          return;
+        }
+        // Fallback for callers not yet passing pendingGroupSet/rerender.
         var next = cloneConditionGroups(groups).concat([{ relation: 'OR', displaySizeCondition: null, indicators: [{ number: '01', not: false }] }]);
         onChange(normalizeConditionGroups(next));
       });
@@ -329,7 +382,7 @@
         '<button data-owner="' + ownerKey + '" data-idx="' + idx + '" class="kw-remove">\u00d7</button></span>' +
         '<span class="kw-cond-toggle" data-owner="' + ownerKey + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span></div>';
       if (isExpanded) {
-        html += '<div class="kw-cond-body">' + conditionsEditorHtml(conditions, ownerKey + '-kw' + idx) + '</div>';
+        html += '<div class="kw-cond-body">' + conditionsEditorHtml(conditions, ownerKey + '-kw' + idx, expandedSet) + '</div>';
       }
       html += '</div>';
     });
@@ -365,7 +418,7 @@
             return { name: k.name, parameters: k.parameters, conditions: newConditions, raw: k.raw, sourceLines: k.sourceLines };
           });
           onChange(next);
-        });
+        }, expandedSet, rerender);
       }
     });
 
@@ -1528,14 +1581,35 @@
   // -----------------------------------------------------------------------
 
   /** One "label ... [ ] Y=Yes (+ optional param box)" row. `paramsPlaceholder`
-   *  omitted entirely means the keyword takes no parameters at all. */
-  function flagRowHtml(id, label, present, paramsValue, paramsPlaceholder) {
+   *  omitted entirely means the keyword takes no parameters at all.
+   *  `conditions`/`expandedSet` (optional, must be passed together) add a
+   *  "Conditioning" toggle identical in shape to the generic keyword
+   *  editor's own per-keyword toggle (see keywordEditorHtml above) - pass
+   *  `conditions` (even `[]`) to opt a given flag row into showing/editing
+   *  indicator conditioning; omit it entirely (as most flag rows still do)
+   *  to render the plain checkbox-only row unchanged. This exists because
+   *  flag-row keywords like SFLDSP/SFLDSPCTL/SFLCLR CAN legally carry
+   *  conditioning in real DDS, but until now this generic primitive had no
+   *  way to show it - an existing indicator on one of these was invisible
+   *  in the UI even though setFileFlagKeyword's old unconditional
+   *  `conditions: []` meant it would have been silently deleted the next
+   *  time anything on the panel was touched anyway (see setFileFlagKeyword's
+   *  own comment in dspfWriter.js for that half of the bug). */
+  function flagRowHtml(id, label, present, paramsValue, paramsPlaceholder, conditions, expandedSet) {
     var html = '<div class="field-row" style="margin-bottom:10px;">';
     html += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">';
     html += '<input type="checkbox" id="' + id + '-on" ' + (present ? 'checked' : '') + ' /> ' + escapeHtml(label);
     html += '</label>';
     if (paramsPlaceholder !== undefined) {
       html += '<input type="text" id="' + id + '-params" placeholder="' + escapeHtml(paramsPlaceholder) + '" value="' + escapeHtml(paramsValue || '') + '" style="width:100%;margin-top:4px;" />';
+    }
+    if (conditions !== undefined) {
+      var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
+      var isExpanded = !!(expandedSet && expandedSet.has(id + ':cond'));
+      html += '<span class="kw-cond-toggle" data-flag-id="' + id + '" style="margin-top:4px;">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      if (isExpanded) {
+        html += '<div class="kw-cond-body">' + conditionsEditorHtml(conditions, id + '-cond', expandedSet) + '</div>';
+      }
     }
     html += '</div>';
     return html;
@@ -1544,8 +1618,16 @@
   /** Wires a flagRowHtml() row so any change to its checkbox or param box
    *  re-derives the file's keyword array and commits it via `onChange`.
    *  `apply(keywords, present, paramsValue)` does the actual get/set call
-   *  for this specific keyword (usually DspfWriter.setFileFlagKeyword). */
-  function wireFlagRow(id, getKeywords, onChange, apply) {
+   *  for this specific keyword (usually DspfWriter.setFileFlagKeyword) -
+   *  called with only 3 args here, so any 4th `conditions` parameter
+   *  `apply` itself accepts is left `undefined` and setFileFlagKeyword
+   *  preserves whatever conditioning already existed (see its own comment).
+   *  `conditions`/`expandedSet`/`rerender` (optional, matching
+   *  flagRowHtml's own) wire the Conditioning toggle and, when expanded,
+   *  the conditions editor - `apply` MUST accept a 4th `conditions` param
+   *  and forward it (see sflCtlPanelsHtml's apply functions for the
+   *  pattern) for a caller that passes these. */
+  function wireFlagRow(id, getKeywords, onChange, apply, conditions, expandedSet, rerender) {
     var onEl = document.getElementById(id + '-on');
     var paramsEl = document.getElementById(id + '-params');
     function commit() {
@@ -1555,6 +1637,25 @@
     }
     if (onEl) onEl.addEventListener('change', commit);
     if (paramsEl) paramsEl.addEventListener('change', commit);
+
+    if (conditions !== undefined && expandedSet && rerender) {
+      var toggle = document.querySelector('.kw-cond-toggle[data-flag-id="' + id + '"]');
+      var expandKey = id + ':cond';
+      if (toggle) {
+        toggle.addEventListener('click', function () {
+          if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+          else expandedSet.add(expandKey);
+          rerender();
+        });
+      }
+      if (expandedSet.has(expandKey)) {
+        wireConditionsEditor(id + '-cond', conditions, function (newConditions) {
+          var present = onEl.checked;
+          var params = paramsEl ? paramsEl.value : '';
+          onChange(apply(getKeywords(), present, params, newConditions));
+        }, expandedSet, rerender);
+      }
+    }
   }
 
   var WDWBORDER_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL'];
@@ -2425,7 +2526,7 @@
       html += '<button class="repeat-inst-remove" data-prefix="' + idPrefix + '" data-idx="' + idx + '">\u00d7 Remove</button>';
       html += '</div>';
       if (isExpanded) {
-        html += '<div class="repeat-inst-cond-body">' + conditionsEditorHtml(conditions, instIdPrefix) + '</div>';
+        html += '<div class="repeat-inst-cond-body">' + conditionsEditorHtml(conditions, instIdPrefix, expandedSet) + '</div>';
       }
       html += '</div>';
     });
@@ -2468,7 +2569,7 @@
             copy.conditions = newConditions;
             return copy;
           });
-        });
+        }, expandedSet, rerender);
       }
     });
 
@@ -2763,28 +2864,47 @@
 
     // --- General (SFLCTL's own keywords + R3's Subfile Keywords, reused) ---
     var g = '<div class="section-label">Subfile control</div>';
-    g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', DspfWriter.getFileFlagKeyword(kw, 'SFLCTL').present, DspfWriter.getFileFlagKeyword(kw, 'SFLCTL').parameters, 'subfile record name');
-    g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN').present, DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN').parameters, 'field name');
-    g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', DspfWriter.getFileFlagKeyword(kw, 'SFLMODE').present, DspfWriter.getFileFlagKeyword(kw, 'SFLMODE').parameters, 'field name');
+    var fSflctl = DspfWriter.getFileFlagKeyword(kw, 'SFLCTL');
+    g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', fSflctl.present, fSflctl.parameters, 'subfile record name', fSflctl.conditions, expandedSet);
+    var fSflcsrrrn = DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN');
+    g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', fSflcsrrrn.present, fSflcsrrrn.parameters, 'field name', fSflcsrrrn.conditions, expandedSet);
+    var fSflmode = DspfWriter.getFileFlagKeyword(kw, 'SFLMODE');
+    g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', fSflmode.present, fSflmode.parameters, 'field name', fSflmode.conditions, expandedSet);
     g += '<div class="section-label">Subfile display state</div>';
-    g += flagRowHtml(p + '-sfldsp', 'Display subfile records (SFLDSP)', DspfWriter.getFileFlagKeyword(kw, 'SFLDSP').present);
-    g += flagRowHtml(p + '-sfldspctl', 'Display control record (SFLDSPCTL)', DspfWriter.getFileFlagKeyword(kw, 'SFLDSPCTL').present);
-    g += flagRowHtml(p + '-sflinz', 'Initialize subfile fields (SFLINZ)', DspfWriter.getFileFlagKeyword(kw, 'SFLINZ').present);
-    g += flagRowHtml(p + '-sfldlt', 'Delete subfile area (SFLDLT)', DspfWriter.getFileFlagKeyword(kw, 'SFLDLT').present);
-    g += flagRowHtml(p + '-sflclr', 'Clear subfile records (SFLCLR)', DspfWriter.getFileFlagKeyword(kw, 'SFLCLR').present);
-    g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', DspfWriter.getFileFlagKeyword(kw, 'SFLRNA').present);
-    g += flagRowHtml(p + '-sflend', 'Indicate more records (SFLEND)', DspfWriter.getFileFlagKeyword(kw, 'SFLEND').present, DspfWriter.getFileFlagKeyword(kw, 'SFLEND').parameters, '*MORE, *SCRBAR, or blank');
+    var fSfldsp = DspfWriter.getFileFlagKeyword(kw, 'SFLDSP');
+    g += flagRowHtml(p + '-sfldsp', 'Display subfile records (SFLDSP)', fSfldsp.present, undefined, undefined, fSfldsp.conditions, expandedSet);
+    var fSfldspctl = DspfWriter.getFileFlagKeyword(kw, 'SFLDSPCTL');
+    g += flagRowHtml(p + '-sfldspctl', 'Display control record (SFLDSPCTL)', fSfldspctl.present, undefined, undefined, fSfldspctl.conditions, expandedSet);
+    var fSflinz = DspfWriter.getFileFlagKeyword(kw, 'SFLINZ');
+    g += flagRowHtml(p + '-sflinz', 'Initialize subfile fields (SFLINZ)', fSflinz.present, undefined, undefined, fSflinz.conditions, expandedSet);
+    var fSfldlt = DspfWriter.getFileFlagKeyword(kw, 'SFLDLT');
+    g += flagRowHtml(p + '-sfldlt', 'Delete subfile area (SFLDLT)', fSfldlt.present, undefined, undefined, fSfldlt.conditions, expandedSet);
+    var fSflclr = DspfWriter.getFileFlagKeyword(kw, 'SFLCLR');
+    g += flagRowHtml(p + '-sflclr', 'Clear subfile records (SFLCLR)', fSflclr.present, undefined, undefined, fSflclr.conditions, expandedSet);
+    var fSflrna = DspfWriter.getFileFlagKeyword(kw, 'SFLRNA');
+    g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', fSflrna.present, undefined, undefined, fSflrna.conditions, expandedSet);
+    var fSflend = DspfWriter.getFileFlagKeyword(kw, 'SFLEND');
+    g += flagRowHtml(p + '-sflend', 'Indicate more records (SFLEND)', fSflend.present, fSflend.parameters, '*MORE, *SCRBAR, or blank', fSflend.conditions, expandedSet);
     g += '<div class="section-label">Subfile behavior</div>';
-    g += flagRowHtml(p + '-sfldrop', 'Subfile initially truncated (SFLDROP)', DspfWriter.getFileFlagKeyword(kw, 'SFLDROP').present, DspfWriter.getFileFlagKeyword(kw, 'SFLDROP').parameters, 'CFnn or CAnn');
-    g += flagRowHtml(p + '-sflfold', 'Subfile initially folded (SFLFOLD)', DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD').present, DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD').parameters, 'CFnn or CAnn');
-    g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', DspfWriter.getFileFlagKeyword(kw, 'SFLENTER').present, DspfWriter.getFileFlagKeyword(kw, 'SFLENTER').parameters, 'CFnn or CAnn');
+    var fSfldrop = DspfWriter.getFileFlagKeyword(kw, 'SFLDROP');
+    g += flagRowHtml(p + '-sfldrop', 'Subfile initially truncated (SFLDROP)', fSfldrop.present, fSfldrop.parameters, 'CFnn or CAnn', fSfldrop.conditions, expandedSet);
+    var fSflfold = DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD');
+    g += flagRowHtml(p + '-sflfold', 'Subfile initially folded (SFLFOLD)', fSflfold.present, fSflfold.parameters, 'CFnn or CAnn', fSflfold.conditions, expandedSet);
+    var fSflenter = DspfWriter.getFileFlagKeyword(kw, 'SFLENTER');
+    g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', fSflenter.present, fSflenter.parameters, 'CFnn or CAnn', fSflenter.conditions, expandedSet);
     g += '<div class="section-label">Subfile Keywords (shared with plain SFL records)</div>';
-    g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG').present);
-    g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', DspfWriter.getFileFlagKeyword(kw, 'LOGOUT').present);
-    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', DspfWriter.getFileFlagKeyword(kw, 'LOGINP').present);
-    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', DspfWriter.getFileFlagKeyword(kw, 'KEEP').present);
-    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB').present);
-    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL').present);
+    var fSflnxtchg = DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG');
+    g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
+    var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
+    g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
+    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
+    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
+    var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
+    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
+    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
     g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
@@ -2834,25 +2954,25 @@
     var p = idPrefix;
 
     // General
-    wireFlagRow(p + '-sflctl', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCTL', present, params); });
-    wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params); });
-    wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params); });
-    wireFlagRow(p + '-sfldsp', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSP', present, ''); });
-    wireFlagRow(p + '-sfldspctl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSPCTL', present, ''); });
-    wireFlagRow(p + '-sflinz', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLINZ', present, ''); });
-    wireFlagRow(p + '-sfldlt', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDLT', present, ''); });
-    wireFlagRow(p + '-sflclr', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCLR', present, ''); });
-    wireFlagRow(p + '-sflrna', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLRNA', present, ''); });
-    wireFlagRow(p + '-sflend', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLEND', present, params); });
-    wireFlagRow(p + '-sfldrop', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDROP', present, params); });
-    wireFlagRow(p + '-sflfold', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLFOLD', present, params); });
-    wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params); });
-    wireFlagRow(p + '-sflnxtchg', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLNXTCHG', present, ''); });
-    wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, ''); });
-    wireFlagRow(p + '-loginp', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGINP', present, ''); });
-    wireFlagRow(p + '-keep', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'KEEP', present, ''); });
-    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB'); });
-    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL'); });
+    wireFlagRow(p + '-sflctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCTL', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCTL').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCSRRRN').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLMODE').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sfldsp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDSP').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sfldspctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSPCTL', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDSPCTL').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflinz', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLINZ', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLINZ').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sfldlt', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDLT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDLT').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflclr', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCLR', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCLR').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflrna', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLRNA', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLRNA').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflend', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLEND', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLEND').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sfldrop', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDROP', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDROP').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflfold', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLFOLD', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLFOLD').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLENTER').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-sflnxtchg', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLNXTCHG', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGOUT').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-loginp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGINP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGINP').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-keep', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'KEEP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'KEEP').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
 
     // Indicator (reused from R3)
     wireIndicatorTextRows(p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);

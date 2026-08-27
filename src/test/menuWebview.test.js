@@ -580,7 +580,14 @@ function runOptionConditioningScenario() {
     toggle.dispatchEvent(new Event('click', { bubbles: true }));
     const addGroupBtn = doc.querySelector('.cond-add-group[data-prefix="opt1"]');
     check('conditioning editor is now expanded for option 1', !!addGroupBtn);
+    const postedBeforeAddGroup = posted.length;
     addGroupBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition does NOT write an indicator yet (pending, not committed)', posted.length === postedBeforeAddGroup);
+    const pendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is now shown with its own indicator input', !!pendingNumInput);
+    pendingNumInput.value = '01';
+    const pendingAddBtn = doc.querySelector('.cond-ind-add[data-prefix="opt1"][data-group="pending"]');
+    pendingAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
     let last = posted[posted.length - 1];
     check('posts applyEdit adding indicator 01 to option 1\'s number marker', last && last.type === 'applyEdit' && /01.*'1\. Display library list'/.test(last.text.replace(/\n/g, ' ')));
 

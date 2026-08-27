@@ -587,7 +587,13 @@ function runConditionsScenario() {
 
     console.log('  record conditioning: default view on load is the record props panel, starts unconditioned');
     check('starts unconditioned', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
+    const postedBeforeRecordAddGroup = posted.length;
     doc.querySelector('.cond-add-group[data-prefix="record"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on the record does NOT write an indicator yet (pending, not committed)', posted.length === postedBeforeRecordAddGroup);
+    const recordPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for the record', !!recordPendingNumInput);
+    recordPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="record"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     let last = posted[posted.length - 1];
     check('posts applyEdit adding indicator 01 to the record itself', last && last.type === 'applyEdit' && /A\s+01\s+R\s+SCR1/.test(last.text));
 
@@ -601,7 +607,13 @@ function runConditionsScenario() {
     fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
     check('field starts unconditioned', /Unconditioned/.test(doc.getElementById('propsBody').textContent));
 
+    const postedBeforeFieldAddGroup = posted.length;
     doc.querySelector('.cond-add-group[data-prefix="field"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on the field does NOT write an indicator yet (pending, not committed)', posted.length === postedBeforeFieldAddGroup);
+    const fieldPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for the field', !!fieldPendingNumInput);
+    fieldPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="field"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     check("posts applyEdit adding indicator 01 as the field's condition", last && last.type === 'applyEdit' && /01.*NAME/.test(last.text.replace(/\n/g, ' ')));
 
@@ -654,6 +666,10 @@ function runPerKeywordConditioningScenario() {
     const addGroupBtn = doc.querySelector('.cond-add-group[data-prefix="' + ownerKey + '-kw0"]');
     check('expanding the toggle mounts a conditions editor scoped to that one keyword', !!addGroupBtn);
     addGroupBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const kwPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for this one keyword', !!kwPendingNumInput);
+    kwPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="' + ownerKey + '-kw0"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     const last = posted[posted.length - 1];
     check('posts applyEdit with indicator 01 conditioning JUST the DSPATR keyword line', last && last.type === 'applyEdit' && /01\s+DSPATR\(HI\)/.test(last.text));
     check("the field's own NAME line stays unconditioned (no 01 before the name)", last && !/01\s+NAME/.test(last.text));
@@ -1216,6 +1232,11 @@ function runFieldPropertyHelpersScenario() {
     console.log('  conditioning ONLY the second state does not condition the first');
     doc.querySelector('.repeat-inst-cond-toggle[data-prefix="' + colorattrOwnerPrefix + '"][data-idx="1"]').dispatchEvent(new Event('click', { bubbles: true }));
     doc.querySelector('.cond-add-group[data-prefix="' + colorInstPrefix1 + '"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on the color/attr state does NOT write yet (pending, not committed)', posted.length === 0);
+    const colorAttrPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    check('a pending (uncommitted) condition group is shown for the color/attr state', !!colorAttrPendingNumInput);
+    colorAttrPendingNumInput.value = '01';
+    doc.querySelector('.cond-ind-add[data-prefix="' + colorInstPrefix1 + '"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     let condEdit = posted.find((m) => m.type === 'applyEdit');
     check('posts an applyEdit that still carries both COLOR keywords after conditioning just the second', condEdit && condEdit.text.includes('COLOR(GRN)') && condEdit.text.includes('COLOR(RED)'));
 
@@ -1810,6 +1831,79 @@ function runClickToPlaceScenario() {
     check('and nothing was committed', posted.length === 0);
 
     runWindowTitleScenario();
+  }, 0);
+}
+
+function runWindowBorderAndDefaultColorScenario() {
+  console.log('\nBug fix: WDWBORDER *COLOR/*DSPATR now actually shows up on the rendered window preview');
+  const src =
+    [
+      '     A          R WIN1',
+      '     A                                      WINDOW(3 10 8 30)',
+      '     A                                      WDWBORDER((*COLOR RED) (*DSPATR HI))',
+      "     A                                  1  2'Hello'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce16', src, 'WDWBORDER.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const windowEl = doc.querySelector('.dspf-window-border');
+    check('setup: the window renders', !!windowEl);
+    check('WDWBORDER *COLOR RED is applied as the window\u2019s own border color (COLOR_HEX.RED = #ff5c5c)', windowEl.style.borderColor === 'rgb(255, 92, 92)' || /#ff5c5c/i.test(windowEl.getAttribute('style') || ''));
+    check('WDWBORDER *DSPATR HI adds the bolder-border class', windowEl.classList.contains('dspf-window-border-hi'));
+
+    runDefaultColorScenario();
+  }, 0);
+}
+
+function runDefaultColorScenario() {
+  console.log('\nBug fix: an unstyled constant defaults to the same green/accent color as an unstyled named field, not a hardcoded gray');
+  const src =
+    [
+      '     A          R SCR1',
+      "     A                                  1  2'A constant'",
+      '     A            NAMEDFLD     10A  B  2  2',
+      '     A            COLOREDFLD   10A  B  3  2',
+      '     A                                      COLOR(RED)',
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'DEFAULTCOLOR.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  check('the old hardcoded gray constant override is gone from the generated CSS', !/\.dspf-constant\s*\{\s*color:\s*#b7c9bf/.test(html));
+  check('modern UI style now themes the screen\u2019s own default color, not just chrome', /body\[data-ui-style="modern"\]\s*\.dspf-field\s*\{\s*color:\s*var\(--chrome-accent\);?\s*\}/.test(html));
+
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const constantEl = doc.querySelector('.dspf-constant');
+    check('setup: the constant renders', !!constantEl);
+    check('an unstyled constant has NO inline color override (inherits the CSS default, exactly like an unstyled field)', !/color\s*:/.test(constantEl.getAttribute('style') || ''));
+
+    const coloredEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.dataset.field === 'COLOREDFLD');
+    check('a field with an explicit COLOR keyword still gets its own inline color, unaffected by the default-color fix', /#ff5c5c/i.test(coloredEl.getAttribute('style') || ''));
+
+    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+    process.exit(failures === 0 ? 0 : 1);
   }, 0);
 }
 
@@ -2758,6 +2852,30 @@ function runSflCtlPickerScenario() {
     check('SFLNXTCHG from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
     posted.length = 0;
 
+    console.log('  General: SFLDSP/SFLDSPCTL/SFLCLR support indicator conditioning - it shows when present, and survives unrelated edits on the same panel');
+    check('SFLDSP starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + p + '-sfldsp"]').textContent));
+    doc.querySelector('.kw-cond-toggle[data-flag-id="' + p + '-sfldsp"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + p + '-sfldsp-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on SFLDSP does not write yet (pending, not committed)', posted.length === 0);
+    const sfldspPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    sfldspPendingNumInput.value = '30';
+    doc.querySelector('.cond-ind-add[data-prefix="' + p + '-sfldsp-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    const sfldspKw = reparsed.keywords.find((k) => k.name === 'SFLDSP');
+    check('SFLDSP is now conditioned on indicator 30', sfldspKw.conditions.length === 1 && sfldspKw.conditions[0].indicators[0].number === '30');
+    posted.length = 0;
+
+    check('re-rendering shows the Conditioning(1) summary on the SFLDSP row, not hidden', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + p + '-sfldsp"]').textContent));
+    check("SFLDSP's pending indicator input is pre-filled with the committed 30 (existing conditioning is genuinely displayed, not just accepted)", doc.querySelector('.cond-group[data-group="0"] .keyword-chip').textContent.trim().startsWith('30'));
+
+    doc.getElementById(p + '-sflinz-on').checked = true;
+    doc.getElementById(p + '-sflinz-on').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('toggling an unrelated flag (SFLINZ) on the same panel does not wipe SFLDSP\'s indicator 30 conditioning', reparsed.keywords.find((k) => k.name === 'SFLDSP').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'SFLDSP').conditions[0].indicators[0].number === '30');
+    posted.length = 0;
+
     console.log('  General: SFLDROP/SFLFOLD/SFLENTER take a free-text CFnn/CAnn parameter');
     doc.getElementById(p + '-sfldrop-on').checked = true;
     doc.getElementById(p + '-sfldrop-params').value = 'CF03';
@@ -3615,7 +3733,6 @@ function runPdnSflCtlPickerScenario() {
     check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));
     check('data-ui-theme defaults to "green", not ","', /data-ui-theme="green"/.test(defaultsHtml));
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    runWindowBorderAndDefaultColorScenario();
   }, 0);
 }
