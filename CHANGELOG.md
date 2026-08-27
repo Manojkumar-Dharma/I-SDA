@@ -3,6 +3,59 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.72] - 2026-08-27
+
+### Fixed
+- **Choice pulldown/menu: radio and checkbox choices inside a `PULLDOWN`
+  record rendered as an empty box** (user-reported: a menu-bar's
+  `MNUBARCHC` choice, e.g. `File`, opened its linked `PULLDOWN` record
+  as a completely blank bordered overlay - no choice text visible at
+  all, even though the DDS parsed correctly and the choices' text/color/
+  position were all correct in the DOM). Root cause was CSS specificity,
+  not a data or parsing bug: `.dspf-pulldown-field { z-index: 3; }` is a
+  ONE-class selector (specificity 0,1,0), meant to lift a `PULLDOWN`
+  overlay's own fields above `.dspf-pulldown-border`'s opaque background
+  (`z-index: 2`). But every widget type already has its own TWO-class
+  z-index rule - `.dspf-field.dspf-widget-radio`, `-checkbox`, `-button`,
+  `-menubar`, `.dspf-field.dspf-cntfld` (specificity 0,2,0) - and CSS
+  specificity always beats source order, so those rules won regardless
+  of where `.dspf-pulldown-field` sat in the file. Any `SNGCHCFLD`/
+  `MLTCHCFLD` (radio/checkbox), button, or `CNTFLD` field placed inside
+  a `PULLDOWN` record therefore silently computed `z-index:1`, one
+  BELOW the border, so the border's own background painted over the
+  choice text - invisible to any test that only inspects the rendered
+  HTML/DOM rather than actual CSS cascade resolution, which is how this
+  survived undetected. Fixed by scoping the rule to
+  `.dspf-field.dspf-pulldown-field` (still two classes, same
+  specificity as every widget rule, but placed later in the file so
+  source order now correctly tie-breaks in its favor).
+- **`MNUBARCHC` picker rows (pulldown record / text / return field)
+  showed clipped, unreadable values** (e.g. `PULLFILE` displayed as
+  `PULLFILI`, `return field (opt.)` displayed as `return fi`) in a
+  narrow properties panel, even though the underlying keyword data was
+  correct. `.choice-row input { min-width: 0; }` removed the default
+  flex min-width floor so a genuinely flexible field (the choice-text
+  box, `style="flex:1"`) could shrink instead of overflowing its row -
+  but every OTHER input in that row declares an explicit fixed pixel
+  width meant to stay put (id, pulldown record, return field), and
+  those still had the browser's default `flex-shrink:1`, so once
+  `min-width:0` removed their floor too, a narrow sidebar compressed
+  ALL of them proportionally. Fixed with `flex-shrink: 0` on
+  `.choice-row input`/`.choice-row button`, so only the one field
+  meant to flex (via its own inline `flex:1`, which overrides the
+  class rule) actually does.
+  - New regression coverage: `src/test/pulldownOverlayStacking.test.js`
+    parses the actual generated stylesheet and computes real CSS
+    specificity + source order for every `z-index` rule that could
+    conflict with `.dspf-pulldown-field`, so a future edit that
+    reintroduces a losing selector (even a different one than today's)
+    fails the test - plus a direct check that `.choice-row input` sets
+    `flex-shrink: 0`. Both bugs were found by actually rendering the
+    real generated HTML/CSS in a headless Chromium and comparing
+    against the reported screenshots, not just reading the CSS text -
+    the DOM/data were correct in both cases, so a purely
+    structural/string-based test would have missed them.
+
 ## [0.9.71] - Unreleased
 
 ### Fixed

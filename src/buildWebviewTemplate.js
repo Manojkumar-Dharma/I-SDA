@@ -70,7 +70,20 @@ const htmlTemplate = `<!DOCTYPE html>
   .field-row label { display: block; font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .choice-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-  .choice-row input { min-width: 0; }
+  /* min-width:0 removes the default flex min-width floor so a genuinely
+   * flexible field (style="flex:1", e.g. the MNUBARCHC/CHOICE text box) can
+   * actually shrink instead of overflowing its row. But every OTHER input
+   * here declares an explicit fixed pixel width (id/#, pulldown record,
+   * return field) meaning to stay that size - those still had the browser's
+   * default flex-shrink:1, so once min-width:0 removed their floor too, a
+   * narrow sidebar (see the properties panel) compressed ALL of them
+   * proportionally, clipping "PULLFILE" to "PULLFILI" and "return field
+   * (opt.)" to "return fi" (reported bug: MNUBARCHC record/text not fully
+   * visible in the picker). flex-shrink:0 here stops that; the one field
+   * meant to flex sets flex-shrink:1 itself via its inline "flex:1" shorthand,
+   * which (inline style) always wins over this class rule for that field. */
+  .choice-row input { min-width: 0; flex-shrink: 0; }
+  .choice-row button { flex-shrink: 0; }
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
   #screenOutput { position: relative; }
@@ -171,7 +184,23 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .dspf-menubar-choice:hover, .dspf-menubar-choice.dspf-menubar-open { background: var(--accent); color: #0a0f0c; }
   .dspf-pulldown-border { z-index: 2; }
-  .dspf-pulldown-field { z-index: 3; }
+  /* .dspf-pulldown-field must out-rank EVERY widget-type z-index rule above
+   * (.dspf-field.dspf-widget-radio/-checkbox/-button/-menubar, .dspf-field.dspf-cntfld)
+   * so a PULLDOWN overlay's own fields always paint above .dspf-pulldown-border's
+   * opaque background - that's the whole point of z-index:3 here. A bare
+   * .dspf-pulldown-field (one class, specificity 0,1,0) LOSES that fight
+   * against those widget rules (two classes each, specificity 0,2,0) no
+   * matter where it sits in this file - CSS specificity always beats source
+   * order. The result: any SNGCHCFLD/MLTCHCFLD (radio/checkbox), button,
+   * CNTFLD, or (in principle) menu-bar field placed inside a PULLDOWN record
+   * silently computed z-index:1, one below the border's z-index:2, so the
+   * border's own background painted OVER the choice text - it was still
+   * there in the DOM with correct color/content, just visually hidden
+   * behind the border (reported bug: "choice pulldown/menu showing empty").
+   * Matching .dspf-field.dspf-pulldown-field here (still two classes, same
+   * 0,2,0 specificity as every rule above) makes source order the
+   * tiebreaker again - and this rule already sits after all of them. */
+  .dspf-field.dspf-pulldown-field { z-index: 3; }
   .dspf-field.dspf-pulldown-field.dspf-widget-radio, .dspf-field.dspf-pulldown-field.dspf-widget-checkbox { background: #0a0f0c; }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
