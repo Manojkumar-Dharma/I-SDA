@@ -2703,9 +2703,9 @@ function runWindowPickerScenario() {
   const src =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(2 2 10 40)' }),
-      buildLine({ seq: '00020', func: 'RSTCSR' }),
+      buildLine({ seq: '00020', func: 'RSTCSR' }), // Task L7: legacy bogus standalone RSTCSR line the OLD picker used to write - never valid DDS, self-healed away on next commit
       buildLine({ seq: '00030', nameType: 'R', name: 'WIN2', func: 'WINDOW(*DFT 8 30)' }),
-      buildLine({ seq: '00035', nameType: 'R', name: 'WIN3', func: 'WINDOW(4 4 9 35 *NOMSGLIN)' }),
+      buildLine({ seq: '00035', nameType: 'R', name: 'WIN3', func: 'WINDOW(4 4 9 35 *NOMSGLIN *NORSTCSR)' }),
       buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
@@ -2747,7 +2747,7 @@ function runWindowPickerScenario() {
     check('start column pre-filled', doc.getElementById(rwPrefix + '-startcol').value === '2');
     check('lines pre-filled', doc.getElementById(rwPrefix + '-lines').value === '10');
     check('columns pre-filled', doc.getElementById(rwPrefix + '-cols').value === '40');
-    check('RSTCSR starts checked (already present in the source)', doc.getElementById(rwPrefix + '-rstcsr-on').checked);
+    check('Task L7: Restrict cursor to window starts checked (*RSTCSR is WINDOW\u2019s own default - the legacy standalone RSTCSR line is ignored, not consulted)', doc.getElementById(rwPrefix + '-rstcsr').checked);
     check('Task L6: Message line starts checked (no *NOMSGLIN in a bare 4-token WINDOW - *MSGLIN is the default)', doc.getElementById(rwPrefix + '-msgline').checked);
 
     console.log('  editing the positioned fields and applying commits a new 4-token WINDOW, other keywords untouched');
@@ -2760,8 +2760,9 @@ function runWindowPickerScenario() {
     check('an edit was posted', !!applyEdit);
     let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
     check('WINDOW updated to the new 4-token geometry', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50');
-    check('RSTCSR still present, untouched', reparsed.keywords.some((k) => k.name === 'RSTCSR'));
+    check('Task L7: legacy bogus standalone RSTCSR line self-healed away on commit', !reparsed.keywords.some((k) => k.name === 'RSTCSR'));
     check('Task L6: no *NOMSGLIN written - message line stayed checked/default, so the token stays omitted', !/NOMSGLIN/.test(reparsed.keywords.find((k) => k.name === 'WINDOW').parameters));
+    check('Task L7: no *NORSTCSR written - restrict cursor stayed checked/default, so the token stays omitted', !/NORSTCSR/.test(reparsed.keywords.find((k) => k.name === 'WINDOW').parameters));
     posted.length = 0;
 
     console.log('  Task L6: unchecking Message line and applying appends a trailing *NOMSGLIN token, geometry unaffected');
@@ -2770,7 +2771,7 @@ function runWindowPickerScenario() {
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
     check('WINDOW written as "3 5 12 50 *NOMSGLIN"', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50 *NOMSGLIN');
-    check('RSTCSR still present, untouched', reparsed.keywords.some((k) => k.name === 'RSTCSR'));
+    check('no bogus standalone RSTCSR line reappears', !reparsed.keywords.some((k) => k.name === 'RSTCSR'));
     posted.length = 0;
 
     console.log('  Task L6: re-checking Message line and applying drops the *NOMSGLIN token again');
@@ -2779,6 +2780,34 @@ function runWindowPickerScenario() {
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
     check('WINDOW back to "3 5 12 50", no trailing token', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50');
+    posted.length = 0;
+
+    console.log('  Task L7: unchecking Restrict cursor to window and applying appends a trailing *NORSTCSR token, geometry unaffected');
+    doc.getElementById(rwPrefix + '-rstcsr').checked = false;
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW written as "3 5 12 50 *NORSTCSR"', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50 *NORSTCSR');
+    posted.length = 0;
+
+    console.log('  Task L7: re-checking Restrict cursor to window and applying drops the *NORSTCSR token again');
+    doc.getElementById(rwPrefix + '-rstcsr').checked = true;
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW back to "3 5 12 50", no trailing token', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50');
+    posted.length = 0;
+
+    console.log('  Task L7: unchecking BOTH Message line and Restrict cursor writes both tokens in IBM\u2019s documented order (*MSGLIN/*NOMSGLIN before *RSTCSR/*NORSTCSR)');
+    doc.getElementById(rwPrefix + '-msgline').checked = false;
+    doc.getElementById(rwPrefix + '-rstcsr').checked = false;
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN1');
+    check('WINDOW written as "3 5 12 50 *NOMSGLIN *NORSTCSR"', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '3 5 12 50 *NOMSGLIN *NORSTCSR');
+    doc.getElementById(rwPrefix + '-msgline').checked = true;
+    doc.getElementById(rwPrefix + '-rstcsr').checked = true;
+    doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
     posted.length = 0;
 
     console.log('  switching to "sized" mode and applying writes the *DFT 3-token form');
@@ -2800,6 +2829,7 @@ function runWindowPickerScenario() {
     modeReference.dispatchEvent(new Event('change', { bubbles: true }));
     check('the reference field is visible, size/position fields hidden', doc.querySelector('.' + rwPrefix + '-mode-reference').style.display !== 'none' && doc.querySelector('.' + rwPrefix + '-mode-size').style.display === 'none');
     check('Task L6: Message line row is hidden in "reference" mode (the bare form has no room for *MSGLIN/*NOMSGLIN - inherited from the referenced window instead)', doc.querySelector('.' + rwPrefix + '-msgline-wrap').style.display === 'none');
+    check('Task L7: Restrict cursor to window row is hidden in "reference" mode (the bare form has no room for *RSTCSR/*NORSTCSR either)', doc.querySelector('.' + rwPrefix + '-rstcsr-wrap').style.display === 'none');
     doc.getElementById(rwPrefix + '-reference').value = 'WIN2';
     doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
@@ -2816,7 +2846,7 @@ function runWindowPickerScenario() {
     check('"sized" mode is pre-selected for a *DFT WINDOW', modeSized2 && modeSized2.checked);
     check('lines pre-filled from *DFT form', doc.getElementById(rwPrefix2 + '-lines').value === '8');
     check('columns pre-filled from *DFT form', doc.getElementById(rwPrefix2 + '-cols').value === '30');
-    check('RSTCSR starts unchecked (not in WIN2\u2019s source)', !doc.getElementById(rwPrefix2 + '-rstcsr-on').checked);
+    check('Task L7: Restrict cursor to window starts checked for WIN2 too (*RSTCSR is the default when no trailing token is present)', doc.getElementById(rwPrefix2 + '-rstcsr').checked);
     check('Task L6: Message line starts checked for WIN2 too (no *NOMSGLIN in its *DFT form)', doc.getElementById(rwPrefix2 + '-msgline').checked);
 
     console.log('  Task L6: a WINDOW(... *NOMSGLIN) record (WIN3) pre-fills "positioned" mode with Message line UNCHECKED');
@@ -2831,12 +2861,14 @@ function runWindowPickerScenario() {
     check('lines pre-filled', doc.getElementById(rwPrefix3 + '-lines').value === '9');
     check('columns pre-filled', doc.getElementById(rwPrefix3 + '-cols').value === '35');
     check('Message line starts UNCHECKED (source has *NOMSGLIN)', !doc.getElementById(rwPrefix3 + '-msgline').checked);
-    console.log('  Task L6: re-checking Message line on WIN3 and applying drops *NOMSGLIN, geometry untouched');
+    check('Task L7: Restrict cursor to window starts UNCHECKED (source has *NORSTCSR), not misread as a positional token', !doc.getElementById(rwPrefix3 + '-rstcsr').checked);
+    console.log('  Task L6/L7: re-checking both Message line and Restrict cursor on WIN3 and applying drops both tokens, geometry untouched');
     doc.getElementById(rwPrefix3 + '-msgline').checked = true;
+    doc.getElementById(rwPrefix3 + '-rstcsr').checked = true;
     doc.getElementById(rwPrefix3 + '-apply').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'WIN3');
-    check('WIN3\u2019s WINDOW written as "4 4 9 35", *NOMSGLIN dropped', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '4 4 9 35');
+    check('WIN3\u2019s WINDOW written as "4 4 9 35", both trailing tokens dropped', reparsed.keywords.find((k) => k.name === 'WINDOW').parameters.trim() === '4 4 9 35');
     posted.length = 0;
 
     console.log('  switching back to WIN2 to finish the Border Parameters check');
@@ -3567,7 +3599,7 @@ function runWndSfCtlPickerScenario() {
     check('"positioned" mode pre-selected for a 4-token WINDOW', modePositioned && modePositioned.checked);
     check('start line pre-filled', doc.getElementById(rwPrefix + '-startline').value === '2');
     check('lines pre-filled', doc.getElementById(rwPrefix + '-lines').value === '10');
-    check('RSTCSR starts checked (already present in the source)', doc.getElementById(rwPrefix + '-rstcsr-on').checked);
+    check('Task L7: Restrict cursor to window starts checked (*RSTCSR is WINDOW\u2019s own default; the legacy standalone RSTCSR line is ignored)', doc.getElementById(rwPrefix + '-rstcsr').checked);
 
     doc.getElementById(rwPrefix + '-startline').value = '4';
     doc.getElementById(rwPrefix + '-apply').dispatchEvent(new Event('click', { bubbles: true }));

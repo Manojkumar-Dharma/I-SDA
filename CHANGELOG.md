@@ -3,6 +3,43 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.75] - 2026-08-28
+
+### Fixed
+- **Task L7 - `WINDOW` picker's "Restrict cursor to window" checkbox now
+  models the real DDS keyword** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). The checkbox used to write a
+  bogus standalone `RSTCSR` keyword line - real DDS has no such
+  record-level keyword, so any file this app had written that flag into
+  would already fail to compile. Confirmed against IBM's own DDS
+  Reference that cursor restriction is actually `WINDOW`'s own optional
+  trailing `*RSTCSR`/`*NORSTCSR` sub-parameter (`WINDOW(...
+  window-lines window-positions [*MSGLIN|*NOMSGLIN]
+  [*RSTCSR|*NORSTCSR])`) - the same trailing-token slot Task L6's
+  "Message line" row already occupies, written right after it in IBM's
+  documented order. Unlike `*MSGLIN`, plain `WINDOW`'s own default here
+  is `*RSTCSR` (restricted) - the *opposite* default `PULLDOWN`'s own,
+  unrelated `*SLTIND`/`*RSTCSR` sub-flags use (Task R10) - so this only
+  ever needs to write the non-default `*NORSTCSR` case.
+  `DspfWriter.getWindowParamsKeyword`/`setWindowParamsKeyword` (Task
+  L6's own functions) now also read/write `rstcsr` (boolean, default
+  `true`) alongside `msgLine`. The picker's Window Parameters panel
+  gained a second checkbox next to Message line, committed via the same
+  "Apply window parameters" button; the old standalone-keyword flag row
+  is gone.
+  Self-healing: `setWindowParamsKeyword` now unconditionally strips any
+  leftover standalone `RSTCSR` line on every commit, regardless of
+  whether the caller's own state even mentions `rstcsr` - so re-saving a
+  WINDOW record through this picker cleans up a file affected by the old
+  bug. The getter deliberately does NOT consult that legacy line's
+  presence/absence either, since it never had a real, salvageable DDS
+  meaning - the true trailing token (or its documented default) is the
+  only source of truth going forward.
+  `runWindowPickerScenario` (and the WNDSFCTL combination scenario, Task
+  R9) updated/extended in `src/test/dspfWebview.test.js` to cover the
+  corrected default, toggling both tokens together in the right order,
+  the `*NORSTCSR` pre-fill case, and the self-heal-on-commit behavior.
+
 ## [0.9.74] - 2026-08-28
 
 ### Added
@@ -51,6 +88,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   current model, so it needs its own careful conversion pass rather
   than being folded into this release's smaller, already-scoped L6
   fix. See `docs/sda-reference/LIMITATIONS-PLAN.md`'s new Task L7 row.
+  Fixed in 0.9.75 above.
 
 ## [0.9.73] - 2026-08-27
 

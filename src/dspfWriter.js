@@ -2831,21 +2831,39 @@
    * catch-all (that token can trail either form, per IBM's own WINDOW
    * syntax). Defaults to `true` (*MSGLIN, i.e. "has a message line") when
    * the token is absent, matching IBM's own documented default.
+   *
+   * `rstcsr` (Task L7) - same trailing-token treatment as `msgLine`, for
+   * WINDOW's OTHER optional trailing token, `*RSTCSR`/`*NORSTCSR`
+   * (confirmed against IBM's own WINDOW keyword reference: unlike
+   * PULLDOWN's *NORSTCSR default, plain WINDOW's own documented default
+   * is *RSTCSR - "restrict cursor" - so this defaults to `true` when the
+   * token is absent). Real DDS has no standalone record-level `RSTCSR`
+   * keyword - only this trailing sub-parameter - so a source file that
+   * still carries the OLD bogus standalone `RSTCSR` line this picker used
+   * to write (see setWindowParamsKeyword's own doc comment) is
+   * deliberately NOT consulted here: that line was never valid DDS to
+   * begin with (any such file would already fail to compile on its own),
+   * so there is no real intent worth salvaging from its mere
+   * presence/absence - the correct trailing token (or its true default)
+   * is always the single source of truth going forward.
    */
   function getWindowParamsKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'WINDOW'; });
     if (!k) return { mode: 'none' };
     var rawTokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
     var msgLine = true;
+    var rstcsr = true;
     var tokens = rawTokens.filter(function (t) {
       var u = t.toUpperCase();
       if (u === '*NOMSGLIN') { msgLine = false; return false; }
       if (u === '*MSGLIN') { msgLine = true; return false; }
+      if (u === '*NORSTCSR') { rstcsr = false; return false; }
+      if (u === '*RSTCSR') { rstcsr = true; return false; }
       return true;
     });
     if (tokens.length === 1 && tokens[0].toUpperCase() !== '*DFT') return { mode: 'reference', referenceName: tokens[0] };
-    if (tokens.length === 3 && tokens[0].toUpperCase() === '*DFT') return { mode: 'sized', lines: tokens[1], columns: tokens[2], msgLine: msgLine };
-    if (tokens.length === 4) return { mode: 'positioned', startLine: tokens[0], startColumn: tokens[1], lines: tokens[2], columns: tokens[3], msgLine: msgLine };
+    if (tokens.length === 3 && tokens[0].toUpperCase() === '*DFT') return { mode: 'sized', lines: tokens[1], columns: tokens[2], msgLine: msgLine, rstcsr: rstcsr };
+    if (tokens.length === 4) return { mode: 'positioned', startLine: tokens[0], startColumn: tokens[1], lines: tokens[2], columns: tokens[3], msgLine: msgLine, rstcsr: rstcsr };
     return { mode: 'other', raw: k.parameters || '' };
   }
 
@@ -2868,24 +2886,43 @@
    * so every pre-L6 caller that never set this field keeps working
    * unchanged) omits the token entirely, since *MSGLIN is the default
    * IBM applies when it's absent - no need to ever write it explicitly.
+   *
+   * Task L7 - `state.rstcsr === false` appends a trailing `*NORSTCSR`
+   * token the exact same way (after the msgLin token, matching IBM's own
+   * documented `[*MSGLIN|*NOMSGLIN] [*RSTCSR|*NORSTCSR]` order) - *RSTCSR
+   * is WINDOW's own default here, so again only the non-default value
+   * ever needs writing. Also fixes the real bug this task exists for:
+   * Task R7 originally modeled "Restrict cursor to window" as a bogus
+   * standalone `RSTCSR` keyword (real DDS has no such record-level
+   * keyword - any file this picker ever wrote that flag into would have
+   * failed to compile), via `DspfWriter.getFileFlagKeyword`/
+   * `setFileFlagKeyword(keywords, 'RSTCSR', ...)`. Every call into this
+   * function now also strips out any such leftover standalone `RSTCSR`
+   * line unconditionally, so re-saving a WINDOW record through this
+   * picker self-heals a file affected by the old bug, whether or not the
+   * caller's own `state` even mentions `rstcsr` - the correct information
+   * (if any was salvageable) already moved to `windowPanelsHtml`/
+   * `wireWindowPanels` reading the real trailing token instead.
    */
   function setWindowParamsKeyword(keywords, state) {
-    var next = (keywords || []).filter(function (kw) { return kw.name !== 'WINDOW'; });
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'WINDOW' && kw.name !== 'RSTCSR'; });
     var params = null;
     var msgLinSuffix = state.msgLine === false ? ' *NOMSGLIN' : '';
+    var rstcsrSuffix = state.rstcsr === false ? ' *NORSTCSR' : '';
+    var trailingSuffix = msgLinSuffix + rstcsrSuffix;
     if (state.mode === 'reference') {
       var ref = (state.referenceName || '').trim();
       if (ref) params = ref;
     } else if (state.mode === 'sized') {
       var lines1 = (state.lines || '').toString().trim();
       var cols1 = (state.columns || '').toString().trim();
-      if (lines1 && cols1) params = '*DFT ' + lines1 + ' ' + cols1 + msgLinSuffix;
+      if (lines1 && cols1) params = '*DFT ' + lines1 + ' ' + cols1 + trailingSuffix;
     } else if (state.mode === 'positioned') {
       var sl = (state.startLine || '').toString().trim();
       var sc = (state.startColumn || '').toString().trim();
       var lines2 = (state.lines || '').toString().trim();
       var cols2 = (state.columns || '').toString().trim();
-      if (sl && sc && lines2 && cols2) params = sl + ' ' + sc + ' ' + lines2 + ' ' + cols2 + msgLinSuffix;
+      if (sl && sc && lines2 && cols2) params = sl + ' ' + sc + ' ' + lines2 + ' ' + cols2 + trailingSuffix;
     }
     if (params) {
       next = next.concat([{ name: 'WINDOW', parameters: params, conditions: [], raw: '', sourceLines: [] }]);

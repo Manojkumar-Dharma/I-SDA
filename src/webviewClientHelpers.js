@@ -2925,13 +2925,17 @@
     // doc comment). Not offered on the bare "Referenced window" form,
     // same reasoning the size/position fields above already hide for it.
     wp += '<div class="' + idPrefix + '-msgline-wrap" style="margin-top:6px;' + (mode === 'reference' ? 'display:none;' : '') + '"><label style="display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-msgline" ' + (geom.msgLine === false ? '' : 'checked') + ' /> Message line (reserve the window\u2019s own last line for messages)</label></div>';
+    // Task L7 - "Restrict cursor to window" is WINDOW's own optional
+    // trailing *RSTCSR/*NORSTCSR token (see DspfWriter.getWindowParamsKeyword's
+    // doc comment), NOT a standalone keyword - it lives on this same
+    // Window Parameters panel/Apply button, right next to Message line,
+    // rather than as its own independently-committed flag row.
+    wp += '<div class="' + idPrefix + '-rstcsr-wrap" style="margin-top:6px;' + (mode === 'reference' ? 'display:none;' : '') + '"><label style="display:flex;align-items:center;gap:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-rstcsr" ' + (geom.rstcsr === false ? '' : 'checked') + ' /> Restrict cursor to window (beep and snap the cursor back when it leaves the window)</label></div>';
     if (geom.mode === 'other') {
       wp += '<div class="hint-small">This record\u2019s WINDOW keyword has a parameter shape the picker doesn\u2019t recognize (' + escapeHtml(geom.raw) + ') - edit it via the raw Keywords editor below instead of this panel.</div>';
     }
     wp += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:10px;">Apply window parameters</button>';
-    var rstcsr = DspfWriter.getFileFlagKeyword(keywords, 'RSTCSR');
-    wp += flagRowHtml(idPrefix + '-rstcsr', 'Restrict cursor to window (RSTCSR)', rstcsr.present, undefined, undefined, rstcsr.conditions, expandedSet);
-    wp += '<div class="hint-small">Real SDA\u2019s Window Parameters screen also shows per-row "Display size"/"Roll" columns - "Roll" is SDA\u2019s own in-terminal editing convenience (not a DDS keyword), and "Display size" conditions a value by *DS3/*DS4 (multiple conditioned keyword instances, the same cross-cutting limitation R1/F1/D1 already defer) - both still left for the raw Keywords editor. "Message line" is now modeled above (Task L6).</div>';
+    wp += '<div class="hint-small">Real SDA\u2019s Window Parameters screen also shows per-row "Display size"/"Roll" columns - "Roll" is SDA\u2019s own in-terminal editing convenience (not a DDS keyword), and "Display size" conditions a value by *DS3/*DS4 (multiple conditioned keyword instances, the same cross-cutting limitation R1/F1/D1 already defer) - both still left for the raw Keywords editor. "Message line" and "Restrict cursor to window" are now modeled above (Tasks L6/L7).</div>';
     panels.windowParameters = wp;
 
     // --- Border Parameters (shared with F1's file-level Window Border) ---
@@ -2950,10 +2954,12 @@
         var posDiv = document.querySelector('.' + idPrefix + '-mode-position');
         var sizeDiv = document.querySelector('.' + idPrefix + '-mode-size');
         var msglineDiv = document.querySelector('.' + idPrefix + '-msgline-wrap');
+        var rstcsrDiv = document.querySelector('.' + idPrefix + '-rstcsr-wrap');
         if (refDiv) refDiv.style.display = radio.value === 'reference' ? '' : 'none';
         if (posDiv) posDiv.style.display = radio.value === 'positioned' ? '' : 'none';
         if (sizeDiv) sizeDiv.style.display = radio.value === 'reference' ? 'none' : '';
         if (msglineDiv) msglineDiv.style.display = radio.value === 'reference' ? 'none' : '';
+        if (rstcsrDiv) rstcsrDiv.style.display = radio.value === 'reference' ? 'none' : '';
       });
     });
     var wpApply = document.getElementById(idPrefix + '-apply');
@@ -2961,6 +2967,7 @@
       wpApply.addEventListener('click', function () {
         var modeEl = document.querySelector('.' + idPrefix + '-mode:checked');
         var msglineEl = document.getElementById(idPrefix + '-msgline');
+        var rstcsrEl = document.getElementById(idPrefix + '-rstcsr');
         var state = {
           mode: modeEl ? modeEl.value : 'positioned',
           referenceName: document.getElementById(idPrefix + '-reference').value,
@@ -2969,11 +2976,11 @@
           lines: document.getElementById(idPrefix + '-lines').value,
           columns: document.getElementById(idPrefix + '-cols').value,
           msgLine: msglineEl ? msglineEl.checked : true,
+          rstcsr: rstcsrEl ? rstcsrEl.checked : true,
         };
         onChange(DspfWriter.setWindowParamsKeyword(getKeywords(), state));
       });
     }
-    wireFlagRow(idPrefix + '-rstcsr', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'RSTCSR', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'RSTCSR').conditions, expandedSet, rerender);
 
     // Border Parameters
     wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);
