@@ -1379,7 +1379,13 @@ async function createRemoteMember(connection: { runCommand: (info: { command: st
  *  own) - it just warns and skips writing companion content, leaving the menu
  *  designer to pick the companion up automatically once it's created some
  *  other way (getMenuCommandMemberUri() treats a missing companion as "no
- *  mappings yet", not an error). */
+ *  mappings yet", not an error).
+ *
+ *  Task M2: ports createRemoteMember()'s own CRTSRCPF fallback (Task L4) here
+ *  too - same ensureSourcePhysicalFileExists() call, same "created
+ *  automatically" prompt wording, run once before EITHER ADDPFM (the menu
+ *  member and its companion commands member share the same qualifiedFile, so
+ *  one CHKOBJ/CRTSRCPF pass covers both - no need to repeat it per member). */
 async function createRemoteMenuMembers(
   connection: { runCommand: (info: { command: string; environment: string }) => Promise<{ code: number; stdout: string; stderr: string }> },
   baseName: string,
@@ -1392,7 +1398,7 @@ async function createRemoteMenuMembers(
   })) ?? '';
 
   const sourceFile = await vscode.window.showInputBox({
-    prompt: 'Source physical file (must already exist - ADDPFM does not create it). Both the menu and its commands member go in this same file.',
+    prompt: 'Source physical file (created automatically with CRTSRCPF if it doesn\'t already exist). Both the menu and its commands member go in this same file.',
     placeHolder: 'QDDSSRC',
     validateInput: validateDdsName,
   });
@@ -1400,6 +1406,8 @@ async function createRemoteMenuMembers(
 
   const qualifiedFile = library.trim() ? `${library.trim().toUpperCase()}/${sourceFile.trim().toUpperCase()}` : sourceFile.trim().toUpperCase();
   const commandMemberName = baseName + 'QQ';
+
+  if (!(await ensureSourcePhysicalFileExists(connection, qualifiedFile))) return;
 
   async function addMember(memberName: string, srcType: string, text: string): Promise<{ code: number; stdout: string; stderr: string } | null> {
     const command = `ADDPFM FILE(${qualifiedFile}) MBR(${memberName}) SRCTYPE(${srcType}) TEXT('${text}')`;

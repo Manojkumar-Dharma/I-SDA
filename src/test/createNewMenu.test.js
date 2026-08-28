@@ -88,7 +88,7 @@ async function run() {
     check('did not also claim the companion file existed', warned && !warned.includes('MYMENU2QQ.mnucmd'));
   }
 
-  console.log('\nremote path (Code for i connected, both ADDPFMs succeed)');
+  console.log('\nremote path (Code for i connected, source file exists, both ADDPFMs succeed)');
   {
     const ranCommands = [];
     vscodeMock.extensions.getExtension = () => ({
@@ -96,7 +96,11 @@ async function run() {
       exports: {
         instance: {
           getConnection: () => ({
-            runCommand: (info) => { ranCommands.push(info); return Promise.resolve({ code: 0, stdout: 'Member added.', stderr: '' }); },
+            runCommand: (info) => {
+              ranCommands.push(info);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 0, stdout: '', stderr: '' });
+              return Promise.resolve({ code: 0, stdout: 'Member added.', stderr: '' });
+            },
           }),
         },
       },
@@ -107,10 +111,13 @@ async function run() {
     scriptPrompts(['MYMENU3', 'Remote Menu', '', 'QDDSSRC'], { value: 'remote' });
     await createNewMenu();
 
-    check('ran two ADDPFM commands', ranCommands.length === 2);
-    check('first ADDPFM creates the MNUDDS member', ranCommands[0].command.includes('MBR(MYMENU3)') && ranCommands[0].command.includes('SRCTYPE(MNUDDS)'));
-    check('second ADDPFM creates the paired QQ MNUCMD member', ranCommands[1].command.includes('MBR(MYMENU3QQ)') && ranCommands[1].command.includes('SRCTYPE(MNUCMD)'));
-    check('both target the same qualified source file', ranCommands[0].command.includes('FILE(QDDSSRC)') && ranCommands[1].command.includes('FILE(QDDSSRC)'));
+    const addpfmCommands = ranCommands.filter((c) => c.command.startsWith('ADDPFM'));
+    check('ran CHKOBJ first (Task M2)', ranCommands[0] && ranCommands[0].command.startsWith('CHKOBJ') && ranCommands[0].command.includes('OBJ(QDDSSRC)'));
+    check('no CRTSRCPF offer/run since CHKOBJ said it exists', !ranCommands.some((c) => c.command.startsWith('CRTSRCPF')));
+    check('ran two ADDPFM commands', addpfmCommands.length === 2);
+    check('first ADDPFM creates the MNUDDS member', addpfmCommands[0].command.includes('MBR(MYMENU3)') && addpfmCommands[0].command.includes('SRCTYPE(MNUDDS)'));
+    check('second ADDPFM creates the paired QQ MNUCMD member', addpfmCommands[1].command.includes('MBR(MYMENU3QQ)') && addpfmCommands[1].command.includes('SRCTYPE(MNUCMD)'));
+    check('both target the same qualified source file', addpfmCommands[0].command.includes('FILE(QDDSSRC)') && addpfmCommands[1].command.includes('FILE(QDDSSRC)'));
 
     const menuUri = new vscodeMock.Uri('member', '/QDDSSRC/MYMENU3.MNUDDS');
     const cmdUri = new vscodeMock.Uri('member', '/QDDSSRC/MYMENU3QQ.MNUCMD');
@@ -130,6 +137,7 @@ async function run() {
           getConnection: () => ({
             runCommand: (info) => {
               ranCommands.push(info);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 0, stdout: '', stderr: '' });
               return Promise.resolve({ code: 1, stdout: '', stderr: 'CPF7302 - File QDDSSRC in library MYLIB not found.' });
             },
           }),
@@ -142,7 +150,8 @@ async function run() {
     scriptPrompts(['MYMENU4', 'Title', 'MYLIB', 'QDDSSRC'], { value: 'remote' });
     await createNewMenu();
 
-    check('only attempted the first ADDPFM', ranCommands.length === 1);
+    const addpfmCommands = ranCommands.filter((c) => c.command.startsWith('ADDPFM'));
+    check('only attempted the first ADDPFM', addpfmCommands.length === 1);
     check('surfaced the real CPF error to the user', vscodeMock.__lastError && vscodeMock.__lastError.includes('CPF7302'));
   }
 
@@ -157,6 +166,7 @@ async function run() {
           getConnection: () => ({
             runCommand: (info) => {
               ranCommands.push(info);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 0, stdout: '', stderr: '' });
               call++;
               if (call === 1) return Promise.resolve({ code: 0, stdout: 'Member added.', stderr: '' });
               return Promise.resolve({ code: 1, stdout: '', stderr: 'CPF7302 - Member already exists.' });
@@ -178,6 +188,103 @@ async function run() {
     const menuUri = new vscodeMock.Uri('member', '/QDDSSRC/MYMENU5.MNUDDS');
     const menuContent = (await vscodeMock.workspace.fs.readFile(menuUri)).toString('utf8');
     check('still wrote the menu member content (it was created successfully)', menuContent.includes('MYMENU5'));
+  }
+
+  console.log('\nremote path (Task M2): source physical file missing (CHKOBJ fails) - offers CRTSRCPF, declining leaves everything untouched');
+  {
+    const ranCommands = [];
+    vscodeMock.extensions.getExtension = () => ({
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runCommand: (info) => {
+              ranCommands.push(info);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 1, stdout: '', stderr: '' });
+              return Promise.resolve({ code: 0, stdout: 'Member added.', stderr: '' });
+            },
+          }),
+        },
+      },
+    });
+    vscodeMock.__clearMockFiles();
+    let warned = null;
+    vscodeMock.window.showWarningMessage = (msg) => { warned = msg; return Promise.resolve(undefined); };
+    vscodeMock.__lastError = null;
+
+    scriptPrompts(['MYMENU6', 'Title', '', 'NEWSRCPF'], { value: 'remote' });
+    await createNewMenu();
+
+    check('ran CHKOBJ', ranCommands.some((c) => c.command.startsWith('CHKOBJ')));
+    check('offered to create it (a warning was shown)', warned && warned.includes('NEWSRCPF'));
+    check('declining runs neither CRTSRCPF nor ADDPFM', !ranCommands.some((c) => c.command.startsWith('CRTSRCPF') || c.command.startsWith('ADDPFM')));
+    check('nothing written, and no error toast either (a decline is a silent cancel)', !vscodeMock.__lastError);
+  }
+
+  console.log('\nremote path (Task M2): source physical file missing - confirming creates it (CRTSRCPF) once, then proceeds to BOTH ADDPFMs');
+  {
+    const ranCommands = [];
+    vscodeMock.extensions.getExtension = () => ({
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runCommand: (info) => {
+              ranCommands.push(info);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 1, stdout: '', stderr: '' });
+              if (info.command.startsWith('CRTSRCPF')) return Promise.resolve({ code: 0, stdout: '', stderr: '' });
+              return Promise.resolve({ code: 0, stdout: 'Member added.', stderr: '' });
+            },
+          }),
+        },
+      },
+    });
+    vscodeMock.__clearMockFiles();
+    vscodeMock.window.showWarningMessage = () => Promise.resolve('Create it');
+
+    scriptPrompts(['MYMENU7', 'Title', '', 'NEWSRCPF'], { value: 'remote' });
+    await createNewMenu();
+
+    const crtsrcpfCommands = ranCommands.filter((c) => c.command.startsWith('CRTSRCPF'));
+    const addpfmCommands = ranCommands.filter((c) => c.command.startsWith('ADDPFM'));
+    check('ran CRTSRCPF for the missing source file, exactly once (shared by both members)', crtsrcpfCommands.length === 1 && crtsrcpfCommands[0].command.includes('FILE(NEWSRCPF)'));
+    check('CRTSRCPF leaves RCDLEN to its own default (*SRC/112) rather than hardcoding one', !crtsrcpfCommands[0].command.includes('RCDLEN'));
+    check('proceeded to both ADDPFMs after CRTSRCPF succeeded', addpfmCommands.length === 2);
+    check('CRTSRCPF ran before either ADDPFM', ranCommands.indexOf(crtsrcpfCommands[0]) < ranCommands.indexOf(addpfmCommands[0]));
+
+    const menuUri = new vscodeMock.Uri('member', '/NEWSRCPF/MYMENU7.MNUDDS');
+    const menuContent = (await vscodeMock.workspace.fs.readFile(menuUri)).toString('utf8');
+    check('member content was written', menuContent.includes('MYMENU7'));
+  }
+
+  console.log('\nremote path (Task M2): source physical file missing - confirming, but CRTSRCPF itself fails - stops before either ADDPFM');
+  {
+    const ranCommands = [];
+    vscodeMock.extensions.getExtension = () => ({
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runCommand: (info) => {
+              ranCommands.push(info);
+              if (info.command.startsWith('CHKOBJ')) return Promise.resolve({ code: 1, stdout: '', stderr: '' });
+              if (info.command.startsWith('CRTSRCPF')) return Promise.resolve({ code: 1, stdout: '', stderr: 'CPF3283 - Cannot allocate library.' });
+              return Promise.resolve({ code: 0, stdout: 'Member added.', stderr: '' });
+            },
+          }),
+        },
+      },
+    });
+    vscodeMock.__clearMockFiles();
+    vscodeMock.window.showWarningMessage = () => Promise.resolve('Create it');
+    vscodeMock.__lastError = null;
+
+    scriptPrompts(['MYMENU8', 'Title', '', 'NEWSRCPF'], { value: 'remote' });
+    await createNewMenu();
+
+    check('attempted CRTSRCPF', ranCommands.some((c) => c.command.startsWith('CRTSRCPF')));
+    check('never reached either ADDPFM after CRTSRCPF failed', !ranCommands.some((c) => c.command.startsWith('ADDPFM')));
+    check('surfaced the real CRTSRCPF failure text', vscodeMock.__lastError && vscodeMock.__lastError.includes('CPF3283'));
   }
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
