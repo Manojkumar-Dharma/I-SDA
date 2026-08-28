@@ -490,7 +490,6 @@ const htmlTemplate = `<!DOCTYPE html>
     <div class="rename-error" id="newRecordError"></div>
   </div>
   <div class="field-row hidden" id="sizeSelectRow"><label>Screen size</label><select id="sizeSelect"></select></div>
-  <div class="warn hidden" id="sizeBoundsWarning"></div>
   <div class="place-btn-row">
     <button class="secondary" id="placeFieldBtn">+ Field</button>
     <button class="secondary" id="placeConstantBtn">+ Constant</button>
@@ -530,6 +529,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div id="fkeyLegend"></div>
   <div class="screen-frame"><div id="screenOutput"></div></div>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
+  <div class="warn hidden" id="sizeBoundsWarning"></div>
 </main>
 <div class="props-panel" id="propsPanel">
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
@@ -980,12 +980,27 @@ const htmlTemplate = `<!DOCTYPE html>
     render();
   }, true);
 
-  /** Indicators relevant to the CURRENTLY PREVIEWED context only - the primary record,
-   *  plus its paired SFL/SFLCTL record if this is a subfile (indicators used there
-   *  render together with the primary record, so toggling them needs to be possible
-   *  from here), plus the active pulldown's record if one is open. Previously this
-   *  collected indicators from every record in the whole file, which buried the
-   *  handful actually relevant to what's on screen under everything else in the file. */
+  /** Indicators relevant to the CURRENTLY PREVIEWED context only - the primary
+   *  record, plus (only when THAT primary record is the one actually drawing
+   *  the other side of a subfile pairing on screen) the other side's own
+   *  indicators too, plus the active pulldown's record if one is open.
+   *  Previously this collected indicators from every record in the whole
+   *  file, which buried the handful actually relevant to what's on screen
+   *  under everything else in the file.
+   *
+   *  A subfile pairing is asymmetric: previewing SFLCTL draws the paired
+   *  SFL record's fields too (see resolveSubfilePreview's repeated preview
+   *  rows), so an indicator that ONLY conditions a field on the SFL side is
+   *  still directly relevant while looking at SFLCTL - toggling it visibly
+   *  changes what's on screen, so it needs to be toggleable from here.
+   *  Previewing the SFL record on its own, though, never draws the SFLCTL
+   *  record's own fields at all (resolveSubfilePreview only ever produces
+   *  output for the SFLCTL side - see its own doc comment), so an
+   *  indicator that only conditions something on the SFLCTL side has NO
+   *  visible effect on an SFL-alone preview. Merging it in anyway (the old
+   *  behavior) showed indicators here that did nothing when toggled from
+   *  this screen, and mixed one record format's indicators into another's
+   *  list, which is what this now avoids. */
   function indicatorsForContext(recordName) {
     const set = new Set();
     const collect = (conds) => (conds || []).forEach((g) => g.indicators.forEach((i) => set.add(i.number)));
@@ -1006,10 +1021,13 @@ const htmlTemplate = `<!DOCTYPE html>
     collectRecord(model.records.find((r) => r.name === recordName));
 
     const sflInfo = DspfEngine.findSflPairing(model, recordName);
-    if (sflInfo) {
+    if (sflInfo && sflInfo.sflCtlRecord && sflInfo.sflCtlRecord.name === recordName) {
+      // Currently viewing the SFLCTL side - it draws the SFL record's own
+      // fields too, so that record's indicators belong in this list.
       collectRecord(sflInfo.sflRecord);
-      collectRecord(sflInfo.sflCtlRecord);
     }
+    // Currently viewing the SFL side on its own: the paired SFLCTL record's
+    // fields never render here, so its indicators are correctly left out.
 
     if (activePulldown && activePulldown.pulldownRecord) {
       collectRecord(model.records.find((r) => r.name === activePulldown.pulldownRecord));

@@ -3,6 +3,26 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.78] - 2026-08-28
+
+### Fixed
+- **Left-panel "Conditioning indicators (preview)" list no longer mixes a
+  subfile pairing's two record formats together.** Previewing the SFL
+  (detail) record on its own used to also list its paired SFLCTL record's
+  own indicators, even though SFLCTL's fields never render as part of an
+  SFL-alone preview (only the other direction does - viewing SFLCTL draws
+  the SFL record's fields too, as the repeated subfile rows). Toggling one
+  of those leaked-in SFLCTL indicators had no visible effect while
+  previewing SFL, and mixed one record format's indicators into another's
+  list. The list is now scoped correctly for each side: previewing SFL
+  alone shows only SFL's own indicators; previewing SFLCTL shows both
+  (since SFLCTL's own preview genuinely does draw the SFL record's fields
+  too).
+- **The screen-size-bounds warning banner moved out of the left panel**,
+  now shown directly under the "Click a field to select it..." hint below
+  the screen preview instead, so the left panel stays focused on
+  navigation/record controls rather than a runtime warning banner.
+
 ## [0.9.77] - 2026-08-28
 
 ### Added

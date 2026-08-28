@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.9.77",
+  "version": "0.9.78",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {

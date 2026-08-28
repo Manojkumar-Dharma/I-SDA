@@ -2017,6 +2017,63 @@ function runIndicatorListScenario() {
     const labels = Array.from(indicatorList.querySelectorAll('span')).map((el) => el.textContent.trim());
     check('indicator 51 (conditioning ONLY the record-level ALARM keyword) is listed for toggling', labels.includes('Ind 51'));
 
+    runSflIndicatorPairingScenario();
+  }, 0);
+}
+
+// Bug fix: the left-panel "Conditioning indicators (preview)" list used to
+// merge BOTH sides of a subfile pairing together regardless of which side
+// was actually being previewed - so previewing the SFL record on its own
+// showed the paired SFLCTL record's own indicators too, even though
+// SFLCTL's fields never render as part of an SFL-alone preview (only the
+// other direction does - see resolveSubfilePreview). See
+// indicatorsForContext's own doc comment in buildWebviewTemplate.js.
+function runSflIndicatorPairingScenario() {
+  console.log('\nBug fix: the indicator list is scoped to the record actually being previewed - SFLCTL\'s own indicators no longer leak into an SFL-alone preview');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'DTLSFL', func: 'SFL' }),
+      buildLine({ seq: '00020', name: 'SFLFLD', dataType: 'A', length: '10', usage: 'B', line: '1', col: '2' }),
+      buildLine({ seq: '00030', ind1: '61', func: 'DSPATR(HI)' }), // indicator only ever used on the SFL side
+      buildLine({ seq: '00040', nameType: 'R', name: 'DTLCTL', func: 'SFLCTL(DTLSFL)' }),
+      buildLine({ seq: '00050', func: 'SFLSIZ(10)' }),
+      buildLine({ seq: '00060', func: 'SFLPAG(5)' }),
+      buildLine({ seq: '00070', name: 'HDRFLD', dataType: 'A', length: '10', usage: 'O', line: '1', col: '20' }),
+      buildLine({ seq: '00080', ind1: '62', func: 'DSPATR(HI)' }), // indicator only ever used on the SFLCTL side
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLINDPAIR.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+    const indicatorLabels = () => Array.from(doc.getElementById('indicatorList').querySelectorAll('span')).map((el) => el.textContent.trim());
+
+    console.log('  previewing the SFL record alone: only its OWN indicator shows, not the paired SFLCTL record\'s');
+    recordSelect.value = 'DTLSFL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    let labels2 = indicatorLabels();
+    check('SFL\'s own indicator 61 is listed', labels2.includes('Ind 61'));
+    check('the paired SFLCTL record\'s indicator 62 is NOT listed here - it has no effect on an SFL-alone preview', !labels2.includes('Ind 62'));
+
+    console.log('  previewing the SFLCTL record: BOTH indicators show, since SFLCTL\'s own preview draws the paired SFL record\'s fields too');
+    recordSelect.value = 'DTLCTL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    labels2 = indicatorLabels();
+    check('SFLCTL\'s own indicator 62 is listed', labels2.includes('Ind 62'));
+    check('the paired SFL record\'s indicator 61 is ALSO listed - toggling it changes the subfile rows drawn here', labels2.includes('Ind 61'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
