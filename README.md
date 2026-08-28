@@ -188,10 +188,9 @@ for the full history if a past decision needs revisiting.
 
 ### Menu designer
 
-- **[Task M2]** Port Task L4's `CRTSRCPF` fix to "Create New Menu"'s
-  remote path.
-- **[Task M3]** Deleting a menu option doesn't scan for other references
-  to it, unlike rename - port Task L2's reference-check pattern.
+- **[Task M3, in progress]** Deleting a menu option doesn't scan for
+  other references to it, unlike rename - port Task L2's
+  reference-check pattern.
 
 ## License
 
