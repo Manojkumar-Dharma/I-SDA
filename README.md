@@ -188,9 +188,9 @@ for the full history if a past decision needs revisiting.
 
 ### Menu designer
 
-- **[Task M3, in progress]** Deleting a menu option doesn't scan for
-  other references to it, unlike rename - port Task L2's
-  reference-check pattern.
+No open items right now - every currently-tracked menu designer task
+(M1 through M5) is done. See `LIMITATIONS-PLAN.md` for the full
+history if a past decision needs revisiting.
 
 ## License
 

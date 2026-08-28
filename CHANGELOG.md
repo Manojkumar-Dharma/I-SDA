@@ -3,6 +3,48 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.84] - 2026-08-28
+
+### Added
+- **Task M3 - deleting a menu option now scans for another record format
+  in the same file that independently defines the same option number**
+  (see `docs/sda-reference/LIMITATIONS-PLAN.md`). A numbered menu option
+  has no DDS-identifier "name" the way a field or record does
+  (`extractMenuOptions` only ever builds these from bare, unnamed
+  `CONSTANT` fields), so `WebviewClientHelpers.findLikelyNameReferences`
+  itself - built around word-boundary matching an identifier-shaped name
+  - has nothing to search *for* here; there's no DDS keyword that
+  references a menu option's constant by name the way `REFFLD`/`SFLCTL`/
+  `WINDOW` reference a named field or record. The genuinely real,
+  domain-specific risk instead: real SDA menus commonly define the SAME
+  menu twice, as separate record formats for different display sizes
+  (`*DS3`/`*DS4` twins), each independently listing the same numbered
+  options - deleting option N from one record while a sibling record
+  still independently defines its own option N is the same kind of
+  easy-to-miss duplication Task L2's own field-reference scan protects
+  against, just "another record defines the same option number" standing
+  in for "another keyword references this name."
+  New `findOtherOptionsWithSameNumber` scans every OTHER record - scoped
+  per-record via `extractMenuOptions(model, recordName)`, since calling
+  it file-wide without a `recordName` dedupes GLOBALLY by number (built
+  for `addNewOption`'s own "next available number, file-wide" use case)
+  and would silently hide exactly the duplicates this scan needs to find
+  - for a matching option number. `commitDeleteOption` blocks the actual
+  delete on a confirmation FIRST when a match is found, via a ported
+  `showConfirmDialog` (verbatim from the DSPF designer's own, CSS
+  included) naming the record/line found - same "the common case (no
+  match) deletes immediately, this doesn't add a click to the common
+  path" stance the DSPF designer's own `commitDelete` takes for a field.
+  See the Task M3 scenario appended to `runCrossRecordOptionScopingScenario`
+  in `src/test/menuWebview.test.js`.
+
+### Housekeeping
+- README's "Planned enhancements" now shows no open items for either
+  designer - every currently-tracked task (DSPF L1-L8, menu M1-M5) is
+  done. `LIMITATIONS-PLAN.md` also caught up Task M2's own status (it
+  had shipped in a prior commit without updating the plan doc's status
+  column or README).
+
 ## [0.9.82] - 2026-08-28
 
 ### Fixed

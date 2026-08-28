@@ -98,6 +98,17 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
+  /* Task M3 - confirmation dialog for a menu option delete with likely
+     references elsewhere (findLikelyNameReferences scan), same shape and
+     class names as the DSPF designer's own commitDelete confirmation
+     dialog - ported verbatim rather than reinvented, since both webviews
+     are otherwise styled from the same design language. */
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .confirm-dialog { background: var(--panel); border: 1px solid var(--warn); border-radius: 6px; padding: 18px; max-width: 380px; font-family: var(--mono); }
+  .confirm-dialog-title { color: var(--warn); font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .confirm-dialog-body { font-size: 12px; color: var(--ink); line-height: 1.5; margin-bottom: 14px; }
+  .confirm-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .confirm-dialog-actions button.danger { color: var(--warn); border-color: var(--warn); }
   .empty-state { color: var(--ink-dim); font-size: 13px; line-height: 1.5; }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 0 0 10px; }
 
@@ -713,13 +724,111 @@ const htmlTemplate = `<!DOCTYPE html>
     renderAll();
   }
 
+  // Task M3 (docs/sda-reference/LIMITATIONS-PLAN.md) - ported verbatim from
+  // the DSPF designer's own commitDelete/showConfirmDialog (see that
+  // file's own doc comment for the full "blocking confirmation instead of
+  // a passive post-hoc warning" reasoning). Same markup/class names, same
+  // Cancel-or-click-outside-dismisses-without-calling-onConfirm contract.
+  function showConfirmDialog(title, bodyText, confirmLabel, onConfirm) {
+    const existing = document.querySelector('.confirm-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML =
+      '<div class="confirm-dialog">' +
+      '<div class="confirm-dialog-title">' + DspfEngine.escapeHtml(title) + '</div>' +
+      '<div class="confirm-dialog-body">' + DspfEngine.escapeHtml(bodyText) + '</div>' +
+      '<div class="confirm-dialog-actions">' +
+      '<button class="secondary confirm-dialog-cancel">Cancel</button>' +
+      '<button class="danger confirm-dialog-confirm">' + DspfEngine.escapeHtml(confirmLabel) + '</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('.confirm-dialog-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('.confirm-dialog-confirm').addEventListener('click', () => {
+      overlay.remove();
+      onConfirm();
+    });
+  }
+
+  // Task M3 - a numbered menu option has no DDS-identifier "name" the way
+  // a field or record does (extractMenuOptions only ever builds these from
+  // bare, unnamed CONSTANT fields), so WebviewClientHelpers.
+  // findLikelyNameReferences itself - built around word-boundary matching
+  // an IDENTIFIER-shaped name - has nothing to search FOR here; there's no
+  // DDS keyword that references a menu option's constant by name the way
+  // REFFLD/SFLCTL/WINDOW reference a named field or record. The one
+  // genuinely real, DDS-structural risk this domain has instead: real SDA
+  // menus commonly define the SAME menu twice, as separate record formats
+  // for different display sizes (e.g. a 24x80 and a 27x132 twin, each
+  // independently listing the same numbered options - see the file-level
+  // Display Sizes picker (*DS3/*DS4)). Deleting option N from ONE record
+  // while a SIBLING record in the same file still independently defines
+  // its OWN option N is exactly the kind of easy-to-miss duplication L2's
+  // reference scan protects against for fields, just with "another record
+  // defines the same option number" standing in for "another keyword
+  // references this name" - so that's what this scans for instead.
+  // Advisory only, same as L2's own scan: a coincidental match (two
+  // unrelated menus in one file both happening to have an "option 1") is
+  // possible and not itself a bug, so this never blocks outright, only
+  // asks for confirmation.
+  function findOtherOptionsWithSameNumber(currentModel, option) {
+    const hits = [];
+    currentModel.records.forEach((record) => {
+      if (record.name === option.recordName) return;
+      // extractMenuOptions(m) with NO recordName dedupes GLOBALLY by
+      // number (see its own comment - built for addNewOption's "next
+      // available number, file-wide" use case), so calling it once
+      // across the whole model would only ever surface the FIRST
+      // record's own option N and silently hide every other record that
+      // also has one - the opposite of what this scan needs. Scoping the
+      // call to ONE other record at a time (its own supported,
+      // documented per-record mode) sidesteps that entirely.
+      const match = extractMenuOptions(currentModel, record.name).find((o) => o.numberValue === option.numberValue);
+      if (match) hits.push({ recordName: record.name, line: match.line });
+    });
+    return hits;
+  }
+
+  // Task M3 - blocks the actual delete on an actionable confirmation FIRST
+  // when a sibling record format looks like it independently defines the
+  // same option number (see findOtherOptionsWithSameNumber's own doc
+  // comment above for why that's this domain's analog of L2's field-
+  // reference scan), naming exactly which record(s)/line(s) look
+  // affected - same "the common case (no match) deletes immediately,
+  // this doesn't add a click to the common path" stance commitDelete
+  // takes for a field. Confirming still only deletes THIS record's
+  // option/command mapping - the sibling record's own matching option is
+  // left untouched either way, same as L2 leaves a field's other
+  // references dangling rather than attempting an auto-fix.
+  function commitDeleteOption(recordName, numberValue) {
+    const option = findOption(model, recordName, numberValue);
+    if (!option) return;
+    const others = findOtherOptionsWithSameNumber(model, option);
+    if (others.length > 0) {
+      const lines = others.map((o) => 'record "' + o.recordName + '", line ' + o.line).join('; ');
+      showConfirmDialog(
+        'Delete option ' + numberValue + '?',
+        'Option ' + numberValue + ' is also independently defined in ' + lines +
+          ' - a common pattern for the same menu laid out at two different display sizes. Deleting it here will not ' +
+          'touch that one, so the menu may show option ' + numberValue + ' at one size but not the other. Delete anyway?',
+        'Delete anyway',
+        () => performDeleteOption(recordName, numberValue)
+      );
+      return;
+    }
+    performDeleteOption(recordName, numberValue);
+  }
+
   // Deletes an option entirely: both its DDS constant(s) (the number-marker
   // and, for the split-constant form, the separate label constant too - see
   // extractMenuOptions) AND its MNUCMD command mapping if one exists. No
-  // confirmation prompt and no renumbering of other options - deleting is a
-  // normal WorkspaceEdit like every other change here, so Ctrl+Z undoes it
-  // the same way.
-  function deleteOption(recordName, numberValue) {
+  // renumbering of other options - deleting is a normal WorkspaceEdit like
+  // every other change here, so Ctrl+Z undoes it the same way. Called
+  // directly for the common case (see commitDeleteOption above), or as the
+  // confirmed action when a sibling record looks like it also defines this
+  // same option number.
+  function performDeleteOption(recordName, numberValue) {
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
 
@@ -982,7 +1091,7 @@ const htmlTemplate = `<!DOCTYPE html>
       });
 
       const deleteBtn = row.querySelector('.option-delete-btn');
-      deleteBtn.addEventListener('click', () => deleteOption(opt.recordName, opt.numberValue));
+      deleteBtn.addEventListener('click', () => commitDeleteOption(opt.recordName, opt.numberValue));
 
       const copyBtn = row.querySelector('.option-copy-btn');
       copyBtn.addEventListener('click', () => copyOption(opt.recordName, opt.numberValue));

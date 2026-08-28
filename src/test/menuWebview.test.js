@@ -1074,6 +1074,42 @@ function runCrossRecordOptionScopingScenario() {
     labels = Array.from(doc.querySelectorAll('.option-label-input')).map((i) => i.value);
     check('MAINMENU shows its original text, not SUBMENU\'s edit leaking across', labels[0] === 'Display library list');
 
+    console.log('\nTask M3: deleting MAINMENU\'s option 1 while SUBMENU still independently defines its own option 1 blocks on a confirmation first');
+    let postedBeforeDelete = posted.length;
+    let deleteBtn = doc.querySelector('.option-delete-btn');
+    deleteBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('no applyEdit posted yet - blocked on confirmation, not deleted immediately', posted.length === postedBeforeDelete);
+    let overlay = doc.querySelector('.confirm-overlay');
+    check('a confirmation dialog appeared', !!overlay);
+    check('the dialog names the record/line where the SAME option number is also defined', /SUBMENU/.test(overlay.querySelector('.confirm-dialog-body').textContent));
+
+    console.log('  Cancel leaves everything untouched');
+    overlay.querySelector('.confirm-dialog-cancel').dispatchEvent(new Event('click', { bubbles: true }));
+    check('overlay dismissed', !doc.querySelector('.confirm-overlay'));
+    check('still no applyEdit posted', posted.length === postedBeforeDelete);
+    check('option 1 still exists on MAINMENU', Array.from(doc.querySelectorAll('.option-label-input')).length === 1);
+
+    console.log('  confirming actually deletes MAINMENU\'s option 1, leaving SUBMENU\'s own option 1 untouched');
+    deleteBtn = doc.querySelector('.option-delete-btn');
+    deleteBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    overlay = doc.querySelector('.confirm-overlay');
+    overlay.querySelector('.confirm-dialog-confirm').dispatchEvent(new Event('click', { bubbles: true }));
+    const m3DeleteEdit = posted.slice(postedBeforeDelete).find((m) => m.type === 'applyEdit');
+    check('applyEdit posted after confirming', !!m3DeleteEdit);
+    check('MAINMENU\'s option 1 constant is gone', m3DeleteEdit && !m3DeleteEdit.text.includes('Display library list'));
+    check('SUBMENU\'s own (renamed) option 1 constant survives untouched', m3DeleteEdit && m3DeleteEdit.text.includes('Renamed sub option'));
+    check('MAINMENU now shows no options at all', doc.querySelectorAll('.option-label-input').length === 0);
+
+    console.log('  deleting SUBMENU\'s option 1 now (no sibling record shares that number anymore) deletes immediately, no confirmation dialog');
+    recordSelect.value = 'SUBMENU';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    postedBeforeDelete = posted.length;
+    deleteBtn = doc.querySelector('.option-delete-btn');
+    deleteBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('no confirmation dialog this time - nothing else defines option 1 anymore', !doc.querySelector('.confirm-overlay'));
+    check('deleted immediately - applyEdit posted without any confirm click', posted.slice(postedBeforeDelete).some((m) => m.type === 'applyEdit'));
+    check('SUBMENU now shows no options at all', doc.querySelectorAll('.option-label-input').length === 0);
+
     console.log('\ngetMenuWebviewHtml() defaults when uiStyle/uiTheme args are omitted (same regression as dspfWebview.test.js)');
     const defaultsHtml = getMenuWebviewHtml('vscode-webview://fake', 'n', menuSource, commandSource, 'D.MNUDDS', 'DQQ.MNUCMD', 'loaded');
     check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));
