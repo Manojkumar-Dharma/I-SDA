@@ -188,11 +188,6 @@ for the full history if a past decision needs revisiting.
 
 ### Menu designer
 
-- **[Task M1]** Give menu options the same dedicated-picker treatment the
-  DSPF designer's keywords already have - a menu option is a plain DDS
-  `CONSTANT` under the hood, so real SDA supports `COLOR`/`DSPATR`
-  styling on it the same as any other constant, but the option row UI
-  currently has no keyword editor at all.
 - **[Task M2]** Port Task L4's `CRTSRCPF` fix to "Create New Menu"'s
   remote path.
 - **[Task M3]** Deleting a menu option doesn't scan for other references
