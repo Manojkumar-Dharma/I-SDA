@@ -1838,6 +1838,93 @@
     return next;
   }
 
+  // -----------------------------------------------------------------------
+  // Task L5d (piece i) - the base record's own "Define Indicator Keywords"
+  // screen (docs/sda-reference/screens/record-level/base-record-keywords/
+  // indicator/image19.png, and identically for a SFLCTL record at
+  // .../indicator/image41.png) as Task L1's repeatable, independently-
+  // conditioned instances. Unlike Task R3's own indicatorTextRowsHtml/
+  // setIndicatorTextRows (SFL/SFLMSG/PDNSFLCTL's own simpler "Define
+  // Indicator Keywords" screen - see .../indicator/image33.png,
+  // window-subfile-wndsfl/indicator/image85.png - which offers only
+  // INDTXT/SETOF/CHANGE, one bare response indicator each), a plain
+  // record's (and a SFLCTL record's) own version of this screen ALSO
+  // repeats CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY - the exact
+  // same "Keyword / Indicators+ / Resp / Text" repeatable-row shape,
+  // just a wider keyword choice. CFnn/CAnn appear on that same real
+  // screen too but are deliberately excluded here - they already have
+  // their own dedicated Command keys panel (commandKeysSectionHtml/
+  // wireCommandKeysSection) elsewhere in this record's properties, so
+  // adding them again here would be two controls fighting over the same
+  // keywords, the same reasoning sflKeywordsPanelsHtml's own General tab
+  // gives for leaving out CHGINPDFT (already covered by Task R1's base
+  // General tab). The real screen's "Indicators/+" column (up to 3
+  // AND'd, continuable with "+") and "Resp" column together are exactly
+  // an instance's own outer `conditions` (AND/OR groups, richer than the
+  // real screen's own fixed 3-slot form) PLUS that keyword's own
+  // response-indicator parameter - the same conditions-vs-parameter split
+  // Task L1b's own doc comment already draws for ERRMSG's response
+  // indicator. INDTXT is the one keyword here whose parameter carries a
+  // second piece (`'text'` alongside the indicator), same shape
+  // setIndicatorTextRows already parses for INDTXT elsewhere in this
+  // file - `resp`/`text` are kept as separate fields on the instance
+  // (rather than one opaque `parameters` string, unlike
+  // getValidityCheckInstances above) since every OTHER keyword in this
+  // set has no text component at all, and decomposing here means the UI
+  // layer never needs to parse/format the combined string itself.
+  // -----------------------------------------------------------------------
+
+  var RECORD_INDICATOR_KEYWORD_NAMES = ['CLEAR', 'PAGEDOWN', 'PAGEUP', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'];
+
+  /** Reads every CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/
+   *  CHANGE/INDTXT instance off `keywords` as Task L1's repeatable,
+   *  independently-conditioned instances - `{ conditions, kind, resp,
+   *  text }[]`, in source order. `resp` is that keyword's own response-
+   *  indicator parameter (e.g. CLEAR's argument); `text` is only ever
+   *  non-blank for an INDTXT instance (the quoted text portion of
+   *  `INDTXT(indicator 'text')`, unquoted/unescaped the same way
+   *  setIndicatorTextRows' own INDTXT parsing does it). */
+  function getRecordIndicatorInstances(keywords) {
+    return getRepeatableKeywordInstances(keywords, RECORD_INDICATOR_KEYWORD_NAMES).map(function (inst) {
+      if (inst.name === 'INDTXT') {
+        var m = /^(\S*)\s*(?:'((?:[^']|'')*)')?/.exec((inst.parameters || '').trim());
+        return { conditions: inst.conditions, kind: 'INDTXT', resp: (m && m[1]) || '', text: m && m[2] !== undefined ? m[2].replace(/''/g, "'") : '' };
+      }
+      return { conditions: inst.conditions, kind: inst.name, resp: (inst.parameters || '').trim(), text: '' };
+    });
+  }
+
+  /** Returns a NEW keywords array with every existing instance of any
+   *  keyword in RECORD_INDICATOR_KEYWORD_NAMES replaced by the given
+   *  `instances` (`{ conditions, kind, resp, text }[]`, same shape
+   *  getRecordIndicatorInstances returns) - each instance with a
+   *  recognized `kind` AND a non-blank `resp` writes one keyword of that
+   *  kind under that instance's OWN `conditions` (an instance with a
+   *  blank `resp` writes nothing - CLEAR() with no indicator isn't valid
+   *  DDS, same "an emptied-out instance just disappears" rule every other
+   *  L1-based setX in this file already follows). `text` is folded into
+   *  `resp` as `resp 'text'` ONLY for `kind === 'INDTXT'` (quoted/escaped
+   *  the same way setIndicatorTextRows' own INDTXT formatting does it) -
+   *  every other kind ignores a stray `text` value rather than erroring,
+   *  same as real SDA's own screen leaves the Text column enabled
+   *  regardless of which keyword a row picks. */
+  function setRecordIndicatorInstances(keywords, instances) {
+    var flat = (instances || [])
+      .map(function (inst) {
+        if (!inst || RECORD_INDICATOR_KEYWORD_NAMES.indexOf(inst.kind) < 0) return null;
+        var resp = (inst.resp || '').trim();
+        if (!resp) return null;
+        var parameters = resp;
+        if (inst.kind === 'INDTXT') {
+          var text = (inst.text || '').trim();
+          parameters = resp + (text ? " '" + text.replace(/'/g, "''") + "'" : '');
+        }
+        return { name: inst.kind, parameters: parameters, conditions: inst.conditions || [] };
+      })
+      .filter(Boolean);
+    return setRepeatableKeywordInstances(keywords, RECORD_INDICATOR_KEYWORD_NAMES, flat);
+  }
+
   var ERROR_MESSAGE_NAMES = ['ERRMSG', 'ERRMSGID'];
 
   /** Task L1b - ERRMSG/ERRMSGID wired onto the L1 foundation above. Real
@@ -3203,6 +3290,8 @@
     setIndicatorTextRows: setIndicatorTextRows,
     getRepeatableKeywordInstances: getRepeatableKeywordInstances,
     setRepeatableKeywordInstances: setRepeatableKeywordInstances,
+    getRecordIndicatorInstances: getRecordIndicatorInstances,
+    setRecordIndicatorInstances: setRecordIndicatorInstances,
     getSflDisplayLayout: getSflDisplayLayout,
     setSflDisplayLayout: setSflDisplayLayout,
     parseSflMsgIdParams: parseSflMsgIdParams,

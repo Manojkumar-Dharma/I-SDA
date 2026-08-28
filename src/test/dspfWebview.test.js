@@ -3072,15 +3072,35 @@ function runSflCtlPickerScenario() {
     check('SFLDROP(CF03) written', reparsed.keywords.find((k) => k.name === 'SFLDROP').parameters.trim() === 'CF03');
     posted.length = 0;
 
-    console.log('  Indicator: reused R3 component (INDTXT) commits the same as on a plain SFL record');
-    doc.getElementById(p + '-ind-row0-kw').value = 'INDTXT';
-    doc.getElementById(p + '-ind-row0-ind').value = '60';
-    doc.getElementById(p + '-ind-row0-text').value = 'No records found';
-    doc.querySelector('.' + p + '-ind-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    console.log('  Indicator (Task L5d): SFLCTL gets the SAME fuller repeatable keyword set as a plain record\u2019s own Indicator panel, not R3\u2019s narrower INDTXT/SETOF/CHANGE-only table');
+    check('no indicator-keyword instances yet - empty state shown', doc.getElementById(p + '-recind-rep-instances').textContent.indexOf('None defined.') >= 0);
+    doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('clicking "+ Add" seeds a valid default CLEAR(10) instance, not a blank one', !!reparsed.keywords.find((k) => k.name === 'CLEAR' && k.parameters.trim() === '10'));
+    posted.length = 0;
+
+    const recindKindEl = doc.querySelector('.' + p + '-recind-rep-inst0-kind');
+    recindKindEl.value = 'INDTXT';
+    recindKindEl.dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    doc.querySelector('.' + p + '-recind-rep-inst0-resp').value = '60';
+    doc.querySelector('.' + p + '-recind-rep-inst0-resp').dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    doc.querySelector('.' + p + '-recind-rep-inst0-text').value = 'No records found';
+    doc.querySelector('.' + p + '-recind-rep-inst0-text').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
     const indtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
     check('INDTXT written with indicator 60 and quoted text', indtxtKw && /^60\s+'No records found'/.test(indtxtKw.parameters.trim()));
+    posted.length = 0;
+
+    console.log('  Indicator (Task L5d): a second, independently-conditioned instance of a screen-control keyword not covered by R3\u2019s table (e.g. CLEAR) coexists with the INDTXT instance');
+    doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('the first instance (INDTXT) survives adding a second', !!reparsed.keywords.find((k) => k.name === 'INDTXT'));
+    check('a second CLEAR(10) instance was added alongside it', !!reparsed.keywords.find((k) => k.name === 'CLEAR' && k.parameters.trim() === '10'));
     posted.length = 0;
 
     console.log('  Display Layout: SFLSIZ(20)/SFLPAG(10) pre-filled from source, editing commits all three keywords together');
@@ -3945,6 +3965,73 @@ function runPdnSflCtlPickerScenario() {
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
     check("toggling an unrelated flag (KEEP) on the same General tab does not wipe INZRCD's indicator 40 conditioning", reparsed.keywords.find((k) => k.name === 'INZRCD').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'INZRCD').conditions[0].indicators[0].number === '40');
     check('KEEP itself was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
+    posted.length = 0;
+
+    console.log('\nBase Record Keywords (Task R1) Indicator tab (Task L5d): CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/CHANGE/INDTXT are now repeatable, independently-conditioned instances, matching the real SDA \u201cDefine Indicator Keywords\u201d screen for a plain record, instead of one flagRowHtml per keyword');
+    check('no indicator-keyword instances yet - empty state shown', doc.getElementById(rkP + '-recind-rep-instances').textContent.indexOf('None defined.') >= 0);
+    doc.querySelector('.repeat-inst-add[data-prefix="' + rkP + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('clicking "+ Add" seeds a valid default CLEAR(10) instance, not a blank one', !!reparsed.keywords.find((k) => k.name === 'CLEAR' && k.parameters.trim() === '10'));
+    posted.length = 0;
+
+    const rkIndKindEl = doc.querySelector('.' + rkP + '-recind-rep-inst0-kind');
+    rkIndKindEl.value = 'HOME';
+    rkIndKindEl.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('switching kind swaps CLEAR for HOME on the SAME instance, same resp carried over', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '10') && !reparsed.keywords.some((k) => k.name === 'CLEAR'));
+    posted.length = 0;
+
+    doc.querySelector('.' + rkP + '-recind-rep-inst0-resp').value = '25';
+    doc.querySelector('.' + rkP + '-recind-rep-inst0-resp').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('HOME response indicator updated to 25', reparsed.keywords.find((k) => k.name === 'HOME').parameters.trim() === '25');
+    posted.length = 0;
+
+    console.log('  Indicator tab: a second CLEAR row under a DIFFERENT indicator coexists with the first HOME instance - the real screen\u2019s own repeatable-row point');
+    doc.querySelector('.repeat-inst-add[data-prefix="' + rkP + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('HOME(25) survives adding a second instance', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '25'));
+    posted.length = 0;
+    const rkIndKind1El = doc.querySelector('.' + rkP + '-recind-rep-inst1-kind');
+    rkIndKind1El.value = 'CLEAR';
+    rkIndKind1El.dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    doc.querySelector('.' + rkP + '-recind-rep-inst1-resp').value = '31';
+    doc.querySelector('.' + rkP + '-recind-rep-inst1-resp').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('second instance written as its own CLEAR(31)', !!reparsed.keywords.find((k) => k.name === 'CLEAR' && k.parameters.trim() === '31'));
+    check('first instance (HOME(25)) untouched by adding/editing the second', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '25'));
+    posted.length = 0;
+
+    console.log('  Indicator tab: INDTXT within this same repeatable set carries its own text field alongside the response indicator');
+    doc.querySelector('.repeat-inst-add[data-prefix="' + rkP + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
+    const rkIndKind2El = doc.querySelector('.' + rkP + '-recind-rep-inst2-kind');
+    rkIndKind2El.value = 'INDTXT';
+    rkIndKind2El.dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    doc.querySelector('.' + rkP + '-recind-rep-inst2-resp').value = '70';
+    doc.querySelector('.' + rkP + '-recind-rep-inst2-resp').dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    doc.querySelector('.' + rkP + '-recind-rep-inst2-text').value = 'Record locked';
+    doc.querySelector('.' + rkP + '-recind-rep-inst2-text').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    const rkIndtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
+    check('INDTXT written with indicator 70 and quoted text, alongside the two other instances', rkIndtxtKw && /^70\s+'Record locked'/.test(rkIndtxtKw.parameters.trim()) && !!reparsed.keywords.find((k) => k.name === 'HOME') && !!reparsed.keywords.find((k) => k.name === 'CLEAR'));
+    posted.length = 0;
+
+    console.log('  Indicator tab: removing an instance leaves the others alone');
+    doc.querySelector('.repeat-inst-remove[data-prefix="' + rkP + '-recind-rep"][data-idx="1"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('the removed CLEAR(31) instance is gone', !reparsed.keywords.some((k) => k.name === 'CLEAR'));
+    check('HOME(25) and INDTXT(70 ...) both still present', !!reparsed.keywords.find((k) => k.name === 'HOME') && !!reparsed.keywords.find((k) => k.name === 'INDTXT'));
     posted.length = 0;
 
     console.log('\ngetWebviewHtml() defaults when uiStyle/uiTheme args are omitted (regression: these used to silently become "," via Array.prototype.join(undefined))');

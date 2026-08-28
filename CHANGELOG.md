@@ -3,6 +3,53 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.76] - 2026-08-28
+
+### Added
+- **Task L5d-i - record-level Indicator / screen-control keywords panel
+  now uses Task L1's repeatable, independently-conditioned instances**
+  (see `docs/sda-reference/LIMITATIONS-PLAN.md`). Checked the real SDA
+  "Define Indicator Keywords" screen for a plain record
+  (`docs/sda-reference/screens/record-level/base-record-keywords/
+  indicator/image19.png`) and for a SFLCTL record (`.../indicator/
+  image41.png`): unlike Task L5a/L5b/L5c's own keywords (each a single
+  Resp-indicator flag), this screen genuinely IS a repeatable row table
+  - `Keyword` / `Indicators+` / `Resp` / `Text` columns, add as many
+  rows as needed, even multiple rows of the SAME keyword under
+  different indicators (e.g. two `CLEAR` rows, each conditioned
+  differently) - so Task L1's multi-instance component was the right
+  fit here, the opposite finding from L5a/b/c. `CFnn`/`CAnn` appear on
+  that same real screen too but were deliberately left out - they
+  already have their own dedicated Command keys panel elsewhere in the
+  record's properties, so adding them again here would be two controls
+  fighting over the same keywords.
+  New `DspfWriter.getRecordIndicatorInstances`/
+  `setRecordIndicatorInstances` (built on Task L1's own
+  `getRepeatableKeywordInstances`/`setRepeatableKeywordInstances`
+  foundation) cover `CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/
+  `HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT` - `resp`/`text` kept
+  as separate instance fields rather than one opaque `parameters`
+  string, since only `INDTXT` among these ten keywords carries a text
+  component. New `WebviewClientHelpers.recordIndicatorInstanceRowHtml`/
+  `recordIndicatorInstancesHtml`/`wireRecordIndicatorInstances`, follow
+  Task L5's own ERRMSG/validity-check "kind selector per row" pattern.
+  Replaces the old one-`flagRowHtml`-per-keyword treatment on the base
+  Record Keywords panel's own Indicator tab, AND replaces the too-narrow
+  `indicatorTextRowsHtml` (`INDTXT`/`SETOF`/`CHANGE` only - Task R3's
+  own SFL/SFLMSG/PDNSFLCTL screen, confirmed narrower via
+  `.../indicator/image33.png` and
+  `window-subfile-wndsfl/indicator/image85.png`) on the SFLCTL picker's
+  own Indicator tab, since a SFLCTL record's real screen shows the SAME
+  fuller keyword set as a plain record's. SFL/SFLMSG/PDNSFLCTL's own
+  Indicator tabs are untouched - their real screens genuinely only offer
+  `INDTXT`/`SETOF`/`CHANGE`, so Task R3's existing component remains
+  correct there.
+  `docs/sda-reference/LIMITATIONS-PLAN.md`'s Task L5d is now split into
+  L5d-i (this piece, done) and L5d-ii (the rest of the record-level
+  panels, not yet surveyed).
+  See `src/test/recordIndicatorInstances.test.js` and the new Task L5d
+  scenarios in `src/test/dspfWebview.test.js`.
+
 ## [0.9.75] - 2026-08-28
 
 ### Fixed

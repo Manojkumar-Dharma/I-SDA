@@ -163,7 +163,7 @@ Untagged items aren't yet broken into a tracked task.
 
 ### DSPF (screen) designer
 
-- **[High, Tasks L5a/L5b/L5c/L5d]** Most dedicated keyword pickers manage ONE
+- **[High, Tasks L5a/L5b/L5c/L5d-i]** Most dedicated keyword pickers manage ONE
   instance of their keyword(s) at a time, conditioned as a whole via
   the generic keyword editor's Conditioning toggle, rather than the
   MULTIPLE independently-conditioned instances real SDA additionally
@@ -200,9 +200,22 @@ Untagged items aren't yet broken into a tracked task.
   AND/OR indicator expression already covers everything real DDS
   allows. What they actually needed was the simpler fix directly
   below (per-keyword Conditioning toggles), which all three now have.
-  **Only Task L5d (the record-level pickers) remains** - not yet even
-  confirmed to need either treatment; check each keyword's own real
-  SDA screenshot first before assuming it needs L1's component.
+  **Task L5d (the record-level pickers) is now split - L5d-i (record-
+  level Indicator / screen-control keywords panel) is done, the
+  opposite finding from L5a/b/c: checking the real SDA "Define
+  Indicator Keywords" screen (`screens/record-level/
+  base-record-keywords/indicator/`) showed `CLEAR`/`PAGEDOWN`/
+  `PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/
+  `INDTXT` genuinely ARE a repeatable row table there (even multiple
+  rows of the same keyword under different indicators), so this piece
+  DID need Task L1's multi-instance component after all - now wired
+  into both the base Record Keywords panel's own Indicator tab and the
+  SFLCTL picker's own Indicator tab (which shares this same fuller
+  screen; SFL/SFLMSG/PDNSFLCTL keep their own narrower `INDTXT`/
+  `SETOF`/`CHANGE`-only screen, Task R3's existing component,
+  untouched). L5d-ii (the rest of the record-level panels) remains
+  open** - not yet surveyed; check each keyword's own real SDA
+  screenshot first before assuming it needs L1's component either way.
 - Surface the per-keyword Conditioning toggle directly on every
   dedicated picker panel that manages plain flag/single-value keywords
   (as opposed to Task L5's repeatable-instance keywords above) - done.

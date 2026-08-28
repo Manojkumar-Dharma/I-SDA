@@ -707,6 +707,88 @@
     );
   }
 
+  // -----------------------------------------------------------------------
+  // Task L5d (piece i) - the base record's own "Define Indicator Keywords"
+  // screen (CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/CHANGE/
+  // INDTXT) as Task L1's repeatable, independently-conditioned instances -
+  // see DspfWriter.getRecordIndicatorInstances/setRecordIndicatorInstances'
+  // own doc comment in dspfWriter.js for why this differs from Task R3's
+  // simpler indicatorTextRowsHtml (INDTXT/SETOF/CHANGE only, used by
+  // SFL/SFLMSG/PDNSFLCTL's own narrower version of this same real screen).
+  // Follows validityCheckInstanceRowHtml's own per-row "kind" selector
+  // pattern immediately above.
+  // -----------------------------------------------------------------------
+
+  var RECORD_INDICATOR_INSTANCE_KEYWORDS = [
+    ['CLEAR', 'Clear'],
+    ['HOME', 'Home'],
+    ['PAGEDOWN', 'Page down / Roll up'],
+    ['PAGEUP', 'Page up / Roll down'],
+    ['HELP', 'Help'],
+    ['HLPRTN', 'Help return'],
+    ['VLDCMDKEY', 'Validity command key'],
+    ['SETOF', 'Set off'],
+    ['CHANGE', 'Change'],
+    ['INDTXT', 'Indicator text'],
+  ];
+
+  function recordIndicatorInstanceRowHtml(inst, p) {
+    var kind = inst.kind || 'CLEAR';
+    var html = '<div class="two-col" style="margin-bottom:4px;">';
+    html += '<select class="' + p + '-kind">' +
+      RECORD_INDICATOR_INSTANCE_KEYWORDS.map(function (pair) {
+        return '<option value="' + pair[0] + '"' + (kind === pair[0] ? ' selected' : '') + '>' + pair[1] + ' (' + pair[0] + ')</option>';
+      }).join('') +
+      '</select>';
+    html += '<input type="text" class="' + p + '-resp" placeholder="response indicator (10-99, or 01-99)" value="' + escapeHtml(inst.resp || '') + '" />';
+    html += '</div>';
+    if (kind === 'INDTXT') {
+      html += '<input type="text" class="' + p + '-text" placeholder="text" value="' + escapeHtml(inst.text || '') + '" style="width:100%;" />';
+    }
+    return html;
+  }
+
+  /** Record-level Indicator/screen-control keywords panel (Task L5d). */
+  function recordIndicatorInstancesHtml(keywords, ownerKey, expandedSet) {
+    var instances = DspfWriter.getRecordIndicatorInstances(keywords);
+    return repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-rep',
+      function renderPayload(inst, instIdPrefix) { return recordIndicatorInstanceRowHtml(inst, instIdPrefix); },
+      expandedSet,
+      '+ Add indicator keyword'
+    );
+  }
+
+  function wireRecordIndicatorInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
+    var instances = DspfWriter.getRecordIndicatorInstances(keywords);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-rep',
+      instances,
+      function (next) { onChange(DspfWriter.setRecordIndicatorInstances(keywords, next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var kindEl = document.querySelector('.' + instIdPrefix + '-kind');
+        if (kindEl) kindEl.addEventListener('change', function () { updatePayload({ kind: kindEl.value }); });
+        var respEl = document.querySelector('.' + instIdPrefix + '-resp');
+        if (respEl) respEl.addEventListener('change', function () { updatePayload({ resp: respEl.value }); });
+        var textEl = document.querySelector('.' + instIdPrefix + '-text');
+        if (textEl) textEl.addEventListener('change', function () { updatePayload({ text: textEl.value }); });
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        // Non-blank placeholder resp, not '' - same reasoning as every
+        // other L1-based makeDefaultInstance in this file (e.g.
+        // wireValidityCheckInstances above): this component commits on
+        // every change immediately, so a genuinely blank CLEAR() would
+        // be invalid DDS and the freshly-added row would vanish again on
+        // the very next re-render, before the user gets to type a real
+        // response indicator in.
+        return { kind: 'CLEAR', conditions: [], resp: '10', text: '' };
+      }
+    );
+  }
+
   function validityAndEditHtml(keywords, ownerKey, options, expandedSet) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
@@ -2209,27 +2291,12 @@
       '<input type="text" id="' + p + '-rtncsrloc-col" placeholder="Column field name" value="' + escapeHtml(rtncsrloc.b) + '" /></div>';
     panels.general = g;
 
-    // --- Indicator / screen-control keywords ---
-    var ind = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords.</div>';
-    [
-      [p + '-clear', 'CLEAR', 'Clear', '10-99, or 01-99'],
-      [p + '-home', 'HOME', 'Home', '10-99'],
-      [p + '-pagedown', 'PAGEDOWN', 'Page down / Roll up', '10-99'],
-      [p + '-pageup', 'PAGEUP', 'Page up / Roll down', '10-99'],
-      [p + '-help', 'HELP', 'Help', '10-99'],
-      [p + '-hlprtn', 'HLPRTN', 'Help return', '10-99'],
-      [p + '-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99'],
-      [p + '-setof', 'SETOF', 'Set off', '10-99'],
-      [p + '-change', 'CHANGE', 'Change', '10-99'],
-    ].forEach(function (row) {
-      var state = DspfWriter.getFileFlagKeyword(kw, row[1]);
-      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')', state.conditions, expandedSet);
-    });
-    var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
-    var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
-    ind += flagRowHtml(p + '-indtxt', 'Indicator text (INDTXT)', indtxt.present, undefined, undefined, indtxt.conditions, expandedSet);
-    ind += '<div class="two-col"><input type="text" id="' + p + '-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
-      '<input type="text" id="' + p + '-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
+    // --- Indicator / screen-control keywords (Task L5d - repeatable,
+    // independently-conditioned instances; see
+    // DspfWriter.getRecordIndicatorInstances' own doc comment for why
+    // this replaced the old one-flagRowHtml-per-keyword treatment) ---
+    var ind = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords. Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>';
+    ind += recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet);
     panels.indicatorKeywords = ind;
 
     // --- Application help ---
@@ -2495,24 +2562,8 @@
     simple(p + '-entfldatr', 'ENTFLDATR', true);
     wireTwoField(p + '-rtncsrloc-row', p + '-rtncsrloc-col', 'RTNCSRLOC');
 
-    // Indicator / screen-control
-    [p + '-clear:CLEAR', p + '-home:HOME', p + '-pagedown:PAGEDOWN', p + '-pageup:PAGEUP', p + '-help:HELP', p + '-hlprtn:HLPRTN', p + '-vldcmdkey:VLDCMDKEY', p + '-setof:SETOF', p + '-change:CHANGE'].forEach(function (pair) {
-      var idx = pair.lastIndexOf(':');
-      simple(pair.slice(0, idx), pair.slice(idx + 1), true);
-    });
-    var indtxtOn = document.getElementById(p + '-indtxt-on');
-    var indtxtInd = document.getElementById(p + '-indtxt-ind');
-    var indtxtText = document.getElementById(p + '-indtxt-text');
-    function commitIndtxt(conditions) {
-      var ind = (indtxtInd.value || '').trim();
-      var text = (indtxtText.value || '').trim();
-      var params = ind ? ind + (text ? " '" + text.replace(/'/g, "''") + "'" : '') : '';
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'INDTXT', indtxtOn.checked, params, undefined, conditions));
-    }
-    if (indtxtOn) indtxtOn.addEventListener('change', function () { commitIndtxt(); });
-    if (indtxtInd) indtxtInd.addEventListener('change', function () { commitIndtxt(); });
-    if (indtxtText) indtxtText.addEventListener('change', function () { commitIndtxt(); });
-    wireFlagRowConditioning(p + '-indtxt', DspfWriter.getFileFlagKeyword(getKeywords(), 'INDTXT').conditions, commitIndtxt, expandedSet, rerender);
+    // Indicator / screen-control (Task L5d)
+    wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender);
 
     // Application help
     simple(p + '-hlppnlgrp', 'HLPPNLGRP', true);
@@ -3124,8 +3175,19 @@
     g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
-    // --- Indicator (reused from R3 as-is) ---
-    panels.indicator = indicatorTextRowsHtml(kw, p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6);
+    // --- Indicator (Task L5d - SFLCTL's own real "Define Indicator
+    // Keywords" screen, docs/sda-reference/screens/record-level/
+    // base-record-keywords/indicator/image41.png, shows the SAME fuller
+    // repeatable keyword set as the base record's own version of this
+    // screen (image19.png) - CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/
+    // VLDCMDKEY/SETOF/CHANGE/INDTXT, not the narrower INDTXT/SETOF/CHANGE-
+    // only screen SFL/SFLMSG/PDNSFLCTL get (see indicatorTextRowsHtml's
+    // own doc comment) - so this now reuses the same
+    // recordIndicatorInstancesHtml/wireRecordIndicatorInstances pair the
+    // base Record Keywords panel uses, replacing the too-narrow R3 table
+    // this tab used before. ---
+    panels.indicator = '<div class="status" style="margin-bottom:10px;">Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>' +
+      recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet);
 
     // --- Display Layout ---
     var layout = DspfWriter.getSflDisplayLayout(kw);
@@ -3190,8 +3252,8 @@
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
 
-    // Indicator (reused from R3)
-    wireIndicatorTextRows(p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
+    // Indicator (Task L5d)
+    wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender);
 
     // Display Layout
     var layoutApply = document.getElementById(p + '-layout-apply');
@@ -3349,6 +3411,8 @@
     wireValidityAndEdit: wireValidityAndEdit,
     validityCheckInstancesHtml: validityCheckInstancesHtml,
     wireValidityCheckInstances: wireValidityCheckInstances,
+    recordIndicatorInstancesHtml: recordIndicatorInstancesHtml,
+    wireRecordIndicatorInstances: wireRecordIndicatorInstances,
     errorMessageInstancesHtml: errorMessageInstancesHtml,
     wireErrorMessageInstances: wireErrorMessageInstances,
     fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,
