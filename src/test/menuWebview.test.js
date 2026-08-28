@@ -11,6 +11,8 @@
 const { JSDOM } = require('jsdom');
 const { getMenuWebviewHtml } = require('../../dist/menuWebviewTemplate.js');
 const MnuCmdEngine = require('../mnuCmdEngine.js');
+const DspfParser = require('../../dist/dspfParser.js');
+const DspfEngine = require('../dspfEngine.js');
 
 let failures = 0;
 function check(label, condition) {
@@ -777,11 +779,76 @@ function runCopyOptionScenario() {
     check('the original option 10 line is untouched', last && /'10\. Sign off'/.test(last.text));
     check('option 10\'s own screen row/column is unchanged (still row 5)', last && / {2}5 {2}5'10\. Sign off'/.test(last.text));
 
-    runCopySplitOptionScenario();
+    runCopyOptionCollisionScenario();
   }, 100);
 }
 
-// Same as runCopyOptionScenario, but for an option in the split-constant
+// Bug fix regression: copying an option that has ANOTHER option directly
+// below it (the common case - real menus stack options on consecutive
+// rows) used to collide with that neighbor. copyField's own generic
+// default placement (one row below, same column) landed the copy on TOP
+// of option 2 (row 4) here; dspfEngine's overlap resolution then silently
+// DROPPED the copy from the rendered screen (first field to claim a cell
+// wins) even though it really existed in the DDS source and the Options
+// panel list - and clicking that grid cell would have selected option 2
+// instead, showing the WRONG text in the properties panel. copyOption now
+// searches for a genuinely free row (findSafeOptionRow, the same
+// collision-avoiding search "+ Add option" already used) instead of
+// blindly using the neighbor's row.
+function runCopyOptionCollisionScenario() {
+  console.log('\nBug fix: copying an option with another option directly below it no longer collides - lands on the next genuinely free row instead');
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce11', menuSource, commandSource, 'MYMENU.MNUDDS', 'MYMENUQQ.MNUCMD', 'loaded').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    console.log('  copy option 1 ("1. Display library list", row 3 - option 2 sits directly below it at row 4)');
+    const copyBtn = Array.from(doc.querySelectorAll('.option-row')).find((row) => row.querySelector('.option-num-badge').textContent === '1').querySelector('.option-copy-btn');
+    check('setup: found option 1\'s Copy button', !!copyBtn);
+    copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const last = posted[posted.length - 1];
+    check('posts applyEdit with a new option numbered 11 (highest existing, 10, + 1)', last && last.type === 'applyEdit' && /'11\. Display library list'/.test(last.text));
+
+    const newLine = last && last.text.split('\n').find((l) => /'11\. Display library list'/.test(l));
+    check('setup: found the new option\'s own source line', !!newLine);
+    check(
+      'the copy did NOT land on row 4 (option 2\'s row - the old blind-offset bug)',
+      !!newLine && !/ {2}4 {2}5'11\. Display library list'/.test(newLine)
+    );
+    check(
+      'the copy landed on row 6 instead - the first genuinely free row (rows 3/4/5 are all taken by options 1/2/10)',
+      !!newLine && / {2}6 {2}5'11\. Display library list'/.test(newLine)
+    );
+    check('option 2\'s own line is completely untouched', last && /'2\. Change current library'/.test(last.text));
+
+    // Re-parse the resulting source and resolve the screen the same way the
+    // designer's own preview does - the real end-to-end check that the copy
+    // didn't just get written to source but ALSO actually renders (i.e.
+    // isn't silently dropped by overlap resolution), and that it didn't
+    // clobber option 2's own rendering either.
+    const reparsed = DspfParser.parseDspf(last.text);
+    const screen = DspfEngine.resolveScreen(reparsed, 'MENU', new Set());
+    const rendered = screen.fields.map((f) => f.text || '');
+    check('option 1 (the original) still renders on screen', rendered.some((t) => /1\. Display library list/.test(t)));
+    check('option 2 still renders on screen, unharmed by the copy', rendered.some((t) => /2\. Change current library/.test(t)));
+    check('the new copy (option 11) also renders on screen - not silently dropped by overlap resolution', rendered.some((t) => /11\. Display library list/.test(t)));
+
+    runCopySplitOptionScenario();
+  }, 100);
+}
 // form (number marker and label are two separate DDS constants) - the code
 // path that copies BOTH constants and re-aligns them onto the same new row.
 function runCopySplitOptionScenario() {
@@ -1011,6 +1078,20 @@ function runCrossRecordOptionScopingScenario() {
     const defaultsHtml = getMenuWebviewHtml('vscode-webview://fake', 'n', menuSource, commandSource, 'D.MNUDDS', 'DQQ.MNUCMD', 'loaded');
     check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));
     check('data-ui-theme defaults to "green", not ","', /data-ui-theme="green"/.test(defaultsHtml));
+
+    console.log('\nBug fix: scrolling the Options panel used to scroll the WHOLE page (dragging the screen preview up out of view) - each panel now scrolls independently within a fixed viewport height');
+    check(
+      'html/body are pinned to the actual viewport height and clipped (not just min-height, which let the whole page grow past the viewport and scroll as one unit)',
+      /html,\s*body\s*\{[^}]*height:\s*100vh[^}]*overflow:\s*hidden/.test(defaultsHtml)
+    );
+    check(
+      'aside/.options-panel keep their own overflow-y:auto (now actually effective, since body above is height-clamped) and min-height:0 (so the grid column can shrink below its content instead of being pushed by it)',
+      /aside,\s*\.options-panel\s*\{[^}]*overflow-y:\s*auto;\s*min-height:\s*0/.test(defaultsHtml)
+    );
+    check(
+      'main (the screen preview column) also has min-height:0, so it can independently scroll rather than growing the whole grid row taller',
+      /main\s*\{[^}]*overflow:\s*auto;\s*min-height:\s*0/.test(defaultsHtml)
+    );
 
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);

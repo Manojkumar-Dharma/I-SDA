@@ -47,13 +47,30 @@ const htmlTemplate = `<!DOCTYPE html>
     --chrome-accent-rgb: 51, 255, 102;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 200px 1fr 340px; min-height: 100vh; }
-  aside, .options-panel { background: var(--panel); border-right: 1px solid var(--panel-border); padding: 16px; overflow-y: auto; }
+  /* Bug fix: body used to be "min-height: 100vh" (unbounded) with the three
+     grid columns (aside / main / .options-panel) each individually marked
+     "overflow-y: auto"/"overflow: auto" - but that overflow rule is INERT
+     unless a column's own height is actually CONSTRAINED to something
+     smaller than its content. Since nothing here bounded it, a menu with
+     enough options to overflow the viewport (the Options panel's
+     .options-list grows one row per option - common for a real menu) just
+     made the whole BODY grow taller than the viewport instead, so the
+     browser's own page-level scrollbar took over and scrolled ALL THREE
+     columns together as one unit - scrolling to see more options dragged
+     the screen preview in main up and out of view right along with it,
+     even though nothing about the preview itself needed to move. Pinning
+     body to the actual viewport height (not just a minimum) and clipping
+     it is what makes each column's own "overflow-y: auto" actually take
+     effect - now every column scrolls independently within its own space,
+     and the screen preview stays put while the options list scrolls. */
+  html, body { height: 100vh; overflow: hidden; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 200px 1fr 340px; }
+  aside, .options-panel { background: var(--panel); border-right: 1px solid var(--panel-border); padding: 16px; overflow-y: auto; min-height: 0; }
   .options-panel { border-right: none; border-left: 1px solid var(--panel-border); }
   h1 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 4px; }
   h2 { font-size: 16px; margin: 0 0 14px; color: var(--chrome-accent); font-weight: 600; }
   select { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 13px; }
-  main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
+  main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; min-height: 0; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; }
   .dspf-field { white-space: pre; color: var(--accent); user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
@@ -726,14 +743,30 @@ const htmlTemplate = `<!DOCTYPE html>
   // the same primitive the DSPF designer's own field/constant Copy button
   // uses (see CHANGELOG "Copy field/constant") - reused here rather than a
   // second implementation, since an option's number-marker/label are plain
-  // DDS constants underneath. copyField's own default placement (one row
-  // below, same column) keeps the copy visually next to the original; the
-  // one thing it can't do generically is pick a fresh OPTION NUMBER (two
-  // options can't share one, unlike two arbitrary constants which can be
-  // identical), so this rewrites just the copy's number afterward via
-  // applyFieldUpdate - next-available is simply the current max + 1, same
-  // "append past the end" convention addNewOption's own placement guess
-  // uses elsewhere in this file.
+  // DDS constants underneath. The one thing it can't do generically is pick
+  // a fresh OPTION NUMBER (two options can't share one, unlike two
+  // arbitrary constants which can be identical), so this rewrites just the
+  // copy's number afterward via applyFieldUpdate - next-available is simply
+  // the current max + 1, same "append past the end" convention addNewOption's
+  // own placement guess uses elsewhere in this file.
+  //
+  // Bug fix: this used to accept copyField's own generic default placement
+  // (one row below the original, same column) unmodified - a reasonable
+  // default for the DSPF designer's own Copy button (arbitrary layouts,
+  // "drag it into place afterward" is the expected next step - see its own
+  // commitCopy comment), but wrong here: a real menu's options are almost
+  // always stacked on CONSECUTIVE rows, so "row+1, same column" collides
+  // with whatever option already sits directly below the one being copied.
+  // dspfEngine.js's overlap resolution (position-sequence: first field to
+  // claim a screen cell wins, later overlapping fields are dropped
+  // entirely, not partially) then silently DROPS the new copy from the
+  // screen preview - it's really in the DDS source and the Options list,
+  // just invisible on screen - and clicking that grid cell selects the
+  // pre-existing neighbor option instead, so the right panel shows THAT
+  // option's text, not the copy's. Reusing findSafeOptionRow (the same
+  // collision-avoiding search "+ Add option" already relies on) instead of
+  // a blind offset fixes both symptoms at once - the copy always lands on
+  // a genuinely free row, so it renders and selects correctly.
   function copyOption(recordName, numberValue) {
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
@@ -752,8 +785,16 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     const punctuation = /\\)\\s*$/.test(option.numberField.constantValue.trim()) ? ')' : '.';
 
+    const safeRow = findSafeOptionRow(model, record, option.numberField.location.line + 1);
+    if (safeRow == null) {
+      vscode.postMessage({ type: 'error', message: 'iSDA: no room left on this screen to copy option ' + numberValue + ' - reposition something first, or add it manually via the screen designer.' });
+      return;
+    }
+
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.copyField(record, lines, option.numberField, {});
+    lines = DspfWriter.copyField(record, lines, option.numberField, {
+      location: { line: safeRow, column: option.numberField.location.column },
+    });
     let currentModel = DspfParser.parseDspf(lines.join('\\n'));
     let freshRec = currentModel.records.find((r) => r.name === option.recordName);
     const newNumberField = freshRec && freshRec.fields[freshRec.fields.length - 1];
@@ -765,10 +806,11 @@ const htmlTemplate = `<!DOCTYPE html>
 
     if (!isCombined) {
       // Split form: the label lives in its own constant - copy that one
-      // too, placed on the SAME row the number copy just landed on (rather
-      // than copyField's own default of "one row below ITS original"),
-      // same column the original label used, so the pair stays aligned as
-      // one visual option like the source did.
+      // too, placed on the SAME row the number copy just landed on (the
+      // collision-checked safeRow above, not copyField's own "one row
+      // below ITS original" default), same column the original label
+      // used, so the pair stays aligned as one visual option like the
+      // source did.
       currentModel = DspfParser.parseDspf(lines.join('\\n'));
       freshRec = currentModel.records.find((r) => r.name === option.recordName);
       const origLabelFresh = freshRec.fields.find(
@@ -776,7 +818,7 @@ const htmlTemplate = `<!DOCTYPE html>
       );
       if (origLabelFresh) {
         lines = DspfWriter.copyField(freshRec, lines, origLabelFresh, {
-          location: { line: newNumberField.location.line + 1, column: origLabelFresh.location.column },
+          location: { line: safeRow, column: origLabelFresh.location.column },
         });
       }
     }

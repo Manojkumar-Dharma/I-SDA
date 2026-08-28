@@ -3,6 +3,48 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.82] - 2026-08-28
+
+### Fixed
+- **Copy option (menu designer) could silently drop the new option from
+  the screen preview and select the wrong option on click.** `copyOption()`
+  reused `DspfWriter.copyField`'s generic default placement ("one row
+  below the original, same column") - a reasonable default for the DSPF
+  designer's own Copy button (arbitrary layouts, "drag it into place
+  afterward" is the expected next step), but wrong here: a real menu's
+  options are almost always stacked on consecutive rows, so copying an
+  option that has another option directly below it landed the copy right
+  on top of that neighbor. `dspfEngine.js`'s overlap resolution (first
+  field to claim a screen cell wins, later overlapping fields are dropped
+  entirely) then silently dropped the copy from the rendered screen - it
+  really existed in the DDS source and the Options panel list, just
+  invisible on screen - and clicking that grid cell selected the
+  pre-existing neighbor instead, showing ITS text in the properties
+  panel rather than the copy's. `copyOption()` now searches for a
+  genuinely free row via `findSafeOptionRow` (the same collision-avoiding
+  search "+ Add option" already relies on) instead of a blind offset, for
+  both the combined ("N. label") and split-constant option forms, and
+  surfaces a clear error if no room is left rather than producing an
+  invisible/colliding duplicate. See the new
+  `runCopyOptionCollisionScenario` in `src/test/menuWebview.test.js`.
+- **Scrolling the menu designer's Options panel scrolled the whole page,
+  dragging the screen preview up out of view.** `body` was a 3-column CSS
+  grid (`aside` / `main` / `.options-panel`) sized with `min-height: 100vh`
+  (unbounded), while the side columns were individually marked
+  `overflow-y: auto` - but that overflow rule is inert unless a column's
+  own height is actually constrained to something smaller than its
+  content. A menu with enough options to overflow the viewport (the
+  Options panel's list grows one row per option) just grew the whole body
+  taller instead, so the browser's own page-level scrollbar scrolled all
+  three columns together as one unit. `html`/`body` are now pinned to the
+  real viewport height and clipped (`height: 100vh; overflow: hidden`),
+  with `min-height: 0` added to the grid columns (the classic CSS Grid
+  gotcha where a grid item's default `min-height: auto` blocks it from
+  shrinking below its content even inside a bounded parent) - each panel
+  now scrolls independently within its own space, and the screen preview
+  stays fixed while the options list scrolls. See the new CSS checks in
+  `src/test/menuWebview.test.js`.
+
 ## [0.9.81] - 2026-08-28
 
 ### Added
