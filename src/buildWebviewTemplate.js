@@ -60,8 +60,26 @@ const htmlTemplate = `<!DOCTYPE html>
     --chrome-accent-rgb: 51, 255, 102;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 240px 1fr 300px; min-height: 100vh; }
-  aside, .props-panel { background: var(--panel); border-right: 1px solid var(--panel-border); padding: 16px; overflow-y: auto; }
+  /* Bug fix: body used to be "min-height: 100vh" (unbounded) with the three
+     grid columns (aside / main / .props-panel) each individually marked
+     "overflow-y: auto"/"overflow: auto" - but that overflow rule is INERT
+     unless a column's own height is actually CONSTRAINED to something
+     smaller than its content. Since nothing here bounded it, a screen with
+     enough fields/keywords to overflow the viewport (the Properties panel
+     grows with each field's keyword list - common for a real DSPF) just
+     made the whole BODY grow taller than the viewport instead, so the
+     browser's own page-level scrollbar took over and scrolled ALL THREE
+     columns together as one unit - scrolling to see more properties dragged
+     the screen preview in main up and out of view right along with it,
+     even though nothing about the preview itself needed to move. Pinning
+     body to the actual viewport height (not just a minimum) and clipping
+     it is what makes each column's own "overflow-y: auto" actually take
+     effect - now every column scrolls independently within its own space,
+     and the screen preview stays put while the properties list scrolls.
+     Same fix as buildMenuWebviewTemplate.js's copy of this comment. */
+  html, body { height: 100vh; overflow: hidden; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); display: grid; grid-template-columns: 240px 1fr 300px; }
+  aside, .props-panel { background: var(--panel); border-right: 1px solid var(--panel-border); padding: 16px; overflow-y: auto; min-height: 0; }
   .props-panel { border-right: none; border-left: 1px solid var(--panel-border); }
   h1 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 4px; }
   h2 { font-size: 16px; margin: 0 0 14px; color: var(--chrome-accent); font-weight: 600; }
@@ -84,7 +102,7 @@ const htmlTemplate = `<!DOCTYPE html>
    * which (inline style) always wins over this class rule for that field. */
   .choice-row input { min-width: 0; flex-shrink: 0; }
   .choice-row button { flex-shrink: 0; }
-  main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; }
+  main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; min-height: 0; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
   #screenOutput { position: relative; }
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; z-index: 1; }
