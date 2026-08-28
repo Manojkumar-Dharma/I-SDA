@@ -2958,7 +2958,7 @@ function runWindowPickerScenario() {
 }
 
 function runUsrDfnPickerScenario() {
-  console.log('\nUSRDFN picker (Task R2): Keywords tab narrows R1\'s 8 categories to General/App help/Help/Print only');
+  console.log('\nUSRDFN picker (Task R2): Keywords tab narrows R1\'s 7 categories to General/Help/Print only');
   const src =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'USERDEFN', func: 'USRDFN' }),
@@ -2991,19 +2991,19 @@ function runUsrDfnPickerScenario() {
       return Array.from(doc.querySelectorAll('.props-subtab')).map((b) => b.textContent.trim());
     }
 
-    console.log('  a plain record gets all 8 R1 categories');
+    console.log('  a plain record gets all 7 R1 categories (Task L5d-ii: "App help" moved off this record-level tab list entirely - see runApplicationHelpScenario)');
     recordSelect.value = 'PLAIN';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
     const plainLabels = keywordsSubtabLabels();
-    check('all 8 category subtabs present', ['General', 'Indicator', 'App help', 'Help', 'Output', 'Input', 'Overlay', 'Print'].every((l) => plainLabels.includes(l)));
+    check('all 7 category subtabs present', ['General', 'Indicator', 'Help', 'Output', 'Input', 'Overlay', 'Print'].every((l) => plainLabels.includes(l)));
+    check('App help is NOT one of them', !plainLabels.includes('App help'));
 
-    console.log('  a USRDFN record (carries the USRDFN keyword) only gets General/App help/Help/Print');
+    console.log('  a USRDFN record (carries the USRDFN keyword) only gets General/Help/Print');
     recordSelect.value = 'USERDEFN';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
     const usrdfnLabels = keywordsSubtabLabels();
-    check('exactly 4 subtabs', usrdfnLabels.length === 4);
+    check('exactly 3 subtabs', usrdfnLabels.length === 3);
     check('General present', usrdfnLabels.includes('General'));
-    check('App help present', usrdfnLabels.includes('App help'));
     check('Help present', usrdfnLabels.includes('Help'));
     check('Print present', usrdfnLabels.includes('Print'));
     check('Indicator absent', !usrdfnLabels.includes('Indicator'));
@@ -3021,6 +3021,73 @@ function runUsrDfnPickerScenario() {
     const reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'USERDEFN');
     check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
     check('USRDFN keyword itself is untouched', reparsed.keywords.some((k) => k.name === 'USRDFN'));
+
+    runApplicationHelpScenario();
+  }, 0);
+}
+
+function runApplicationHelpScenario() {
+  console.log('\nTask L5d-ii: Application Help (HLPPNLGRP/HLPEXCLD/HLPBDY/HLPARA) moved to each HELP entry\'s own properties, not the record\'s');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCREEN1' }),
+      buildLine({ seq: '00015', func: 'KEEP' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'First'" }),
+      buildLine({ seq: '00030', nameType: 'H', func: "HLPARA(*RCD) HLPPNLGRP(M1 G1 LIB1)" }),
+      buildLine({ seq: '00040', line: '2', col: '2', func: "'Second'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'APPHELP.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.value = 'SCREEN1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+    console.log('  the record\'s own Keywords tab no longer offers an "App help" subtab at all');
+    const keywordsTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Keywords');
+    keywordsTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const kwSubtabLabels = Array.from(doc.querySelectorAll('.props-subtab')).map((b) => b.textContent.trim());
+    check('"App help" is gone from the record-level Keywords subtabs', !kwSubtabLabels.includes('App help'));
+    check('the other 7 categories are still there', ['General', 'Indicator', 'Help', 'Output', 'Input', 'Overlay', 'Print'].every((l) => kwSubtabLabels.includes(l)));
+
+    console.log('  selecting the HELP entry from the Structure tab shows the Application Help fields, pre-filled from ITS OWN keywords');
+    const structureTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Structure');
+    structureTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const helpRow = doc.querySelector('.help-entry-row');
+    check('one help entry row listed', !!helpRow);
+    helpRow.dispatchEvent(new Event('click', { bubbles: true }));
+    const sourceLine = helpRow.getAttribute('data-source-line');
+    const hpPrefix = 'help-' + sourceLine;
+    const hlparaBox = doc.getElementById(hpPrefix + '-hlpara-on');
+    const hlppnlgrpBox = doc.getElementById(hpPrefix + '-hlppnlgrp-on');
+    const hlpexcldBox = doc.getElementById(hpPrefix + '-hlpexcld-on');
+    check('HLPARA checkbox exists and starts checked (present in this help entry\'s own source)', !!hlparaBox && hlparaBox.checked);
+    check('HLPPNLGRP checkbox exists and starts checked, with its parameters pre-filled', !!hlppnlgrpBox && hlppnlgrpBox.checked && doc.getElementById(hpPrefix + '-hlppnlgrp-params').value.trim() === 'M1 G1 LIB1');
+    check('HLPEXCLD checkbox exists and starts UNCHECKED (not in this help entry\'s source)', !!hlpexcldBox && !hlpexcldBox.checked);
+
+    console.log('  checking HLPEXCLD commits it into the HELP ENTRY\'s own keywords, not the record\'s top-level keywords');
+    hlpexcldBox.checked = true;
+    hlpexcldBox.dispatchEvent(new Event('change', { bubbles: true }));
+    const applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    const reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SCREEN1');
+    check('HLPEXCLD landed on the help entry, not the record', reparsed.helpEntries[0].keywords.some((k) => k.name === 'HLPEXCLD') && !reparsed.keywords.some((k) => k.name === 'HLPEXCLD'));
+    check('the help entry\'s own pre-existing HLPARA/HLPPNLGRP are untouched', reparsed.helpEntries[0].keywords.some((k) => k.name === 'HLPARA') && reparsed.helpEntries[0].keywords.some((k) => k.name === 'HLPPNLGRP'));
+    check('the record\'s own top-level KEEP keyword (unrelated) is untouched', reparsed.keywords.some((k) => k.name === 'KEEP'));
 
     runSflCtlPickerScenario();
   }, 0);

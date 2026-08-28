@@ -2254,11 +2254,13 @@
   // -----------------------------------------------------------------------
 
   /**
-   * Builds all 8 R1 category panels' inner HTML at once - { general,
-   * indicatorKeywords, applicationHelp, help, output, input, overlay,
-   * print }, keyed to match the subtabsHtml() ids the caller wires up.
-   * `idPrefix` (e.g. 'rk-RECORD1') keeps element ids unique per record
-   * when the props panel is rebuilt for a different record.
+   * Builds all 7 R1 category panels' inner HTML at once - { general,
+   * indicatorKeywords, help, output, input, overlay, print }, keyed to
+   * match the subtabsHtml() ids the caller wires up. (Task L5d-ii moved
+   * the former 8th category, Application help, off this record-level set
+   * entirely - see applicationHelpFieldsHtml's own doc comment below for
+   * why.) `idPrefix` (e.g. 'rk-RECORD1') keeps element ids unique per
+   * record when the props panel is rebuilt for a different record.
    */
   function recordKeywordsPanelsHtml(keywords, idPrefix, expandedSet) {
     var kw = keywords || [];
@@ -2300,15 +2302,30 @@
     panels.indicatorKeywords = ind;
 
     // --- Application help ---
-    var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
-    var ah = flagRowHtml(p + '-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name', hlppnlgrp.conditions, expandedSet);
-    var fHlpexcld = DspfWriter.getFileFlagKeyword(kw, 'HLPEXCLD');
-    ah += flagRowHtml(p + '-hlpexcld', 'Help text excluded (HLPEXCLD)', fHlpexcld.present, undefined, undefined, fHlpexcld.conditions, expandedSet);
-    var fHlpbdy = DspfWriter.getFileFlagKeyword(kw, 'HLPBDY');
-    ah += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', fHlpbdy.present, undefined, undefined, fHlpbdy.conditions, expandedSet);
-    var fHlpara = DspfWriter.getFileFlagKeyword(kw, 'HLPARA');
-    ah += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, undefined, undefined, fHlpara.conditions, expandedSet);
-    panels.applicationHelp = ah;
+    // Task L5d-ii: HLPPNLGRP/HLPEXCLD/HLPBDY/HLPARA do NOT belong here.
+    // Checking IBM's own DDS Reference against this codebase's own
+    // dspfParser.ts (nameTypeFor -> 'HELP', record.helpEntries) showed
+    // these four keywords are Help-SPECIFICATION-level, not record-level -
+    // DDS's own syntax has an entirely separate "H" line-type (like R for
+    // records or a field's own line) that begins a help specification,
+    // and a record can carry SEVERAL of them (real SDA's own "Define
+    // Application Help" screen's "Help number: N of M / Next help number"
+    // fields, which this record-level tab never modeled, are literally
+    // cycling through those - one full HLPPNLGRP/HLPEXCLD/HLPBDY/HLPARA
+    // group per help specification, not a single shared occurrence per
+    // record). Reading/writing them from/to the RECORD's own top-level
+    // keywords (what this tab used to do) can't ever reflect real DDS
+    // correctly and would write keywords that don't mean what the picker
+    // implies. The dedicated fields for these four now live on each HELP
+    // entry's own properties instead (`applicationHelpFieldsHtml`/
+    // `wireApplicationHelpFields` below, called from buildWebviewTemplate.
+    // js's `renderHelpProps` against that entry's own `keywords` array,
+    // the same array `helpEntriesListHtml`'s add/select/delete flow and
+    // the writer's H-spec serialization already treat as a genuine
+    // separate DDS entry) - this record-level "App help" tab is removed
+    // entirely rather than left showing something that never did
+    // anything real. See `src/test/dspfWebview.test.js`'s Task L5d-ii
+    // scenarios.
 
     // --- Help ---
     var fHlpclr = DspfWriter.getFileFlagKeyword(kw, 'HLPCLR');
@@ -2447,15 +2464,22 @@
   // Task R2 - USRDFN wiring. Per PICKER-SCREENS-PLAN.md, USRDFN has no
   // picker screens of its own - real SDA's own "Select Record Keywords"
   // menu for a USRDFN record (docs/sda-reference/screens/record-level/
-  // usrdfn/_menu-example/image26.png) offers only 4 of R1's 8 categories:
-  // General, Application help, Help, Print (Indicator/Output/Input/
-  // Overlay are absent from that menu entirely, not just empty). So R2 is
-  // pure wiring - renderRecordProps narrows recordKeywordsPanelsHtml's
-  // subtabs to that 4-of-8 subset when the record is USRDFN - not a new
-  // getX/setX pair or a new panel. The USRDFN keyword's own parameter
-  // (which field carries the formatted data - see buildTypedRecordPlan)
-  // isn't part of any of the 4 screens either; it stays reachable through
-  // the Advanced/raw keywords accordion, same "no screen of its own"
+  // usrdfn/_menu-example/image26.png) offers only 4 of R1's original 8
+  // categories: General, Application help, Help, Print (Indicator/
+  // Output/Input/Overlay are absent from that menu entirely, not just
+  // empty). So R2 is pure wiring - renderRecordProps narrows
+  // recordKeywordsPanelsHtml's subtabs to the matching subset when the
+  // record is USRDFN - not a new getX/setX pair or a new panel. (Task
+  // L5d-ii later moved Application help off THIS record-level set
+  // entirely, for every record type including USRDFN - see
+  // applicationHelpFieldsHtml's own doc comment - so today's narrowed
+  // USRDFN subset is General/Help/Print, 3 of R1's remaining 7; that's a
+  // side effect of L5d-ii's correctness fix, not a re-litigation of this
+  // task's own finding about what real SDA's menu shows.) The USRDFN
+  // keyword's own parameter (which field carries the formatted data -
+  // see buildTypedRecordPlan) isn't part of any of these screens either;
+  // it stays reachable through the Advanced/raw keywords accordion, same
+  // "no screen of its own"
   // reasoning.
   // ---------------------------------------------------------------------
 
@@ -2565,11 +2589,9 @@
     // Indicator / screen-control (Task L5d)
     wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender);
 
-    // Application help
-    simple(p + '-hlppnlgrp', 'HLPPNLGRP', true);
-    simple(p + '-hlpexcld', 'HLPEXCLD');
-    simple(p + '-hlpbdy', 'HLPBDY');
-    simple(p + '-hlpara', 'HLPARA');
+    // Application help - Task L5d-ii moved this to each HELP entry's own
+    // properties (see wireApplicationHelpFields below); nothing to wire
+    // here anymore.
 
     // Help
     simple(p + '-hlpclr', 'HLPCLR');
@@ -2627,6 +2649,53 @@
     function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
     if (prtName) prtName.addEventListener('change', commitPrtFile);
     if (prtLib) prtLib.addEventListener('change', commitPrtFile);
+  }
+
+  /**
+   * Task L5d-ii: the four "Define Application Help" keywords
+   * (`HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA`), scoped to a SINGLE help
+   * specification's own `keywords` array - see the doc comment on the
+   * (now-removed) record-level "Application help" tab in
+   * `recordKeywordsPanelsHtml` for why a record's own top-level keywords
+   * was the wrong place for these. Real SDA's own screen shows exactly
+   * ONE "Resp" indicator slot per keyword here (same shape as L5a/b/c's
+   * own keywords), so - like those - this is plain `flagRowHtml`/
+   * `wireFlagRow` over `DspfWriter.getFileFlagKeyword`/
+   * `setFileFlagKeyword`, just pointed at a help entry's own keywords
+   * instead of a record's. `getKeywords`/`onChange` are passed in
+   * (rather than this taking a raw keywords array + returning a new one,
+   * the shape every OTHER dedicated picker's *Html half uses) only for
+   * the read side (`applicationHelpFieldsHtml`) needing just the current
+   * array to render from - `wireApplicationHelpFields` needs the getter/
+   * setter pair the same way `wireRecordKeywordsPanels` does, since each
+   * row's checkbox commits independently and immediately rather than via
+   * a shared Apply button.
+   */
+  function applicationHelpFieldsHtml(keywords, idPrefix, expandedSet) {
+    var kw = keywords || [];
+    var p = idPrefix;
+    var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
+    var html = flagRowHtml(p + '-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name', hlppnlgrp.conditions, expandedSet);
+    var fHlpexcld = DspfWriter.getFileFlagKeyword(kw, 'HLPEXCLD');
+    html += flagRowHtml(p + '-hlpexcld', 'Help text excluded (HLPEXCLD)', fHlpexcld.present, undefined, undefined, fHlpexcld.conditions, expandedSet);
+    var fHlpbdy = DspfWriter.getFileFlagKeyword(kw, 'HLPBDY');
+    html += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', fHlpbdy.present, undefined, undefined, fHlpbdy.conditions, expandedSet);
+    var fHlpara = DspfWriter.getFileFlagKeyword(kw, 'HLPARA');
+    html += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, undefined, undefined, fHlpara.conditions, expandedSet);
+    return html;
+  }
+
+  function wireApplicationHelpFields(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+    var p = idPrefix;
+    function simple(id, name, hasParams) {
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
+      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
+    }
+    simple(p + '-hlppnlgrp', 'HLPPNLGRP', true);
+    simple(p + '-hlpexcld', 'HLPEXCLD');
+    simple(p + '-hlpbdy', 'HLPBDY');
+    simple(p + '-hlpara', 'HLPARA');
   }
 
   /** Renders a fixed-size (`rowCount`, default 6) repeatable table of
@@ -3419,6 +3488,8 @@
     wireFileKeywordsPanels: wireFileKeywordsPanels,
     recordKeywordsPanelsHtml: recordKeywordsPanelsHtml,
     wireRecordKeywordsPanels: wireRecordKeywordsPanels,
+    applicationHelpFieldsHtml: applicationHelpFieldsHtml,
+    wireApplicationHelpFields: wireApplicationHelpFields,
     keyingOptionsHtml: keyingOptionsHtml,
     fieldKeywordCategoryVisibility: fieldKeywordCategoryVisibility,
     wireKeyingOptionsEditor: wireKeyingOptionsEditor,

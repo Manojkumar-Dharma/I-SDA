@@ -160,22 +160,21 @@ open work - nothing actionable below is being tracked as a task. See
 
 ## Planned enhancements
 
-Forward-looking, fixable work - not yet started or still in progress.
-Completed tasks (and their full implementation history) live in
-[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) alongside
-this list, so this section only shows what's actually left. Pick one up,
-mark it `in progress` there, and sync (`git fetch` + drift check) before
-pushing to avoid colliding with other parallel sessions.
+Forward-looking, fixable work - not yet started. Items tagged with a
+task ID are tracked in
+[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) the same
+way the picker screens were - pick one, mark it `in progress` there, and
+sync before pushing to avoid colliding with other parallel sessions.
+Untagged items aren't yet broken into a tracked task. Completed tasks
+are removed from this list rather than accumulated here - see
+`LIMITATIONS-PLAN.md` and `CHANGELOG.md` for what's already shipped and
+how.
 
 ### DSPF (screen) designer
 
-- **[Task L5d-ii, in progress]** Wire any remaining record-level picker
-  panels not yet covered by Task L5d-i (App help, Help, Output, Input,
-  Overlay, Print, and any other record-type-specific panel) onto whichever
-  fix fits - L1's repeatable-conditioned-instance component, or the
-  simpler per-keyword Conditioning toggle. Check each keyword's own real
-  SDA screenshot first; L5d-i found genuinely repeatable rows where
-  L5a/b/c found plain single-indicator flags, so don't assume either way.
+No open items right now - every currently-tracked DSPF designer task
+(L1 through L8, including L5d-ii) is done. See `LIMITATIONS-PLAN.md`
+for the full history if a past decision needs revisiting.
 
 ### Menu designer
 

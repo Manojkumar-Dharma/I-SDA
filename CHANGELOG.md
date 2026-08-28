@@ -3,6 +3,54 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.79] - 2026-08-28
+
+### Fixed
+- **Task L5d-ii - the record-level "Application Help" picker was reading
+  and writing the WRONG keywords array** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Surveying the base Record
+  Keywords panel's remaining categories (App help, Help, Output, Input,
+  Overlay, Print) against their real SDA screenshots found that
+  Help/Output/Input/Overlay/Print all genuinely are single-Resp-
+  indicator-slot flags, already correctly modeled - but real SDA's own
+  "Define Application Help" screen shows a "Help number: N of M / Next
+  help number" cycling header that turned out to matter: `HLPPNLGRP`/
+  `HLPEXCLD`/`HLPBDY`/`HLPARA` are Help-SPECIFICATION-level keywords
+  (DDS's own separate "H" line-type, distinct from record-level
+  keywords, confirmed against IBM's DDS Reference) - a record can carry
+  SEVERAL help specifications, each with its own full HLPPNLGRP/
+  HLPEXCLD/HLPBDY/HLPARA group, not one occurrence shared by the whole
+  record. This codebase's own parser (`dspfParser.ts`) and writer
+  (`dspfWriter.js`) already modeled `record.helpEntries[]` correctly,
+  and an existing "Help entries" list/select UI already let a person
+  add/select/delete individual help specifications - but the record-
+  level "Application help" tab was reading/writing these four keywords
+  from the RECORD's own top-level `keywords`, which real DDS never
+  puts them in; every commit through that tab wrote keywords that
+  didn't mean what the picker implied.
+  Fix: removed the record-level "Application help" tab entirely (from
+  `WebviewClientHelpers.recordKeywordsPanelsHtml`/
+  `wireRecordKeywordsPanels` and `buildWebviewTemplate.js`'s `rkTabs`
+  list, for both the plain-record and USRDFN-narrowed variants) and
+  added new `WebviewClientHelpers.applicationHelpFieldsHtml`/
+  `wireApplicationHelpFields` (thin `flagRowHtml`/`wireFlagRow`
+  wrappers, same shape Tasks L5a/b/c already established, pointed at
+  an arbitrary keywords array instead of a record's), wired into
+  `renderHelpProps` so the dedicated fields now correctly target the
+  SELECTED help entry's own `keywords` - the raw keyword editor
+  remains available below for anything else an H specification might
+  carry. USRDFN's own narrowed Keywords subset is now General/Help/
+  Print (3 of R1's remaining 7 categories), down from 4 of 8, purely
+  as a side effect of Application help moving off the record-level set
+  for every record type.
+  See the new `runApplicationHelpScenario` and the updated
+  `runUsrDfnPickerScenario` in `src/test/dspfWebview.test.js`.
+
+### Housekeeping
+- README's "Planned enhancements" section updated to reflect L5d-ii's
+  completion (the previous commit had already trimmed it down to just
+  L5d-ii/M1-M5; L5d-ii is now removed too, leaving only M1-M5 open).
+
 ## [0.9.78] - 2026-08-28
 
 ### Fixed

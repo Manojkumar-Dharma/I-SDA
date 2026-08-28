@@ -2345,14 +2345,12 @@ const htmlTemplate = `<!DOCTYPE html>
     const rkTabs = isUsrDfn
       ? [
           { id: 'general', label: 'General', content: rkPanels.general },
-          { id: 'apphelp', label: 'App help', content: rkPanels.applicationHelp },
           { id: 'help', label: 'Help', content: rkPanels.help },
           { id: 'print', label: 'Print', content: rkPanels.print },
         ]
       : [
           { id: 'general', label: 'General', content: rkPanels.general },
           { id: 'indicator', label: 'Indicator', content: rkPanels.indicatorKeywords },
-          { id: 'apphelp', label: 'App help', content: rkPanels.applicationHelp },
           { id: 'help', label: 'Help', content: rkPanels.help },
           { id: 'output', label: 'Output', content: rkPanels.output },
           { id: 'input', label: 'Input', content: rkPanels.input },
@@ -2562,11 +2560,19 @@ const htmlTemplate = `<!DOCTYPE html>
     let html = '<button id="p-back" class="secondary" style="width:100%;margin-bottom:12px;">&larr; Back to record</button>';
     html += '<div class="section-label">Help entry</div>';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this help entry is disabled to avoid corrupting it. Edit the source directly.</div>';
-    html += WebviewClientHelpers.keywordEditorHtml(help.keywords, 'help-' + help.sourceLine, expandedKeywordConditioning);
+    // Task L5d-ii: the dedicated "Application help" fields
+    // (HLPPNLGRP/HLPEXCLD/HLPBDY/HLPARA) live here now, against this HELP
+    // entry's OWN keywords - not the record's - since that's the actual
+    // DDS structure (see WebviewClientHelpers.applicationHelpFieldsHtml's
+    // own doc comment). The raw keyword editor below still covers
+    // anything else an H specification might carry.
+    if (editable) html += WebviewClientHelpers.applicationHelpFieldsHtml(help.keywords, 'help-' + help.sourceLine, expandedKeywordConditioning);
+    html += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(help.keywords, 'help-' + help.sourceLine, expandedKeywordConditioning), false);
     propsBody.innerHTML = html;
 
     document.getElementById('p-back').addEventListener('click', () => { selectedHelpSourceLine = null; renderProps(recordName); });
     if (!editable) return;
+    WebviewClientHelpers.wireApplicationHelpFields('help-' + help.sourceLine, () => model.records.find((r) => r.name === recordName).helpEntries.find((h) => h.sourceLine === selectedHelpSourceLine).keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }), expandedKeywordConditioning, () => renderHelpProps(recordName));
     WebviewClientHelpers.wireKeywordEditor(help.keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }), 'help-' + help.sourceLine, expandedKeywordConditioning, () => renderHelpProps(recordName));
   }
 
