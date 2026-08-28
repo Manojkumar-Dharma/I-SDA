@@ -77,6 +77,12 @@ screens/
                                       # Attributes, Separator — same screen
                                       # repeated per choice number, not a new
                                       # design per choice
+
+  menu-designer/
+    option-field-attributes/         # Task M1: real SDA "Set Field Attributes"
+                                      # screen (Color/DSPATR) for a menu option's
+                                      # underlying CONSTANT — user-supplied photo,
+                                      # not from the original source doc
 ```
 
 Folders prefixed `_` (e.g. `_menu`, `_base-record-menu-example`) hold the

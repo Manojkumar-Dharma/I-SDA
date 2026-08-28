@@ -613,7 +613,133 @@ function runOptionConditioningScenario() {
     const option2Line = last.text.split('\n').find((l) => l.includes('2. Change current library'));
     check('option 2\'s own source line has no condition indicator added', !!option2Line && !/^\s*A\s+\d\d\s/.test(option2Line));
 
-    runCopyOptionScenario();
+    runOptionStyleScenario();
+  }, 100);
+}
+
+// Task M1 - per-option "Style" picker (Color & attributes + raw keywords),
+// reusing the same WebviewClientHelpers.colorAttrStatesHtml/
+// wireColorAttrStatesEditor + keywordEditorHtml/wireKeywordEditor
+// components the DSPF designer's own constant-field props panel uses.
+function runOptionStyleScenario() {
+  console.log('\nper-option Style (Color & attributes / keywords) picker in the menu designer');
+  const combinedSrc =
+    [
+      "     A          R MENU",
+      "     A                                  1  2'MAIN MENU'",
+      "     A                                  3  5'1. Display library list'",
+      "     A                                  4  5'2. Change current library'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce8', combinedSrc, '', 'STYLETEST.MNUDDS', 'STYLETESTQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    console.log('  combined form: expand option 1\'s Style panel, pick a color + attribute via the dedicated picker');
+    const styleToggle = doc.querySelector('.option-style-toggle[data-num="1"]');
+    check('setup: option 1\'s Style toggle is present', !!styleToggle);
+    styleToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    const colorSel = doc.getElementById('opt1-colorattr-new-color');
+    check('dedicated Color & attributes staging row is now rendered', !!colorSel);
+    const rawKwSection = doc.getElementById('kwed-opt1');
+    check('the generic raw keyword editor is also rendered below it, same "dedicated + raw fallback" pattern every other picker uses', !!rawKwSection);
+
+    colorSel.value = 'RED';
+    const hiCheck = doc.querySelector('.opt1-colorattr-new-attr[value="HI"]');
+    check('setup: the High intensity (HI) attribute checkbox is present', !!hiCheck);
+    hiCheck.checked = true;
+    const addBtn = doc.querySelector('.repeat-inst-add[data-prefix="opt1-colorattr"]');
+    const postedBefore = posted.length;
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('adding a color/attribute state posts an applyEdit', posted.length === postedBefore + 1);
+    let last = posted[posted.length - 1];
+    // Join DDS keyword-continuation lines before matching - see the
+    // split-form scenario below for why (a long keyword can wrap mid-token
+    // across a hyphen + continuation line).
+    let joined = last ? last.text.replace(/-\n\s*A\s*/g, '') : '';
+    const idx1 = joined.indexOf("1. Display library list");
+    const idx2 = joined.indexOf("2. Change current library");
+    const between = idx1 >= 0 && idx2 > idx1 ? joined.slice(idx1, idx2) : '';
+    check('COLOR(RED) is written onto the option\'s own constant entry', /COLOR\(RED\)/.test(between));
+    check('DSPATR(HI) is written onto the SAME entry (paired into one state, same as the field/constant picker)', /DSPATR\(HI\)/.test(between));
+    check('option 2\'s line is untouched', idx2 >= 0 && !/COLOR|DSPATR/.test(joined.slice(idx2)));
+
+    console.log('  the raw keyword editor underneath commits an arbitrary keyword the dedicated picker doesn\'t cover');
+    const nameInput = doc.getElementById('opt1-new-kw-name');
+    const paramsInput = doc.getElementById('opt1-new-kw-params');
+    check('setup: raw keyword add-row inputs are present', !!nameInput && !!paramsInput);
+    nameInput.value = 'CHRID';
+    paramsInput.value = '284 0';
+    const kwAddBtn = doc.querySelector('.kw-add[data-owner="opt1"]');
+    const postedBeforeKw = posted.length;
+    kwAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('adding a raw keyword posts another applyEdit', posted.length === postedBeforeKw + 1);
+    last = posted[posted.length - 1];
+    joined = last ? last.text.replace(/-\n\s*A\s*/g, '') : '';
+    const idx1b = joined.indexOf("1. Display library list");
+    const idx2b = joined.indexOf("2. Change current library");
+    const betweenAfterKw = idx1b >= 0 && idx2b > idx1b ? joined.slice(idx1b, idx2b) : '';
+    check('the raw-added CHRID keyword is present alongside the still-intact COLOR/DSPATR from the dedicated picker', /CHRID\(284 0\)/.test(betweenAfterKw) && /COLOR\(RED\)/.test(betweenAfterKw) && /DSPATR\(HI\)/.test(betweenAfterKw));
+
+    console.log('  split-constant form: styling syncs onto BOTH the number marker and the separate label constant');
+    const splitSrc =
+      [
+        "     A          R MENU",
+        "     A                                  5  7'1.'",
+        "     A                                  5 10'Display current library list'",
+      ].join('\n') + '\n';
+    const splitHtml = getMenuWebviewHtml('vscode-webview://fake', 'testnonce9', splitSrc, '', 'STYLESPLIT.MNUDDS', 'STYLESPLITQQ.MNUCMD', 'missing').replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const splitPosted = [];
+    const splitDom = new JSDOM(splitHtml, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => splitPosted.push(m) });
+      },
+    });
+    setTimeout(() => {
+      const splitDoc = splitDom.window.document;
+      const SplitEvent = splitDom.window.Event;
+      const splitToggle = splitDoc.querySelector('.option-style-toggle[data-num="1"]');
+      check('setup: split-form option 1\'s Style toggle is present', !!splitToggle);
+      splitToggle.dispatchEvent(new SplitEvent('click', { bubbles: true }));
+      const splitColorSel = splitDoc.getElementById('opt1-colorattr-new-color');
+      splitColorSel.value = 'BLU';
+      const splitAddBtn = splitDoc.querySelector('.repeat-inst-add[data-prefix="opt1-colorattr"]');
+      splitAddBtn.dispatchEvent(new SplitEvent('click', { bubbles: true }));
+      const splitLast = splitPosted[splitPosted.length - 1];
+      // Join DDS keyword-continuation lines (a long keyword split mid-token
+      // across a hyphen + continuation line, e.g. "COLO-\n     A     R(BLU)")
+      // before matching - same real DDS wrapping colorAttrStatesHtml/
+      // setColorAttrStates already produces for any field whose combined
+      // constant text + keywords run past column 80.
+      const joinedText = splitLast ? splitLast.text.replace(/-\n\s*A\s*/g, '') : '';
+      const numIdx = joinedText.indexOf("'1.'");
+      const labelIdx = joinedText.indexOf('Display current library list');
+      const numberBlock = numIdx >= 0 && labelIdx > numIdx ? joinedText.slice(numIdx, labelIdx) : '';
+      const labelBlock = labelIdx >= 0 ? joinedText.slice(labelIdx) : '';
+      check('COLOR(BLU) is written onto the number-marker constant', /COLOR\(BLU\)/.test(numberBlock));
+      check('COLOR(BLU) is ALSO written onto the separate label constant, so number+label stay visually in sync (same as Conditioning)', /COLOR\(BLU\)/.test(labelBlock));
+
+      runCopyOptionScenario();
+    }, 100);
   }, 100);
 }
 

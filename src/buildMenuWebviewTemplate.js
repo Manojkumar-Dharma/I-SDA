@@ -155,9 +155,9 @@ const htmlTemplate = `<!DOCTYPE html>
   .cond-add-row label { font-size: 11px; display: flex; align-items: center; gap: 2px; }
   .cond-add-row input.cond-ind-num { width: 36px; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 3px 4px; font-family: var(--mono); font-size: 11px; }
   .cond-group > button.cond-group-remove { display: block; margin-top: 6px; font-size: 11px; }
-  .option-cond-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 6px; padding: 4px 6px; border: 1px solid var(--panel-border); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; }
-  .option-cond-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
-  .option-cond-body { margin-top: 6px; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
+  .option-cond-toggle, .option-style-toggle { font-size: 10px; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 6px; margin-right: 4px; padding: 4px 6px; border: 1px solid var(--panel-border); border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; }
+  .option-cond-toggle:hover, .option-style-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
+  .option-cond-body, .option-style-body { margin-top: 6px; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
   .hidden { display: none; }
   .kw-row { margin-bottom: 4px; }
   .kw-row-main { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -213,11 +213,13 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-ui-style="modern"] .keyword-chip,
   body[data-ui-style="modern"] .cond-group,
   body[data-ui-style="modern"] .option-cond-toggle,
+  body[data-ui-style="modern"] .option-style-toggle,
   body[data-ui-style="modern"] .kw-cond-toggle,
   body[data-ui-style="modern"] .file-attrs-toggle {
     transition: border-color 150ms var(--ease-out), color 150ms var(--ease-out), background-color 150ms var(--ease-out);
   }
   body[data-ui-style="modern"] .option-cond-body:not(.hidden),
+  body[data-ui-style="modern"] .option-style-body:not(.hidden),
   body[data-ui-style="modern"] .file-attrs-body:not(.hidden) {
     animation: isda-fade-in 150ms var(--ease-out);
   }
@@ -406,6 +408,7 @@ const htmlTemplate = `<!DOCTYPE html>
   let fileAttrsExpanded = false; // survives renderAll() rebuilding everything else, same convention as expandedOptionConditioning below
   const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded, shared with the DSPF designer's own convention
   const expandedOptionConditioning = new Set(); // numberValues whose "Conditioning" panel is expanded - survives renderOptions() rebuilding all rows
+  const expandedOptionStyle = new Set(); // numberValues whose "Style (keywords)" panel is expanded - Task M1, same survives-rerender convention as expandedOptionConditioning above
 
   // A menu option is any DDS constant shaped like "1. Do a thing" or "12) Do a thing" -
   // that's the one thing that distinguishes menu-option text from any other constant
@@ -661,6 +664,37 @@ const htmlTemplate = `<!DOCTYPE html>
     renderAll();
   }
 
+  // Task M1 - a menu option is just a DDS CONSTANT (see extractMenuOptions'
+  // own comment above), so it takes COLOR/DSPATR/etc the same as any other
+  // constant. Synced across numberField AND labelField the same way
+  // updateOptionConditions syncs conditions above, so the number marker and
+  // its label text always carry the SAME styling rather than one lagging
+  // the other - the split-constant form (a separate number + label field)
+  // would otherwise let them drift apart, which real SDA's own "the option"
+  // framing never allows since it edits both as one screen. Applied to
+  // numberField first, then labelField (re-fetched from the freshly-
+  // reparsed model, same reasoning as updateOptionConditions - the first
+  // edit shifts source line numbers for everything after it) only when
+  // it's a genuinely separate constant (the combined "1. Do a thing" form
+  // only has the one field to begin with).
+  function updateOptionKeywords(recordName, numberValue, newKeywords) {
+    const option = findOption(model, recordName, numberValue);
+    if (!option) return;
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { keywords: newKeywords });
+    let currentModel = DspfParser.parseDspf(lines.join('\\n'));
+    if (option.labelField && option.labelField !== option.numberField) {
+      const fresh = findOption(currentModel, recordName, numberValue);
+      if (fresh && fresh.labelField) {
+        lines = DspfWriter.applyFieldUpdate(fresh.labelField, lines, { keywords: newKeywords });
+        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      }
+    }
+    sourceText = lines.join('\\n');
+    model = currentModel;
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    renderAll();
+  }
 
   // Deletes an option entirely: both its DDS constant(s) (the number-marker
   // and, for the split-constant form, the separate label constant too - see
@@ -833,6 +867,14 @@ const htmlTemplate = `<!DOCTYPE html>
       const isExpanded = expandedOptionConditioning.has(opt.numberValue);
       const conditions = (opt.numberField && opt.numberField.conditions) || [];
       const condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
+      // Task M1 - the field whose keywords carry this option's visual
+      // styling. Prefer labelField (the visible "option text" constant);
+      // fall back to numberField for the combined "1. Do a thing" form,
+      // which only has the one field to begin with (see extractMenuOptions).
+      const styleField = opt.labelField || opt.numberField;
+      const styleExpanded = expandedOptionStyle.has(opt.numberValue);
+      const styleKeywordCount = (styleField && styleField.keywords ? styleField.keywords.length : 0);
+      const styleSummary = styleKeywordCount > 0 ? ' (' + styleKeywordCount + ')' : '';
       row.innerHTML =
         '<div class="option-drag-handle" title="Drag onto another option to swap them">\u28FF</div>' +
         '<div class="option-num-badge">' + numLabel + '</div>' +
@@ -845,6 +887,8 @@ const htmlTemplate = `<!DOCTYPE html>
         '</div>' +
         '<div class="option-cond-toggle" data-num="' + numLabel + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</div>' +
         '<div class="option-cond-body' + (isExpanded ? '' : ' hidden') + '" id="opt-cond-body-' + numLabel + '"></div>' +
+        '<div class="option-style-toggle" data-num="' + numLabel + '">Style' + styleSummary + (styleExpanded ? ' \u25b4' : ' \u25be') + '</div>' +
+        '<div class="option-style-body' + (styleExpanded ? '' : ' hidden') + '" id="opt-style-body-' + numLabel + '"></div>' +
         '</div>' +
         '<button type="button" class="option-copy-btn" title="Copy option ' + numLabel + ' as a new option">&#x2398;</button>' +
         '<button type="button" class="option-delete-btn" title="Delete option ' + numLabel + '">&times;</button>';
@@ -864,6 +908,34 @@ const htmlTemplate = `<!DOCTYPE html>
       condToggle.addEventListener('click', () => {
         if (expandedOptionConditioning.has(opt.numberValue)) expandedOptionConditioning.delete(opt.numberValue);
         else expandedOptionConditioning.add(opt.numberValue);
+        renderOptions();
+      });
+
+      // Task M1 - dedicated Color & attributes picker (the same
+      // WebviewClientHelpers.colorAttrStatesHtml/wireColorAttrStatesEditor
+      // component the DSPF designer's own constant-field props panel uses,
+      // per real SDA's "Set Field Attributes" screen - a menu option is
+      // just a DDS CONSTANT under the hood, see extractMenuOptions' own
+      // comment), plus the same generic raw keyword editor every other
+      // dedicated picker in this codebase keeps available underneath for
+      // anything the dedicated panel doesn't cover. Both read/write the
+      // SAME styleField.keywords array and commit through the SAME
+      // updateOptionKeywords, the identical "no caching, always re-derive
+      // from the fresh model" safety Task L1d's dual-panel CHECK sharing
+      // established - one panel's commit can't clobber the other's.
+      const styleToggle = row.querySelector('.option-style-toggle');
+      const styleBody = row.querySelector('.option-style-body');
+      if (styleExpanded && styleField) {
+        styleBody.innerHTML =
+          WebviewClientHelpers.colorAttrStatesHtml(styleField.keywords, 'opt' + numLabel, expandedKeywordConditioning) +
+          '<div class="section-label" style="margin-top:8px;">Other keywords</div>' +
+          WebviewClientHelpers.keywordEditorHtml(styleField.keywords, 'opt' + numLabel, expandedKeywordConditioning);
+        WebviewClientHelpers.wireColorAttrStatesEditor(styleField.keywords, (newKeywords) => updateOptionKeywords(opt.recordName, opt.numberValue, newKeywords), 'opt' + numLabel, expandedKeywordConditioning, renderOptions);
+        WebviewClientHelpers.wireKeywordEditor(styleField.keywords, (newKeywords) => updateOptionKeywords(opt.recordName, opt.numberValue, newKeywords), 'opt' + numLabel, expandedKeywordConditioning, renderOptions);
+      }
+      styleToggle.addEventListener('click', () => {
+        if (expandedOptionStyle.has(opt.numberValue)) expandedOptionStyle.delete(opt.numberValue);
+        else expandedOptionStyle.add(opt.numberValue);
         renderOptions();
       });
 

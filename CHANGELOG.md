@@ -3,6 +3,37 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.81] - 2026-08-28
+
+### Added
+- **Task M1 - menu designer options get the same dedicated-picker
+  treatment DSPF keywords already have** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). A menu option is a plain
+  DDS `CONSTANT` under the hood (see `buildMenuWebviewTemplate.js`'s
+  own `extractMenuOptions`), and real SDA's "Set Field Attributes"
+  screen (Color / High intensity / Reverse image / Blink / Underline -
+  see `docs/sda-reference/screens/menu-designer/option-field-attributes/`)
+  styles it exactly like any other constant. Each option row in the
+  menu designer's Options panel now gets a new "Style" accordion, next
+  to the existing "Conditioning" one, reusing the SAME
+  `WebviewClientHelpers.colorAttrStatesHtml`/`wireColorAttrStatesEditor`
+  (COLOR/DSPATR) component already built for the DSPF designer's
+  constant-field props panel (Tasks D1/D4), plus the same generic raw
+  `keywordEditorHtml`/`wireKeywordEditor` underneath for any keyword the
+  dedicated picker doesn't cover - the same "dedicated panel + raw
+  fallback" shape every other picker in this codebase already follows.
+  New `updateOptionKeywords()` in `buildMenuWebviewTemplate.js`, wired
+  the same way `updateOptionConditions()` already is: writes to
+  `numberField`, then syncs onto the separate `labelField` too when the
+  option uses the split-constant form, so the number marker and its
+  label text never drift apart in styling - the combined "1. Do a
+  thing" form only has the one field to begin with. No new
+  `dspfWriter.js` code needed - `getColorAttrStates`/`setColorAttrStates`
+  and `keywordEditorHtml`/`wireKeywordEditor` already operate on a plain
+  keywords array, so they work unchanged on an option's constant field.
+  See the Task M1 scenarios in `src/test/menuWebview.test.js`
+  (`runOptionStyleScenario`).
+
 ## [0.9.80] - 2026-08-28
 
 ### Fixed
