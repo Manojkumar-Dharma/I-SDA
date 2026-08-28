@@ -248,6 +248,8 @@ const htmlTemplate = `<!DOCTYPE html>
   button { background: #14261c; color: var(--chrome-accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
+  .compile-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); }
+  .compile-btn:hover { background: #1b2c22; }
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
   .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
   .attr-checks { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 12px; }
@@ -503,6 +505,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="section-label">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
+  <button id="compileDspfBtn" class="compile-btn" style="width:100%;margin-top:8px;">Compile Display File (CRTDSPF)</button>
   <details class="props-accordion" id="uiSettingsAccordion" style="margin-top:10px;">
     <summary>&#9881; UI Settings</summary>
     <div class="props-accordion-body">
@@ -721,6 +724,18 @@ const htmlTemplate = `<!DOCTYPE html>
     selectedHelpSourceLine = null;
     renderProps(recordSelect.value);
   });
+
+  // Task L8 - "Compile Display File (CRTDSPF)" - mirrors the Menu designer's
+  // own "Compile Menu (CRTMNU)" button/message pair (buildMenuWebviewTemplate.js's
+  // compileBtn/'compileMenu'), just for a plain DSPF member instead of MNUDDS -
+  // extension.ts's compileDspf() does the actual work host-side (this webview
+  // has no IBM i connection of its own).
+  const compileDspfBtn = document.getElementById('compileDspfBtn');
+  if (compileDspfBtn) {
+    compileDspfBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'compileDspf' });
+    });
+  }
 
   // Creates a brand-new, empty record format (see DspfWriter.insertRecord's
   // own doc comment for placement rules) and immediately selects it, same

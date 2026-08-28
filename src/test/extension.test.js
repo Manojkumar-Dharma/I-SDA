@@ -36,12 +36,13 @@ async function run() {
   console.log('activate()');
   const context = vscodeMock.__mockExtensionContext();
   ext.activate(context);
-  check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 5);
+  check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 6);
   check('registers openPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openPreview'] === 'function');
   check('registers openMenuPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openMenuPreview'] === 'function');
   check('registers createNewDspf command', typeof vscodeMock.__registeredCommands['dspfDesigner.createNewDspf'] === 'function');
   check('registers createNewMenu command', typeof vscodeMock.__registeredCommands['dspfDesigner.createNewMenu'] === 'function');
   check('registers compileMenu command', typeof vscodeMock.__registeredCommands['dspfDesigner.compileMenu'] === 'function');
+  check('registers compileDspf command (Task L8)', typeof vscodeMock.__registeredCommands['dspfDesigner.compileDspf'] === 'function');
   check('registers a CodeLens provider', vscodeMock.__registeredCodeLensProviders.length === 1);
   const providerEntry = vscodeMock.__registeredCustomEditorProvider;
   check('registers the custom editor provider under the right viewType', providerEntry && providerEntry.viewType === 'dspfDesigner.editor');
@@ -95,6 +96,11 @@ async function run() {
   console.log('\nerror message -> showErrorMessage');
   await messageHandler({ type: 'error', message: 'boom' });
   check('surfaces the error to the user', vscodeMock.__lastError === 'iSDA: boom');
+
+  console.log('\ncompileDspf message -> dispatches to compileDspf() (Task L8)');
+  vscodeMock.__lastError = undefined;
+  await messageHandler({ type: 'compileDspf' });
+  check('reaches compileDspf() and surfaces its own guard error (this mock doc has no member-scheme URI)', /Code for i/.test(vscodeMock.__lastError || ''));
 
   console.log('\nresolveReferencedField / resolveAllReferencedFields (Code for i)');
   {

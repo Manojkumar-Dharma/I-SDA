@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.9.76",
+  "version": "0.9.77",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -82,6 +82,11 @@
         "command": "dspfDesigner.compileMenu",
         "title": "iSDA: Compile Menu (CRTMNU)",
         "icon": "$(play)"
+      },
+      {
+        "command": "dspfDesigner.compileDspf",
+        "title": "iSDA: Compile Display File (CRTDSPF)",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -119,12 +124,16 @@
         {
           "command": "dspfDesigner.compileMenu",
           "when": "resourceScheme == member"
+        },
+        {
+          "command": "dspfDesigner.compileDspf",
+          "when": "resourceScheme == member"
         }
       ]
     }
   },
   "scripts": {
-    "test": "node src/test/extension.test.js && node src/test/createNewDspf.test.js && node src/test/createNewMenu.test.js && node src/test/designerOpenColumn.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js && node src/test/keywordLineLayout.test.js && node src/test/continuationJoiner.test.js && node src/test/fileKeywordsPicker.test.js && node src/test/recordKeywordsPicker.test.js && node src/test/sflRecordKeywordsPicker.test.js && node src/test/pulldownRecordKeywordsPicker.test.js && node src/test/repeatableConditionedInstances.test.js && node src/test/colorAttrStates.test.js && node src/test/validityCheckInstances.test.js && node src/test/recordIndicatorInstances.test.js && node src/test/fieldKeywordVisibility.test.js && node src/test/dspfParser.test.js && node src/test/dspfEngine.test.js && node src/test/dspfWebview.test.js && node src/test/compileMenu.test.js && node src/test/pulldownOverlayStacking.test.js",
+    "test": "node src/test/extension.test.js && node src/test/createNewDspf.test.js && node src/test/createNewMenu.test.js && node src/test/designerOpenColumn.test.js && node src/test/menu.test.js && node src/test/menuWebview.test.js && node src/test/dspfWriter.test.js && node src/test/keywordLineLayout.test.js && node src/test/continuationJoiner.test.js && node src/test/fileKeywordsPicker.test.js && node src/test/recordKeywordsPicker.test.js && node src/test/sflRecordKeywordsPicker.test.js && node src/test/pulldownRecordKeywordsPicker.test.js && node src/test/repeatableConditionedInstances.test.js && node src/test/colorAttrStates.test.js && node src/test/validityCheckInstances.test.js && node src/test/recordIndicatorInstances.test.js && node src/test/fieldKeywordVisibility.test.js && node src/test/dspfParser.test.js && node src/test/dspfEngine.test.js && node src/test/dspfWebview.test.js && node src/test/compileMenu.test.js && node src/test/compileDspf.test.js && node src/test/pulldownOverlayStacking.test.js",
     "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','dspfWriter.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\"",
     "compile": "npm run build:webview-assets && tsc -p ."
   },

@@ -68,6 +68,14 @@ menu option](https://www.ibm.com/support/pages/node/7267003)), then
 `CRTMNU`. Compiling itself still requires a real, connected IBM i member,
 regardless of how the menu was opened for editing.
 
+### Screen design (DSPF)
+
+**"Compile Display File (CRTDSPF)"** (added v0.9.77) is the DSPF
+designer's own counterpart to the menu designer's "Compile Menu" button
+above - a single `CRTDSPF` via Code for i's `code-for-ibmi.runCommand`
+API, with no message-file/`CRTMNU` steps (those are `MNUDDS`-specific).
+Same requirement as "Compile Menu": a real, connected IBM i member.
+
 ## Getting started
 
 ```bash

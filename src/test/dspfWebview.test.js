@@ -442,6 +442,13 @@ function runFileAttrsScenario() {
     check('shows the existing DSPSIZ keyword as a chip', /DSPSIZ/.test(doc.getElementById('kwed-file').textContent));
     check('no record-level Name/rename input in this view', doc.getElementById('p-record-name') === null);
 
+    console.log('  Task L8: Compile Display File (CRTDSPF) button exists and posts the right message');
+    const compileDspfBtn = doc.getElementById('compileDspfBtn');
+    check('setup: the Compile Display File button exists in the sidebar', !!compileDspfBtn);
+    posted.length = 0;
+    compileDspfBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('posts a compileDspf message (extension.ts dispatches to the new compileDspf() function)', posted.some((m) => m.type === 'compileDspf'));
+
     console.log('  adding a file-level keyword via the shared keyword editor');
     doc.getElementById('file-new-kw-name').value = 'INDARA';
     doc.querySelector('.kw-add[data-owner="file"]').dispatchEvent(new Event('click', { bubbles: true }));

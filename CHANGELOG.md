@@ -3,6 +3,40 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.77] - 2026-08-28
+
+### Added
+- **Task L8 - `Compile Display File (CRTDSPF)` command** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). The DSPF designer had no
+  compile action at all - unlike the Menu designer's own "Compile Menu
+  (CRTMNU)" button - noticed while answering a user question rather
+  than from an existing README gap. Ported `compileMenu()`'s own
+  pattern (Code for i's `code-for-ibmi.runCommand` API,
+  `resourceScheme == member` guard via `parseMemberUri`, save-dirty-
+  editor-first, `vscode.window.withProgress` + surfaced-verbatim
+  `CommandResult.stderr`/`stdout` on failure) into a new
+  `compileDspf()`, scoped down to the single step `CRTDSPF
+  FILE(library/objectName) SRCFILE(library/srcFile)
+  SRCMBR(member) REPLACE(*YES)` - no message-file/`ADDMSGD`/`CRTMNU`
+  steps, since those are `MNUDDS`-specific and don't apply to a plain
+  `DSPF` member. Unlike `CRTMNU`'s own hard record-format-name-
+  matching requirement (which `compileMenu()` checks up front before
+  compiling), plain `CRTDSPF` has no equivalent naming constraint to
+  pre-validate, so `compileDspf()` skips straight to the compile step.
+  New command `dspfDesigner.compileDspf`, contributed the same two
+  ways `compileMenu` is (`commandPalette`, gated on `resourceScheme ==
+  member`; a matching "Compile Display File (CRTDSPF)" button added to
+  the DSPF designer webview's own File section in
+  `buildWebviewTemplate.js`, right next to "File attributes", wired
+  via a new `'compileDspf'` postMessage case in
+  `DspfDesignerEditorProvider`'s message handler). New `.compile-btn`
+  CSS rule added to `buildWebviewTemplate.js` (previously only defined
+  in `buildMenuWebviewTemplate.js`, for the menu designer's own
+  button). See `src/test/compileDspf.test.js` (guard conditions, the
+  happy-path single-command sequence, and verbatim failure surfacing),
+  the updated command-registration checks in `src/test/extension.test.js`,
+  and the new Task L8 check in `src/test/dspfWebview.test.js`.
+
 ## [0.9.76] - 2026-08-28
 
 ### Added

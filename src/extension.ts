@@ -120,6 +120,17 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('dspfDesigner.compileDspf', (targetUri?: vscode.Uri) => {
+      const uri = targetUri || vscode.window.activeTextEditor?.document.uri;
+      if (!uri) {
+        vscode.window.showWarningMessage('Open a display file source (DSPF) first.');
+        return;
+      }
+      return compileDspf(uri);
+    })
+  );
+
   context.subscriptions.push(vscode.commands.registerCommand('dspfDesigner.createNewDspf', (targetUri?: vscode.Uri) => createNewDspf(targetUri)));
 
   context.subscriptions.push(vscode.commands.registerCommand('dspfDesigner.createNewMenu', (targetUri?: vscode.Uri) => createNewMenu(targetUri)));
@@ -381,6 +392,61 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
     }
 
     vscode.window.showInformationMessage(`iSDA: Menu ${library}/${objectName} compiled. Try it with GO ${library}/${objectName}.`);
+  });
+}
+
+/**
+ * Task L8 - Compiles a plain DSPF member (CRTDSPF), the single-step
+ * counterpart to compileMenu() above for a MNUDDS member. Uses the exact
+ * same Code for i `code-for-ibmi.runCommand` API, save-dirty-editor-first,
+ * and verbatim-error-surfacing pattern - just without any of compileMenu()'s
+ * MNUDDS-specific steps (no record-format-name-matching requirement to
+ * pre-validate - that's a CRTMNU-only constraint - and no message-file
+ * rebuild/CRTMNU afterward, since a plain DSPF member has neither).
+ */
+async function compileDspf(uri: vscode.Uri): Promise<void> {
+  const parsed = parseMemberUri(uri);
+  if (!parsed) {
+    vscode.window.showErrorMessage('iSDA: Compile Display File only works for a DSPF member opened from an IBM i connection (Code for i).');
+    return;
+  }
+  if (!vscode.extensions.getExtension('halcyontechltd.code-for-ibmi')) {
+    vscode.window.showErrorMessage(
+      'iSDA: Compile Display File requires the Code for IBM i extension (halcyontechltd.code-for-ibmi) to be installed and connected.'
+    );
+    return;
+  }
+
+  // Same reasoning as compileMenu(): compiles read from the SAVED member on
+  // the IBM i, not this editor's live buffer - save first (if dirty) so the
+  // compile picks up whatever's currently showing in the designer.
+  const openDoc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
+  if (openDoc?.isDirty) await openDoc.save();
+
+  const library = parsed.library;
+  const srcFile = parsed.file;
+  const objectName = parsed.name;
+
+  async function run(command: string, label: string): Promise<{ ok: boolean; message: string }> {
+    try {
+      const result: any = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command, environment: 'ile' });
+      if (result && typeof result.code === 'number' && result.code !== 0) {
+        return { ok: false, message: `${label} failed:\n${result.stderr || result.stdout || 'unknown error'}` };
+      }
+      return { ok: true, message: '' };
+    } catch (err) {
+      return { ok: false, message: `${label} failed: ${err}` };
+    }
+  }
+
+  await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `iSDA: Compiling display file ${library}/${objectName}` }, async (progress) => {
+    progress.report({ message: 'Creating display file (CRTDSPF)...' });
+    const step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
+    if (!step.ok) {
+      vscode.window.showErrorMessage('iSDA: ' + step.message);
+      return;
+    }
+    vscode.window.showInformationMessage(`iSDA: Display file ${library}/${objectName} compiled.`);
   });
 }
 
@@ -652,6 +718,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'resolveReferencedField' || msg.type === 'resolveAllReferencedFields') {
         await handleResolveReferencedField(document, msg);
+      } else if (msg.type === 'compileDspf') {
+        await compileDspf(document.uri);
       } else if (msg.type === 'setUiStyle') {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       } else if (msg.type === 'setUiTheme') {
