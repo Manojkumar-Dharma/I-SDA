@@ -157,6 +157,16 @@ open work - nothing actionable below is being tracked as a task. See
   CRTMNU-compiled numbered-option menus don't use them in practice (F3=Exit,
   F12=Cancel etc. are handled by CRTMNU's own generated program logic, not
   by DDS command keys the menu designer would let you assign).
+- **Compile Menu only ever produces `TYPE(*DSPF)` menus - by design, not
+  as a gap to fill.** `CRTMNU` also supports `TYPE(*PGM)` (calls a program
+  directly, with no display file or screen at all - nothing for a visual
+  DDS screen designer to design) and `TYPE(*UIM)` (written in UIM's own
+  tag-based panel-group language, compiled via `CRTPNLGRP`, a completely
+  different, non-DDS markup that would need its own dedicated designer
+  rather than an extension of this one). `TYPE(*DSPF)` is the only menu
+  type backed by an actual DDS-designed screen, which is why it's the
+  only one real SDA's own "Menu design" mode - and this DSPF/MNUDDS-
+  focused tool - ever produces.
 
 ## Planned enhancements
 
@@ -179,16 +189,14 @@ for the full history if a past decision needs revisiting.
 ### Menu designer
 
 - **[Task M1]** Give menu options the same dedicated-picker treatment the
-  DSPF designer's keywords already have.
+  DSPF designer's keywords already have - a menu option is a plain DDS
+  `CONSTANT` under the hood, so real SDA supports `COLOR`/`DSPATR`
+  styling on it the same as any other constant, but the option row UI
+  currently has no keyword editor at all.
 - **[Task M2]** Port Task L4's `CRTSRCPF` fix to "Create New Menu"'s
   remote path.
 - **[Task M3]** Deleting a menu option doesn't scan for other references
   to it, unlike rename - port Task L2's reference-check pattern.
-- **[Task M4]** The companion commands (`QQ`) file only stays in sync if
-  it's open in its own editor tab; two designer instances racing to write
-  it at once is unhandled.
-- **[Task M5]** Compile Menu only supports `TYPE(*DSPF)` - survey what
-  else CRTMNU allows.
 
 ## License
 

@@ -3,6 +3,59 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.80] - 2026-08-28
+
+### Fixed
+- **Task M4 - companion commands file (`QQ` member, or local/streamfile
+  sibling) concurrency fix** (see
+  `docs/sda-reference/LIMITATIONS-PLAN.md`). Previously all three edit
+  paths (per-option command change, swap, delete-option cleanup)
+  computed the FULL new companion-file text against the webview's own
+  in-memory `commandText` (captured once at `resolveCustomTextEditor()`
+  time) and posted it wholesale via `applyMenuCmdEdit`; two designer
+  instances (different VS Code windows/sessions on the same remote
+  member) each holding a stale copy meant one's write could silently
+  clobber the other's unrelated edit. Fixed with a read-modify-write
+  redesign: the webview now posts a new message,
+  `applyMenuCmdOptionEdit`, with structured `{ numberValue, command }[]`
+  edits instead of full text; the extension host ALWAYS re-reads the
+  current base text immediately before applying - from the open
+  document's live buffer if the companion file is open in its own tab,
+  else fresh from disk - then applies the edit(s) via
+  `MnuCmdEngine.applyOptionCommand` and writes back, closing the actual
+  race (an edit to option 3 from one instance can no longer clobber a
+  concurrent edit to option 7 from another). After a successful write
+  the host echoes the merged text back to the originating webview via a
+  new `menuCmdSaved` message, keeping that webview's own
+  `commandText`/`cmdModel` in sync with what's actually on disk. A
+  genuinely concurrent edit to the EXACT SAME option is still
+  last-write-wins - an accepted, inherent limit for a plain-text
+  companion file, not the risk this task called out. See the Task M4
+  scenarios in `src/test/menu.test.js` (including a dedicated test
+  proving an unrelated concurrent edit survives) and
+  `src/test/menuWebview.test.js`.
+
+### Investigated
+- **Tasks M1, M2, and M5 checked for relevance before continuing** (per
+  a direct question about whether they still made sense for an
+  SDA-based menu designer). M1 (per-option keyword picker) and M2
+  (`CRTSRCPF` support in "Create New Menu") were both confirmed still
+  genuinely open: M1 because a menu option is a plain DDS `CONSTANT`
+  under the hood with real SDA styling support but zero keyword-editing
+  UI in iSDA today; M2 because `createRemoteMenuMembers()` in
+  `src/extension.ts` still explicitly requires the source PF to already
+  exist, unlike Task L4's already-fixed DSPF equivalent. **M5
+  (support menu types beyond `TYPE(*DSPF)`) was reclassified as NOT
+  applicable** - verified against IBM's own CRTMNU `TYPE()` reference
+  and independent sources: `TYPE(*PGM)` menus call a program directly
+  with no display file or screen at all, and `TYPE(*UIM)` menus are
+  written in UIM's own non-DDS panel-group markup (`PNLGRP` source,
+  `CRTPNLGRP`) that multiple sources describe as "totally bypassing
+  SDA" - neither has anything for a DDS-based visual screen designer to
+  design. Moved from README's Planned enhancements to Known limitations
+  as an inherent scope boundary; struck through in
+  `docs/sda-reference/LIMITATIONS-PLAN.md`.
+
 ## [0.9.79] - 2026-08-28
 
 ### Fixed

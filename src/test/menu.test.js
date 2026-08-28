@@ -100,13 +100,33 @@ function run() {
     check('embeds the loaded companion command source', htmlSet.includes('DSPLIBL'));
     check("reports the command source as 'loaded'", htmlSet.includes('"loaded"'));
 
-    console.log('\napplyMenuCmdEdit message -> companion member written via workspace.fs');
-    await messageHandler({ type: 'applyMenuCmdEdit', text: '0001 DSPLIBL\n0002 CHGCURLIB\n' });
+    console.log('\napplyMenuCmdOptionEdit message -> companion member written via workspace.fs, fresh-read from disk immediately before writing (Task M4)');
+    await messageHandler({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: 2, command: 'CHGCURLIB' }] });
     check(
-      'writes the updated command source to the QQ companion member',
+      'writes the merged command source (fresh base + this edit) to the QQ companion member',
       vscodeMock.__lastWrittenFile &&
         vscodeMock.__lastWrittenFile.uri.path === '/MYLIB/QDDSSRC/MYMENUQQ.MNUCMD' &&
         vscodeMock.__lastWrittenFile.text === '0001 DSPLIBL\n0002 CHGCURLIB\n'
+    );
+
+    console.log('\nTask M4 - a second designer instance\'s edit to a DIFFERENT, unrelated option does not clobber this one (the race the task called out)');
+    // Simulate the real-world scenario: another menu designer instance (a
+    // different VS Code window/session on the SAME remote member) wrote
+    // option 10's command to the companion file AFTER this webview's own
+    // commandSource was captured at resolveCustomTextEditor() time (still
+    // '0001 DSPLIBL\n0002 CHGCURLIB\n' as far as THIS webview knows). The
+    // fresh-read-immediately-before-writing fix means this webview's own
+    // edit to option 1 must pick up that concurrent change rather than
+    // silently reverting it via a stale full-text replacement.
+    vscodeMock.__setMockFile(new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENUQQ.MNUCMD'), '0001 DSPLIBL\n0002 CHGCURLIB\n0010 CALL PGM10\n');
+    await messageHandler({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: 1, command: 'DSPLIBL2' }] });
+    check(
+      'this edit (option 1) is applied on top of the freshly-read file, not this webview\'s own stale in-memory copy',
+      vscodeMock.__lastWrittenFile && vscodeMock.__lastWrittenFile.text === '0001 DSPLIBL2\n0002 CHGCURLIB\n0010 CALL PGM10\n'
+    );
+    check(
+      'the concurrent instance\'s unrelated option 10 edit survives - NOT clobbered',
+      vscodeMock.__lastWrittenFile && vscodeMock.__lastWrittenFile.text.includes('0010 CALL PGM10')
     );
 
     console.log('\nresolveCustomTextEditor() - companion MNUCMD member ALSO open in its own editor tab');
@@ -131,7 +151,7 @@ function run() {
     await menuProviderEntry.provider.resolveCustomTextEditor(doc, fakeWebviewPanel4, {});
 
     const writtenFileBefore = vscodeMock.__lastWrittenFile;
-    await messageHandler4({ type: 'applyMenuCmdEdit', text: '0001 DSPLIBL\n0002 CHGCURLIB\n' });
+    await messageHandler4({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: 2, command: 'CHGCURLIB' }] });
     const applied = vscodeMock.__lastAppliedEdit;
     check(
       'edits the OPEN companion document via WorkspaceEdit instead of writeFile',
@@ -141,6 +161,10 @@ function run() {
         applied.edits[applied.edits.length - 1].newText === '0001 DSPLIBL\n0002 CHGCURLIB\n'
     );
     check('does NOT fall back to workspace.fs.writeFile when the document is open', vscodeMock.__lastWrittenFile === writtenFileBefore);
+    check(
+      'echoes the merged text back to the originating webview as menuCmdSaved (Task M4 - keeps its local state from drifting stale)',
+      postedToWebview4.some((m) => m.type === 'menuCmdSaved' && m.text === '0001 DSPLIBL\n0002 CHGCURLIB\n')
+    );
 
     console.log('\nexternal edit to the open companion document -> echoed into the options panel');
     vscodeMock.__changeListener({ document: vscodeMock.__mockDocument('0001 DSPLIBL\n0002 CALL PGM2\n', openCompanionUri) });
@@ -189,7 +213,7 @@ function run() {
     check('embeds the derived local companion filename (MYMENUQQ.mnucmd)', htmlSet3.includes('MYMENUQQ.mnucmd'));
 
     console.log('  editing an option on a local file writes the sibling MYMENUQQ.mnucmd file');
-    await messageHandler3({ type: 'applyMenuCmdEdit', text: '0001 DSPLIBL\n' });
+    await messageHandler3({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: 1, command: 'DSPLIBL' }] });
     check(
       'writes to the sibling file in the same directory, lowercase .mnucmd extension',
       vscodeMock.__lastWrittenFile &&
@@ -238,7 +262,7 @@ function run() {
     check('embeds the derived streamfile companion filename (MYMENUQQ.mnucmd)', htmlSetStreamfile.includes('MYMENUQQ.mnucmd'));
 
     console.log('  editing an option on a streamfile writes the sibling MYMENUQQ.mnucmd file');
-    await messageHandlerStreamfile({ type: 'applyMenuCmdEdit', text: '0001 DSPLIBL\n' });
+    await messageHandlerStreamfile({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: 1, command: 'DSPLIBL' }] });
     check(
       'writes to the sibling file in the same IFS directory, lowercase .mnucmd extension',
       vscodeMock.__lastWrittenFile &&

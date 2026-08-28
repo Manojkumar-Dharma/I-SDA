@@ -72,11 +72,11 @@ all five can start in parallel with each other AND with any open
 
 | Task | Description | Depends on | Status |
 | --- | --- | --- | --- |
-| **M1** | **Menu designer options get the same dedicated-picker treatment** the DSPF designer's keywords now have. The per-option Conditioning panel already follows a similar structure to build on — survey it first for what's directly reusable vs. menu-option-specific before designing new UI from scratch. | — (standalone) | not started |
-| **M2** | **`CRTSRCPF` support in "Create New Menu."** Port Task L4's fix (already done for the DSPF designer's "Create New Display File") to the menu wizard's remote path — same gap: `ADDPFM` is attempted against a source physical file that's never verified to exist first. | L4 (done — port its pattern) | not started |
+| **M1** | **Menu designer options get the same dedicated-picker treatment** the DSPF designer's keywords now have. Confirmed relevant: a menu option is just a DDS `CONSTANT` under the hood (see `buildMenuWebviewTemplate.js`'s own `extractMenuOptions`/`updateOptionConditions`), and real SDA's "Menu design" mode is the SAME underlying DSPF-record-design engine with menu-specific conventions layered on top (numbered options, `MNUCMD` companion file) — so it supports styling option text with `COLOR`/`DSPATR` the same as any other constant. Checked the current option row UI (`renderOptions()`) and confirmed the gap is real: it has label text, command mapping, and Conditioning, but NO keyword editor at all - not even the raw generic one - so there's currently no way to add `COLOR`/`DSPATR` (or any other keyword) to an option through the UI, only by hand-editing the DDS source outside iSDA. The per-option Conditioning panel already follows a similar structure to build on — survey it first for what's directly reusable vs. menu-option-specific before designing new UI from scratch. | — (standalone) | not started |
+| **M2** | **`CRTSRCPF` support in "Create New Menu."** Confirmed still open by code inspection: `createRemoteMenuMembers()` in `src/extension.ts` prompts for the source physical file with "must already exist - ADDPFM does not create it" and never calls `ensureSourcePhysicalFileExists()` (the helper `createRemoteMember()`/`createNewDspf`'s own remote path already uses for Task L4). Port L4's fix to this function too — same gap, same pattern. | L4 (done — port its pattern) | not started |
 | **M3** | **Menu option delete reference scan.** Deleting an option doesn't scan for other references to it, unlike rename. Port Task L2's field-deletion reference-check pattern (advisory `findLikelyNameReferences`-style scan, blocking confirmation dialog naming what was found) to menu option deletion. | L2 (done — port its pattern) | not started |
-| **M4** | **Companion commands file (`QQ` member, or local/streamfile sibling) sync.** Only stays in sync if it's open in its own editor tab; two menu designer instances racing to write it at once is unhandled. Needs a concurrency-safety design (e.g. read-modify-write with a staleness check, or always re-reading from disk immediately before writing) before implementation — spend real design time here, this is a correctness/data-loss risk, not just a UI gap like M1/M3. | — (standalone) | not started |
-| **M5** | **Support menu types beyond `TYPE(*DSPF)`** in Compile Menu (currently the only type it handles). Survey what other `TYPE()` values CRTMNU actually supports and what compiling each would require before committing to an implementation approach. | — (standalone) | not started |
+| **M4** | **Companion commands file (`QQ` member, or local/streamfile sibling) sync — done.** Previously all three edit paths (per-option command change, swap, delete-option cleanup) computed the FULL new companion-file text against the webview's own in-memory `commandText` (captured once at `resolveCustomTextEditor()` time) and posted it wholesale via `applyMenuCmdEdit`; two designer instances (different VS Code windows/sessions on the same remote member) each holding a stale copy meant one's write could silently clobber the other's unrelated edit. Fixed with a read-modify-write redesign: the webview now posts a NEW message, `applyMenuCmdOptionEdit`, with structured `{ numberValue, command }[]` edits (one entry for a single-option change or delete cleanup, two for a swap, applied together as one write so a reader never observes a half-swapped state) instead of full text; the extension host ALWAYS re-reads the current base text immediately before applying — from the open document's live buffer if the companion file is open in its own tab, else fresh from disk via `workspace.fs.readFile` — then applies the edit(s) via `MnuCmdEngine.applyOptionCommand` and writes back, closing the actual race (an edit to option 3 from one instance can no longer clobber a concurrent edit to option 7 from another). After a successful write the host echoes the merged text back to the ORIGINATING webview via a new `menuCmdSaved` message (its own write is never echoed via the existing `externalCommandUpdate`/change-listener path, since `applyingCommandFromWebview` suppresses that specifically to avoid a loop), so that webview's own `commandText`/`cmdModel` stay in sync with what's actually on disk. A genuinely concurrent edit to the EXACT SAME option is still last-write-wins (no CRDT/OT) — an accepted, inherent limit for a plain-text companion file; the data-loss risk this task called out was UNRELATED edits stomping each other, which is what's fixed. See the Task M4 scenarios in `src/test/menu.test.js` (including a dedicated test proving an unrelated concurrent edit survives) and `src/test/menuWebview.test.js`. | — (standalone) | **done** |
+| ~~**M5**~~ | ~~**Support menu types beyond `TYPE(*DSPF)`** in Compile Menu.~~ **Reclassified as not applicable to iSDA's scope, not a planned enhancement** — verified against IBM's own CRTMNU `TYPE()` reference and independent sources: `TYPE(*PGM)` menus call a program directly with NO display file or screen at all (nothing for a visual DDS screen designer to design); `TYPE(*UIM)` menus are written in UIM's own tag-based panel-group language (`PNLGRP` source, compiled via `CRTPNLGRP`), a completely different, non-DDS markup that would need its own dedicated designer, not an extension of this one — multiple independent sources describe UIM as "totally bypassing SDA" for exactly this reason. `TYPE(*DSPF)` is the ONLY menu type backed by an actual DDS-designed screen, which is why it's the only one real SDA's own "Menu design" mode (and this DSPF/MNUDDS-focused tool) ever produces. Moved to README's Known limitations as an inherent scope boundary instead. | — | **not applicable** |
 
 ---
 
@@ -125,16 +125,26 @@ all five can start in parallel with each other AND with any open
   `*RSTCSR`) and folded it into Task L6's own `getWindowParamsKeyword`/
   `setWindowParamsKeyword`, replacing the old bogus standalone `RSTCSR`
   keyword model and self-healing any file that old model already wrote.
-  **L8** (a `Compile Display File`/`CRTDSPF` command, spotted from a
-  user question rather than README's own lists) is also now done —
-  ported the existing `compileMenu()` pattern to a plain DSPF member.
-  **M1 through M5** (Menu designer) are five more independently-
-  workable tasks, none dependent on each other or on any `L` task.
-  That's up to five tasks (M1-M5) that can all run in parallel right
-  now with zero collision risk between them — whoever picks one up
-  should mark it `in progress` here first. If a keyword turns out to
-  be shared between two DSPF-designer panels the way `CHECK` was, see
-  L1d's own
+  L5d-ii is now done too - see its own row above. **L8**
+  (a `Compile Display File`/`CRTDSPF` command, spotted from a user
+  question rather than README's own lists) is also now done — ported
+  the existing `compileMenu()` pattern to a plain DSPF member. **M4**
+  (companion commands file concurrency-safety) is also now done — see
+  its own row above; the webview now sends structured
+  `{numberValue, command}` edits instead of full text, and the
+  extension host always re-reads the current base immediately before
+  applying, closing the actual race. **M5 was investigated and
+  reclassified as not applicable** (see its own row above, struck
+  through) — real SDA's "Menu design" mode only ever produces
+  `TYPE(*DSPF)` menus, since that's the only type backed by an actual
+  DDS-designed screen; `TYPE(*PGM)`/`TYPE(*UIM)` are out of scope for
+  a DDS-based visual designer, not merely deprioritized. **M1 through
+  M3** remain independently-workable tasks, none dependent on each
+  other or on any `L` task. That leaves M1, M2, and M3 open, all of
+  which can run in parallel right now with zero collision risk
+  between them — whoever picks one up should mark it `in progress`
+  here first. If a keyword turns out to be shared
+  between two DSPF-designer panels the way `CHECK` was, see L1d's own
   row above for the pattern that keeps both panels safe (one shared
   getter/setter pair, parameterized by which code/field subset each
   panel owns).
@@ -151,6 +161,9 @@ estimation edge cases, the `WINDOW` picker's missing Roll row, M/P
 usage fail-open behavior, constants staying Choice-keyword-excluded,
 Menu designer's `CRTMNU` record-format-naming requirement, and Menu
 designer's missing command-key UI) are accepted constraints or
-reasonable defaults, not tracked as tasks. If any of those turns out to
-be more fixable than it looks, raise it as a new task here rather than
-silently reinterpreting its priority.
+reasonable defaults, not tracked as tasks. `TYPE(*PGM)`/`TYPE(*UIM)`
+menu support (formerly Task M5) belongs in this category too — see
+its row above for why it's out of scope rather than merely
+deprioritized. If any of those turns out to be more fixable than it
+looks, raise it as a new task here rather than silently reinterpreting
+its priority.

@@ -16,7 +16,10 @@ import { parseDspf } from './dspfParser';
 // Plain dependency-free JS (see its own file header) - required directly
 // rather than ported to TS, so the exact same parsing logic the webview uses
 // client-side also runs here on the extension host for the compile command.
-const MnuCmdEngine: { parseMnuCmd(text: string): { options: Array<{ optionNumber: string; numberValue: number; command: string }> } } = require('./mnuCmdEngine.js');
+const MnuCmdEngine: {
+  parseMnuCmd(text: string): { options: Array<{ optionNumber: string; numberValue: number; command: string }> };
+  applyOptionCommand(text: string, numberValue: number, command: string): string;
+} = require('./mnuCmdEngine.js');
 // Same reasoning: DspfEngine.resolveReferenceTarget and DspfWriter.applyFieldUpdate are
 // plain, dependency-free JS shared verbatim with the webview (see their own file headers) -
 // required directly here for the extension-host half of Resolve Referenced Field (the
@@ -823,32 +826,72 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         applyingFromWebview = true;
         await vscode.workspace.applyEdit(edit);
         applyingFromWebview = false;
-      } else if (msg.type === 'applyMenuCmdEdit') {
+      } else if (msg.type === 'applyMenuCmdOptionEdit') {
+        // Task M4 - concurrency-safe companion-file writes. The webview no
+        // longer computes the full new command source itself (which would
+        // mean applying its own edit against a commandText/cmdModel copy
+        // that was only ever fresh at resolveCustomTextEditor() time,
+        // possibly minutes ago) - it sends the structured edit(s) instead
+        // (`{ numberValue, command }[]` - a delete/single-option-change
+        // sends one, a swap sends two, applied together as one write so a
+        // reader never observes a half-swapped intermediate state), and
+        // THIS handler always re-reads the current base text immediately
+        // before applying, right here, every time. That's what actually
+        // closes the race: a second menu designer instance (a different
+        // VS Code window/session, or a Code for i member editor, open on
+        // the SAME menu's companion member) may have written a newer
+        // version since this webview's own commandSource was captured: the
+        // fresh read means an edit to option 3 from over here can no
+        // longer clobber an edit to option 7 that landed over there in the
+        // meantime - each write starts from whatever is actually on disk
+        // (or in the open document's live buffer, if it's open) right now.
+        // A genuinely concurrent edit to the EXACT SAME option is still
+        // last-write-wins (no CRDT/OT here), which is an acceptable,
+        // inherent limit for a plain-text companion file - the data-loss
+        // risk this task called out was UNRELATED edits stomping each
+        // other, and that's what this fixes.
         if (!commandUri) {
           vscode.window.showErrorMessage(
             'iSDA: this menu was not opened from an IBM i source member, so there is nowhere to save option-to-command mappings.'
           );
           return;
         }
-        // If the companion member is ALSO open in its own editor tab, edit
-        // that document directly (WorkspaceEdit) rather than writing the file
-        // out from under it - keeps that tab's buffer, dirty-dot, and undo
-        // stack correct instead of silently going stale until reloaded (the
-        // gap called out in the 0.9.0/0.9.1 README notes). Otherwise, same
-        // direct workspace.fs.writeFile as before - there's no buffer to keep
-        // in sync with in that case.
         const openCommandDoc = vscode.workspace.textDocuments.find((d) => d.uri.toString() === commandUri!.toString());
+        let baseText: string;
+        if (openCommandDoc) {
+          baseText = openCommandDoc.getText();
+        } else {
+          try {
+            const bytes = await vscode.workspace.fs.readFile(commandUri);
+            baseText = Buffer.from(bytes).toString('utf8');
+          } catch {
+            baseText = ''; // no companion member yet - this edit creates it, same as before
+          }
+        }
+        let newText = baseText;
+        for (const oneEdit of msg.edits as { numberValue: number; command: string }[]) {
+          newText = MnuCmdEngine.applyOptionCommand(newText, oneEdit.numberValue, oneEdit.command);
+        }
         try {
           if (openCommandDoc) {
             const fullRange = new vscode.Range(openCommandDoc.positionAt(0), openCommandDoc.positionAt(openCommandDoc.getText().length));
             const edit = new vscode.WorkspaceEdit();
-            edit.replace(openCommandDoc.uri, fullRange, msg.text);
+            edit.replace(openCommandDoc.uri, fullRange, newText);
             applyingCommandFromWebview = true;
             await vscode.workspace.applyEdit(edit);
             applyingCommandFromWebview = false;
           } else {
-            await vscode.workspace.fs.writeFile(commandUri, Buffer.from(msg.text, 'utf8'));
+            await vscode.workspace.fs.writeFile(commandUri, Buffer.from(newText, 'utf8'));
           }
+          // applyingCommandFromWebview (open-doc path) and the plain
+          // writeFile path (no listener at all) both mean THIS webview
+          // never gets its own write echoed back via commandChangeSub - so
+          // tell it directly what the new merged truth is, both to keep
+          // its own commandText/cmdModel from drifting stale after its own
+          // edit, and so the NEXT edit from this same webview (before any
+          // further external change) still starts from accurate data even
+          // though the fresh-read above is what actually guarantees safety.
+          webviewPanel.webview.postMessage({ type: 'menuCmdSaved', text: newText });
         } catch (err) {
           vscode.window.showErrorMessage(`iSDA: failed to save menu commands to ${commandUri.path}: ${err}`);
         }

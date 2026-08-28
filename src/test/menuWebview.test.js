@@ -10,6 +10,7 @@
  */
 const { JSDOM } = require('jsdom');
 const { getMenuWebviewHtml } = require('../../dist/menuWebviewTemplate.js');
+const MnuCmdEngine = require('../mnuCmdEngine.js');
 
 let failures = 0;
 function check(label, condition) {
@@ -68,9 +69,8 @@ setTimeout(() => {
   input.value = 'SIGNOFF';
   input.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
   const last = posted[posted.length - 1];
-  check('posts applyMenuCmdEdit with the regenerated MNUCMD source', last && last.type === 'applyMenuCmdEdit');
-  check('the regenerated source is well-formed and includes the new mapping', last && last.text === '0001 DSPLIBL\n0002 CHGCURLIB\n0010 SIGNOFF\n');
-  check('the original two options are untouched in the regenerated source', last && last.text.includes('0001 DSPLIBL') && last.text.includes('0002 CHGCURLIB'));
+  check('posts applyMenuCmdOptionEdit (Task M4 - structured edit, not the full text) for the command change', last && last.type === 'applyMenuCmdOptionEdit');
+  check('the edit targets option 10 with the new command', last && last.edits && last.edits.length === 1 && last.edits[0].numberValue === 10 && last.edits[0].command === 'SIGNOFF');
 
   console.log('\nadding a brand-new option in the browser');
   const numInput = doc.getElementById('addOptionNum');
@@ -138,7 +138,25 @@ setTimeout(() => {
     dragTarget.dispatchEvent(dropEvt);
     const swapMsgs = posted.slice(postedBeforeSwap);
     check('posts applyEdit (the DDS constants) for the swap', swapMsgs.some((m) => m.type === 'applyEdit'));
-    check('posts applyMenuCmdEdit (the commands follow their label) for the swap', swapMsgs.some((m) => m.type === 'applyMenuCmdEdit'));
+    check('posts applyMenuCmdOptionEdit (Task M4 - the commands follow their label) for the swap', swapMsgs.some((m) => m.type === 'applyMenuCmdOptionEdit'));
+    const swapCmdEdit = swapMsgs.find((m) => m.type === 'applyMenuCmdOptionEdit');
+    check(
+      'the swap edit carries both options\' commands, crossed over, in one structured message',
+      swapCmdEdit && swapCmdEdit.edits.length === 2 &&
+        swapCmdEdit.edits.some((e) => e.numberValue === 1 && e.command === '') &&
+        swapCmdEdit.edits.some((e) => e.numberValue === 10 && e.command === 'DSPLIBL')
+    );
+    // Task M4 - the webview no longer updates its own commandText locally
+    // after posting the edit; it waits for the extension host's
+    // menuCmdSaved echo (see buildMenuWebviewTemplate.js's own comment on
+    // that handler). Simulate that echo synchronously (dispatchEvent, not
+    // postMessage, which jsdom queues as a real async task) with the SAME
+    // merge the real extension host would compute (base text after the
+    // earlier externalCommandUpdate, with both swap edits applied), so the
+    // following DOM assertions see the post-swap state.
+    let swapMergedText = '0001 DSPLIBL\n0002 CALL PGM2\n';
+    swapCmdEdit.edits.forEach((e) => { swapMergedText = MnuCmdEngine.applyOptionCommand(swapMergedText, e.numberValue, e.command); });
+    dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { type: 'menuCmdSaved', text: swapMergedText } }));
     check('option 1 now shows what used to be at option 10 (Sign off, no command)', rowForNumber(1).querySelector('.option-label-input').value === 'Sign off' && rowForNumber(1).querySelector('.option-cmd').value === '');
     check('option 10 now shows what used to be at option 1 (the edited label + its command)', rowForNumber(10).querySelector('.option-label-input').value === 'Show library list' && rowForNumber(10).querySelector('.option-cmd').value === 'DSPLIBL');
     check('option numbers stay put - option 2 is untouched by the swap', rowForNumber(2).querySelector('.option-label-input').value === 'Change current library');
@@ -176,21 +194,21 @@ setTimeout(() => {
     option2Row.querySelector('.option-delete-btn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
     const deleteMsgs = posted.slice(postedBeforeDelete);
     const deleteApplyEdit = deleteMsgs.find((m) => m.type === 'applyEdit');
-    const deleteCmdEdit = deleteMsgs.find((m) => m.type === 'applyMenuCmdEdit');
+    const deleteCmdEdit = deleteMsgs.find((m) => m.type === 'applyMenuCmdOptionEdit');
     check('posts applyEdit with the option\'s DDS constant removed', deleteApplyEdit && !deleteApplyEdit.text.includes('Change current library'));
-    check('posts applyMenuCmdEdit with the command mapping removed', deleteCmdEdit && !deleteCmdEdit.text.includes('CALL PGM2') && !deleteCmdEdit.text.includes('0002'));
+    check('posts applyMenuCmdOptionEdit (Task M4) clearing option 2\'s command', deleteCmdEdit && deleteCmdEdit.edits.length === 1 && deleteCmdEdit.edits[0].numberValue === 2 && deleteCmdEdit.edits[0].command === '');
     check('the other options survive untouched', deleteApplyEdit && deleteApplyEdit.text.includes('Sign off') && deleteApplyEdit.text.includes('Reindex files'));
     check('the option row disappears from the panel', doc.querySelectorAll('.option-row').length === rowsBeforeDelete - 1);
     check('option 2 no longer appears at all', !rowForNumber(2));
 
-    console.log('\ndeleting an option with no command mapping does not post a spurious applyMenuCmdEdit');
+    console.log('\ndeleting an option with no command mapping does not post a spurious applyMenuCmdOptionEdit');
     const postedBeforeDelete2 = posted.length;
     const option1Row = rowForNumber(1); // 'Sign off', no command (per the earlier swap)
     check('setup: option 1 currently has no command mapped', option1Row.querySelector('.option-cmd').value === '');
     option1Row.querySelector('.option-delete-btn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
     const deleteMsgs2 = posted.slice(postedBeforeDelete2);
     check('posts applyEdit removing the constant', deleteMsgs2.some((m) => m.type === 'applyEdit' && !m.text.includes('Sign off')));
-    check('does not post applyMenuCmdEdit when there was nothing to remove', !deleteMsgs2.some((m) => m.type === 'applyMenuCmdEdit'));
+    check('does not post applyMenuCmdOptionEdit when there was nothing to remove', !deleteMsgs2.some((m) => m.type === 'applyMenuCmdOptionEdit'));
 
     runCrossReferenceWarningScenario();
   }, 50);

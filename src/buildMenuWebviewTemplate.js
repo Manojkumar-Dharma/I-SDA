@@ -682,9 +682,7 @@ const htmlTemplate = `<!DOCTYPE html>
     vscode.postMessage({ type: 'applyEdit', text: sourceText });
 
     if (commandStatus !== 'unsupported' && commandFor(numberValue)) {
-      commandText = MnuCmdEngine.applyOptionCommand(commandText, numberValue, '');
-      cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
-      vscode.postMessage({ type: 'applyMenuCmdEdit', text: commandText });
+      vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: numberValue, command: '' }] });
     }
 
     renderAll();
@@ -809,10 +807,9 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const commandA = commandFor(numberA);
     const commandB = commandFor(numberB);
-    commandText = MnuCmdEngine.applyOptionCommand(commandText, numberA, commandB);
-    commandText = MnuCmdEngine.applyOptionCommand(commandText, numberB, commandA);
-    cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
-    vscode.postMessage({ type: 'applyMenuCmdEdit', text: commandText });
+    if (commandStatus !== 'unsupported' && (commandA || commandB)) {
+      vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: numberA, command: commandB }, { numberValue: numberB, command: commandA }] });
+    }
 
     renderAll();
   }
@@ -886,9 +883,7 @@ const htmlTemplate = `<!DOCTYPE html>
           input.value = command;
           return;
         }
-        commandText = MnuCmdEngine.applyOptionCommand(commandText, opt.numberValue, input.value);
-        cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
-        vscode.postMessage({ type: 'applyMenuCmdEdit', text: commandText });
+        vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: opt.numberValue, command: input.value }] });
       });
 
       // Drag-to-swap: drop this row onto another to swap their (number +
@@ -1277,6 +1272,20 @@ const htmlTemplate = `<!DOCTYPE html>
       // The companion MNUCMD member changed outside this designer (its own
       // editor tab, another tool) - re-render just the options panel against
       // the new mapping. The screen itself is untouched by this.
+      commandText = msg.text;
+      cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
+      renderOptions();
+    } else if (msg.type === 'menuCmdSaved') {
+      // Task M4 - confirmation of OUR OWN applyMenuCmdOptionEdit, echoing
+      // back the merged text the extension host actually wrote (computed
+      // from a fresh read at write time, not from this webview's own
+      // possibly-stale commandText - see the handler's own comment in
+      // extension.ts). Adopting it here keeps this webview's local state
+      // from drifting stale after its own edit; externalCommandUpdate above
+      // doesn't fire for our own write (applyingCommandFromWebview
+      // suppresses that echo on the open-document path, and the plain
+      // workspace.fs.writeFile path has no change listener at all), so this
+      // is the only place that local state gets refreshed after a save.
       commandText = msg.text;
       cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
       renderOptions();
