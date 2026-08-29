@@ -58,6 +58,7 @@ tier above.
 | Task | Description | Depends on | Status |
 | --- | --- | --- | --- |
 | **L4** | **`CRTSRCPF` support in "Create New Display File."** Done — the remote-path wizard now checks whether the source physical file exists (`CHKOBJ`) before running `ADDPFM`, and if it doesn't, offers to create it (`CRTSRCPF`) via a confirmation prompt naming the file, rather than letting `ADDPFM` fail with a raw CPF error. Declining is a silent cancel (same as every other prompt in this flow); if `CRTSRCPF` itself fails, that failure is surfaced and `ADDPFM` is never attempted. `RCDLEN` is left to `CRTSRCPF`'s own default (`*SRC`/112, the standard DDS source PF record length) rather than hardcoded. Scoped to the DSPF designer's "Create New Display File" only, per this task; "Create New Menu" has the identical gap on its own remote path but is tracked separately as Task M2 below. See the new scenarios in `src/test/createNewDspf.test.js`. | — (standalone) | done |
+| **L9** | **"Create New Display File" always starts from a fixed plain-`RECORD` boilerplate — no way to start from a subfile, window, pull-down menu, etc.** The designer's own "+ Add record" wizard already has full-fidelity starter templates for all 9 real-SDA record types (`WebviewClientHelpers.RECORD_TYPES`/`buildTypedRecordPlan`), but that logic never ran at file-creation time. Done — extracted `buildTypedRecordPlan`/`missingDependentMessage` out of `buildWebviewTemplate.js`'s embedded client script into `webviewClientHelpers.js` as plain exported functions (added to the `dist/` copy step in `package.json` alongside `dspfEngine.js`/`dspfWriter.js`/`mnuCmdEngine.js`), so the extension host can require the exact same decision table instead of a second hand-maintained copy. `promptForRecordInfo()` in `extension.ts` gained a `showQuickPick` record-type step (using `RECORD_TYPES`) between the file name and record name prompts; new `buildTypedBoilerplateDspf()` reuses `DspfWriter.insertTypedRecord`/`insertTypedRecordWithDependent`/`insertField` — the same primitives the in-designer wizard calls — against an initially-empty parsed model. Deliberately stays a fast, few-question flow rather than full wizard parity: SFL-family types (SFL/SFLMSG/WDWSFL/PDNSFL) auto-generate their SFLCTL companion name (new `defaultSflctlName()` helper) instead of prompting for one, and SFLMSG takes the wizard's own defaults (line 24, `MSGKEY`/`PGMQ` fields, no 276-byte queue) — all changeable afterward in the designer like any other record/field, same as picking the wrong type entirely and adjusting. Every type gets a title constant (landed on whichever record actually renders on screen — the SFLCTL companion for SFL-family types, the record itself otherwise) plus one sample output field on the type-defining record, so there's always something visible to open the designer onto. See the new record-type scenarios in `src/test/createNewDspf.test.js`. | — (standalone; reuses the existing "+ Add record" wizard's own decision table) | done |
 
 ---
 
@@ -83,8 +84,7 @@ was in — see M6's own row for where it actually came from.)
 
 ---
 
-| **L9** | **"Create New Display File" always starts from a fixed plain-`RECORD` boilerplate — no way to start from a subfile, window, pull-down menu, etc.** The designer's own "+ Add record" wizard already has full-fidelity starter templates for all 9 real-SDA record types (`WebviewClientHelpers.RECORD_TYPES`/`buildTypedRecordPlan`), but that logic never ran at file-creation time. Done — extracted `buildTypedRecordPlan`/`missingDependentMessage` out of `buildWebviewTemplate.js`'s embedded client script into `webviewClientHelpers.js` as plain exported functions (added to the `dist/` copy step in `package.json` alongside `dspfEngine.js`/`dspfWriter.js`/`mnuCmdEngine.js`), so the extension host can require the exact same decision table instead of a second hand-maintained copy. `promptForRecordInfo()` in `extension.ts` gained a `showQuickPick` record-type step (using `RECORD_TYPES`) between the file name and record name prompts; new `buildTypedBoilerplateDspf()` reuses `DspfWriter.insertTypedRecord`/`insertTypedRecordWithDependent`/`insertField` — the same primitives the in-designer wizard calls — against an initially-empty parsed model. Deliberately stays a fast, few-question flow rather than full wizard parity: SFL-family types (SFL/SFLMSG/WDWSFL/PDNSFL) auto-generate their SFLCTL companion name (new `defaultSflctlName()` helper) instead of prompting for one, and SFLMSG takes the wizard's own defaults (line 24, `MSGKEY`/`PGMQ` fields, no 276-byte queue) — all changeable afterward in the designer like any other record/field, same as picking the wrong type entirely and adjusting. Every type gets a title constant (landed on whichever record actually renders on screen — the SFLCTL companion for SFL-family types, the record itself otherwise) plus one sample output field on the type-defining record, so there's always something visible to open the designer onto. See the new record-type scenarios in `src/test/createNewDspf.test.js`. | — (standalone; reuses the existing "+ Add record" wizard's own decision table) | done |
-
+## Suggested parallelization
 
 - L1 (the foundation component), L1a, L1b, L1c, L1d, L2, L3, and L4
   are all done. L5 itself (the umbrella row) is now fully closed — all
@@ -132,7 +132,13 @@ was in — see M6's own row for where it actually came from.)
   L5d-ii is now done too - see its own row above. **L8**
   (a `Compile Display File`/`CRTDSPF` command, spotted from a user
   question rather than README's own lists) is also now done — ported
-  the existing `compileMenu()` pattern to a plain DSPF member. **M4**
+  the existing `compileMenu()` pattern to a plain DSPF member. **L9**
+  (typed-record starter templates in "Create New Display File",
+  extending Task L4's own remote-path work) is also now done — reused
+  the "+ Add record" wizard's own `RECORD_TYPES`/`buildTypedRecordPlan`
+  decision table at file-creation time instead of always starting from
+  a fixed plain-`RECORD` boilerplate. **Every currently-tracked L task
+  is now done.** **M4**
   (companion commands file concurrency-safety) is also now done — see
   its own row above; the webview now sends structured
   `{numberValue, command}` edits instead of full text, and the
@@ -156,8 +162,12 @@ was in — see M6's own row for where it actually came from.)
   pattern scans for a genuinely real domain-specific risk instead —
   another record format in the same file (a `*DS3`/`*DS4` size twin)
   independently defining the same option number — blocking on a ported
-  `showConfirmDialog` before deleting. **Every M task is now done.** If
-  a keyword turns out to be shared
+  `showConfirmDialog` before deleting. **M6 is now done too** — see its
+  own row above; ported the DSPF designer's own `.panel-toggle-btn`/
+  `.panel-collapsed` hide-panel pattern into the Menu designer, closing
+  a "Common" source-doc issue that was never captured as a tracked task
+  in the first place. **Every M task is now done.** If a keyword turns
+  out to be shared
   between two DSPF-designer panels the way `CHECK` was, see L1d's own
   row above for the pattern that keeps both panels safe (one shared
   getter/setter pair, parameterized by which code/field subset each
