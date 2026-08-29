@@ -4427,6 +4427,99 @@ function runPdnSflCtlPickerScenario() {
     check('data-ui-style defaults to "modern", not ","', /data-ui-style="modern"/.test(defaultsHtml));
     check('data-ui-theme defaults to "green", not ","', /data-ui-theme="green"/.test(defaultsHtml));
 
+    runCommentsScenario();
+  }, 0);
+}
+
+function runCommentsScenario() {
+  console.log('\nTask L13: Comments panel - file-level and record-level DDS comment lines');
+  const src =
+    [
+      "     A*File header comment",
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R RECORD1',
+      "     A                                  1  2'Hello'",
+      '     A          R RECORD2',
+      "     A*This belongs to RECORD2",
+      "     A                                  1  2'World'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'COMMENTS.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+
+    console.log('  file-level Comments tab shows only the header comment, not either record\'s own comment');
+    doc.getElementById('crumb-file').dispatchEvent(new Event('click', { bubbles: true }));
+    const fileCommentsTab = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Comments');
+    check('a file-level Comments tab exists', !!fileCommentsTab);
+    fileCommentsTab.dispatchEvent(new Event('click', { bubbles: true }));
+    let inputs = Array.from(doc.querySelectorAll('.comment-text-input')).map((i) => i.value);
+    check('exactly the file header comment shown', inputs.length === 1 && inputs[0] === 'File header comment');
+
+    console.log('  RECORD1 (no comment of its own) shows an empty Comments section, not the file-level or RECORD2 one');
+    recordSelect.value = 'RECORD1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    let structureTab = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Structure');
+    structureTab.dispatchEvent(new Event('click', { bubbles: true }));
+    inputs = Array.from(doc.querySelectorAll('.comment-text-input')).map((i) => i.value);
+    check('no comments shown for RECORD1', inputs.length === 0);
+    check('empty-state message shown instead', /No comment lines yet/.test(doc.getElementById('propsBody').textContent));
+
+    console.log('  RECORD2 shows exactly its own comment, scoped correctly (not RECORD1\'s or the file\'s)');
+    recordSelect.value = 'RECORD2';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    structureTab = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Structure');
+    structureTab.dispatchEvent(new Event('click', { bubbles: true }));
+    inputs = Array.from(doc.querySelectorAll('.comment-text-input')).map((i) => i.value);
+    check('exactly RECORD2\'s own comment shown', inputs.length === 1 && inputs[0] === 'This belongs to RECORD2');
+
+    console.log('  editing RECORD2\'s comment rewrites just that line, columns 1-7 untouched');
+    let input = doc.querySelector('.comment-text-input');
+    input.value = 'Edited RECORD2 comment';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    check('the comment line now reads the edited text with "     A*" untouched', applyEdit.text.includes('     A*Edited RECORD2 comment'));
+    check('RECORD1 and the file header comment are both untouched', applyEdit.text.includes('File header comment') && applyEdit.text.includes("1  2'Hello'"));
+    posted.length = 0;
+
+    console.log('  deleting RECORD2\'s comment removes just that one line');
+    const delBtn = doc.querySelector('.comment-delete-btn');
+    delBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('the comment line is gone', !applyEdit.text.includes('Edited RECORD2 comment'));
+    check('RECORD2\'s own field is still there', applyEdit.text.includes("1  2'World'"));
+    posted.length = 0;
+
+    console.log('  "+ Add comment" on RECORD1 (which has none yet) inserts right after its own header line');
+    recordSelect.value = 'RECORD1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    structureTab = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Structure');
+    structureTab.dispatchEvent(new Event('click', { bubbles: true }));
+    const addBtn = doc.querySelector('[id$="-add-comment"]');
+    check('an Add comment button exists', !!addBtn);
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    const reparsed = DspfParser.parseDspf(applyEdit.text);
+    const rec1 = reparsed.records.find((r) => r.name === 'RECORD1');
+    check('the new blank comment line sits right after RECORD1\'s own header, before its field', reparsed.comments.some((c) => c.line === rec1.sourceLine + 1 && c.text === ''));
+    posted.length = 0;
+
     runWindowBorderAndDefaultColorScenario();
   }, 0);
 }

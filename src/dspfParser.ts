@@ -273,7 +273,12 @@ function buildLogicalEntries(lines: string[]): {
       continue;
     }
     if (restBlank) {
-      comments.push({ line: sourceLine, text: '' });
+      // A genuinely blank filler line (position 7 onward all blank) isn't
+      // authored documentation text - it's just visual spacing - so it's
+      // NOT collected into `comments` (that array is real "*"-flagged DDS
+      // comment lines only, the ones Task L13's own Comments panel
+      // surfaces). Still `continue`s past it either way; only the
+      // tracking changed, not the parsing behavior.
       continue;
     }
 

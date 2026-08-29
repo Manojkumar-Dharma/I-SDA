@@ -312,6 +312,10 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .field-order-row button:disabled { opacity: 0.35; cursor: default; }
   .field-order-row button:not(:disabled):hover { border-color: var(--chrome-accent); }
+  /* Task L13 - comment text input reuses .rename-input's own look (flex:1,
+     same dark input styling) inside a .field-order-row so a comment row
+     lines up visually with the Structure tab's other rows above it. */
+  .comment-text-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 4px 6px; font-family: var(--mono); font-size: 12px; }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 16px 0 8px; }
   .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
   .compare-toggle input { accent-color: var(--warn); }
@@ -1931,6 +1935,11 @@ const htmlTemplate = `<!DOCTYPE html>
     const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords, expandedKeywordConditioning);
     const availableForFile = DspfWriter.availableCommandKeyNumbers(model.fileKeywords);
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, availableForFile, 'file');
+    // Task L13 - file-level comment lines (the same "preamble" area file
+    // keywords like DSPSIZ live in) get their own tab, same shape as the
+    // record-level Structure tab's own Comments section below.
+    const fileComments = DspfWriter.getFileComments(model);
+    const fileCommentsHtml = commentsListHtml(fileComments, 'filecomments');
     let html = '<div class="status" style="margin-bottom:12px;">SDA-style keyword picker for the whole display file - not tied to any one record format.</div>';
     html += tabsHtml([
       { id: 'general', label: 'General', content: panels.general },
@@ -1943,6 +1952,7 @@ const htmlTemplate = `<!DOCTYPE html>
       { id: 'alternate', label: 'Alternate', content: panels.alternate },
       { id: 'wdwborder', label: 'Window Border', content: panels.windowBorder },
       { id: 'menubar', label: 'Menu-bar', content: panels.menuBar },
+      { id: 'comments', label: 'Comments', content: fileCommentsHtml },
     ], activeFileTab);
     html += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning), false);
     propsBody.innerHTML = html;
@@ -1951,6 +1961,14 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireFileKeywordsPanels(() => model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), expandedKeywordConditioning, () => renderFileProps());
     WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
+    wireCommentsSection(
+      'filecomments',
+      () => DspfWriter.getFileComments(model),
+      0,
+      (comments, fallbackAfterLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '')),
+      (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
+      (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
+    );
   }
 
   function commitFileEdit(newKeywords) {
@@ -2214,6 +2232,61 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<div class="help-entry-row" data-source-line="' + h.sourceLine + '">' + (idx + 1) + '. ' + summary + '</div>';
     });
     return html;
+  }
+
+  /**
+   * Task L13 - lists a scope's own comment lines (already scoped by the
+   * caller via DspfWriter.getFileComments/getRecordComments - this
+   * function itself is scope-agnostic, just rendering whatever "comments"
+   * array it's handed) as editable text rows, same visual shape as
+   * fieldOrderListHtml's rows below it. Each row's own "data-source-line"
+   * is the comment's actual physical line number - stable across
+   * re-renders of THIS panel, but like every other source-line-keyed id
+   * in this file, it shifts on any edit that adds/removes lines above it,
+   * so it's only ever read at click/blur time, never cached.
+   */
+  function commentsListHtml(comments, idPrefix) {
+    let html = '<div class="section-label">Comments</div>';
+    if (comments.length === 0) {
+      html += '<div class="empty-state">No comment lines yet.</div>';
+    } else {
+      comments.slice().sort((a, b) => a.line - b.line).forEach((c) => {
+        html += '<div class="field-order-row" data-source-line="' + c.line + '">' +
+          '<input type="text" class="comment-text-input" data-source-line="' + c.line + '" value="' + DspfEngine.escapeHtml(c.text) + '" placeholder="(blank comment line)" />' +
+          '<button class="comment-delete-btn" data-source-line="' + c.line + '" title="Delete this comment line">&times;</button>' +
+          '</div>';
+      });
+    }
+    html += '<button id="' + idPrefix + '-add-comment" class="secondary" style="width:100%;margin-top:8px;">+ Add comment</button>';
+    return html;
+  }
+
+  /**
+   * Wires commentsListHtml's rows/add-button. "getComments()" re-reads the
+   * CURRENT comments array fresh each call (mirroring getKeywords()-style
+   * getters used throughout this file) rather than closing over a
+   * snapshot, since a text edit reparses the whole model and every
+   * comment's own "line" can shift as a result. "fallbackAfterLine" is
+   * only consulted when the scope has NO existing comments yet - see
+   * DspfWriter.addComment's own doc comment for the placement rule.
+   */
+  function wireCommentsSection(idPrefix, getComments, fallbackAfterLine, commitInsert, commitUpdate, commitDeleteLine) {
+    propsBody.querySelectorAll('.comment-text-input[data-source-line]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const line = parseInt(el.getAttribute('data-source-line'), 10);
+        commitUpdate(line, el.value);
+      });
+    });
+    propsBody.querySelectorAll('.comment-delete-btn[data-source-line]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const line = parseInt(el.getAttribute('data-source-line'), 10);
+        commitDeleteLine(line);
+      });
+    });
+    const addBtn = document.getElementById(idPrefix + '-add-comment');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => commitInsert(getComments(), fallbackAfterLine));
+    }
   }
 
   /**
@@ -2486,12 +2559,16 @@ const htmlTemplate = `<!DOCTYPE html>
     const availableForRecord = DspfWriter.availableCommandKeyNumbers(rec.keywords);
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
 
-    // --- Structure tab: help entries + source field order + reference fields ---
+    // --- Structure tab: help entries + source field order + reference fields + comments ---
     let structureHtml = helpEntriesListHtml(rec) + fieldOrderListHtml(rec);
     const referenceFieldCount = (rec.fields || []).filter((f) => f.isReference).length;
     if (referenceFieldCount > 0) {
       structureHtml += '<button id="p-resolve-all-ref" class="secondary" style="width:100%;margin-top:16px;">Resolve all referenced fields (' + referenceFieldCount + ')</button>';
     }
+    // Task L13 - record-level comment lines, same section shape as the
+    // file-level Comments tab in renderFileProps.
+    const recPrefix = 'reccomments-' + rec.name;
+    structureHtml += commentsListHtml(DspfWriter.getRecordComments(model, rec), recPrefix);
 
     // --- Hidden tab: usage=H fields have no on-screen footprint to click,
     // so they need their own add/select/delete surface separate from the
@@ -2626,6 +2703,23 @@ const htmlTemplate = `<!DOCTYPE html>
     }
 
     wireHiddenFieldsSection(recordName, rec);
+
+    // Task L13 - record-level comments. fallbackAfterLine is the record's
+    // own header/keyword end line (getRecordLineRange, not
+    // getFullRecordLineRange - i.e. right before the first field, same
+    // spot insertField itself defaults to for a record with no fields
+    // yet), only actually used when this record has NO existing comments.
+    wireCommentsSection(
+      recPrefix,
+      () => {
+        const freshRec = model.records.find((r) => r.name === recordName);
+        return freshRec ? DspfWriter.getRecordComments(model, freshRec) : [];
+      },
+      DspfWriter.getRecordLineRange(rec)[1],
+      (comments, fallbackAfterLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '')),
+      (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
+      (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
+    );
 
     propsBody.querySelectorAll('.help-entry-row').forEach((el) => {
       el.addEventListener('click', () => {

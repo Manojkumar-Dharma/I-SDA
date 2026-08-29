@@ -2689,6 +2689,106 @@
     return [min, max];
   }
 
+  // ---------------------------------------------------------------------
+  // Task L13 - DDS comment lines (position 7 = '*', free text in columns
+  // 8-80). dspfParser.ts already collects every comment line file-wide
+  // into `dspfFile.comments` ({ line, text }[]) and they already survive
+  // every existing commit untouched (this codebase only ever makes
+  // targeted line-array edits, never full-file regeneration, so a
+  // comment line no function below happens to touch is never at risk of
+  // being silently dropped) - the getters below just SCOPE that flat,
+  // file-wide array to "this file's own header area" or "this one
+  // record's own span," and the CRUD functions below THAT add/rewrite/
+  // remove one comment line at a time. A comment is always exactly ONE
+  // physical line - unlike a keyword or field, nothing about DDS's own
+  // continuation syntax (+/-) ever applies to a comment line, so there's
+  // no getXLineRange equivalent needed here; `line` alone is enough.
+  // ---------------------------------------------------------------------
+
+  /**
+   * Comments before the FIRST record format's own header line - the same
+   * "preamble" area file-level keywords (DSPSIZ, command keys, etc.) also
+   * live in. If the file has no records at all yet (a malformed or
+   * mid-edit file), every comment in it is treated as file-level, since
+   * there's no record to scope anything else to.
+   */
+  function getFileComments(dspfFile) {
+    var firstRecordLine = (dspfFile.records || []).length > 0
+      ? Math.min.apply(null, dspfFile.records.map(function (r) { return r.sourceLine; }))
+      : Infinity;
+    return (dspfFile.comments || []).filter(function (c) { return c.line < firstRecordLine; });
+  }
+
+  /**
+   * Comments that fall within ONE record's own physical span: from that
+   * record's own header line up to (but not including) the NEXT record's
+   * header line, or end-of-file for the last record. Deliberately wider
+   * than getFullRecordLineRange (which stops at the record's last field) -
+   * a comment trailing after the last field but before the next record's
+   * own header still reads as belonging to THIS record, not the next one,
+   * the same way a closing remark belongs to the paragraph before it
+   * rather than the one after.
+   */
+  function getRecordComments(dspfFile, record) {
+    var sorted = (dspfFile.records || []).slice().sort(function (a, b) { return a.sourceLine - b.sourceLine; });
+    var pos = -1;
+    sorted.forEach(function (r, i) { if (r.name === record.name) pos = i; });
+    var nextStart = pos >= 0 && pos + 1 < sorted.length ? sorted[pos + 1].sourceLine : Infinity;
+    return (dspfFile.comments || []).filter(function (c) { return c.line >= record.sourceLine && c.line < nextStart; });
+  }
+
+  /** Builds one raw 80-column comment line: blank sequence number/form-type
+   *  area (columns 1-6, matching the plain 'A' every other freshly-typed
+   *  line in this codebase uses - see insertField's own doc comment),
+   *  '*' in column 7, then `text` (truncated to fit columns 8-80, newlines
+   *  stripped since a comment can't itself span multiple physical lines). */
+  function buildCommentLine(text) {
+    var t = (text || '').replace(/[\r\n]/g, '').slice(0, LINE_WIDTH - 7);
+    return ('     A*' + t).replace(/\s+$/, '');
+  }
+
+  /**
+   * Inserts a new comment line. Placement mirrors insertField's own "always
+   * appended at the end of what's already there" rule: right after the
+   * LAST existing comment in `existingComments` if there is one, else
+   * right after `fallbackAfterLine` (the caller's own choice of where an
+   * empty scope's first comment should land - see the two call sites in
+   * buildWebviewTemplate.js for what each passes).
+   */
+  function addComment(sourceLines, existingComments, fallbackAfterLine, text) {
+    var insertAfterLine = existingComments.length > 0
+      ? Math.max.apply(null, existingComments.map(function (c) { return c.line; }))
+      : fallbackAfterLine;
+    var newLine = buildCommentLine(text);
+    return sourceLines.slice(0, insertAfterLine).concat([newLine], sourceLines.slice(insertAfterLine));
+  }
+
+  /**
+   * Rewrites just one existing comment line's text (columns 8-80),
+   * leaving columns 1-7 - sequence number, form type, the '*' flag itself
+   * - exactly as they already were, the same "don't touch what wasn't
+   * asked to change" stance every other targeted-line edit in this file
+   * takes.
+   */
+  function updateComment(sourceLines, line, newText) {
+    var idx = line - 1;
+    if (idx < 0 || idx >= sourceLines.length) return sourceLines;
+    var existing = sourceLines[idx];
+    var padded = existing.length < LINE_WIDTH ? existing.padEnd(LINE_WIDTH, ' ') : existing;
+    var prefix = padded.slice(0, 7);
+    var t = (newText || '').replace(/[\r\n]/g, '').slice(0, LINE_WIDTH - 7);
+    var next = sourceLines.slice();
+    next[idx] = (prefix + t).replace(/\s+$/, '');
+    return next;
+  }
+
+  /** Removes one existing comment line entirely. */
+  function deleteComment(sourceLines, line) {
+    var idx = line - 1;
+    if (idx < 0 || idx >= sourceLines.length) return sourceLines;
+    return sourceLines.slice(0, idx).concat(sourceLines.slice(idx + 1));
+  }
+
   /**
    * Picks a record format name that isn't already used by any record in
    * `dspfFile`, starting from `baseName` with a numeric suffix (baseNAME2,
@@ -3224,6 +3324,11 @@
     deleteFields: deleteFields,
     getRecordLineRange: getRecordLineRange,
     getFullRecordLineRange: getFullRecordLineRange,
+    getFileComments: getFileComments,
+    getRecordComments: getRecordComments,
+    addComment: addComment,
+    updateComment: updateComment,
+    deleteComment: deleteComment,
     serializeRecordEntry: serializeRecordEntry,
     applyRecordUpdate: applyRecordUpdate,
     renameRecordFormat: renameRecordFormat,

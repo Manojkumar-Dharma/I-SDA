@@ -192,20 +192,17 @@ how.
   SDA parity (the Design Image screen's own `- -`/`= =` block-move
   convention), not a new invention. iSDA only ever selects one field at a
   time today.
-- **[Task L13]** Record/file-level DDS comment lines have no UI - real
-  SDA's "Edit comments"/file-level comments let you attach documentation
-  text through the tool itself; iSDA's parser already preserves comment
-  lines on round-trip, but nothing surfaces them to view or add.
 - **[Task L14]** Bulk "Add fields from database file" (lowest priority of
-  L10/L13/L14) - real SDA's F10 (Database) key lets you browse a
+  L10/L14) - real SDA's F10 (Database) key lets you browse a
   PF/LF and place multiple REFFLD-based fields at once; iSDA's existing
   "Resolve Referenced Field" only resolves one already-created field at a
   time.
 
 See `LIMITATIONS-PLAN.md` for the full task descriptions (L1 through L9,
-including L5d-ii, are done, and so are L11 (ruler overlay) and L12 (it
+including L5d-ii, are done, and so are L11 (ruler overlay), L12 (it
 turned out the "Center on screen" button already existed before that
-task was even proposed) - only L10/L13/L14 are open).
+task was even proposed), and L13 (Comments panel) - only L10/L14 are
+open).
 
 ### Menu designer
 

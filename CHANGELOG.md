@@ -27,6 +27,49 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   stuck mid-screen). See `runCrosshairScenario` in
   `src/test/dspfWebview.test.js`.
 
+## [0.9.92] - 2026-08-29
+
+### Added
+- **Task L13: Comments panel (file-level and record-level DDS comment
+  lines)** (see `docs/sda-reference/LIMITATIONS-PLAN.md`). Real SDA's
+  "Edit comments" (per-record) and F15 (file-level) let you attach
+  documentation text stored as plain DDS comment lines (`*` in column 7),
+  separate from actual keywords. `dspfParser.ts` already collected these
+  into a `comments[]` array and they already survived every existing
+  round-trip untouched (this codebase only ever makes targeted line-array
+  edits, never full-file regeneration) - nothing in `buildWebviewTemplate.js`
+  ever surfaced that array, so viewing or adding a comment meant dropping
+  into the raw source editor.
+  Fixed a small pre-existing wrinkle along the way: the parser was also
+  collecting plain BLANK filler lines into `comments[]` right alongside
+  real `*`-flagged ones (indistinguishable, both `{line, text: ''}`) -
+  those would have surfaced as confusing empty "ghost" rows in the new
+  panel, so blank lines are no longer tracked there at all (parsing
+  behavior is unchanged, only what gets collected).
+  New `DspfWriter.getFileComments`/`getRecordComments` scope the flat,
+  file-wide array to "before the first record's own header" (file-level)
+  or "this one record's own span, from its header up to the next
+  record's header" (record-level, deliberately wider than
+  `getFullRecordLineRange` - a comment trailing after the last field but
+  before the next record's header still reads as belonging to THIS
+  record). New `addComment`/`updateComment`/`deleteComment` do the actual
+  line-level CRUD - a comment is always exactly one physical line, since
+  DDS's own `+`/`-` continuation never applies to a comment line.
+  New shared `commentsListHtml`/`wireCommentsSection` in
+  `buildWebviewTemplate.js` (editable text rows + delete buttons + an
+  "+ Add comment" button) wired into a new "Comments" tab on the
+  file-level props panel, and appended to the record-level props panel's
+  existing "Structure" tab (next to help entries and field order). A new
+  comment defaults to landing right after the scope's own header when
+  the scope has none yet (file: very top of file; record: right before
+  the first field, the same spot `insertField` itself defaults to for a
+  record with no fields), else right after the LAST existing one - the
+  same placement rule `insertField` already uses.
+  Scoped to the DSPF designer only (per the `L`-prefix convention) - the
+  menu designer's own props panels don't get this.
+  See the new Task L13 scenario in `src/test/dspfWebview.test.js` and the
+  new comment-CRUD block in `src/test/dspfWriter.test.js`.
+
 ## [0.9.90] - 2026-08-29
 
 ### Added

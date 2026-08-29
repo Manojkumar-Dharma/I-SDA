@@ -1317,5 +1317,54 @@ console.log('\nDspfWriter D5 - menu-bar choice fields (MNUBARCHC, MNUBARSEP, Cho
   }
 }
 
+console.log('\nTask L13 - DDS comment lines (parser collection + DspfWriter CRUD)');
+{
+  console.log('  parser: real "*"-flagged comment lines are collected, but plain blank filler lines are NOT (they are just spacing, not authored text)');
+  const src = [
+    '     A*File-level header comment',
+    '',
+    '     A          R RECORD1',
+    "     A                                  1  2'Hello'",
+    '     A*Trailing comment for RECORD1',
+    '',
+    '     A          R RECORD2',
+    "     A                                  1  2'World'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  check('exactly 2 real comment lines collected (not the 2 blank lines too)', model.comments.length === 2);
+  check('comment text extracted correctly', model.comments[0].text === 'File-level header comment' && model.comments[1].text === 'Trailing comment for RECORD1');
+
+  console.log('  getFileComments()/getRecordComments() scope the flat array correctly');
+  const rec1 = model.records.find((r) => r.name === 'RECORD1');
+  const rec2 = model.records.find((r) => r.name === 'RECORD2');
+  const fileComments = DspfWriter.getFileComments(model);
+  check('file-level comments: just the header comment, before RECORD1', fileComments.length === 1 && fileComments[0].text === 'File-level header comment');
+  const rec1Comments = DspfWriter.getRecordComments(model, rec1);
+  check('RECORD1: its own trailing comment (sits between its field and RECORD2\'s header)', rec1Comments.length === 1 && rec1Comments[0].text === 'Trailing comment for RECORD1');
+  const rec2Comments = DspfWriter.getRecordComments(model, rec2);
+  check('RECORD2: no comments of its own', rec2Comments.length === 0);
+
+  console.log('  addComment()/updateComment()/deleteComment() round-trip through reparse');
+  let lines = src.split(/\r\n|\r|\n/);
+  lines = DspfWriter.addComment(lines, rec2Comments, DspfWriter.getRecordLineRange(rec2)[1], 'New comment on RECORD2');
+  let reparsed = DspfParser.parseDspf(lines.join('\n'));
+  let newRec2 = reparsed.records.find((r) => r.name === 'RECORD2');
+  let newRec2Comments = DspfWriter.getRecordComments(reparsed, newRec2);
+  check('new comment added to RECORD2', newRec2Comments.length === 1 && newRec2Comments[0].text === 'New comment on RECORD2');
+
+  lines = DspfWriter.updateComment(lines, newRec2Comments[0].line, 'Edited RECORD2 comment');
+  reparsed = DspfParser.parseDspf(lines.join('\n'));
+  newRec2 = reparsed.records.find((r) => r.name === 'RECORD2');
+  newRec2Comments = DspfWriter.getRecordComments(reparsed, newRec2);
+  check('comment text updated in place', newRec2Comments.length === 1 && newRec2Comments[0].text === 'Edited RECORD2 comment');
+  check('RECORD1\'s own comment and field are untouched by the RECORD2 edit', reparsed.records.find((r) => r.name === 'RECORD1').fields.some((f) => f.constantValue === 'Hello'));
+
+  lines = DspfWriter.deleteComment(lines, newRec2Comments[0].line);
+  reparsed = DspfParser.parseDspf(lines.join('\n'));
+  newRec2 = reparsed.records.find((r) => r.name === 'RECORD2');
+  check('comment removed entirely', DspfWriter.getRecordComments(reparsed, newRec2).length === 0);
+  check('RECORD2\'s own field survives the delete', newRec2.fields.some((f) => f.constantValue === 'World'));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
