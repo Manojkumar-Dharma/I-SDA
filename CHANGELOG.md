@@ -3,6 +3,28 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.94] - 2026-08-29
+
+### Fixed
+- **Task L15: `MNUBARCHC` picker's "text" input was effectively unusable** -
+  reported as "unable to type the text column" and choice text not showing
+  in the picker, against a real menu-bar record with two existing choices.
+  Root cause: the row packed id(36px)+record(110px)+text(flex:1)+return-
+  field(130px) onto ONE flex line with id/record/return-field pinned to
+  `flex-shrink:0` (an earlier fix so THEY wouldn't clip), meaning the text
+  box alone absorbed any space shortfall - the properties panel's own
+  DEFAULT width (300px) is already narrower than id+record+return-field's
+  combined footprint before the text box gets any width at all, so it
+  collapsed to ~0px: invisible and unclickable, in the default layout, not
+  just a narrow custom-resized one. Fixed by giving id+pulldown-record a
+  compact top line and text/return-field each their own full-width line
+  below, the same multi-line "block" layout the sibling CHOICE keyword
+  editor already uses for this exact class of problem. Confirmed via a
+  jsdom repro that focus/typing/Apply all round-trip correctly post-fix,
+  for both existing and freshly-added rows. Also confirmed all 4 real DDS
+  `MNUBARCHC` parameters were already correctly modeled end-to-end - this
+  was purely a CSS layout bug, no data/parameter gap.
+
 ## [0.9.93] - 2026-08-29
 
 ### Added

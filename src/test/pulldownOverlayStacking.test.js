@@ -134,12 +134,12 @@ if (pulldownFieldRules.length === 1 && widgetZIndexRules.length > 0) {
 // would no longer describe what actually renders.
 check('.dspf-pulldown-field rule itself is scoped to .dspf-field (matches every real pulldown field div, not a bare class)', pulldownFieldRules.length === 1 && /\.dspf-field\.dspf-pulldown-field/.test(pulldownFieldRules[0].selector));
 
-console.log('\nBug fix: MNUBARCHC picker row inputs (record/text/return-field) no longer shrink below their declared width in a narrow properties panel');
+console.log('\nBug fix: choice-row id/# input no longer shrinks below its declared width in a narrow properties panel');
 {
   const choiceRowInputRules = rules.filter((r) => r.selector.trim() === '.choice-row input');
   check('found the .choice-row input rule', choiceRowInputRules.length === 1);
   if (choiceRowInputRules.length === 1) {
-    check('.choice-row input sets flex-shrink:0 so fixed-width inputs (id/record/return-field) keep their declared width', /flex-shrink\s*:\s*0/.test(choiceRowInputRules[0].body));
+    check('.choice-row input sets flex-shrink:0 so the fixed-width id/# input keeps its declared width', /flex-shrink\s*:\s*0/.test(choiceRowInputRules[0].body));
   }
 }
 

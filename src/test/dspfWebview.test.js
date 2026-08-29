@@ -1922,13 +1922,31 @@ function runD5MenuBarChoiceScenario() {
     console.log('  Task L3: a &field for choice text, plus a Return field, both round-trip through the same MNUBARCHC row');
     selectFieldByName('MNUFLD');
     doc.querySelector('button[class*="-mnubarchc-add"]').dispatchEvent(new Event('click', { bubbles: true }));
-    const mnubarchcRows = doc.querySelectorAll('.choice-row');
+    const mnubarchcRows = doc.querySelectorAll('.choice-row-block');
     const newMnubarchcRow = mnubarchcRows[mnubarchcRows.length - 1];
+    // Regression check: the text/return-field inputs used to share a
+    // single flex row with id (36px) and record (110px), both pinned to
+    // flex-shrink:0 so THEY wouldn't clip - which meant text/return-field
+    // absorbed 100% of any space shortfall instead. The properties
+    // panel's own DEFAULT width (300px, minus 16px padding each side)
+    // already leaves less room than id+record+return-field's combined
+    // fixed footprint needs BEFORE the text box gets any width at all, so
+    // it collapsed to ~0px: invisible and unclickable (reported: "unable
+    // to type the text column"). Fixed by giving text/return-field their
+    // own full-width line below the compact id+record line instead of
+    // squeezing four inputs onto one - asserting a real, non-zero
+    // percentage width here (rather than just checking the input exists)
+    // is what actually catches a regression back to the old cramped
+    // single-line layout, which this same query would still "pass" on
+    // structurally even at 0px rendered width.
+    const newTextInput = newMnubarchcRow.querySelector('input[class*="-mnubarchc-text"]');
+    check('text input gets its own full-width line, not squeezed onto the id/record/return-field row', /width\s*:\s*100%/.test(newTextInput.getAttribute('style') || ''));
+    newTextInput.value = '&OPTTXT';
     newMnubarchcRow.querySelector('input[class*="-mnubarchc-id"]').value = '4';
     newMnubarchcRow.querySelector('input[class*="-mnubarchc-record"]').value = 'PULLOPT';
-    newMnubarchcRow.querySelector('input[class*="-mnubarchc-text"]').value = '&OPTTXT';
     const returnFieldInput = newMnubarchcRow.querySelector('input[class*="-mnubarchc-returnfield"]');
     check('setup: Return field input exists on the row', !!returnFieldInput);
+    check('return field also gets its own full-width line', /width\s*:\s*100%/.test(returnFieldInput.getAttribute('style') || ''));
     returnFieldInput.value = 'RTNFLD';
     doc.querySelector('button[class*="-mnubarchc-apply"]').dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];

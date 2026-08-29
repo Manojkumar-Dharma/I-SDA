@@ -89,16 +89,17 @@ const htmlTemplate = `<!DOCTYPE html>
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .choice-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   /* min-width:0 removes the default flex min-width floor so a genuinely
-   * flexible field (style="flex:1", e.g. the MNUBARCHC/CHOICE text box) can
-   * actually shrink instead of overflowing its row. But every OTHER input
-   * here declares an explicit fixed pixel width (id/#, pulldown record,
-   * return field) meaning to stay that size - those still had the browser's
-   * default flex-shrink:1, so once min-width:0 removed their floor too, a
-   * narrow sidebar (see the properties panel) compressed ALL of them
-   * proportionally, clipping "PULLFILE" to "PULLFILI" and "return field
-   * (opt.)" to "return fi" (reported bug: MNUBARCHC record/text not fully
-   * visible in the picker). flex-shrink:0 here stops that; the one field
-   * meant to flex sets flex-shrink:1 itself via its inline "flex:1" shorthand,
+   * flexible field (style="flex:1" - the sibling CHOICE keyword editor's
+   * text box, or MNUBARCHC's pulldown-record box, each the one field on
+   * their row meant to use whatever space is left) can actually shrink
+   * instead of overflowing its row. The only OTHER input on either of
+   * these rows is the fixed-width id/# box, which still had the
+   * browser's default flex-shrink:1, so once min-width:0 removed its
+   * floor too, a narrow sidebar (see the properties panel) could
+   * compress even that fixed box below its declared width (reported
+   * bug: MNUBARCHC's id/# not fully visible in the picker).
+   * flex-shrink:0 here stops that; the one field meant to flex sets
+   * flex-shrink:1 itself via its inline "flex:1" shorthand,
    * which (inline style) always wins over this class rule for that field. */
   .choice-row input { min-width: 0; flex-shrink: 0; }
   .choice-row button { flex-shrink: 0; }

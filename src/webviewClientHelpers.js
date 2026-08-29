@@ -1525,7 +1525,24 @@
    *  reference, anything else is a literal - matching the &-prefix
    *  convention this codebase already uses for the sibling CHOICE
    *  keyword's own text box (see choiceKeywordRowHtml above); "Return
-   *  field" gets its own box since it's a genuinely separate DDS token. */
+   *  field" gets its own box since it's a genuinely separate DDS token.
+   *
+   *  Multi-line block layout (matching choiceKeywordRowHtml's own shape,
+   *  not a single `.choice-row`): the properties panel's DEFAULT width
+   *  (300px, minus its own 16px padding each side = 268px available) is
+   *  already narrower than id(36px)+record(110px)+return-field(130px)'s
+   *  combined fixed footprint (276px) BEFORE any width is left for the
+   *  text box at all - a single-line flex row with those three fixed
+   *  widths (needed so id/record/return-field don't clip - see the
+   *  .choice-row input CSS rule's own comment) leaves the text box a
+   *  negative flex-basis, which browsers clamp to ~0px: invisible,
+   *  unclickable, looks broken (reported: "unable to type the text
+   *  column", "record.record not displaying" - it's not that it's
+   *  empty, it's that it's ~0px wide). Splitting id+record onto their own
+   *  compact top line and giving text/return-field each a full-width line
+   *  below removes the impossible single-line fit entirely, the same fix
+   *  already applied to the sibling CHOICE keyword editor for the same
+   *  reason. */
   function menuBarChoicesHtml(keywords, ownerKey) {
     var choices = DspfWriter.getMenubarChoices(keywords);
     var html = '<div class="section-label">Menu-bar choices (MNUBARCHC)</div>';
@@ -1541,13 +1558,16 @@
 
   function menuBarChoiceRowHtml(ownerKey, idx, c) {
     c = c || { id: '', pulldownRecord: '', text: '', returnField: '' };
-    return '<div class="choice-row" data-idx="' + idx + '">' +
+    var row = '<div class="choice-row-block" data-idx="' + idx + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
+    row += '<div class="choice-row">' +
       '<input type="text" class="' + ownerKey + '-mnubarchc-id" placeholder="#" maxlength="3" value="' + escapeHtml(c.id) + '" style="width:36px;" />' +
-      '<input type="text" class="' + ownerKey + '-mnubarchc-record" placeholder="pulldown record" maxlength="10" value="' + escapeHtml(c.pulldownRecord) + '" style="width:110px;" />' +
-      '<input type="text" class="' + ownerKey + '-mnubarchc-text" placeholder="text, or &field" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
-      '<input type="text" class="' + ownerKey + '-mnubarchc-returnfield" placeholder="return field (opt.)" maxlength="11" value="' + escapeHtml(c.returnField || '') + '" style="width:130px;" />' +
+      '<input type="text" class="' + ownerKey + '-mnubarchc-record" placeholder="pulldown record" maxlength="10" value="' + escapeHtml(c.pulldownRecord) + '" style="flex:1;" />' +
       '<button class="secondary ' + ownerKey + '-mnubarchc-remove" data-idx="' + idx + '" title="Remove">&times;</button>' +
       '</div>';
+    row += '<input type="text" class="' + ownerKey + '-mnubarchc-text" placeholder="text, or &field" value="' + escapeHtml(c.text) + '" style="width:100%;margin-top:6px;" />';
+    row += '<input type="text" class="' + ownerKey + '-mnubarchc-returnfield" placeholder="return field (opt.)" maxlength="11" value="' + escapeHtml(c.returnField || '') + '" style="width:100%;margin-top:6px;" />';
+    row += '</div>';
+    return row;
   }
 
   function wireMenuBarChoicesEditor(keywords, onChange, ownerKey) {
@@ -1561,12 +1581,12 @@
     });
     function wireRemoveButtons() {
       document.querySelectorAll('.' + ownerKey + '-mnubarchc-remove').forEach(function (btn) {
-        btn.onclick = function () { btn.closest('.choice-row').remove(); };
+        btn.onclick = function () { btn.closest('.choice-row-block').remove(); };
       });
     }
     wireRemoveButtons();
     if (applyBtn) applyBtn.addEventListener('click', function () {
-      var rows = Array.prototype.slice.call(container.querySelectorAll('.choice-row'));
+      var rows = Array.prototype.slice.call(container.querySelectorAll('.choice-row-block'));
       var choices = rows.map(function (row) {
         return {
           id: row.querySelector('.' + ownerKey + '-mnubarchc-id').value,
