@@ -692,6 +692,58 @@ function runCommandKeysScenario() {
     check("SCR1's own record-level CA03 override survives the unrelated file-level removal", last && /CA03\(95 'Local exit'\)/.test(last.text));
     check('the record-level CF05 survives the unrelated file-level removal', last && /CF05/.test(last.text));
 
+    runRulerScenario();
+  }, 0);
+}
+
+function runRulerScenario() {
+  console.log('\nruler overlay (Task L11): row/column numbers along the design canvas, toggled on/off, session-only');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce10', src, 'RULER.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  off by default: no ruler numbers rendered, matching real SDA where F14 starts off each time');
+    check('ruler toggle unchecked by default', !doc.getElementById('rulerToggle').checked);
+    check('ruler corner/cols/rows all start hidden', doc.getElementById('rulerCorner').classList.contains('hidden') && doc.getElementById('rulerCols').classList.contains('hidden') && doc.getElementById('rulerRows').classList.contains('hidden'));
+
+    console.log('  toggle on: column ruler (tens+ones rows) and row ruler (2-digit line numbers) both populate against the current DSPSIZ (24x80 default)');
+    const rulerToggle = doc.getElementById('rulerToggle');
+    rulerToggle.checked = true;
+    rulerToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('ruler corner/cols/rows are no longer hidden', !doc.getElementById('rulerCorner').classList.contains('hidden') && !doc.getElementById('rulerCols').classList.contains('hidden') && !doc.getElementById('rulerRows').classList.contains('hidden'));
+    const colsText = doc.getElementById('rulerCols').textContent;
+    const colsLines = colsText.split('\n');
+    check('column ruler is two lines (tens row + ones row)', colsLines.length === 2);
+    check('column ruler is 80 characters wide, matching the default DSPSIZ(24 80)', colsLines[0].length === 80 && colsLines[1].length === 80);
+    check('tens row shows a "1" at column 10 (10th char) and a "8" at column 80', colsLines[0][9] === '1' && colsLines[0][79] === '8');
+    check('ones row cycles 1-9,0 per column: starts "1234567890"', colsLines[1].slice(0, 10) === '1234567890');
+    const rowsLines = doc.getElementById('rulerRows').textContent.split('\n');
+    check('row ruler has 24 lines, matching the default DSPSIZ(24 80)', rowsLines.length === 24);
+    check('row numbers are 2-digit and zero-padded: "01" first, "24" last', rowsLines[0] === '01' && rowsLines[23] === '24');
+
+    console.log('  toggle off again: ruler hides without needing to switch records or re-resolve anything');
+    rulerToggle.checked = false;
+    rulerToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('ruler hidden again after unchecking', doc.getElementById('rulerCols').classList.contains('hidden') && doc.getElementById('rulerRows').classList.contains('hidden'));
+
     runConditionsScenario();
   }, 0);
 }

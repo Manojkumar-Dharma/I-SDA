@@ -104,6 +104,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .choice-row button { flex-shrink: 0; }
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; min-height: 0; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
+  .ruler-wrap { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; }
+  .ruler-corner, .ruler-cols, .ruler-rows { font-family: var(--mono); font-size: 14px; line-height: 1.4em; white-space: pre; color: var(--ink-dim); user-select: none; pointer-events: none; }
+  .ruler-cols { letter-spacing: 0; }
+  .ruler-rows { text-align: right; padding-right: 4px; }
   #screenOutput { position: relative; }
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; z-index: 1; }
   .dspf-screen-backdrop-layer { position: absolute; top: 0; left: 0; opacity: 0.32; filter: grayscale(0.5); pointer-events: none; z-index: 0; }
@@ -516,6 +520,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Show other record(s) dimmed behind</label>
   <label class="compare-toggle hidden" id="compareOverlayRow"><input type="checkbox" id="compareOverlayToggle" /> Full overlay instead (read-only)</label>
   <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
+  <label class="compare-toggle"><input type="checkbox" id="rulerToggle" /> Show ruler (row/column numbers)</label>
   <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
@@ -545,7 +550,12 @@ const htmlTemplate = `<!DOCTYPE html>
 </aside>
 <main>
   <div id="fkeyLegend"></div>
-  <div class="screen-frame"><div id="screenOutput"></div></div>
+  <div class="screen-frame"><div class="ruler-wrap" id="rulerWrap">
+    <div class="ruler-corner hidden" id="rulerCorner"></div>
+    <div class="ruler-cols hidden" id="rulerCols"></div>
+    <div class="ruler-rows hidden" id="rulerRows"></div>
+    <div id="screenOutput"></div>
+  </div></div>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
 </main>
@@ -627,6 +637,9 @@ const htmlTemplate = `<!DOCTYPE html>
   let compareFullOverlay = false;
   const compareSelectedRecords = new Set();
   let previewMultipleRows = false;
+  // Ruler overlay (Task L11): session-only, matching real SDA's own F14
+  // toggle - never persisted, always starts off when the designer reopens.
+  let rulerEnabled = false;
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
   let lastScreen = null; // most recently resolved screen ({lines, columns, ...}) - kept around so the props
                           // panel's "Center on screen" action knows the current record's width without
@@ -650,6 +663,11 @@ const htmlTemplate = `<!DOCTYPE html>
   const mainHint = document.getElementById('mainHint');
   const previewRowsRow = document.getElementById('previewRowsRow');
   const previewRowsToggle = document.getElementById('previewRowsToggle');
+  const rulerToggle = document.getElementById('rulerToggle');
+  const rulerWrap = document.getElementById('rulerWrap');
+  const rulerCorner = document.getElementById('rulerCorner');
+  const rulerCols = document.getElementById('rulerCols');
+  const rulerRows = document.getElementById('rulerRows');
   const sizeSelectRow = document.getElementById('sizeSelectRow');
   const sizeSelect = document.getElementById('sizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
@@ -907,6 +925,13 @@ const htmlTemplate = `<!DOCTYPE html>
   compareOverlayToggle.addEventListener('change', () => {
     compareFullOverlay = compareOverlayToggle.checked;
     render();
+  });
+
+  rulerToggle.addEventListener('change', () => {
+    rulerEnabled = rulerToggle.checked;
+    // No re-resolve needed - the ruler is purely derived from lastScreen's
+    // own lines/columns, same size/shape math render() already did.
+    updateRuler(lastScreen);
   });
 
   // Clicking the screen background (not a field) deselects, returning the
@@ -1180,6 +1205,22 @@ const htmlTemplate = `<!DOCTYPE html>
   // finding the PRIMARY one first, as it always did - the backdrop's own
   // stacking is purely a CSS z-index/opacity concern (see
   // .dspf-screen-backdrop-layer), not a DOM-order one.
+  // Ruler overlay (Task L11) - purely derived from whichever screen was just
+  // resolved (screen.lines/screen.columns), independent of DspfWriter/model;
+  // called after every place render()/renderFullOverlay() sets screenOutput's
+  // content, and again directly from the toggle's own listener (no need to
+  // re-resolve the screen just to flip visibility). No-op (hides) when there's
+  // no screen to measure against - the error/no-records early-return paths.
+  function updateRuler(screen) {
+    const show = rulerEnabled && screen && !screen.error;
+    rulerCorner.classList.toggle('hidden', !show);
+    rulerCols.classList.toggle('hidden', !show);
+    rulerRows.classList.toggle('hidden', !show);
+    if (!show) return;
+    rulerCols.innerHTML = DspfEngine.renderRulerColumnsHtml(screen.columns);
+    rulerRows.innerHTML = DspfEngine.renderRulerRowsHtml(screen.lines);
+  }
+
   function renderCompareBackdrop(currentRecordName) {
     if (!compareMode) return;
     const others = Array.from(compareSelectedRecords).filter(
@@ -1219,6 +1260,7 @@ const htmlTemplate = `<!DOCTYPE html>
       ? 'Comparing ' + included.join(', ') + ' overlaid together at full brightness, read-only - switch off "Full overlay" or "Compare" to edit again.'
       : 'Check another record above to overlay it here at full brightness, read-only.';
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
+    updateRuler(screen);
     selectedKey = null;
     selectedHelpSourceLine = null;
     showFileProps = false;
@@ -1235,7 +1277,7 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildNewRecordDepOptions();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; renderProps(null); return; }
+    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; updateRuler(null); renderProps(null); return; }
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
     updateSizeBoundsWarning(recordName);
@@ -1251,7 +1293,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
     lastScreen = screen;
-    if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; return; }
+    if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; updateRuler(screen); return; }
     previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
     if (!screen.isSflRecord && previewMultipleRows) { previewMultipleRows = false; previewRowsToggle.checked = false; }
     if (screen.isSflRecord && screen.previewRowCount) {
@@ -1263,6 +1305,7 @@ const htmlTemplate = `<!DOCTYPE html>
         '. Drag any field here to move the whole row template - edits apply to ' + screen.subfilePreview.sflRecordName + ', not this control record.';
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
+    updateRuler(screen);
     renderCompareBackdrop(recordName);
     // Every wiring call below is scoped to primaryScreenEl (the FIRST
     // .dspf-screen in the DOM - see renderCompareBackdrop's own comment on

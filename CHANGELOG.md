@@ -3,6 +3,28 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.90] - 2026-08-29
+
+### Added
+- **Task L11: ruler overlay (row/column numbers along the design canvas).**
+  Real SDA's Design Image screen has an F14 (Shift+F2 on a physical 5250
+  keyboard) toggle that overlays row and column numbers along the top and
+  left edge of the design area for precise placement by eye - iSDA had no
+  equivalent despite the canvas already supporting drag/nudge. Added
+  `DspfEngine.renderRulerColumnsHtml`/`renderRulerRowsHtml` (a two-row
+  tens/ones column ruler, e.g. `"1234567890..."` under a sparse tens row,
+  and a right-aligned 2-digit row ruler), both driven off the currently
+  resolved screen's own `lines`/`columns` so they track whichever
+  `DSPSIZ`/`selectedSizeIndex` is active. A new `.ruler-wrap` CSS grid
+  wraps `#screenOutput` (corner/column-ruler/row-ruler/screen, laid out
+  via plain DOM-order grid auto-placement) with a session-only "Show
+  ruler (row/column numbers)" toggle next to the existing
+  `compareModeToggle` - never persisted, matching real SDA's own F14
+  starting off every time. Existing drag/placement math
+  (`gridMetrics()`) is untouched since it queries `.dspf-screen` directly
+  regardless of the new wrapper nesting. See the new `runRulerScenario()`
+  in `src/test/dspfWebview.test.js`.
+
 ## [0.9.89] - 2026-08-29
 
 ### Changed

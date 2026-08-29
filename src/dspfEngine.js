@@ -1615,12 +1615,55 @@
     );
   }
 
+  // ---------------------------------------------------------------------
+  // Ruler overlay (Task L11): row/column numbers along the design canvas -
+  // real SDA's own F14 (Shift+F2) toggle on the Design Image screen, purely
+  // a placement aid, no model/keyword involvement at all. Two independent
+  // pieces so the webview can lay them out as separate grid cells around
+  // #screenOutput (a top strip + a left strip) rather than one combined
+  // blob - see buildWebviewTemplate.js's ruler-wrap CSS grid.
+  //
+  // Column ruler is two stacked text rows sized 1ch/column, matching
+  // renderScreenHtml's own `grid-template-columns:repeat(columns,1ch)` -
+  // this is deliberately plain monospace TEXT (not one grid cell div per
+  // column, unlike the field divs above) since nothing here is interactive
+  // or individually positioned; a "tens" row showing the tens digit only at
+  // each 10th column and a "ones" row cycling 1-9,0 for every column, the
+  // same two-row numeric convention used in RPG/SEU source column rulers -
+  // e.g. for 24 columns:
+  //   "         11111111112222"
+  //   "123456789012345678901234"
+  // Row ruler is one text row per screen line, right-aligned 2-digit line
+  // numbers (max valid DSPSIZ is 27 lines, so 2 digits always suffice),
+  // line-height matched to 1.4em by the caller's CSS to align each number
+  // against its own screen row.
+  // ---------------------------------------------------------------------
+  function renderRulerColumnsHtml(columns) {
+    var tens = '';
+    var ones = '';
+    for (var c = 1; c <= columns; c++) {
+      tens += c % 10 === 0 ? String(Math.floor(c / 10) % 10) : ' ';
+      ones += String(c % 10);
+    }
+    return escapeHtml(tens) + '\n' + escapeHtml(ones);
+  }
+
+  function renderRulerRowsHtml(lines) {
+    var rows = [];
+    for (var r = 1; r <= lines; r++) {
+      rows.push((r < 10 ? '0' : '') + r);
+    }
+    return escapeHtml(rows.join('\n'));
+  }
+
   return {
     conditionsSatisfied: conditionsSatisfied,
     resolveScreen: resolveScreen,
     resolveMultiScreen: resolveMultiScreen,
     resolveReferenceTarget: resolveReferenceTarget,
     renderScreenHtml: renderScreenHtml,
+    renderRulerColumnsHtml: renderRulerColumnsHtml,
+    renderRulerRowsHtml: renderRulerRowsHtml,
     isPulldownRecord: isPulldownRecord,
     findSflPairing: findSflPairing,
     escapeHtml: escapeHtml,

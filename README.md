@@ -192,9 +192,6 @@ how.
   SDA parity (the Design Image screen's own `- -`/`= =` block-move
   convention), not a new invention. iSDA only ever selects one field at a
   time today.
-- **[Task L11]** Ruler overlay - real SDA's F14 (Shift+F2 on a physical
-  5250 keyboard) row/column-number toggle along the design canvas has no
-  equivalent yet.
 - **[Task L12]** Align-center shortcut for a field/constant's text on its
   own line - real SDA's `AC` positional command; today centering means
   dragging/nudging by hand.
