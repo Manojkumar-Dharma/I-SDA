@@ -188,9 +188,18 @@ how.
 
 ### DSPF (screen) designer
 
-No open items right now - every currently-tracked DSPF designer task
-(L1 through L9, including L5d-ii) is done. See `LIMITATIONS-PLAN.md`
-for the full history if a past decision needs revisiting.
+- **[Task L10]** Multi-field select + block move/copy/delete/style - real
+  SDA parity (the Design Image screen's own `- -`/`= =` block-move
+  convention), not a new invention. iSDA only ever selects one field at a
+  time today.
+- **[Task L11]** Ruler overlay - real SDA's Shift+F2 row/column-number
+  toggle along the design canvas has no equivalent yet.
+- **[Task L12]** Align-center shortcut for a field/constant's text on its
+  own line - real SDA's `AC` positional command; today centering means
+  dragging/nudging by hand.
+
+See `LIMITATIONS-PLAN.md` for the full task descriptions (L1 through L9,
+including L5d-ii, are done - only L10-L12 are open).
 
 ### Menu designer
 
