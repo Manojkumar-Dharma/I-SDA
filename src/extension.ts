@@ -1006,33 +1006,101 @@ function buildBoilerplateDspf(recordName: string, titleText: string): string {
   return lines.join('\n') + '\n';
 }
 
+/** Auto-generates a companion record name at CREATE time by appending
+ *  `suffix`, truncating the main name to leave room within DDS's 10-char
+ *  name limit, and falling back to a numbered variant on the vanishingly
+ *  unlikely collision (e.g. a main name already ending in the same
+ *  suffix after truncation). Shared by defaultSflctlName (SFL-family's
+ *  SFLCTL companion) and buildTypedBoilerplateDspf's own MNUBAR-\>PULDWN
+ *  companion below. */
+function deriveCompanionName(mainName: string, suffix: string): string {
+  const room = Math.max(1, 10 - suffix.length);
+  const base = mainName.length > room ? mainName.slice(0, room) : mainName;
+  const candidate = (base + suffix).slice(0, 10);
+  if (candidate !== mainName) return candidate;
+  const shorterRoom = Math.max(1, room - 1);
+  return (base.slice(0, shorterRoom) + suffix + '2').slice(0, 10);
+}
+
 /** Auto-generates the SFLCTL companion record name for an SFL-family type
  *  at CREATE time, rather than prompting for it (unlike the in-designer "+
  *  Add record" wizard, which always asks) - "Create New Display File" stays
  *  a fast, few-question start; the name can be changed afterward in the
- *  designer like any other record. Leaves room for a 'CTL' suffix within
- *  the 10-char DDS name limit, falling back to a '2' suffix on the
- *  vanishingly unlikely collision (e.g. a main record already ending in
- *  'CTL' after truncation). */
+ *  designer like any other record. */
 function defaultSflctlName(mainName: string): string {
-  const base = mainName.length > 7 ? mainName.slice(0, 7) : mainName;
-  const candidate = (base + 'CTL').slice(0, 10);
-  return candidate === mainName ? (base.slice(0, 6) + 'CTL2').slice(0, 10) : candidate;
+  return deriveCompanionName(mainName, 'CTL');
+}
+
+/** Plain keyword-object literal shape every DspfWriter insert* function
+ *  expects (same shape WebviewClientHelpers.buildTypedRecordPlan's own
+ *  internal `kw` closure builds) - a bare valueless keyword when
+ *  `parameters` is ''. */
+function kw(name: string, parameters: string): any {
+  return { name, parameters, conditions: [], raw: '', sourceLines: [] };
+}
+
+/** A single-choice pulldown/menu-bar-dropdown field: SNGCHCFLD plus three
+ *  sample CHOICE(id 'text') entries ('New'/'Open'/'Save', the same
+ *  placeholder trio a blank Windows-style File menu would show) - the
+ *  real, functioning content a PULDWN record's own field needs (matching
+ *  the CHOICE(id 'text')/SNGCHCFLD shape already verified elsewhere in
+ *  this codebase - see dspfEngine.js's parseChoiceParams), not just a
+ *  bare keyword with nothing to look at. `name` lets the MNUBAR case
+ *  below and the standalone PULDWN case share this without a field-name
+ *  collision when both exist in the same file. */
+function sampleChoiceField(name: string, line: number): any {
+  return {
+    nameType: 'FIELD',
+    name,
+    length: 2,
+    dataType: 'Y',
+    decimalPositions: 0,
+    usage: 'B',
+    location: { line, column: 2 },
+    keywords: [kw('SNGCHCFLD', ''), kw('CHOICE', "1 'New'"), kw('CHOICE', "2 'Open'"), kw('CHOICE', "3 'Save'")],
+  };
 }
 
 /** Builds starter DDS source for a brand-new display file whose primary record
  *  is one of WebviewClientHelpers.RECORD_TYPES - reusing buildTypedRecordPlan,
  *  the exact same keywords/companion-record/hidden-fields decision table the
  *  in-designer "+ Add record" wizard uses, so the two entry points can't
- *  silently drift into different starter DDS for the same type. SFL-family
- *  types get an auto-named SFLCTL companion (defaultSflctlName) and SFLMSG
- *  gets the wizard's own defaults (line 24, MSGKEY/PGMQ, no 276-byte queue)
- *  instead of prompting for any of it - see promptForRecordInfo's own
- *  comment for why. On top of the type's own keywords, every type gets a
- *  title constant (on whichever record actually renders on screen - the
- *  SFLCTL companion for SFL-family types, the record itself otherwise) and
- *  one sample output field on the picked-type record, so there's always
- *  something visible to open the designer onto. */
+ *  silently drift into different starter DDS for the same *structural*
+ *  shape (SFLCTL companion, SFLMSG's hidden fields, etc.). On top of that
+ *  shared foundation, this function adds a fuller, type-specific WORKED
+ *  EXAMPLE - deliberately NOT pushed into buildTypedRecordPlan itself,
+ *  since that table is shared with the in-designer "+ Add record" wizard
+ *  (adding a record to a screen that already has content), where a full
+ *  illustrative example would be unwanted clutter; a brand-new, otherwise
+ *  empty display file benefits from one:
+ *   - RECORD/USRDFN/WINDOW: title constant + one sample output field
+ *     (unchanged from the original plain boilerplate).
+ *   - SFL/SFLMSG/WDWSFL/PDNSFL: the SFLCTL companion gets the keyword set
+ *     an SFL-family record actually needs to DISPLAY anything at runtime
+ *     (`SFLSIZ`/`SFLPAG`/`SFLDSP`/`SFLDSPCTL`/`SFLCLR` - the in-designer
+ *     wizard leaves these for the user to add via the SFLCTL picker's own
+ *     panels, appropriate there since it's editing an already-considered
+ *     screen; a brand-new file gets a subfile that actually WORKS out of
+ *     the box) plus a title and "Opt"/"Description" column headers
+ *     (skipped for SFLMSG, which has no user-defined columns); the detail
+ *     record gets a numbered `OPTN` option field ahead of the sample
+ *     output field, the standard SDA 1=Select/2=Change/4=Delete
+ *     convention's own field (skipped entirely for SFLMSG, which needs no
+ *     visible field beyond its two hidden ones - the message text itself
+ *     is drawn by the system via `SFLMSGRCD`).
+ *   - PULDWN: a real `SNGCHCFLD`/`CHOICE` selection field (sampleChoiceField)
+ *     in place of the generic title+field - a title constant doesn't
+ *     serve a standalone dropdown the way it does a full screen.
+ *   - MNUBAR: keeps its title constant, but replaces the generic sample
+ *     field with one real `MNUBARCHC` choice field wired to a NEW,
+ *     auto-created PULDWN companion record (deriveCompanionName, 'P1'
+ *     suffix) - inserted alongside it in this same call, itself carrying
+ *     the same sampleChoiceField content as the standalone PULDWN case -
+ *     so opening the designer shows an actual working "File" menu-bar
+ *     item with a dropdown under it, not just a bare unwired keyword.
+ *     This wiring is Create-New-Display-File-only, same reasoning as
+ *     above: the in-designer wizard's own MNUBAR/PULDWN entries in
+ *     RECORD_TYPES stay independently created, matching real SDA. */
 function buildTypedBoilerplateDspf(recordName: string, titleText: string, type: string): string {
   let sourceLines = [
     buildDdsLine({ seq: '00010', comment: ' Generated by iSDA - Interactive Screen Design Aid' }),
@@ -1040,7 +1108,8 @@ function buildTypedBoilerplateDspf(recordName: string, titleText: string, type: 
   ];
   const baseModel = parseDspf(sourceLines.join('\n') + '\n');
 
-  const sflctlName = WebviewClientHelpers.isSflFamilyRecordType(type) ? defaultSflctlName(recordName) : null;
+  const sflFamily = WebviewClientHelpers.isSflFamilyRecordType(type);
+  const sflctlName = sflFamily ? defaultSflctlName(recordName) : null;
   const sflmsgOpts = type === 'SFLMSG' ? { line: 24, keyName: 'MSGKEY', queueName: 'PGMQ', use276: false } : null;
   const plan = WebviewClientHelpers.buildTypedRecordPlan(type, recordName, sflctlName, null, sflmsgOpts);
   if (!plan) {
@@ -1050,8 +1119,17 @@ function buildTypedBoilerplateDspf(recordName: string, titleText: string, type: 
     return buildBoilerplateDspf(recordName, titleText);
   }
 
-  sourceLines = plan.dependent
-    ? DspfWriter.insertTypedRecordWithDependent(baseModel, sourceLines, { name: recordName, keywords: plan.mainKeywords }, { name: plan.dependent.name, keywords: plan.dependent.keywords })
+  // The SFLCTL companion's keyword set gets the "actually displays at
+  // runtime" additions here (SFLSIZ/SFLPAG/SFLDSP/SFLDSPCTL/SFLCLR) -
+  // appended to plan.dependent's own keywords rather than folded into
+  // buildTypedRecordPlan itself, since that table is shared with the
+  // in-designer wizard (see this function's own header comment for why).
+  const dependent = plan.dependent
+    ? { name: plan.dependent.name, keywords: plan.dependent.keywords.concat([kw('SFLSIZ', '0011'), kw('SFLPAG', '0010'), kw('SFLDSP', ''), kw('SFLDSPCTL', ''), kw('SFLCLR', '')]) }
+    : null;
+
+  sourceLines = dependent
+    ? DspfWriter.insertTypedRecordWithDependent(baseModel, sourceLines, { name: recordName, keywords: plan.mainKeywords }, dependent)
     : DspfWriter.insertTypedRecord(baseModel, sourceLines, { name: recordName, keywords: plan.mainKeywords }, null);
 
   // SFLMSG's two hidden fields, one at a time with a reparse between each -
@@ -1072,7 +1150,17 @@ function buildTypedBoilerplateDspf(recordName: string, titleText: string, type: 
     });
   });
 
-  const titleRecordName = plan.dependent ? plan.dependent.name : recordName;
+  // PULDWN skips the generic title+field entirely in favor of a real
+  // SNGCHCFLD/CHOICE selection field - a title constant doesn't serve a
+  // standalone dropdown record the way it does a full screen.
+  if (type === 'PULDWN') {
+    const midModel = parseDspf(sourceLines.join('\n') + '\n');
+    const rec = midModel.records.find((r: any) => r.name === recordName);
+    if (rec) sourceLines = DspfWriter.insertField(rec, sourceLines, sampleChoiceField('PULOPT', 1));
+    return sourceLines.join('\n') + '\n';
+  }
+
+  const titleRecordName = dependent ? dependent.name : recordName;
   let midModel = parseDspf(sourceLines.join('\n') + '\n');
   const titleRecord = midModel.records.find((r: any) => r.name === titleRecordName);
   if (titleRecord) {
@@ -1080,17 +1168,64 @@ function buildTypedBoilerplateDspf(recordName: string, titleText: string, type: 
       nameType: 'CONSTANT',
       constantValue: titleText,
       location: { line: 1, column: 2 },
-      keywords: [{ name: 'DSPATR', parameters: 'HI', conditions: [], raw: '', sourceLines: [] }],
+      keywords: [kw('DSPATR', 'HI')],
     });
   }
 
-  // Sample field lands on the record the picked type is actually FOR (the
-  // subfile detail record for SFL-family types, the record itself
-  // otherwise): line 3 when it shares a record with the title (room
-  // underneath), line 1 when it doesn't (e.g. a subfile's first detail line).
+  // SFL-family list types get "Opt"/"Description" column headers on the
+  // control record (matching the OPTN/FIELD1 pair landed on the detail
+  // record below) - skipped for SFLMSG, which has no user-defined columns
+  // (the message text itself is drawn by the system via SFLMSGRCD).
+  if (sflFamily && type !== 'SFLMSG' && titleRecord) {
+    midModel = parseDspf(sourceLines.join('\n') + '\n');
+    const ctlRecord = midModel.records.find((r: any) => r.name === titleRecordName);
+    if (ctlRecord) {
+      sourceLines = DspfWriter.insertField(ctlRecord, sourceLines, { nameType: 'CONSTANT', constantValue: 'Opt', location: { line: 3, column: 2 } });
+      const afterOpt = parseDspf(sourceLines.join('\n') + '\n');
+      const ctlRecord2 = afterOpt.records.find((r: any) => r.name === titleRecordName);
+      if (ctlRecord2) sourceLines = DspfWriter.insertField(ctlRecord2, sourceLines, { nameType: 'CONSTANT', constantValue: 'Description', location: { line: 3, column: 8 } });
+    }
+  }
+
+  // Sample content on the record the picked type is actually FOR: SFL-family
+  // list types get a numbered OPTN option field (the standard SDA
+  // 1=Select/2=Change/4=Delete convention's own field) ahead of a wider
+  // FIELD1, matching a real subfile detail line - SFLMSG needs neither (no
+  // visible field beyond its own two hidden ones). MNUBAR gets one real
+  // MNUBARCHC choice field wired to a new PULDWN companion instead of the
+  // generic field. Everything else keeps the original plain FIELD1.
   midModel = parseDspf(sourceLines.join('\n') + '\n');
   const mainRecord = midModel.records.find((r: any) => r.name === recordName);
-  if (mainRecord) {
+  if (!mainRecord) return sourceLines.join('\n') + '\n';
+
+  if (sflFamily && type === 'SFLMSG') {
+    // Nothing further - the two hidden fields above are all this record needs.
+  } else if (sflFamily) {
+    sourceLines = DspfWriter.insertField(mainRecord, sourceLines, { nameType: 'FIELD', name: 'OPTN', length: 2, dataType: 'Y', decimalPositions: 0, usage: 'B', location: { line: 1, column: 2 } });
+    const afterOptn = parseDspf(sourceLines.join('\n') + '\n');
+    const detailRecord = afterOptn.records.find((r: any) => r.name === recordName);
+    if (detailRecord) sourceLines = DspfWriter.insertField(detailRecord, sourceLines, { nameType: 'FIELD', name: 'FIELD1', length: 30, dataType: 'A', usage: 'O', location: { line: 1, column: 8 } });
+  } else if (type === 'MNUBAR') {
+    const pulldownName = deriveCompanionName(recordName, 'P1');
+    sourceLines = DspfWriter.insertTypedRecord(parseDspf(sourceLines.join('\n') + '\n'), sourceLines, { name: pulldownName, keywords: [] }, null);
+    const afterPulldown = parseDspf(sourceLines.join('\n') + '\n');
+    const pulldownRecord = afterPulldown.records.find((r: any) => r.name === pulldownName);
+    if (pulldownRecord) sourceLines = DspfWriter.insertField(pulldownRecord, sourceLines, sampleChoiceField('PULOPT', 1));
+    const withPulldownField = parseDspf(sourceLines.join('\n') + '\n');
+    const mnubarRecord = withPulldownField.records.find((r: any) => r.name === recordName);
+    if (mnubarRecord) {
+      sourceLines = DspfWriter.insertField(mnubarRecord, sourceLines, {
+        nameType: 'FIELD',
+        name: 'MNUFLD',
+        length: 2,
+        dataType: 'Y',
+        decimalPositions: 0,
+        usage: 'B',
+        location: { line: 2, column: 2 },
+        keywords: [kw('MNUBARCHC', "1 " + pulldownName + " 'File'")],
+      });
+    }
+  } else {
     sourceLines = DspfWriter.insertField(mainRecord, sourceLines, {
       nameType: 'FIELD',
       name: 'FIELD1',

@@ -279,7 +279,7 @@ async function run() {
     check('nothing written when the record-type pick is dismissed', !wroteAnything);
   }
 
-  console.log('\nrecord-type picker: Subfile (SFL) auto-generates its SFLCTL companion record');
+  console.log('\nrecord-type picker: Subfile (SFL) auto-generates its SFLCTL companion record with a working subfile');
   {
     vscodeMock.extensions.getExtension = () => undefined;
     vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
@@ -294,7 +294,10 @@ async function run() {
     check('main record has the SFL keyword (valueless, no parens)', /R\s+SFL1\b.*\bSFL\s*$/m.test(content));
     check('auto-generated an SFLCTL companion record (SFL1CTL)', content.includes('SFL1CTL'));
     check('companion record carries SFLCTL(SFL1)', content.includes('SFLCTL(SFL1)'));
-    check('title constant present', content.includes("'Subfile Screen'"));
+    check('title constant present on the SFLCTL companion, not the detail record', content.includes("'Subfile Screen'"));
+    check('SFLSIZ/SFLPAG/SFLDSP/SFLDSPCTL/SFLCLR present - the subfile actually displays at runtime', ['SFLSIZ(0011)', 'SFLPAG(0010)', 'SFLDSP', 'SFLDSPCTL', 'SFLCLR'].every((k) => content.includes(k)));
+    check("'Opt'/'Description' column headers present", content.includes("'Opt'") && content.includes("'Description'"));
+    check('numbered OPTN option field present on the detail record (1=Select/2=Change/4=Delete convention)', content.includes('OPTN'));
     check('sample field FIELD1 present on the SFL record', content.includes('FIELD1'));
     check('re-parses with no errors', (() => {
       const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
@@ -302,7 +305,7 @@ async function run() {
     })());
   }
 
-  console.log('\nrecord-type picker: Message subfile (SFLMSG) gets the wizard\'s own defaults (line 24, MSGKEY/PGMQ, no 276-byte queue)');
+  console.log('\nrecord-type picker: Message subfile (SFLMSG) gets the wizard\'s own defaults (line 24, MSGKEY/PGMQ, no 276-byte queue) and no spurious visible field');
   {
     vscodeMock.extensions.getExtension = () => undefined;
     vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
@@ -318,6 +321,49 @@ async function run() {
     check('auto-generated SFLCTL companion (MSG1CTL)', content.includes('MSG1CTL'));
     check('hidden message-key field MSGKEY with SFLMSGKEY', content.includes('MSGKEY') && content.includes('SFLMSGKEY'));
     check('hidden program-queue field PGMQ with SFLPGMQ', content.includes('PGMQ') && content.includes('SFLPGMQ'));
+    check('SFLSIZ/SFLPAG/SFLDSP/SFLDSPCTL/SFLCLR present on the SFLCTL companion too', ['SFLSIZ(0011)', 'SFLPAG(0010)', 'SFLDSP', 'SFLDSPCTL', 'SFLCLR'].every((k) => content.includes(k)));
+    check('no column headers (message subfiles have no user-defined columns)', !content.includes("'Opt'") && !content.includes("'Description'"));
+    check('no spurious FIELD1/OPTN - the message text itself is drawn by the system', !content.includes('FIELD1') && !content.includes('OPTN'));
+    check('re-parses with no errors', (() => {
+      const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+      return DspfParser.parseDspf(content).errors.length === 0;
+    })());
+  }
+
+  console.log('\nrecord-type picker: Window subfile (WDWSFL) combines WINDOW geometry with a working subfile');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let writtenContent = null;
+    vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenContent = content; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN14', 'WDW1', 'Window Subfile Screen'], [{ label: 'Window subfile (WDWSFL)', value: 'WDWSFL' }]);
+    await createNewDspf();
+
+    const content = writtenContent.toString('utf8');
+    check('SFLCTL companion carries both WINDOW(...) and the SFL-display keywords', content.includes('WINDOW(2 2 10 40)') && content.includes('SFLDSP'));
+    check('OPTN + FIELD1 present on the detail record', content.includes('OPTN') && content.includes('FIELD1'));
+    check('re-parses with no errors', (() => {
+      const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+      return DspfParser.parseDspf(content).errors.length === 0;
+    })());
+  }
+
+  console.log('\nrecord-type picker: Pull-down subfile (PDNSFL) combines PULLDOWN with a working subfile');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let writtenContent = null;
+    vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenContent = content; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN15', 'PDS1', 'Pulldown Subfile Screen'], [{ label: 'Pull-down subfile (PDNSFL)', value: 'PDNSFL' }]);
+    await createNewDspf();
+
+    const content = writtenContent.toString('utf8');
+    check('SFLCTL companion carries both PULLDOWN and the SFL-display keywords', content.includes('PULLDOWN') && content.includes('SFLDSP'));
+    check('OPTN + FIELD1 present on the detail record', content.includes('OPTN') && content.includes('FIELD1'));
     check('re-parses with no errors', (() => {
       const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
       return DspfParser.parseDspf(content).errors.length === 0;
@@ -344,7 +390,7 @@ async function run() {
     })());
   }
 
-  console.log('\nrecord-type picker: Pull-down menu (PULDWN)');
+  console.log('\nrecord-type picker: Pull-down menu (PULDWN) gets a real, working SNGCHCFLD/CHOICE selection field');
   {
     vscodeMock.extensions.getExtension = () => undefined;
     vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
@@ -357,6 +403,32 @@ async function run() {
 
     const content = writtenContent.toString('utf8');
     check('PULLDOWN keyword present', content.includes('PULLDOWN'));
+    check('SNGCHCFLD selection field present', content.includes('SNGCHCFLD'));
+    check("3 sample CHOICE entries present ('New'/'Open'/'Save')", content.includes("CHOICE(1 'New')") && content.includes("CHOICE(2 'Open')") && content.includes("CHOICE(3 'Save')"));
+    check('no title constant (a standalone dropdown record has no use for one)', !content.includes("'Pulldown Screen'"));
+    check('re-parses with no errors', (() => {
+      const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+      return DspfParser.parseDspf(content).errors.length === 0;
+    })());
+  }
+
+  console.log('\nrecord-type picker: Menu bar (MNUBAR) auto-generates a wired PULDWN companion with a working dropdown');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let writtenContent = null;
+    vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenContent = content; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN16', 'MENU1', 'Menu Bar Screen'], [{ label: 'Menu bar (MNUBAR)', value: 'MNUBAR' }]);
+    await createNewDspf();
+
+    const content = writtenContent.toString('utf8');
+    check('main record has the MNUBAR keyword', /R\s+MENU1\b.*\bMNUBAR\s*$/m.test(content));
+    check('title constant present on the MNUBAR record', content.includes("'Menu Bar Screen'"));
+    check('auto-generated a PULDWN companion record (MENU1P1)', content.includes('MENU1P1'));
+    check('MNUBARCHC field wires choice 1 to the companion record with text \'File\'', content.includes("MNUBARCHC(1 MENU1P1 'File')"));
+    check('companion record has its own working SNGCHCFLD/CHOICE dropdown content', content.includes('SNGCHCFLD') && content.includes("CHOICE(1 'New')"));
     check('re-parses with no errors', (() => {
       const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
       return DspfParser.parseDspf(content).errors.length === 0;

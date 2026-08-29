@@ -3,6 +3,28 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.89] - 2026-08-29
+
+### Changed
+- **Task L9 follow-up: "Create New Display File"'s record-type templates are
+  now genuinely working worked examples, not just bare keyword skeletons.**
+  SFL-family list types (Subfile/Window subfile/Pull-down subfile) get the
+  keyword set a subfile actually needs to display at runtime on their
+  SFLCTL companion (`SFLSIZ`/`SFLPAG`/`SFLDSP`/`SFLDSPCTL`/`SFLCLR`) plus
+  `'Opt'`/`'Description'` column headers, and a numbered `OPTN` option field
+  (the standard SDA 1=Select/2=Change/4=Delete convention) on the detail
+  record ahead of the sample field; Message subfile gets the same SFLCTL
+  additions with no spurious columns/fields (the message text itself is
+  drawn by the system). Pull-down menu gets a real `SNGCHCFLD`/`CHOICE`
+  selection field (three sample choices) instead of a title+field. Menu bar
+  now auto-creates a wired Pull-down-menu companion record via one real
+  `MNUBARCHC` field, so opening the designer shows an actual working "File"
+  menu-bar item with a working dropdown underneath - not a bare, unwired
+  keyword. Deliberately kept out of the shared `buildTypedRecordPlan` table
+  the in-designer "+ Add record" wizard also uses (a full worked example
+  would be clutter when adding to an already-considered screen); lives in
+  `buildTypedBoilerplateDspf` itself, which is Create-New-Display-File-only.
+
 ## [0.9.88] - 2026-08-29
 
 ### Fixed
