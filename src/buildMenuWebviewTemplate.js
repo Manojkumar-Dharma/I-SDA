@@ -116,6 +116,20 @@ const htmlTemplate = `<!DOCTYPE html>
   .options-panel { display: flex; flex-direction: column; padding: 16px 14px; }
   .options-panel-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
   .options-panel-header h2 { margin: 0; }
+  /* Left/right panel hide/minimize - same fix and same reasoning as the
+     DSPF designer's own .panel-toggle-btn/.panel-collapsed pair (see
+     buildWebviewTemplate.js): a 27x132 *DS4 menu is wider than either
+     side panel really needs to be permanently docked at, so collapsing
+     either one frees up room for the screen preview. */
+  .panel-toggle-btn {
+    position: sticky; top: 0; display: block; width: 100%; background: var(--panel); color: var(--ink-dim);
+    border: none; border-bottom: 1px solid var(--panel-border); cursor: pointer; padding: 6px 0;
+    font-family: var(--mono); font-size: 12px; z-index: 2; margin-bottom: 10px;
+  }
+  .panel-toggle-btn:hover { color: var(--chrome-accent); }
+  aside.panel-collapsed, .options-panel.panel-collapsed { padding: 0; overflow: hidden; }
+  .panel-collapsed .panel-body { display: none; }
+  .panel-collapsed .panel-toggle-btn { margin-bottom: 0; writing-mode: vertical-rl; height: 100%; padding: 10px 0; }
   .option-count { font-size: 10px; color: var(--ink-dim); background: #0d1310; border: 1px solid var(--panel-border); border-radius: 10px; padding: 2px 9px; white-space: nowrap; }
   .options-hint { font-size: 11px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 14px; }
   .options-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
@@ -289,6 +303,8 @@ const htmlTemplate = `<!DOCTYPE html>
 </head>
 <body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
 <aside>
+  <button class="panel-toggle-btn" id="leftPanelToggle" title="Hide this panel">&#9664; Hide panel</button>
+  <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
   <div class="section-label">Record</div>
@@ -330,12 +346,15 @@ const htmlTemplate = `<!DOCTYPE html>
       </div>
     </div>
   </details>
+  </div>
 </aside>
 <main>
   <div class="screen-frame"><div id="screenOutput"></div></div>
   <div class="status">This is the menu layout as it will appear on the 5250 screen. Edit which command each numbered option runs in the panel on the right.</div>
 </main>
-<div class="options-panel">
+<div class="options-panel" id="optionsPanel">
+  <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
+  <div class="panel-body" id="rightPanelBody">
   <div class="options-panel-header">
     <h2 style="font-size:13px;">Options</h2>
     <span class="option-count" id="optionCount"></span>
@@ -354,6 +373,7 @@ const htmlTemplate = `<!DOCTYPE html>
     </div>
     <button class="add-option-btn" id="addOptionBtn">+ Add option</button>
     <div class="add-option-error" id="addOptionError"></div>
+  </div>
   </div>
 </div>
 
@@ -411,6 +431,40 @@ const htmlTemplate = `<!DOCTYPE html>
   const commandFileName = ${COMMAND_FILENAME_JSON_TOKEN};
   let model = DspfParser.parseDspf(sourceText);
   let cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
+
+  // Left/right side-panel hide controls - same fix and same reasoning as
+  // the DSPF designer's own copy of this block (buildWebviewTemplate.js):
+  // collapsing either panel frees up horizontal space for the screen
+  // preview on wide-but-short layouts (a 27x132 *DS4 menu is wider than
+  // either panel needs to be permanently docked at). Session-only (not
+  // persisted across reopens); collapsing just shrinks the grid column to
+  // the toggle button's own width and hides everything else in that panel
+  // via .panel-body.
+  const leftPanelToggle = document.getElementById('leftPanelToggle');
+  const rightPanelToggle = document.getElementById('rightPanelToggle');
+  const asideEl = document.querySelector('aside');
+  const optionsPanelEl = document.getElementById('optionsPanel');
+  let leftPanelCollapsed = false;
+  let rightPanelCollapsed = false;
+  function applyPanelCollapse() {
+    asideEl.classList.toggle('panel-collapsed', leftPanelCollapsed);
+    optionsPanelEl.classList.toggle('panel-collapsed', rightPanelCollapsed);
+    document.body.style.gridTemplateColumns =
+      (leftPanelCollapsed ? '28px' : '200px') + ' 1fr ' + (rightPanelCollapsed ? '28px' : '340px');
+    leftPanelToggle.textContent = leftPanelCollapsed ? '\u25B6' : '\u25C0 Hide panel';
+    leftPanelToggle.title = leftPanelCollapsed ? 'Show record/option panel' : 'Hide this panel';
+    rightPanelToggle.textContent = rightPanelCollapsed ? '\u25C0' : 'Hide panel \u25B6';
+    rightPanelToggle.title = rightPanelCollapsed ? 'Show options panel' : 'Hide this panel';
+  }
+  leftPanelToggle.addEventListener('click', () => {
+    leftPanelCollapsed = !leftPanelCollapsed;
+    applyPanelCollapse();
+  });
+  rightPanelToggle.addEventListener('click', () => {
+    rightPanelCollapsed = !rightPanelCollapsed;
+    applyPanelCollapse();
+  });
+  applyPanelCollapse();
 
   const recordSelect = document.getElementById('recordSelect');
   const screenOutput = document.getElementById('screenOutput');

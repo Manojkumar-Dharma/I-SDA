@@ -1129,6 +1129,30 @@ function runCrossRecordOptionScopingScenario() {
       /main\s*\{[^}]*overflow:\s*auto;\s*min-height:\s*0/.test(defaultsHtml)
     );
 
+    console.log('\nGap fix: left/right side panels can now be hidden or minimized, matching the DSPF designer panel-toggle-btn/panel-collapsed pair (real SDA issue: needed for a 27x132 *DS4 menu, where docked panels leave little room for the screen preview)');
+    const leftToggle = doc.getElementById('leftPanelToggle');
+    const rightToggle = doc.getElementById('rightPanelToggle');
+    const asideElT = doc.querySelector('aside');
+    const optionsPanelElT = doc.getElementById('optionsPanel');
+    check('left panel toggle button exists', !!leftToggle);
+    check('right panel toggle button exists', !!rightToggle);
+    check('aside starts uncollapsed', !asideElT.classList.contains('panel-collapsed'));
+    check('options panel starts uncollapsed', !optionsPanelElT.classList.contains('panel-collapsed'));
+
+    leftToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking the left toggle collapses aside', asideElT.classList.contains('panel-collapsed'));
+    check('options panel is untouched by the left toggle', !optionsPanelElT.classList.contains('panel-collapsed'));
+    check('grid-template-columns shrinks the left column to the toggle button width', /28px 1fr 340px/.test(dom.window.document.body.style.gridTemplateColumns));
+    leftToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking it again re-expands aside', !asideElT.classList.contains('panel-collapsed'));
+
+    rightToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking the right toggle collapses the options panel', optionsPanelElT.classList.contains('panel-collapsed'));
+    check('aside is untouched by the right toggle', !asideElT.classList.contains('panel-collapsed'));
+    check('grid-template-columns shrinks the right column to the toggle button width', /200px 1fr 28px/.test(dom.window.document.body.style.gridTemplateColumns));
+    rightToggle.dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking it again re-expands the options panel', !optionsPanelElT.classList.contains('panel-collapsed'));
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 100);

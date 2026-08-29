@@ -195,7 +195,7 @@ for the full history if a past decision needs revisiting.
 ### Menu designer
 
 No open items right now - every currently-tracked menu designer task
-(M1 through M5) is done. See `LIMITATIONS-PLAN.md` for the full
+(M1 through M6) is done. See `LIMITATIONS-PLAN.md` for the full
 history if a past decision needs revisiting.
 
 ## License

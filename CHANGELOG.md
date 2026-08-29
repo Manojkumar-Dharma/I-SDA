@@ -3,6 +3,28 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.88] - 2026-08-29
+
+### Fixed
+- **Task M6: Menu designer's left/right panels can now be hidden or
+  minimized**, matching the DSPF designer's own panel-toggle-btn/
+  panel-collapsed pair. One of the "Common" issues in the original
+  source doc (`docs/sda-reference/source/SDA-Issues-and-Enhancement-
+  Screenshots.docx`: "Make the Right side and left side panel hide or
+  minimizable, so that we won't have issue when working with 27x132
+  *DS4 display size") was meant to apply to BOTH designers, but the
+  DSPF designer got it while the Menu designer never did - and this
+  gap was never captured in README's own Known limitations/Planned
+  enhancements lists, so it went untracked until now. Ported the
+  identical pattern (`buildWebviewTemplate.js`) into
+  `buildMenuWebviewTemplate.js`: `#leftPanelToggle`/`#rightPanelToggle`
+  buttons, `.panel-body` wrappers around `aside`'s and
+  `.options-panel`'s content, and the same session-only
+  `applyPanelCollapse()` JS, using the menu template's own 200px/340px
+  column widths. See the new panel-collapse scenario in
+  `src/test/menuWebview.test.js` and Task M6 in
+  `docs/sda-reference/LIMITATIONS-PLAN.md`.
+
 ## [0.9.87] - 2026-08-29
 
 ### Fixed
