@@ -3,6 +3,24 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.87] - 2026-08-29
+
+### Fixed
+- **Command key (CAxx/CFxx) picker now follows the real IBM i DDS/SDA
+  scoping rules.** `DspfWriter.availableCommandKeyNumbers` previously
+  treated a key number used at the file level as claimed everywhere,
+  so a record's own Cmd keys tab could never offer a number already
+  used at the file level - blocking the legitimate DDS pattern of a
+  record overriding a file-level key for itself (every other record
+  that doesn't override it keeps using the file-level definition).
+  `resolveFunctionKeyLegend` in `dspfEngine.js` already rendered this
+  override precedence correctly in the preview; the writer's picker
+  just never let you create the scenario. Different record formats
+  reusing the same key number independently already worked correctly
+  and was untouched. `availableCommandKeyNumbers` now takes a single
+  scope's own keyword list (the file's, or one record's) and only
+  excludes numbers already used within that list.
+
 ## [0.9.86] - 2026-08-29
 
 ### Added
