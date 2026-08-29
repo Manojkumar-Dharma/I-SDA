@@ -3,6 +3,30 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.91] - 2026-08-29
+
+### Added
+- **Crosshair (Task L11 follow-up): a toggle next to "Show ruler" that
+  tracks the mouse over the design canvas.** A new "Show crosshair
+  (position readout)" checkbox in the DSPF designer's left panel, right
+  after the ruler toggle - same session-only convention (never
+  persisted, starts off). When on, two thin guide lines (one vertical,
+  one horizontal) follow the cursor across the whole `rulerWrap` grid -
+  crossing through the column/row ruler labels too when the ruler is
+  also on, not just the screen area, visually tying the cursor position
+  back to the ruler's own numbers - and a "Row N, Column N" readout
+  appears directly below the screen/ruler area. Reuses the exact same
+  pixel-to-row/column math `gridMetrics()`/`startDrag` already use for
+  dragging. Listens on `rulerWrap` (the stable outer grid container),
+  not `screenOutput` (whose `.dspf-screen` child gets fully replaced on
+  every `render()` call) - `.dspf-screen` is looked up fresh on every
+  mouse move, same "always re-derive, never cache a stale element"
+  pattern `gridMetrics()` itself uses. Hides on mouse-leave, when the
+  cursor strays outside the screen's own bounds, and on every
+  `render()` (so switching records doesn't leave a stale crosshair
+  stuck mid-screen). See `runCrosshairScenario` in
+  `src/test/dspfWebview.test.js`.
+
 ## [0.9.90] - 2026-08-29
 
 ### Added

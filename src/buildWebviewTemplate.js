@@ -104,10 +104,21 @@ const htmlTemplate = `<!DOCTYPE html>
   .choice-row button { flex-shrink: 0; }
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; min-height: 0; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
-  .ruler-wrap { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; }
+  .ruler-wrap { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; position: relative; }
   .ruler-corner, .ruler-cols, .ruler-rows { font-family: var(--mono); font-size: 14px; line-height: 1.4em; white-space: pre; color: var(--ink-dim); user-select: none; pointer-events: none; }
   .ruler-cols { letter-spacing: 0; }
   .ruler-rows { text-align: right; padding-right: 4px; }
+  /* Crosshair (pairs with the ruler above - Task L11's own follow-up): two
+     thin guide lines that track the mouse over the design canvas, anchored
+     to .ruler-wrap (NOT .dspf-screen itself, which gets fully replaced on
+     every render() - see updateCrosshairPosition's own comment) so they
+     span the full ruler-wrap height/width, crossing through the column/row
+     ruler labels too, not just the screen area - visually ties the cursor
+     position back to the ruler's own numbers. */
+  .crosshair-v, .crosshair-h { position: absolute; background: var(--accent); opacity: 0.35; pointer-events: none; z-index: 5; grid-column: 1 / -1; grid-row: 1 / -1; }
+  .crosshair-v { width: 1px; top: 0; bottom: 0; }
+  .crosshair-h { height: 1px; left: 0; right: 0; }
+  .crosshair-readout { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); margin-top: 4px; }
   #screenOutput { position: relative; }
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; z-index: 1; }
   .dspf-screen-backdrop-layer { position: absolute; top: 0; left: 0; opacity: 0.32; filter: grayscale(0.5); pointer-events: none; z-index: 0; }
@@ -521,6 +532,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <label class="compare-toggle hidden" id="compareOverlayRow"><input type="checkbox" id="compareOverlayToggle" /> Full overlay instead (read-only)</label>
   <label class="compare-toggle hidden" id="previewRowsRow"><input type="checkbox" id="previewRowsToggle" /> Preview SFLPAG rows</label>
   <label class="compare-toggle"><input type="checkbox" id="rulerToggle" /> Show ruler (row/column numbers)</label>
+  <label class="compare-toggle"><input type="checkbox" id="crosshairToggle" /> Show crosshair (position readout)</label>
   <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
@@ -555,7 +567,10 @@ const htmlTemplate = `<!DOCTYPE html>
     <div class="ruler-cols hidden" id="rulerCols"></div>
     <div class="ruler-rows hidden" id="rulerRows"></div>
     <div id="screenOutput"></div>
+    <div class="crosshair-v hidden" id="crosshairV"></div>
+    <div class="crosshair-h hidden" id="crosshairH"></div>
   </div></div>
+  <div class="crosshair-readout hidden" id="crosshairReadout"></div>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
 </main>
@@ -640,6 +655,9 @@ const htmlTemplate = `<!DOCTYPE html>
   // Ruler overlay (Task L11): session-only, matching real SDA's own F14
   // toggle - never persisted, always starts off when the designer reopens.
   let rulerEnabled = false;
+  // Crosshair (Task L11 follow-up): same session-only convention as the
+  // ruler above - never persisted, always starts off.
+  let crosshairEnabled = false;
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
   let lastScreen = null; // most recently resolved screen ({lines, columns, ...}) - kept around so the props
                           // panel's "Center on screen" action knows the current record's width without
@@ -668,6 +686,10 @@ const htmlTemplate = `<!DOCTYPE html>
   const rulerCorner = document.getElementById('rulerCorner');
   const rulerCols = document.getElementById('rulerCols');
   const rulerRows = document.getElementById('rulerRows');
+  const crosshairToggle = document.getElementById('crosshairToggle');
+  const crosshairV = document.getElementById('crosshairV');
+  const crosshairH = document.getElementById('crosshairH');
+  const crosshairReadout = document.getElementById('crosshairReadout');
   const sizeSelectRow = document.getElementById('sizeSelectRow');
   const sizeSelect = document.getElementById('sizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
@@ -933,6 +955,60 @@ const htmlTemplate = `<!DOCTYPE html>
     // own lines/columns, same size/shape math render() already did.
     updateRuler(lastScreen);
   });
+
+  crosshairToggle.addEventListener('change', () => {
+    crosshairEnabled = crosshairToggle.checked;
+    if (!crosshairEnabled) hideCrosshair();
+  });
+
+  // Crosshair (Task L11 follow-up) - listens on rulerWrap, NOT screenOutput,
+  // because screenOutput's own innerHTML (and therefore .dspf-screen) gets
+  // fully replaced on every render() call; rulerWrap is the stable outer
+  // grid container that never gets torn down, so its listener survives
+  // across re-renders the same way updateRuler's own toggle-driven
+  // visibility does. .dspf-screen is looked up fresh on every move (same
+  // "always re-derive, never cache a stale element reference" pattern
+  // gridMetrics() itself already uses for drag).
+  rulerWrap.addEventListener('mousemove', (e) => {
+    if (!crosshairEnabled) return;
+    const screenEl = screenOutput.querySelector('.dspf-screen');
+    if (!screenEl) { hideCrosshair(); return; }
+    const { rect, colWidth, rowHeight } = gridMetrics();
+    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+      hideCrosshair();
+      return;
+    }
+    // Same column/row math startDrag's own onMove uses, clamped the same
+    // way (1-based minimum) - deliberately NOT clamped to the screen's own
+    // max lines/columns, so hovering right at the screen's bottom/right
+    // edge still reads the true last row/column instead of silently
+    // stopping short of it.
+    const col = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
+    const line = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+    // rect is viewport-relative (getBoundingClientRect), same coordinate
+    // space wrapRect is in - the crosshair lines are positioned relative to
+    // rulerWrap itself (their containing block, since rulerWrap has
+    // position:relative - see its own CSS comment), so translate through
+    // wrapRect rather than assuming .dspf-screen sits flush at rulerWrap's
+    // own top-left corner (it doesn't - the column/row ruler occupy the
+    // rest of that grid).
+    const wrapRect = rulerWrap.getBoundingClientRect();
+    const x = rect.left - wrapRect.left + (col - 1) * colWidth + colWidth / 2;
+    const y = rect.top - wrapRect.top + (line - 1) * rowHeight + rowHeight / 2;
+    crosshairV.style.left = x + 'px';
+    crosshairH.style.top = y + 'px';
+    crosshairV.classList.remove('hidden');
+    crosshairH.classList.remove('hidden');
+    crosshairReadout.textContent = 'Row ' + line + ', Column ' + col;
+    crosshairReadout.classList.remove('hidden');
+  });
+  rulerWrap.addEventListener('mouseleave', hideCrosshair);
+
+  function hideCrosshair() {
+    crosshairV.classList.add('hidden');
+    crosshairH.classList.add('hidden');
+    crosshairReadout.classList.add('hidden');
+  }
 
   // Clicking the screen background (not a field) deselects, returning the
   // properties panel to record-level editing. Attached once since screenOutput
@@ -1269,6 +1345,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function render() {
+    hideCrosshair();
     mainHint.classList.remove('hint-readonly');
     mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
 

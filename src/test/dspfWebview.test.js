@@ -744,6 +744,82 @@ function runRulerScenario() {
     rulerToggle.dispatchEvent(new Event('change', { bubbles: true }));
     check('ruler hidden again after unchecking', doc.getElementById('rulerCols').classList.contains('hidden') && doc.getElementById('rulerRows').classList.contains('hidden'));
 
+    runCrosshairScenario();
+  }, 0);
+}
+
+function runCrosshairScenario() {
+  console.log('\ncrosshair (Task L11 follow-up): position readout that tracks the mouse over the design canvas');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce11', src, 'CROSSHAIR.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+      // Same 800x480-for-80x24 stub runClickToPlaceScenario already uses -
+      // a clean 10px/col, 20px/row grid. rulerWrap and .dspf-screen share
+      // this same stubbed rect (both at 0,0/800x480), so the wrapRect
+      // offset the crosshair math subtracts is zero here - fine for
+      // checking the row/column conversion and visibility toggling itself.
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event, MouseEvent } = dom.window;
+
+    console.log('  off by default, same session-only convention as the ruler toggle');
+    check('crosshair toggle unchecked by default', !doc.getElementById('crosshairToggle').checked);
+    check('crosshair lines and readout all start hidden', doc.getElementById('crosshairV').classList.contains('hidden') && doc.getElementById('crosshairH').classList.contains('hidden') && doc.getElementById('crosshairReadout').classList.contains('hidden'));
+
+    console.log('  moving the mouse without enabling the toggle does nothing');
+    const rulerWrap = doc.getElementById('rulerWrap');
+    rulerWrap.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 155, clientY: 95 }));
+    check('still hidden - toggle is off', doc.getElementById('crosshairV').classList.contains('hidden'));
+
+    console.log('  toggle on, then move: lines appear and the readout shows the row/column under the cursor');
+    const crosshairToggle = doc.getElementById('crosshairToggle');
+    crosshairToggle.checked = true;
+    crosshairToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    // Same conversion gridMetrics()/startDrag already use: round(px/cell)+1.
+    // (155, 95) on a 10px/col x 20px/row grid -> col 17, line 6 (matches
+    // runClickToPlaceScenario's own worked example for the identical stub).
+    rulerWrap.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 155, clientY: 95 }));
+    check('crosshair lines are now visible', !doc.getElementById('crosshairV').classList.contains('hidden') && !doc.getElementById('crosshairH').classList.contains('hidden'));
+    check('readout shows the correct row/column for this pixel position', doc.getElementById('crosshairReadout').textContent === 'Row 6, Column 17');
+
+    console.log('  moving off the screen area (still inside rulerWrap, e.g. over the ruler labels) hides it again');
+    rulerWrap.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 900, clientY: 95 }));
+    check('crosshair hides when the cursor leaves the screen rect', doc.getElementById('crosshairV').classList.contains('hidden') && doc.getElementById('crosshairReadout').classList.contains('hidden'));
+
+    console.log('  re-rendering (switching records) hides a stale crosshair rather than leaving it stuck mid-screen');
+    rulerWrap.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 155, clientY: 95 }));
+    check('setup: crosshair visible again before switching records', !doc.getElementById('crosshairV').classList.contains('hidden'));
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.value = 'SCR2';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('crosshair hidden after switching records, without any mouseleave event', doc.getElementById('crosshairV').classList.contains('hidden') && doc.getElementById('crosshairReadout').classList.contains('hidden'));
+
+    console.log('  toggle off: hides immediately even mid-hover');
+    rulerWrap.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 155, clientY: 95 }));
+    check('setup: crosshair visible again', !doc.getElementById('crosshairV').classList.contains('hidden'));
+    crosshairToggle.checked = false;
+    crosshairToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('crosshair hidden immediately on toggle-off', doc.getElementById('crosshairV').classList.contains('hidden') && doc.getElementById('crosshairReadout').classList.contains('hidden'));
+
     runConditionsScenario();
   }, 0);
 }
