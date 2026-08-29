@@ -483,7 +483,7 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   const lines = src.split(/\r\n|\r|\n/);
 
   check('no command keys defined yet', DspfWriter.parseCommandKeys(model.fileKeywords).length === 0);
-  check('all 24 key numbers available before anything is assigned', DspfWriter.availableCommandKeyNumbers(model.fileKeywords, model.records[0].keywords).length === 24);
+  check('all 24 key numbers available before anything is assigned', DspfWriter.availableCommandKeyNumbers(model.records[0].keywords).length === 24);
 
   // file-level CA03 with an indicator + text containing an apostrophe
   const withFileKey = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 3, '90', "F3='Exit'");
@@ -496,8 +496,8 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
 
   // record-level CF12 on MENU (bare, no indicator/text)
   const menuRec1 = reparsed1.records.find((r) => r.name === 'MENU');
-  const avail1 = DspfWriter.availableCommandKeyNumbers(reparsed1.fileKeywords, menuRec1.keywords);
-  check('key number already used at file level is excluded from the record-level picker', !avail1.includes('03') && avail1.length === 23);
+  const avail1 = DspfWriter.availableCommandKeyNumbers(menuRec1.keywords);
+  check('a key number already used at the FILE level is still offered at the record level - a record may override it, not a conflict', avail1.includes('03') && avail1.length === 24);
 
   const withRecKey = DspfWriter.setCommandKey(menuRec1.keywords, 'CF', 12, null, null);
   const afterRecAdd = DspfWriter.applyRecordUpdate(menuRec1, afterFileAdd, { keywords: withRecKey });
@@ -506,10 +506,21 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   const detailRec2 = reparsed2.records.find((r) => r.name === 'DETAIL');
   check('CF12 round-trips at record level, bare (no indicator/text)', menuRec2.keywords.some((k) => k.name === 'CF12' && k.parameters.trim() === ''));
 
-  const avail2File = DspfWriter.availableCommandKeyNumbers(reparsed2.fileKeywords, detailRec2.keywords);
+  const avail2File = DspfWriter.availableCommandKeyNumbers(detailRec2.keywords);
   check("a key used on ONE record does not block it on a DIFFERENT record (DETAIL still sees 12 as available)", avail2File.includes('12'));
-  const avail2SameRec = DspfWriter.availableCommandKeyNumbers(reparsed2.fileKeywords, menuRec2.keywords);
-  check('but that same record correctly excludes its own 12', !avail2SameRec.includes('12'));
+  const avail2SameRec = DspfWriter.availableCommandKeyNumbers(menuRec2.keywords);
+  check('but that same record correctly excludes its own 12 (can\'t define it twice within one record)', !avail2SameRec.includes('12'));
+
+  // a record CAN override a file-level number: MENU redefines file-level key 03 as its own CF03
+  const withOverride = DspfWriter.setCommandKey(menuRec2.keywords, 'CF', 3, '91', 'Override');
+  const afterOverride = DspfWriter.applyRecordUpdate(menuRec2, afterRecAdd, { keywords: withOverride });
+  const reparsed2b = DspfParser.parseDspf(afterOverride.join('\n'));
+  const menuRec2b = reparsed2b.records.find((r) => r.name === 'MENU');
+  check('MENU can carry its own CF03 alongside the file-level CA03 - a legitimate override, not a duplicate',
+    menuRec2b.keywords.some((k) => k.name === 'CF03') && DspfWriter.parseCommandKeys(reparsed2b.fileKeywords).some((k) => k.number === '03' && k.type === 'CA'));
+  const legend = DspfEngine.resolveFunctionKeyLegend(reparsed2b, menuRec2b, new Set());
+  const legend03 = legend.find((k) => k.number === '03');
+  check("resolveFunctionKeyLegend resolves key 03 to MENU's own CF override, not the file-level CA", legend03 && legend03.type === 'CF' && legend03.indicator === '91');
 
   // switching MENU's key 12 from CF to CA overwrites rather than duplicating
   const switched = DspfWriter.setCommandKey(menuRec2.keywords, 'CA', 12, '55', 'Help');

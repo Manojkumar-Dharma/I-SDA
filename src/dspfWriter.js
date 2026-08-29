@@ -505,12 +505,24 @@
   // keyword NAME itself (CA01..CA24, CF01..CF24), not as a parameter -
   // DDS lets a program-visible response indicator and a text label ride
   // along as the keyword's parameters: CA03(03 'F3=Exit') or bare CA03
-  // (key active, no response indicator set, no on-screen text). A given
-  // key NUMBER may only be defined once per scope (can't be both CA03 and
-  // CF03 on the same record, or on both the file and one of its records at
-  // once) - see commandKeyNumbersInUse/availableCommandKeyNumbers, which
-  // the webview's key-assignment UI uses to grey out numbers already
-  // spoken for elsewhere.
+  // (key active, no response indicator set, no on-screen text).
+  //
+  // Real DDS/SDA scoping rules for a key NUMBER (see resolveFunctionKeyLegend
+  // in dspfEngine.js, which already renders the preview this way):
+  //   - Within ONE scope's own keyword list (the file's, or a single record's),
+  //     a number can only be defined once - can't be both CA03 and CF03 on the
+  //     same record, or twice at the file level. That's the only real conflict.
+  //   - A record MAY redefine a number that's already used at the file level.
+  //     This is not a duplicate/conflict - it's a legitimate per-record
+  //     OVERRIDE: that record uses its own definition, every other record
+  //     that doesn't override it keeps using the file-level one.
+  //   - Different record formats are independent scopes and may each use the
+  //     same key number for entirely unrelated purposes; only one record
+  //     format is normally active at a time, so there's no clash between them.
+  // availableCommandKeyNumbers therefore only excludes numbers already used
+  // WITHIN the single scope (file or one record) being edited - never numbers
+  // used by the file when editing a record (that's the override case), and
+  // never numbers used by some OTHER record.
   // ---------------------------------------------------------------------
 
   var COMMAND_KEY_RE = /^(CA|CF)(\d{2})$/;
@@ -541,7 +553,11 @@
     return result;
   }
 
-  /** @returns {{[number:string]: 'file'|'record'}} which scope has already claimed each key number. */
+  /** @returns {{[number:string]: 'file'|'record'}} which scope has already claimed each key
+   *  number - informational only (e.g. so the UI can flag a record-level key as "overrides
+   *  the file-level Fnn"); this does NOT mean both scopes can't independently use the same
+   *  number - see the comment above. Record entries win when both scopes define a number,
+   *  matching resolveFunctionKeyLegend's own record-takes-precedence resolution. */
   function commandKeyNumbersInUse(fileKeywords, recordKeywords) {
     var used = {};
     parseCommandKeys(fileKeywords).forEach(function (k) { used[k.number] = 'file'; });
@@ -549,10 +565,16 @@
     return used;
   }
 
-  /** Key numbers ("01".."24") not already claimed at either the file or the given record
-   *  level - what a new-key picker should offer, regardless of which scope it's adding to. */
-  function availableCommandKeyNumbers(fileKeywords, recordKeywords) {
-    var used = commandKeyNumbersInUse(fileKeywords, recordKeywords);
+  /** Key numbers ("01".."24") not already claimed WITHIN the given scope's own keyword
+   *  list - what that scope's new-key picker should offer. Pass the file's keywords when
+   *  adding a file-level key, or a single record's own keywords when adding a record-level
+   *  key. Deliberately does NOT cross-check the other scope: a record is allowed to
+   *  (re)define a number already used at the file level (a per-record override, not a
+   *  conflict), and different records are independent scopes that may reuse the same
+   *  number for unrelated purposes - see the comment above parseCommandKeys. */
+  function availableCommandKeyNumbers(scopeKeywords) {
+    var used = {};
+    parseCommandKeys(scopeKeywords).forEach(function (k) { used[k.number] = true; });
     var available = [];
     for (var n = 1; n <= 24; n++) {
       var num = padKeyNumber(n);

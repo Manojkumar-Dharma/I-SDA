@@ -1255,8 +1255,9 @@
   /**
    * @param {object} dspfFile parsed model
    * @param {object|null} record the record currently being previewed (record-level
-   *   keys take precedence over a file-level key sharing the same number, matching
-   *   how the writer's own commandKeyNumbersInUse treats one number as single-scope)
+   *   keys take precedence over a file-level key sharing the same number - a record
+   *   is allowed to override a file-level key's number for itself; see the writer's
+   *   own DspfWriter.availableCommandKeyNumbers doc comment)
    * @param {Set<string>} activeIndicators currently-simulated indicator numbers
    * @returns {{type:'CA'|'CF', number:string, indicator:?string, text:?string, active:boolean}[]}
    *   sorted CA before CF, then by number.

@@ -496,10 +496,12 @@
   // -----------------------------------------------------------------------
   // Command keys (CAxx/CFxx) - shared list+add-form editor for both a
   // file's own keys and a single record's keys. `availableNumbers` (from
-  // DspfWriter.availableCommandKeyNumbers) is computed by the caller since
-  // it needs BOTH scopes at once (file keywords + the specific record's
-  // keywords) to enforce the cross-scope exclusion - this editor only
-  // renders/wires whichever single scope's own keyword list it was given.
+  // DspfWriter.availableCommandKeyNumbers) is computed by the caller from
+  // that ONE scope's own keyword list only - a record is allowed to (re)use
+  // a number already defined at the file level, as a per-record override,
+  // so file-level usage never blocks the record-level picker or vice versa.
+  // This editor only renders/wires whichever single scope's keyword list
+  // it was given.
   // -----------------------------------------------------------------------
 
   function commandKeysSectionHtml(scopeLabel, keywords, availableNumbers, idPrefix) {

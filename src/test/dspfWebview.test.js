@@ -647,11 +647,11 @@ function runCommandKeysScenario() {
     check('the function-key legend now shows F3', /F3/.test(doc.getElementById('fkeyLegend').textContent));
     check('the File attributes view is still showing after committing (does not bounce back to record view)', doc.getElementById('crumb-file').classList.contains('current'));
 
-    console.log('  back to the record view (SCR1, currently selected) - its own Cmd keys tab excludes 03');
+    console.log('  back to the record view (SCR1, currently selected) - its own Cmd keys tab still offers 03 (a record may override a file-level key, not a conflict)');
     doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
     const recordNumSel = doc.querySelector('.cmdkey-number[data-prefix="record"]');
-    check('key 03 is no longer offered at record level', !Array.from(recordNumSel.options).some((o) => o.value === '03'));
-    check('23 numbers remain available', recordNumSel.options.length === 23);
+    check('key 03 is still offered at record level, since redefining it there is a legitimate override', Array.from(recordNumSel.options).some((o) => o.value === '03'));
+    check('all 24 numbers remain available at record level', recordNumSel.options.length === 24);
 
     console.log('  add a record-level key on SCR1');
     doc.querySelector('.cmdkey-type[data-prefix="record"]').value = 'CF';
@@ -670,13 +670,26 @@ function runCommandKeysScenario() {
     check('F5 not shown (that was SCR1-only)', !/F5/.test(legendText));
     check('switching records returns to the record view (not stuck on File attributes)', !doc.getElementById('crumb-file').classList.contains('current'));
 
-    console.log('  remove the file-level key');
+    console.log('  SCR1 overrides the file-level key 03 with its own CA03 - a legitimate per-record override, not a duplicate');
     recordSelect.value = 'SCR1';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cmdkey-type[data-prefix="record"]').value = 'CA';
+    doc.querySelector('.cmdkey-number[data-prefix="record"]').value = '03';
+    doc.querySelector('.cmdkey-indicator[data-prefix="record"]').value = '95';
+    doc.querySelector('.cmdkey-text[data-prefix="record"]').value = 'Local exit';
+    doc.querySelector('.cmdkey-add[data-prefix="record"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check("posts applyEdit with SCR1's own CA03 override alongside the untouched file-level CA03", last && /CA03\(95 'Local exit'\)/.test(last.text));
+    check("the legend resolves key 03 to SCR1's own override text (F3=Local exit), not the file-level one (F3=Exit)", /F3=Local exit/.test(doc.getElementById('fkeyLegend').textContent));
+
+    console.log('  remove the file-level key - SCR1 keeps its own override, and SCR2 (no override) loses F3 entirely');
     doc.getElementById('fileAttrsBtn').dispatchEvent(new Event('click', { bubbles: true }));
     doc.querySelector('.cmdkey-remove[data-prefix="file"][data-number="03"]').dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
-    check('CA03 is gone after removal', last && !/CA03/.test(last.text));
+    const ca03Count = last ? (last.text.match(/\bCA03\(/g) || []).length : -1;
+    check('exactly one CA03 remains after removing the file-level one - the record-level override', ca03Count === 1);
+    check("SCR1's own record-level CA03 override survives the unrelated file-level removal", last && /CA03\(95 'Local exit'\)/.test(last.text));
     check('the record-level CF05 survives the unrelated file-level removal', last && /CF05/.test(last.text));
 
     runConditionsScenario();

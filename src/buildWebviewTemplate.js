@@ -1800,17 +1800,16 @@ const htmlTemplate = `<!DOCTYPE html>
    * attributes is the single place to find every file-level keyword,
    * command keys included, matching how record-level command keys already
    * live inside that record's own properties rather than somewhere else.
-   * availableCommandKeyNumbers still needs BOTH scopes (file keywords AND
-   * the CURRENTLY SELECTED record's own keywords) for its cross-scope
-   * exclusion - same numbers this tab would have shown when it lived in
-   * the aside, just recomputed here against recordSelect's current value.
+   * availableCommandKeyNumbers only needs the file's OWN keywords here - a
+   * number already used by some record does NOT block adding it at the file
+   * level too (that record's own definition simply keeps overriding the
+   * file-level one it now shares a number with; see the comment above
+   * DspfWriter.availableCommandKeyNumbers).
    */
 
   function renderFileProps() {
     const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords, expandedKeywordConditioning);
-    const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    const currentRecord = model.records.find((r) => r.name === recordName);
-    const availableForFile = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, currentRecord ? currentRecord.keywords : []);
+    const availableForFile = DspfWriter.availableCommandKeyNumbers(model.fileKeywords);
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, availableForFile, 'file');
     let html = '<div class="status" style="margin-bottom:12px;">SDA-style keyword picker for the whole display file - not tied to any one record format.</div>';
     html += tabsHtml([
@@ -2360,8 +2359,11 @@ const htmlTemplate = `<!DOCTYPE html>
     keywordsHtml += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
     keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record', expandedKeywordConditioning), false);
 
-    // --- Command keys tab ---
-    const availableForRecord = DspfWriter.availableCommandKeyNumbers(model.fileKeywords, rec.keywords);
+    // --- Command keys tab --- (only this record's own keywords exclude
+    // numbers here; a number already used at the file level can still be
+    // picked to override it for this record - see the comment above
+    // DspfWriter.availableCommandKeyNumbers)
+    const availableForRecord = DspfWriter.availableCommandKeyNumbers(rec.keywords);
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
 
     // --- Structure tab: help entries + source field order + reference fields ---
