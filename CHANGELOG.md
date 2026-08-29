@@ -3,6 +3,22 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.85] - 2026-08-29
+
+### Added
+- **Task L9: "Create New Display File" record-type picker.** The command
+  now prompts for a starting record type - the same 9 real-SDA types
+  (`RECORD_TYPES`) the designer's own "+ Add record" wizard offers - and
+  writes the right starter keywords via the exact same
+  `buildTypedRecordPlan` decision table (extracted from
+  `buildWebviewTemplate.js`'s embedded client script into
+  `webviewClientHelpers.js` so both entry points share one copy). SFL-family
+  types (Subfile/Message subfile/Window subfile/Pull-down subfile)
+  auto-generate their `SFLCTL` companion record name and SFLMSG uses the
+  wizard's own defaults (line 24, `MSGKEY`/`PGMQ`, no 276-byte queue)
+  rather than prompting for either - a fast, few-question start; all of it
+  can be adjusted afterward in the designer. See `src/test/createNewDspf.test.js`.
+
 ## [0.9.84] - 2026-08-28
 
 ### Added

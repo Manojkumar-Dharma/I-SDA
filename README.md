@@ -94,7 +94,11 @@ Development Host. Either:
   **"iSDA: Open Menu Design Preview"**, or
 - Run **"iSDA: Create New Display File"** from the command palette (or
   right-click a folder in the Explorer) to generate a starter display file
-  and open it directly in the designer, or
+  and open it directly in the designer. Pick a starting record type (same
+  9 types the designer's own "+ Add record" wizard offers - basic screen,
+  subfile, window, pull-down menu, etc.) and iSDA writes the right starter
+  keywords (and, for subfile types, an auto-named `SFLCTL` companion
+  record) for you, or
 - Run **"iSDA: Create New Menu"** from the command palette (or right-click
   a folder in the Explorer) to generate a starter MNUDDS member *and* its
   paired MNUCMD commands member together, and open the MNUDDS half
@@ -183,7 +187,7 @@ how.
 ### DSPF (screen) designer
 
 No open items right now - every currently-tracked DSPF designer task
-(L1 through L8, including L5d-ii) is done. See `LIMITATIONS-PLAN.md`
+(L1 through L9, including L5d-ii) is done. See `LIMITATIONS-PLAN.md`
 for the full history if a past decision needs revisiting.
 
 ### Menu designer

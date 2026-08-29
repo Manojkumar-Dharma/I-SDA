@@ -29,12 +29,27 @@ function check(label, condition) {
   }
 }
 
-/** Scripts a sequence of showInputBox/showQuickPick answers, consumed in call order. */
-function scriptPrompts(inputBoxAnswers, quickPickAnswer) {
-  const queue = inputBoxAnswers.slice();
-  vscodeMock.window.showInputBox = () => Promise.resolve(queue.shift());
-  vscodeMock.window.showQuickPick = () => Promise.resolve(quickPickAnswer);
+/** Scripts a sequence of showInputBox/showQuickPick answers, each consumed in call
+ *  order. `quickPickAnswers` is an array since createNewDspf can show up to two
+ *  quick picks now: the local-vs-remote destination choice (only when Code for i
+ *  is connected) THEN the record-type choice (always) - in that order. A bare
+ *  (non-array) second argument is treated as a single answer repeated for every
+ *  showQuickPick call, for callers that only ever expect one. */
+function scriptPrompts(inputBoxAnswers, quickPickAnswers) {
+  const inputQueue = inputBoxAnswers.slice();
+  vscodeMock.window.showInputBox = () => Promise.resolve(inputQueue.shift());
+  if (Array.isArray(quickPickAnswers)) {
+    const pickQueue = quickPickAnswers.slice();
+    vscodeMock.window.showQuickPick = () => Promise.resolve(pickQueue.shift());
+  } else {
+    vscodeMock.window.showQuickPick = () => Promise.resolve(quickPickAnswers);
+  }
 }
+
+// Default record-type answer used across every test below that doesn't care
+// which type it picked - "Basic screen (RECORD)" matches the pre-existing
+// (pre-record-type-picker) boilerplate exactly, so old assertions still hold.
+const BASIC_SCREEN = { label: 'Basic screen (RECORD)', value: 'RECORD' };
 
 async function run() {
   const context = vscodeMock.__mockExtensionContext();
@@ -51,7 +66,7 @@ async function run() {
     let writtenContent = null;
     vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenUri = uri; writtenContent = content; return Promise.resolve(); };
 
-    scriptPrompts(['SCREEN1', 'RECORD1', 'My Screen']); // no quick pick shown at all in this path
+    scriptPrompts(['SCREEN1', 'RECORD1', 'My Screen'], [BASIC_SCREEN]); // only the record-type pick shows (no Code for i, so no destination pick)
 
     await createNewDspf();
 
@@ -80,7 +95,7 @@ async function run() {
     let writtenContent = null;
     vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenUri = uri; writtenContent = content; return Promise.resolve(); };
 
-    scriptPrompts(['SCREEN2', 'RECORD1', 'Remote Screen', '', 'QDDSSRC'], { value: 'remote' });
+    scriptPrompts(['SCREEN2', 'RECORD1', 'Remote Screen', '', 'QDDSSRC'], [{ value: 'remote' }, BASIC_SCREEN]);
 
     await createNewDspf();
 
@@ -104,7 +119,7 @@ async function run() {
     let writtenUri = null;
     vscodeMock.workspace.fs.writeFile = (uri) => { writtenUri = uri; return Promise.resolve(); };
 
-    scriptPrompts(['SCREEN3', 'RECORD1', 'Title', 'MYLIB', 'QDDSSRC'], { value: 'remote' });
+    scriptPrompts(['SCREEN3', 'RECORD1', 'Title', 'MYLIB', 'QDDSSRC'], [{ value: 'remote' }, BASIC_SCREEN]);
     await createNewDspf();
 
     check('ADDPFM qualifies FILE with the library', ranCommand.command.includes('FILE(MYLIB/QDDSSRC)'));
@@ -133,7 +148,7 @@ async function run() {
     vscodeMock.__lastError = null;
     vscodeMock.__mockWarningResponse = undefined;
 
-    scriptPrompts(['SCREEN4', 'RECORD1', 'Title', 'MYLIB', 'QDDSSRC'], { value: 'remote' });
+    scriptPrompts(['SCREEN4', 'RECORD1', 'Title', 'MYLIB', 'QDDSSRC'], [{ value: 'remote' }, BASIC_SCREEN]);
     await createNewDspf();
 
     check('ran CHKOBJ first to check the source file', commandsRun[0] && commandsRun[0].startsWith('CHKOBJ') && commandsRun[0].includes('OBJ(MYLIB/QDDSSRC)'));
@@ -161,7 +176,7 @@ async function run() {
     vscodeMock.__lastError = null;
     vscodeMock.__mockWarningResponse = undefined; // dismiss/decline the "Create it?" prompt
 
-    scriptPrompts(['SCREEN5', 'RECORD1', 'Title', '', 'NEWSRCPF'], { value: 'remote' });
+    scriptPrompts(['SCREEN5', 'RECORD1', 'Title', '', 'NEWSRCPF'], [{ value: 'remote' }, BASIC_SCREEN]);
     await createNewDspf();
 
     check('ran CHKOBJ', commandsRun.some((c) => c.startsWith('CHKOBJ')));
@@ -191,7 +206,7 @@ async function run() {
     vscodeMock.workspace.fs.writeFile = (uri) => { writtenUri = uri; return Promise.resolve(); };
     vscodeMock.__mockWarningResponse = 'Create it';
 
-    scriptPrompts(['SCREEN6', 'RECORD1', 'Title', '', 'NEWSRCPF'], { value: 'remote' });
+    scriptPrompts(['SCREEN6', 'RECORD1', 'Title', '', 'NEWSRCPF'], [{ value: 'remote' }, BASIC_SCREEN]);
     await createNewDspf();
 
     const crtsrcpf = commandsRun.find((c) => c.startsWith('CRTSRCPF'));
@@ -224,7 +239,7 @@ async function run() {
     vscodeMock.__lastError = null;
     vscodeMock.__mockWarningResponse = 'Create it';
 
-    scriptPrompts(['SCREEN7', 'RECORD1', 'Title', 'MYLIB', 'NEWSRCPF'], { value: 'remote' });
+    scriptPrompts(['SCREEN7', 'RECORD1', 'Title', 'MYLIB', 'NEWSRCPF'], [{ value: 'remote' }, BASIC_SCREEN]);
     await createNewDspf();
 
     check('attempted CRTSRCPF', commandsRun.some((c) => c.startsWith('CRTSRCPF')));
@@ -244,10 +259,108 @@ async function run() {
     let writtenUri = null;
     vscodeMock.workspace.fs.writeFile = (uri) => { writtenUri = uri; return Promise.resolve(); };
 
-    scriptPrompts(['SCREEN8', 'RECORD1', 'Title'], { value: 'local' });
+    scriptPrompts(['SCREEN8', 'RECORD1', 'Title'], [{ value: 'local' }, BASIC_SCREEN]);
     await createNewDspf();
 
     check('respects an explicit "local" choice even though Code for i is connected', writtenUri && writtenUri.scheme === 'file');
+  }
+
+  console.log('\nrecord-type picker: dismissing it cancels the whole command (no file written)');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let wroteAnything = false;
+    vscodeMock.workspace.fs.writeFile = () => { wroteAnything = true; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN9'], [undefined]); // record-type quick pick dismissed (Esc)
+    await createNewDspf();
+
+    check('nothing written when the record-type pick is dismissed', !wroteAnything);
+  }
+
+  console.log('\nrecord-type picker: Subfile (SFL) auto-generates its SFLCTL companion record');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let writtenContent = null;
+    vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenContent = content; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN10', 'SFL1', 'Subfile Screen'], [{ label: 'Subfile (SFL)', value: 'SFL' }]);
+    await createNewDspf();
+
+    const content = writtenContent.toString('utf8');
+    check('main record has the SFL keyword (valueless, no parens)', /R\s+SFL1\b.*\bSFL\s*$/m.test(content));
+    check('auto-generated an SFLCTL companion record (SFL1CTL)', content.includes('SFL1CTL'));
+    check('companion record carries SFLCTL(SFL1)', content.includes('SFLCTL(SFL1)'));
+    check('title constant present', content.includes("'Subfile Screen'"));
+    check('sample field FIELD1 present on the SFL record', content.includes('FIELD1'));
+    check('re-parses with no errors', (() => {
+      const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+      return DspfParser.parseDspf(content).errors.length === 0;
+    })());
+  }
+
+  console.log('\nrecord-type picker: Message subfile (SFLMSG) gets the wizard\'s own defaults (line 24, MSGKEY/PGMQ, no 276-byte queue)');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let writtenContent = null;
+    vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenContent = content; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN11', 'MSG1', 'Message Screen'], [{ label: 'Message subfile (SFLMSG)', value: 'SFLMSG' }]);
+    await createNewDspf();
+
+    const content = writtenContent.toString('utf8');
+    check('main record has SFLMSGRCD(24)', content.includes('SFLMSGRCD(24)'));
+    check('auto-generated SFLCTL companion (MSG1CTL)', content.includes('MSG1CTL'));
+    check('hidden message-key field MSGKEY with SFLMSGKEY', content.includes('MSGKEY') && content.includes('SFLMSGKEY'));
+    check('hidden program-queue field PGMQ with SFLPGMQ', content.includes('PGMQ') && content.includes('SFLPGMQ'));
+    check('re-parses with no errors', (() => {
+      const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+      return DspfParser.parseDspf(content).errors.length === 0;
+    })());
+  }
+
+  console.log('\nrecord-type picker: Window gets a default geometry box');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let writtenContent = null;
+    vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenContent = content; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN12', 'WIN1', 'Window Screen'], [{ label: 'Window', value: 'WINDOW' }]);
+    await createNewDspf();
+
+    const content = writtenContent.toString('utf8');
+    check('WINDOW(2 2 10 40) default geometry', content.includes('WINDOW(2 2 10 40)'));
+    check('title constant present', content.includes("'Window Screen'"));
+    check('re-parses with no errors', (() => {
+      const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+      return DspfParser.parseDspf(content).errors.length === 0;
+    })());
+  }
+
+  console.log('\nrecord-type picker: Pull-down menu (PULDWN)');
+  {
+    vscodeMock.extensions.getExtension = () => undefined;
+    vscodeMock.workspace.workspaceFolders = [{ uri: vscodeMock.Uri.file('/workspace') }];
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    let writtenContent = null;
+    vscodeMock.workspace.fs.writeFile = (uri, content) => { writtenContent = content; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN13', 'PDN1', 'Pulldown Screen'], [{ label: 'Pull-down menu (PULDWN)', value: 'PULDWN' }]);
+    await createNewDspf();
+
+    const content = writtenContent.toString('utf8');
+    check('PULLDOWN keyword present', content.includes('PULLDOWN'));
+    check('re-parses with no errors', (() => {
+      const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+      return DspfParser.parseDspf(content).errors.length === 0;
+    })());
   }
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

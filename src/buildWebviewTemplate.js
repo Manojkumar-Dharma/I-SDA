@@ -797,46 +797,14 @@ const htmlTemplate = `<!DOCTYPE html>
   // extraFields is always an array (empty except for SFLMSG), each
   // { name, usage, keywords } ready to hand to DspfWriter.insertField once
   // the new record itself exists.
-  function buildTypedRecordPlan(type, name, sflctlName, windowDepValue, sflmsgOpts) {
-    const kw = (name, parameters) => ({ name: name, parameters: parameters, conditions: [], raw: '', sourceLines: [] });
-    if (type === 'USRDFN') return { mainKeywords: [kw('USRDFN', '')], dependent: null, extraFields: [] };
-    if (type === 'WINDOW') {
-      // A dependent pick means "inherit geometry from" (WINDOW(record-name));
-      // leaving it blank means "new geometry", landed at a sensible default
-      // box the user can then drag/resize like any other window.
-      return { mainKeywords: [kw('WINDOW', windowDepValue || '2 2 10 40')], dependent: null, extraFields: [] };
-    }
-    if (type === 'PULDWN') return { mainKeywords: [kw('PULLDOWN', '')], dependent: null, extraFields: [] };
-    if (type === 'MNUBAR') return { mainKeywords: [kw('MNUBAR', '')], dependent: null, extraFields: [] };
-    if (WebviewClientHelpers.isSflFamilyRecordType(type)) {
-      if (!sflctlName) return null;
-      const dependentKeywords = [kw('SFLCTL', name)];
-      if (type === 'WDWSFL') dependentKeywords.push(kw('WINDOW', windowDepValue || '2 2 10 40'));
-      if (type === 'PDNSFL') dependentKeywords.push(kw('PULLDOWN', ''));
-      const mainKeywords = [kw('SFL', '')];
-      let extraFields = [];
-      if (type === 'SFLMSG' && sflmsgOpts) {
-        mainKeywords.push(kw('SFLMSGRCD', String(sflmsgOpts.line)));
-        extraFields = [
-          { name: sflmsgOpts.keyName, usage: 'H', keywords: [kw('SFLMSGKEY', '')] },
-          // Bare SFLPGMQ defaults to a 10-byte field; an explicit 276
-          // generates the larger field some message-handling APIs expect.
-          { name: sflmsgOpts.queueName, usage: 'H', keywords: [kw('SFLPGMQ', sflmsgOpts.use276 ? '276' : '')] },
-        ];
-      }
-      return { mainKeywords: mainKeywords, dependent: { name: sflctlName, keywords: dependentKeywords }, extraFields: extraFields };
-    }
-    return { mainKeywords: [], dependent: null, extraFields: [] }; // RECORD
-  }
-
-  // Wording for "you picked an SFL-family type but haven't named its
-  // auto-created SFLCTL companion yet" - the only still-required dependent
-  // now that SFL-family types generate their control record automatically
-  // instead of pairing to an existing one.
-  function missingDependentMessage(type) {
-    if (type === 'SFLMSG') return 'Enter a name for the message subfile\u2019s SFLCTL control record - iSDA creates it for you, same as SDA.';
-    return 'Enter a name for the subfile\u2019s SFLCTL control record - iSDA creates it for you, same as SDA.';
-  }
+  // buildTypedRecordPlan/missingDependentMessage now live in
+  // webviewClientHelpers.js (WebviewClientHelpers global, already loaded
+  // before this script - see webviewTemplate.ts) so the extension host's
+  // "Create New Display File" record-type picker can share the exact same
+  // decision table instead of a second hand-maintained copy drifting from
+  // this one.
+  const buildTypedRecordPlan = WebviewClientHelpers.buildTypedRecordPlan;
+  const missingDependentMessage = WebviewClientHelpers.missingDependentMessage;
 
   newRecordBtn.addEventListener('click', () => {
     const name = newRecordName.value.trim().toUpperCase();

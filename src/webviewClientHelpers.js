@@ -113,6 +113,64 @@
   }
 
   /**
+   * Decides exactly what keywords/companion-record/hidden-fields a
+   * brand-new record of `type` needs - the "+ Add record" wizard's core
+   * decision table, extracted here (rather than left inline in
+   * buildWebviewTemplate.js's client script) so the SAME logic can also
+   * drive "Create New Display File"'s record-type picker on the extension
+   * host, without a second hand-maintained copy silently drifting from
+   * this one. Pure/DOM-free: no reference to `model`, `kw`'s closure, or
+   * any webview global other than isSflFamilyRecordType above.
+   *
+   * Returns `{ mainKeywords, dependent, extraFields }` where `dependent`
+   * is `{ name, keywords }` or null, and `extraFields` is an array of
+   * `{ name, usage, keywords }` (SFLMSG's two hidden fields; empty for
+   * every other type) - or `null` if an SFL-family type was requested
+   * without a `sflctlName` (the caller's cue to prompt for one, see
+   * missingDependentMessage below).
+   */
+  function buildTypedRecordPlan(type, name, sflctlName, windowDepValue, sflmsgOpts) {
+    var kw = function (kwName, parameters) { return { name: kwName, parameters: parameters, conditions: [], raw: '', sourceLines: [] }; };
+    if (type === 'USRDFN') return { mainKeywords: [kw('USRDFN', '')], dependent: null, extraFields: [] };
+    if (type === 'WINDOW') {
+      // A dependent pick means "inherit geometry from" (WINDOW(record-name));
+      // leaving it blank means "new geometry", landed at a sensible default
+      // box the user can then drag/resize like any other window.
+      return { mainKeywords: [kw('WINDOW', windowDepValue || '2 2 10 40')], dependent: null, extraFields: [] };
+    }
+    if (type === 'PULDWN') return { mainKeywords: [kw('PULLDOWN', '')], dependent: null, extraFields: [] };
+    if (type === 'MNUBAR') return { mainKeywords: [kw('MNUBAR', '')], dependent: null, extraFields: [] };
+    if (isSflFamilyRecordType(type)) {
+      if (!sflctlName) return null;
+      var dependentKeywords = [kw('SFLCTL', name)];
+      if (type === 'WDWSFL') dependentKeywords.push(kw('WINDOW', windowDepValue || '2 2 10 40'));
+      if (type === 'PDNSFL') dependentKeywords.push(kw('PULLDOWN', ''));
+      var mainKeywords = [kw('SFL', '')];
+      var extraFields = [];
+      if (type === 'SFLMSG' && sflmsgOpts) {
+        mainKeywords.push(kw('SFLMSGRCD', String(sflmsgOpts.line)));
+        extraFields = [
+          { name: sflmsgOpts.keyName, usage: 'H', keywords: [kw('SFLMSGKEY', '')] },
+          // Bare SFLPGMQ defaults to a 10-byte field; an explicit 276
+          // generates the larger field some message-handling APIs expect.
+          { name: sflmsgOpts.queueName, usage: 'H', keywords: [kw('SFLPGMQ', sflmsgOpts.use276 ? '276' : '')] },
+        ];
+      }
+      return { mainKeywords: mainKeywords, dependent: { name: sflctlName, keywords: dependentKeywords }, extraFields: extraFields };
+    }
+    return { mainKeywords: [], dependent: null, extraFields: [] }; // RECORD
+  }
+
+  // Wording for "you picked an SFL-family type but haven't named its
+  // auto-created SFLCTL companion yet" - the only still-required dependent
+  // now that SFL-family types generate their control record automatically
+  // instead of pairing to an existing one.
+  function missingDependentMessage(type) {
+    if (type === 'SFLMSG') return 'Enter a name for the message subfile\u2019s SFLCTL control record - iSDA creates it for you, same as SDA.';
+    return 'Enter a name for the subfile\u2019s SFLCTL control record - iSDA creates it for you, same as SDA.';
+  }
+
+  /**
    * Whether `name` is a syntactically valid DDS record-format name: 1-10
    * characters, starting with a letter or $/#/@. Doesn't check for
    * collisions with an existing name in the file - callers that care (a
@@ -3463,6 +3521,8 @@
     recordTypeDependentInfo: recordTypeDependentInfo,
     RECORD_TYPES: RECORD_TYPES,
     isSflFamilyRecordType: isSflFamilyRecordType,
+    buildTypedRecordPlan: buildTypedRecordPlan,
+    missingDependentMessage: missingDependentMessage,
     isValidDdsName: isValidDdsName,
     findLikelyNameReferences: findLikelyNameReferences,
     conditionsEditorHtml: conditionsEditorHtml,
