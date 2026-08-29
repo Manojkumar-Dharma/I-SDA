@@ -5,8 +5,10 @@
 A VS Code extension that replaces IBM i's traditional 5250 Screen Design Aid
 (`STRSDA`) with a modern, file-backed, fully interactive DDS display-file
 editor: parse the fixed-column DDS source, preview it as a live 5250-style
-screen, click and drag fields around, edit their properties, and write
-changes straight back into the original source — all inside VS Code.
+screen, click and drag fields around (or nudge the selection with the arrow
+keys, and cut/copy/paste a field's whole definition between records with
+Ctrl+X/C/V), edit their properties, and write changes straight back into the
+original source — all inside VS Code.
 
 ## Status
 

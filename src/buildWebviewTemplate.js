@@ -1442,6 +1442,18 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   let dragState = null;
+  // In-memory clipboard for Cut/Copy/Paste (Ctrl+X/C/V) - deliberately NOT
+  // the OS clipboard (navigator.clipboard is unreliable/permission-gated
+  // inside a VS Code webview, and there's no need for cross-window paste
+  // here anyway). Holds a plain-data snapshot of one field/constant - { field,
+  // recordName } - decoupled from the live model so it survives edits made
+  // to the original field after copying, and so DspfWriter.copyField (which
+  // only reads a field's own plain properties, not any live model reference -
+  // see its own doc comment) can insert it into ANY record, not just the one
+  // it was copied from. This is what makes Paste different from the existing
+  // Ctrl+D "duplicate in place": Ctrl+D always inserts into the SAME record
+  // immediately; Copy+Paste can move a field's definition across records.
+  let clipboardField = null;
   let placementMode = null; // null | 'FIELD' | 'CONSTANT' - set by the "+ Field"/"+ Constant"
                              // buttons; the next click on the screen preview background
                              // becomes the new field/constant's starting position.
@@ -1994,7 +2006,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     html += '<button id="p-apply" style="width:100%;margin-top:16px;" ' + (editable ? '' : 'disabled') + '>Apply changes</button>';
     html += '<button id="p-copy" class="secondary" style="width:100%;margin-top:8px;">Copy ' + (isConstant ? 'constant' : 'field') + '</button>';
-    html += '<div class="delete-hint">Press Delete or Backspace to remove this field. Press Ctrl+D to copy it.</div>';
+    html += '<div class="delete-hint">Press Delete or Backspace to remove this field. Ctrl+D duplicates it in place; Ctrl+X/C/V cut/copy/paste it (Ctrl+V pastes into whichever record is currently shown, even a different one). Arrow keys nudge its position (Shift = 5 cells).</div>';
     propsBody.innerHTML = html;
     wireTabs(propsBody, (id) => { activeFieldTab = id; });
     if (!editable) return;
@@ -2681,6 +2693,108 @@ const htmlTemplate = `<!DOCTYPE html>
     );
   }
 
+  // Arrow-key nudge: moves the selected field/constant by one grid cell per
+  // press (Shift held = 5, a coarser "page" step for covering distance
+  // quickly - the same 1-vs-bigger-step convention most design tools use for
+  // keyboard nudging), committed the exact same way a drag's mouseup is -
+  // commitEdit with an absolute { line, column } - so it's undo/redo-
+  // equivalent to dragging that same distance. Clamped to a 1-based minimum,
+  // same clamp startDrag's own onMove applies while the mouse is moving.
+  // Deliberately single-field only, matching startDrag's own single-field
+  // path - NOT startGroupDrag's whole-row move, which only applies to a
+  // multi-row SFLPAG preview's own repeated-template fields (see the
+  // isEditableSflPreviewRow branch in the mousedown handler above). Nudging
+  // one field of an SFLPAG preview row independently of its row-mates is a
+  // narrower, less common case than the everyday single-field move this is
+  // meant to speed up, so it's left as a follow-on rather than adding
+  // group-detection here now.
+  function nudgeSelected(deltaLine, deltaColumn) {
+    if (!selectedKey) return;
+    const found = findFieldBySourceLine(selectedKey.sourceLine);
+    if (!found) return;
+    const { record, field } = found;
+    const selectedEl = document.querySelector('.selected[data-render-column]');
+    const origSourceLine = field.location.line != null ? field.location.line : 1;
+    // Same fallback commitEdit's own drag counterpart (startDrag) uses: an
+    // absolute column isn't always known (a field placed at a
+    // relative-offset column inside a window - see the comment near
+    // startDrag), so fall back to the rendered column actually on screen.
+    const fallbackColumn = selectedEl ? parseInt(selectedEl.getAttribute('data-render-column'), 10) : 1;
+    const origSourceColumn = field.location.column != null ? field.location.column : fallbackColumn;
+    const newLine = Math.max(1, origSourceLine + deltaLine);
+    const newColumn = Math.max(1, origSourceColumn + deltaColumn);
+    if (newLine === origSourceLine && newColumn === origSourceColumn) return;
+    commitEdit(record.name, field, { line: newLine, column: newColumn });
+  }
+
+  // Cut: same reference-check-then-confirm flow commitDelete already uses
+  // (deleting a field never rewrites other keywords that reference it by
+  // name, so that's still worth flagging before removing it). The
+  // clipboard snapshot is only taken right before the field ACTUALLY gets
+  // deleted (either path below) - not up front - so cancelling the
+  // confirmation dialog leaves the clipboard untouched instead of loading
+  // it with something that was never actually cut.
+  function commitCut(recordName, field) {
+    const references = field.name
+      ? WebviewClientHelpers.findLikelyNameReferences(sourceText, field.name, DspfWriter.getFieldLineRange(field))
+      : [];
+    const doCut = () => {
+      clipboardField = { recordName, field: JSON.parse(JSON.stringify(field)) };
+      performFieldDelete(field);
+    };
+    if (references.length > 0) {
+      showConfirmDialog(
+        'Delete "' + field.name + '"?',
+        'Line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + field.name +
+          '" (e.g. REFFLD) - deleting a field never rewrites other keywords that reference it, so those references ' +
+          'will be left dangling. Cut anyway?',
+        'Cut anyway',
+        doCut
+      );
+      return;
+    }
+    doCut();
+  }
+
+  // Copy: snapshots the field into the in-memory clipboard without
+  // touching the source - see clipboardField's own doc comment above for
+  // why this is a plain-data snapshot rather than a live model reference.
+  function commitClipboardCopy(recordName, field) {
+    clipboardField = { recordName, field: JSON.parse(JSON.stringify(field)) };
+  }
+
+  // Paste: inserts the clipboard snapshot into whichever record is
+  // CURRENTLY being viewed (recordSelect.value) - which may be a different
+  // record than the one it was copied/cut from, unlike Ctrl+D's own
+  // always-same-record duplicate. Reuses DspfWriter.copyField exactly as
+  // commitCopy above does (its default placement - one row below, same
+  // column - covers the same-record paste case as cleanly as it covers
+  // duplicate; for a cross-record paste it's simply the pasted field's own
+  // original position, since there's no "one row below itself" to speak of
+  // in a different record). copyField's own nextAvailableFieldName call
+  // handles a name collision with the target record automatically - note
+  // it ALWAYS assigns a fresh suffixed name (see its own doc comment),
+  // never reusing the original exactly even if it's free again (e.g. after
+  // a Cut immediately followed by a Paste back into the same record) - same
+  // behavior every other copyField caller already has, so Paste doesn't
+  // special-case it.
+  function commitPaste() {
+    if (!clipboardField) return;
+    const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec) return;
+    commitSourceChange(
+      (lines) => DspfWriter.copyField(rec, lines, clipboardField.field, {}),
+      () => {
+        const freshRec = model.records.find((r) => r.name === recordName);
+        const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
+        selectedKey = newField ? { sourceLine: newField.sourceLine } : null;
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+      }
+    );
+  }
+
   function commitEdit(recordName, field, updates) {
     commitSourceChange(
       (lines) => DspfWriter.applyFieldUpdate(field, lines, updates),
@@ -2833,24 +2947,54 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   // Delete/Backspace deletes the currently-selected field or constant;
-  // Ctrl+D (Cmd+D on macOS) copies it - same guards as delete (not while
-  // typing in a props-panel input, not mid-drag). Ctrl+D is the OS/browser's
-  // own "bookmark this page" shortcut, but there's no bookmark bar inside a
-  // VS Code webview for it to conflict with, so it's safe to claim here the
-  // same way Delete/Backspace already are.
+  // Ctrl+D (Cmd+D on macOS) duplicates it in place, one row below, in the
+  // SAME record (see commitCopy's own doc comment) - same guards as delete
+  // (not while typing in a props-panel input, not mid-drag). Ctrl+X/C/V
+  // are a SEPARATE cut/copy/paste pair built on top of the in-memory
+  // clipboardField (see its own doc comment above) - unlike Ctrl+D,
+  // Ctrl+V's paste target is whichever record is CURRENTLY being viewed,
+  // which may differ from where the field was cut/copied from. Arrow keys
+  // nudge the selection by one grid cell (Shift = 5) - see nudgeSelected's
+  // own doc comment for why this is deliberately single-field-only. None
+  // of Ctrl+D/X/C/V are the OS/browser's own reserved shortcuts in any way
+  // that matters inside a webview with no text selection or bookmark bar
+  // for them to collide with.
   document.addEventListener('keydown', (e) => {
-    const isCopyShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd';
+    const mod = e.ctrlKey || e.metaKey;
+    const isDuplicateShortcut = mod && e.key.toLowerCase() === 'd';
     const isDeleteShortcut = e.key === 'Delete' || e.key === 'Backspace';
-    if (!isCopyShortcut && !isDeleteShortcut) return;
+    const isCutShortcut = mod && e.key.toLowerCase() === 'x';
+    const isCopyShortcut = mod && e.key.toLowerCase() === 'c';
+    const isPasteShortcut = mod && e.key.toLowerCase() === 'v';
+    const isArrowKey = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+    if (!isDuplicateShortcut && !isDeleteShortcut && !isCutShortcut && !isCopyShortcut && !isPasteShortcut && !isArrowKey) return;
     if (dragState) return;
     if (document.querySelector('.confirm-overlay')) return;
     const tag = (e.target && e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    if (isPasteShortcut) {
+      if (!clipboardField) return;
+      e.preventDefault();
+      commitPaste();
+      return;
+    }
     if (!selectedKey) return;
     const found = findFieldBySourceLine(selectedKey.sourceLine);
     if (!found) return;
+    if (isArrowKey) {
+      e.preventDefault();
+      const step = e.shiftKey ? 5 : 1;
+      if (e.key === 'ArrowUp') nudgeSelected(-step, 0);
+      else if (e.key === 'ArrowDown') nudgeSelected(step, 0);
+      else if (e.key === 'ArrowLeft') nudgeSelected(0, -step);
+      else nudgeSelected(0, step);
+      return;
+    }
     e.preventDefault();
-    if (isCopyShortcut) commitCopy(found.record.name, found.field);
+    if (isDuplicateShortcut) commitCopy(found.record.name, found.field);
+    else if (isCutShortcut) commitCut(found.record.name, found.field);
+    else if (isCopyShortcut) commitClipboardCopy(found.record.name, found.field);
     else commitDelete(found.field);
   });
 

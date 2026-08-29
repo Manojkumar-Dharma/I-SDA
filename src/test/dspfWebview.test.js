@@ -401,6 +401,122 @@ function runCopyFieldScenario() {
       check('no applyEdit posted while Ctrl+D fires from inside a text input', !posted.some((m) => m.type === 'applyEdit'));
     }
 
+    runNudgeCutCopyPasteScenario();
+  }, 0);
+}
+
+// Arrow-key nudge and Ctrl+X/C/V cut/copy/paste - built on top of the same
+// commitEdit (nudge) and DspfWriter.copyField/deleteField (cut/copy/paste)
+// primitives runCopyFieldScenario above already exercises via the mouse
+// drag and Copy button/Ctrl+D paths - this scenario is specifically about
+// the NEW keyboard-only paths added alongside them.
+function runNudgeCutCopyPasteScenario() {
+  console.log('\narrow-key nudge and Ctrl+X/C/V cut/copy/paste');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'CUSTNAME', length: '30', dataType: 'A', usage: 'B', line: '10', col: '15' }),
+      buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'NUDGETEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event, KeyboardEvent } = dom.window;
+
+    console.log('  Arrow keys nudge the selected field by one cell; Shift+Arrow nudges by 5');
+    const fieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME'));
+    check('setup: the target field is present', !!fieldEl);
+    fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
+
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('ArrowDown posts an applyEdit', !!applyEdit);
+    check('ArrowDown moves the field down one row (line 10 -> 11), same column', applyEdit && /CUSTNAME[\s\S]{0,20}\b11\s*15\b/.test(applyEdit.text.replace(/\n/g, ' ')));
+
+    posted.length = 0;
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('Shift+ArrowRight posts an applyEdit', !!applyEdit);
+    check('Shift+ArrowRight moves the field right by 5 columns (15 -> 20), same row (still 11)', applyEdit && /CUSTNAME[\s\S]{0,20}\b11\s*20\b/.test(applyEdit.text.replace(/\n/g, ' ')));
+
+    posted.length = 0;
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    check('nudging past row 1 stays clamped at row 1 rather than going negative', posted.every((m) => m.type !== 'applyEdit' || !/\s0\s*20\b/.test(m.text.replace(/\n/g, ' '))));
+
+    console.log('  Arrow keys while typing in a text input must NOT nudge the field');
+    posted.length = 0;
+    const nameInput = doc.getElementById('p-name');
+    check('setup: the props panel has a Name input to type into', !!nameInput);
+    if (nameInput) {
+      nameInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+      check('no applyEdit posted for ArrowDown fired from inside a text input', !posted.some((m) => m.type === 'applyEdit'));
+    }
+
+    console.log('  Ctrl+C copies to the in-memory clipboard WITHOUT touching the source; Ctrl+V pastes into another record');
+    posted.length = 0;
+    // Re-select CUSTNAME (fresh lookup - its own earlier nudges/edits may
+    // have re-rendered the DOM node).
+    const custEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME'));
+    custEl.dispatchEvent(new Event('click', { bubbles: true }));
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }));
+    check('Ctrl+C posts NO applyEdit (copy-to-clipboard is not itself a source edit)', !posted.some((m) => m.type === 'applyEdit'));
+
+    const recordSelect = doc.getElementById('recordSelect');
+    check('setup: the record dropdown is present', !!recordSelect);
+    recordSelect.value = 'SCR2';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('Ctrl+V posts an applyEdit', !!applyEdit);
+    const joined = applyEdit ? applyEdit.text.replace(/\n/g, ' ') : '';
+    check('the pasted field lands under SCR2, not back under SCR1', applyEdit && /SCR2[\s\S]*CUSTNAME2/.test(applyEdit.text));
+    check('the original CUSTNAME field under SCR1 is untouched', /SCR1[\s\S]*CUSTNAME\s+30A/.test(applyEdit ? applyEdit.text : ''));
+    check('the pasted copy gets an auto-generated distinct name (CUSTNAME2), same collision handling as Copy button/Ctrl+D', /CUSTNAME2/.test(joined));
+
+    console.log('  Ctrl+X cuts: removes the field AND loads the clipboard, so a following Ctrl+V re-inserts it elsewhere');
+    posted.length = 0;
+    // Switch back to SCR1 to see the original CUSTNAME field - the DOM only
+    // renders whichever record is currently selected, and Ctrl+V above left
+    // the dropdown on SCR2.
+    recordSelect.value = 'SCR1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const custEl2 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME') && !el.textContent.includes('CUSTNAME2'));
+    check('setup: the original CUSTNAME field is present to cut', !!custEl2);
+    custEl2.dispatchEvent(new Event('click', { bubbles: true }));
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true, cancelable: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('Ctrl+X posts an applyEdit removing the field', !!applyEdit && !/CUSTNAME\s+30A/.test(applyEdit.text));
+
+    posted.length = 0;
+    recordSelect.value = 'SCR1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    // Note: this does NOT come back named "CUSTNAME" - nextAvailableFieldName
+    // always assigns a fresh suffixed name (see its own doc comment in
+    // dspfWriter.js), the same behavior every other copyField caller already
+    // has, so a cut-then-paste-back doesn't special-case reusing the exact
+    // original name even though it's free again.
+    const scr1Idx = applyEdit ? applyEdit.text.indexOf('R SCR1') : -1;
+    const scr2Idx = applyEdit ? applyEdit.text.indexOf('R SCR2') : -1;
+    const scr1Block = scr1Idx >= 0 && scr2Idx > scr1Idx ? applyEdit.text.slice(scr1Idx, scr2Idx) : '';
+    check('a following Ctrl+V re-inserts a CUSTNAME-named field back under SCR1 (fresh suffixed name, same as any other copyField call)', /CUSTNAME\d*\s+30A/.test(scr1Block));
+
     runFileAttrsScenario();
   }, 0);
 }

@@ -3,7 +3,7 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.9.85] - 2026-08-29
+## [0.9.86] - 2026-08-29
 
 ### Added
 - **Task L9: "Create New Display File" record-type picker.** The command
@@ -19,7 +19,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   rather than prompting for either - a fast, few-question start; all of it
   can be adjusted afterward in the designer. See `src/test/createNewDspf.test.js`.
 
-## [0.9.84] - 2026-08-28
+## [0.9.85] - 2026-08-28
 
 ### Added
 - **Task M3 - deleting a menu option now scans for another record format
@@ -60,6 +60,30 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   done. `LIMITATIONS-PLAN.md` also caught up Task M2's own status (it
   had shipped in a prior commit without updating the plan doc's status
   column or README).
+
+## [0.9.84] - 2026-08-29
+
+### Added
+- **DSPF designer: arrow-key nudge and Ctrl+X/C/V cut/copy/paste for the
+  selected field/constant.** Arrow keys move the selection by one grid
+  cell (Shift+Arrow moves by 5, for covering distance quickly), committed
+  through the exact same `commitEdit({ line, column })` a drag's own
+  mouseup already uses - clamped to a 1-based minimum, same as dragging.
+  Deliberately single-field only (not a multi-row SFLPAG preview's whole-
+  row move - see `nudgeSelected`'s own doc comment in
+  `buildWebviewTemplate.js` for why that's left as a follow-on).
+  Ctrl+X/C/V are a separate cut/copy/paste pair on top of a new in-memory
+  `clipboardField` (deliberately NOT the OS clipboard - unreliable/
+  permission-gated inside a VS Code webview, and there's no cross-window
+  paste need here) - unlike the existing Ctrl+D "duplicate in place",
+  Ctrl+V's paste target is whichever record is CURRENTLY being viewed,
+  so a field's whole definition (keywords, conditions, length, type, and
+  all) can be copied from one record into a different one. Ctrl+X reuses
+  the same reference-check confirmation Delete already shows (deleting a
+  field never rewrites other keywords that reference it by name) before
+  actually cutting. No new `dspfWriter.js` code needed -
+  `DspfWriter.copyField`/`deleteField` already do the heavy lifting; see
+  `src/test/dspfWebview.test.js`'s `runNudgeCutCopyPasteScenario`.
 
 ## [0.9.82] - 2026-08-28
 
