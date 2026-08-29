@@ -185,7 +185,7 @@ async function run() {
     check('resolves both reference fields on the record', /Resolved 2 referenced fields/.test(vscodeMock.__lastInformationMessage || ''));
 
     // Restore the default-installed mock extension for any later tests in this file.
-    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi' });
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
     vscodeMock.__setRunCommandHandler(null);
   }
 

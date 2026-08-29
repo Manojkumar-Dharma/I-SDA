@@ -56,7 +56,7 @@ async function run() {
     const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYSCREEN.DSPF');
     await compileDspf(uri);
     check('shows an error naming the extension', /halcyontechltd\.code-for-ibmi/.test(vscodeMock.__lastError || ''));
-    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi' });
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
   }
 
   console.log('\nhappy path: a single CRTDSPF command, no record-name-matching requirement (unlike CRTMNU)');
@@ -86,6 +86,35 @@ async function run() {
     check('shows a success message mentioning the compiled object', /MYLIB\/MYSCREEN/.test(vscodeMock.__lastInformation || ''));
 
     vscodeMock.__setOpenTextDocuments([]);
+  }
+
+  console.log('\nCode for i installed but NOT YET ACTIVE this session (bug fix - previously failed with a confusing "command not found" error even though Code for i is installed and works fine once active)');
+  {
+    const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYSCREEN.DSPF');
+    vscodeMock.__clearMockFiles();
+    vscodeMock.__setMockFile(uri, "     A                                      DSPSIZ(24 80 *DS3)\n     A          R DIFFERENTNAME\n     A                                  1  2'HELLO'\n");
+
+    let activateCalled = false;
+    const extStub = {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: false,
+      activate: () => { activateCalled = true; extStub.isActive = true; return Promise.resolve(); },
+    };
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', extStub);
+
+    const calls = [];
+    vscodeMock.__setRunCommandHandler((args) => { calls.push(args.command); return { code: 0, stdout: '', stderr: '' }; });
+    vscodeMock.__lastError = undefined;
+    vscodeMock.__lastInformation = undefined;
+
+    const compileDspf = freshContext();
+    await compileDspf(uri);
+
+    check('activate() was called before attempting the compile', activateCalled);
+    check('CRTDSPF actually ran once activated (previously would have thrown "command not found")', calls.length === 1 && calls[0].startsWith('CRTDSPF'));
+    check('shows a success message, no error', !vscodeMock.__lastError && /MYLIB\/MYSCREEN/.test(vscodeMock.__lastInformation || ''));
+
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
   }
 
   console.log('\nfailure is surfaced verbatim, no success message shown');

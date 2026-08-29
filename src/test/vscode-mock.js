@@ -46,7 +46,7 @@ const executedCommands = []; // every vscode.commands.executeCommand call, for a
 let runCommandHandler = null; // test-supplied handler for 'code-for-ibmi.runCommand'
 // Simulates the Code for i extension being installed by default (the common
 // case) - tests that need "not installed" delete this entry first.
-const mockExtensions = { 'halcyontechltd.code-for-ibmi': { id: 'halcyontechltd.code-for-ibmi' } };
+const mockExtensions = { 'halcyontechltd.code-for-ibmi': { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() } };
 
 const vscodeMock = {
   Range,
@@ -90,15 +90,27 @@ const vscodeMock = {
     },
     // Simulates 'code-for-ibmi.runCommand' (and any other command an
     // extension might executeCommand out to) via a test-supplied handler -
-    // see __setRunCommandHandler. Everything else no-ops successfully, same
-    // as before this was extended for the compile-menu feature.
+    // see __setRunCommandHandler. Realistically rejects (matching VS Code's
+    // own "command not found" behavior) when the mock Code for i extension
+    // isn't active - code-for-ibmi.runCommand is registered at activation
+    // time, not declared in contributes.commands, so VS Code's own
+    // auto-activate-on-command mechanism does NOT apply to it; calling it
+    // before Code for i has activated genuinely throws in the real world.
+    // Everything else no-ops successfully, same as before this was
+    // extended for the compile-menu feature.
     executeCommand: (id, ...args) => {
       const call = { id, args };
       executedCommands.push(call);
       vscodeMock.__lastExecutedCommand = call;
-      if (id === 'code-for-ibmi.runCommand' && runCommandHandler) {
-        const result = runCommandHandler(args[0]);
-        return result && typeof result.then === 'function' ? result : Promise.resolve(result);
+      if (id === 'code-for-ibmi.runCommand') {
+        const ext = mockExtensions['halcyontechltd.code-for-ibmi'];
+        if (!ext || !ext.isActive) {
+          return Promise.reject(new Error("command 'code-for-ibmi.runCommand' not found"));
+        }
+        if (runCommandHandler) {
+          const result = runCommandHandler(args[0]);
+          return result && typeof result.then === 'function' ? result : Promise.resolve(result);
+        }
       }
       return Promise.resolve();
     },

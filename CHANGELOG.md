@@ -3,6 +3,59 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.95] - 2026-08-29
+
+### Fixed
+- **"Create New Display File"/"Create New Menu" could silently skip
+  offering a "Connected IBM i system" destination even with Code for i
+  installed and able to connect fine.** `getConnectedCodeForIBMi()`
+  checked `ext.isActive` and bailed out immediately if false, unlike
+  `fetchReferencedFieldAttributes()` (the "Resolve Referenced Field"
+  code path), which already tried `ext.activate()` first before giving
+  up. A lazily-activated extension simply not having activated yet in
+  the current VS Code session (e.g. its own panel hasn't been opened)
+  isn't the same as "not installed" or "not connected" - but with no
+  activation attempt, `createNewDspf()`/`createNewMenu()` would treat it
+  as unusable anyway, silently offering only "Local workspace" with no
+  error shown, just a missing choice - the exact bug report that led to
+  this fix. `getConnectedCodeForIBMi()` is now `async` and mirrors
+  `fetchReferencedFieldAttributes()`'s own activation handling exactly;
+  both call sites now `await` it. New regression scenarios in
+  `src/test/createNewDspf.test.js`/`createNewMenu.test.js` (mocking
+  `isActive: false` with an `activate()` that flips it to `true`,
+  something neither file's existing scenarios had ever exercised - every
+  prior mock already started `isActive: true`, which is exactly why this
+  went unnoticed).
+- **"Compile Display File (CRTDSPF)"/"Compile Menu (CRTMNU)" could fail
+  with a confusing "command not found" error under the exact same
+  root cause** - the bigger of the two findings, since this one surfaces
+  as a visible, misleading error rather than a silently missing choice.
+  `compileDspf()`/`compileMenu()` only ever checked
+  `vscode.extensions.getExtension(...)` for installation, never
+  activation, before calling
+  `vscode.commands.executeCommand('code-for-ibmi.runCommand', ...)`.
+  `code-for-ibmi.runCommand` is registered at Code for i's OWN
+  activation time rather than declared in its `contributes.commands`
+  manifest, so VS Code's usual auto-activate-on-command mechanism
+  doesn't cover it - calling it before Code for i has activated
+  genuinely throws "command 'code-for-ibmi.runCommand' not found",
+  which the existing `try/catch` wrapper turned into a plausible-looking
+  but misleading `"CRTDSPF failed: command ... not found"` error
+  instead of the clear "requires Code for IBM i... installed and
+  connected" guard message. Same fix as above - both functions now try
+  `ext.activate()` first when `!ext.isActive`. The shared test mock
+  (`src/test/vscode-mock.js`) never modeled this failure mode at all -
+  its `executeCommand` simulation always succeeded for
+  `code-for-ibmi.runCommand` regardless of activation state, which is
+  exactly why 1,900+ passing checks never caught it; it now realistically
+  rejects when the mock extension isn't active, and its default mock
+  extension gained explicit `isActive: true`/`activate()` so every
+  pre-existing test (which implicitly assumed an already-active
+  extension) keeps passing unchanged. New regression scenarios in
+  `compileDspf.test.js`/`compileMenu.test.js`, same
+  installed-but-inactive-then-activates shape as the create-new-file
+  scenarios above.
+
 ## [0.9.94] - 2026-08-29
 
 ### Fixed

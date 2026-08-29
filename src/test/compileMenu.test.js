@@ -64,7 +64,7 @@ async function run() {
     const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
     await compileMenu(uri);
     check('shows an error naming the extension', /halcyontechltd\.code-for-ibmi/.test(vscodeMock.__lastError || ''));
-    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi' });
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
   }
 
   console.log('\nguard: record format name must match the member name (CRTMNU TYPE(*DSPF) requirement)');
@@ -105,6 +105,37 @@ async function run() {
     check('shows a success message mentioning the compiled object', /MYLIB\/MYMENU/.test(vscodeMock.__lastInformation || ''));
 
     vscodeMock.__setOpenTextDocuments([]);
+  }
+
+  console.log('\nCode for i installed but NOT YET ACTIVE this session (bug fix - previously failed with a confusing "command not found" error even though Code for i is installed and works fine once active)');
+  {
+    const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
+    vscodeMock.__clearMockFiles();
+    vscodeMock.__setMockFile(uri, menuSource);
+    const commandUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENUQQ.MNUCMD');
+    vscodeMock.__setMockFile(commandUri, '0001 DSPLIBL\n0002 CHGCURLIB\n');
+
+    let activateCalled = false;
+    const extStub = {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: false,
+      activate: () => { activateCalled = true; extStub.isActive = true; return Promise.resolve(); },
+    };
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', extStub);
+
+    const calls = [];
+    vscodeMock.__setRunCommandHandler((args) => { calls.push(args.command); return { code: 0, stdout: '', stderr: '' }; });
+    vscodeMock.__lastError = undefined;
+    vscodeMock.__lastInformation = undefined;
+
+    const compileMenu = freshContext();
+    await compileMenu(uri);
+
+    check('activate() was called before attempting the compile', activateCalled);
+    check('the full CRTDSPF/CRTMSGF/ADDMSGD/CRTMNU sequence actually ran once activated (previously would have thrown "command not found" on the first call)', calls.length === 5 && calls[0].startsWith('CRTDSPF') && calls[4].startsWith('CRTMNU'));
+    check('shows a success message, no error', !vscodeMock.__lastError && /MYLIB\/MYMENU/.test(vscodeMock.__lastInformation || ''));
+
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
   }
 
   console.log('\nCRTMSGF already existing is tolerated, not treated as a failure');

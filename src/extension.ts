@@ -305,11 +305,30 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
     vscode.window.showErrorMessage('iSDA: Compile Menu only works for a MNUDDS member opened from an IBM i connection (Code for i).');
     return;
   }
-  if (!vscode.extensions.getExtension('halcyontechltd.code-for-ibmi')) {
+  const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
+  if (!ext) {
     vscode.window.showErrorMessage(
       'iSDA: Compile Menu requires the Code for IBM i extension (halcyontechltd.code-for-ibmi) to be installed and connected.'
     );
     return;
+  }
+  // Same reasoning as getConnectedCodeForIBMi()/fetchReferencedFieldAttributes():
+  // code-for-ibmi.runCommand is registered at Code for i's OWN activation
+  // time, not declared in contributes.commands, so VS Code's usual
+  // auto-activate-on-command mechanism doesn't cover it - calling
+  // executeCommand on it before Code for i has activated genuinely throws
+  // "command not found", surfacing as a confusing "CRTDSPF failed: command
+  // ... not found" error rather than the clear guard message above, even
+  // though Code for i is installed and would work fine once active. A
+  // lazily-activated extension simply not having activated yet in this
+  // VS Code session isn't the same as "not installed".
+  if (!ext.isActive) {
+    try {
+      await ext.activate();
+    } catch {
+      // fall through - the executeCommand calls below will surface any
+      // real problem with a specific error, same as always
+    }
   }
 
   // Compiles read from the SAVED member on the IBM i, not this editor's live
@@ -434,11 +453,24 @@ async function compileDspf(uri: vscode.Uri): Promise<void> {
     vscode.window.showErrorMessage('iSDA: Compile Display File only works for a DSPF member opened from an IBM i connection (Code for i).');
     return;
   }
-  if (!vscode.extensions.getExtension('halcyontechltd.code-for-ibmi')) {
+  const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
+  if (!ext) {
     vscode.window.showErrorMessage(
       'iSDA: Compile Display File requires the Code for IBM i extension (halcyontechltd.code-for-ibmi) to be installed and connected.'
     );
     return;
+  }
+  // Same reasoning as compileMenu() above (see its own comment) -
+  // code-for-ibmi.runCommand needs Code for i to have already activated,
+  // which VS Code's usual auto-activate-on-command mechanism doesn't
+  // guarantee for a command that isn't declared in contributes.commands.
+  if (!ext.isActive) {
+    try {
+      await ext.activate();
+    } catch {
+      // fall through - the executeCommand call below will surface any
+      // real problem with a specific error, same as always
+    }
   }
 
   // Same reasoning as compileMenu(): compiles read from the SAVED member on
@@ -1249,7 +1281,7 @@ function validateDdsName(value: string): string | null {
 }
 
 async function createNewDspf(targetUri?: vscode.Uri): Promise<void> {
-  const codeForIBMi = getConnectedCodeForIBMi();
+  const codeForIBMi = await getConnectedCodeForIBMi();
 
   let destination: 'local' | 'remote' = 'local';
   if (codeForIBMi) {
@@ -1446,7 +1478,7 @@ async function promptForMenuInfo(defaultBaseName: string): Promise<{ baseName: s
 }
 
 async function createNewMenu(targetUri?: vscode.Uri): Promise<void> {
-  const codeForIBMi = getConnectedCodeForIBMi();
+  const codeForIBMi = await getConnectedCodeForIBMi();
 
   let destination: 'local' | 'remote' = 'local';
   if (codeForIBMi) {
@@ -1537,9 +1569,26 @@ async function createLocalMenuFiles(targetUri: vscode.Uri | undefined, baseName:
  * and the API surface is explicitly documented as subject to change between versions.
  * See https://codefori.github.io/docs/dev/api/ and .../dev/examples/.
  */
-function getConnectedCodeForIBMi(): { runCommand: (info: { command: string; environment: string }) => Promise<{ code: number; stdout: string; stderr: string }> } | undefined {
+// Deliberately mirrors fetchReferencedFieldAttributes' own activation
+// handling below - a soft/lazy-activated extension like Code for i may
+// simply not have activated yet in this VS Code session (e.g. its own
+// panel hasn't been opened), which is NOT the same as "not installed" or
+// "not connected". Without the activate() attempt here, Create New Display
+// File/Menu would silently never offer the "Connected IBM i system" option
+// even when Code for i is installed and would connect fine once active -
+// no error shown, just a missing choice, which is exactly what made this
+// bug hard to notice.
+async function getConnectedCodeForIBMi(): Promise<{ runCommand: (info: { command: string; environment: string }) => Promise<{ code: number; stdout: string; stderr: string }> } | undefined> {
   const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
-  if (!ext || !ext.isActive || !ext.exports) return undefined;
+  if (!ext) return undefined;
+  if (!ext.isActive) {
+    try {
+      await ext.activate();
+    } catch {
+      // fall through - exports may still be usable, or the checks below will catch it
+    }
+  }
+  if (!ext.exports) return undefined;
   const instance = ext.exports.instance;
   const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
   if (!connection || typeof connection.runCommand !== 'function') return undefined;

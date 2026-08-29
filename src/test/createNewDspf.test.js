@@ -109,6 +109,35 @@ async function run() {
     check('boilerplate contains the title', content.includes("'Remote Screen'"));
   }
 
+  console.log('\nremote path: Code for i installed but NOT YET ACTIVE this session (bug fix - previously silently skipped the remote option entirely, no error, just a missing choice)');
+  {
+    let activateCalled = false;
+    let ranCommand = null;
+    const extStub = {
+      isActive: false,
+      activate: () => { activateCalled = true; extStub.isActive = true; return Promise.resolve(); },
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runCommand: (info) => { ranCommand = info; return Promise.resolve({ code: 0, stdout: 'Member added.', stderr: '' }); },
+          }),
+        },
+      },
+    };
+    vscodeMock.extensions.getExtension = () => extStub;
+    let writtenUri = null;
+    vscodeMock.workspace.fs.writeFile = (uri) => { writtenUri = uri; return Promise.resolve(); };
+
+    scriptPrompts(['SCREEN2B', 'RECORD1', 'Lazily Activated', '', 'QDDSSRC'], [{ value: 'remote' }, BASIC_SCREEN]);
+
+    await createNewDspf();
+
+    check('activate() was called before deciding whether Code for i is usable', activateCalled);
+    check('the remote destination choice was still offered (not silently skipped)', !!ranCommand);
+    check('ran ADDPFM once activated', ranCommand && ranCommand.command.startsWith('ADDPFM'));
+    check('wrote content to a member: scheme URI', !!writtenUri && writtenUri.scheme === 'member');
+  }
+
   console.log('\nremote path with an explicit library');
   {
     let ranCommand = null;
