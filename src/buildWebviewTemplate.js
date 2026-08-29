@@ -126,6 +126,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-field { white-space: pre; color: var(--dspf-fg, var(--accent)); cursor: grab; user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
   .dspf-field:hover { border-color: rgba(51,255,102,0.4); }
   .dspf-field.selected { border-color: var(--accent); background: rgba(51,255,102,0.08); }
+  /* Task L10: rubber-band drag-select rectangle - fixed-position (drawn in
+     viewport coordinates, not the grid) since it tracks the raw mouse
+     position across a canvas that may itself be scrolled. */
+  .dspf-rubber-band { position: fixed; border: 1px dashed var(--accent); background: rgba(51,255,102,0.08); pointer-events: none; z-index: 50; }
   .dspf-field.dragging { cursor: grabbing; opacity: 0.7; }
   .dspf-field.locked { cursor: not-allowed; }
   .dspf-field.locked:hover { border-color: rgba(255,138,92,0.5); }
@@ -640,6 +644,19 @@ const htmlTemplate = `<!DOCTYPE html>
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
   let model = DspfParser.parseDspf(sourceText);
   let selectedKey = null;
+  // Task L10: multi-field select, block move/copy/delete/style - real SDA's Design
+  // Image screen convention (block-select via '- -'/'= =' line commands) generalized
+  // to shift/ctrl-click and rubber-band drag-select on the canvas. selectedKey stays
+  // the PRIMARY (most-recently-clicked) selection, exactly as every pre-L10 caller
+  // already expects (single-field props panel, drag source, etc.) - selectedKeys is
+  // the FULL selection set (always includes selectedKey's own sourceLine when
+  // selectedKey is set) and is what the multi-field paths (nudge/delete/cut/copy/
+  // duplicate/Style, group-drag, rubber-band) actually operate over. When
+  // selectedKeys.length <= 1 every multi-field path collapses to the exact same
+  // single-field behavior that existed before this task - see clearSelection/
+  // setSingleSelection/toggleMultiSelection below, which every selection site in
+  // this file now goes through instead of assigning selectedKey directly.
+  let selectedKeys = [];
   let selectedHelpSourceLine = null;
   let showFileProps = false; // file-level (fileKeywords) view of the Properties panel, independent of any record/field/help selection
   let suppressNextExternalUpdate = false;
@@ -782,7 +799,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   fileAttrsBtn.addEventListener('click', () => {
     showFileProps = true;
-    selectedKey = null;
+    clearSelection();
     selectedHelpSourceLine = null;
     renderProps(recordSelect.value);
   });
@@ -908,7 +925,7 @@ const htmlTemplate = `<!DOCTYPE html>
         return newLines;
       },
       () => {
-        selectedKey = null;
+        clearSelection();
         selectedHelpSourceLine = null;
         showFileProps = false;
         setAddRecordMode(false); // collapses the wizard back down and clears its fields
@@ -927,7 +944,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   previewRowsToggle.addEventListener('change', () => {
     previewMultipleRows = previewRowsToggle.checked;
-    selectedKey = null;
+    clearSelection();
     selectedHelpSourceLine = null;
     showFileProps = false;
     render();
@@ -935,7 +952,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   sizeSelect.addEventListener('change', () => {
     selectedSizeIndex = parseInt(sizeSelect.value, 10) || 0;
-    selectedKey = null;
+    clearSelection();
     selectedHelpSourceLine = null;
     showFileProps = false;
     render();
@@ -1019,11 +1036,85 @@ const htmlTemplate = `<!DOCTYPE html>
   // itself persists across re-renders (only its innerHTML is replaced).
   screenOutput.addEventListener('click', (e) => {
     if (e.target === screenOutput || (e.target.classList && e.target.classList.contains('dspf-screen'))) {
-      selectedKey = null;
+      clearSelection();
       selectedHelpSourceLine = null;
       showFileProps = false;
       render();
     }
+  });
+
+  // Task L10: rubber-band drag-select - a mousedown on empty canvas that
+  // MOVES becomes a selection rectangle (every field/constant whose rendered
+  // bounds intersect it is added to the multi-select on mouseup); a
+  // mousedown that never moves falls through unchanged to the plain
+  // background-click handler above, which still clears the selection. Held
+  // Shift/Ctrl/Cmd ADDS to whatever's already selected (same modifier
+  // convention as the per-field click handler's own toggle) instead of
+  // replacing it, so a rubber-band pass can be combined with shift-clicking
+  // individual fields to build up one block selection. Attached once
+  // (screenOutput persists across renders, same as the click handler above),
+  // reading the live DOM at drag time rather than any per-render field list,
+  // so it stays correct across re-renders mid-drag.
+  screenOutput.addEventListener('mousedown', (e) => {
+    if (placementMode || pendingPlacement || dragState) return;
+    if (!(e.target === screenOutput || (e.target.classList && e.target.classList.contains('dspf-screen')))) return;
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    const startX = e.clientX, startY = e.clientY;
+    let moved = false;
+    let box = null;
+
+    function onMove(ev) {
+      if (!moved && (Math.abs(ev.clientX - startX) > 3 || Math.abs(ev.clientY - startY) > 3)) {
+        moved = true;
+        box = document.createElement('div');
+        box.className = 'dspf-rubber-band';
+        document.body.appendChild(box);
+      }
+      if (!moved) return;
+      const left = Math.min(startX, ev.clientX), top = Math.min(startY, ev.clientY);
+      box.style.left = left + 'px';
+      box.style.top = top + 'px';
+      box.style.width = Math.abs(ev.clientX - startX) + 'px';
+      box.style.height = Math.abs(ev.clientY - startY) + 'px';
+    }
+    function onUp(ev) {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (box) box.remove();
+      if (moved) {
+        const left = Math.min(startX, ev.clientX), top = Math.min(startY, ev.clientY);
+        const right = Math.max(startX, ev.clientX), bottom = Math.max(startY, ev.clientY);
+        const primaryScreenEl = screenOutput.querySelector('.dspf-screen');
+        const hitLines = [];
+        if (primaryScreenEl) {
+          primaryScreenEl.querySelectorAll('.dspf-field[data-source-line]').forEach((el) => {
+            const r = el.getBoundingClientRect();
+            const intersects = r.left < right && r.right > left && r.top < bottom && r.bottom > top;
+            if (!intersects) return;
+            const sl = parseInt(el.getAttribute('data-source-line'), 10);
+            if (!isNaN(sl)) hitLines.push(sl);
+          });
+        }
+        if (hitLines.length > 0) {
+          if (!additive) clearSelection();
+          addToMultiSelection(hitLines);
+          selectedHelpSourceLine = null;
+          showFileProps = false;
+          render();
+        } else if (!additive) {
+          // An empty drag over blank canvas behaves like the plain
+          // background click above - deselect everything.
+          clearSelection();
+          selectedHelpSourceLine = null;
+          showFileProps = false;
+          render();
+        }
+      }
+      // moved === false: let the browser's own subsequent 'click' event fall
+      // through to the plain background-click handler above unchanged.
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   });
 
   // "+ Field" / "+ Constant" click-to-place: capture-phase so it runs before
@@ -1341,7 +1432,7 @@ const htmlTemplate = `<!DOCTYPE html>
       : 'Check another record above to overlay it here at full brightness, read-only.';
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     updateRuler(screen);
-    selectedKey = null;
+    clearSelection();
     selectedHelpSourceLine = null;
     showFileProps = false;
     propsBreadcrumb.innerHTML = '';
@@ -1400,6 +1491,17 @@ const htmlTemplate = `<!DOCTYPE html>
       primaryScreenEl.classList.add('placing');
     }
 
+    // Task L10: maps a field's sourceLine to its rendered canvas element,
+    // filled in as the forEach below resolves each element's 'underlying'
+    // field - used by the group-drag branch in the mousedown handler below
+    // to find every OTHER currently-selected field's element for a
+    // multi-select block move, since canvas elements only carry
+    // data-line/-column/-field (source-position/name), not a field's
+    // sourceLine, unlike the Hidden-fields sidebar rows (data-source-line).
+    // Safe to read from any mousedown handler below even though it's still
+    // being populated during this same forEach pass, since listeners only
+    // ever FIRE later, after the forEach (and this map) is already complete.
+    const fieldElBySourceLine = {};
     primaryScreenEl.querySelectorAll('.dspf-field').forEach((el) => {
       const tag = el.getAttribute('data-tag') || '';
       const isPulldownField = tag === 'pulldown';
@@ -1439,7 +1541,8 @@ const htmlTemplate = `<!DOCTYPE html>
       if (!underlying) return;
       const editable = DspfWriter.isEditable(underlying);
       if (!editable) el.classList.add('locked');
-      if (selectedKey && selectedKey.sourceLine === underlying.sourceLine) el.classList.add('selected');
+      if (selectedKeys.some((k) => k.sourceLine === underlying.sourceLine)) el.classList.add('selected');
+      fieldElBySourceLine[underlying.sourceLine] = el;
 
       const isEditableSflPreviewRow = tag.indexOf('subfile-edit-row-') === 0;
       const ownerRecord = model.records.find((r) => r.name === ownerRecordName);
@@ -1453,7 +1556,20 @@ const htmlTemplate = `<!DOCTYPE html>
         // same reason.
         if (isPulldownField) e.stopPropagation();
         if (dragState) return;
-        selectedKey = { sourceLine: underlying.sourceLine };
+        // Task L10: shift-click or ctrl/cmd-click (mirroring both common
+        // multi-select conventions rather than picking just one) toggles
+        // this field into/out of the current multi-select instead of
+        // replacing it - real SDA's own block-select is a two-corner line
+        // command on the Design Image screen ('- -'/'= ='), which has no
+        // direct mouse-driven equivalent, so shift/ctrl-click plus the
+        // rubber-band drag-select below (see the screenOutput mousedown
+        // handler) are the mouse-native ways of building the same kind of
+        // multi-field block iSDA didn't have before this task.
+        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+          toggleMultiSelection(underlying.sourceLine);
+        } else {
+          setSingleSelection(underlying.sourceLine);
+        }
         selectedHelpSourceLine = null;
         showFileProps = false;
         render();
@@ -1461,6 +1577,11 @@ const htmlTemplate = `<!DOCTYPE html>
       el.addEventListener('mousedown', (e) => {
         if (isPulldownField) e.stopPropagation();
         if (!editable) return;
+        // A modifier mousedown is about TOGGLING selection (handled by the
+        // click listener above, which fires right after this on mouseup) -
+        // never about starting a drag, so bail out here without
+        // preventDefault so a plain click still lands normally.
+        if (e.shiftKey || e.ctrlKey || e.metaKey) return;
         e.preventDefault();
         if (isEditableSflPreviewRow && ownerRecord) {
           // Multi-row SFLPAG preview (either the SFLCTL-side preview, or the
@@ -1470,6 +1591,22 @@ const htmlTemplate = `<!DOCTYPE html>
           // record is batch-committed together - see commitGroupEdit.
           const siblingEls = Array.from(primaryScreenEl.querySelectorAll('[data-tag="' + tag.replace(/"/g, '\\\\"') + '"]'));
           startGroupDrag(siblingEls, ownerRecord.fields.filter((f) => f.name), ownerRecordName);
+        } else if (selectedKeys.length > 1 && selectedKeys.some((k) => k.sourceLine === underlying.sourceLine)) {
+          // Task L10: dragging a field that's already part of a multi-select
+          // (built via shift/ctrl-click or rubber-band drag-select above)
+          // moves the WHOLE block together by the same delta - real SDA's
+          // own block-move convention (see this task's LIMITATIONS-PLAN.md
+          // entry), reusing the exact same startGroupDrag/commitGroupEdit
+          // "move N fields by one delta, one batched source edit" machinery
+          // the SFLPAG preview-row branch above already established, just
+          // triggered from an arbitrary multi-select instead of a repeated
+          // row template. Scoped to fields owned by THIS SAME record - a
+          // block select never spans records (see selectedKeys' own doc
+          // comment) - so any stray cross-record entry is simply dropped.
+          const selectedFields = getSelectedFields().filter((sf) => sf.record.name === ownerRecordName);
+          const selectedEls = selectedFields.map((sf) => fieldElBySourceLine[sf.field.sourceLine]).filter(Boolean);
+          if (selectedEls.length > 1) startGroupDrag(selectedEls, selectedFields.map((sf) => sf.field), ownerRecordName);
+          else startDrag(el, underlying, ownerRecordName);
         } else {
           // Also the pulldown-field path: unlike a subfile row, a PULLDOWN
           // record's fields aren't a repeated template - it's an ordinary
@@ -1526,7 +1663,7 @@ const htmlTemplate = `<!DOCTYPE html>
       el.title = 'Click to edit the window title';
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        selectedKey = null;
+        clearSelection();
         selectedHelpSourceLine = null;
         showFileProps = false;
         render();
@@ -1569,12 +1706,15 @@ const htmlTemplate = `<!DOCTYPE html>
   // In-memory clipboard for Cut/Copy/Paste (Ctrl+X/C/V) - deliberately NOT
   // the OS clipboard (navigator.clipboard is unreliable/permission-gated
   // inside a VS Code webview, and there's no need for cross-window paste
-  // here anyway). Holds a plain-data snapshot of one field/constant - { field,
-  // recordName } - decoupled from the live model so it survives edits made
-  // to the original field after copying, and so DspfWriter.copyField (which
-  // only reads a field's own plain properties, not any live model reference -
-  // see its own doc comment) can insert it into ANY record, not just the one
-  // it was copied from. This is what makes Paste different from the existing
+  // here anyway). Holds a plain-data snapshot of one or more fields/
+  // constants - { fields: [...], recordName } (Task L10: always an ARRAY,
+  // even for a single field, so commitPaste/pasteFieldsBlock have exactly
+  // one path regardless of how many fields were copied/cut) - decoupled
+  // from the live model so it survives edits made to the original field(s)
+  // after copying, and so DspfWriter.copyField (which only reads a field's
+  // own plain properties, not any live model reference - see its own doc
+  // comment) can insert them into ANY record, not just the one they were
+  // copied from. This is what makes Paste different from the existing
   // Ctrl+D "duplicate in place": Ctrl+D always inserts into the SAME record
   // immediately; Copy+Paste can move a field's definition across records.
   let clipboardField = null;
@@ -1745,21 +1885,52 @@ const htmlTemplate = `<!DOCTYPE html>
     window.addEventListener('mouseup', onUp);
   }
 
+  // Task L10: stable cross-reparse field IDENTITY - name for a named field;
+  // nameType/location/constantValue for an unnamed constant, which has
+  // nothing else stable to key off of (a constant's own DDS name column is
+  // always blank). Used by any multi-field commit that needs to re-find the
+  // SAME logical field after re-parsing the document mid-batch (a keyword
+  // or position edit can change the source's line count, shifting every
+  // later field's sourceLine - see commitGroupEdit's own doc comment, the
+  // first caller this was factored out of). A field's own name/location/
+  // constantValue don't change until THAT field's own turn in a batch, so
+  // identity captured once at the start of a batch stays valid for finding
+  // any field not yet processed.
+  function identityOf(f) {
+    return {
+      name: f.name || null,
+      nameType: f.nameType,
+      constantValue: f.constantValue != null ? f.constantValue : null,
+      line: f.location.line != null ? f.location.line : 1,
+      column: f.location.column != null ? f.location.column : 1,
+    };
+  }
+  function findByIdentity(rec, id) {
+    if (id.name) return rec.fields.find((f) => f.name === id.name);
+    return rec.fields.find((f) => f.nameType === 'CONSTANT' && f.constantValue === id.constantValue &&
+      f.location.line === id.line && f.location.column === id.column);
+  }
+
   function commitGroupEdit(recordName, fields, deltaLine, deltaColumn) {
     try {
-      const previousSelected = selectedKey ? findFieldBySourceLine(selectedKey.sourceLine) : null;
-      const previousSelectedName = previousSelected && previousSelected.field.name;
+      // Pre-L10 this only ever tracked named fields (the SFLPAG-preview
+      // group-drag caller already filters to '.filter((f) => f.name)'), so
+      // the name-only path in identityOf/findByIdentity above is exactly
+      // the old behavior for that caller; the constant path only matters
+      // for Task L10's own arbitrary multi-select group-drag/Style, which
+      // can include constants.
+      const identities = fields.map(identityOf);
+      const wasSelected = fields.map((f) => selectedKeys.some((k) => k.sourceLine === f.sourceLine));
 
       let lines = sourceText.split(/\\r\\n|\\r|\\n/);
       let currentModel = model;
-      const fieldNames = fields.map((f) => f.name).filter(Boolean);
 
       // Each field is re-fetched from the freshly re-parsed model on every iteration,
       // since editing one field shifts source line numbers for everything after it -
       // a stale field reference from before this loop started would write to the wrong line.
-      fieldNames.forEach((fieldName) => {
+      identities.forEach((id) => {
         const rec = currentModel.records.find((r) => r.name === recordName);
-        const f = rec && rec.fields.find((x) => x.name === fieldName);
+        const f = rec && findByIdentity(rec, id);
         if (!f) return;
         const newLine = (f.location.line != null ? f.location.line : 1) + deltaLine;
         // Baseline column: exact if absolute, otherwise 1 - known limitation for
@@ -1773,11 +1944,77 @@ const htmlTemplate = `<!DOCTYPE html>
       sourceText = lines.join('\\n');
       model = currentModel;
 
-      if (previousSelectedName && fieldNames.indexOf(previousSelectedName) !== -1) {
-        const rec = model.records.find((r) => r.name === recordName);
-        const stillThere = rec && rec.fields.find((f) => f.name === previousSelectedName);
-        selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
-      }
+      // Re-select whichever of the moved fields were selected before the
+      // move - by their EXPECTED post-move identity (original line/column
+      // + the same delta everything just moved by) - so a multi-select
+      // block move leaves the SAME set of fields selected afterward, not
+      // just the single previously-primary one. Same "the edit shouldn't
+      // silently drop the selection" guarantee the pre-L10 single-
+      // selectedKey path already had.
+      const rec = model.records.find((r) => r.name === recordName);
+      const newSelected = [];
+      identities.forEach((id, i) => {
+        if (!wasSelected[i] || !rec) return;
+        const expected = { name: id.name, constantValue: id.constantValue, line: id.line + deltaLine, column: id.column + deltaColumn };
+        const found = findByIdentity(rec, expected);
+        if (found) newSelected.push({ sourceLine: found.sourceLine });
+      });
+      selectedKeys = newSelected;
+      selectedKey = newSelected.length ? newSelected[newSelected.length - 1] : null;
+
+      activePulldown = null;
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
+  }
+
+  // Task L10: batch-applies a PER-FIELD keyword transform across every
+  // field in 'fields', in one source edit/one undo step - the keyword
+  // counterpart to commitGroupEdit's position delta above, built on the
+  // exact same identity-tracking reparse loop (see identityOf/
+  // findByIdentity's own doc comment) since a keyword rewrite can add or
+  // remove condition lines and shift every later field's sourceLine, same
+  // as a position edit can. 'computeNewKeywords(field)' receives each
+  // field freshly re-fetched from the live re-parsed model (its CURRENT
+  // keywords, not a stale pre-batch snapshot) and returns that field's own
+  // new keyword array - this is what lets the Style panel below apply the
+  // SAME target color/attribute state to every selected field while still
+  // preserving each field's own OTHER keywords (VALUES, EDTCDE, REFFLD,
+  // etc.), rather than overwriting one field's keyword list onto another's.
+  // Re-selects whichever of 'fields' were selected beforehand, same as
+  // commitGroupEdit.
+  function commitMultiFieldKeywordEdit(recordName, fields, computeNewKeywords) {
+    try {
+      const identities = fields.map(identityOf);
+      const wasSelected = fields.map((f) => selectedKeys.some((k) => k.sourceLine === f.sourceLine));
+
+      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      let currentModel = model;
+
+      identities.forEach((id) => {
+        const rec = currentModel.records.find((r) => r.name === recordName);
+        const f = rec && findByIdentity(rec, id);
+        if (!f) return;
+        const newKeywords = computeNewKeywords(f);
+        lines = DspfWriter.applyFieldUpdate(f, lines, { keywords: newKeywords });
+        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      });
+
+      sourceText = lines.join('\\n');
+      model = currentModel;
+
+      const rec = model.records.find((r) => r.name === recordName);
+      const newSelected = [];
+      identities.forEach((id, i) => {
+        if (!wasSelected[i] || !rec) return;
+        const found = findByIdentity(rec, id);
+        if (found) newSelected.push({ sourceLine: found.sourceLine });
+      });
+      selectedKeys = newSelected;
+      selectedKey = newSelected.length ? newSelected[newSelected.length - 1] : null;
 
       activePulldown = null;
       suppressNextExternalUpdate = true;
@@ -1796,10 +2033,65 @@ const htmlTemplate = `<!DOCTYPE html>
     return null;
   }
 
+  // Task L10 selection helpers - see selectedKeys' own doc comment above for why
+  // every selection site goes through these instead of assigning selectedKey
+  // directly. Deliberately record-agnostic here (a block select never crosses
+  // records on screen, since only one record is ever shown at a time - see
+  // recordSelect's own change handler clearing the selection).
+  function clearSelection() {
+    selectedKey = null;
+    selectedKeys = [];
+  }
+  function setSingleSelection(sourceLine) {
+    selectedKey = sourceLine != null ? { sourceLine } : null;
+    selectedKeys = sourceLine != null ? [{ sourceLine }] : [];
+  }
+  function toggleMultiSelection(sourceLine) {
+    const idx = selectedKeys.findIndex((k) => k.sourceLine === sourceLine);
+    if (idx === -1) selectedKeys = selectedKeys.concat([{ sourceLine }]);
+    else selectedKeys = selectedKeys.filter((k) => k.sourceLine !== sourceLine);
+    // Primary stays the most-recently-toggled-ON field; if the toggle just
+    // removed the primary, fall back to whatever's left (or null if empty) -
+    // same "last one standing" rule a rubber-band selection's own anchor uses.
+    selectedKey = selectedKeys.length ? selectedKeys[selectedKeys.length - 1] : null;
+  }
+  // Adds every field under 'sourceLines' to the selection (used by rubber-band
+  // drag-select) without disturbing fields already selected from a prior
+  // shift/ctrl-click or an earlier drag pass over a different area.
+  function addToMultiSelection(sourceLines) {
+    sourceLines.forEach((sl) => {
+      if (!selectedKeys.some((k) => k.sourceLine === sl)) selectedKeys = selectedKeys.concat([{ sourceLine: sl }]);
+    });
+    if (selectedKeys.length) selectedKey = selectedKeys[selectedKeys.length - 1];
+  }
+  // Resolves selectedKeys against the CURRENT model, same staleness guard
+  // findFieldBySourceLine's own callers already need after any edit - dropping
+  // (not erroring on) any sourceLine that no longer resolves, since a group
+  // delete/move can legitimately shrink the live selection out from under a
+  // still-open multi-select. Every returned entry belongs to the SAME record
+  // (a block select never spans records - see this function's own callers).
+  function getSelectedFields() {
+    const seen = {};
+    const out = [];
+    selectedKeys.forEach((k) => {
+      if (seen[k.sourceLine]) return;
+      seen[k.sourceLine] = true;
+      const found = findFieldBySourceLine(k.sourceLine);
+      if (found) out.push(found);
+    });
+    return out;
+  }
+
   function renderProps(recordName) {
     renderBreadcrumb(recordName);
     if (pendingPlacement) { renderPlacementProps(recordName); return; }
     if (showFileProps) { renderFileProps(); return; }
+    // Task L10: more than one field selected (shift/ctrl-click or
+    // rubber-band drag-select on the canvas) shows a compact multi-field
+    // panel instead of the single-field one - see renderMultiFieldProps' own
+    // doc comment for why it only covers Style (Color & attributes) plus
+    // delete/cut/copy/duplicate, not every single-field property.
+    if (selectedKeys.length > 1) { renderMultiFieldProps(recordName); return; }
     if (selectedKey) { renderFieldProps(recordName); return; }
     if (selectedHelpSourceLine != null) { renderHelpProps(recordName); return; }
     renderRecordProps(recordName);
@@ -1820,7 +2112,9 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<span class="crumb-sep">&rsaquo;</span>';
       html += '<span class="crumb' + (atRecord ? ' current' : '') + '" id="crumb-record">Record: ' + DspfEngine.escapeHtml(rec.name) + '</span>';
     }
-    if (selectedKey) {
+    if (selectedKeys.length > 1) {
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' + selectedKeys.length + ' fields selected</span>';
+    } else if (selectedKey) {
       const found = findFieldBySourceLine(selectedKey.sourceLine);
       const field = found && found.field;
       const rawLabel = field ? (field.nameType === 'CONSTANT' ? (field.constantValue || '(constant)') : (field.name || '(field)')) : '';
@@ -1838,7 +2132,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (fileCrumb) fileCrumb.addEventListener('click', () => {
       if (showFileProps) return;
       showFileProps = true;
-      selectedKey = null;
+      clearSelection();
       selectedHelpSourceLine = null;
       pendingPlacement = null;
       render();
@@ -1847,7 +2141,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (recordCrumb) recordCrumb.addEventListener('click', () => {
       if (atRecord) return;
       showFileProps = false;
-      selectedKey = null;
+      clearSelection();
       selectedHelpSourceLine = null;
       pendingPlacement = null;
       render();
@@ -1979,7 +2273,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const found = findFieldBySourceLine(selectedKey.sourceLine);
     const field = found && found.field;
     const ownerRecordName = found && found.record.name;
-    if (!field) { selectedKey = null; renderRecordProps(recordName); return; }
+    if (!field) { clearSelection(); renderRecordProps(recordName); return; }
 
     const editable = DspfWriter.isEditable(field);
     const isConstant = field.nameType === 'CONSTANT';
@@ -2341,7 +2635,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // instead) - clicking one selects it into the normal field props panel.
       el.addEventListener('click', (e) => {
         if (e.target && e.target.classList.contains('hidden-field-delete')) return;
-        selectedKey = { sourceLine: parseInt(el.getAttribute('data-source-line'), 10) };
+        setSingleSelection(parseInt(el.getAttribute('data-source-line'), 10));
         render();
       });
     });
@@ -2383,7 +2677,7 @@ const htmlTemplate = `<!DOCTYPE html>
         () => {
           const freshRec = model.records.find((r) => r.name === recordName);
           const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
-          selectedKey = newField ? { sourceLine: newField.sourceLine } : null;
+          setSingleSelection(newField ? newField.sourceLine : null);
         }
       );
     });
@@ -2499,10 +2793,63 @@ const htmlTemplate = `<!DOCTYPE html>
           const freshRec = model.records.find((r) => r.name === recordName);
           const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
           pendingPlacement = null;
-          selectedKey = newField ? { sourceLine: newField.sourceLine } : null;
+          setSingleSelection(newField ? newField.sourceLine : null);
         }
       );
     });
+  }
+
+  // Task L10: multi-field props panel, shown instead of renderFieldProps
+  // whenever more than one field is selected (see renderProps' own branch
+  // above). Deliberately narrower than the single-field panel - Name/
+  // Length/Type/Position/Validity etc. only make sense for exactly ONE
+  // field at a time (there's no single "position" for a block of fields at
+  // different coordinates, and forcing every selected field to the same
+  // name/length would be destructive) - real SDA's own block operations
+  // (see this task's own LIMITATIONS-PLAN.md entry, the '- -'/'= =' line
+  // commands) are move/copy/delete for exactly this reason: a block is
+  // moved, duplicated, deleted, or restyled as a unit, but its individual
+  // fields keep their own individual identities. So this panel covers
+  // exactly that: a live count of the selection, Style (Color &
+  // attributes) applied identically to every selected field via
+  // commitMultiFieldKeywordEdit, and the same duplicate/cut/copy/delete
+  // affordances the single-field panel's own footer already documents,
+  // routed to their *Selection multi-field counterparts instead.
+  function renderMultiFieldProps(recordName) {
+    const selected = getSelectedFields().filter((s) => s.record.name === recordName);
+    if (selected.length <= 1) { renderProps(recordName); return; }
+    const fields = selected.map((s) => s.field);
+    const editable = fields.every((f) => DspfWriter.isEditable(f));
+    const primary = fields[0];
+
+    let html = '<div class="status" style="margin-bottom:12px;">' + fields.length + ' fields selected. Shift/Ctrl-click ' +
+      'or drag a rectangle on the canvas to change the selection; drag any selected field to move the whole block ' +
+      'together.</div>';
+    html += WebviewClientHelpers.colorAttrStatesHtml(primary.keywords, 'multiselect-colorattr', expandedKeywordConditioning);
+    html += '<button id="p-multi-copy" class="secondary" style="width:100%;margin-top:16px;">Duplicate selection</button>';
+    html += '<div class="delete-hint">Press Delete or Backspace to remove all ' + fields.length + ' selected fields. ' +
+      'Ctrl+D duplicates the whole block in place; Ctrl+X/C/V cut/copy/paste it as one block (Ctrl+V pastes into ' +
+      'whichever record is currently shown, even a different one). Arrow keys nudge the whole block together ' +
+      '(Shift = 5 cells). Color &amp; attributes below applies to every selected field at once, replacing each ' +
+      'field\u2019s own color/attribute state while leaving its other keywords untouched.</div>';
+    propsBody.innerHTML = html;
+    if (!editable) return;
+
+    document.getElementById('p-multi-copy').addEventListener('click', () => commitCopySelection(recordName));
+    // The Style editor is built once, against the PRIMARY field's own
+    // current color/attribute states (purely for what's shown pre-checked)
+    // - on change, DspfWriter.getColorAttrStates recovers just the target
+    // STATES from the primary field's own newly-merged keyword array
+    // (rather than that merged array itself, which is specific to the
+    // primary field's other keywords), so commitMultiFieldKeywordEdit can
+    // re-apply that same target state to every OTHER selected field's own
+    // keywords via DspfWriter.setColorAttrStates, preserving each one's
+    // unrelated keywords (VALUES, EDTCDE, REFFLD, etc.) exactly as
+    // wireColorAttrStatesEditor's own single-field doc comment describes.
+    WebviewClientHelpers.wireColorAttrStatesEditor(primary.keywords, (newKeywordsForPrimary) => {
+      const targetStates = DspfWriter.getColorAttrStates(newKeywordsForPrimary);
+      commitMultiFieldKeywordEdit(recordName, fields, (f) => DspfWriter.setColorAttrStates(f.keywords, targetStates));
+    }, 'multiselect-colorattr', expandedKeywordConditioning, () => renderMultiFieldProps(recordName));
   }
 
   function renderRecordProps(recordName) {
@@ -2885,8 +3232,45 @@ const htmlTemplate = `<!DOCTYPE html>
   function performFieldDelete(field) {
     commitSourceChange(
       (lines) => DspfWriter.deleteField(field, lines),
-      () => { selectedKey = null; }
+      () => { clearSelection(); }
     );
+  }
+
+  // Task L10: multi-field delete - same reference-check-then-confirm flow
+  // commitDelete uses for one field, just checked/reported across every
+  // selected field at once (one combined dialog naming every affected
+  // field, rather than one dialog per field) and committed via
+  // DspfWriter.deleteFields (already existed before this task - see its own
+  // doc comment for why a delete, unlike copy/paste, can safely compute
+  // every field's line range up front and remove them bottom-to-top in one
+  // pass, with no reparse loop needed).
+  function commitDeleteSelection() {
+    const selected = getSelectedFields();
+    if (selected.length === 0) return;
+    if (selected.length === 1) { commitDelete(selected[0].field); return; }
+    const fields = selected.map((s) => s.field);
+    const refPairs = fields
+      .filter((f) => f.name)
+      .map((f) => ({ name: f.name, lines: WebviewClientHelpers.findLikelyNameReferences(sourceText, f.name, DspfWriter.getFieldLineRange(f)) }))
+      .filter((r) => r.lines.length > 0);
+    const doDelete = () => {
+      commitSourceChange(
+        (lines) => DspfWriter.deleteFields(fields, lines),
+        () => { clearSelection(); }
+      );
+    };
+    if (refPairs.length > 0) {
+      const detail = refPairs.map((r) => '"' + r.name + '" (line(s) ' + r.lines.join(', ') + ')').join('; ');
+      showConfirmDialog(
+        'Delete ' + fields.length + ' selected fields?',
+        'Some of these look like they might still be referenced elsewhere in this source (e.g. REFFLD) - deleting never ' +
+          'rewrites other keywords that reference a field, so those references will be left dangling: ' + detail + '. Delete anyway?',
+        'Delete anyway',
+        doDelete
+      );
+      return;
+    }
+    doDelete();
   }
 
   // Duplicates the selected field/constant via DspfWriter.copyField (default
@@ -2904,9 +3288,81 @@ const htmlTemplate = `<!DOCTYPE html>
       () => {
         const freshRec = model.records.find((r) => r.name === recordName);
         const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
-        selectedKey = newField ? { sourceLine: newField.sourceLine } : null;
+        setSingleSelection(newField ? newField.sourceLine : null);
       }
     );
+  }
+
+  // Task L10: inserts a SNAPSHOT of one or more fields/constants into
+  // 'recordName', each shifted by the SAME uniform delta (default: one row
+  // below its own original line, same column) - a uniform delta is what
+  // keeps a pasted/duplicated BLOCK looking like the block it was copied
+  // from (every field's position relative to its neighbors is preserved),
+  // rather than every field independently landing "one row below itself"
+  // and piling up on the same spot. Generalizes copyField/commitCopy's own
+  // single-field "one row below, same column" default to N fields.
+  //
+  // Uses a per-field reparse loop, same as commitGroupEdit's own doc
+  // comment explains: insertField's placement rule ("append after the
+  // record's current last field") depends on the LIVE document state, so a
+  // batch of inserts genuinely needs to re-parse between each one - unlike
+  // deleteFields' up-front bottom-to-top pass, which works precisely
+  // because a delete's line ranges are already fully known before anything
+  // is removed. Appending always happens strictly AFTER every field
+  // inserted so far (insertField never inserts above existing content), so
+  // each newly-inserted field's own sourceLine stays valid against every
+  // later iteration's reparsed model, and is still valid once the whole
+  // loop (and this function) finishes - callers can trust the returned
+  // sourceLine list against 'model'/'sourceText' as they stand afterward.
+  //
+  // Returns the array of new fields' sourceLine (same order as
+  // 'fieldSnapshots', skipping any that failed to insert), so the caller
+  // can select them.
+  function pasteFieldsBlock(recordName, fieldSnapshots, deltaLine, deltaColumn) {
+    deltaLine = deltaLine != null ? deltaLine : 1;
+    deltaColumn = deltaColumn != null ? deltaColumn : 0;
+    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+    let currentModel = model;
+    const insertedSourceLines = [];
+    fieldSnapshots.forEach((f) => {
+      const rec = currentModel.records.find((r) => r.name === recordName);
+      if (!rec) return;
+      const options = {};
+      if (f.location && f.location.line != null && f.location.column != null) {
+        options.location = { line: f.location.line + deltaLine, column: f.location.column + deltaColumn };
+      }
+      lines = DspfWriter.copyField(rec, lines, f, options);
+      currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      const freshRec = currentModel.records.find((r) => r.name === recordName);
+      const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
+      if (newField) insertedSourceLines.push(newField.sourceLine);
+    });
+    sourceText = lines.join('\\n');
+    model = currentModel;
+    return insertedSourceLines;
+  }
+
+  // Task L10: Ctrl+D over a multi-select - duplicates every selected
+  // field/constant together, in the SAME record, as one block (see
+  // pasteFieldsBlock's own doc comment), then selects the whole new block -
+  // same "land somewhere sensible, then drag it into place" spirit
+  // commitCopy's own doc comment already sets for a single field.
+  function commitCopySelection(recordName) {
+    const selected = getSelectedFields().filter((s) => s.record.name === recordName);
+    if (selected.length === 0) return;
+    if (selected.length === 1) { commitCopy(recordName, selected[0].field); return; }
+    try {
+      const snapshots = selected.map((s) => JSON.parse(JSON.stringify(s.field)));
+      const inserted = pasteFieldsBlock(recordName, snapshots);
+      selectedKeys = inserted.map((sl) => ({ sourceLine: sl }));
+      selectedKey = selectedKeys.length ? selectedKeys[selectedKeys.length - 1] : null;
+      activePulldown = null;
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
   }
 
   // Arrow-key nudge: moves the selected field/constant by one grid cell per
@@ -2916,19 +3372,25 @@ const htmlTemplate = `<!DOCTYPE html>
   // commitEdit with an absolute { line, column } - so it's undo/redo-
   // equivalent to dragging that same distance. Clamped to a 1-based minimum,
   // same clamp startDrag's own onMove applies while the mouse is moving.
-  // Deliberately single-field only, matching startDrag's own single-field
-  // path - NOT startGroupDrag's whole-row move, which only applies to a
-  // multi-row SFLPAG preview's own repeated-template fields (see the
-  // isEditableSflPreviewRow branch in the mousedown handler above). Nudging
-  // one field of an SFLPAG preview row independently of its row-mates is a
-  // narrower, less common case than the everyday single-field move this is
-  // meant to speed up, so it's left as a follow-on rather than adding
-  // group-detection here now.
+  // Task L10: when more than one field is selected, nudges the WHOLE
+  // selection together by the same delta via commitGroupEdit (the exact
+  // same "move N fields by one delta, one batched source edit" machinery
+  // the multi-select group-drag mousedown handler above already uses) -
+  // single-selection nudging keeps its original single-field path
+  // unchanged, including its own relative-offset-column fallback (a
+  // multi-field nudge always has an absolute baseline per field already,
+  // via commitGroupEdit's own column fallback, so that fallback doesn't
+  // need to be threaded through here too).
   function nudgeSelected(deltaLine, deltaColumn) {
-    if (!selectedKey) return;
-    const found = findFieldBySourceLine(selectedKey.sourceLine);
-    if (!found) return;
-    const { record, field } = found;
+    const selected = getSelectedFields();
+    if (selected.length === 0) return;
+    if (selected.length > 1) {
+      const recordName = selected[0].record.name;
+      const sameRecord = selected.filter((s) => s.record.name === recordName);
+      commitGroupEdit(recordName, sameRecord.map((s) => s.field), deltaLine, deltaColumn);
+      return;
+    }
+    const { record, field } = selected[0];
     const selectedEl = document.querySelector('.selected[data-render-column]');
     const origSourceLine = field.location.line != null ? field.location.line : 1;
     // Same fallback commitEdit's own drag counterpart (startDrag) uses: an
@@ -2955,7 +3417,7 @@ const htmlTemplate = `<!DOCTYPE html>
       ? WebviewClientHelpers.findLikelyNameReferences(sourceText, field.name, DspfWriter.getFieldLineRange(field))
       : [];
     const doCut = () => {
-      clipboardField = { recordName, field: JSON.parse(JSON.stringify(field)) };
+      clipboardField = { recordName, fields: [JSON.parse(JSON.stringify(field))] };
       performFieldDelete(field);
     };
     if (references.length > 0) {
@@ -2972,43 +3434,102 @@ const htmlTemplate = `<!DOCTYPE html>
     doCut();
   }
 
+  // Task L10: multi-field cut - same "snapshot into the clipboard right
+  // before it actually gets deleted" ordering as single-field commitCut,
+  // built on the same combined-confirmation multi-delete
+  // commitDeleteSelection uses (see its own doc comment) so a multi-cut
+  // that finds likely references gets ONE dialog naming every affected
+  // field, not one per field.
+  function commitCutSelection() {
+    const selected = getSelectedFields();
+    if (selected.length === 0) return;
+    if (selected.length === 1) { commitCut(selected[0].record.name, selected[0].field); return; }
+    const recordName = selected[0].record.name;
+    const fields = selected.filter((s) => s.record.name === recordName).map((s) => s.field);
+    const refPairs = fields
+      .filter((f) => f.name)
+      .map((f) => ({ name: f.name, lines: WebviewClientHelpers.findLikelyNameReferences(sourceText, f.name, DspfWriter.getFieldLineRange(f)) }))
+      .filter((r) => r.lines.length > 0);
+    const doCut = () => {
+      clipboardField = { recordName, fields: fields.map((f) => JSON.parse(JSON.stringify(f))) };
+      commitSourceChange(
+        (lines) => DspfWriter.deleteFields(fields, lines),
+        () => { clearSelection(); }
+      );
+    };
+    if (refPairs.length > 0) {
+      const detail = refPairs.map((r) => '"' + r.name + '" (line(s) ' + r.lines.join(', ') + ')').join('; ');
+      showConfirmDialog(
+        'Delete ' + fields.length + ' selected fields?',
+        'Some of these look like they might still be referenced elsewhere in this source (e.g. REFFLD) - deleting never ' +
+          'rewrites other keywords that reference a field, so those references will be left dangling: ' + detail + '. Cut anyway?',
+        'Cut anyway',
+        doCut
+      );
+      return;
+    }
+    doCut();
+  }
+
   // Copy: snapshots the field into the in-memory clipboard without
   // touching the source - see clipboardField's own doc comment above for
   // why this is a plain-data snapshot rather than a live model reference.
+  // Task L10: clipboardField now always holds a 'fields' ARRAY (even for a
+  // single field) so commitPaste has one path to handle regardless of how
+  // many fields were copied/cut - see clipboardField's own updated doc
+  // comment above 'let clipboardField'.
   function commitClipboardCopy(recordName, field) {
-    clipboardField = { recordName, field: JSON.parse(JSON.stringify(field)) };
+    clipboardField = { recordName, fields: [JSON.parse(JSON.stringify(field))] };
+  }
+
+  // Task L10: multi-field copy (Ctrl+C) - snapshots every selected field
+  // (scoped to one record - a block select never spans records) into the
+  // clipboard together, so a subsequent Paste inserts the whole block at
+  // once via pasteFieldsBlock, not one field at a time.
+  function commitClipboardCopySelection() {
+    const selected = getSelectedFields();
+    if (selected.length === 0) return;
+    if (selected.length === 1) { commitClipboardCopy(selected[0].record.name, selected[0].field); return; }
+    const recordName = selected[0].record.name;
+    const fields = selected.filter((s) => s.record.name === recordName).map((s) => s.field);
+    clipboardField = { recordName, fields: fields.map((f) => JSON.parse(JSON.stringify(f))) };
   }
 
   // Paste: inserts the clipboard snapshot into whichever record is
   // CURRENTLY being viewed (recordSelect.value) - which may be a different
   // record than the one it was copied/cut from, unlike Ctrl+D's own
-  // always-same-record duplicate. Reuses DspfWriter.copyField exactly as
-  // commitCopy above does (its default placement - one row below, same
-  // column - covers the same-record paste case as cleanly as it covers
-  // duplicate; for a cross-record paste it's simply the pasted field's own
-  // original position, since there's no "one row below itself" to speak of
-  // in a different record). copyField's own nextAvailableFieldName call
-  // handles a name collision with the target record automatically - note
-  // it ALWAYS assigns a fresh suffixed name (see its own doc comment),
-  // never reusing the original exactly even if it's free again (e.g. after
-  // a Cut immediately followed by a Paste back into the same record) - same
-  // behavior every other copyField caller already has, so Paste doesn't
-  // special-case it.
+  // always-same-record duplicate. Reuses pasteFieldsBlock (Task L10 - see
+  // its own doc comment) for both a single-field and a multi-field
+  // clipboard, since a length-1 'fields' array degenerates to exactly the
+  // old single-field behavior (copyField's own default placement - one row
+  // below, same column - covers the same-record paste case as cleanly as
+  // it covers duplicate; for a cross-record paste it's simply the pasted
+  // field's own original position shifted down one row, since there's no
+  // "one row below itself" to speak of in a different record).
+  // copyField's own nextAvailableFieldName call handles a name collision
+  // with the target record automatically - note it ALWAYS assigns a fresh
+  // suffixed name (see its own doc comment), never reusing the original
+  // exactly even if it's free again (e.g. after a Cut immediately followed
+  // by a Paste back into the same record) - same behavior every other
+  // copyField caller already has, so Paste doesn't special-case it.
   function commitPaste() {
-    if (!clipboardField) return;
+    if (!clipboardField || !clipboardField.fields || clipboardField.fields.length === 0) return;
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     const rec = model.records.find((r) => r.name === recordName);
     if (!rec) return;
-    commitSourceChange(
-      (lines) => DspfWriter.copyField(rec, lines, clipboardField.field, {}),
-      () => {
-        const freshRec = model.records.find((r) => r.name === recordName);
-        const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
-        selectedKey = newField ? { sourceLine: newField.sourceLine } : null;
-        selectedHelpSourceLine = null;
-        showFileProps = false;
-      }
-    );
+    try {
+      const inserted = pasteFieldsBlock(recordName, clipboardField.fields);
+      selectedKeys = inserted.map((sl) => ({ sourceLine: sl }));
+      selectedKey = selectedKeys.length ? selectedKeys[selectedKeys.length - 1] : null;
+      selectedHelpSourceLine = null;
+      showFileProps = false;
+      activePulldown = null;
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
   }
 
   function commitEdit(recordName, field, updates) {
@@ -3102,7 +3623,7 @@ const htmlTemplate = `<!DOCTYPE html>
         return DspfWriter.copyRecord(model, lines, rec, { name: copiedName });
       },
       () => {
-        selectedKey = null;
+        clearSelection();
         selectedHelpSourceLine = null;
         showFileProps = false;
       }
@@ -3136,7 +3657,7 @@ const htmlTemplate = `<!DOCTYPE html>
     commitSourceChange(
       (lines) => DspfWriter.deleteRecord(rec, lines),
       () => {
-        selectedKey = null;
+        clearSelection();
         selectedHelpSourceLine = null;
         showFileProps = false;
         if (references.length > 0) {
@@ -3162,19 +3683,21 @@ const htmlTemplate = `<!DOCTYPE html>
     );
   }
 
-  // Delete/Backspace deletes the currently-selected field or constant;
-  // Ctrl+D (Cmd+D on macOS) duplicates it in place, one row below, in the
-  // SAME record (see commitCopy's own doc comment) - same guards as delete
-  // (not while typing in a props-panel input, not mid-drag). Ctrl+X/C/V
-  // are a SEPARATE cut/copy/paste pair built on top of the in-memory
-  // clipboardField (see its own doc comment above) - unlike Ctrl+D,
-  // Ctrl+V's paste target is whichever record is CURRENTLY being viewed,
-  // which may differ from where the field was cut/copied from. Arrow keys
-  // nudge the selection by one grid cell (Shift = 5) - see nudgeSelected's
-  // own doc comment for why this is deliberately single-field-only. None
-  // of Ctrl+D/X/C/V are the OS/browser's own reserved shortcuts in any way
-  // that matters inside a webview with no text selection or bookmark bar
-  // for them to collide with.
+  // Delete/Backspace deletes the currently-selected field/constant, or (Task
+  // L10) every field in the current multi-select at once via
+  // commitDeleteSelection; Ctrl+D (Cmd+D on macOS) duplicates the selection
+  // in place, one row below, in the SAME record (see commitCopy/
+  // commitCopySelection's own doc comments) - same guards as delete (not
+  // while typing in a props-panel input, not mid-drag). Ctrl+X/C/V are a
+  // SEPARATE cut/copy/paste pair built on top of the in-memory
+  // clipboardField (see its own doc comment above) - unlike Ctrl+D, Ctrl+V's
+  // paste target is whichever record is CURRENTLY being viewed, which may
+  // differ from where the field(s) were cut/copied from. Arrow keys nudge
+  // the selection by one grid cell (Shift = 5) - see nudgeSelected's own
+  // doc comment for how a multi-select nudges as one block via
+  // commitGroupEdit. None of Ctrl+D/X/C/V are the OS/browser's own reserved
+  // shortcuts in any way that matters inside a webview with no text
+  // selection or bookmark bar for them to collide with.
   document.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey;
     const isDuplicateShortcut = mod && e.key.toLowerCase() === 'd';
@@ -3195,9 +3718,8 @@ const htmlTemplate = `<!DOCTYPE html>
       commitPaste();
       return;
     }
-    if (!selectedKey) return;
-    const found = findFieldBySourceLine(selectedKey.sourceLine);
-    if (!found) return;
+    const selected = getSelectedFields();
+    if (selected.length === 0) return;
     if (isArrowKey) {
       e.preventDefault();
       const step = e.shiftKey ? 5 : 1;
@@ -3208,10 +3730,10 @@ const htmlTemplate = `<!DOCTYPE html>
       return;
     }
     e.preventDefault();
-    if (isDuplicateShortcut) commitCopy(found.record.name, found.field);
-    else if (isCutShortcut) commitCut(found.record.name, found.field);
-    else if (isCopyShortcut) commitClipboardCopy(found.record.name, found.field);
-    else commitDelete(found.field);
+    if (isDuplicateShortcut) commitCopySelection(selected[0].record.name);
+    else if (isCutShortcut) commitCutSelection();
+    else if (isCopyShortcut) commitClipboardCopySelection();
+    else commitDeleteSelection();
   });
 
   window.addEventListener('message', (event) => {
@@ -3220,12 +3742,12 @@ const htmlTemplate = `<!DOCTYPE html>
       if (suppressNextExternalUpdate) { suppressNextExternalUpdate = false; return; }
       sourceText = msg.text;
       model = DspfParser.parseDspf(sourceText);
-      selectedKey = null;
+      clearSelection();
       render();
     }
   });
 
-  recordSelect.addEventListener('change', () => { selectedKey = null; selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; render(); });
+  recordSelect.addEventListener('change', () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; render(); });
 
   render();
   vscode.postMessage({ type: 'ready' });

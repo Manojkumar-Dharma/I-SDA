@@ -188,21 +188,16 @@ how.
 
 ### DSPF (screen) designer
 
-- **[Task L10]** Multi-field select + block move/copy/delete/style - real
-  SDA parity (the Design Image screen's own `- -`/`= =` block-move
-  convention), not a new invention. iSDA only ever selects one field at a
-  time today.
-- **[Task L14]** Bulk "Add fields from database file" (lowest priority of
-  L10/L14) - real SDA's F10 (Database) key lets you browse a
-  PF/LF and place multiple REFFLD-based fields at once; iSDA's existing
-  "Resolve Referenced Field" only resolves one already-created field at a
-  time.
+- **[Task L14]** Bulk "Add fields from database file" - real SDA's F10
+  (Database) key lets you browse a PF/LF and place multiple REFFLD-based
+  fields at once; iSDA's existing "Resolve Referenced Field" only resolves
+  one already-created field at a time.
 
 See `LIMITATIONS-PLAN.md` for the full task descriptions (L1 through L9,
-including L5d-ii, are done, and so are L11 (ruler overlay), L12 (it
-turned out the "Center on screen" button already existed before that
-task was even proposed), and L13 (Comments panel) - only L10/L14 are
-open).
+including L5d-ii, are done, and so are L10 (multi-field select + block
+move/copy/delete/style), L11 (ruler overlay), L12 (it turned out the
+"Center on screen" button already existed before that task was even
+proposed), and L13 (Comments panel) - only L14 is open).
 
 ### Menu designer
 

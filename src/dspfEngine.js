@@ -1408,6 +1408,16 @@
       title +
       '" data-field="' +
       escapeHtml(f.name || '') +
+      // Task L10: the underlying field/constant's own sourceLine (same value
+      // findFieldBySourceLine/selectedKeys already key everything off of) -
+      // lets generic canvas code (rubber-band drag-select) identify which
+      // field an element represents without re-deriving it from
+      // data-line/-column/-field, which stays the anchor-position lookup
+      // used for click/drag write-back (see buildWebviewTemplate.js's
+      // own comment on why anchor coords differ from sourceLine for a
+      // repeated subfile row/windowed field).
+      '" data-source-line="' +
+      (f.sourceLine != null ? f.sourceLine : '') +
       '" data-line="' +
       f.anchorLine +
       '" data-column="' +

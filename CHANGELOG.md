@@ -3,6 +3,48 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.93] - 2026-08-29
+
+### Added
+- **Task L10: multi-field select + block move/copy/delete/style, matching
+  real SDA's own "Design Image" block convention** (the `- -`/`= =` line
+  commands that move/copy every field inside a rectangle together in one
+  action). The DSPF designer's canvas now supports:
+  - **Shift-click or Ctrl/Cmd-click** a field to add/remove it from a
+    multi-select, and **rubber-band drag-select** (mousedown-and-drag on
+    empty canvas) to select every field whose bounds fall inside the
+    dragged rectangle - both combinable (hold Shift/Ctrl while
+    rubber-banding to add to an existing selection).
+  - **Group-drag**: dragging any field that's part of the current
+    multi-select now moves the whole block together, by the same delta -
+    reuses the same "move N fields together" machinery originally built for
+    SFLPAG multi-row preview dragging, generalized to an arbitrary
+    multi-select (including unnamed constants, which that machinery
+    previously silently dropped).
+  - **Arrow-key nudge, Delete/Backspace, and Ctrl+X/C/V (cut/copy/paste)**
+    now all operate over the whole selection when more than one field is
+    selected, committing as a single batched source edit (one undo step)
+    instead of one edit per field. A multi-delete/multi-cut that finds
+    likely references elsewhere in the source shows one combined
+    confirmation naming every affected field, instead of one dialog per
+    field.
+  - **Ctrl+D (duplicate)** and **Paste** now insert a whole copied/cut block
+    at once, preserving each field's position *relative to the others* in
+    the block (not every field independently landing on the same "one row
+    below itself" spot).
+  - A new compact **multi-field properties panel** replaces the single-field
+    one whenever more than one field is selected: a live selection count,
+    **Style (Color & attributes)** applied identically to every selected
+    field at once (preserving each field's own other keywords - VALUES,
+    EDTCDE, REFFLD, etc.), and Duplicate/Cut/Copy/Delete affordances for the
+    whole block. Single-field properties (name, length, position, type...)
+    still require narrowing the selection to one field, matching real SDA's
+    own block-operations-are-move/copy/delete/style-only scope.
+  - New `src/test/multiSelect.test.js` runs the actual generated webview
+    script in jsdom to cover shift-click toggle, rubber-band select,
+    multi-nudge, multi-duplicate, multi-delete, cut/paste-as-a-block, and
+    multi-field Style apply.
+
 ## [0.9.91] - 2026-08-29
 
 ### Added
@@ -91,7 +133,6 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`gridMetrics()`) is untouched since it queries `.dspf-screen` directly
   regardless of the new wrapper nesting. See the new `runRulerScenario()`
   in `src/test/dspfWebview.test.js`.
-
 ## [0.9.89] - 2026-08-29
 
 ### Changed
