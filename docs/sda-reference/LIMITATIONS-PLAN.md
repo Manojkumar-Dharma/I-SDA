@@ -84,97 +84,21 @@ was in — see M6's own row for where it actually came from.)
 
 ---
 
-## Suggested parallelization
+## Status
 
-- L1 (the foundation component), L1a, L1b, L1c, L1d, L2, L3, and L4
-  are all done. L5 itself (the umbrella row) is now fully closed — all
-  four of its independently-workable pieces (**L5a** Input keywords,
-  **L5b** General keywords, **L5c** Database reference, **L5d** the
-  record-level pickers) are done, plus **L6** (research + implement
-  the `WINDOW` picker's "Message line" row). L5a/b/c turned out NOT to
-  need L1's multi-instance component at all (their own real SDA
-  screens show a single Resp-indicator slot per keyword, not a
-  repeatable list); they needed the simpler per-keyword Conditioning
-  toggle (`flagRowHtml`/`wireFlagRow`) instead, the same fix the
-  parallel "Surface the per-keyword Conditioning toggle" effort had
-  just landed everywhere else. L6 confirmed a real keyword (`WINDOW`'s
-  own trailing `*MSGLIN`/`*NOMSGLIN` parameter) and wired it into the
-  picker. **L5d split into L5d-i/L5d-ii, both now done.** L5d-i
-  confirmed the OPPOSITE finding from L5a/b/c: the real "Define
-  Indicator Keywords" screen genuinely IS a repeatable row table
-  (`CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/
-  `SETOF`/`CHANGE`/`INDTXT`, add as many rows as needed, even multiple
-  rows of the same keyword under different indicators), so L1's
-  component WAS the right fit there — wired into both the base Record
-  Keywords panel's own Indicator tab and the SFLCTL picker's own
-  Indicator tab (which shares the same fuller real screen; SFL/SFLMSG/
-  PDNSFLCTL's own narrower `INDTXT`/`SETOF`/`CHANGE`-only screen, Task
-  R3's existing component, is untouched). **L5d-ii surveyed the
-  remaining 6 categories and found a genuine correctness bug, not just
-  a modeling-style question**: Application Help's `HLPPNLGRP`/
-  `HLPEXCLD`/`HLPBDY`/`HLPARA` turned out to be Help-SPECIFICATION-
-  level keywords (DDS's own separate "H" line-type - a record can
-  carry SEVERAL, each with its own full group, matching real SDA's
-  "Help number: N of M" cycling header), not record-level ones - the
-  old record-level "App help" tab was reading/writing the WRONG
-  keywords array entirely and was removed; the dedicated fields now
-  live on each HELP entry's own properties instead, pointed at that
-  entry's own keywords (this codebase's parser/writer already modeled
-  `record.helpEntries[]` correctly - only the picker was wired wrong).
-  Help/Output/Input/Overlay/Print were all confirmed fine as-is
-  (single Resp-indicator slot, matching the existing `flagRowHtml`
-  treatment). **L7** (a `WINDOW`/`RSTCSR` modeling bug L6's own
-  research surfaced) is also now done — confirmed
-  `WINDOW`'s own trailing `*RSTCSR`/`*NORSTCSR` token (default
-  `*RSTCSR`) and folded it into Task L6's own `getWindowParamsKeyword`/
-  `setWindowParamsKeyword`, replacing the old bogus standalone `RSTCSR`
-  keyword model and self-healing any file that old model already wrote.
-  L5d-ii is now done too - see its own row above. **L8**
-  (a `Compile Display File`/`CRTDSPF` command, spotted from a user
-  question rather than README's own lists) is also now done — ported
-  the existing `compileMenu()` pattern to a plain DSPF member. **L9**
-  (typed-record starter templates in "Create New Display File",
-  extending Task L4's own remote-path work) is also now done — reused
-  the "+ Add record" wizard's own `RECORD_TYPES`/`buildTypedRecordPlan`
-  decision table at file-creation time instead of always starting from
-  a fixed plain-`RECORD` boilerplate. **Every currently-tracked L task
-  is now done.** **M4**
-  (companion commands file concurrency-safety) is also now done — see
-  its own row above; the webview now sends structured
-  `{numberValue, command}` edits instead of full text, and the
-  extension host always re-reads the current base immediately before
-  applying, closing the actual race. **M5 was investigated and
-  reclassified as not applicable** (see its own row above, struck
-  through) — real SDA's "Menu design" mode only ever produces
-  `TYPE(*DSPF)` menus, since that's the only type backed by an actual
-  DDS-designed screen; `TYPE(*PGM)`/`TYPE(*UIM)` are out of scope for
-  a DDS-based visual designer, not merely deprioritized. **M1 is now
-  done too** — see its own row above; the Options panel gained a
-  "Style" accordion (Color & attributes, reusing Tasks D1/D4's own
-  component, plus the generic raw keyword editor underneath), synced
-  across the split-constant form's number+label fields the same way
-  Conditioning already is. **M2 is now done too** — see its own row
-  above; ported L4's `ensureSourcePhysicalFileExists()` CHKOBJ/CRTSRCPF
-  fallback into `createRemoteMenuMembers()`, one pass covering both the
-  MNUDDS and MNUCMD companion member. **M3 is now done too** — see its
-  own row above; a numbered menu option has no DDS-identifier name to
-  scan for the way `findLikelyNameReferences` expects, so the ported
-  pattern scans for a genuinely real domain-specific risk instead —
-  another record format in the same file (a `*DS3`/`*DS4` size twin)
-  independently defining the same option number — blocking on a ported
-  `showConfirmDialog` before deleting. **M6 is now done too** — see its
-  own row above; ported the DSPF designer's own `.panel-toggle-btn`/
-  `.panel-collapsed` hide-panel pattern into the Menu designer, closing
-  a "Common" source-doc issue that was never captured as a tracked task
-  in the first place. **Every M task is now done.** If a keyword turns
-  out to be shared
-  between two DSPF-designer panels the way `CHECK` was, see L1d's own
-  row above for the pattern that keeps both panels safe (one shared
-  getter/setter pair, parameterized by which code/field subset each
-  panel owns).
-- Same collision risk as the picker screens effort: sync (`git fetch` +
-  drift check) before every push, and update this doc's Status column
-  the moment you pick up or finish a task.
+Every currently-tracked task above is closed — L1 through L9 (including
+the L5a-d and L5d-i/L5d-ii splits) and M1 through M6 are all `done`,
+except M5, which was investigated and reclassified as `not applicable`
+(see its own row). There's no pending work to parallelize right now;
+each row's own Status cell already carries the full explanation for how
+and why it closed, and `CHANGELOG.md`/git history has the exact commits.
+
+If a new limitation surfaces, add it as a new task here (continuing the
+`L`/`M` numbering) rather than folding it into an existing row, and
+follow the same process this effort used throughout: `git fetch` +
+`git log --oneline main..FETCH_HEAD` to check for drift before every
+push, and update the Status column the moment you pick up or finish a
+task.
 
 ## Out of scope here
 
