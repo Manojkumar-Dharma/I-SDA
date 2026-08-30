@@ -180,6 +180,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .add-option-btn:disabled { opacity: 0.5; cursor: default; }
   .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
   .compile-btn { width: 100%; background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .save-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; font-weight: 600; }
   .compile-btn:hover { background: #1b2c22; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
@@ -307,6 +308,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
+  <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="section-label">Record</div>
   <select id="recordSelect"></select>
   <div class="rename-row">
@@ -1529,6 +1531,16 @@ const htmlTemplate = `<!DOCTYPE html>
   const compileBtn = document.getElementById('compileBtn');
   compileBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'compileMenu' });
+  });
+
+  // "Save" - same reasoning as the DSPF designer's own Save button
+  // (buildWebviewTemplate.js): every edit already lands in the document's
+  // live buffer via applyEdit, marking it dirty, but nothing writes it to
+  // disk until VS Code's own Ctrl+S/Auto Save fires - not obvious from
+  // inside a webview panel. handleSaveDocument in extension.ts does the
+  // actual document.save() host-side.
+  document.getElementById('saveDocBtn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'saveDocument' });
   });
 
   if (cmdStatusEl) {

@@ -3,6 +3,53 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.99] - 2026-08-30
+
+### Added
+- **A "Save" button in both designers' left panel, at the very top.**
+  Every edit already lands in the document's live buffer via an
+  `applyEdit` `WorkspaceEdit`, marking it dirty the same way typing
+  would - but nothing was actually writing that buffer to disk except
+  as a side effect of the "Compile" button (which needs the on-disk
+  copy, since a compile command reads the saved member, not the
+  editor's live buffer). A webview panel doesn't show VS Code's own
+  dirty-tab dot, so relying purely on Ctrl+S/Cmd+S or Auto Save wasn't
+  obvious. New shared `handleSaveDocument()` in `extension.ts` (saves
+  only if `document.isDirty`, same guard shape the existing
+  save-before-compile steps already use) wired into both the DSPF and
+  Menu designer's own message dispatch under a new `saveDocument`
+  message type. New tests in `extension.test.js`, `menu.test.js`,
+  `dspfWebview.test.js`, and `menuWebview.test.js`. Full suite: 2000
+  checks, 0 failures.
+
+## [0.9.98] - 2026-08-30
+
+### Fixed
+- **Task L14 follow-up: "Add fields from database file" mis-ordered
+  (and silently mixed together) fields from a multi-format file.**
+  Found during a repo-wide gap analysis, not a user report. The
+  original query ordered purely by `WHFLDO` (DSPFFD's field-order
+  column), but `WHFLDO` is only meaningful WITHIN one record format -
+  a logical file with more than one format has its own separate
+  1-based `WHFLDO` sequence PER format, so sorting file-wide by
+  `WHFLDO` alone interleaved fields from different formats in an
+  arbitrary order, with no indication in the picker which format each
+  field actually belonged to. Physical files (the common case - most
+  `REFFLD` targets are physical files, which structurally can only
+  ever have one format) were never affected.
+  `fetchDatabaseFileFields()` now takes an optional `recordFormat`.
+  When omitted and the file has more than one distinct `WHNAME`
+  (DSPFFD's own record-format-name column - confirmed against a
+  published DSPFFD-outfile reader program's own field list), it
+  returns `{ formats: [...] }` instead of guessing which one - the
+  webview's "+ Fields from database file" picker renders that as a
+  new clickable format-picker step before the field checklist, then
+  re-requests scoped to the picked format (`WHERE WHNAME = ...`,
+  correctly `ORDER BY WHFLDO` within just that one format). New
+  scenarios in `extension.test.js` (the multi-format response and the
+  scoped re-request) and `dspfWebview.test.js` (the format-picker UI
+  step). Full suite: 1993 checks, 0 failures.
+
 ## [0.9.96] - 2026-08-29
 
 ### Added

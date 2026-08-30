@@ -306,6 +306,7 @@ const htmlTemplate = `<!DOCTYPE html>
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
   .compile-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); }
+  .save-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); font-weight: 600; }
   .compile-btn:hover { background: #1b2c22; }
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
   .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
@@ -519,6 +520,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
+  <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
   <button class="secondary" id="newRecordToggleBtn" style="width:100%;margin-top:6px;">+ Add record</button>
   <div class="hidden" id="newRecordForm">
@@ -836,6 +838,17 @@ const htmlTemplate = `<!DOCTYPE html>
       vscode.postMessage({ type: 'compileDspf' });
     });
   }
+
+  // "Save" - every edit already lands in the document's live buffer via
+  // 'applyEdit' (marking it dirty, same as typing would), but nothing
+  // actually writes that buffer to disk until VS Code's own Ctrl+S/Auto
+  // Save fires - not obvious from inside a webview panel, which doesn't
+  // show the editor tab's own dirty-dot. handleSaveDocument in extension.ts
+  // does the actual document.save() host-side, same isDirty-guarded shape
+  // "Compile"'s own save-before-compile step already uses.
+  document.getElementById('saveDocBtn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'saveDocument' });
+  });
 
   // Creates a brand-new, empty record format (see DspfWriter.insertRecord's
   // own doc comment for placement rules) and immediately selects it, same
@@ -1196,6 +1209,7 @@ const htmlTemplate = `<!DOCTYPE html>
       '<button class="secondary" id="dbf-list-btn" style="width:100%;">List fields</button>' +
       '<div class="dbfields-status hidden" id="dbf-status"></div>' +
       '<div class="dbfields-error hidden" id="dbf-error"></div>' +
+      '<div class="dbfields-list hidden" id="dbf-formats"></div>' +
       '<div class="dbfields-list hidden" id="dbf-list"></div>' +
       '<label class="compare-toggle hidden" id="dbf-selectall-row"><input type="checkbox" id="dbf-selectall" /> Select all</label>' +
       '<div class="confirm-dialog-actions" style="margin-top:12px;">' +
@@ -1211,6 +1225,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const listBtn = overlay.querySelector('#dbf-list-btn');
     const statusEl = overlay.querySelector('#dbf-status');
     const errorEl = overlay.querySelector('#dbf-error');
+    const formatsEl = overlay.querySelector('#dbf-formats');
     const listEl = overlay.querySelector('#dbf-list');
     const selectAllRow = overlay.querySelector('#dbf-selectall-row');
     const selectAllCb = overlay.querySelector('#dbf-selectall');
@@ -1221,8 +1236,13 @@ const htmlTemplate = `<!DOCTYPE html>
     // already-fetched objects straight back to the host instead of a second
     // DSPFFD round-trip for data the person already saw in this same list.
     let currentFields = [];
+    // Set once a specific format is picked (either because the file only
+    // had one to begin with, or the person picked one from dbf-formats
+    // below) - included on every subsequent listDatabaseFields request so
+    // a re-list (e.g. after fixing a typo) doesn't lose that choice.
+    let recordFormat = null;
 
-    listBtn.addEventListener('click', () => {
+    function requestFieldList() {
       const file = fileInput.value.trim().toUpperCase();
       if (!file) {
         errorEl.textContent = 'Enter a file name.';
@@ -1230,13 +1250,16 @@ const htmlTemplate = `<!DOCTYPE html>
         return;
       }
       errorEl.classList.add('hidden');
+      formatsEl.classList.add('hidden');
       listEl.classList.add('hidden');
       selectAllRow.classList.add('hidden');
       addBtn.classList.add('hidden');
       statusEl.textContent = 'Listing fields...';
       statusEl.classList.remove('hidden');
-      vscode.postMessage({ type: 'listDatabaseFields', library: libraryInput.value.trim().toUpperCase() || null, file: file });
-    });
+      vscode.postMessage({ type: 'listDatabaseFields', library: libraryInput.value.trim().toUpperCase() || null, file: file, recordFormat: recordFormat });
+    }
+
+    listBtn.addEventListener('click', () => { recordFormat = null; requestFieldList(); });
 
     overlay.__onDatabaseFieldsResult = (msg) => {
       statusEl.classList.add('hidden');
@@ -1245,7 +1268,26 @@ const htmlTemplate = `<!DOCTYPE html>
         errorEl.classList.remove('hidden');
         return;
       }
+      // Task L14 follow-up - a multi-format file (a logical file with more
+      // than one record format) has its own separate WHFLDO field-order
+      // sequence PER format, so fields can't be listed until ONE format is
+      // chosen - see fetchDatabaseFileFields' own doc comment in
+      // extension.ts. Render each format name as its own clickable row,
+      // reusing the same .dbfields-list-row styling the field checkboxes
+      // use below, and re-request the list with that format once picked.
+      if (msg.formats) {
+        formatsEl.innerHTML =
+          '<div class="dbfields-status" style="margin:4px 8px;">' + msg.formats.length + ' record formats found - pick one:</div>' +
+          msg.formats.map((f) => '<div class="dbfields-list-row" data-format="' + DspfEngine.escapeHtml(f) + '"><span class="fname">' + DspfEngine.escapeHtml(f) + '</span></div>').join('');
+        formatsEl.classList.remove('hidden');
+        formatsEl.querySelectorAll('[data-format]').forEach((row) => {
+          row.addEventListener('click', () => { recordFormat = row.getAttribute('data-format'); requestFieldList(); });
+        });
+        return;
+      }
       currentFields = msg.fields;
+      formatsEl.innerHTML = '';
+      formatsEl.classList.add('hidden');
       listEl.innerHTML = currentFields.map((f, i) =>
         '<label class="dbfields-list-row"><input type="checkbox" class="dbf-field-cb" data-idx="' + i + '" checked />' +
         '<span class="fname">' + DspfEngine.escapeHtml(f.name) + '</span>' +
@@ -1257,6 +1299,10 @@ const htmlTemplate = `<!DOCTYPE html>
       selectAllCb.checked = true;
       addBtn.classList.remove('hidden');
       addBtn.disabled = currentFields.length === 0;
+      if (msg.recordFormat) {
+        statusEl.textContent = 'Record format: ' + msg.recordFormat;
+        statusEl.classList.remove('hidden');
+      }
     };
 
     selectAllCb.addEventListener('change', () => {

@@ -4571,6 +4571,12 @@ function runDatabaseFieldsPickerScenario() {
     const doc = dom.window.document;
     const { Event, MessageEvent } = dom.window;
 
+    console.log('  "Save" button in the left panel posts a saveDocument message');
+    const saveBtn = doc.getElementById('saveDocBtn');
+    check('setup: Save button is present at the top of the left panel', !!saveBtn);
+    saveBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('posts saveDocument', posted.some((m) => m.type === 'saveDocument'));
+
     console.log('  clicking the button opens the modal');
     const openBtn = doc.getElementById('addFromDbBtn');
     check('setup: "+ Fields from database file" button is present', !!openBtn);
@@ -4615,6 +4621,33 @@ function runDatabaseFieldsPickerScenario() {
     check('only the still-checked field (CUSTNO) is included', addMsg && addMsg.fields.length === 1 && addMsg.fields[0].name === 'CUSTNO');
     check('carries the record name it was opened for', addMsg && addMsg.recordName === 'SCR1');
     check('the modal closes after confirming', !doc.querySelector('.dbfields-overlay'));
+
+    console.log('  a databaseFieldsResult with { formats } (a multi-format file) shows a format picker, not the field checklist yet');
+    doc.getElementById('addFromDbBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('dbf-file').value = 'cusmstl';
+    doc.getElementById('dbf-list-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
+    dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'databaseFieldsResult', library: null, file: 'CUSMSTL', formats: ['FMT1', 'FMT2'] } }));
+    const formatRows = doc.querySelectorAll('#dbf-formats .dbfields-list-row');
+    check('renders one row per format', formatRows.length === 2);
+    check('the field checklist itself is NOT shown yet (nothing picked)', doc.getElementById('dbf-list').classList.contains('hidden'));
+    check('"Add fields" stays hidden until a format is picked and its fields come back', doc.getElementById('dbf-add-btn').classList.contains('hidden'));
+
+    console.log('  clicking a format row re-requests listDatabaseFields WITH that recordFormat');
+    formatRows[1].dispatchEvent(new Event('click', { bubbles: true }));
+    const rescopedMsg = posted.find((m) => m.type === 'listDatabaseFields' && m.recordFormat);
+    check('re-posts listDatabaseFields carrying the picked format', !!rescopedMsg && rescopedMsg.recordFormat === 'FMT2' && rescopedMsg.file === 'CUSMSTL');
+
+    dom.window.dispatchEvent(new MessageEvent('message', { data: {
+      type: 'databaseFieldsResult',
+      library: null,
+      file: 'CUSMSTL',
+      recordFormat: 'FMT2',
+      fields: [{ name: 'ORDERNO', length: 8, dataType: '', decimalPositions: null, text: 'Order number' }],
+    } }));
+    check('the format-picker rows are gone once fields for the picked format come back', doc.querySelectorAll('#dbf-formats .dbfields-list-row').length === 0);
+    check('the field checklist now shows the scoped field', doc.querySelectorAll('.dbfields-list-row').length === 1 && doc.querySelector('.dbfields-list-row').textContent.includes('ORDERNO'));
+    check('the picked format is shown for confirmation', doc.getElementById('dbf-status').textContent.includes('FMT2'));
 
     console.log('  a databaseFieldsResult ERROR (e.g. Code for i not connected) shows the message, no rows rendered');
     doc.getElementById('addFromDbBtn').dispatchEvent(new Event('click', { bubbles: true }));

@@ -660,9 +660,28 @@ type DatabaseFileField = ReferencedFieldAttributes & { name: string; text: strin
  * mapDspffdRowToAttributes). WHFLDO is DSPFFD's own field-ORDER column, so
  * results come back in the file's own natural field order, matching what
  * you'd see paging through the file's fields in real SDA's own F10
- * (Database) picker rather than some arbitrary SQL ordering.
+ * (Database) picker rather than some arbitrary SQL ordering - but WHFLDO
+ * only orders correctly WITHIN one record format (a multi-format logical
+ * file has its own separate 1-based WHFLDO sequence PER format), so a
+ * SPECIFIC format must be selected first if the file has more than one -
+ * see the `recordFormat` parameter and its own reasoning below.
+ *
+ * `recordFormat` is optional. When omitted and the file turns out to have
+ * only one format (by far the common case - most files a REFFLD points to
+ * are physical files, which structurally can only ever have one), nothing
+ * changes from before this scoping existed. When omitted and the file has
+ * MULTIPLE formats, returns `{ formats: [...] }` instead of `{ fields }` -
+ * an explicit "pick one" response - rather than silently mixing fields
+ * from every format together (which would misorder WHFLDO across formats)
+ * or silently guessing the first one (which could pick the WRONG format
+ * for what the person actually wanted, with no indication anything was
+ * even ambiguous).
  */
-async function fetchDatabaseFileFields(library: string | null, file: string): Promise<{ fields: DatabaseFileField[] } | { error: string }> {
+async function fetchDatabaseFileFields(
+  library: string | null,
+  file: string,
+  recordFormat?: string
+): Promise<{ fields: DatabaseFileField[]; recordFormat: string } | { formats: string[] } | { error: string }> {
   const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
   if (!ext) {
     return { error: 'Add fields from database file requires the Code for IBM i extension (halcyontechltd.code-for-ibmi), installed and connected.' };
@@ -693,7 +712,14 @@ async function fetchDatabaseFileFields(library: string | null, file: string): Pr
     return { error: `DSPFFD failed for ${qualifiedFile}: ${cmdResult.stderr || cmdResult.stdout || 'unknown error'}` };
   }
 
-  const sql = `SELECT WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} ORDER BY WHFLDO`;
+  // WHNAME is DSPFFD's own record-format-name column (confirmed against a
+  // published DSPFFD-outfile reader program's own field list - it reads
+  // WHNAME per row and compares it to the previous row's to detect a
+  // format change, exactly the "group by format" this function itself
+  // needs to do next).
+  const sql = recordFormat
+    ? `SELECT WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} WHERE WHNAME = '${recordFormat.toUpperCase().replace(/'/g, "''")}' ORDER BY WHFLDO`
+    : `SELECT WHNAME, WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} ORDER BY WHNAME, WHFLDO`;
   let rows: any[];
   try {
     rows = await connection.runSQL(sql);
@@ -701,16 +727,26 @@ async function fetchDatabaseFileFields(library: string | null, file: string): Pr
     return { error: `Could not read field list for ${qualifiedFile}: ${err}` };
   }
   if (!rows || rows.length === 0) {
-    return { error: `${qualifiedFile} has no fields, or wasn't found.` };
+    return recordFormat
+      ? { error: `Record format "${recordFormat}" was not found in ${qualifiedFile}.` }
+      : { error: `${qualifiedFile} has no fields, or wasn't found.` };
   }
 
   const rowValue = (row: any, key: string) => (row[key] !== undefined ? row[key] : row[key.toLowerCase()]);
+
+  if (!recordFormat) {
+    const distinctFormats = Array.from(new Set(rows.map((row) => String(rowValue(row, 'WHNAME') || '').trim())));
+    if (distinctFormats.length > 1) {
+      return { formats: distinctFormats };
+    }
+  }
+
   const fields: DatabaseFileField[] = rows.map((row) => ({
     name: String(rowValue(row, 'WHFLDI') || '').trim(),
     text: String(rowValue(row, 'WHFTXT') || '').trim(),
     ...mapDspffdRowToAttributes(row),
   }));
-  return { fields };
+  return { fields, recordFormat: recordFormat || String(rowValue(rows[0], 'WHNAME') || '').trim() };
 }
 
 
@@ -807,17 +843,22 @@ async function handleResolveReferencedField(document: vscode.TextDocument, msg: 
  * Task L14 - handles the 'listDatabaseFields' request from the DSPF
  * designer's webview: a pure read-only lookup (no document edits, so no
  * re-parse/model juggling needed here), just fetches the field list and
- * posts it straight back for the webview's own picker to render.
+ * posts it straight back for the webview's own picker to render. `msg`
+ * carries an optional `recordFormat` (blank/absent means "auto-detect" -
+ * see fetchDatabaseFileFields' own doc comment for what happens for a
+ * multi-format file when it's omitted).
  */
 async function handleListDatabaseFields(
   webview: vscode.Webview,
-  msg: { library: string | null; file: string }
+  msg: { library: string | null; file: string; recordFormat?: string }
 ): Promise<void> {
-  const outcome = await fetchDatabaseFileFields(msg.library, msg.file);
+  const outcome = await fetchDatabaseFileFields(msg.library, msg.file, msg.recordFormat);
   if ('error' in outcome) {
     webview.postMessage({ type: 'databaseFieldsResult', error: outcome.error });
+  } else if ('formats' in outcome) {
+    webview.postMessage({ type: 'databaseFieldsResult', library: msg.library, file: msg.file, formats: outcome.formats });
   } else {
-    webview.postMessage({ type: 'databaseFieldsResult', library: msg.library, file: msg.file, fields: outcome.fields });
+    webview.postMessage({ type: 'databaseFieldsResult', library: msg.library, file: msg.file, recordFormat: outcome.recordFormat, fields: outcome.fields });
   }
 }
 
@@ -912,6 +953,29 @@ async function handleAddFieldsFromDatabase(
   vscode.window.showInformationMessage(`iSDA: Added ${msg.fields.length} field${msg.fields.length === 1 ? '' : 's'} from ${msg.library ? msg.library + '/' : ''}${msg.file}.`);
 }
 
+/**
+ * Handles a 'saveDocument' message from either designer's own left-panel
+ * "Save" button. Every edit already lands in the document's live buffer
+ * via 'applyEdit' (a WorkspaceEdit), which marks it dirty the same as
+ * typing would - but nothing was actually WRITING that buffer to disk
+ * until now; the only place `document.save()` was ever called was as a
+ * side effect of "Compile", which needs the on-disk copy since a compile
+ * command reads the SAVED member, not this editor's live buffer (see
+ * compileDspf/compileMenu's own comments for that same reasoning). A
+ * dedicated Save button doesn't need that "compile reads from disk"
+ * justification - it exists simply because relying on VS Code's own
+ * Ctrl+S (or Auto Save) isn't obvious from inside a webview panel, which
+ * doesn't show the tab's own dirty-dot the way a normal text editor does.
+ * No-ops quietly if the document is already clean (nothing to save) -
+ * matches `isDirty` guards elsewhere in this file rather than calling
+ * `save()` unconditionally.
+ */
+async function handleSaveDocument(document: vscode.TextDocument): Promise<void> {
+  if (document.isDirty) {
+    await document.save();
+  }
+}
+
 function openDesigner(uri: vscode.Uri): void {
   void openInDesigner(uri, DspfDesignerEditorProvider.viewType);
 }
@@ -971,6 +1035,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await handleAddFieldsFromDatabase(document, msg);
       } else if (msg.type === 'compileDspf') {
         await compileDspf(document.uri);
+      } else if (msg.type === 'saveDocument') {
+        await handleSaveDocument(document);
       } else if (msg.type === 'setUiStyle') {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       } else if (msg.type === 'setUiTheme') {
@@ -1145,6 +1211,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         }
       } else if (msg.type === 'compileMenu') {
         await compileMenu(document.uri);
+      } else if (msg.type === 'saveDocument') {
+        await handleSaveDocument(document);
       } else if (msg.type === 'error') {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'setUiStyle') {

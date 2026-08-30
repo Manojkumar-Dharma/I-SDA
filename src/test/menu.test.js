@@ -306,6 +306,39 @@ function run() {
     await menuProviderEntry.provider.resolveCustomTextEditor(untitledDoc, fakeWebviewPanelUntitled, {});
     check("a scheme with no known companion convention (untitled) still reports 'unsupported'", htmlSetUntitled.includes('"unsupported"'));
 
+    console.log('\nsaveDocument message -> saves a dirty menu document, no-ops on a clean one');
+    {
+      const dirtyMenuDoc = vscodeMock.__mockDocument(menuSource, menuUri, { isDirty: true });
+      let saveHandler = null;
+      const savePanel = {
+        webview: {
+          cspSource: 'x', options: null,
+          set html(v) {}, get html() { return ''; },
+          onDidReceiveMessage: (h) => { saveHandler = h; return { dispose: () => {} }; },
+          postMessage: () => {},
+        },
+        onDidDispose: () => {},
+      };
+      await menuProviderEntry.provider.resolveCustomTextEditor(dirtyMenuDoc, savePanel, {});
+      await saveHandler({ type: 'saveDocument' });
+      check('a dirty menu document gets saved', dirtyMenuDoc.saveCount === 1);
+
+      const cleanMenuDoc = vscodeMock.__mockDocument(menuSource, menuUri, { isDirty: false });
+      let saveHandler2 = null;
+      const savePanel2 = {
+        webview: {
+          cspSource: 'x', options: null,
+          set html(v) {}, get html() { return ''; },
+          onDidReceiveMessage: (h) => { saveHandler2 = h; return { dispose: () => {} }; },
+          postMessage: () => {},
+        },
+        onDidDispose: () => {},
+      };
+      await menuProviderEntry.provider.resolveCustomTextEditor(cleanMenuDoc, savePanel2, {});
+      await saveHandler2({ type: 'saveDocument' });
+      check('an already-clean menu document is NOT re-saved (no-op)', cleanMenuDoc.saveCount === 0);
+    }
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   });

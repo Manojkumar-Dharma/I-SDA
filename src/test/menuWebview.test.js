@@ -60,7 +60,10 @@ setTimeout(() => {
 
   console.log('client-side rendering (extractMenuOptions + cross-reference)');
   check('renders one row per numbered option constant found in the DDS', rows.length === 3);
-  check('option 1 shows its label from the DDS constant', rows[0].querySelector('.option-label-input').value === 'Display library list');
+  check('"Save" button is present at the top of the left panel', !!doc.getElementById('saveDocBtn'));
+  doc.getElementById('saveDocBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  check('clicking it posts saveDocument', posted.some((m) => m.type === 'saveDocument'));
+  posted.length = 0; // clear before the rest of this file's chained scenarios, which assert on posted's own contents from a clean slate  check('option 1 shows its label from the DDS constant', rows[0].querySelector('.option-label-input').value === 'Display library list');
   check('option 1 shows its command from the MNUCMD source', rows[0].querySelector('.option-cmd').value === 'DSPLIBL');
   check('option 2 cross-references correctly too', rows[1].querySelector('.option-cmd').value === 'CHGCURLIB');
   check('option 10 (two-digit) parses correctly and has no command yet', rows[2].querySelector('.option-num-badge').textContent === '10' && rows[2].querySelector('.option-cmd').value === '');

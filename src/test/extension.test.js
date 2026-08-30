@@ -102,6 +102,39 @@ async function run() {
   await messageHandler({ type: 'compileDspf' });
   check('reaches compileDspf() and surfaces its own guard error (this mock doc has no member-scheme URI)', /Code for i/.test(vscodeMock.__lastError || ''));
 
+  console.log('\nsaveDocument message -> saves a dirty document, no-ops on a clean one');
+  {
+    const dirtyDoc = vscodeMock.__mockDocument('     A          R MENU\n', undefined, { isDirty: true });
+    let saveMessageHandler = null;
+    const savePanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { saveMessageHandler = h; return { dispose: () => {} }; },
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    providerEntry.provider.resolveCustomTextEditor(dirtyDoc, savePanel, {});
+    await saveMessageHandler({ type: 'saveDocument' });
+    check('a dirty document gets saved', dirtyDoc.saveCount === 1);
+
+    const cleanDoc = vscodeMock.__mockDocument('     A          R MENU\n', undefined, { isDirty: false });
+    let saveMessageHandler2 = null;
+    const savePanel2 = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { saveMessageHandler2 = h; return { dispose: () => {} }; },
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    providerEntry.provider.resolveCustomTextEditor(cleanDoc, savePanel2, {});
+    await saveMessageHandler2({ type: 'saveDocument' });
+    check('an already-clean document is NOT re-saved (no-op)', cleanDoc.saveCount === 0);
+  }
+
   console.log('\nresolveReferencedField / resolveAllReferencedFields (Code for i)');
   {
     const refSrc =
@@ -214,7 +247,7 @@ async function run() {
     await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTP' });
     check('posts a databaseFieldsResult error naming the extension, no crash', dbPosted.length === 1 && dbPosted[0].type === 'databaseFieldsResult' && /Code for IBM i extension/.test(dbPosted[0].error || ''));
 
-    console.log('  listDatabaseFields: connected, returns fields in WHFLDO order with names/attrs/text');
+    console.log('  listDatabaseFields: connected, single-format file - returns fields in WHFLDO order with names/attrs/text');
     const runSqlCalls = [];
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
       id: 'halcyontechltd.code-for-ibmi',
@@ -225,8 +258,8 @@ async function run() {
             runSQL: async (sql) => {
               runSqlCalls.push(sql);
               return [
-                { WHFLDI: 'CUSTNO', WHFTXT: 'Customer number', WHFLDT: 'A', WHFLDB: 6, WHFLDD: 0, WHFLDP: 0 },
-                { WHFLDI: 'BALANCE', WHFTXT: 'Account balance', WHFLDT: 'S', WHFLDB: 0, WHFLDD: 9, WHFLDP: 2 },
+                { WHNAME: 'CUSMSTPR', WHFLDI: 'CUSTNO', WHFTXT: 'Customer number', WHFLDT: 'A', WHFLDB: 6, WHFLDD: 0, WHFLDP: 0 },
+                { WHNAME: 'CUSMSTPR', WHFLDI: 'BALANCE', WHFTXT: 'Account balance', WHFLDT: 'S', WHFLDB: 0, WHFLDD: 9, WHFLDP: 2 },
               ];
             },
           }),
@@ -238,12 +271,47 @@ async function run() {
     dbPosted.length = 0;
     await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTP' });
     check('ran DSPFFD against the qualified file', !!dspffdCommand && dspffdCommand.includes('DSPFFD FILE(MYLIB/CUSMSTP)'));
-    check('queried in WHFLDO order (the file\'s own natural field order)', runSqlCalls.some((sql) => sql.includes('ORDER BY WHFLDO')));
+    check('queried grouped by format, WHFLDO within each (the file\'s own natural field order)', runSqlCalls.some((sql) => sql.includes('ORDER BY WHNAME, WHFLDO')));
     const listResult = dbPosted.find((m) => m.type === 'databaseFieldsResult');
-    check('posts back both fields, no error', !!listResult && !listResult.error && listResult.fields.length === 2);
+    check('posts back both fields, no error, no ambiguous-formats prompt (only one format present)', !!listResult && !listResult.error && !listResult.formats && listResult.fields.length === 2);
+    check('reports which record format the fields came from', listResult.recordFormat === 'CUSMSTPR');
     check('character field: length from WHFLDB, blank dataType', listResult.fields[0].name === 'CUSTNO' && listResult.fields[0].length === 6 && listResult.fields[0].dataType === '');
     check('numeric field: length from WHFLDD (digits, not bytes), decimals from WHFLDP', listResult.fields[1].name === 'BALANCE' && listResult.fields[1].length === 9 && listResult.fields[1].decimalPositions === 2 && listResult.fields[1].dataType === 'S');
     check('carries the field text description through', listResult.fields[0].text === 'Customer number');
+
+    console.log('  listDatabaseFields: MULTI-format file (a logical file with more than one record format) - returns { formats } instead of guessing which one, since WHFLDO only orders correctly WITHIN one format');
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runSQL: async (sql) => {
+              runSqlCalls.push(sql);
+              if (sql.includes("WHNAME = 'FMT2'")) {
+                return [{ WHNAME: 'FMT2', WHFLDI: 'ORDERNO', WHFTXT: 'Order number', WHFLDT: 'A', WHFLDB: 8, WHFLDD: 0, WHFLDP: 0 }];
+              }
+              return [
+                { WHNAME: 'FMT1', WHFLDI: 'CUSTNO', WHFTXT: 'Customer number', WHFLDT: 'A', WHFLDB: 6, WHFLDD: 0, WHFLDP: 0 },
+                { WHNAME: 'FMT2', WHFLDI: 'ORDERNO', WHFTXT: 'Order number', WHFLDT: 'A', WHFLDB: 8, WHFLDD: 0, WHFLDP: 0 },
+              ];
+            },
+          }),
+        },
+      },
+    });
+    dbPosted.length = 0;
+    await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTL' });
+    const formatsResult = dbPosted.find((m) => m.type === 'databaseFieldsResult');
+    check('posts back { formats } (not fields), naming both formats found', !!formatsResult && !formatsResult.fields && Array.isArray(formatsResult.formats) && formatsResult.formats.length === 2 && formatsResult.formats.includes('FMT1') && formatsResult.formats.includes('FMT2'));
+
+    console.log('  listDatabaseFields: re-requesting WITH a recordFormat scopes the query to just that format');
+    dbPosted.length = 0;
+    await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTL', recordFormat: 'FMT2' });
+    const scopedResult = dbPosted.find((m) => m.type === 'databaseFieldsResult');
+    check('queried WHERE WHNAME = the requested format', runSqlCalls.some((sql) => sql.includes("WHERE WHNAME = 'FMT2'")));
+    check('posts back only that format\'s field, no ambiguous-formats prompt this time', !!scopedResult && !scopedResult.formats && scopedResult.fields.length === 1 && scopedResult.fields[0].name === 'ORDERNO');
+    check('echoes back which format it scoped to', scopedResult.recordFormat === 'FMT2');
 
     console.log('  addFieldsFromDatabase: creates one REFFLD-based field per selected field, stacked below the existing one');
     vscodeMock.__lastAppliedEdit = undefined;
