@@ -4538,6 +4538,89 @@ function runCommentsScenario() {
     check('the new blank comment line sits right after RECORD1\'s own header, before its field', reparsed.comments.some((c) => c.line === rec1.sourceLine + 1 && c.text === ''));
     posted.length = 0;
 
+    runDatabaseFieldsPickerScenario();
+  }, 0);
+}
+
+// Task L14 - webview-side plumbing for "+ Fields from database file": the
+// button opens the modal, "List fields" posts listDatabaseFields, a
+// databaseFieldsResult message renders checkboxes (name/attrs/text), and
+// "Add fields" posts addFieldsFromDatabase with only the CHECKED fields.
+// The extension-host side (querying DSPFFD/SQL, building the REFFLD fields,
+// applying the edit) is covered separately in extension.test.js - this is
+// just the UI round-trip.
+function runDatabaseFieldsPickerScenario() {
+  console.log('\nTask L14: "+ Fields from database file" picker (webview-side plumbing)');
+  const src = [buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' })].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'DBFIELDS.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event, MessageEvent } = dom.window;
+
+    console.log('  clicking the button opens the modal');
+    const openBtn = doc.getElementById('addFromDbBtn');
+    check('setup: "+ Fields from database file" button is present', !!openBtn);
+    openBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    check('modal overlay is now in the DOM', !!doc.querySelector('.dbfields-overlay'));
+    check('"Add fields" button starts hidden (nothing listed yet)', doc.getElementById('dbf-add-btn').classList.contains('hidden'));
+
+    console.log('  clicking "List fields" with no file entered shows an inline error, posts nothing');
+    doc.getElementById('dbf-list-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    check('inline error shown', !doc.getElementById('dbf-error').classList.contains('hidden'));
+    check('no listDatabaseFields message posted', !posted.some((m) => m.type === 'listDatabaseFields'));
+
+    console.log('  entering library + file and clicking "List fields" posts the request');
+    doc.getElementById('dbf-library').value = 'mylib';
+    doc.getElementById('dbf-file').value = 'cusmstp';
+    doc.getElementById('dbf-list-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    const listMsg = posted.find((m) => m.type === 'listDatabaseFields');
+    check('posts listDatabaseFields with the uppercased library/file', !!listMsg && listMsg.library === 'MYLIB' && listMsg.file === 'CUSMSTP');
+
+    console.log('  a databaseFieldsResult message renders the checkbox list');
+    dom.window.dispatchEvent(new MessageEvent('message', { data: {
+      type: 'databaseFieldsResult',
+      library: 'MYLIB',
+      file: 'CUSMSTP',
+      fields: [
+        { name: 'CUSTNO', length: 6, dataType: '', decimalPositions: null, text: 'Customer number' },
+        { name: 'BALANCE', length: 9, dataType: 'S', decimalPositions: 2, text: 'Account balance' },
+      ],
+    } }));
+    const rows = doc.querySelectorAll('.dbfields-list-row');
+    check('renders one row per field', rows.length === 2);
+    check('shows the field name', rows[0].textContent.includes('CUSTNO'));
+    check('shows the description text', rows[1].textContent.includes('Account balance'));
+    check('every checkbox starts checked (select-all-by-default)', Array.from(doc.querySelectorAll('.dbf-field-cb')).every((cb) => cb.checked));
+    check('"Add fields" button is now visible', !doc.getElementById('dbf-add-btn').classList.contains('hidden'));
+
+    console.log('  unchecking one field and clicking "Add fields" posts only the checked ones');
+    doc.querySelectorAll('.dbf-field-cb')[1].checked = false; // uncheck BALANCE
+    doc.getElementById('dbf-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    const addMsg = posted.find((m) => m.type === 'addFieldsFromDatabase');
+    check('posts addFieldsFromDatabase', !!addMsg);
+    check('only the still-checked field (CUSTNO) is included', addMsg && addMsg.fields.length === 1 && addMsg.fields[0].name === 'CUSTNO');
+    check('carries the record name it was opened for', addMsg && addMsg.recordName === 'SCR1');
+    check('the modal closes after confirming', !doc.querySelector('.dbfields-overlay'));
+
+    console.log('  a databaseFieldsResult ERROR (e.g. Code for i not connected) shows the message, no rows rendered');
+    doc.getElementById('addFromDbBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'databaseFieldsResult', error: 'Not connected to an IBM i - connect via the Code for IBM i panel first.' } }));
+    check('shows the error text', doc.getElementById('dbf-error').textContent.includes('Not connected'));
+    check('no field rows rendered', doc.querySelectorAll('.dbfields-list-row').length === 0);
+
     runWindowBorderAndDefaultColorScenario();
   }, 0);
 }

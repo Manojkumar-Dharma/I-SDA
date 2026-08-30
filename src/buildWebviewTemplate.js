@@ -283,6 +283,25 @@ const htmlTemplate = `<!DOCTYPE html>
   .confirm-dialog-body { font-size: 12px; color: var(--ink); line-height: 1.5; margin-bottom: 14px; }
   .confirm-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
   .confirm-dialog-actions button.danger { color: var(--warn); border-color: var(--warn); }
+  /* Task L14 - "Add fields from database file" picker. Reuses .confirm-overlay's
+     own backdrop/centering, but its own wider/neutral dialog variant (not
+     .confirm-dialog's warning-amber border/380px cap, which is specifically
+     for destructive-action confirmations) since this is a neutral multi-step
+     form, not a warning. */
+  .dbfields-dialog { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px; padding: 18px; width: 480px; max-width: 90vw; max-height: 80vh; overflow-y: auto; font-family: var(--mono); }
+  .dbfields-dialog-title { color: var(--chrome-accent); font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .dbfields-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .dbfields-row input[type="text"] { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 5px 6px; font-family: var(--mono); font-size: 12px; }
+  .dbfields-row input#dbf-library { flex: 0 0 100px; }
+  .dbfields-list { border: 1px solid var(--panel-border); border-radius: 4px; margin: 10px 0; max-height: 260px; overflow-y: auto; }
+  .dbfields-list-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; font-size: 11px; border-bottom: 1px solid var(--panel-border); cursor: pointer; }
+  .dbfields-list-row:last-child { border-bottom: none; }
+  .dbfields-list-row:hover { background: rgba(51,255,102,0.06); }
+  .dbfields-list-row .fname { color: var(--accent); width: 90px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dbfields-list-row .fattrs { color: var(--ink-dim); width: 64px; flex-shrink: 0; }
+  .dbfields-list-row .ftext { color: var(--ink-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dbfields-status { color: var(--ink-dim); font-size: 11px; margin: 6px 0; }
+  .dbfields-error { color: var(--warn); font-size: 11px; margin-top: 6px; }
   button { background: #14261c; color: var(--chrome-accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
@@ -536,6 +555,7 @@ const htmlTemplate = `<!DOCTYPE html>
     <button class="secondary" id="placeFieldBtn">+ Field</button>
     <button class="secondary" id="placeConstantBtn">+ Constant</button>
   </div>
+  <button class="secondary" id="addFromDbBtn" style="width:100%;margin-top:6px;" title="Task L14: real SDA's F10 (Database) key - browse a PF/LF's field list and place several at once as REFFLD-based fields">+ Fields from database file</button>
   <div class="hint-readonly hidden" id="placementHint">Click anywhere on the screen preview to place it there (Esc to cancel).</div>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Show other record(s) dimmed behind</label>
   <label class="compare-toggle hidden" id="compareOverlayRow"><input type="checkbox" id="compareOverlayToggle" /> Full overlay instead (read-only)</label>
@@ -1145,6 +1165,120 @@ const htmlTemplate = `<!DOCTYPE html>
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && (placementMode || pendingPlacement)) { setPlacementMode(null); pendingPlacement = null; render(); }
   });
+
+  document.getElementById('addFromDbBtn').addEventListener('click', () => {
+    const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+    if (!recordName) return;
+    showDatabaseFieldsPicker(recordName);
+  });
+
+  // Task L14 - "Add fields from database file" (real SDA's F10/Database
+  // key). A two-step overlay: list the target file's fields (round-trip to
+  // the extension host, which owns the actual Code for i network call - see
+  // handleListDatabaseFields in extension.ts), then check the ones wanted
+  // and commit. Reuses .confirm-overlay's own backdrop/centering (see this
+  // file's own .dbfields-dialog CSS comment for why it's a separate dialog
+  // class from .confirm-dialog). The result callback is stashed directly on
+  // the overlay element (overlay.__onDatabaseFieldsResult) rather than in a
+  // module-level variable, so a stray 'databaseFieldsResult' message
+  // arriving after the dialog's already been closed/replaced has nothing to
+  // call - the listener below only acts if a live overlay with that hook is
+  // still in the DOM.
+  function showDatabaseFieldsPicker(recordName) {
+    const existing = document.querySelector('.dbfields-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay dbfields-overlay';
+    overlay.innerHTML =
+      '<div class="confirm-dialog dbfields-dialog">' +
+      '<div class="dbfields-dialog-title">Add fields from database file</div>' +
+      '<div class="dbfields-row"><input type="text" id="dbf-library" placeholder="Library (optional)" maxlength="10" /><input type="text" id="dbf-file" placeholder="File" maxlength="10" /></div>' +
+      '<button class="secondary" id="dbf-list-btn" style="width:100%;">List fields</button>' +
+      '<div class="dbfields-status hidden" id="dbf-status"></div>' +
+      '<div class="dbfields-error hidden" id="dbf-error"></div>' +
+      '<div class="dbfields-list hidden" id="dbf-list"></div>' +
+      '<label class="compare-toggle hidden" id="dbf-selectall-row"><input type="checkbox" id="dbf-selectall" /> Select all</label>' +
+      '<div class="confirm-dialog-actions" style="margin-top:12px;">' +
+      '<button class="secondary" id="dbf-cancel">Cancel</button>' +
+      '<button id="dbf-add-btn" class="hidden" disabled>Add fields</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#dbf-cancel').addEventListener('click', () => overlay.remove());
+
+    const libraryInput = overlay.querySelector('#dbf-library');
+    const fileInput = overlay.querySelector('#dbf-file');
+    const listBtn = overlay.querySelector('#dbf-list-btn');
+    const statusEl = overlay.querySelector('#dbf-status');
+    const errorEl = overlay.querySelector('#dbf-error');
+    const listEl = overlay.querySelector('#dbf-list');
+    const selectAllRow = overlay.querySelector('#dbf-selectall-row');
+    const selectAllCb = overlay.querySelector('#dbf-selectall');
+    const addBtn = overlay.querySelector('#dbf-add-btn');
+
+    // The last-listed fields, WITH their full attributes (length/dataType/
+    // decimalPositions/text) - kept here so "Add fields" can send those same
+    // already-fetched objects straight back to the host instead of a second
+    // DSPFFD round-trip for data the person already saw in this same list.
+    let currentFields = [];
+
+    listBtn.addEventListener('click', () => {
+      const file = fileInput.value.trim().toUpperCase();
+      if (!file) {
+        errorEl.textContent = 'Enter a file name.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      errorEl.classList.add('hidden');
+      listEl.classList.add('hidden');
+      selectAllRow.classList.add('hidden');
+      addBtn.classList.add('hidden');
+      statusEl.textContent = 'Listing fields...';
+      statusEl.classList.remove('hidden');
+      vscode.postMessage({ type: 'listDatabaseFields', library: libraryInput.value.trim().toUpperCase() || null, file: file });
+    });
+
+    overlay.__onDatabaseFieldsResult = (msg) => {
+      statusEl.classList.add('hidden');
+      if (msg.error) {
+        errorEl.textContent = msg.error;
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      currentFields = msg.fields;
+      listEl.innerHTML = currentFields.map((f, i) =>
+        '<label class="dbfields-list-row"><input type="checkbox" class="dbf-field-cb" data-idx="' + i + '" checked />' +
+        '<span class="fname">' + DspfEngine.escapeHtml(f.name) + '</span>' +
+        '<span class="fattrs">' + DspfEngine.escapeHtml((f.dataType || 'A') + String(f.length) + (f.decimalPositions != null ? ',' + f.decimalPositions : '')) + '</span>' +
+        '<span class="ftext">' + DspfEngine.escapeHtml(f.text) + '</span></label>'
+      ).join('');
+      listEl.classList.remove('hidden');
+      selectAllRow.classList.remove('hidden');
+      selectAllCb.checked = true;
+      addBtn.classList.remove('hidden');
+      addBtn.disabled = currentFields.length === 0;
+    };
+
+    selectAllCb.addEventListener('change', () => {
+      listEl.querySelectorAll('.dbf-field-cb').forEach((cb) => { cb.checked = selectAllCb.checked; });
+    });
+
+    addBtn.addEventListener('click', () => {
+      const selected = [];
+      listEl.querySelectorAll('.dbf-field-cb').forEach((cb) => {
+        if (cb.checked) selected.push(currentFields[parseInt(cb.getAttribute('data-idx'), 10)]);
+      });
+      if (selected.length === 0) return;
+      vscode.postMessage({
+        type: 'addFieldsFromDatabase',
+        recordName: recordName,
+        library: libraryInput.value.trim().toUpperCase() || null,
+        file: fileInput.value.trim().toUpperCase(),
+        fields: selected,
+      });
+      overlay.remove();
+    });
+  }
 
   screenOutput.addEventListener('click', (e) => {
     if (!placementMode) return;
@@ -3745,6 +3879,11 @@ const htmlTemplate = `<!DOCTYPE html>
       model = DspfParser.parseDspf(sourceText);
       clearSelection();
       render();
+    } else if (msg.type === 'databaseFieldsResult') {
+      // Task L14 - see showDatabaseFieldsPicker's own comment for why this
+      // hook lives on the overlay element rather than module-level state.
+      const overlay = document.querySelector('.dbfields-overlay');
+      if (overlay && overlay.__onDatabaseFieldsResult) overlay.__onDatabaseFieldsResult(msg);
     }
   });
 

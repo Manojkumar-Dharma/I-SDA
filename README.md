@@ -78,6 +78,13 @@ above - a single `CRTDSPF` via Code for i's `code-for-ibmi.runCommand`
 API, with no message-file/`CRTMNU` steps (those are `MNUDDS`-specific).
 Same requirement as "Compile Menu": a real, connected IBM i member.
 
+**"+ Fields from database file"** (Task L14, added v0.9.96) - real
+SDA's own F10 (Database) key: browse a PF/LF's field list (via Code for
+i's `runCommand`/`runSQL`, same connection "Compile"/"Resolve Referenced
+Field" already use) and place several fields on the screen at once as
+`REFFLD`-based fields, rather than creating and referencing them one at
+a time.
+
 ## Getting started
 
 ```bash
@@ -188,16 +195,9 @@ how.
 
 ### DSPF (screen) designer
 
-- **[Task L14]** Bulk "Add fields from database file" - real SDA's F10
-  (Database) key lets you browse a PF/LF and place multiple REFFLD-based
-  fields at once; iSDA's existing "Resolve Referenced Field" only resolves
-  one already-created field at a time.
-
-See `LIMITATIONS-PLAN.md` for the full task descriptions (L1 through L9,
-including L5d-ii, are done, and so are L10 (multi-field select + block
-move/copy/delete/style), L11 (ruler overlay), L12 (it turned out the
-"Center on screen" button already existed before that task was even
-proposed), and L13 (Comments panel) - only L14 is open).
+No open items right now - every currently-tracked DSPF designer task
+(L1 through L15, including L5d-ii) is done. See `LIMITATIONS-PLAN.md`
+for the full history if a past decision needs revisiting.
 
 ### Menu designer
 

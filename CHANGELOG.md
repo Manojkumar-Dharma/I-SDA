@@ -3,6 +3,39 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.96] - 2026-08-29
+
+### Added
+- **Task L14: bulk "Add fields from database file" - real SDA's own F10
+  (Database) key.** A new "+ Fields from database file" button (aside
+  panel, next to "+ Field"/"+ Constant") opens a two-step overlay:
+  library/file inputs -> "List fields" (round-trips to a new
+  `handleListDatabaseFields`/`fetchDatabaseFileFields` in `extension.ts`,
+  which runs `DSPFFD ... OUTPUT(*OUTFILE)` then queries every field
+  ordered by `WHFLDO` - the file's own natural field order, not an
+  arbitrary SQL ordering) -> a checkbox list (name, length/type/decimals,
+  description text) with "Select all" -> "Add fields" posts the checked
+  ones straight back. `handleAddFieldsFromDatabase` creates one new
+  `REFFLD`-based field per selection via `DspfWriter.insertField`,
+  stacked one screen row below the previous, re-parsing the model after
+  each insert - same "never trust a stale record/field reference after
+  an edit" discipline "Resolve Referenced Field" already uses - and name
+  collisions get a fresh suffixed name via the existing
+  `nextAvailableFieldName`. This is deliberately different from the
+  existing "Resolve Referenced Field": that only fills in attributes for
+  ONE field you've already manually created with `REFFLD` set; this
+  discovers and creates several fields from a file at once, matching
+  real SDA's own workflow for building a screen against an existing
+  database file. The shared char-vs-numeric DSPFFD-row interpretation
+  logic was factored out of `fetchReferencedFieldAttributes` into
+  `mapDspffdRowToAttributes` so both functions use the same code rather
+  than duplicating it. See `runDatabaseFieldsPickerScenario` in
+  `src/test/dspfWebview.test.js` (webview UI plumbing) and the new
+  scenario in `src/test/extension.test.js` (the extension-host logic,
+  including not-installed/collision/empty-selection cases). This closes
+  out the whole L10-L15 brainstorm batch - every currently-tracked DSPF
+  designer task (L1-L15) and menu designer task (M1-M6) is now done.
+
 ## [0.9.95] - 2026-08-29
 
 ### Fixed

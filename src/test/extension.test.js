@@ -189,6 +189,121 @@ async function run() {
     vscodeMock.__setRunCommandHandler(null);
   }
 
+  console.log('\nTask L14: listDatabaseFields / addFieldsFromDatabase (bulk "Add fields from database file")');
+  {
+    const dbSrc =
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }) + '\n' +
+      buildLine({ seq: '00020', name: 'EXISTING', length: '5', dataType: 'A', usage: 'B', line: '3', col: '2' }) + '\n';
+    const dbDoc = vscodeMock.__mockDocument(dbSrc);
+    let dbMessageHandler = null;
+    const dbPosted = [];
+    const dbPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { dbMessageHandler = h; return { dispose: () => {} }; },
+        postMessage: (m) => dbPosted.push(m),
+      },
+      onDidDispose: () => {},
+    };
+    providerEntry.provider.resolveCustomTextEditor(dbDoc, dbPanel, {});
+
+    console.log('  listDatabaseFields: Code for i not installed');
+    vscodeMock.__removeMockExtension('halcyontechltd.code-for-ibmi');
+    dbPosted.length = 0;
+    await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTP' });
+    check('posts a databaseFieldsResult error naming the extension, no crash', dbPosted.length === 1 && dbPosted[0].type === 'databaseFieldsResult' && /Code for IBM i extension/.test(dbPosted[0].error || ''));
+
+    console.log('  listDatabaseFields: connected, returns fields in WHFLDO order with names/attrs/text');
+    const runSqlCalls = [];
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: true,
+      exports: {
+        instance: {
+          getConnection: () => ({
+            runSQL: async (sql) => {
+              runSqlCalls.push(sql);
+              return [
+                { WHFLDI: 'CUSTNO', WHFTXT: 'Customer number', WHFLDT: 'A', WHFLDB: 6, WHFLDD: 0, WHFLDP: 0 },
+                { WHFLDI: 'BALANCE', WHFTXT: 'Account balance', WHFLDT: 'S', WHFLDB: 0, WHFLDD: 9, WHFLDP: 2 },
+              ];
+            },
+          }),
+        },
+      },
+    });
+    let dspffdCommand = null;
+    vscodeMock.__setRunCommandHandler((info) => { dspffdCommand = info.command; return { code: 0, stdout: '', stderr: '' }; });
+    dbPosted.length = 0;
+    await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTP' });
+    check('ran DSPFFD against the qualified file', !!dspffdCommand && dspffdCommand.includes('DSPFFD FILE(MYLIB/CUSMSTP)'));
+    check('queried in WHFLDO order (the file\'s own natural field order)', runSqlCalls.some((sql) => sql.includes('ORDER BY WHFLDO')));
+    const listResult = dbPosted.find((m) => m.type === 'databaseFieldsResult');
+    check('posts back both fields, no error', !!listResult && !listResult.error && listResult.fields.length === 2);
+    check('character field: length from WHFLDB, blank dataType', listResult.fields[0].name === 'CUSTNO' && listResult.fields[0].length === 6 && listResult.fields[0].dataType === '');
+    check('numeric field: length from WHFLDD (digits, not bytes), decimals from WHFLDP', listResult.fields[1].name === 'BALANCE' && listResult.fields[1].length === 9 && listResult.fields[1].decimalPositions === 2 && listResult.fields[1].dataType === 'S');
+    check('carries the field text description through', listResult.fields[0].text === 'Customer number');
+
+    console.log('  addFieldsFromDatabase: creates one REFFLD-based field per selected field, stacked below the existing one');
+    vscodeMock.__lastAppliedEdit = undefined;
+    vscodeMock.__lastInformation = undefined;
+    await dbMessageHandler({
+      type: 'addFieldsFromDatabase',
+      recordName: 'SCR1',
+      library: 'MYLIB',
+      file: 'CUSMSTP',
+      fields: listResult.fields,
+    });
+    const appliedEdit = vscodeMock.__lastAppliedEdit;
+    check('applies a WorkspaceEdit', !!appliedEdit);
+    const newText = appliedEdit ? appliedEdit.edits[0].newText : '';
+    check('the existing field is untouched', /EXISTING\s+5A/.test(newText));
+    check('CUSTNO field created with REFFLD pointing at MYLIB/CUSMSTP', /CUSTNO[\s\S]{0,60}REFFLD\(CUSTNO MYLIB\/CUSMSTP\)/.test(newText.replace(/-\n\s*A\s*/g, '')));
+    check('BALANCE field created with REFFLD pointing at MYLIB/CUSMSTP', /BALANCE[\s\S]{0,60}REFFLD\(BALANCE MYLIB\/CUSMSTP\)/.test(newText.replace(/-\n\s*A\s*/g, '')));
+    check('confirms success naming the count and source file', /Added 2 fields from MYLIB\/CUSMSTP/.test(vscodeMock.__lastInformationMessage || ''));
+
+    console.log('  addFieldsFromDatabase: a name collision with the existing field gets a fresh suffixed name (nextAvailableFieldName)');
+    const collisionSrc =
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }) + '\n' +
+      buildLine({ seq: '00020', name: 'CUSTNO', length: '5', dataType: 'A', usage: 'B', line: '3', col: '2' }) + '\n';
+    const collisionDoc = vscodeMock.__mockDocument(collisionSrc);
+    let collisionHandler = null;
+    const collisionPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { collisionHandler = h; return { dispose: () => {} }; },
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    providerEntry.provider.resolveCustomTextEditor(collisionDoc, collisionPanel, {});
+    vscodeMock.__lastAppliedEdit = undefined;
+    await collisionHandler({
+      type: 'addFieldsFromDatabase',
+      recordName: 'SCR1',
+      library: 'MYLIB',
+      file: 'CUSMSTP',
+      fields: [{ name: 'CUSTNO', length: 6, dataType: '', decimalPositions: null, text: 'Customer number' }],
+    });
+    const collisionEdit = vscodeMock.__lastAppliedEdit;
+    const collisionText = collisionEdit ? collisionEdit.edits[0].newText : '';
+    check('the pre-existing CUSTNO field is untouched (still 5A)', /CUSTNO\s+5A/.test(collisionText));
+    check('the new field got a fresh suffixed name (CUSTNO2), not a duplicate CUSTNO', /CUSTNO2/.test(collisionText));
+
+    console.log('  addFieldsFromDatabase: no fields selected -> informational message, no edit applied');
+    const editBefore = vscodeMock.__lastAppliedEdit;
+    vscodeMock.__lastInformation = undefined;
+    await dbMessageHandler({ type: 'addFieldsFromDatabase', recordName: 'SCR1', library: 'MYLIB', file: 'CUSMSTP', fields: [] });
+    check('no NEW edit applied (same as before this call - __lastAppliedEdit has no setter/reset, so compare by reference rather than to undefined)', vscodeMock.__lastAppliedEdit === editBefore);
+    check('tells the user nothing was selected', /no fields were selected/.test(vscodeMock.__lastInformationMessage || ''));
+
+    // Restore the default-installed mock extension for any later tests in this file.
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
+    vscodeMock.__setRunCommandHandler(null);
+  }
+
   console.log('\necho-suppression (the core anti-infinite-loop mechanism)');
   const posted2 = [];
   fakeWebviewPanel.webview.postMessage = (m) => posted2.push(m);

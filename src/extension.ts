@@ -32,6 +32,7 @@ const DspfEngine: {
 const DspfWriter: {
   applyFieldUpdate(field: any, sourceLines: string[], updates: any): string[];
   insertField(record: any, sourceLines: string[], newField: any): string[];
+  nextAvailableFieldName(record: any, baseName: string): string;
   insertTypedRecord(dspfFile: any, sourceLines: string[], newRecord: { name: string; keywords: any[] }, pairBack: any): string[];
   insertTypedRecordWithDependent(dspfFile: any, sourceLines: string[], mainRecord: { name: string; keywords: any[] }, dependentRecord: { name: string; keywords: any[] }): string[];
 } = require('./dspfWriter.js');
@@ -554,6 +555,31 @@ async function openInDesigner(uri: vscode.Uri, viewType: string): Promise<void> 
 type ReferencedFieldAttributes = { length: number; dataType: string; decimalPositions: number | null };
 
 /**
+ * Interprets one DSPFFD OUTFILE row (QADSPFFD/QWHDRFFD format) into DDS's
+ * own length/type/decimals shape - shared by fetchReferencedFieldAttributes
+ * (one named field) and fetchDatabaseFileFields (Task L14 - every field in
+ * a file at once) so this char-vs-numeric interpretation only lives in one
+ * place. See fetchReferencedFieldAttributes' own doc comment below for why
+ * DSPFFD's OUTFILE is used at all instead of the QSYS2.SYSCOLUMNS SQL
+ * catalog, and for what WHFLDB vs WHFLDD/WHFLDP each mean.
+ */
+function mapDspffdRowToAttributes(row: any): ReferencedFieldAttributes {
+  const rowValue = (key: string) => (row[key] !== undefined ? row[key] : row[key.toLowerCase()]);
+  const whfldt = String(rowValue('WHFLDT') || '').trim().toUpperCase();
+  const whfldb = Number(rowValue('WHFLDB'));
+  const whfldd = Number(rowValue('WHFLDD'));
+  const whfldp = Number(rowValue('WHFLDP'));
+
+  if (whfldt === 'A') {
+    // Character: DDS's LENGTH column means bytes here.
+    return { length: whfldb, dataType: '', decimalPositions: null };
+  }
+  // Numeric (and everything else): DDS's LENGTH column means total digits,
+  // not bytes - WHFLDD, not WHFLDB (see this function's own doc comment).
+  return { length: whfldd, dataType: whfldt, decimalPositions: whfldp > 0 ? whfldp : null };
+}
+
+/**
  * Fetches one referenced field's real length/type/decimals from a connected
  * IBM i via Code for IBM i - the network half of "Resolve Referenced Field",
  * kept separate from DspfEngine.resolveReferenceTarget (which only works out
@@ -567,10 +593,7 @@ type ReferencedFieldAttributes = { length: number; dataType: string; decimalPosi
  * (position 35 - P/S/B/F/L/T/Z/blank). DSPFFD's OUTFILE instead reports the
  * field's ACTUAL DDS type code directly in WHFLDT - the same information
  * real SDA itself reads when resolving a reference field - so no mapping or
- * guessing is needed. WHFLDB is the field's length in BYTES (right for
- * character fields); WHFLDD/WHFLDP are DIGITS/decimal-positions (right for
- * numeric fields, which is what DDS's own LENGTH column means for a numeric
- * type) - see the WHFLDT='A' branch below for exactly which pair applies.
+ * guessing is needed.
  */
 async function fetchReferencedFieldAttributes(
   target: { fieldName: string; library: string | null; file: string }
@@ -617,21 +640,80 @@ async function fetchReferencedFieldAttributes(
     return { error: `Field "${target.fieldName}" was not found in ${qualifiedFile}.` };
   }
 
-  const row = rows[0];
-  const rowValue = (key: string) => (row[key] !== undefined ? row[key] : row[key.toLowerCase()]);
-  const whfldt = String(rowValue('WHFLDT') || '').trim().toUpperCase();
-  const whfldb = Number(rowValue('WHFLDB'));
-  const whfldd = Number(rowValue('WHFLDD'));
-  const whfldp = Number(rowValue('WHFLDP'));
-
-  if (whfldt === 'A') {
-    // Character: DDS's LENGTH column means bytes here.
-    return { length: whfldb, dataType: '', decimalPositions: null };
-  }
-  // Numeric (and everything else): DDS's LENGTH column means total digits,
-  // not bytes - WHFLDD, not WHFLDB (see this function's own doc comment).
-  return { length: whfldd, dataType: whfldt, decimalPositions: whfldp > 0 ? whfldp : null };
+  return mapDspffdRowToAttributes(rows[0]);
 }
+
+/**
+ * One field's metadata as listed from a database file - Task L14's own
+ * result shape, a superset of ReferencedFieldAttributes (adds the field's
+ * own name and description text, since unlike fetchReferencedFieldAttributes
+ * this isn't looking up ONE already-known name, it's discovering every
+ * field a file has).
+ */
+type DatabaseFileField = ReferencedFieldAttributes & { name: string; text: string };
+
+/**
+ * Task L14 - "Add fields from database file". Lists EVERY field in a PF/LF
+ * (not just one already-named field, unlike fetchReferencedFieldAttributes
+ * above, which this otherwise mirrors closely - same DSPFFD OUTFILE
+ * approach, same activation handling, same attribute mapping via
+ * mapDspffdRowToAttributes). WHFLDO is DSPFFD's own field-ORDER column, so
+ * results come back in the file's own natural field order, matching what
+ * you'd see paging through the file's fields in real SDA's own F10
+ * (Database) picker rather than some arbitrary SQL ordering.
+ */
+async function fetchDatabaseFileFields(library: string | null, file: string): Promise<{ fields: DatabaseFileField[] } | { error: string }> {
+  const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
+  if (!ext) {
+    return { error: 'Add fields from database file requires the Code for IBM i extension (halcyontechltd.code-for-ibmi), installed and connected.' };
+  }
+  if (!ext.isActive) {
+    try {
+      await ext.activate();
+    } catch {
+      // fall through - exports may still be usable, or the getConnection() check below will catch it
+    }
+  }
+  const instance: any = ext.exports && ext.exports.instance;
+  const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
+  if (!connection) {
+    return { error: 'Not connected to an IBM i - connect via the Code for IBM i panel first.' };
+  }
+
+  const qualifiedFile = (library ? library + '/' : '') + file;
+  const tempMember = 'ISDADBFF';
+  const dspffdCmd = `DSPFFD FILE(${qualifiedFile}) OUTPUT(*OUTFILE) OUTFILE(QTEMP/${tempMember}) OUTMBR(*FIRST *REPLACE)`;
+  let cmdResult: any;
+  try {
+    cmdResult = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command: dspffdCmd, environment: 'ile' });
+  } catch (err) {
+    return { error: `DSPFFD failed for ${qualifiedFile}: ${err}` };
+  }
+  if (cmdResult && typeof cmdResult.code === 'number' && cmdResult.code !== 0) {
+    return { error: `DSPFFD failed for ${qualifiedFile}: ${cmdResult.stderr || cmdResult.stdout || 'unknown error'}` };
+  }
+
+  const sql = `SELECT WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} ORDER BY WHFLDO`;
+  let rows: any[];
+  try {
+    rows = await connection.runSQL(sql);
+  } catch (err) {
+    return { error: `Could not read field list for ${qualifiedFile}: ${err}` };
+  }
+  if (!rows || rows.length === 0) {
+    return { error: `${qualifiedFile} has no fields, or wasn't found.` };
+  }
+
+  const rowValue = (row: any, key: string) => (row[key] !== undefined ? row[key] : row[key.toLowerCase()]);
+  const fields: DatabaseFileField[] = rows.map((row) => ({
+    name: String(rowValue(row, 'WHFLDI') || '').trim(),
+    text: String(rowValue(row, 'WHFTXT') || '').trim(),
+    ...mapDspffdRowToAttributes(row),
+  }));
+  return { fields };
+}
+
+
 
 /**
  * Handles a 'resolveReferencedField'/'resolveAllReferencedFields' message
@@ -721,6 +803,115 @@ async function handleResolveReferencedField(document: vscode.TextDocument, msg: 
   );
 }
 
+/**
+ * Task L14 - handles the 'listDatabaseFields' request from the DSPF
+ * designer's webview: a pure read-only lookup (no document edits, so no
+ * re-parse/model juggling needed here), just fetches the field list and
+ * posts it straight back for the webview's own picker to render.
+ */
+async function handleListDatabaseFields(
+  webview: vscode.Webview,
+  msg: { library: string | null; file: string }
+): Promise<void> {
+  const outcome = await fetchDatabaseFileFields(msg.library, msg.file);
+  if ('error' in outcome) {
+    webview.postMessage({ type: 'databaseFieldsResult', error: outcome.error });
+  } else {
+    webview.postMessage({ type: 'databaseFieldsResult', library: msg.library, file: msg.file, fields: outcome.fields });
+  }
+}
+
+/**
+ * Task L14 - handles the 'addFieldsFromDatabase' commit: creates one new
+ * REFFLD-based field per selected database field, stacked one screen-row
+ * below the previous (starting one row below the record's own current last
+ * field, or its header line if it has none yet), same fixed column for all
+ * of them - a starting point, not a final layout; each is individually
+ * draggable/editable afterward like any other field, same framing Task
+ * L14's own plan-doc row uses. `fields` already carries every attribute
+ * (length/dataType/decimalPositions/text) from the 'listDatabaseFields'
+ * round-trip the webview's picker already displayed - reusing that instead
+ * of re-querying DSPFFD a second time here, since it's the exact same data
+ * the person already saw and picked from a moment ago.
+ *
+ * Re-parses the model after EACH field is inserted, same "never trust a
+ * stale record/field reference after an edit" discipline
+ * handleResolveReferencedField above already follows - inserting one field
+ * shifts every subsequent source line number, so nextAvailableFieldName's
+ * own collision check (and the running "next free screen line" count) both
+ * need the freshly-reparsed record, not the one from before this field's
+ * own insert.
+ */
+async function handleAddFieldsFromDatabase(
+  document: vscode.TextDocument,
+  msg: {
+    recordName: string;
+    library: string | null;
+    file: string;
+    fields: Array<{ name: string; length: number; dataType: string; decimalPositions: number | null; text: string }>;
+  }
+): Promise<void> {
+  const initialModel = parseDspf(document.getText());
+  const initialRecord = initialModel.records.find((r) => r.name === msg.recordName);
+  if (!initialRecord) {
+    vscode.window.showErrorMessage('iSDA: record not found.');
+    return;
+  }
+  if (!msg.fields || msg.fields.length === 0) {
+    vscode.window.showInformationMessage('iSDA: no fields were selected.');
+    return;
+  }
+
+  let text = document.getText();
+  let currentModel = parseDspf(text);
+  // Screen row to place the NEXT field at - starts one row below whichever
+  // row is currently lowest among the record's own existing fields (or row
+  // 1 if it has none yet), then increments by 1 for each field this call
+  // adds, so the whole batch stacks down the screen one row per field
+  // rather than landing on top of each other.
+  let nextLine = 1;
+  (initialRecord.fields || []).forEach((f: any) => {
+    if (f.location && typeof f.location.line === 'number' && f.location.line >= nextLine) nextLine = f.location.line + 1;
+  });
+  const PLACEMENT_COLUMN = 2;
+
+  for (const dbField of msg.fields) {
+    const rec = currentModel.records.find((r: any) => r.name === msg.recordName);
+    if (!rec) break;
+    const fieldName = DspfWriter.nextAvailableFieldName(rec, dbField.name);
+    const qualifiedFile = (msg.library ? msg.library + '/' : '') + msg.file;
+    const reffldParams = dbField.name.toUpperCase() + ' ' + qualifiedFile;
+
+    const lines = text.split(/\r\n|\r|\n/);
+    const newLines = DspfWriter.insertField(rec, lines, {
+      nameType: 'FIELD',
+      name: fieldName,
+      length: dbField.length,
+      dataType: dbField.dataType,
+      decimalPositions: dbField.decimalPositions,
+      usage: 'B',
+      isReference: true,
+      location: { line: nextLine, column: PLACEMENT_COLUMN },
+      keywords: [{ name: 'REFFLD', parameters: reffldParams }],
+    });
+    text = newLines.join('\n');
+    currentModel = parseDspf(text);
+    nextLine++;
+  }
+
+  const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+  const edit = new vscode.WorkspaceEdit();
+  edit.replace(document.uri, fullRange, text);
+  // Same reasoning as handleResolveReferencedField's own apply-edit above:
+  // this originates from the HOST (a button click plus a network
+  // round-trip), not the webview's own 'applyEdit' message path, so it's
+  // deliberately NOT wrapped in the applyingFromWebview suppression flag -
+  // the webview needs the new fields pushed back to it via the normal
+  // onDidChangeTextDocument -> 'externalUpdate' path.
+  await vscode.workspace.applyEdit(edit);
+  vscode.window.showInformationMessage(`iSDA: Added ${msg.fields.length} field${msg.fields.length === 1 ? '' : 's'} from ${msg.library ? msg.library + '/' : ''}${msg.file}.`);
+}
+
 function openDesigner(uri: vscode.Uri): void {
   void openInDesigner(uri, DspfDesignerEditorProvider.viewType);
 }
@@ -774,6 +965,10 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'resolveReferencedField' || msg.type === 'resolveAllReferencedFields') {
         await handleResolveReferencedField(document, msg);
+      } else if (msg.type === 'listDatabaseFields') {
+        await handleListDatabaseFields(webviewPanel.webview, msg);
+      } else if (msg.type === 'addFieldsFromDatabase') {
+        await handleAddFieldsFromDatabase(document, msg);
       } else if (msg.type === 'compileDspf') {
         await compileDspf(document.uri);
       } else if (msg.type === 'setUiStyle') {
