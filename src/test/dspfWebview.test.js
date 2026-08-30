@@ -4563,6 +4563,7 @@ function runDatabaseFieldsPickerScenario() {
     pretendToBeVisual: true,
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+
     },
   });
 
@@ -4620,6 +4621,105 @@ function runDatabaseFieldsPickerScenario() {
     dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'databaseFieldsResult', error: 'Not connected to an IBM i - connect via the Code for IBM i panel first.' } }));
     check('shows the error text', doc.getElementById('dbf-error').textContent.includes('Not connected'));
     check('no field rows rendered', doc.querySelectorAll('.dbfields-list-row').length === 0);
+
+    runSystemValueConstantScenario();
+  }, 0);
+}
+
+function runSystemValueConstantScenario() {
+  console.log('\nTask L16: system-value constants (*DATE/*TIME/*USER/*SYSTEM(SYSNAME)/*PAGNBR) - editing must not corrupt them, and adding one must work');
+  const src =
+    [
+      '     A          R RECORD1',
+      '     A                                  1 10USER',
+      '     A                                  2 10DATE',
+      "     A                                  3  2'Hello'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce21', src, 'SYSVAL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  selecting the *USER field shows a "System value" dropdown, NOT a Text input');
+    const boxes = Array.from(doc.querySelectorAll('.dspf-field'));
+    check('setup: 3 field boxes on screen (USER, DATE, the literal constant)', boxes.length === 3);
+    boxes[0].click();
+    const sysvalSelect = doc.getElementById('p-const-sysval');
+    check('System value dropdown present', !!sysvalSelect);
+    check('pre-selected to USER', sysvalSelect && sysvalSelect.value === 'USER');
+    check('no Text input rendered for a system-value constant', !doc.getElementById('p-const-text'));
+    check('no Fill button rendered either (nothing to fill)', !doc.getElementById('p-fill'));
+
+    console.log('  Task L16 regression: clicking Apply WITHOUT touching anything must NOT corrupt the line (the original bug)');
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    check('the USER line is untouched - no stray literal alongside the keyword', /^\s*A\s+1 10USER\s*$/m.test(applyEdit.text));
+    check('no invalid double-literal-plus-keyword line was written', !/''USER|""USER/.test(applyEdit.text));
+    posted.length = 0;
+
+    console.log('  switching the dropdown from USER to SYSNAME replaces the keyword, still no literal added');
+    let freshSysvalSelect = doc.getElementById('p-const-sysval');
+    freshSysvalSelect.value = 'SYSNAME';
+    freshSysvalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('USER keyword replaced with SYSNAME', /SYSNAME/.test(applyEdit.text) && !/\bUSER\b/.test(applyEdit.text));
+    let reparsed = DspfParser.parseDspf(applyEdit.text);
+    let rec1 = reparsed.records.find((r) => r.name === 'RECORD1');
+    const sysnameField = rec1.fields.find((f) => f.keywords.some((k) => k.name === 'SYSNAME'));
+    check('re-parses as a CONSTANT with a null constantValue (no literal text)', sysnameField && sysnameField.nameType === 'CONSTANT' && sysnameField.constantValue == null);
+    posted.length = 0;
+
+    console.log('  the *DATE field (index 1) also gets the dropdown, not treated as a plain literal');
+    const boxes2 = Array.from(doc.querySelectorAll('.dspf-field'));
+    boxes2[1].click();
+    const dateSelect = doc.getElementById('p-const-sysval');
+    check('DATE field also shows the dropdown, pre-selected to DATE', dateSelect && dateSelect.value === 'DATE');
+
+    console.log('  a plain literal constant (index 2) still shows the normal Text input, unaffected by any of this');
+    const boxes3 = Array.from(doc.querySelectorAll('.dspf-field'));
+    boxes3[2].click();
+    check('plain literal constant has a Text input, not a System value dropdown', !!doc.getElementById('p-const-text') && !doc.getElementById('p-const-sysval'));
+    check('Fill button still present for a plain literal', !!doc.getElementById('p-fill'));
+
+    console.log('  Task L16: "+ Add constant" can create a new system-value constant (previously impossible - literal text was required)');
+    const placeConstantBtn = doc.getElementById('placeConstantBtn');
+    placeConstantBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const screenEl = doc.querySelector('.dspf-screen');
+    screenEl.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 55, clientY: 95 }));
+    const sysvalToggle = doc.getElementById('p-place-sysval-toggle');
+    check('the placement form has a "System value" toggle', !!sysvalToggle);
+    check('Text input is the default (toggle unchecked)', doc.getElementById('p-place-text-wrap').style.display !== 'none');
+    sysvalToggle.checked = true;
+    sysvalToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    check('checking the toggle hides the Text input', doc.getElementById('p-place-text-wrap').style.display === 'none');
+    check('...and shows the System value dropdown instead', doc.getElementById('p-place-sysval-wrap').style.display !== 'none');
+    doc.getElementById('p-place-sysval').value = 'TIME';
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text);
+    rec1 = reparsed.records.find((r) => r.name === 'RECORD1');
+    const newTimeField = rec1.fields.find((f) => f.keywords.some((k) => k.name === 'TIME'));
+    check('new TIME system-value constant created, with a null constantValue (no literal alongside it)', newTimeField && newTimeField.nameType === 'CONSTANT' && newTimeField.constantValue == null);
+    posted.length = 0;
 
     runWindowBorderAndDefaultColorScenario();
   }, 0);

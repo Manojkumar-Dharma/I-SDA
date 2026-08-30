@@ -2412,21 +2412,48 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const editable = DspfWriter.isEditable(field);
     const isConstant = field.nameType === 'CONSTANT';
-    // DATE/TIME/PAGNBR system-value placeholders parse as CONSTANT (DDS
-    // leaves their name column blank, same as an ordinary literal), but
-    // unlike a plain literal they DO commonly carry an EDTCDE/EDTWRD in
-    // real DDS (e.g. inserting slashes into a DATE placeholder) - the
-    // Edit code/word section below applies to these even though the rest
-    // of the "constants have no data type to validate" reasoning still
-    // holds (no Validity check/Error message section for them - those
-    // genuinely don't apply to a non-data-entry placeholder).
-    const isSystemValueConstant = isConstant && field.keywords.some((k) => k.name === 'DATE' || k.name === 'TIME' || k.name === 'PAGNBR');
+    // A "system value" constant (DATE/TIME/USER/SYSNAME/PAGNBR) parses as a
+    // plain CONSTANT (DDS leaves its name column blank, same as an ordinary
+    // literal - see dspfParser.ts's nameTypeFor) but is fundamentally
+    // different from one: its displayed value comes from the SYSTEM at
+    // runtime, not from "constantValue" (which is null for these - there's
+    // no literal text to store). Bug fixed here: this used to only
+    // recognize DATE/TIME/PAGNBR, silently missing USER and SYSNAME -
+    // which meant editing OR adding a *USER/*SYSNAME placeholder fell
+    // through to the plain-literal-text code path below. That path always
+    // sends "updates.constantValue" on every Apply click (even one that
+    // only touched Line/Column), and DspfWriter.buildFunctionAreaText
+    // writes ANY non-null constantValue as a quoted literal regardless of
+    // what keywords are also present - so simply opening a *USER field and
+    // clicking Apply for an unrelated reason silently corrupted it into
+    // invalid DDS carrying BOTH an empty '' literal AND the USER keyword
+    // on the same line. Now consistently recognized (matching
+    // DspfEngine.fieldDisplayText's own list below) and given its own
+    // dedicated, non-destructive UI instead of the free-text Text input.
+    const SYSTEM_VALUE_KEYWORD_NAMES = ['DATE', 'TIME', 'USER', 'SYSNAME', 'PAGNBR'];
+    const isSystemValueConstant = isConstant && field.keywords.some((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) !== -1);
     let html = '';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this field is disabled to avoid corrupting it. Edit the source directly.</div>';
 
     // --- Basic tab: identity (name/text, length/decimals or fill, type/usage) ---
     let basicHtml = '';
-    if (isConstant) {
+    if (isSystemValueConstant) {
+      // A system-value constant has no literal text at all - its whole
+      // identity is WHICH system value it displays. Exactly one of these
+      // five keywords is expected at a time (they're mutually exclusive
+      // ways of filling in "the system supplies this"), so this is a
+      // single-select dropdown, not a repeatable keyword list - switching
+      // it removes whichever one was there and adds the newly chosen one
+      // (see the Apply handler below). EDTCDE/EDTWRD (common on DATE/TIME/
+      // PAGNBR - e.g. inserting slashes into a date) still live in the
+      // Attributes tab below, unaffected by this dropdown.
+      const currentSysKw = field.keywords.find((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) !== -1);
+      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name', PAGNBR: 'PAGNBR - page number' };
+      basicHtml += '<div class="field-row"><label>System value</label><select id="p-const-sysval">' +
+        SYSTEM_VALUE_KEYWORD_NAMES.map((v) => '<option value="' + v + '"' + (currentSysKw && currentSysKw.name === v ? ' selected' : '') + '>' + sysValueLabels[v] + '</option>').join('') +
+        '</select></div>';
+      basicHtml += '<div class="hint-small">This field shows a system-supplied value, not literal text - the design preview shows a live placeholder (e.g. today\u2019s date), and the real value fills in at runtime.</div>';
+    } else if (isConstant) {
       // A constant has no name/length/data type/usage of its own - its whole
       // identity IS its literal text, which was previously not editable
       // here at all (only its position, via drag). DspfWriter.applyFieldUpdate
@@ -2582,7 +2609,16 @@ const htmlTemplate = `<!DOCTYPE html>
         line: document.getElementById('p-line').value === '' ? null : parseInt(document.getElementById('p-line').value, 10),
         column: document.getElementById('p-col').value === '' ? null : parseInt(document.getElementById('p-col').value, 10),
       };
-      if (isConstant) {
+      if (isSystemValueConstant) {
+        // Switching the dropdown replaces whichever system-value keyword
+        // was there with the newly chosen one - constantValue is
+        // deliberately left untouched (stays null/absent) so
+        // buildFunctionAreaText never writes a literal alongside it. This
+        // is the actual fix for the corruption bug described above: no
+        // path here ever sets updates.constantValue for one of these.
+        const chosen = document.getElementById('p-const-sysval').value;
+        updates.keywords = field.keywords.filter((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) === -1).concat([{ name: chosen, parameters: '', conditions: [], sourceLines: [] }]);
+      } else if (isConstant) {
         updates.constantValue = document.getElementById('p-const-text').value;
       } else {
         updates.name = document.getElementById('p-name').value.trim().toUpperCase();
@@ -2635,7 +2671,7 @@ const htmlTemplate = `<!DOCTYPE html>
       }
     }
 
-    if (isConstant) {
+    if (isConstant && !isSystemValueConstant) {
       document.getElementById('p-fill').addEventListener('click', () => {
         const ch = (document.getElementById('p-fill-char').value || '.').slice(0, 1) || '.';
         const len = Math.max(1, parseInt(document.getElementById('p-fill-len').value, 10) || 1);
@@ -2645,9 +2681,16 @@ const htmlTemplate = `<!DOCTYPE html>
 
     document.getElementById('p-center').addEventListener('click', () => {
       const columns = (lastScreen && lastScreen.columns) || 80;
-      const width = isConstant
-        ? (document.getElementById('p-const-text').value || '').length
-        : Math.max(1, parseInt(document.getElementById('p-length').value, 10) || 1);
+      // A system-value constant has no Text input to measure - its width
+      // is whatever DspfEngine.displayLength itself would compute for it at
+      // render time (DATE honors DATFMT via dateFieldLength, TIME is always
+      // 8, etc. - see displayLength's own doc comment), so reuse that
+      // directly rather than guessing a width here.
+      const width = isSystemValueConstant
+        ? DspfEngine.displayLength(field, found.record, model)
+        : isConstant
+          ? (document.getElementById('p-const-text').value || '').length
+          : Math.max(1, parseInt(document.getElementById('p-length').value, 10) || 1);
       const col = Math.max(1, Math.floor((columns - width) / 2) + 1);
       document.getElementById('p-col').value = String(col);
     });
@@ -2873,7 +2916,20 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
     html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
     if (kind === 'CONSTANT') {
-      html += '<div class="field-row"><label>Text</label><input type="text" id="p-place-text" placeholder="Constant text" /></div>';
+      // Task: *DATE/*TIME/*USER/*SYSTEM(SYSNAME)/*PAGNBR system-value
+      // constants previously had NO way to be created here at all - "Enter
+      // the constant text" was required, with nothing offering the
+      // alternative of a keyword-only, no-text constant. A checkbox swaps
+      // the Text input for a dropdown of the five real DDS keywords that
+      // make a constant field display a system-supplied value instead of
+      // literal text (see renderFieldProps's own isSystemValueConstant
+      // doc comment for the full keyword list/reasoning).
+      html += '<div class="field-row"><label><input type="checkbox" id="p-place-sysval-toggle" /> System value (date/time/user/etc.) instead of literal text</label></div>';
+      html += '<div id="p-place-text-wrap" class="field-row"><label>Text</label><input type="text" id="p-place-text" placeholder="Constant text" /></div>';
+      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name', PAGNBR: 'PAGNBR - page number' };
+      html += '<div id="p-place-sysval-wrap" class="field-row" style="display:none;"><label>System value</label><select id="p-place-sysval">' +
+        ['DATE', 'TIME', 'USER', 'SYSNAME', 'PAGNBR'].map((v) => '<option value="' + v + '">' + sysValueLabels[v] + '</option>').join('') +
+        '</select></div>';
     } else {
       html += '<div class="field-row"><label>Name</label><input type="text" id="p-place-name" maxlength="10" placeholder="FIELD1" /></div>';
       html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-place-length" min="1" value="10" /></div>';
@@ -2889,6 +2945,13 @@ const htmlTemplate = `<!DOCTYPE html>
     propsBody.innerHTML = html;
 
     document.getElementById('p-place-cancel').addEventListener('click', () => { pendingPlacement = null; render(); });
+    const sysvalToggle = document.getElementById('p-place-sysval-toggle');
+    if (sysvalToggle) {
+      sysvalToggle.addEventListener('change', () => {
+        document.getElementById('p-place-text-wrap').style.display = sysvalToggle.checked ? 'none' : '';
+        document.getElementById('p-place-sysval-wrap').style.display = sysvalToggle.checked ? '' : 'none';
+      });
+    }
     document.getElementById('p-place-add').addEventListener('click', () => {
       const errorEl = document.getElementById('p-place-error');
       errorEl.textContent = '';
@@ -2900,9 +2963,14 @@ const htmlTemplate = `<!DOCTYPE html>
 
       let newFieldSpec;
       if (kind === 'CONSTANT') {
-        const text = document.getElementById('p-place-text').value;
-        if (!text) { errorEl.textContent = 'Enter the constant text.'; return; }
-        newFieldSpec = { nameType: 'CONSTANT', constantValue: text, location: { line: line, column: column } };
+        if (sysvalToggle && sysvalToggle.checked) {
+          const chosen = document.getElementById('p-place-sysval').value;
+          newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: chosen, parameters: '', conditions: [], sourceLines: [] }], location: { line: line, column: column } };
+        } else {
+          const text = document.getElementById('p-place-text').value;
+          if (!text) { errorEl.textContent = 'Enter the constant text.'; return; }
+          newFieldSpec = { nameType: 'CONSTANT', constantValue: text, location: { line: line, column: column } };
+        }
       } else {
         const name = document.getElementById('p-place-name').value.trim().toUpperCase();
         if (!name) { errorEl.textContent = 'Enter a name for the new field.'; return; }
@@ -3672,8 +3740,22 @@ const htmlTemplate = `<!DOCTYPE html>
       (lines) => DspfWriter.applyFieldUpdate(field, lines, updates),
       () => {
         const rec = model.records.find((r) => r.name === recordName);
-        const stillThere = rec && field.name && rec.fields.find((f) => f.name === field.name);
-        selectedKey = stillThere ? { sourceLine: stillThere.sourceLine } : null;
+        // A CONSTANT (including a system-value one - Task L16) has no
+        // "name" at all, so matching by name here always failed for one -
+        // selection silently dropped back to nothing after every single
+        // edit, forcing a re-click each time. applyFieldUpdate only ever
+        // rewrites a field's OWN existing line(s) in place - it never
+        // inserts/removes lines elsewhere - so "sourceLine" is still a
+        // valid, stable match for an unnamed field post-edit.
+        const stillThere = rec && (field.name
+          ? rec.fields.find((f) => f.name === field.name)
+          : rec.fields.find((f) => f.sourceLine === field.sourceLine));
+        // Task L10's own selectedKeys array must stay in sync with
+        // selectedKey (see its own doc comment above) - going through
+        // setSingleSelection/clearSelection here instead of assigning
+        // selectedKey directly is what actually keeps that invariant, not
+        // just updating selectedKey alone.
+        setSingleSelection(stillThere ? stillThere.sourceLine : null);
       }
     );
   }

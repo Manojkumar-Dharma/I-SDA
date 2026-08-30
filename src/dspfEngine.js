@@ -329,6 +329,7 @@
         else if (kwNames.indexOf('TIME') !== -1) text = new Date().toLocaleTimeString();
         else if (kwNames.indexOf('USER') !== -1) text = '*USER';
         else if (kwNames.indexOf('SYSNAME') !== -1) text = '*SYSNAME';
+        else if (kwNames.indexOf('PAGNBR') !== -1) text = '1';
         else text = '';
       }
       return text;
@@ -1681,6 +1682,7 @@
     validateSizeBounds: validateSizeBounds,
     screenLinesForRecord: screenLinesForRecord,
     resolveFunctionKeyLegend: resolveFunctionKeyLegend,
+    displayLength: displayLength,
     COLOR_HEX: COLOR_HEX,
     DEFAULT_COLOR: DEFAULT_COLOR,
   };

@@ -36,6 +36,43 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   out the whole L10-L15 brainstorm batch - every currently-tracked DSPF
   designer task (L1-L15) and menu designer task (M1-M6) is now done.
 
+## [0.9.97] - 2026-08-30
+
+### Fixed
+- **Task L16: system-value constants (`*DATE`/`*TIME`/`*USER`/`*SYSTEM`
+  (`SYSNAME`)/`*PAGNBR`) were actively corrupted by editing, and couldn't
+  be created at all** (see `docs/sda-reference/LIMITATIONS-PLAN.md`).
+  Reported as "editing or adding them is not correctly handled." These
+  are real DDS field-level keywords (`DATE`/`TIME`/`USER`/`SYSNAME`/
+  `PAGNBR`) applied to an unnamed constant field, telling the system to
+  fill in the current date/time/user/system-name/page-number at
+  runtime instead of a literal - `dspfParser.ts`/`DspfEngine` already
+  modeled this correctly, but the picker had two real bugs: the check
+  recognizing one of these fields only covered `DATE`/`TIME`/`PAGNBR`,
+  silently missing `USER` and `SYSNAME` - so a `*USER`/`*SYSTEM` field
+  fell through to the plain-literal-text code path, which always sends
+  a (blank) literal on every "Apply changes" click regardless of what
+  was actually changed - silently corrupting the field into invalid DDS
+  carrying both an empty `''` literal AND the system-value keyword on
+  the same line, just from opening its props and clicking Apply for an
+  unrelated reason. Separately, "+ Add constant" had no way to create
+  one of these at all.
+  Fixed: the detection now covers all 5 keywords; the Basic tab shows a
+  dedicated "System value" dropdown instead of a Text input for these,
+  and the Apply handler never touches `constantValue` for them -
+  switching the dropdown replaces whichever keyword was there with the
+  newly chosen one. "Center on screen" (which read the now-absent Text
+  input for these) now uses `DspfEngine.displayLength` for its width
+  instead. "+ Add constant" gained a "System value instead of literal
+  text" toggle. Also fixed in passing: the design-time placeholder text
+  was missing `PAGNBR` (fell through to blank).
+  Testing surfaced one more real, related bug this fix needed to work
+  at all: editing ANY constant (not just a system-value one) lost its
+  selection after every single edit, since the reselect logic matched
+  by field name, which no constant has - fixed by falling back to a
+  source-line match for unnamed fields.
+  See the new Task L16 scenario in `src/test/dspfWebview.test.js`.
+
 ## [0.9.95] - 2026-08-29
 
 ### Fixed
