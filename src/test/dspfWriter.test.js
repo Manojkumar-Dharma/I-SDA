@@ -907,6 +907,47 @@ console.log('\nDspfWriter.getEditKeyword()/setEditKeyword() - EDTCDE/EDTWRD are 
   check('and adds the new EDTWRD with its parameters', switched.find((k) => k.name === 'EDTWRD').parameters === "'  DR  CR'");
 }
 
+console.log('\nDspfWriter.getCheckMsgId()/setCheckMsgId() - CHKMSGID(message-id [library/]message-file [&message-data-field]), verified against the DDS Reference\'s own CHKMSGID example');
+{
+  check('no CHKMSGID -> all blank', JSON.stringify(DspfWriter.getCheckMsgId([])) === JSON.stringify({ msgId: '', library: '', msgFile: '', msgDataField: '' }));
+
+  // DDS Reference example: CHKMSGID(USR1234 QGPL/USRMSGS &MSGFLD1)
+  const withLibAndData = [{ name: 'CHKMSGID', parameters: 'USR1234 QGPL/USRMSGS &MSGFLD1', conditions: [], raw: '', sourceLines: [] }];
+  const parsed1 = DspfWriter.getCheckMsgId(withLibAndData);
+  check('parses message-id, library, message-file, and &message-data-field (library/file example)', parsed1.msgId === 'USR1234' && parsed1.library === 'QGPL' && parsed1.msgFile === 'USRMSGS' && parsed1.msgDataField === 'MSGFLD1');
+
+  // DDS Reference example: CHKMSGID(XYZ9999 APPLMSGS) - no library, no data field
+  const bare = [{ name: 'CHKMSGID', parameters: 'XYZ9999 APPLMSGS', conditions: [], raw: '', sourceLines: [] }];
+  const parsed2 = DspfWriter.getCheckMsgId(bare);
+  check('library and message-data-field are both blank when omitted (*LIBL example)', parsed2.msgId === 'XYZ9999' && parsed2.library === '' && parsed2.msgFile === 'APPLMSGS' && parsed2.msgDataField === '');
+
+  const written1 = DspfWriter.setCheckMsgId([], 'USR1234', 'QGPL', 'USRMSGS', 'MSGFLD1');
+  check('writes back exactly the DDS Reference\'s own library/file/&data-field form', written1.find((k) => k.name === 'CHKMSGID').parameters === 'USR1234 QGPL/USRMSGS &MSGFLD1');
+
+  const written2 = DspfWriter.setCheckMsgId([], 'XYZ9999', '', 'APPLMSGS', '');
+  check('omits the library and &data-field entirely when both are blank', written2.find((k) => k.name === 'CHKMSGID').parameters === 'XYZ9999 APPLMSGS');
+
+  const removed = DspfWriter.setCheckMsgId(written1, '', '', '', '');
+  check('blanking message-id removes CHKMSGID entirely', !removed.some((k) => k.name === 'CHKMSGID'));
+
+  const noFile = DspfWriter.setCheckMsgId([], 'USR1234', 'QGPL', '', '');
+  check('message-id without message-file is invalid DDS - CHKMSGID is not added', !noFile.some((k) => k.name === 'CHKMSGID'));
+
+  // Round-trip through the real DDS parser/writer, not just the in-memory
+  // helpers - short identifiers only, since the fixture's `func` column
+  // starts at col 45 and the line is 80 cols wide (36-char budget), and
+  // buildLine has no "+" continuation support for keywords past that.
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'FIELD1', length: '10', dataType: 'A', usage: 'B', line: '4', col: '2', func: 'CHECK(VN)' }),
+    buildLine({ seq: '00030', func: 'CHKMSGID(U1234 QGPL/MSGF &FLD1)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const field1 = model.records[0].fields.find((f) => f.name === 'FIELD1');
+  const roundTripped = DspfWriter.getCheckMsgId(field1.keywords);
+  check('round-trips through the real DDS parser exactly as the DDS Reference example intends', roundTripped.msgId === 'U1234' && roundTripped.library === 'QGPL' && roundTripped.msgFile === 'MSGF' && roundTripped.msgDataField === 'FLD1');
+}
+
 console.log('\nDspfWriter.getErrorMessageInstances()/setErrorMessageInstances() - Task L1b, ERRMSG/ERRMSGID as repeatable conditioned instances (IBM DDS ref V4R5, ERRMSG/ERRMSGID keyword section, Figure 174)');
 {
   const none = DspfWriter.getErrorMessageInstances([]);

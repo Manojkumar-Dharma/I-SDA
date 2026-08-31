@@ -24,7 +24,12 @@ const DspfWriter = require('../../dist/dspfWriter.js');
  *  assertions in this file - never for anything that gets fed back through
  *  the parser, which understands real DDS continuation on its own. */
 function dewrapDds(text) {
-  return (text || '').replace(/\+\r?\n.{44}/g, '');
+  // DDS continuation uses "+" (insert one space at the join, already baked
+  // into the continuation line's own column-45 content by the writer) or
+  // "-" (join with no space) - either way, this strips just the padding
+  // prefix (columns 1-44) of the continuation line, leaving its actual
+  // column-45-onward text glued onto the previous line's own text.
+  return (text || '').replace(/[+-]\r?\n.{44}/g, '');
 }
 
 let failures = 0;
@@ -1576,6 +1581,30 @@ function runFieldPropertyHelpersScenario() {
     const vcEdit = posted.find((m) => m.type === 'applyEdit');
     check('posts EDTCDE with the chosen code', vcEdit && vcEdit.text.includes('EDTCDE(J)'));
     check('the two validity-check instances from above are untouched by the edit-code Apply', vcEdit && vcEdit.text.includes('COMP(0 999)') && vcEdit.text.includes('RANGE(1 99)'));
+
+    console.log('  CHKMSGID: overrides the validity-check error message (its own Apply button, separate from EDTCDE/EDTWRD/EDTMSK\u2019s)');
+    posted.length = 0;
+    const amountVcCm = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountVcCm.dispatchEvent(new Event('click', { bubbles: true }));
+    check('setup: the CHKMSGID inputs are present', !!doc.getElementById(fieldKey + '-cm-msgid') && !!doc.getElementById(fieldKey + '-cm-msgfile') && !!doc.getElementById(fieldKey + '-cm-library') && !!doc.getElementById(fieldKey + '-cm-msgdata'));
+    doc.getElementById(fieldKey + '-cm-msgid').value = 'USR1234';
+    doc.getElementById(fieldKey + '-cm-msgfile').value = 'USRMSGS';
+    doc.getElementById(fieldKey + '-cm-library').value = 'QGPL';
+    doc.getElementById(fieldKey + '-cm-msgdata').value = 'MSGFLD1';
+    doc.querySelector('.' + fieldKey + '-cm-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    const cmEdit = posted.find((m) => m.type === 'applyEdit');
+    check('posts CHKMSGID with library/file slash-qualified and the &data field', cmEdit && dewrapDds(cmEdit.text).includes('CHKMSGID(USR1234 QGPL/USRMSGS &MSGFLD1)'));
+    check('the earlier EDTCDE and validity-check instances survive the CHKMSGID Apply', cmEdit && cmEdit.text.includes('EDTCDE(J)') && cmEdit.text.includes('COMP(0 999)'));
+
+    console.log('  CHKMSGID: blanking message-id and message-file removes it again (both are required by DDS)');
+    posted.length = 0;
+    const amountVcCm2 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
+    amountVcCm2.dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById(fieldKey + '-cm-msgid').value = '';
+    doc.getElementById(fieldKey + '-cm-msgfile').value = '';
+    doc.querySelector('.' + fieldKey + '-cm-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    const cmRemoveEdit = posted.find((m) => m.type === 'applyEdit');
+    check('CHKMSGID is gone once message-id and message-file are both blanked', cmRemoveEdit && !cmRemoveEdit.text.includes('CHKMSGID'));
 
     console.log('  Task L1b: Error messages (ERRMSG/ERRMSGID) as repeatable, independently-conditioned instances');
     posted.length = 0;

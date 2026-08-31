@@ -852,6 +852,57 @@
     return next;
   }
 
+  // ---------------------------------------------------------------------
+  // CHKMSGID (Check Message Identifier): overrides the system-supplied
+  // error message a validity check (CHECK(VN/VNE/M10/M11), CMP, COMP,
+  // RANGE, or VALUES) issues when it rejects the field's data - real
+  // SDA's own "Define Validity Check Keywords" screen reaches this via a
+  // second "More..." page rather than showing it alongside RANGE/COMP/
+  // VALUES/CHECK on the first page, but it's still the SAME field-level
+  // keyword picker, not a separate feature.
+  // Format: CHKMSGID(message-id [library/]message-file [&message-data-field])
+  // - message-id and message-file are both required (DDS syntax has no
+  // way to specify one without the other); library is optional (defaults
+  // to *LIBL at run time when omitted) and message-data-field is an
+  // optional &field-name whose contents supply the message's replacement
+  // text. Single-instance, same one-at-a-time "Apply" pattern as
+  // getEditKeyword/setEditKeyword just above (no per-instance
+  // conditioning support, matching that same simplification).
+  // ---------------------------------------------------------------------
+
+  /** @returns {{msgId:string, library:string, msgFile:string, msgDataField:string}} */
+  function getCheckMsgId(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'CHKMSGID'; });
+    if (!k) return { msgId: '', library: '', msgFile: '', msgDataField: '' };
+    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var msgId = tokens[0] || '';
+    var fileToken = tokens[1] || '';
+    var library = '', msgFile = fileToken;
+    var slash = fileToken.indexOf('/');
+    if (slash !== -1) {
+      library = fileToken.slice(0, slash);
+      msgFile = fileToken.slice(slash + 1);
+    }
+    var msgDataField = (tokens[2] || '').replace(/^&/, '');
+    return { msgId: msgId, library: library, msgFile: msgFile, msgDataField: msgDataField };
+  }
+
+  /** Returns a NEW keywords array with any existing CHKMSGID removed and,
+   *  if both `msgId` and `msgFile` are non-blank (DDS requires both), one
+   *  new CHKMSGID added. `library` and `msgDataField` are each optional. */
+  function setCheckMsgId(keywords, msgId, library, msgFile, msgDataField) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'CHKMSGID'; });
+    var id = (msgId || '').trim();
+    var file = (msgFile || '').trim();
+    if (!id || !file) return next;
+    var fileToken = (library || '').trim() ? library.trim() + '/' + file : file;
+    var params = id + ' ' + fileToken;
+    var dataField = (msgDataField || '').trim().replace(/^&/, '');
+    if (dataField) params += ' &' + dataField;
+    next = next.concat([{ name: 'CHKMSGID', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
   // -----------------------------------------------------------------------
   // Field-level keyword pickers modeled on real SDA's "Select Field
   // Keywords" screens (see docs/sda-reference/, task D1) - CHECK(...)
@@ -3364,6 +3415,8 @@
     setValidityCheckInstances: setValidityCheckInstances,
     getEditKeyword: getEditKeyword,
     setEditKeyword: setEditKeyword,
+    getCheckMsgId: getCheckMsgId,
+    setCheckMsgId: setCheckMsgId,
     getErrorMessageInstances: getErrorMessageInstances,
     setErrorMessageInstances: setErrorMessageInstances,
     parseCheckCodes: parseCheckCodes,

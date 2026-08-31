@@ -3,6 +3,36 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.4] - 2026-08-31
+
+### Added
+- **CHKMSGID (Check Message Identifier) keyword.** Real SDA's own "Define
+  Validity Check Keywords" screen reaches this on a second "More..." page
+  (message identifier, message file, library, message data field) - iSDA
+  had the first page (RANGE/COMP/VALUES/CHECK) but not this one, so a
+  validity check could be defined but its default system error message
+  couldn't be overridden with a custom one. Added
+  `DspfWriter.getCheckMsgId`/`setCheckMsgId` (format
+  `CHKMSGID(message-id [library/]message-file [&message-data-field])`,
+  verified round-trip against the DDS Reference's own CHKMSGID examples -
+  both message-id and message-file are required, library and the
+  &message-data-field are each optional) plus four inputs and their own
+  "Apply CHKMSGID" button in the field properties panel's Validity check
+  section, right after the CHECK checkboxes. Single-instance, same
+  one-at-a-time pattern as EDTCDE/EDTWRD/EDTMSK's own Apply button (a
+  separate button, since it's a genuinely different keyword). See the new
+  `getCheckMsgId()`/`setCheckMsgId()` coverage in `dspfWriter.test.js`
+  and the CHKMSGID scenario in `dspfWebview.test.js`.
+
+### Fixed
+- **`dspfWebview.test.js`'s `dewrapDds()` test helper only understood "+"
+  continuation, not "-".** DDS wraps an overly-long keyword across
+  multiple source lines using either "+" (insert one space at the join)
+  or "-" (no space) - discovered while adding CHKMSGID's own webview test,
+  since its slash-qualified library/file plus &message-data-field text is
+  long enough to trigger a "-" wrap. Now strips either continuation
+  character's padding prefix, not just "+"'s.
+
 ## [0.10.3] - 2026-08-31
 
 ### Fixed
@@ -72,7 +102,6 @@ Full suite: 2121 checks, 0 failures.
 Full suite: 2117 checks, 0 failures (up from 2046 on top of this
 work alone - the difference is 0.10.1's own dspfEngine.test.js
 dead-code-tail fix, landed concurrently and rebased onto here).
-
 ## [0.10.1] - 2026-08-31
 
 ### Fixed

@@ -919,6 +919,25 @@
       // mechanism of its own (unlike EDTCDE/EDTWRD/EDTMSK below, still
       // single-instance and still behind the "Apply" button).
       html += '<div style="margin-top:6px;">' + checkInstancesHtml(keywords, ownerKey + '-validity', expandedSet, VALIDITY_CHECK_CODES, '+ Add CHECK instance') + '</div>';
+
+      // CHKMSGID - overrides the system-supplied error message a validity
+      // check issues. Real SDA's own "Define Validity Check Keywords"
+      // screen reaches this on a SECOND page (its "More..." key), but it's
+      // the same field-level keyword picker as RANGE/COMP/VALUES/CHECK
+      // just above, not a separate panel - see DspfWriter.getCheckMsgId's
+      // own doc comment for the DDS format. Single-instance, own "Apply"
+      // button (a genuinely different keyword than EDTCDE/EDTWRD/EDTMSK's
+      // own Apply below, so bundling the two commits would be misleading).
+      var cm = DspfWriter.getCheckMsgId(keywords);
+      html += '<div class="section-label" style="margin-top:10px;">Check message identifier</div>';
+      html += '<div class="two-col">' +
+        '<input type="text" id="' + ownerKey + '-cm-msgid" placeholder="Message identifier" value="' + escapeHtml(cm.msgId) + '" />' +
+        '<input type="text" id="' + ownerKey + '-cm-msgfile" placeholder="Message file" value="' + escapeHtml(cm.msgFile) + '" />' +
+        '</div><div class="two-col" style="margin-top:4px;">' +
+        '<input type="text" id="' + ownerKey + '-cm-library" placeholder="Library (optional, *LIBL if blank)" value="' + escapeHtml(cm.library) + '" />' +
+        '<input type="text" id="' + ownerKey + '-cm-msgdata" placeholder="Message data field (optional)" value="' + escapeHtml(cm.msgDataField) + '" />' +
+        '</div><div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed.</div>' +
+        '<button class="secondary ' + ownerKey + '-cm-apply" style="width:100%;margin-top:8px;">Apply CHKMSGID</button>';
     }
 
     if (includeEditKeyword) {
@@ -942,6 +961,16 @@
     if (includeValidity) {
       wireValidityCheckInstances(keywords, onChange, ownerKey + '-vc', expandedSet, rerender);
       wireCheckInstancesEditor(keywords, onChange, ownerKey + '-validity', expandedSet, rerender, VALIDITY_CHECK_CODES);
+      var cmApplyBtn = document.querySelector('.' + ownerKey + '-cm-apply');
+      if (cmApplyBtn) {
+        cmApplyBtn.addEventListener('click', function () {
+          var msgId = document.getElementById(ownerKey + '-cm-msgid').value;
+          var msgFile = document.getElementById(ownerKey + '-cm-msgfile').value;
+          var library = document.getElementById(ownerKey + '-cm-library').value;
+          var msgDataField = document.getElementById(ownerKey + '-cm-msgdata').value;
+          onChange(DspfWriter.setCheckMsgId(keywords, msgId, library, msgFile, msgDataField));
+        });
+      }
     }
     if (!includeEditKeyword) return;
     var applyBtn = document.querySelector('.' + ownerKey + '-vc-apply');
