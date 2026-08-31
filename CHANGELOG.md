@@ -3,6 +3,50 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.2] - 2026-08-31
+
+### Added
+- **Task L18: "IBM i: Connected/Not connected/Not installed" badge in
+  both designer panels.** Found by direct user report: right now the
+  only way to learn Code for i isn't connected is by clicking Compile/
+  Resolve Referenced Field/Add fields from database and getting an
+  error - after the time already spent on activation-timing bugs in the
+  Code for i integration, a small upfront badge lets people know before
+  they click whether those buttons will work. New `getCodeForIStatus()`
+  in `extension.ts` (a thin sibling of the existing
+  `getConnectedCodeForIBMi()` - that function's callers just want a
+  usable connection or `undefined` and don't care why it's missing,
+  while the badge specifically needs to distinguish "extension not
+  installed" from "installed but not connected") pushes a
+  `codeForIStatus` message to the webview on `'ready'`, right after
+  every Code-for-i-dependent action (Resolve Referenced Field, Add
+  fields from database, Compile Display File, Compile Menu), on a cheap
+  10-second poll while the panel is open (no round trip to the IBM i
+  itself - just an extension-registry/connection-object check), and on
+  `vscode.extensions.onDidChange` (catches Code for i being
+  installed/uninstalled mid-session); all cleaned up on panel dispose.
+  Webview side (`buildWebviewTemplate.js`/`buildMenuWebviewTemplate.js`)
+  is purely a display for that message - a small badge styled with
+  `--chrome-accent`/`--warn`/`--ink-dim` (never `--accent`, which stays
+  grid-only). New Task L18 block in `src/test/extension.test.js` and
+  `runCodeForIBadgeScenario` in `src/test/dspfWebview.test.js`.
+- **Task L19: "Find field" search box (DSPF designer only).** Found by
+  direct user report: for a screen with many fields there's no way to
+  quickly locate one by name - you have to scan visually or scroll the
+  field list. New search box in the left panel filters every record's
+  fields/constants by name, live as-you-type (case-insensitive
+  substring match), with a floating results dropdown that names the
+  record when a match isn't the one currently shown. Picking a result
+  (click, or Enter/arrow-keys) switches records if needed, selects the
+  field the same way every other jump-by-`sourceLine` flow already does
+  (`setSingleSelection` then `render()`), then scrolls/centers the
+  field into view. New `runFieldSearchScenario` in
+  `src/test/dspfWebview.test.js`.
+
+Full suite: 2117 checks, 0 failures (up from 2046 on top of this
+work alone - the difference is 0.10.1's own dspfEngine.test.js
+dead-code-tail fix, landed concurrently and rebased onto here).
+
 ## [0.10.1] - 2026-08-31
 
 ### Fixed

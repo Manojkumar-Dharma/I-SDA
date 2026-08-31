@@ -196,7 +196,7 @@ how.
 ### DSPF (screen) designer
 
 No open items right now - every currently-tracked DSPF designer task
-(L1 through L15, including L5d-ii) is done. See `LIMITATIONS-PLAN.md`
+(L1 through L19, including L5d-ii) is done. See `LIMITATIONS-PLAN.md`
 for the full history if a past decision needs revisiting.
 
 ### Menu designer

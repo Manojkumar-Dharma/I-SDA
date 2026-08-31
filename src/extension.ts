@@ -1017,6 +1017,23 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       webviewPanel.webview.postMessage({ type: 'externalUpdate', text: e.document.getText() });
     });
 
+    // Task L18: pushes a fresh "IBM i: Connected/Not connected/Not
+    // installed" status to the webview's badge. Called on 'ready' (so the
+    // badge is populated immediately, before the person clicks anything
+    // that needs a connection), right after every Code-for-i-dependent
+    // action below (so a just-established or just-dropped connection is
+    // reflected without waiting for the next poll), on a cheap poll while
+    // the panel is open (catches a connection made/lost from OUTSIDE this
+    // panel - e.g. Code for i's own connection tree), and on
+    // vscode.extensions.onDidChange (catches Code for i being installed or
+    // uninstalled while this panel is already open).
+    const sendCodeForIStatus = async () => {
+      const status = await getCodeForIStatus();
+      webviewPanel.webview.postMessage({ type: 'codeForIStatus', installed: status.installed, connected: status.connected });
+    };
+    const statusPollInterval = setInterval(() => { void sendCodeForIStatus(); }, 10000);
+    const extChangeSub = vscode.extensions.onDidChange(() => { void sendCodeForIStatus(); });
+
     const messageSub = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'applyEdit') {
         const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
@@ -1029,25 +1046,32 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'resolveReferencedField' || msg.type === 'resolveAllReferencedFields') {
         await handleResolveReferencedField(document, msg);
+        await sendCodeForIStatus();
       } else if (msg.type === 'listDatabaseFields') {
         await handleListDatabaseFields(webviewPanel.webview, msg);
+        await sendCodeForIStatus();
       } else if (msg.type === 'addFieldsFromDatabase') {
         await handleAddFieldsFromDatabase(document, msg);
+        await sendCodeForIStatus();
       } else if (msg.type === 'compileDspf') {
         await compileDspf(document.uri);
+        await sendCodeForIStatus();
       } else if (msg.type === 'saveDocument') {
         await handleSaveDocument(document);
       } else if (msg.type === 'setUiStyle') {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       } else if (msg.type === 'setUiTheme') {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
+      } else if (msg.type === 'ready') {
+        await sendCodeForIStatus();
       }
-      // 'ready' needs no response; initial content was already embedded in the HTML.
     });
 
     webviewPanel.onDidDispose(() => {
       changeSub.dispose();
       messageSub.dispose();
+      clearInterval(statusPollInterval);
+      extChangeSub.dispose();
     });
   }
 }
@@ -1132,6 +1156,17 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         })
       : undefined;
 
+    // Task L18: same badge-status pattern as DspfDesignerEditorProvider -
+    // Compile Menu (CRTMNU) is this designer's own Code-for-i-dependent
+    // action, so the same reasoning applies (upfront visibility beats
+    // finding out via a failed compile).
+    const sendCodeForIStatus = async () => {
+      const status = await getCodeForIStatus();
+      webviewPanel.webview.postMessage({ type: 'codeForIStatus', installed: status.installed, connected: status.connected });
+    };
+    const statusPollInterval = setInterval(() => { void sendCodeForIStatus(); }, 10000);
+    const extChangeSub = vscode.extensions.onDidChange(() => { void sendCodeForIStatus(); });
+
     const messageSub = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'applyEdit') {
         const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
@@ -1211,6 +1246,7 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         }
       } else if (msg.type === 'compileMenu') {
         await compileMenu(document.uri);
+        await sendCodeForIStatus();
       } else if (msg.type === 'saveDocument') {
         await handleSaveDocument(document);
       } else if (msg.type === 'error') {
@@ -1219,6 +1255,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       } else if (msg.type === 'setUiTheme') {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
+      } else if (msg.type === 'ready') {
+        await sendCodeForIStatus();
       }
     });
 
@@ -1226,6 +1264,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       changeSub.dispose();
       commandChangeSub?.dispose();
       messageSub.dispose();
+      clearInterval(statusPollInterval);
+      extChangeSub.dispose();
     });
   }
 }
@@ -1856,6 +1896,39 @@ async function getConnectedCodeForIBMi(): Promise<{ runCommand: (info: { command
   const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
   if (!connection || typeof connection.runCommand !== 'function') return undefined;
   return connection;
+}
+
+/** Task L18 (docs/sda-reference/LIMITATIONS-PLAN.md): drives the "IBM i:
+ *  Connected/Not connected/Not installed" badge in both designer panels.
+ *  Deliberately a thin sibling of getConnectedCodeForIBMi() above rather
+ *  than a rename of it - that function's callers all want "give me a
+ *  usable connection or undefined" and don't care WHY it's missing, while
+ *  the badge specifically needs to distinguish "extension not installed"
+ *  from "installed but not connected" (different, actionable states for
+ *  the person reading the badge - one says "install Code for i", the
+ *  other says "connect to a system"). Cheap to call often: no round trip
+ *  to the IBM i itself, just an extension-registry lookup and (if already
+ *  active) a plain in-memory connection-object check - the one exception
+ *  is the same lazy-activation nudge getConnectedCodeForIBMi() already
+ *  documents above, which only ever runs once per extension host session
+ *  (ext.isActive stays true after the first successful activate()).
+ */
+async function getCodeForIStatus(): Promise<{ installed: boolean; connected: boolean }> {
+  const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
+  if (!ext) return { installed: false, connected: false };
+  if (!ext.isActive) {
+    try {
+      await ext.activate();
+    } catch {
+      // fall through - same reasoning as getConnectedCodeForIBMi(): exports
+      // may still be usable, or the checks below correctly report "not connected"
+    }
+  }
+  if (!ext.exports) return { installed: true, connected: false };
+  const instance = ext.exports.instance;
+  const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
+  const connected = !!(connection && typeof connection.runCommand === 'function');
+  return { installed: true, connected };
 }
 
 /** Task L4 (docs/sda-reference/LIMITATIONS-PLAN.md): ADDPFM (used below to

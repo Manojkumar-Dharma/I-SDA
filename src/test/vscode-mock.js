@@ -82,6 +82,13 @@ const vscodeMock = {
   ProgressLocation: { Notification: 15 },
   extensions: {
     getExtension: (id) => (Object.prototype.hasOwnProperty.call(mockExtensions, id) ? mockExtensions[id] : undefined),
+    // Task L18 - the connection-status badge subscribes to this to catch
+    // Code for i being installed/uninstalled while a designer panel is
+    // already open; no test currently needs to actually FIRE it, so a
+    // no-op listener (still returning a disposable, same shape every other
+    // mock event registration here uses) is enough to keep
+    // resolveCustomTextEditor() from throwing.
+    onDidChange: () => ({ dispose: () => {} }),
   },
   commands: {
     registerCommand: (id, handler) => {

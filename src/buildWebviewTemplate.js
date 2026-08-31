@@ -270,6 +270,24 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-field.dspf-pulldown-field.dspf-widget-radio, .dspf-field.dspf-pulldown-field.dspf-widget-checkbox { background: #0a0f0c; }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
+  /* Task L18 - "IBM i: Connected/Not connected/Not installed" badge. Chrome
+     UI (aside panel), so this uses --chrome-accent/--warn/--ink-dim, never
+     --accent (grid-only, see the --chrome-accent comment in :root above) -
+     connected borrows the same chrome-accent styling save-btn/compile-btn
+     already use for a "this works" affordance, not-connected reuses --warn
+     (the same color the confirm-dialog/rename-error/size-bounds-warning
+     already use for "needs attention"), unknown/not-installed is muted
+     --ink-dim (a neutral "nothing to act on right now" state, not a warning -
+     Compile/Resolve/Add-from-DB never being reachable without the extension
+     installed isn't a per-session problem the badge should alarm about).
+  */
+  .codefori-badge {
+    display: block; font-size: 11px; padding: 5px 8px; margin-bottom: 10px;
+    border-radius: 4px; border: 1px solid var(--panel-border); color: var(--ink-dim);
+  }
+  .codefori-badge.connected { color: var(--chrome-accent); border-color: var(--chrome-accent); background: #142018; }
+  .codefori-badge.disconnected { color: var(--warn); border-color: var(--warn); }
+  .codefori-badge.unknown { color: var(--ink-dim); border-color: var(--panel-border); }
   #sizeBoundsWarning { white-space: pre-line; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
@@ -337,6 +355,27 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .field-order-row button:disabled { opacity: 0.35; cursor: default; }
   .field-order-row button:not(:disabled):hover { border-color: var(--chrome-accent); }
+  /* Task L19 - "Find field" search results dropdown, right under the search
+     box in the aside. Deliberately its own floating panel (not inline in
+     normal document flow) so it overlays whatever's below it (the Record
+     select etc.) rather than shoving the rest of the aside down while
+     someone's mid-search - same reasoning a browser's own address-bar
+     autocomplete dropdown floats instead of reflowing the page. */
+  .field-search-results {
+    position: absolute; left: 0; right: 0; z-index: 50;
+    max-height: 240px; overflow-y: auto; background: var(--panel);
+    border: 1px solid var(--panel-border); border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .field-search-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 8px; font-size: 12px; cursor: pointer; border-bottom: 1px solid var(--panel-border);
+  }
+  .field-search-row:last-child { border-bottom: none; }
+  .field-search-row:hover, .field-search-row.active { background: rgba(var(--chrome-accent-rgb), 0.12); }
+  .field-search-row .fsr-name { color: var(--ink); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .field-search-row .fsr-meta { color: var(--ink-dim); font-size: 10px; white-space: nowrap; flex-shrink: 0; }
+  .field-search-empty { padding: 8px; font-size: 11px; color: var(--ink-dim); }
   /* Task L13 - comment text input reuses .rename-input's own look (flex:1,
      same dark input styling) inside a .field-order-row so a comment row
      lines up visually with the Structure tab's other rows above it. */
@@ -397,6 +436,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .panel-toggle-btn:hover { color: var(--chrome-accent); }
   aside.panel-collapsed, .props-panel.panel-collapsed { padding: 0; overflow: hidden; }
   .panel-collapsed .panel-body { display: none; }
+  /* Task L19 - positions the "Find field" results dropdown (position:
+     absolute) relative to the panel body rather than the whole page, so it
+     floats just under the search box regardless of scroll position. */
+  .panel-body { position: relative; }
   .panel-collapsed .panel-toggle-btn { margin-bottom: 0; writing-mode: vertical-rl; height: 100%; padding: 10px 0; }
   #newRecordForm { border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px; margin-top: 8px; }
 
@@ -520,7 +563,13 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
+  <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
+  <div class="field-row">
+    <label>Find field</label>
+    <input type="text" id="fieldSearchInput" placeholder="Type a field or constant name…" autocomplete="off" />
+  </div>
+  <div id="fieldSearchResults" class="field-search-results hidden"></div>
   <div class="field-row"><label>Record</label><select id="recordSelect"></select></div>
   <button class="secondary" id="newRecordToggleBtn" style="width:100%;margin-top:6px;">+ Add record</button>
   <div class="hidden" id="newRecordForm">
@@ -838,6 +887,150 @@ const htmlTemplate = `<!DOCTYPE html>
       vscode.postMessage({ type: 'compileDspf' });
     });
   }
+
+  // Task L18 - "IBM i: Connected/Not connected/Not installed" badge. The
+  // extension host is the only side that can actually check Code for i's
+  // connection state (see extension.ts's getCodeForIStatus), so this
+  // webview is purely a display for whatever it's told via the
+  // 'codeForIStatus' message - sent on 'ready', after every Code-for-i
+  // dependent action, and on a cheap poll, all from the host side.
+  const codeForIBadge = document.getElementById('codeForIBadge');
+  function updateCodeForIBadge(installed, connected) {
+    if (!codeForIBadge) return;
+    codeForIBadge.classList.remove('connected', 'disconnected', 'unknown');
+    if (!installed) {
+      codeForIBadge.classList.add('unknown');
+      codeForIBadge.textContent = 'IBM i: not installed';
+      codeForIBadge.title = 'Code for IBM i extension not found - Compile, Resolve Referenced Field, and Add fields from database file will not work until it is installed.';
+    } else if (!connected) {
+      codeForIBadge.classList.add('disconnected');
+      codeForIBadge.textContent = 'IBM i: not connected';
+      codeForIBadge.title = 'Code for IBM i is installed but not connected to a system - Compile, Resolve Referenced Field, and Add fields from database file will not work until you connect.';
+    } else {
+      codeForIBadge.classList.add('connected');
+      codeForIBadge.textContent = 'IBM i: connected';
+      codeForIBadge.title = 'Code for IBM i is connected - Compile, Resolve Referenced Field, and Add fields from database file are available.';
+    }
+  }
+
+  // Task L19 - "Find field" search box: filters every record's fields/
+  // constants by name as you type, so a screen with many fields doesn't
+  // require scanning the canvas or scrolling the Structure tab's field
+  // order list to find one. Deliberately searches the WHOLE model (every
+  // record), not just the currently-shown one - the record you're looking
+  // for might not be the one currently on screen, which is exactly the
+  // case where a visual scan wouldn't have helped anyway.
+  const fieldSearchInput = document.getElementById('fieldSearchInput');
+  const fieldSearchResults = document.getElementById('fieldSearchResults');
+  let fieldSearchMatches = [];
+  let fieldSearchActiveIndex = -1;
+
+  function fieldSearchLabel(f) {
+    return f.nameType === 'CONSTANT' ? (f.constantValue || '(constant)') : (f.name || '(field)');
+  }
+
+  // Builds the flat searchable index fresh on every keystroke (cheap - even
+  // a large DSPF source rarely has more than a few hundred fields total,
+  // and this only runs while the search box has focus/input) rather than
+  // caching it, so a field renamed/added/deleted moments ago is always
+  // reflected without a separate invalidation path to keep in sync.
+  function findFieldMatches(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const out = [];
+    model.records.forEach((rec) => {
+      (rec.fields || []).forEach((f) => {
+        const label = fieldSearchLabel(f);
+        if (label.toLowerCase().indexOf(q) !== -1) {
+          out.push({ recordName: rec.name, sourceLine: f.sourceLine, label: label, line: f.location && f.location.line, column: f.location && f.location.column });
+        }
+      });
+    });
+    return out;
+  }
+
+  function closeFieldSearchResults() {
+    fieldSearchResults.classList.add('hidden');
+    fieldSearchResults.innerHTML = '';
+    fieldSearchMatches = [];
+    fieldSearchActiveIndex = -1;
+  }
+
+  function renderFieldSearchResults() {
+    if (!fieldSearchMatches.length) {
+      fieldSearchResults.innerHTML = '<div class="field-search-empty">No matching fields or constants.</div>';
+      fieldSearchResults.classList.remove('hidden');
+      return;
+    }
+    const currentRecordName = recordSelect.value;
+    fieldSearchResults.innerHTML = fieldSearchMatches.map((m, idx) => {
+      const meta = m.recordName === currentRecordName
+        ? (m.line != null ? 'Ln ' + m.line + (m.column != null ? '/' + m.column : '') : '')
+        : m.recordName + (m.line != null ? ' · Ln ' + m.line : '');
+      return '<div class="field-search-row' + (idx === fieldSearchActiveIndex ? ' active' : '') + '" data-idx="' + idx + '">' +
+        '<span class="fsr-name">' + DspfEngine.escapeHtml(m.label) + '</span>' +
+        '<span class="fsr-meta">' + DspfEngine.escapeHtml(meta) + '</span>' +
+        '</div>';
+    }).join('');
+    fieldSearchResults.classList.remove('hidden');
+    fieldSearchResults.querySelectorAll('.field-search-row[data-idx]').forEach((row) => {
+      row.addEventListener('mousedown', (e) => {
+        // mousedown (not click) fires before the input's own blur handler
+        // would otherwise close the dropdown out from under the click.
+        e.preventDefault();
+        jumpToFieldMatch(fieldSearchMatches[parseInt(row.getAttribute('data-idx'), 10)]);
+      });
+    });
+  }
+
+  // Switches to the match's record if needed, selects the field the same
+  // way every other jump-by-sourceLine flow does (setSingleSelection then
+  // render, which both re-renders the props panel AND applies the
+  // '.selected' canvas highlight - see the forEach in render() that checks
+  // selectedKeys), then scrolls/centers it into view - render() rebuilds
+  // the canvas DOM from scratch, so the element has to be re-queried AFTER
+  // render() runs, not before.
+  function jumpToFieldMatch(match) {
+    if (!match) return;
+    recordSelect.value = match.recordName;
+    setSingleSelection(match.sourceLine);
+    render();
+    const primaryScreenEl = screenOutput.querySelector('.dspf-screen');
+    const el = primaryScreenEl && primaryScreenEl.querySelector('.dspf-field[data-source-line="' + match.sourceLine + '"]');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', inline: 'center' });
+    closeFieldSearchResults();
+    fieldSearchInput.value = match.label;
+  }
+
+  fieldSearchInput.addEventListener('input', () => {
+    fieldSearchMatches = findFieldMatches(fieldSearchInput.value);
+    fieldSearchActiveIndex = fieldSearchMatches.length ? 0 : -1;
+    if (fieldSearchInput.value.trim()) renderFieldSearchResults();
+    else closeFieldSearchResults();
+  });
+  fieldSearchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeFieldSearchResults();
+      fieldSearchInput.blur();
+    } else if (e.key === 'ArrowDown' && fieldSearchMatches.length) {
+      e.preventDefault();
+      fieldSearchActiveIndex = (fieldSearchActiveIndex + 1) % fieldSearchMatches.length;
+      renderFieldSearchResults();
+    } else if (e.key === 'ArrowUp' && fieldSearchMatches.length) {
+      e.preventDefault();
+      fieldSearchActiveIndex = (fieldSearchActiveIndex - 1 + fieldSearchMatches.length) % fieldSearchMatches.length;
+      renderFieldSearchResults();
+    } else if (e.key === 'Enter' && fieldSearchMatches.length) {
+      e.preventDefault();
+      jumpToFieldMatch(fieldSearchMatches[fieldSearchActiveIndex >= 0 ? fieldSearchActiveIndex : 0]);
+    }
+  });
+  fieldSearchInput.addEventListener('blur', () => {
+    // Deferred so a result row's own mousedown handler (which calls
+    // preventDefault, but blur can still fire first in some browsers) gets
+    // a chance to run its jump before the dropdown is torn down.
+    setTimeout(closeFieldSearchResults, 150);
+  });
 
   // "Save" - every edit already lands in the document's live buffer via
   // 'applyEdit' (marking it dirty, same as typing would), but nothing
@@ -4012,6 +4205,8 @@ const htmlTemplate = `<!DOCTYPE html>
       // hook lives on the overlay element rather than module-level state.
       const overlay = document.querySelector('.dbfields-overlay');
       if (overlay && overlay.__onDatabaseFieldsResult) overlay.__onDatabaseFieldsResult(msg);
+    } else if (msg.type === 'codeForIStatus') {
+      updateCodeForIBadge(msg.installed, msg.connected);
     }
   });
 

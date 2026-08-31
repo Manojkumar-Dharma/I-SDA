@@ -98,6 +98,18 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .status { color: var(--ink-dim); font-size: 11px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
+  /* Task L18 - "IBM i: Connected/Not connected/Not installed" badge, ported
+     verbatim (styling and reasoning) from the DSPF designer's own
+     buildWebviewTemplate.js - Compile Menu (CRTMNU) is this designer's own
+     Code-for-i-dependent action, same "find out upfront, not after a
+     failed click" motivation. */
+  .codefori-badge {
+    display: block; font-size: 11px; padding: 5px 8px; margin-bottom: 10px;
+    border-radius: 4px; border: 1px solid var(--panel-border); color: var(--ink-dim);
+  }
+  .codefori-badge.connected { color: var(--chrome-accent); border-color: var(--chrome-accent); background: #142018; }
+  .codefori-badge.disconnected { color: var(--warn); border-color: var(--warn); }
+  .codefori-badge.unknown { color: var(--ink-dim); border-color: var(--panel-border); }
   /* Task M3 - confirmation dialog for a menu option delete with likely
      references elsewhere (findLikelyNameReferences scan), same shape and
      class names as the DSPF designer's own commitDelete confirmation
@@ -308,6 +320,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
+  <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile Menu (CRTMNU) needs a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="section-label">Record</div>
   <select id="recordSelect"></select>
@@ -1533,6 +1546,29 @@ const htmlTemplate = `<!DOCTYPE html>
     vscode.postMessage({ type: 'compileMenu' });
   });
 
+  // Task L18 - "IBM i: Connected/Not connected/Not installed" badge, same
+  // display-only logic as the DSPF designer's own copy in
+  // buildWebviewTemplate.js - the extension host owns the actual check
+  // (extension.ts's getCodeForIStatus) and pushes it via 'codeForIStatus'.
+  const codeForIBadge = document.getElementById('codeForIBadge');
+  function updateCodeForIBadge(installed, connected) {
+    if (!codeForIBadge) return;
+    codeForIBadge.classList.remove('connected', 'disconnected', 'unknown');
+    if (!installed) {
+      codeForIBadge.classList.add('unknown');
+      codeForIBadge.textContent = 'IBM i: not installed';
+      codeForIBadge.title = 'Code for IBM i extension not found - Compile Menu (CRTMNU) will not work until it is installed.';
+    } else if (!connected) {
+      codeForIBadge.classList.add('disconnected');
+      codeForIBadge.textContent = 'IBM i: not connected';
+      codeForIBadge.title = 'Code for IBM i is installed but not connected to a system - Compile Menu (CRTMNU) will not work until you connect.';
+    } else {
+      codeForIBadge.classList.add('connected');
+      codeForIBadge.textContent = 'IBM i: connected';
+      codeForIBadge.title = 'Code for IBM i is connected - Compile Menu (CRTMNU) is available.';
+    }
+  }
+
   // "Save" - same reasoning as the DSPF designer's own Save button
   // (buildWebviewTemplate.js): every edit already lands in the document's
   // live buffer via applyEdit, marking it dirty, but nothing writes it to
@@ -1578,6 +1614,8 @@ const htmlTemplate = `<!DOCTYPE html>
       commandText = msg.text;
       cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
       renderOptions();
+    } else if (msg.type === 'codeForIStatus') {
+      updateCodeForIBadge(msg.installed, msg.connected);
     }
   });
 

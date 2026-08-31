@@ -245,7 +245,12 @@ async function run() {
     vscodeMock.__removeMockExtension('halcyontechltd.code-for-ibmi');
     dbPosted.length = 0;
     await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTP' });
-    check('posts a databaseFieldsResult error naming the extension, no crash', dbPosted.length === 1 && dbPosted[0].type === 'databaseFieldsResult' && /Code for IBM i extension/.test(dbPosted[0].error || ''));
+    // Task L18: this handler now also posts a 'codeForIStatus' refresh right
+    // after handleListDatabaseFields (same reasoning as every other
+    // Code-for-i-dependent message type below) - filter to the message type
+    // this check actually cares about rather than asserting total count.
+    const notInstalledResult = dbPosted.find((m) => m.type === 'databaseFieldsResult');
+    check('posts a databaseFieldsResult error naming the extension, no crash', !!notInstalledResult && /Code for IBM i extension/.test(notInstalledResult.error || ''));
 
     console.log('  listDatabaseFields: connected, single-format file - returns fields in WHFLDO order with names/attrs/text');
     const runSqlCalls = [];
@@ -366,6 +371,73 @@ async function run() {
     await dbMessageHandler({ type: 'addFieldsFromDatabase', recordName: 'SCR1', library: 'MYLIB', file: 'CUSMSTP', fields: [] });
     check('no NEW edit applied (same as before this call - __lastAppliedEdit has no setter/reset, so compare by reference rather than to undefined)', vscodeMock.__lastAppliedEdit === editBefore);
     check('tells the user nothing was selected', /no fields were selected/.test(vscodeMock.__lastInformationMessage || ''));
+
+    // Restore the default-installed mock extension for any later tests in this file.
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
+    vscodeMock.__setRunCommandHandler(null);
+  }
+
+  console.log('\nTask L18: getCodeForIStatus() / \'codeForIStatus\' badge push - distinguishes not-installed from installed-but-not-connected (getConnectedCodeForIBMi() collapses those into one "undefined")');
+  {
+    const statusSrc = buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }) + '\n';
+    const statusDoc = vscodeMock.__mockDocument(statusSrc);
+    let statusMessageHandler = null;
+    let statusDisposeHandler = null;
+    const statusPosted = [];
+    const statusPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { statusMessageHandler = h; return { dispose: () => {} }; },
+        postMessage: (m) => statusPosted.push(m),
+      },
+      onDidDispose: (h) => { statusDisposeHandler = h; },
+    };
+    providerEntry.provider.resolveCustomTextEditor(statusDoc, statusPanel, {});
+
+    console.log('  \'ready\' triggers a status push, before anything is clicked (so the badge is populated upfront)');
+    vscodeMock.__removeMockExtension('halcyontechltd.code-for-ibmi');
+    statusPosted.length = 0;
+    await statusMessageHandler({ type: 'ready' });
+    let statusMsg = statusPosted.find((m) => m.type === 'codeForIStatus');
+    check('posts codeForIStatus on ready', !!statusMsg);
+    check('not installed: installed=false, connected=false', statusMsg && statusMsg.installed === false && statusMsg.connected === false);
+
+    console.log('  installed but no live connection (getConnection() returns undefined, or missing runCommand)');
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: true,
+      exports: { instance: { getConnection: () => undefined } },
+    });
+    statusPosted.length = 0;
+    await statusMessageHandler({ type: 'ready' });
+    statusMsg = statusPosted.find((m) => m.type === 'codeForIStatus');
+    check('installed=true, connected=false - a genuinely different, actionable state from "not installed"', statusMsg && statusMsg.installed === true && statusMsg.connected === false);
+
+    console.log('  installed AND connected (getConnection() returns a usable connection with runCommand)');
+    vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
+      id: 'halcyontechltd.code-for-ibmi',
+      isActive: true,
+      exports: { instance: { getConnection: () => ({ runCommand: async () => ({ code: 0, stdout: '', stderr: '' }) }) } },
+    });
+    statusPosted.length = 0;
+    await statusMessageHandler({ type: 'ready' });
+    statusMsg = statusPosted.find((m) => m.type === 'codeForIStatus');
+    check('installed=true, connected=true', statusMsg && statusMsg.installed === true && statusMsg.connected === true);
+
+    console.log('  a Code-for-i-dependent action (compileDspf) also refreshes the badge, not just \'ready\' and the poll');
+    statusPosted.length = 0;
+    await statusMessageHandler({ type: 'compileDspf' });
+    check('a fresh codeForIStatus follows the compile attempt', statusPosted.some((m) => m.type === 'codeForIStatus'));
+
+    console.log('  dispose cleans up the poll interval / extensions.onDidChange subscription without throwing');
+    let statusDisposeThrew = false;
+    try {
+      statusDisposeHandler();
+    } catch (e) {
+      statusDisposeThrew = true;
+    }
+    check('disposes cleanly', !statusDisposeThrew);
 
     // Restore the default-installed mock extension for any later tests in this file.
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });

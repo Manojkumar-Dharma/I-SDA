@@ -2349,6 +2349,157 @@ function runSflIndicatorPairingScenario() {
     check('SFLCTL\'s own indicator 62 is listed', labels2.includes('Ind 62'));
     check('the paired SFL record\'s indicator 61 is ALSO listed - toggling it changes the subfile rows drawn here', labels2.includes('Ind 61'));
 
+    runCodeForIBadgeScenario();
+  }, 0);
+}
+
+// Task L18 - "IBM i: Connected/Not connected/Not installed" badge. The
+// webview side is purely a display for whatever the extension host tells
+// it via 'codeForIStatus' (see extension.ts's getCodeForIStatus/
+// sendCodeForIStatus) - this test drives that message directly via
+// postMessage, the same way externalUpdate/databaseFieldsResult are
+// exercised elsewhere in this file, since there's no real extension host
+// in a jsdom test.
+function runCodeForIBadgeScenario() {
+  console.log('\nTask L18: Code for i connection status badge - display-only, driven entirely by the \'codeForIStatus\' message');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'BADGE.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const { document: doc, MessageEvent } = dom.window;
+    const badge = doc.getElementById('codeForIBadge');
+
+    console.log('  starts in the neutral "checking..." state, before any status message arrives');
+    check('badge is present', !!badge);
+    check('starts unstyled (no connected/disconnected class yet)', !badge.classList.contains('connected') && !badge.classList.contains('disconnected'));
+
+    console.log('  not installed');
+    dom.window.postMessage({ type: 'codeForIStatus', installed: false, connected: false }, '*');
+    setTimeout(() => {
+      check('shows "not installed"', /not installed/i.test(badge.textContent));
+      check('styled as unknown/neutral, not a warning', badge.classList.contains('unknown') && !badge.classList.contains('disconnected') && !badge.classList.contains('connected'));
+
+      console.log('  installed but not connected');
+      dom.window.postMessage({ type: 'codeForIStatus', installed: true, connected: false }, '*');
+      setTimeout(() => {
+        check('shows "not connected"', /not connected/i.test(badge.textContent));
+        check('styled as disconnected (warning color)', badge.classList.contains('disconnected') && !badge.classList.contains('connected') && !badge.classList.contains('unknown'));
+
+        console.log('  connected');
+        dom.window.postMessage({ type: 'codeForIStatus', installed: true, connected: true }, '*');
+        setTimeout(() => {
+          check('shows "connected"', /\bconnected\b/i.test(badge.textContent) && !/not connected/i.test(badge.textContent));
+          check('styled as connected', badge.classList.contains('connected') && !badge.classList.contains('disconnected') && !badge.classList.contains('unknown'));
+
+          runFieldSearchScenario();
+        }, 0);
+      }, 0);
+    }, 0);
+  }, 0);
+}
+
+// Task L19 - "Find field" search box: filters every record's fields/
+// constants by name as-you-type, jumps to (selects + scrolls to) a picked
+// result, switching records first if the match lives on a different one.
+function runFieldSearchScenario() {
+  console.log('\nTask L19: "Find field" search - filters across every record, jumps to a match (switching records/selecting/scrolling as needed)');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'CUSTNO', length: '6', dataType: 'A', usage: 'B', line: '2', col: '2' }),
+      buildLine({ seq: '00030', name: 'CUSTNAME', length: '30', dataType: 'A', usage: 'B', line: '3', col: '2' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'SCR2' }),
+      buildLine({ seq: '00050', name: 'BALANCE', length: '9', dataType: 'S', decimals: '2', usage: 'B', line: '2', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce21', src, 'SEARCH.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+      window.Element.prototype.scrollIntoView = function () { this.__scrolledIntoView = true; };
+    },
+  });
+
+  setTimeout(() => {
+    const { document: doc, Event, KeyboardEvent } = dom.window;
+    const searchInput = doc.getElementById('fieldSearchInput');
+    const searchResults = doc.getElementById('fieldSearchResults');
+    check('search box is present', !!searchInput);
+    check('results dropdown starts hidden', searchResults.classList.contains('hidden'));
+
+    console.log('  typing a query on the CURRENTLY shown record (SCR1) lists matches with no record name needed');
+    searchInput.value = 'cust';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('results dropdown is now visible', !searchResults.classList.contains('hidden'));
+    let rows = Array.from(searchResults.querySelectorAll('.field-search-row'));
+    check('finds both CUSTNO and CUSTNAME (case-insensitive substring match)', rows.length === 2);
+    check('first result names CUSTNO', /CUSTNO/.test(rows[0].textContent));
+
+    console.log('  clicking a result on the SAME record selects it and scrolls it into view, without needing a record switch');
+    rows[0].dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }));
+    check('search box is filled with the picked field\'s own name', searchInput.value === 'CUSTNO');
+    check('results dropdown closes after picking', searchResults.classList.contains('hidden'));
+    const selectedEl = doc.querySelector('.dspf-field.selected');
+    check('the field is now selected on the canvas (.selected class)', !!selectedEl && selectedEl.getAttribute('data-field') === 'CUSTNO');
+    check('the field element was scrolled into view', !!selectedEl.__scrolledIntoView);
+    check('record select is still on SCR1 (the match\'s own record)', doc.getElementById('recordSelect').value === 'SCR1');
+
+    console.log('  a match on a DIFFERENT record names that record, and picking it switches to it');
+    searchInput.value = 'balance';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    rows = Array.from(searchResults.querySelectorAll('.field-search-row'));
+    check('finds BALANCE on SCR2', rows.length === 1 && /BALANCE/.test(rows[0].textContent));
+    check('names the record it lives on, since it isn\'t the one currently shown', /SCR2/.test(rows[0].textContent));
+    rows[0].dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }));
+    check('switched to SCR2', doc.getElementById('recordSelect').value === 'SCR2');
+    const selectedEl2 = doc.querySelector('.dspf-field.selected');
+    check('BALANCE is now selected on the (now-current) canvas', !!selectedEl2 && selectedEl2.getAttribute('data-field') === 'BALANCE');
+
+    console.log('  no matches shows an empty-state row rather than an empty dropdown');
+    searchInput.value = 'zzz-nope';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('shows the empty-state message', /No matching/i.test(searchResults.textContent));
+
+    console.log('  clearing the query closes the dropdown entirely');
+    searchInput.value = '';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('dropdown hidden again', searchResults.classList.contains('hidden'));
+
+    console.log('  Escape closes the dropdown without changing the selection');
+    searchInput.value = 'cust';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    check('dropdown open before Escape', !searchResults.classList.contains('hidden'));
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    check('dropdown closed after Escape', searchResults.classList.contains('hidden'));
+
+    console.log('  Enter jumps to the (first, or arrow-selected) match without needing a mouse click');
+    searchInput.value = 'custname';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    const selectedEl3 = doc.querySelector('.dspf-field.selected');
+    check('Enter selected CUSTNAME', !!selectedEl3 && selectedEl3.getAttribute('data-field') === 'CUSTNAME');
+    check('switched back to SCR1 (CUSTNAME\'s own record)', doc.getElementById('recordSelect').value === 'SCR1');
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 0);
