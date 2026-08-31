@@ -1728,6 +1728,20 @@ function runFieldPropertyHelpersScenario() {
     check('posts PUTRETAIN bare', genFields2 && genFields2.some((k) => k.name === 'PUTRETAIN'));
     check('the earlier ALIAS commit survives this separate PUTRETAIN commit', genFields2 && genFields2.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE'));
 
+    console.log('  Bug fix: CNTFLD is now selectable in General keywords - previously absent from the row list entirely, so there was no way to add it from the panel');
+    posted.length = 0;
+    const cntfldOn = doc.getElementById(fieldKey + '-gen-cntfld-on');
+    const cntfldParams = doc.getElementById(fieldKey + '-gen-cntfld-params');
+    check('the CNTFLD checkbox is present', !!cntfldOn);
+    check('the CNTFLD param input is present', !!cntfldParams);
+    cntfldParams.value = '40';
+    cntfldOn.checked = true;
+    cntfldOn.dispatchEvent(new Event('change', { bubbles: true }));
+    let cntfldEdit = posted.find((m) => m.type === 'applyEdit');
+    const cntfldFields = cntfldEdit && DspfParser.parseDspf(cntfldEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
+    check('posts CNTFLD with the entered characters-per-line value', cntfldFields && cntfldFields.some((k) => k.name === 'CNTFLD' && k.parameters === '40'));
+    check('the earlier ALIAS/PUTRETAIN commits survive this separate CNTFLD commit', cntfldFields && cntfldFields.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE') && cntfldFields.some((k) => k.name === 'PUTRETAIN'));
+
     console.log('  Database reference (DLTCHK/DLTEDT) on a named field - Task L5: each its own flagRowHtml row with per-keyword conditioning');
     posted.length = 0;
     const amountEl6b = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');

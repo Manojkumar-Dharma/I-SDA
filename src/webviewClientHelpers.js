@@ -1426,6 +1426,27 @@
     ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true],
     ['dft', 'DFT', "e.g. 'N/A' (input-only)", true],
     ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true],
+    // Bug fix (reported: "I don't find CNTFLD in right panel for selection"):
+    // CNTFLD was entirely missing from this row list, so there was no way to
+    // ADD or EDIT it from the properties panel at all - it could only exist
+    // on a field if it was already in the raw DDS source text, imported
+    // un-editably. Confirmed against real SDA's own "Select General
+    // Keywords" screen (docs/sda-reference/screens/field-level/character/
+    // general/image168.png), which lists CNTFLD right here, between DFTVAL
+    // and FLDCSRPRG, taking a bare (unquoted) numeric parameter - the
+    // characters-per-line count. dspfEngine.js's cntfldFromKeywords already
+    // READS this keyword correctly for the continued-entry wrap preview
+    // (see its own Task-L17-adjacent doc comment on conditioning), but
+    // reading-for-render and offering-for-edit are different concerns; a
+    // stale comment on getGeneralFieldKeywords below had conflated the two,
+    // treating "rendering already handles CNTFLD" as if it meant "CNTFLD
+    // editing is handled elsewhere" - it wasn't handled anywhere. See real
+    // SDA's own CONSTANT general-keywords screen (.../constant/general/
+    // image190.png) for why this row (like the pre-existing DFTVAL/
+    // FLDCSRPRG rows above/below it) is field-semantics-only in real DDS -
+    // this shared row list doesn't yet gate any of the three out for
+    // constants, a pre-existing scope note, not something new here.
+    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true],
     ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true],
     ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true],
     ['putretain', 'PUTRETAIN', 'Retain field on display', false],

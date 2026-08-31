@@ -3,6 +3,32 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.3] - 2026-08-31
+
+### Fixed
+- **Task L20: `CNTFLD` wasn't selectable anywhere in the properties
+  panel.** Reported as "I don't find CNTFLD in right panel for
+  selection." `CNTFLD` was entirely missing from
+  `GENERAL_FIELD_KEYWORD_ROWS` (the "General keywords" accordion in the
+  field/constant properties panel), so there was no way to add or edit
+  it from the UI at all - it could only exist on a field if it was
+  already present in the raw DDS source, imported un-editably. Root
+  cause: a stale doc comment on `getGeneralFieldKeywords` had claimed
+  CNTFLD "already has its own concerns elsewhere - handled by
+  dspfEngine.js's continued-entry preview," conflating two different
+  concerns - `cntfldFromKeywords` correctly READS the keyword for the
+  wrap-preview rendering, but nothing anywhere offered it for editing.
+  Added a `cntfld` row to `GENERAL_FIELD_KEYWORD_ROWS`, positioned
+  between `DFTVAL` and `FLDCSRPRG` to match real SDA's own "Select
+  General Keywords" screen order, taking a bare (unquoted) numeric
+  parameter same as `ALIAS`/`FLDCSRPRG` - fits the existing
+  `flagRowHtml`/`wireFlagRow`/`getFileFlagKeyword`/`setFileFlagKeyword`
+  generic flag-row machinery precisely, no new picker needed. Corrected
+  the stale doc comment. New regression coverage in the existing
+  General-keywords scenario in `src/test/dspfWebview.test.js`.
+
+Full suite: 2121 checks, 0 failures.
+
 ## [0.10.2] - 2026-08-31
 
 ### Added

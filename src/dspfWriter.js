@@ -953,21 +953,24 @@
   }
 
   /** Reads the field's "General keywords" (real SDA's category, not this
-   *  file's ALIAS/CNTFLD which already have their own concerns elsewhere -
-   *  CNTFLD is handled by dspfEngine.js's continued-entry preview, ALIAS is
-   *  just plain text here). Text-bearing keywords come back as their raw
-   *  (already-quoted-if-needed) parameter string for the caller to display/
-   *  edit; boolean ones as true/false. HLPID (task D4 - a CONSTANT
-   *  field-level keyword per IBM's own DDS reference, linking the constant
-   *  to a HLPARA-referenced help panel) is included here rather than as
-   *  its own picker since it's a single bare-identifier keyword, the same
-   *  shape as ALIAS/FLDCSRPRG already handled below - no separate D4
-   *  General-keywords screen was needed since generalFieldKeywordsHtml
-   *  already covers every other keyword real SDA's constant-specific
-   *  General screen shows (ALIAS/INDTXT/DFT/PUTRETAIN/OVRDTA/OVRATR/
-   *  NOCCSID), and Colors/Display Attributes are likewise already covered
-   *  by the shared colorAttrEditorHtml (D1) - constants were never gated
-   *  out of either. */
+   *  file's ALIAS which is just plain text here). Text-bearing keywords
+   *  come back as their raw (already-quoted-if-needed) parameter string for
+   *  the caller to display/edit; boolean ones as true/false. CNTFLD (bug
+   *  fix: previously entirely absent from this list - see
+   *  GENERAL_FIELD_KEYWORD_ROWS's own comment in webviewClientHelpers.js
+   *  for why "dspfEngine.js's continued-entry preview already handles
+   *  CNTFLD" was true for RENDERING but not for EDITING, and shouldn't have
+   *  been read as covering both) is a bare numeric parameter, same shape as
+   *  ALIAS/FLDCSRPRG. HLPID (task D4 - a CONSTANT field-level keyword per
+   *  IBM's own DDS reference, linking the constant to a HLPARA-referenced
+   *  help panel) is included here rather than as its own picker since it's
+   *  a single bare-identifier keyword, the same shape as ALIAS/FLDCSRPRG
+   *  already handled below - no separate D4 General-keywords screen was
+   *  needed since generalFieldKeywordsHtml already covers every other
+   *  keyword real SDA's constant-specific General screen shows (ALIAS/
+   *  INDTXT/DFT/PUTRETAIN/OVRDTA/OVRATR/NOCCSID), and Colors/Display
+   *  Attributes are likewise already covered by the shared
+   *  colorAttrEditorHtml (D1) - constants were never gated out of either. */
   function getGeneralFieldKeywords(keywords) {
     var find = function (name) { var k = (keywords || []).find(function (k) { return k.name === name; }); return k ? (k.parameters || '') : ''; };
     var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
