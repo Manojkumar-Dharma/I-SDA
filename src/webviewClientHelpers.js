@@ -563,16 +563,53 @@
   var DSPATR_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL', 'PC', 'MDT', 'PR', 'OID', 'SP'];
   var COLOR_VALUES = ['', 'BLU', 'RED', 'WHT', 'GRN', 'TRQ', 'YLW', 'PNK'];
 
+  // Real DDS lets a DSPATR keyword's parameter be EITHER one or more of the
+  // literal attribute codes above OR the name of a "program-to-system"
+  // (hidden, USAGE(P)) field whose runtime value drives the attribute - real
+  // SDA's own "Select Display Attributes" screen (docs/sda-reference/
+  // screens/field-level/character/display-attributes) shows this as its own
+  // "Program-to-system field" entry, separate from and above the HI/RI/...
+  // checkboxes. DspfWriter.getColorAttr/getColorAttrStates don't distinguish
+  // the two - `attrs` just comes back as whatever whitespace-separated
+  // tokens DSPATR's parameters held - so splitAttrsAndPgmField() below picks
+  // out any token that ISN'T one of the known codes and treats it as that
+  // hidden field's name. Without this split, a hidden-field DSPATR silently
+  // vanished from the panel (no checkbox matched it, so it never rendered)
+  // and then got DROPPED the next time anything in the panel committed
+  // (commit() only ever read the known checkboxes back out) - this restores
+  // both.
+  function splitAttrsAndPgmField(attrs) {
+    var known = [];
+    var pgmField = '';
+    (attrs || []).forEach(function (a) {
+      if (DSPATR_ATTRS.indexOf(a) >= 0) known.push(a);
+      else if (a && !pgmField) pgmField = a; // at most one P-field name per real DDS
+    });
+    return { attrs: known, pgmField: pgmField };
+  }
+
+  function pgmFieldRowHtml(idPrefix, value) {
+    return '<div class="field-row"><label>Program-to-system field</label>' +
+      '<input type="text" id="' + idPrefix + '-pgmfield" value="' + escapeHtml(value || '') + '" placeholder="Hidden field name" /></div>';
+  }
+
+  function readPgmField(idPrefix) {
+    var el = document.getElementById(idPrefix + '-pgmfield');
+    return el ? el.value.trim().toUpperCase() : '';
+  }
+
   function colorAttrEditorHtml(keywords, ownerKey) {
     var state = DspfWriter.getColorAttr(keywords);
+    var split = splitAttrsAndPgmField(state.attrs);
     var html = '<div class="section-label">Color &amp; attributes</div>';
     html += '<div class="field-row"><label>Color</label><select id="' + ownerKey + '-color">' +
       COLOR_VALUES.map(function (c) {
         return '<option value="' + c + '"' + (state.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
       }).join('') + '</select></div>';
+    html += pgmFieldRowHtml(ownerKey, split.pgmField);
     html += '<div class="attr-checks">';
     DSPATR_ATTRS.forEach(function (a) {
-      var checked = state.attrs.indexOf(a) >= 0;
+      var checked = split.attrs.indexOf(a) >= 0;
       html += '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
     });
     html += '</div>';
@@ -583,13 +620,17 @@
     function commit() {
       var colorSel = document.getElementById(ownerKey + '-color');
       var color = colorSel ? colorSel.value : '';
+      var pgmField = readPgmField(ownerKey);
       var attrs = Array.prototype.slice
         .call(document.querySelectorAll('.' + ownerKey + '-attr:checked'))
         .map(function (el) { return el.value; });
+      if (pgmField) attrs = [pgmField].concat(attrs);
       onChange(DspfWriter.setColorAttr(keywords, color, attrs));
     }
     var colorSel = document.getElementById(ownerKey + '-color');
     if (colorSel) colorSel.addEventListener('change', commit);
+    var pgmFieldEl = document.getElementById(ownerKey + '-pgmfield');
+    if (pgmFieldEl) pgmFieldEl.addEventListener('change', commit);
     document.querySelectorAll('.' + ownerKey + '-attr').forEach(function (el) {
       el.addEventListener('change', commit);
     });
@@ -613,13 +654,15 @@
     var states = DspfWriter.getColorAttrStates(keywords);
     var html = '<div class="section-label">Color &amp; attributes</div>';
     html += repeatableConditionedInstancesHtml(states, ownerKey + '-colorattr', function (inst, instIdPrefix) {
+      var split = splitAttrsAndPgmField(inst.attrs);
       var payload = '<div class="field-row"><label>Color</label><select id="' + instIdPrefix + '-color">' +
         COLOR_VALUES.map(function (c) {
           return '<option value="' + c + '"' + (inst.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
         }).join('') + '</select></div>';
+      payload += pgmFieldRowHtml(instIdPrefix, split.pgmField);
       payload += '<div class="attr-checks">';
       DSPATR_ATTRS.forEach(function (a) {
-        var checked = inst.attrs.indexOf(a) >= 0;
+        var checked = split.attrs.indexOf(a) >= 0;
         payload += '<label class="attr-check"><input type="checkbox" class="' + instIdPrefix + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
       });
       payload += '</div>';
@@ -632,6 +675,7 @@
       // vanish on the very next re-render (see readColorAttrStaging below).
       var staging = '<div class="field-row"><label>Color</label><select id="' + stagingIdPrefix + '-color">' +
         COLOR_VALUES.map(function (c) { return '<option value="' + c + '">' + (c || '(none)') + '</option>'; }).join('') + '</select></div>';
+      staging += pgmFieldRowHtml(stagingIdPrefix, '');
       staging += '<div class="attr-checks">';
       DSPATR_ATTRS.forEach(function (a) {
         staging += '<label class="attr-check"><input type="checkbox" class="' + stagingIdPrefix + '-attr" value="' + a + '"/>' + a + '</label>';
@@ -650,21 +694,27 @@
       var colorSel = document.getElementById(instIdPrefix + '-color');
       function commit() {
         var color = colorSel ? colorSel.value : '';
+        var pgmField = readPgmField(instIdPrefix);
         var attrs = Array.prototype.slice
           .call(document.querySelectorAll('.' + instIdPrefix + '-attr:checked'))
           .map(function (el) { return el.value; });
+        if (pgmField) attrs = [pgmField].concat(attrs);
         updatePayload({ color: color, attrs: attrs });
       }
       if (colorSel) colorSel.addEventListener('change', commit);
+      var pgmFieldEl = document.getElementById(instIdPrefix + '-pgmfield');
+      if (pgmFieldEl) pgmFieldEl.addEventListener('change', commit);
       document.querySelectorAll('.' + instIdPrefix + '-attr').forEach(function (el) {
         el.addEventListener('change', commit);
       });
     }, expandedSet, rerender, function readNewInstance(stagingIdPrefix) {
       var colorSel = document.getElementById(stagingIdPrefix + '-color');
       var color = colorSel ? colorSel.value : '';
+      var pgmField = readPgmField(stagingIdPrefix);
       var attrs = Array.prototype.slice
         .call(document.querySelectorAll('.' + stagingIdPrefix + '-attr:checked'))
         .map(function (el) { return el.value; });
+      if (pgmField) attrs = [pgmField].concat(attrs);
       if (!color && attrs.length === 0) return null; // nothing to add
       return { conditions: [], color: color, attrs: attrs };
     });

@@ -3,6 +3,36 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.0] - 2026-08-31
+
+### Fixed
+- **Task L17: `DSPATR` referencing a hidden "program-to-system" field
+  (`USAGE(P)`) wasn't shown in the Color & attributes panel, and got
+  silently dropped on the next edit.** Reported as "DSPATR can have
+  parameter as hidden variables... not displaying it correctly in right
+  panel in attributes section." Confirmed against real SDA's own "Select
+  Display Attributes" screen (`docs/sda-reference/screens/field-level/
+  character/display-attributes`): real DDS lets a `DSPATR` keyword's
+  parameter be EITHER one or more of the literal attribute codes
+  (`HI`/`RI`/`CS`/`BL`/`ND`/`UL`/`PC`/`MDT`/`PR`/`OID`/`SP`) OR the name
+  of a hidden field whose one-byte runtime value drives the attribute
+  instead - the real screen shows this as its own "Program-to-system
+  field" entry, separate from and above the attribute checkboxes.
+  `WebviewClientHelpers.colorAttrStatesHtml`/`wireColorAttrStatesEditor`
+  (the picker wired into the field/constant props panel) never modeled
+  this second form: a hidden field's name matched no checkbox, so it
+  never rendered anywhere in the panel, and `commit()` only ever rebuilt
+  `attrs` from the checked checkboxes - so touching ANYTHING else in that
+  same panel silently dropped the hidden field name from the written
+  DDS. New `splitAttrsAndPgmField()` plus a "Program-to-system field"
+  text input (pre-filled, and read back into every commit path) fixes
+  both the multi-state picker and the older single-pair
+  `colorAttrEditorHtml`/`wireColorAttrEditor`. No `dspfWriter.js`/model
+  changes needed - the writer layer already passed every `DSPATR` token
+  through unfiltered; the gap was entirely in the picker. New
+  `src/test/colorAttrPgmField.test.js` (13 checks). Full suite: 2012
+  checks, 0 failures.
+
 ## [0.9.99] - 2026-08-30
 
 ### Added
