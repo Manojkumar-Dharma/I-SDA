@@ -353,10 +353,24 @@
   // LENGTH need not divide evenly - the last line is just whatever remains).
   // CNTFLD takes a single parameter, the characters-per-line count - see the
   // DDS Reference's "CNTFLD (Continued-Entry Field) keyword" entry.
+  //
+  // Bug fix: like any other DDS keyword, CNTFLD can itself be conditioned by
+  // option indicators (e.g. "N01 CNTFLD(40)") or a display-size condition
+  // name - when that condition isn't satisfied, CNTFLD is simply not in
+  // effect and the field is an ordinary single-line field, same as if
+  // CNTFLD were never specified at all. This previously found the keyword
+  // by NAME alone and ignored kw.conditions entirely, so a conditioned
+  // CNTFLD wrapped the field into multiple lines regardless of whether its
+  // own indicator was on or off - see resolveRecordFields, which now passes
+  // activeIndicators/activeSizeName through (the exact same two values
+  // styleFromKeywords already checks conditions against for COLOR/DSPATR on
+  // this same field).
   // ---------------------------------------------------------------------
 
-  function cntfldFromKeywords(field, len) {
-    var kw = (field.keywords || []).find(function (k) { return k.name === 'CNTFLD'; });
+  function cntfldFromKeywords(field, len, activeIndicators, activeSizeName) {
+    var kw = (field.keywords || []).find(function (k) {
+      return k.name === 'CNTFLD' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
+    });
     if (!kw) return null;
     var lineWidth = parseInt(kw.parameters.trim(), 10);
     if (Number.isNaN(lineWidth) || lineWidth <= 0) return null;
@@ -746,7 +760,7 @@
       if (field.nameType === 'CONSTANT' && field.constantValue) {
         len = Math.max(len, field.constantValue.length);
       }
-      var cntfld = widget ? null : cntfldFromKeywords(field, len); // CNTFLD (named fields only) and a widget don't combine in practice
+      var cntfld = widget ? null : cntfldFromKeywords(field, len, activeIndicators, activeSizeName); // CNTFLD (named fields only) and a widget don't combine in practice
       var line = (field.location.line != null ? field.location.line : 1) + lineOffset;
       var startCol;
       if (field.location.column != null) {

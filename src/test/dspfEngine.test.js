@@ -585,8 +585,6 @@ console.log('\nBug fix: DSPATR(RI) reverse image now carries the field\u2019s or
   check('rendered field element does NOT also set a competing inline color: (which would out-cascade .dspf-reverse\u2019s own color rule)', !/[^-]color:#ff5c5c/.test(html));
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
 console.log('two indicator-conditioned constants at the identical position: exactly one shows, switching correctly with the indicator');
 {
   const src = [
@@ -758,6 +756,27 @@ console.log('\nCNTFLD: a field with no CNTFLD keyword is unaffected (existing si
   check('height stays 1', f.height === 1);
   check('length stays the field length (20)', f.length === 20);
   check('cntfld is null', f.cntfld === null);
+}
+
+console.log('\nBug fix: CNTFLD respects its OWN conditioning indicator, matching every other keyword');
+{
+  // Field itself is unconditioned (NOTES is always present); the CNTFLD
+  // keyword is conditioned on a separate line, same pattern real DDS uses
+  // to condition just one keyword rather than the whole field.
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00020', name: 'NOTES', length: '100', dataType: 'A', usage: 'B', line: '3', col: '2' }),
+    buildLine({ seq: '00030', ind1: '01', func: 'CNTFLD(40)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const screenOff = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  const fOff = screenOff.fields.find((x) => x.name === 'NOTES');
+  check('indicator 01 OFF: CNTFLD is not in effect - ordinary single-line field', fOff.cntfld === null && fOff.height === 1 && fOff.length === 100);
+
+  const screenOn = DspfEngine.resolveScreen(model, 'SCR1', new Set(['01']));
+  const fOn = screenOn.fields.find((x) => x.name === 'NOTES');
+  check('indicator 01 ON: CNTFLD IS in effect - wraps at 40 chars/line, ceil(100/40)=3 lines', fOn.cntfld && fOn.cntfld.lineWidth === 40 && fOn.height === 3 && fOn.length === 40);
 }
 
 console.log('\nERRMSG: renders on a window\'s own reserved message line (last usable row), only when its own conditioning is satisfied');
@@ -1036,5 +1055,8 @@ console.log('\nTask L3: MNUBARCHC Text field (&var) / Return field variants rend
   check('literal text with a trailing return field still parses the text correctly', returnFieldField.widget.choices[0].text === 'Opt');
   check('the trailing return field is captured separately from the text', returnFieldField.widget.choices[0].returnField === '&RTNFLD');
 }
+
+console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+process.exit(failures === 0 ? 0 : 1);
 
 

@@ -3,6 +3,31 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.1] - 2026-08-31
+
+### Fixed
+- **CNTFLD (Continued-Entry Field) ignored its own conditioning indicator.**
+  Like any DDS keyword, CNTFLD can be conditioned by an option indicator
+  (e.g. `CNTFLD(40)` on a line with `01` in the indicator columns) or a
+  display-size condition name, meaning it's only in effect when that
+  condition is satisfied. `cntfldFromKeywords` in `dspfEngine.js` found the
+  keyword by name alone and never checked `kw.conditions` at all, unlike
+  `styleFromKeywords` (COLOR/DSPATR) on the very same field - so a
+  conditioned CNTFLD wrapped the field into multiple lines regardless of
+  whether its own indicator was on or off. Now takes
+  `activeIndicators`/`activeSizeName` and only matches a CNTFLD keyword
+  whose own conditions are satisfied; otherwise the field renders as an
+  ordinary single-line field, same as if CNTFLD were never specified.
+- **`dspfEngine.test.js` had a stray mid-file `process.exit()`** (from a
+  prior commit that appended its own summary block instead of appending
+  its new tests before the file's existing one), silently skipping ~45%
+  of the file's own test coverage under `npm test` for some time - 71
+  checks (CNTFLD wrap-math, ERRMSG window message line, MNUBARCHC
+  Text-field/Return-field variants, and more) were dead code that always
+  "passed" only because they never ran. Moved the summary/exit block to
+  the file's true end; all 172 checks in the file now actually run and
+  pass (up from 101 actually executing before).
+
 ## [0.10.0] - 2026-08-31
 
 ### Fixed
