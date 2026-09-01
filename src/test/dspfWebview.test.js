@@ -4065,13 +4065,21 @@ function runNumericFieldPickerScenario() {
     console.log('  QTY (Usage H, Hidden): Keying options panel offers the Keyboard shift attribute (KEYBRD)');
     const keybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keybrd') >= 0);
     check('KEYBRD select present for a Hidden field (Keying options is Hidden/Input/Both)', !!keybrdSelect);
-    keybrdSelect.value = 'S';
+    // Bug fix (L20/L21/L22 keyword-inventory audit): the value list used
+    // to be ['S','N','Y','I','D'] - wrong against real SDA's own screen
+    // (N/A/X/W/I/D/M/J/O/E/G, no S or Y at all). 'N' is valid under both
+    // the old and new lists, but confirm the corrected list's own values
+    // (A/X/W/M/J/O/E/G) are ALSO offered, not just the ones that happened
+    // to overlap with the old wrong list.
+    const keybrdValues = Array.from(keybrdSelect.options).map((o) => o.value).filter(Boolean);
+    check('KEYBRD offers exactly N/A/X/W/I/D/M/J/O/E/G (real SDA\u2019s own screen), not the old wrong S/N/Y/I/D list', keybrdValues.sort().join(',') === 'A,D,E,G,I,J,M,N,O,W,X');
+    keybrdSelect.value = 'N';
     keybrdSelect.dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('an edit was posted for KEYBRD', !!applyEdit);
     reparsed = DspfParser.parseDspf(applyEdit.text);
     const qtyField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'QTY');
-    check('KEYBRD written with value S', qtyField.keywords.some((k) => k.name === 'KEYBRD' && k.parameters.trim() === 'S'));
+    check('KEYBRD written with value N', qtyField.keywords.some((k) => k.name === 'KEYBRD' && k.parameters.trim() === 'N'));
     posted.length = 0;
 
     console.log('  RECNBR (in an SFLCTL record): Subfile keywords panel is present, SFLRCDNBR/SFLROLVAL commit');

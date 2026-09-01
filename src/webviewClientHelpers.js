@@ -1348,9 +1348,8 @@
     var html = '<div class="section-label">Keying options</div>';
     html += checkInstancesHtml(keywords, ownerKey + '-keying', expandedSet, KEYING_OPTION_CODES, '+ Add CHECK instance');
     // Task D3 - Keyboard shift attribute (KEYBRD), numeric-only real DDS
-    // keyword shown on the same "Select Keying Options" screen. Values are
-    // exactly the single letters real SDA's screen shows (S/N/Y/I/D) -
-    // modeled as a plain present/absent + one-letter-parameter keyword via
+    // keyword shown on the same "Select Keying Options" screen. Modeled as
+    // a plain present/absent + one-letter-parameter keyword via
     // DspfWriter.getFileFlagKeyword/setFileFlagKeyword (generic over any
     // keywords array), same as several of Task R1's record-level keywords -
     // no dedicated getX/setX pair needed for a single-letter parameter.
@@ -1359,10 +1358,21 @@
     // indicator too, but it's a single always-on-screen attribute rather
     // than several message/condition pairs, so this is a scoping choice,
     // not an oversight; see Known limitations in the README.
+    //
+    // Bug fix (found during the L20/L21/L22 keyword-inventory audit):
+    // the value list here previously read ['S','N','Y','I','D'] - wrong on
+    // every count against real SDA's own screen (docs/sda-reference/
+    // screens/field-level/character/keying-options/image164.png), which
+    // shows N/A/X/W/I/D/M/J/O/E/G (11 letters, no S or Y at all). Fixed to
+    // match the screenshot exactly. Left unlabeled (just the bare letter,
+    // like real SDA's own screen shows no descriptive text here either)
+    // rather than guessing at English descriptions for each one without a
+    // confirmed DDS Reference citation for every value - see this
+    // codebase's own "research before implementing" principle.
     var keybrd = DspfWriter.getFileFlagKeyword(keywords, 'KEYBRD');
     html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute (KEYBRD)</div>';
     html += '<select class="' + ownerKey + '-keybrd">' +
-      ['', 'S', 'N', 'Y', 'I', 'D'].map(function (v) {
+      ['', 'N', 'A', 'X', 'W', 'I', 'D', 'M', 'J', 'O', 'E', 'G'].map(function (v) {
         return '<option value="' + v + '"' + (keybrd.parameters === v ? ' selected' : '') + '>' + (v || '(none)') + '</option>';
       }).join('') +
       '</select>';

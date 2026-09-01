@@ -3,6 +3,34 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.7] - 2026-09-01
+
+### Fixed
+- **Task L23: KEYBRD (Keyboard shift attribute) offered the wrong value
+  list.** The dropdown offered `S/N/Y/I/D`, but real SDA's own "Select
+  Keying Options" screen shows `N/A/X/W/I/D/M/J/O/E/G` (11 letters, no
+  S or Y at all) - confirmed twice, since the same letter set also
+  appears on the "Define Database Reference" screen's own "New keyboard
+  shift" override field. Corrected the dropdown to the confirmed
+  11-value list. Left unlabeled (bare letters) rather than guessing at
+  each one's exact DDS Reference meaning without a confirmed citation.
+  Updated the one existing test that had been asserting the old wrong
+  value.
+
+### Investigated further, not yet fixed (Task L22, extended)
+- Continued the keyword-inventory audit into field-level (character,
+  numeric, constant, menu-bar-choice - about 30 of ~55 screenshots).
+  `SNGCHCFLD`/`MLTCHCFLD`, `WINDOW`, `DSPATR`, `COLOR`, and the
+  choice-selection/choice-colors pickers were all independently
+  re-verified and check out correctly. One more gap found: `TEXT` (a
+  pure documentation keyword, no compiled effect) doesn't appear
+  anywhere in the codebase - lowest priority of the L22 findings since
+  it's metadata-only. See LIMITATIONS-PLAN.md's L22 row for the full,
+  updated list (MSGLOC, ROLLUP/ROLLDOWN, TEXT, plus the
+  already-documented ENTFLDATR and MNUBAR display-separator notes).
+
+Full suite: 2180 checks, 0 failures.
+
 ## [0.10.6] - 2026-09-01
 
 ### Fixed
