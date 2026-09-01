@@ -3,6 +3,42 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.6] - 2026-09-01
+
+### Fixed
+- **Task L21: CHGINPDFT had no way to set its own sub-flags (HI/RI/CS/
+  BL/UL/LC/ME/MF/FE).** Confirmed against a screenshot of real SDA's own
+  "Change Input Defaults" sub-screen (reached via CHGINPDFT's own
+  "Select parameters" row): every CHGINPDFT flag row in iSDA (File
+  level, Record level, SFLMSG General, Field-level Input keywords) was
+  either a bare on/off checkbox or a free-text parameter box - none
+  exposed the keyword's real 9 sub-flags. New shared
+  `chgInpDftFlagHtml`/`wireChgInpDftFlag` in `webviewClientHelpers.js`
+  (one component, reused at all 4 call sites): renders `flagRowHtml`'s
+  own checkbox+Conditioning row plus 9 sub-flag checkboxes, with a
+  hidden input carrying the space-joined code list so `wireFlagRow`'s
+  existing commit path needed no changes; checking any sub-flag also
+  force-checks the main on/off box. New tests: a field-level scenario
+  (9 checkboxes, multi-code commit, force-check behavior) and a
+  file/record-level scenario (same component under different id
+  prefixes).
+
+### Investigated, not yet fixed (Task L22)
+- A broader keyword-inventory audit (File-level + Record-level base
+  keywords reference screens, cross-checked against the codebase) found
+  two more gaps: `MSGLOC` (pairs a message-line number with a DSPSIZ
+  display size) is a genuinely separate keyword that doesn't appear
+  anywhere in the codebase; `ROLLUP`/`ROLLDOWN` (legacy alternate names
+  for `PAGEDOWN`/`PAGEUP`) aren't recognized as equivalent by the
+  Indicator Keywords checkbox UI. See LIMITATIONS-PLAN.md's own L22 row
+  for details - both are follow-up work, not fixed in this release.
+  `ENTFLDATR` shows the same "Select parameters" pattern as CHGINPDFT
+  did, but its own sub-screen wasn't captured in the reference
+  screenshots, so it's flagged rather than guessed at (see L21's own
+  note).
+
+Full suite: 2179 checks, 0 failures.
+
 ## [0.10.5] - 2026-08-31
 
 ### Added
