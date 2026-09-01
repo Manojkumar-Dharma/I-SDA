@@ -1853,6 +1853,60 @@
     return next;
   }
 
+  // Bug fix (L22 keyword-inventory audit): MSGLOC was entirely missing.
+  // Confirmed via IBM's own DDS Reference: MSGLOC is a FILE-LEVEL keyword
+  // with a single required numeric line-number parameter (1-27), used
+  // alongside DSPSIZ to give each display size its own error-message
+  // line - e.g. `A MSGLOC(1)` for the primary/unconditioned size and
+  // `A *DS4 MSGLOC(1)` for a secondary size, using the SAME display-size
+  // condition-name mechanism (`displaySizeCondition`) the parser already
+  // builds for any keyword's conditioning columns - NOT a parameter of
+  // DSPSIZ itself (confirmed against parseDisplaySizeTriples/
+  // serializeDisplaySizes above, whose own triple syntax has no room for
+  // a 4th "message line" value). Modeled as (primary, bySizeName) rather
+  // than a flat list since that mirrors exactly how the Display Sizes
+  // picker's own sizeList already distinguishes the primary
+  // (unconditioned) size from any secondary (named) ones.
+  function getFileMsgLocLines(keywords) {
+    var result = { primary: '', bySizeName: {} };
+    (keywords || []).filter(function (kw) { return kw.name === 'MSGLOC'; }).forEach(function (kw) {
+      var value = (kw.parameters || '').trim();
+      var sizeGroup = (kw.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
+      if (sizeGroup) {
+        result.bySizeName[sizeGroup.displaySizeCondition.name] = value;
+      } else {
+        result.primary = value;
+      }
+    });
+    return result;
+  }
+
+  /** Returns a NEW keywords array with every existing MSGLOC removed and
+   *  replaced by: one unconditioned MSGLOC for `primary` (if non-blank),
+   *  plus one MSGLOC per non-blank entry in `bySizeName` (an object of
+   *  `{ '*DS4': '28', ... }`), each conditioned by that size's own
+   *  display-size condition name - same `{relation, indicators,
+   *  displaySizeCondition, sourceLines}` group shape
+   *  buildConditionChunks/the parser already use everywhere else a
+   *  display-size condition is built or read. */
+  function setFileMsgLocLines(keywords, primary, bySizeName) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'MSGLOC'; });
+    var p = (primary == null ? '' : String(primary)).trim();
+    if (p) next = next.concat([{ name: 'MSGLOC', parameters: p, conditions: [], raw: '', sourceLines: [] }]);
+    Object.keys(bySizeName || {}).forEach(function (sizeName) {
+      var v = (bySizeName[sizeName] == null ? '' : String(bySizeName[sizeName])).trim();
+      if (!v) return;
+      next = next.concat([{
+        name: 'MSGLOC',
+        parameters: v,
+        conditions: [{ relation: 'AND', indicators: [], displaySizeCondition: { name: sizeName, not: false }, sourceLines: [] }],
+        raw: '',
+        sourceLines: [],
+      }]);
+    });
+    return next;
+  }
+
   // ---------------------------------------------------------------------
   // Task R1 - Base Record Keywords picker (General, Indicator, Application
   // Help, Help, Output, Input, Overlay, Print - see docs/sda-reference/
@@ -3586,6 +3640,8 @@
     setPulldownKeyword: setPulldownKeyword,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,
+    getFileMsgLocLines: getFileMsgLocLines,
+    setFileMsgLocLines: setFileMsgLocLines,
     getUnlockKeyword: getUnlockKeyword,
     setUnlockKeyword: setUnlockKeyword,
     getFileTwoFieldKeyword: getFileTwoFieldKeyword,

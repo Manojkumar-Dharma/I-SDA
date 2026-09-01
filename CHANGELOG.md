@@ -3,6 +3,43 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.9] - 2026-09-01
+
+### Added
+- **Task L24: MSGLOC was entirely missing.** Real SDA's own "Select
+  Display Sizes" screen shows a "Message Line" column right alongside
+  Order/Display name for each declared DSPSIZ size, but MSGLOC didn't
+  appear anywhere in the codebase. Confirmed via IBM's own DDS
+  Reference: `MSGLOC(line-number)` is a genuinely separate file-level
+  keyword, paired with a display size via the same display-size-
+  condition mechanism the parser already builds for any keyword's
+  conditioning columns (`MSGLOC(1)` unconditioned for the primary size,
+  `A *DS4 MSGLOC(1)` conditioned for a secondary one). New
+  `getFileMsgLocLines`/`setFileMsgLocLines` in `dspfWriter.js`; two new
+  "Message line" inputs on the existing Display Sizes panel, wired into
+  its own Apply button so DSPSIZ order and MSGLOC conditioning always
+  stay in sync.
+- **Task L25: TEXT (pure documentation keyword) was entirely missing.**
+  A plain quoted-string keyword (no compiled/runtime effect) valid at
+  File, Record, and Field level. Added a TEXT input at File level and
+  Record level (reusing `getFileQuotedText`/`setFileQuotedText`, same
+  as HLPTITLE) and a `text` row in `GENERAL_FIELD_KEYWORD_ROWS` for
+  Field level.
+- **Task L26: ENTFLDATR had no way to set its own color/attributes -
+  only a free-text box.** Resolved via web research against a real DDS
+  source example (`ENTFLDATR((*COLOR BLU) (*DSPATR HI UL))`) confirming
+  it's the exact same `(*COLOR c) (*DSPATR a a)` shape
+  CHCAVAIL/CHCUNAVAIL/CHCSLT already use. New `entFldAtrHtml`/
+  `wireEntFldAtrEditor` (color select + HI/RI/CS/BL/ND/UL checkboxes),
+  reusing `getChoiceColorState`/`setChoiceColorState` directly rather
+  than a near-duplicate pair. Wired into File-level and Record-level
+  General Keywords, replacing the old free-text box.
+
+New coverage for all three in a single consolidated scenario,
+`runL22FollowUpFixesScenario` (`src/test/dspfWebview.test.js`).
+
+Full suite (on top of 0.10.8 below): 2196+ checks, 0 failures.
+
 ## [0.10.8] - 2026-09-01
 
 ### Fixed

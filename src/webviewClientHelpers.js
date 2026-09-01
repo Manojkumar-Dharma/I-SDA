@@ -1491,6 +1491,18 @@
     // this shared row list doesn't yet gate any of the three out for
     // constants, a pre-existing scope note, not something new here.
     ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true],
+    // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
+    // a pure documentation keyword (no compiled/runtime effect at all,
+    // per IBM's own DDS Reference - it's purely for people reading the
+    // source later), same bare-quoted-string shape as DFT/DFTVAL above,
+    // so it follows their same raw-text-box convention (type the quotes
+    // yourself) rather than the auto-quoting getFileQuotedText/
+    // setFileQuotedText pair used for the File/Record-level TEXT rows in
+    // fileKeywordsPanelsHtml/recordKeywordsPanelsHtml - this row list's
+    // own mechanism (getFileFlagKeyword/setFileFlagKeyword) is uniformly
+    // raw-text for every quoted keyword already in it, so TEXT matches
+    // its neighbors instead of introducing a second convention here.
+    ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true],
     ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true],
     ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true],
     ['putretain', 'PUTRETAIN', 'Retain field on display', false],
@@ -1949,6 +1961,50 @@
     });
   }
 
+  // Bug fix (L21's own follow-up note, now resolved via web research rather
+  // than guessed): ENTFLDATR's real DDS syntax is
+  // `ENTFLDATR((*COLOR color) (*DSPATR attr attr...))` - confirmed via a
+  // real-world DDS source example (`ENTFLDATR((*COLOR BLU) (*DSPATR HI
+  // UL))`) plus IBM's own keyword-reference table listing ENTFLDATR as
+  // valid at File, Record, AND Field level - i.e. the EXACT SAME
+  // `(*COLOR c) (*DSPATR a a)` shape CHCAVAIL/CHCUNAVAIL/CHCSLT already
+  // use, which is why this reuses DspfWriter.getChoiceColorState/
+  // setChoiceColorState directly rather than writing a near-duplicate
+  // getEntFldAtr/setEntFldAtr pair - those functions are already generic
+  // over `keywordName` (nothing "choice"-specific inside them despite the
+  // name), so passing 'ENTFLDATR' just works. The *DSPATR checkbox subset
+  // reuses WDWBORDER_ATTRS (HI/RI/CS/BL/ND/UL) - the same restricted
+  // subset this codebase already offers for every OTHER compound
+  // (*COLOR)/(*DSPATR) keyword (WDWBORDER, CHCAVAIL/CHCUNAVAIL/CHCSLT) -
+  // rather than the full 11-value DSPATR_ATTRS list, since none of those
+  // precedents ever offer PC/MDT/PR/OID/SP as a *DSPATR sub-value either.
+  function entFldAtrHtml(keywords, ownerKey) {
+    var current = DspfWriter.getChoiceColorState(keywords, 'ENTFLDATR');
+    var enabled = !!current.color || current.attrs.length > 0;
+    var html = '<div class="section-label">Entry field attribute (ENTFLDATR)</div>';
+    html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-on" ' + (enabled ? 'checked' : '') + ' /> Change attributes while the cursor is in the field</label>';
+    html += '<select id="' + ownerKey + '-color">' + COLOR_VALUES.map(function (c) {
+      return '<option value="' + c + '"' + (current.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
+    }).join('') + '</select>';
+    html += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+      var checked = current.attrs.indexOf(a) >= 0;
+      return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
+    }).join('') + '</div>';
+    html += '<button class="secondary ' + ownerKey + '-apply" style="width:100%;margin-top:8px;">Apply entry field attribute</button>';
+    return html;
+  }
+
+  function wireEntFldAtrEditor(getKeywords, onChange, ownerKey) {
+    var applyBtn = document.querySelector('.' + ownerKey + '-apply');
+    if (!applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      var on = document.getElementById(ownerKey + '-on').checked;
+      var color = on ? document.getElementById(ownerKey + '-color').value : '';
+      var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-attr:checked')).map(function (el) { return el.value; }) : [];
+      onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', color, attrs));
+    });
+  }
+
 
   /** Renders DspfEngine.resolveFunctionKeyLegend()'s output as a row of F-key chips,
    *  solid/active when the key's own response indicator (if any) is currently on. */
@@ -2310,8 +2366,7 @@
     // Bug fix: dedicated sub-flag checkboxes for CHGINPDFT (see
     // chgInpDftFlagHtml's own comment) instead of a bare free-text box.
     g += chgInpDftFlagHtml(kw, 'fk-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
-    var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
-    g += flagRowHtml('fk-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL', entfldatr.conditions, expandedSet);
+    g += entFldAtrHtml(kw, 'fk-entfldatr');
     var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
     g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, fErrsfl.conditions, expandedSet);
     g += '<div class="section-label">Reference database file (REF)</div>';
@@ -2319,6 +2374,12 @@
       '<input type="text" id="fk-ref-record" placeholder="Record/File name" value="' + escapeHtml(refState.record) + '" /></div>';
     g += '<div class="section-label">Record to pass unformatted data (PASSRCD)</div>';
     g += '<input type="text" id="fk-passrcd" placeholder="Record name" value="' + escapeHtml(DspfWriter.getFileFlagKeyword(kw, 'PASSRCD').parameters) + '" style="width:100%;" />';
+    // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
+    // a pure documentation keyword (no compiled/runtime effect at all,
+    // per IBM's own DDS Reference), same quoted-string shape as HLPTITLE,
+    // so it reuses getFileQuotedText/setFileQuotedText directly.
+    g += '<div class="section-label">File text (TEXT)</div>';
+    g += '<input type="text" id="fk-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
     panels.general = g;
 
     // --- Indicator / screen-control keywords ---
@@ -2374,6 +2435,26 @@
     ds += '<div class="two-col" style="font-size:10px;text-transform:uppercase;color:var(--ink-dim);margin-bottom:4px;"><span>Size</span><span>Order / Display name</span></div>';
     ds += '<div class="two-col" style="margin-bottom:8px;"><span style="align-self:center;">27x132</span><span style="display:flex;gap:4px;"><input type="text" id="fk-dspsiz-order-ds4" placeholder="Order" value="' + escapeHtml(orderFor('*DS4')) + '" style="width:50px;" /><input type="text" id="fk-dspsiz-name-ds4" value="' + escapeHtml((sizeList.find(function (s) { return s.name === '*DS4'; }) || {}).name || '*DS4') + '" style="width:70px;" /></span></div>';
     ds += '<div class="two-col"><span style="align-self:center;">24x80</span><span style="display:flex;gap:4px;"><input type="text" id="fk-dspsiz-order-ds3" placeholder="Order" value="' + escapeHtml(orderFor('*DS3')) + '" style="width:50px;" /><input type="text" id="fk-dspsiz-name-ds3" value="' + escapeHtml((sizeList.find(function (s) { return s.name === '*DS3'; }) || {}).name || '*DS3') + '" style="width:70px;" /></span></div>';
+    // Bug fix (L22 keyword-inventory audit): MSGLOC was entirely missing -
+    // real SDA's own "Select Display Sizes" screen shows a "Message Line"
+    // column right alongside Order/Display name for exactly this reason
+    // (confirmed via IBM's own DDS Reference: MSGLOC is a genuinely
+    // separate file-level keyword, not a 4th DSPSIZ triple value - see
+    // getFileMsgLocLines/setFileMsgLocLines's own doc comment in
+    // dspfWriter.js). Whichever size is order 1 (the system default) gets
+    // the unconditioned "primary" MSGLOC; order 2 (if any) gets its own
+    // MSGLOC conditioned by that size's own *DSx name - matching the DDS
+    // Reference's own `MSGLOC(1)` / `A *DS4 MSGLOC(1)` example exactly.
+    var msgLoc = DspfWriter.getFileMsgLocLines(kw);
+    function msgLocFor(name) {
+      var idx = sizeList.findIndex(function (s) { return s.name === name; });
+      if (idx === 0) return msgLoc.primary;
+      if (idx > 0) return msgLoc.bySizeName[name] || '';
+      return '';
+    }
+    ds += '<div class="two-col" style="font-size:10px;text-transform:uppercase;color:var(--ink-dim);margin:8px 0 4px;"><span></span><span>Message line (MSGLOC)</span></div>';
+    ds += '<div class="two-col" style="margin-bottom:8px;"><span></span><input type="text" id="fk-msgloc-ds4" placeholder="e.g. 28" value="' + escapeHtml(msgLocFor('*DS4')) + '" style="width:70px;" /></div>';
+    ds += '<div class="two-col"><span></span><input type="text" id="fk-msgloc-ds3" placeholder="e.g. 25" value="' + escapeHtml(msgLocFor('*DS3')) + '" style="width:70px;" /></div>';
     ds += '<button class="secondary" id="fk-dspsiz-apply" style="width:100%;margin-top:10px;">Apply display sizes</button>';
     panels.displaySizes = ds;
 
@@ -2426,7 +2507,7 @@
     wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
     simple('fk-dsprl', 'DSPRL');
     wireChgInpDftFlag(getKeywords, onChange, 'fk-chginpdft', expandedSet, rerender);
-    simple('fk-entfldatr', 'ENTFLDATR', true);
+    wireEntFldAtrEditor(getKeywords, onChange, 'fk-entfldatr');
     simple('fk-errsfl', 'ERRSFL');
     var refLib = document.getElementById('fk-ref-library');
     var refRec = document.getElementById('fk-ref-record');
@@ -2435,6 +2516,8 @@
     if (refRec) refRec.addEventListener('change', commitRef);
     var passrcd = document.getElementById('fk-passrcd');
     if (passrcd) passrcd.addEventListener('change', function () { onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!passrcd.value.trim(), passrcd.value.trim())); });
+    var fkText = document.getElementById('fk-text');
+    if (fkText) fkText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', fkText.value)); });
 
     // Indicator / screen-control
     ['fk-clear:CLEAR', 'fk-home:HOME', 'fk-pagedown:PAGEDOWN', 'fk-pageup:PAGEUP', 'fk-help:HELP', 'fk-hlprtn:HLPRTN', 'fk-vldcmdkey:VLDCMDKEY'].forEach(function (pair) {
@@ -2475,13 +2558,27 @@
     var dspsizApply = document.getElementById('fk-dspsiz-apply');
     if (dspsizApply) {
       dspsizApply.addEventListener('click', function () {
+        var msglocByName = {
+          '*DS4': (document.getElementById('fk-msgloc-ds4').value || '').trim(),
+          '*DS3': (document.getElementById('fk-msgloc-ds3').value || '').trim(),
+        };
         var rows = [
           { order: document.getElementById('fk-dspsiz-order-ds4').value, lines: 27, columns: 132, name: (document.getElementById('fk-dspsiz-name-ds4').value || '*DS4').trim() || '*DS4' },
           { order: document.getElementById('fk-dspsiz-order-ds3').value, lines: 24, columns: 80, name: (document.getElementById('fk-dspsiz-name-ds3').value || '*DS3').trim() || '*DS3' },
         ].filter(function (r) { return (r.order || '').trim() !== ''; });
         rows.sort(function (a, b) { return parseInt(a.order, 10) - parseInt(b.order, 10); });
         try {
-          onChange(DspfWriter.setDisplaySizesList(getKeywords(), rows.map(function (r) { return { lines: r.lines, columns: r.columns, name: r.name }; })));
+          var next = DspfWriter.setDisplaySizesList(getKeywords(), rows.map(function (r) { return { lines: r.lines, columns: r.columns, name: r.name }; }));
+          // Bug fix (L22): MSGLOC follows DSPSIZ's own order - order 1 (the
+          // system default) is unconditioned ("primary"), order 2 (if any)
+          // is conditioned by its own *DSx name - see getFileMsgLocLines/
+          // setFileMsgLocLines's own doc comment for the DDS Reference
+          // example this mirrors.
+          var primary = rows.length > 0 ? (msglocByName[rows[0].name] || '') : '';
+          var bySizeName = {};
+          if (rows.length > 1) bySizeName[rows[1].name] = msglocByName[rows[1].name] || '';
+          next = DspfWriter.setFileMsgLocLines(next, primary, bySizeName);
+          onChange(next);
         } catch (e) {
           window.alert(e.message);
         }
@@ -2558,12 +2655,15 @@
     g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     var mnubardsp = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP');
     g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, mnubardsp.parameters, 'parameters (optional)', mnubardsp.conditions, expandedSet);
-    var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
-    g += flagRowHtml(p + '-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL', entfldatr.conditions, expandedSet);
+    g += entFldAtrHtml(kw, p + '-entfldatr');
     var rtncsrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'RTNCSRLOC');
     g += '<div class="section-label">Return cursor location (RTNCSRLOC)</div>';
     g += '<div class="two-col"><input type="text" id="' + p + '-rtncsrloc-row" placeholder="Row field name" value="' + escapeHtml(rtncsrloc.a) + '" />' +
       '<input type="text" id="' + p + '-rtncsrloc-col" placeholder="Column field name" value="' + escapeHtml(rtncsrloc.b) + '" /></div>';
+    // Bug fix (L22 keyword-inventory audit): TEXT (record-level) - see
+    // the file-level TEXT row's own comment above for the full rationale.
+    g += '<div class="section-label">Record text (TEXT)</div>';
+    g += '<input type="text" id="' + p + '-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
     panels.general = g;
 
     // --- Indicator / screen-control keywords (Task L5d - repeatable,
@@ -2855,8 +2955,10 @@
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
     simple(p + '-mnubardsp', 'MNUBARDSP', true);
-    simple(p + '-entfldatr', 'ENTFLDATR', true);
+    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr');
     wireTwoField(p + '-rtncsrloc-row', p + '-rtncsrloc-col', 'RTNCSRLOC');
+    var pText = document.getElementById(p + '-text');
+    if (pText) pText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', pText.value)); });
 
     // Indicator / screen-control (Task L5d)
     wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender);

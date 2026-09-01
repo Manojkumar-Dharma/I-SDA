@@ -2611,6 +2611,102 @@ function runChgInpDftFileRecordScenario() {
     let recordEdit = posted.filter((m) => m.type === 'applyEdit').pop();
     check('posts CHGINPDFT(ME) at record level', recordEdit && /CHGINPDFT\(ME\)/.test(recordEdit.text));
 
+    runL22FollowUpFixesScenario();
+  }, 0);
+}
+
+// Task L22 follow-up fixes: ENTFLDATR (color+attrs picker, same shape as
+// CHCAVAIL/CHCSLT), TEXT (documentation-only, File/Record/Field level),
+// and MSGLOC (paired with DSPSIZ's own order). See dspfWriter.js's own
+// doc comments on getFileMsgLocLines/setFileMsgLocLines and
+// entFldAtrHtml/wireEntFldAtrEditor for the DDS Reference research behind
+// each.
+function runL22FollowUpFixesScenario() {
+  console.log('\nTask L22 follow-ups: ENTFLDATR (color+attrs picker), TEXT (documentation keyword), MSGLOC (paired with DSPSIZ order)');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce23', src, 'L22.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const { document: doc, Event } = dom.window;
+
+    console.log('  File level: ENTFLDATR (color + HI/RI/CS/BL/ND/UL checkboxes, reusing getChoiceColorState/setChoiceColorState)');
+    const fileCrumb = doc.getElementById('crumb-file');
+    check('setup: the File breadcrumb is present', !!fileCrumb);
+    fileCrumb.dispatchEvent(new Event('click', { bubbles: true }));
+    const entOn = doc.getElementById('fk-entfldatr-on');
+    const entColor = doc.getElementById('fk-entfldatr-color');
+    const entAttrs = doc.querySelectorAll('.fk-entfldatr-attr');
+    check('the ENTFLDATR enable checkbox is present', !!entOn);
+    check('the ENTFLDATR color select is present', !!entColor);
+    check('all 6 ENTFLDATR attribute checkboxes are present (HI/RI/CS/BL/ND/UL - same subset as WDWBORDER/CHCAVAIL)', entAttrs.length === 6);
+    entOn.checked = true;
+    entColor.value = 'BLU';
+    Array.from(entAttrs).find((el) => el.value === 'HI').checked = true;
+    Array.from(entAttrs).find((el) => el.value === 'UL').checked = true;
+    const entApplyBtn = doc.querySelector('.fk-entfldatr-apply');
+    check('setup: the ENTFLDATR apply button is present', !!entApplyBtn);
+    entApplyBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    let entEdit = posted.filter((m) => m.type === 'applyEdit').pop();
+    const entKw = entEdit && DspfParser.parseDspf(entEdit.text).fileKeywords.find((k) => k.name === 'ENTFLDATR');
+    check('posts ENTFLDATR with (*COLOR BLU) and (*DSPATR HI UL), matching the real DDS shape ENTFLDATR((*COLOR BLU) (*DSPATR HI UL))', entKw && /\(\*COLOR BLU\)/.test(entKw.parameters) && /\(\*DSPATR HI UL\)/.test(entKw.parameters));
+
+    console.log('  File level: TEXT (documentation-only, reuses getFileQuotedText/setFileQuotedText)');
+    posted.length = 0;
+    const fkText = doc.getElementById('fk-text');
+    check('the File-level TEXT input is present', !!fkText);
+    fkText.value = 'File documentation';
+    fkText.dispatchEvent(new Event('change', { bubbles: true }));
+    let textEdit = posted.filter((m) => m.type === 'applyEdit').pop();
+    check('posts TEXT at file level', textEdit && DspfParser.parseDspf(textEdit.text).fileKeywords.some((k) => k.name === 'TEXT' && k.parameters === "'File documentation'"));
+
+    console.log('  Record level: TEXT is also present (separate input, separate id prefix)');
+    posted.length = 0;
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const recTextInputs = Array.from(doc.querySelectorAll('input[id$="-text"]')).filter((el) => el.id !== 'fk-text' && el.id !== 'fieldSearchInput');
+    check('a record-level TEXT input is present, distinct from the file-level one', recTextInputs.length > 0);
+    recTextInputs[0].value = 'Record documentation';
+    recTextInputs[0].dispatchEvent(new Event('change', { bubbles: true }));
+    let recTextEdit = posted.filter((m) => m.type === 'applyEdit').pop();
+    check('posts TEXT at record level', recTextEdit && DspfParser.parseDspf(recTextEdit.text).records[0].keywords.some((k) => k.name === 'TEXT' && k.parameters === "'Record documentation'"));
+
+    console.log('  File level: MSGLOC, paired with DSPSIZ order (order 1 = unconditioned primary, order 2 = conditioned by its own *DSx name)');
+    posted.length = 0;
+    fileCrumb.dispatchEvent(new Event('click', { bubbles: true }));
+    const msglocDs4 = doc.getElementById('fk-msgloc-ds4');
+    const msglocDs3 = doc.getElementById('fk-msgloc-ds3');
+    check('the MSGLOC input for *DS4 is present', !!msglocDs4);
+    check('the MSGLOC input for *DS3 is present', !!msglocDs3);
+    check('*DS3 (order 1, per the DSPSIZ(24 80 *DS3 27 132 *DS4) fixture) pre-fills as the primary/unconditioned size - no value expected here since none was set in source', msglocDs3.value === '');
+    msglocDs4.value = '28';
+    msglocDs3.value = '25';
+    const dspsizApply = doc.getElementById('fk-dspsiz-apply');
+    check('setup: the Apply display sizes button is present', !!dspsizApply);
+    dspsizApply.dispatchEvent(new Event('click', { bubbles: true }));
+    let msglocEdit = posted.filter((m) => m.type === 'applyEdit').pop();
+    const msglocKws = msglocEdit ? DspfParser.parseDspf(msglocEdit.text).fileKeywords.filter((k) => k.name === 'MSGLOC') : [];
+    const msglocPrimary = msglocKws.find((k) => (k.conditions || []).length === 0);
+    const msglocDs4Kw = msglocKws.find((k) => (k.conditions || []).some((g) => g.displaySizeCondition && g.displaySizeCondition.name === '*DS4'));
+    check('posts an unconditioned MSGLOC(25) for *DS3 (order 1, the primary/system-default size)', msglocPrimary && msglocPrimary.parameters.trim() === '25');
+    check('posts a *DS4-conditioned MSGLOC(28) for *DS4 (order 2)', !!msglocDs4Kw && msglocDs4Kw.parameters.trim() === '28');
+
     runCodeForIBadgeScenario();
   }, 0);
 }
