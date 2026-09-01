@@ -54,8 +54,8 @@ function fakeRectFromGridStyle(el) {
   return { top, left, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON() {} };
 }
 
-function setup() {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'MULTISEL.DSPF').replace(
+function setup(customSrc) {
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', customSrc || src, 'MULTISEL.DSPF').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
     ''
   );
@@ -328,6 +328,145 @@ setTimeout(() => {
       console.log('  Distribute buttons are disabled below 3 fields, enabled at 3+');
       const distributeBtn = doc5.getElementById('p-distribute-v');
       check('Distribute vertical is enabled with exactly 3 fields selected', distributeBtn && !distributeBtn.disabled);
+
+      runCenterGroupScenario();
+    }, 0);
+  }
+
+  // Task L12 leftover - a fresh setup() rather than continuing from
+  // runAlignScenario's own DOM: that scenario's last step ("Align top")
+  // deliberately moves all three fields onto the exact same line/column,
+  // and an overlapping cell only keeps ONE field element queryable in the
+  // DOM afterward (a pre-existing rendering quirk when fields fully
+  // overlap, unrelated to this button) - so re-querying FLD2/FLD3 there
+  // would find nothing. Starting clean at the fixture's original columns
+  // 5/5/5, lines 3/5/7 avoids that entirely and keeps this scenario's own
+  // assertions about what actually moved unambiguous.
+  function runCenterGroupScenario() {
+    console.log('\n"Center on screen" (Task L12 leftover) centers the whole block as a unit');
+    const { dom: dom6, posted: posted6 } = setup();
+    const doc6 = dom6.window.document;
+    setTimeout(() => {
+      // All three fields sit at column 5 (10-wide, DSPSIZ 24 80), so the
+      // group's own bounding box is columns 5-14 (width 10). Centered
+      // against an 80-col screen that's column 36 (floor((80-10)/2)+1),
+      // a +31 shift - every field should move by exactly that same delta,
+      // not each independently centering on top of the others (which
+      // would collapse the block instead of translating it).
+      const f1 = fieldByName(doc6, 'FLD1');
+      const f2 = fieldByName(doc6, 'FLD2');
+      const f3 = fieldByName(doc6, 'FLD3');
+      f1.dispatchEvent(new dom6.window.MouseEvent('click', { bubbles: true }));
+      f2.dispatchEvent(new dom6.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      f3.dispatchEvent(new dom6.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+
+      const centerGroupBtn = doc6.getElementById('p-center-group');
+      check('the Center on screen button is present for a multi-field selection', !!centerGroupBtn);
+      if (!centerGroupBtn) { finish(); return; }
+
+      posted6.length = 0;
+      centerGroupBtn.dispatchEvent(new dom6.window.Event('click', { bubbles: true }));
+      const model = latestDspf(posted6);
+      const rec = model && model.records.find((r) => r.name === 'SCR1');
+      check('all three fields shift to column 36, keeping their shared column (group moved as one unit)', rec && ['FLD1', 'FLD2', 'FLD3'].every((n) => rec.fields.find((f) => f.name === n).location.column === 36));
+      check('lines are untouched by a horizontal center (still 3/5/7)', rec &&
+        rec.fields.find((f) => f.name === 'FLD1').location.line === 3 &&
+        rec.fields.find((f) => f.name === 'FLD2').location.line === 5 &&
+        rec.fields.find((f) => f.name === 'FLD3').location.line === 7);
+
+      runPreserveOwnStyleScenario();
+    }, 0);
+  }
+
+  // Regression for "existing color and attributes are removed and newly
+  // selected added" - a fresh setup() with its own custom source, since
+  // the module-level `src` fixture's fields deliberately start with no
+  // COLOR/DSPATR at all (needed for runStyleScenario's own "+ Add" path
+  // above) and this needs fields that ALREADY differ from each other to
+  // prove anything. FLD1 (primary, first-selected) starts COLOR(BLU)
+  // DSPATR(UL); FLD2 starts COLOR(GRN) DSPATR(RI); FLD3 starts with
+  // nothing at all.
+  const preserveSrc =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '3', col: '5' }),
+      buildLine({ seq: '00035', func: 'COLOR(BLU)' }),
+      buildLine({ seq: '00036', func: 'DSPATR(UL)' }),
+      buildLine({ seq: '00040', name: 'FLD2', length: '10', dataType: 'A', usage: 'B', line: '5', col: '5' }),
+      buildLine({ seq: '00045', func: 'COLOR(GRN)' }),
+      buildLine({ seq: '00046', func: 'DSPATR(RI)' }),
+      buildLine({ seq: '00050', name: 'FLD3', length: '10', dataType: 'A', usage: 'B', line: '7', col: '5' }),
+    ].join('\n') + '\n';
+
+  function runPreserveOwnStyleScenario() {
+    console.log('\nMulti-select Style edits merge into each field\'s OWN existing color/attrs instead of overwriting them with the primary field\'s (previously reported: "existing color and attributes are removed and newly selected added")');
+    const { dom: dom7, posted: posted7 } = setup(preserveSrc);
+    const doc7 = dom7.window.document;
+    setTimeout(() => {
+      const f1 = fieldByName(doc7, 'FLD1');
+      const f2 = fieldByName(doc7, 'FLD2');
+      const f3 = fieldByName(doc7, 'FLD3');
+      f1.dispatchEvent(new dom7.window.MouseEvent('click', { bubbles: true }));
+      f2.dispatchEvent(new dom7.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      f3.dispatchEvent(new dom7.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+
+      // Toggle the HI attribute checkbox on the primary (FLD1) card - a
+      // single attribute added, nothing about color touched.
+      const hiCheckbox = Array.from(doc7.querySelectorAll('input[type=checkbox]')).find((el) => el.value === 'HI');
+      check('the HI attribute checkbox is present on the primary field\'s existing state card', !!hiCheckbox);
+      if (!hiCheckbox) { runColorChangeVariant(); return; }
+
+      posted7.length = 0;
+      hiCheckbox.checked = true;
+      hiCheckbox.dispatchEvent(new dom7.window.Event('change', { bubbles: true }));
+
+      const model = latestDspf(posted7);
+      const rec = model && model.records.find((r) => r.name === 'SCR1');
+      const raws = (n) => rec && rec.fields.find((f) => f.name === n).keywords.map((k) => k.raw);
+      const dspatrAttrs = (n) => { const k = rec && rec.fields.find((f) => f.name === n).keywords.find((kw) => kw.name === 'DSPATR'); return k ? k.parameters.split(/\s+/) : []; };
+      check('FLD1 (primary) gets its own new HI attribute alongside its own BLU/UL', rec &&
+        raws('FLD1').includes('COLOR(BLU)') && dspatrAttrs('FLD1').sort().join(' ') === 'HI UL');
+      check('FLD2 keeps its OWN color (GRN) and OWN attr (RI), just gains HI - not overwritten with FLD1\'s BLU/UL', rec &&
+        raws('FLD2').includes('COLOR(GRN)') && dspatrAttrs('FLD2').sort().join(' ') === 'HI RI');
+      check('FLD3 (had no color/attrs at all) gets ONLY the new HI attribute - no color invented from FLD1', rec &&
+        !raws('FLD3').some((r) => r.indexOf('COLOR') === 0) && dspatrAttrs('FLD3').join(' ') === 'HI');
+
+      runColorChangeVariant();
+    }, 0);
+  }
+
+  // Same idea, the other direction: changing the COLOR (not an attribute)
+  // on the primary should replay as a color-only change on every other
+  // field too, leaving THEIR own attributes alone.
+  function runColorChangeVariant() {
+    const { dom: dom8, posted: posted8 } = setup(preserveSrc);
+    const doc8 = dom8.window.document;
+    setTimeout(() => {
+      const f1 = fieldByName(doc8, 'FLD1');
+      const f2 = fieldByName(doc8, 'FLD2');
+      const f3 = fieldByName(doc8, 'FLD3');
+      f1.dispatchEvent(new dom8.window.MouseEvent('click', { bubbles: true }));
+      f2.dispatchEvent(new dom8.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      f3.dispatchEvent(new dom8.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+
+      const colorSelect = Array.from(doc8.querySelectorAll('select')).find((el) => /-colorattr-inst0-color$/.test(el.id));
+      check('the color select for the primary field\'s existing state is present', !!colorSelect);
+      if (!colorSelect) { finish(); return; }
+
+      posted8.length = 0;
+      colorSelect.value = 'RED';
+      colorSelect.dispatchEvent(new dom8.window.Event('change', { bubbles: true }));
+
+      const model = latestDspf(posted8);
+      const rec = model && model.records.find((r) => r.name === 'SCR1');
+      const raws = (n) => rec && rec.fields.find((f) => f.name === n).keywords.map((k) => k.raw);
+      check('FLD1 (primary) gets the new RED color, keeps its own UL', rec &&
+        raws('FLD1').includes('COLOR(RED)') && raws('FLD1').includes('DSPATR(UL)'));
+      check('FLD2 also gets RED, but keeps its OWN attribute (RI) - not FLD1\'s UL', rec &&
+        raws('FLD2').includes('COLOR(RED)') && raws('FLD2').includes('DSPATR(RI)'));
+      check('FLD3 gets ONLY the color - no attribute invented from FLD1', rec &&
+        raws('FLD3').includes('COLOR(RED)') && !raws('FLD3').some((r) => r.indexOf('DSPATR') === 0));
 
       finish();
     }, 0);

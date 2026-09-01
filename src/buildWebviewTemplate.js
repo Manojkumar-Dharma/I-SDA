@@ -3380,6 +3380,20 @@ const htmlTemplate = `<!DOCTYPE html>
       '<div class="align-btn-row">' +
       '<button class="secondary align-btn" id="p-distribute-h" title="Space evenly between the leftmost and rightmost field, left-to-right" ' + (fields.length < 3 ? 'disabled' : '') + '>&#8596; Distribute horiz.</button>' +
       '<button class="secondary align-btn" id="p-distribute-v" title="Space evenly between the topmost and bottommost field, top-to-bottom" ' + (fields.length < 3 ? 'disabled' : '') + '>&#8597; Distribute vert.</button>' +
+      '</div>' +
+      // Task L12 leftover - the single-field Position tab's own "Center on
+      // screen" (p-center) only makes sense for one field at a time; the
+      // block counterpart flagged in L12 ("centering a BLOCK of multiple
+      // selected fields together at once... fold into Task L10 once
+      // multi-select lands") never actually got built when L10 landed -
+      // Left/Right/Top/Bottom/Distribute all shipped but Center didn't.
+      // This centers the WHOLE selection as one unit (same shape as
+      // Align Left/Right above, not a per-field center) - every field
+      // keeps its position relative to the others; the group's combined
+      // bounding box (leftmost left edge to rightmost right edge) is
+      // centered against the current screen width instead.
+      '<div class="align-btn-row">' +
+      '<button class="secondary align-btn" id="p-center-group" title="Center the whole selection as a block, keeping each field\u2019s position relative to the others">&#8596; Center on screen</button>' +
       '</div>';
     html += WebviewClientHelpers.colorAttrStatesHtml(primary.keywords, 'multiselect-colorattr', expandedKeywordConditioning);
     html += '<button id="p-multi-copy" class="secondary" style="width:100%;margin-top:16px;">Duplicate selection</button>';
@@ -3438,6 +3452,27 @@ const htmlTemplate = `<!DOCTYPE html>
       const targets = fields.map((f) => ({ field: f, newLine: Math.max(1, bottommostEdge - occupiedWidthHeight(f).height + 1), newColumn: currentLineCol(f).column }));
       commitAlignEdit(recordName, targets);
     });
+    // Task L12 leftover (see the button's own HTML comment above) - center
+    // the group's combined bounding box against the CURRENT screen width
+    // (lastScreen.columns, same DSPSIZ-aware source the single-field
+    // p-center button already uses), then shift every field by that same
+    // delta so the block's internal layout is untouched - a straight
+    // horizontal translation of the whole selection, not a per-field
+    // "center each field individually" (which would destroy their
+    // relative alignment).
+    const centerGroupBtn = document.getElementById('p-center-group');
+    if (centerGroupBtn) centerGroupBtn.addEventListener('click', () => {
+      const columns = (lastScreen && lastScreen.columns) || 80;
+      const leftEdges = fields.map((f) => currentLineCol(f).column);
+      const rightEdges = fields.map((f) => currentLineCol(f).column + occupiedWidthHeight(f).width - 1);
+      const leftmost = Math.min(...leftEdges);
+      const rightmost = Math.max(...rightEdges);
+      const groupWidth = rightmost - leftmost + 1;
+      const newLeftmost = Math.max(1, Math.floor((columns - groupWidth) / 2) + 1);
+      const delta = newLeftmost - leftmost;
+      const targets = fields.map((f) => ({ field: f, newLine: currentLineCol(f).line, newColumn: Math.max(1, currentLineCol(f).column + delta) }));
+      commitAlignEdit(recordName, targets);
+    });
     // Distribute: spaces field CENTERS evenly between the leftmost and
     // rightmost (or topmost/bottommost) member's own center, left-to-right
     // (or top-to-bottom) by current position - the endpoints themselves
@@ -3477,18 +3512,40 @@ const htmlTemplate = `<!DOCTYPE html>
     });
 
     // The Style editor is built once, against the PRIMARY field's own
-    // current color/attribute states (purely for what's shown pre-checked)
-    // - on change, DspfWriter.getColorAttrStates recovers just the target
-    // STATES from the primary field's own newly-merged keyword array
-    // (rather than that merged array itself, which is specific to the
-    // primary field's other keywords), so commitMultiFieldKeywordEdit can
-    // re-apply that same target state to every OTHER selected field's own
-    // keywords via DspfWriter.setColorAttrStates, preserving each one's
-    // unrelated keywords (VALUES, EDTCDE, REFFLD, etc.) exactly as
-    // wireColorAttrStatesEditor's own single-field doc comment describes.
+    // current color/attribute states (purely for what's shown pre-checked).
+    // Task L10 follow-up (reported as "existing color and attributes are
+    // removed and newly selected added"): this used to compute the
+    // primary's FULL new state list and stamp that same list onto every
+    // OTHER selected field too, silently discarding whatever THEY already
+    // had. Now: oldStatesBeforeEdit captures primary's states as of this
+    // render; each onChange only fires for ONE edit at a time (a color
+    // change, one attribute checkbox, one "+ Add", or one "Remove" - see
+    // wireRepeatableConditionedInstances' own onChange contract), so
+    // DspfWriter.diffColorAttrStates turns that before/after pair into a
+    // small structured diff of WHAT changed. Primary itself gets the
+    // exact newKeywordsForPrimary already computed (no need to replay a
+    // diff onto the field it came from); every OTHER selected field gets
+    // that SAME diff replayed via DspfWriter.applyColorAttrStatesDiff,
+    // which merges into (or removes from) whatever state IT already had
+    // under the same conditions - preserving each field's own untouched
+    // color/attrs instead of overwriting them with primary's. A diff
+    // shape diffColorAttrStates can't confidently interpret (null) falls
+    // back to the old uniform-replace, matching prior behavior rather
+    // than guessing. fields[0] is always primary - commitMultiFieldKeywordEdit
+    // walks the fields array in that exact order, so the first computeNewKeywords
+    // call is guaranteed to be primary's own.
+    const oldStatesBeforeEdit = DspfWriter.getColorAttrStates(primary.keywords);
     WebviewClientHelpers.wireColorAttrStatesEditor(primary.keywords, (newKeywordsForPrimary) => {
-      const targetStates = DspfWriter.getColorAttrStates(newKeywordsForPrimary);
-      commitMultiFieldKeywordEdit(recordName, fields, (f) => DspfWriter.setColorAttrStates(f.keywords, targetStates));
+      const newStates = DspfWriter.getColorAttrStates(newKeywordsForPrimary);
+      const diff = DspfWriter.diffColorAttrStates(oldStatesBeforeEdit, newStates);
+      let callIndex = 0;
+      commitMultiFieldKeywordEdit(recordName, fields, (f) => {
+        const isPrimary = callIndex === 0;
+        callIndex++;
+        if (isPrimary) return newKeywordsForPrimary;
+        if (!diff) return DspfWriter.setColorAttrStates(f.keywords, newStates);
+        return DspfWriter.applyColorAttrStatesDiff(f.keywords, diff);
+      });
     }, 'multiselect-colorattr', expandedKeywordConditioning, () => renderMultiFieldProps(recordName));
   }
 

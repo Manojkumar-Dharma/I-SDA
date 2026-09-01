@@ -3,6 +3,39 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.8] - 2026-09-01
+
+### Fixed
+- **Task L12 follow-up: multi-select field "Align" section was missing a
+  Center option.** Reported as "align options like top/left/right/center
+  aren't available under field attributes." Left/Right/Top/Bottom/Distribute
+  all shipped with Task L10's own Align section, but centering a BLOCK of
+  multiple selected fields together was flagged as a leftover sliver back
+  in Task L12 and never actually got built when L10 landed. Fixed: a new
+  "Center on screen" button in the multi-select Align section centers the
+  selection's combined bounding box against the current (DSPSIZ-aware)
+  screen width, then shifts every selected field by that one shared delta -
+  the block translates as a single unit, keeping each field's position
+  relative to the others, rather than each field centering itself and
+  collapsing the block onto one column. See the new
+  `runCenterGroupScenario` in `src/test/multiSelect.test.js`.
+- **Task L10 follow-up: multi-select "Style" (Color & attributes) edits
+  overwrote every other selected field's OWN color/attrs.** Reported as
+  "when I do multi select and change the color attribute, existing color
+  and attributes are removed and newly selected added." The Style editor
+  built its target state once from the primary (first-selected) field's
+  own color/attrs, then stamped that same full state onto every other
+  selected field, discarding whatever different color/attrs they already
+  had. Fixed with two new `DspfWriter` functions - `diffColorAttrStates`
+  turns the primary field's one before/after edit into a small structured
+  diff of what actually changed (a color change, an attribute added or
+  removed, a new state, or a removed state); `applyColorAttrStatesDiff`
+  replays that diff onto a different field's own keywords, merging into
+  (or removing from) whatever state it already has rather than
+  overwriting it. The primary field itself still gets its own edit
+  verbatim. See the new coverage in `src/test/colorAttrStates.test.js`
+  and `src/test/multiSelect.test.js`.
+
 ## [0.10.7] - 2026-09-01
 
 ### Fixed

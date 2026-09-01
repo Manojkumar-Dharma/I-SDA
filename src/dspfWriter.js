@@ -747,6 +747,125 @@
     return setRepeatableKeywordInstances(keywords, ['COLOR', 'DSPATR'], flat);
   }
 
+  /** Two conditions arrays match for diffing purposes the same way
+   *  conditionsSignature already groups them for getColorAttrStates -
+   *  exported as its own tiny helper here since diffColorAttrStates/
+   *  applyColorAttrStatesDiff (below) both need the identical comparison,
+   *  and re-deriving it via JSON.stringify inline in two places (three,
+   *  counting the multi-select caller) would drift the moment one of them
+   *  got tweaked. */
+  function colorAttrConditionsMatch(a, b) {
+    return conditionsSignature(a) === conditionsSignature(b);
+  }
+
+  /** Multi-select "Style" panel support (Task L10 follow-up, reported as
+   *  "existing color and attributes are removed and newly selected added"
+   *  when editing a multi-field selection's Color & attributes together).
+   *  The panel is built once against the PRIMARY selected field's own
+   *  states; `oldStates`/`newStates` are that field's states immediately
+   *  before/after ONE edit (a color change, an attribute checkbox toggle,
+   *  a "+ Add" click, or a "Remove" click - wireRepeatableConditionedInstances'
+   *  own onChange always fires with the FULL new array, one edit at a
+   *  time, never a batch). This turns that before/after pair into a
+   *  small structured diff describing WHAT changed rather than what the
+   *  whole new list looks like, so applyColorAttrStatesDiff (below) can
+   *  replay just that one change onto every OTHER selected field's own
+   *  states - preserving whatever that field already had that the user
+   *  didn't touch, instead of overwriting its entire state with the
+   *  primary field's.
+   *
+   *  Returns { modified, added, removed } - modified: per-state {
+   *  conditions, colorChanged, newColor, attrsAdded, attrsRemoved };
+   *  added/removed: the raw state object. Returns null for a shape this
+   *  can't confidently diff (the list length changed by more than one
+   *  entry in a single edit - shouldn't happen via the UI's own
+   *  one-change-at-a-time onChange calls, but a null return tells the
+   *  caller to fall back to the old uniform-replace behavior rather than
+   *  silently guessing). */
+  function diffColorAttrStates(oldStates, newStates) {
+    var oldList = oldStates || [];
+    var newList = newStates || [];
+    if (newList.length === oldList.length + 1) {
+      return { modified: [], added: [newList[newList.length - 1]], removed: [] };
+    }
+    if (newList.length === oldList.length - 1) {
+      var removedIdx = oldList.length - 1;
+      for (var ri = 0; ri < newList.length; ri++) {
+        if (JSON.stringify(oldList[ri]) !== JSON.stringify(newList[ri])) { removedIdx = ri; break; }
+      }
+      return { modified: [], added: [], removed: [oldList[removedIdx]] };
+    }
+    if (newList.length === oldList.length) {
+      var modified = [];
+      for (var i = 0; i < oldList.length; i++) {
+        var o = oldList[i], n = newList[i];
+        if (JSON.stringify(o) === JSON.stringify(n)) continue;
+        var oldAttrs = o.attrs || [];
+        var newAttrs = n.attrs || [];
+        modified.push({
+          conditions: o.conditions || [],
+          colorChanged: o.color !== n.color,
+          newColor: n.color,
+          attrsAdded: newAttrs.filter(function (a) { return oldAttrs.indexOf(a) === -1; }),
+          attrsRemoved: oldAttrs.filter(function (a) { return newAttrs.indexOf(a) === -1; }),
+        });
+      }
+      return { modified: modified, added: [], removed: [] };
+    }
+    return null; // more than one entry changed length at once - caller falls back
+  }
+
+  /** Replays a diffColorAttrStates() result onto `keywords` (a DIFFERENT
+   *  field's own keywords than the one the diff was computed from) -
+   *  merges into that field's OWN existing state under the same
+   *  conditions where one exists (color overwritten only if the diff
+   *  actually changed color; attrs added/removed individually rather than
+   *  the whole attrs list replaced), and creates a new state carrying
+   *  just the changed pieces when this field has no state under those
+   *  conditions yet - so a field that had no color at all before still
+   *  ends up with only the newly-checked attribute, not the primary
+   *  field's own unrelated color too. */
+  function applyColorAttrStatesDiff(keywords, diff) {
+    var states = getColorAttrStates(keywords).map(function (s) {
+      return { conditions: s.conditions, color: s.color, attrs: (s.attrs || []).slice() };
+    });
+
+    (diff.modified || []).forEach(function (m) {
+      var idx = -1;
+      for (var i = 0; i < states.length; i++) { if (colorAttrConditionsMatch(states[i].conditions, m.conditions)) { idx = i; break; } }
+      if (idx === -1) {
+        var attrs = (m.attrsAdded || []).slice();
+        var color = m.colorChanged ? m.newColor : '';
+        if (color || attrs.length) states.push({ conditions: m.conditions, color: color, attrs: attrs });
+        return;
+      }
+      var s = states[idx];
+      var attrs2 = s.attrs.slice();
+      (m.attrsAdded || []).forEach(function (a) { if (attrs2.indexOf(a) === -1) attrs2.push(a); });
+      attrs2 = attrs2.filter(function (a) { return (m.attrsRemoved || []).indexOf(a) === -1; });
+      states[idx] = { conditions: s.conditions, color: m.colorChanged ? m.newColor : s.color, attrs: attrs2 };
+    });
+
+    (diff.added || []).forEach(function (add) {
+      var idx = -1;
+      for (var i = 0; i < states.length; i++) { if (colorAttrConditionsMatch(states[i].conditions, add.conditions || [])) { idx = i; break; } }
+      if (idx === -1) {
+        states.push({ conditions: add.conditions || [], color: add.color || '', attrs: (add.attrs || []).slice() });
+        return;
+      }
+      var s2 = states[idx];
+      var attrs3 = s2.attrs.slice();
+      (add.attrs || []).forEach(function (a) { if (attrs3.indexOf(a) === -1) attrs3.push(a); });
+      states[idx] = { conditions: s2.conditions, color: add.color || s2.color, attrs: attrs3 };
+    });
+
+    (diff.removed || []).forEach(function (rem) {
+      states = states.filter(function (s) { return !colorAttrConditionsMatch(s.conditions, rem.conditions || []); });
+    });
+
+    return setColorAttrStates(keywords, states);
+  }
+
   var VALIDITY_CHECK_KEYWORDS = ['RANGE', 'COMP', 'VALUES'];
 
   /** A field carries at most ONE validity-check keyword at a time, so this just
@@ -3409,6 +3528,8 @@
     setColorAttr: setColorAttr,
     getColorAttrStates: getColorAttrStates,
     setColorAttrStates: setColorAttrStates,
+    diffColorAttrStates: diffColorAttrStates,
+    applyColorAttrStatesDiff: applyColorAttrStatesDiff,
     getValidityCheck: getValidityCheck,
     setValidityCheck: setValidityCheck,
     getValidityCheckInstances: getValidityCheckInstances,
