@@ -3,6 +3,32 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.10] - 2026-09-01
+
+### Fixed
+- **Task L22 (remaining item): `ROLLUP`/`ROLLDOWN` (legacy alternate
+  spellings of `PAGEDOWN`/`PAGEUP`) weren't recognized as equivalent.**
+  Real SDA's own "Define Indicator Keywords" screen
+  (`docs/sda-reference/screens/file-level/02-indicator-keywords/
+  image5.png`) lists them together as `PAGEDOWN/ROLLUP` and
+  `PAGEUP/ROLLDOWN` - the same keyword under two names, not two
+  different keywords. A file imported with the legacy spelling matched
+  neither the file-level Indicator Keywords panel's exact-name check
+  nor the record-level "Define Indicator Keywords" panel's own kind
+  matching, so its row silently showed unchecked, and unchecking it
+  wouldn't remove the legacy instance either. `getFileFlagKeyword`/
+  `setFileFlagKeyword` in `dspfWriter.js` gained an optional `altNames`
+  parameter (matched alongside the canonical name, normalized to the
+  canonical spelling the moment that row is actually edited), wired
+  into the file-level PAGEDOWN/PAGEUP rows. `getRecordIndicatorInstances`/
+  `setRecordIndicatorInstances` (the record-level repeatable-instance
+  version of the same real screen) got the equivalent fix - a legacy
+  instance now reads back with `kind` normalized to PAGEDOWN/PAGEUP, and
+  any legacy-spelled instance is removed on every commit. New coverage
+  in `src/test/fileKeywordsPicker.test.js` and
+  `src/test/recordIndicatorInstances.test.js`. Full suite: 2251 checks,
+  0 failures. See `docs/sda-reference/LIMITATIONS-PLAN.md` Task L22.
+
 ## [0.10.9] - 2026-09-01
 
 ### Added

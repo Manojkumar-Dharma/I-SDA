@@ -188,5 +188,59 @@ console.log('\napplyFileKeywordsUpdate() - a batch of F1 picker keywords round-t
   check('the record and its field are untouched by the file-keyword edit', reparsed.records.length === 1 && reparsed.records[0].fields.length === 1);
 }
 
+// ===========================================================================
+// Task L22 remaining item - ROLLUP/ROLLDOWN are legacy alternate spellings
+// of PAGEDOWN/PAGEUP (real SDA's own "Define Indicator Keywords" screen
+// lists them together as "PAGEDOWN/ROLLUP" and "PAGEUP/ROLLDOWN" - the same
+// keyword under two names, not two different keywords). getFileFlagKeyword/
+// setFileFlagKeyword's new `altNames` parameter is what the file-level
+// Indicator Keywords panel now passes for these two rows.
+// ===========================================================================
+
+console.log('\ngetFileFlagKeyword - altNames makes a legacy ROLLUP instance read back as PAGEDOWN\'s own state');
+{
+  const kw = [{ name: 'ROLLUP', parameters: '25', conditions: [], raw: '', sourceLines: [] }];
+  const noAlt = DspfWriter.getFileFlagKeyword(kw, 'PAGEDOWN');
+  check('without altNames, a legacy spelling is invisible (pre-fix behavior, still correct without the param)', noAlt.present === false);
+  const withAlt = DspfWriter.getFileFlagKeyword(kw, 'PAGEDOWN', undefined, ['ROLLUP']);
+  check('with altNames, the legacy instance is found', withAlt.present === true);
+  check('its parameters carry over', withAlt.parameters === '25');
+}
+
+console.log('\ngetFileFlagKeyword - altNames makes a legacy ROLLDOWN instance read back as PAGEUP\'s own state');
+{
+  const kw = [{ name: 'ROLLDOWN', parameters: '26', conditions: [], raw: '', sourceLines: [] }];
+  const state = DspfWriter.getFileFlagKeyword(kw, 'PAGEUP', undefined, ['ROLLDOWN']);
+  check('legacy ROLLDOWN instance found as PAGEUP', state.present === true && state.parameters === '26');
+}
+
+console.log('\nsetFileFlagKeyword - editing a legacy ROLLUP instance (still present=true) normalizes it to PAGEDOWN, not left as ROLLUP');
+{
+  let kw = [{ name: 'ROLLUP', parameters: '25', conditions: [], raw: '', sourceLines: [] }];
+  kw = DspfWriter.setFileFlagKeyword(kw, 'PAGEDOWN', true, '30', undefined, undefined, ['ROLLUP']);
+  check('written back as canonical PAGEDOWN', kw.length === 1 && kw[0].name === 'PAGEDOWN');
+  check('no stray ROLLUP left behind', !kw.some((k) => k.name === 'ROLLUP'));
+  check('the edited indicator was kept', kw[0].parameters === '30');
+}
+
+console.log('\nsetFileFlagKeyword - unchecking a legacy ROLLUP instance actually removes it, not just hides it behind an unchecked box');
+{
+  let kw = [
+    { name: 'ROLLUP', parameters: '25', conditions: [], raw: '', sourceLines: [] },
+    { name: 'COLOR', parameters: 'RED', conditions: [], raw: '', sourceLines: [] },
+  ];
+  kw = DspfWriter.setFileFlagKeyword(kw, 'PAGEDOWN', false, '', undefined, undefined, ['ROLLUP']);
+  check('ROLLUP is gone, not an orphan the checkbox can no longer see', !kw.some((k) => k.name === 'ROLLUP' || k.name === 'PAGEDOWN'));
+  check('unrelated COLOR keyword untouched', kw.some((k) => k.name === 'COLOR'));
+}
+
+console.log('\ngetFileFlagKeyword/setFileFlagKeyword - a real PAGEDOWN instance still works exactly as before when altNames is passed (no regression for the common case)');
+{
+  let kw = [{ name: 'PAGEDOWN', parameters: '25', conditions: [], raw: '', sourceLines: [] }];
+  check('reads present with altNames given', DspfWriter.getFileFlagKeyword(kw, 'PAGEDOWN', undefined, ['ROLLUP']).present === true);
+  kw = DspfWriter.setFileFlagKeyword(kw, 'PAGEDOWN', false, '', undefined, undefined, ['ROLLUP']);
+  check('removed as before', kw.length === 0);
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

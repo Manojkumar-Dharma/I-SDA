@@ -185,5 +185,48 @@ console.log('\nsetRecordIndicatorInstances - unrelated keywords on the record, a
   check('clearing all instances removes ONLY the indicator keywords, COLOR and CF03 still there', kw.length === 2 && kw.some((k) => k.name === 'COLOR') && kw.some((k) => k.name === 'CF03'));
 }
 
+// ===========================================================================
+// Task L22 remaining item - ROLLUP/ROLLDOWN are legacy alternate spellings
+// of PAGEDOWN/PAGEUP (real SDA's own "Define Indicator Keywords" screen
+// lists them together as "PAGEDOWN/ROLLUP" and "PAGEUP/ROLLDOWN" - the same
+// keyword under two names, not two different keywords).
+// ===========================================================================
+
+console.log('\ngetRecordIndicatorInstances - a legacy ROLLUP instance reads back as kind PAGEDOWN');
+{
+  const kw = [{ name: 'ROLLUP', parameters: '25', conditions: [], raw: '', sourceLines: [] }];
+  const instances = DspfWriter.getRecordIndicatorInstances(kw);
+  check('one instance found', instances.length === 1);
+  check('kind normalized to PAGEDOWN, not left as ROLLUP', instances[0].kind === 'PAGEDOWN');
+  check('resp carried over unchanged', instances[0].resp === '25');
+}
+
+console.log('\ngetRecordIndicatorInstances - a legacy ROLLDOWN instance reads back as kind PAGEUP');
+{
+  const kw = [{ name: 'ROLLDOWN', parameters: '26', conditions: [], raw: '', sourceLines: [] }];
+  const instances = DspfWriter.getRecordIndicatorInstances(kw);
+  check('one instance found', instances.length === 1);
+  check('kind normalized to PAGEUP, not left as ROLLDOWN', instances[0].kind === 'PAGEUP');
+}
+
+console.log('\nsetRecordIndicatorInstances - re-committing a legacy ROLLUP instance (e.g. editing its indicator) normalizes it to PAGEDOWN, not left as ROLLUP');
+{
+  let kw = [{ name: 'ROLLUP', parameters: '25', conditions: [], raw: '', sourceLines: [] }];
+  const instances = DspfWriter.getRecordIndicatorInstances(kw);
+  instances[0].resp = '30';
+  kw = DspfWriter.setRecordIndicatorInstances(kw, instances);
+  check('written back as canonical PAGEDOWN', kw.length === 1 && kw[0].name === 'PAGEDOWN');
+  check('no stray ROLLUP left behind', !kw.some((k) => k.name === 'ROLLUP'));
+  check('the edited indicator was kept', kw[0].parameters === '30');
+}
+
+console.log('\nsetRecordIndicatorInstances - dropping (unchecking) a legacy ROLLUP instance actually removes it, not just hides it');
+{
+  let kw = [{ name: 'ROLLUP', parameters: '25', conditions: [], raw: '', sourceLines: [] }, { name: 'COLOR', parameters: 'RED', conditions: [], raw: '', sourceLines: [] }];
+  kw = DspfWriter.setRecordIndicatorInstances(kw, []); // simulates the picker committing an empty instance list
+  check('ROLLUP is gone, not left behind as an orphan the checkbox can no longer see', !kw.some((k) => k.name === 'ROLLUP' || k.name === 'PAGEDOWN'));
+  check('unrelated COLOR keyword untouched', kw.some((k) => k.name === 'COLOR'));
+}
+
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

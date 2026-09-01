@@ -195,13 +195,9 @@ how.
 
 ### DSPF (screen) designer
 
-Only one small open item right now: `L22` tracks `ROLLUP`/`ROLLDOWN`
-(legacy alternate names for `PAGEDOWN`/`PAGEUP`) not being recognized
-as equivalent by the Indicator Keywords checkbox UI - low priority,
-see `LIMITATIONS-PLAN.md` for details. Every other currently-tracked
-DSPF designer task (L1 through L26, including L5d-ii) is done. See
-`LIMITATIONS-PLAN.md` for the full history if a past decision needs
-revisiting.
+Every currently-tracked DSPF designer task (L1 through L26, including
+L5d-ii) is done. See `LIMITATIONS-PLAN.md` for the full history if a
+past decision needs revisiting.
 
 ### Menu designer
 

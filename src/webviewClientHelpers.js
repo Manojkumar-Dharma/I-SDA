@@ -2382,18 +2382,25 @@
     g += '<input type="text" id="fk-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
     panels.general = g;
 
-    // --- Indicator / screen-control keywords ---
+    // Indicator / screen-control keywords
     var ind = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords.</div>';
     [
       ['fk-clear', 'CLEAR', 'Clear', '10-99, or 01-99'],
       ['fk-home', 'HOME', 'Home', '10-99'],
-      ['fk-pagedown', 'PAGEDOWN', 'Page down / Roll up', '10-99'],
-      ['fk-pageup', 'PAGEUP', 'Page up / Roll down', '10-99'],
+      // Bug fix (L22 remaining item): PAGEDOWN/PAGEUP have legacy alternate
+      // spellings ROLLUP/ROLLDOWN - real SDA's own "Define Indicator
+      // Keywords" screen (screens/file-level/02-indicator-keywords/
+      // image5.png) lists them together as "PAGEDOWN/ROLLUP" and
+      // "PAGEUP/ROLLDOWN", the same keyword under two names. altNames
+      // (4th arg) below is what makes getFileFlagKeyword recognize a
+      // legacy-spelled instance as this row's own state.
+      ['fk-pagedown', 'PAGEDOWN', 'Page down / Roll up', '10-99', ['ROLLUP']],
+      ['fk-pageup', 'PAGEUP', 'Page up / Roll down', '10-99', ['ROLLDOWN']],
       ['fk-help', 'HELP', 'Help', '10-99'],
       ['fk-hlprtn', 'HLPRTN', 'Help return', '10-99'],
       ['fk-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99'],
     ].forEach(function (row) {
-      var state = DspfWriter.getFileFlagKeyword(kw, row[1]);
+      var state = DspfWriter.getFileFlagKeyword(kw, row[1], undefined, row[4]);
       ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')', state.conditions, expandedSet);
     });
     var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
@@ -2491,10 +2498,10 @@
    *  new array to commit, same contract as every other dedicated picker
    *  here. */
   function wireFileKeywordsPanels(getKeywords, onChange, expandedSet, rerender) {
-    function simple(id, name, placeholderIsParams) {
+    function simple(id, name, placeholderIsParams, altNames) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
-        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions);
-      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions, altNames);
+      }, DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).conditions, expandedSet, rerender);
     }
     // General
     simple('fk-invite', 'INVITE');
@@ -2520,9 +2527,16 @@
     if (fkText) fkText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', fkText.value)); });
 
     // Indicator / screen-control
-    ['fk-clear:CLEAR', 'fk-home:HOME', 'fk-pagedown:PAGEDOWN', 'fk-pageup:PAGEUP', 'fk-help:HELP', 'fk-hlprtn:HLPRTN', 'fk-vldcmdkey:VLDCMDKEY'].forEach(function (pair) {
-      var parts = pair.split(':');
-      simple(parts[0], parts[1], true);
+    [
+      ['fk-clear', 'CLEAR'],
+      ['fk-home', 'HOME'],
+      ['fk-pagedown', 'PAGEDOWN', ['ROLLUP']],
+      ['fk-pageup', 'PAGEUP', ['ROLLDOWN']],
+      ['fk-help', 'HELP'],
+      ['fk-hlprtn', 'HLPRTN'],
+      ['fk-vldcmdkey', 'VLDCMDKEY'],
+    ].forEach(function (row) {
+      simple(row[0], row[1], true, row[2]);
     });
     var indtxtOn = document.getElementById('fk-indtxt-on');
     var indtxtInd = document.getElementById('fk-indtxt-ind');

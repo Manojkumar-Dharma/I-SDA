@@ -1649,10 +1649,20 @@
    *  about presence/parameters can keep ignoring it, but flagRowHtml/
    *  wireFlagRow use it so a flag row can show and edit conditioning that
    *  was already there instead of silently hiding it (see setFileFlagKeyword
-   *  below for why previously this got silently DESTROYED, not just hidden). */
-  function getFileFlagKeyword(keywords, name, fixedParam) {
+   *  below for why previously this got silently DESTROYED, not just hidden).
+   *  `altNames` (optional, Task L22 remaining item) - a list of legacy
+   *  alternate spellings that should also match `name`, e.g. `['ROLLUP']`
+   *  for PAGEDOWN or `['ROLLDOWN']` for PAGEUP (real SDA's own "Define
+   *  Indicator Keywords" screen, docs/sda-reference/screens/file-level/
+   *  02-indicator-keywords/image5.png, lists these as `PAGEDOWN/ROLLUP` and
+   *  `PAGEUP/ROLLDOWN` - the same keyword under two names, not two
+   *  different keywords). Before this, a file imported with the legacy
+   *  spelling matched neither `name` here, so its flag row silently showed
+   *  unchecked even though the keyword was very much present. */
+  function getFileFlagKeyword(keywords, name, fixedParam, altNames) {
+    var names = [name].concat(altNames || []);
     var k = (keywords || []).find(function (kw) {
-      if (kw.name !== name) return false;
+      if (names.indexOf(kw.name) === -1) return false;
       if (fixedParam == null) return true;
       return (kw.parameters || '').trim().toUpperCase() === String(fixedParam).toUpperCase();
     });
@@ -1677,15 +1687,26 @@
    *  existing indicator off keywords like SFLDSP/SFLDSPCTL/SFLCLR the moment
    *  the panel re-committed. Pass an explicit `conditions` array (including
    *  `[]` to deliberately clear it) when the caller actually means to change
-   *  the conditioning; omit it for every other kind of edit. */
-  function setFileFlagKeyword(keywords, name, present, parameters, fixedParam, conditions) {
+   *  the conditioning; omit it for every other kind of edit.
+   *
+   *  `altNames` (optional, Task L22 remaining item) - same legacy-spelling
+   *  list `getFileFlagKeyword` above takes. Any existing instance matching
+   *  `name` OR one of `altNames` is removed (so unchecking PAGEDOWN also
+   *  removes a legacy ROLLUP instance, instead of leaving it behind with
+   *  the checkbox now showing unchecked); a re-added instance is always
+   *  written back under the canonical `name`, never an alt spelling - this
+   *  is the one point where a legacy spelling gets normalized, the same
+   *  "only touch it when the user actually edits this row" posture
+   *  `conditions` above already follows. */
+  function setFileFlagKeyword(keywords, name, present, parameters, fixedParam, conditions, altNames) {
+    var names = [name].concat(altNames || []);
     var existing = (keywords || []).find(function (kw) {
-      if (kw.name !== name) return false;
+      if (names.indexOf(kw.name) === -1) return false;
       if (fixedParam == null) return true;
       return (kw.parameters || '').trim().toUpperCase() === String(fixedParam).toUpperCase();
     });
     var next = (keywords || []).filter(function (kw) {
-      if (kw.name !== name) return true;
+      if (names.indexOf(kw.name) === -1) return true;
       if (fixedParam == null) return false;
       return (kw.parameters || '').trim().toUpperCase() !== String(fixedParam).toUpperCase();
     });
@@ -2125,6 +2146,20 @@
 
   var RECORD_INDICATOR_KEYWORD_NAMES = ['CLEAR', 'PAGEDOWN', 'PAGEUP', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'];
 
+  // Task L22 remaining item: PAGEDOWN/PAGEUP have legacy alternate
+  // spellings ROLLUP/ROLLDOWN - real SDA's own "Define Indicator Keywords"
+  // screen (docs/sda-reference/screens/file-level/02-indicator-keywords/
+  // image5.png) lists them together as "PAGEDOWN/ROLLUP" and
+  // "PAGEUP/ROLLDOWN", the same keyword under two names, not two different
+  // keywords - so a ROLLUP instance needs to read back as a PAGEDOWN-kind
+  // row (and a re-committed instance always writes the canonical spelling;
+  // the row-kind dropdown never offers ROLLUP/ROLLDOWN as separate
+  // choices, same "normalize on edit" posture getFileFlagKeyword/
+  // setFileFlagKeyword's own altNames now follow just below for the
+  // simpler file-level checkbox version of this same screen).
+  var RECORD_INDICATOR_READ_NAMES = RECORD_INDICATOR_KEYWORD_NAMES.concat(['ROLLUP', 'ROLLDOWN']);
+  var RECORD_INDICATOR_ALT_KIND = { ROLLUP: 'PAGEDOWN', ROLLDOWN: 'PAGEUP' };
+
   /** Reads every CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/
    *  CHANGE/INDTXT instance off `keywords` as Task L1's repeatable,
    *  independently-conditioned instances - `{ conditions, kind, resp,
@@ -2132,31 +2167,39 @@
    *  indicator parameter (e.g. CLEAR's argument); `text` is only ever
    *  non-blank for an INDTXT instance (the quoted text portion of
    *  `INDTXT(indicator 'text')`, unquoted/unescaped the same way
-   *  setIndicatorTextRows' own INDTXT parsing does it). */
+   *  setIndicatorTextRows' own INDTXT parsing does it). A legacy
+   *  ROLLUP/ROLLDOWN instance (Task L22) reads back with `kind` already
+   *  normalized to PAGEDOWN/PAGEUP. */
   function getRecordIndicatorInstances(keywords) {
-    return getRepeatableKeywordInstances(keywords, RECORD_INDICATOR_KEYWORD_NAMES).map(function (inst) {
-      if (inst.name === 'INDTXT') {
+    return getRepeatableKeywordInstances(keywords, RECORD_INDICATOR_READ_NAMES).map(function (inst) {
+      var kind = RECORD_INDICATOR_ALT_KIND[inst.name] || inst.name;
+      if (kind === 'INDTXT') {
         var m = /^(\S*)\s*(?:'((?:[^']|'')*)')?/.exec((inst.parameters || '').trim());
         return { conditions: inst.conditions, kind: 'INDTXT', resp: (m && m[1]) || '', text: m && m[2] !== undefined ? m[2].replace(/''/g, "'") : '' };
       }
-      return { conditions: inst.conditions, kind: inst.name, resp: (inst.parameters || '').trim(), text: '' };
+      return { conditions: inst.conditions, kind: kind, resp: (inst.parameters || '').trim(), text: '' };
     });
   }
 
   /** Returns a NEW keywords array with every existing instance of any
-   *  keyword in RECORD_INDICATOR_KEYWORD_NAMES replaced by the given
-   *  `instances` (`{ conditions, kind, resp, text }[]`, same shape
-   *  getRecordIndicatorInstances returns) - each instance with a
-   *  recognized `kind` AND a non-blank `resp` writes one keyword of that
-   *  kind under that instance's OWN `conditions` (an instance with a
-   *  blank `resp` writes nothing - CLEAR() with no indicator isn't valid
-   *  DDS, same "an emptied-out instance just disappears" rule every other
-   *  L1-based setX in this file already follows). `text` is folded into
-   *  `resp` as `resp 'text'` ONLY for `kind === 'INDTXT'` (quoted/escaped
-   *  the same way setIndicatorTextRows' own INDTXT formatting does it) -
-   *  every other kind ignores a stray `text` value rather than erroring,
-   *  same as real SDA's own screen leaves the Text column enabled
-   *  regardless of which keyword a row picks. */
+   *  keyword in RECORD_INDICATOR_KEYWORD_NAMES (OR its legacy
+   *  ROLLUP/ROLLDOWN spellings, Task L22 - so toggling PAGEDOWN off also
+   *  removes a legacy ROLLUP instance instead of leaving a stale duplicate
+   *  behind) replaced by the given `instances` (`{ conditions, kind, resp,
+   *  text }[]`, same shape getRecordIndicatorInstances returns) - each
+   *  instance with a recognized `kind` AND a non-blank `resp` writes one
+   *  keyword of that kind under that instance's OWN `conditions` (an
+   *  instance with a blank `resp` writes nothing - CLEAR() with no
+   *  indicator isn't valid DDS, same "an emptied-out instance just
+   *  disappears" rule every other L1-based setX in this file already
+   *  follows). `text` is folded into `resp` as `resp 'text'` ONLY for
+   *  `kind === 'INDTXT'` (quoted/escaped the same way
+   *  setIndicatorTextRows' own INDTXT formatting does it) - every other
+   *  kind ignores a stray `text` value rather than erroring, same as real
+   *  SDA's own screen leaves the Text column enabled regardless of which
+   *  keyword a row picks. Every written instance always uses the
+   *  canonical PAGEDOWN/PAGEUP spelling, never ROLLUP/ROLLDOWN - the kind
+   *  dropdown never offers the legacy spellings as a choice. */
   function setRecordIndicatorInstances(keywords, instances) {
     var flat = (instances || [])
       .map(function (inst) {
@@ -2171,7 +2214,7 @@
         return { name: inst.kind, parameters: parameters, conditions: inst.conditions || [] };
       })
       .filter(Boolean);
-    return setRepeatableKeywordInstances(keywords, RECORD_INDICATOR_KEYWORD_NAMES, flat);
+    return setRepeatableKeywordInstances(keywords, RECORD_INDICATOR_READ_NAMES, flat);
   }
 
   var ERROR_MESSAGE_NAMES = ['ERRMSG', 'ERRMSGID'];
