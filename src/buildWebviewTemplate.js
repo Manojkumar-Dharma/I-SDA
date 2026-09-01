@@ -569,6 +569,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
+  <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="field-row">
@@ -623,7 +624,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
   <div class="section-label">File</div>
-  <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
   <button id="compileDspfBtn" class="compile-btn" style="width:100%;margin-top:8px;">Compile Display File (CRTDSPF)</button>
   <details class="props-accordion" id="uiSettingsAccordion" style="margin-top:10px;">
@@ -2115,7 +2115,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const moveHandle = windowEl.querySelector('.dspf-window-move-handle');
       const resizeHandle = windowEl.querySelector('.dspf-window-resize-handle');
       if (moveHandle && windowMovable) {
-        moveHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowMove(windowEl, currentRecord); });
+        moveHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowMove(windowEl, currentRecord, e); });
       }
       if (resizeHandle && windowEditable) {
         resizeHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowResize(windowEl, currentRecord); });
@@ -2207,18 +2207,49 @@ const htmlTemplate = `<!DOCTYPE html>
   // attributes (baked in by dspfEngine.js) as the drag's starting point,
   // not field-drag's data-render-line/-column, since a window has no
   // field-style anchor of its own.
-  function startWindowMove(windowEl, record) {
-    const { rect, colWidth, rowHeight } = gridMetrics();
+  //
+  // Task L30 fix - reported as "when dragging windows I feel like it is
+  // jumping to the right side": .dspf-window-move-handle spans the
+  // window's ENTIRE top edge (left:0; right:0 in the CSS above - see
+  // its own rule), not a small corner grip like the resize handle, so a
+  // grab virtually never lands exactly on the window's own leftmost
+  // pixel. The old 'onMove' snapped the window's ORIGIN straight to the
+  // raw mouse position on every move ('newCol = round((mouseX-rect.left)
+  // / colWidth) + 1'), as if the cursor itself WAS the window's top-left
+  // corner - so the instant a drag started, the window jumped so that
+  // grabbed point became its new left edge, shifting the whole window
+  // right by exactly how far into the title strip it was grabbed (grab
+  // the middle of a 30-wide window, the window jumps ~15 columns right).
+  // Resize never had this problem since it already computed width/height
+  // as a DIFFERENCE from the window's fixed, unmoving origin rather than
+  // an absolute position. Fixed the same way here: capture the mouse's
+  // own starting point at mousedown ('startEvent', now threaded through
+  // from the moveHandle listener below) and the window's starting
+  // origin, then every subsequent 'onMove' computes how far the MOUSE
+  // itself has moved and applies that same delta to the original origin -
+  // preserving wherever within the strip it was grabbed, the same
+  // grab-offset-preserving idea 'startDrag' already gets right for fields
+  // via its own onUp delta (though notably 'startDrag''s own onMove has
+  // this identical absolute-snap pattern too - not touched here since
+  // fields weren't part of this report and field-dragging has extensive
+  // existing test coverage keyed to the current behavior; flagged as a
+  // follow-up sliver in LIMITATIONS-PLAN.md rather than changed alongside
+  // an unrelated, unrequested fix).
+  function startWindowMove(windowEl, record, startEvent) {
+    const { colWidth, rowHeight } = gridMetrics();
     const origLine = parseInt(windowEl.getAttribute('data-window-line'), 10);
     const origCol = parseInt(windowEl.getAttribute('data-window-col'), 10);
     const height = parseInt(windowEl.getAttribute('data-window-height'), 10);
     const width = parseInt(windowEl.getAttribute('data-window-width'), 10);
+    const startX = startEvent.clientX, startY = startEvent.clientY;
     let newLine = origLine, newCol = origCol;
     windowEl.classList.add('dragging');
 
     function onMove(e) {
-      newCol = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
-      newLine = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+      const deltaCol = Math.round((e.clientX - startX) / colWidth);
+      const deltaLine = Math.round((e.clientY - startY) / rowHeight);
+      newCol = Math.max(1, origCol + deltaCol);
+      newLine = Math.max(1, origLine + deltaLine);
       windowEl.style.gridColumn = newCol + ' / span ' + width;
       windowEl.style.gridRow = newLine + ' / span ' + height;
     }
@@ -2705,7 +2736,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function renderFileProps() {
     const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords, expandedKeywordConditioning);
     const availableForFile = DspfWriter.availableCommandKeyNumbers(model.fileKeywords);
-    const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, availableForFile, 'file');
+    const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, availableForFile, 'file', expandedKeywordConditioning);
     // Task L13 - file-level comment lines (the same "preamble" area file
     // keywords like DSPSIZ live in) get their own tab, same shape as the
     // record-level Structure tab's own Comments section below.
@@ -2730,7 +2761,7 @@ const htmlTemplate = `<!DOCTYPE html>
     wireTabs(propsBody, (id) => { activeFileTab = id; });
 
     WebviewClientHelpers.wireFileKeywordsPanels(() => model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), expandedKeywordConditioning, () => renderFileProps());
-    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords));
+    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), expandedKeywordConditioning, () => renderFileProps());
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
     wireCommentsSection(
       'filecomments',
@@ -3601,7 +3632,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // picked to override it for this record - see the comment above
     // DspfWriter.availableCommandKeyNumbers)
     const availableForRecord = DspfWriter.availableCommandKeyNumbers(rec.keywords);
-    const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record');
+    const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record', expandedKeywordConditioning);
 
     // --- Structure tab: help entries + source field order + reference fields + comments ---
     let structureHtml = helpEntriesListHtml(rec) + fieldOrderListHtml(rec);
@@ -3785,7 +3816,7 @@ const htmlTemplate = `<!DOCTYPE html>
         commitRecordEdit(recordName, { keywords: DspfWriter.setWindowTitleText(rec.keywords, document.getElementById('p-window-title').value) });
       });
     }
-    WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+    WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));

@@ -538,6 +538,47 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   check('record-level CA12 is untouched by removing the unrelated file-level key', reparsed4.records.find((r) => r.name === 'MENU').keywords.some((k) => k.name === 'CA12'));
 }
 
+console.log("\nTask L27: command keys (CAnn/CFnn) can carry indicator conditioning - reported as \"cmd keys can also have conditionings\"");
+{
+  const src =
+    [
+      '     A          R MENU',
+      "     A                                  1  2'Hi'",
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+
+  check('parseCommandKeys reports an empty conditions array when there is none', DspfWriter.parseCommandKeys(model.fileKeywords).length === 0);
+
+  const cond90 = [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '90', not: false }] }];
+  const withConditionedKey = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 3, '91', 'Exit', cond90);
+  const afterAdd = DspfWriter.applyFileKeywordsUpdate(model, lines, withConditionedKey);
+  const reparsed1 = DspfParser.parseDspf(afterAdd.join('\n'));
+  const parsed1 = DspfWriter.parseCommandKeys(reparsed1.fileKeywords);
+  check('the CA03 keyword itself is now conditioned on indicator 90', parsed1.length === 1 && parsed1[0].conditions.length === 1 && parsed1[0].conditions[0].indicators[0].number === '90');
+  check('the embedded response indicator (91) and text are unaffected by adding conditioning - two separate things', parsed1[0].indicator === '91' && parsed1[0].text === 'Exit');
+
+  // Editing the SAME key's conditioning (e.g. via its own per-row toggle)
+  // must not touch other keys, and must preserve THIS key's own
+  // indicator/text (setCommandKey replaces the whole entry, so a caller
+  // that forgot to pass indicator/text along would silently blank them -
+  // this is exactly what wireCommandKeysSection's own per-row Conditioning
+  // wiring guards against by re-reading the existing parsed values first).
+  const cond80 = [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '80', not: true }] }];
+  const recondition = DspfWriter.setCommandKey(reparsed1.fileKeywords, 'CA', '03', '91', 'Exit', cond80);
+  const afterRecondition = DspfWriter.applyFileKeywordsUpdate(reparsed1, afterAdd, recondition);
+  const reparsed2 = DspfParser.parseDspf(afterRecondition.join('\n'));
+  const parsed2 = DspfWriter.parseCommandKeys(reparsed2.fileKeywords);
+  check('conditioning was replaced (now NOT 80), not merged with the old (90)', parsed2.length === 1 && parsed2[0].conditions.length === 1 && parsed2[0].conditions[0].indicators[0].number === '80' && parsed2[0].conditions[0].indicators[0].not === true);
+  check('indicator/text survive the conditioning-only edit', parsed2[0].indicator === '91' && parsed2[0].text === 'Exit');
+
+  // A key added with no conditions argument at all (the pre-L27 call
+  // shape, e.g. every OTHER existing caller of setCommandKey in this same
+  // file) still gets unconditioned [] - full backward compatibility.
+  const withoutConditionsArg = DspfWriter.setCommandKey(reparsed2.fileKeywords, 'CF', 12, null, null);
+  check('omitting the conditions argument still defaults to unconditioned', DspfWriter.parseCommandKeys(withoutConditionsArg).find((k) => k.number === '12').conditions.length === 0);
+}
+
 console.log("\nDspfWriter.applyFileKeywordsUpdate() - inserts a fresh block at the top when the file has none yet");
 {
   const src = [
