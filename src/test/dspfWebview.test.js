@@ -1872,6 +1872,25 @@ function runFieldPropertyHelpersScenario() {
     let inputEdit = posted.find((m) => m.type === 'applyEdit');
     check('checking DUP commits it immediately', inputEdit && inputEdit.text.includes('DUP'));
 
+    console.log('  Bug fix: CHGINPDFT now has its own 9 sub-flag checkboxes (HI/RI/CS/BL/UL/LC/ME/MF/FE) - previously a bare on/off toggle with no way to set its own parameters at all');
+    posted.length = 0;
+    const chginpdftHi = Array.from(doc.querySelectorAll('.' + fieldKey + '-inp-chginpdft-code')).find((el) => el.value === 'HI');
+    check('all 9 CHGINPDFT sub-flag checkboxes are present', doc.querySelectorAll('.' + fieldKey + '-inp-chginpdft-code').length === 9);
+    check('the CHGINPDFT on/off checkbox starts unchecked', doc.getElementById(fieldKey + '-inp-chginpdft-on') && !doc.getElementById(fieldKey + '-inp-chginpdft-on').checked);
+    chginpdftHi.checked = true;
+    chginpdftHi.dispatchEvent(new Event('change', { bubbles: true }));
+    // Re-query after the HI commit re-renders the panel - a checkbox
+    // fetched before a commit is a stale/detached reference afterward,
+    // same as every other multi-step interaction in this file.
+    const chginpdftMe = Array.from(doc.querySelectorAll('.' + fieldKey + '-inp-chginpdft-code')).find((el) => el.value === 'ME');
+    check('after committing HI, the checkbox still shows HI checked (re-rendered from committed state, not lost)', Array.from(doc.querySelectorAll('.' + fieldKey + '-inp-chginpdft-code')).find((el) => el.value === 'HI').checked);
+    chginpdftMe.checked = true;
+    chginpdftMe.dispatchEvent(new Event('change', { bubbles: true }));
+    let chginpdftEdit = posted.filter((m) => m.type === 'applyEdit').pop();
+    const chginpdftKw = chginpdftEdit && DspfParser.parseDspf(chginpdftEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'CHGINPDFT');
+    check('checking sub-flags commits CHGINPDFT with both codes, space-joined', chginpdftKw && chginpdftKw.parameters.trim().split(/\s+/).sort().join(',') === 'HI,ME');
+    check('checking a sub-flag also force-checks the main on/off box (otherwise setFileFlagKeyword would drop it)', doc.getElementById(fieldKey + '-inp-chginpdft-on').checked);
+
     console.log('  General keywords (ALIAS/DFT/... + boolean flags) on a named field - Task L5: each its own flagRowHtml row with per-keyword conditioning, committing immediately');
     posted.length = 0;
     const amountEl7 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
@@ -2530,6 +2549,67 @@ function runSflIndicatorPairingScenario() {
     labels2 = indicatorLabels();
     check('SFLCTL\'s own indicator 62 is listed', labels2.includes('Ind 62'));
     check('the paired SFL record\'s indicator 61 is ALSO listed - toggling it changes the subfile rows drawn here', labels2.includes('Ind 61'));
+
+    runChgInpDftFileRecordScenario();
+  }, 0);
+}
+
+// Bug fix (reported: real SDA's own "Change Input Defaults" sub-screen for
+// CHGINPDFT, confirmed via a user-provided screenshot) - the same
+// chgInpDftFlagHtml/wireChgInpDftFlag component tested at field level
+// above (see the "Input keywords" scenario) is ALSO wired at File level
+// and Record level (fileKeywordsPanelsHtml/recordKeywordsPanelsHtml both
+// call it under an 'fk-'/idPrefix-scoped id) - this only re-checks that
+// the SAME component actually renders/commits under those DIFFERENT id
+// prefixes, since the checkbox logic itself is already covered above.
+function runChgInpDftFileRecordScenario() {
+  console.log('\nBug fix: CHGINPDFT sub-flag checkboxes also wired at File level and Record level (same component as the field-level one above, different id prefix)');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', src, 'CHGINPDFT.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const { document: doc, Event } = dom.window;
+
+    console.log('  File level (fk-chginpdft)');
+    const fileCrumb = doc.getElementById('crumb-file');
+    check('setup: the File breadcrumb is present', !!fileCrumb);
+    fileCrumb.dispatchEvent(new Event('click', { bubbles: true }));
+    check('File Keywords panel rendered: 9 fk-chginpdft sub-flag checkboxes present', doc.querySelectorAll('.fk-chginpdft-code').length === 9);
+    const fkHi = Array.from(doc.querySelectorAll('.fk-chginpdft-code')).find((el) => el.value === 'HI');
+    fkHi.checked = true;
+    fkHi.dispatchEvent(new Event('change', { bubbles: true }));
+    let fileEdit = posted.filter((m) => m.type === 'applyEdit').pop();
+    check('posts CHGINPDFT(HI) at file level', fileEdit && /CHGINPDFT\(HI\)/.test(fileEdit.text));
+
+    console.log('  Record level (recordKeywordsPanelsHtml\'s own idPrefix-chginpdft)');
+    posted.length = 0;
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const recCheckboxes = doc.querySelectorAll('[class$="-chginpdft-code"]');
+    const recChginpdftCheckboxes = Array.from(recCheckboxes).filter((el) => !el.className.startsWith('fk-'));
+    check('Record Keywords panel: 9 record-level chginpdft sub-flag checkboxes present (distinct from fk-)', recChginpdftCheckboxes.length === 9);
+    const recMe = recChginpdftCheckboxes.find((el) => el.value === 'ME');
+    check('setup: found the ME checkbox at record level', !!recMe);
+    recMe.checked = true;
+    recMe.dispatchEvent(new Event('change', { bubbles: true }));
+    let recordEdit = posted.filter((m) => m.type === 'applyEdit').pop();
+    check('posts CHGINPDFT(ME) at record level', recordEdit && /CHGINPDFT\(ME\)/.test(recordEdit.text));
 
     runCodeForIBadgeScenario();
   }, 0);

@@ -1405,18 +1405,22 @@
       ['dup', 'DUP', 'Dup key duplicates the previous record\u2019s value into this field'],
       ['blanks', 'BLANKS', 'Numeric field: let the program tell blank apart from zero'],
       ['change', 'CHANGE', 'Response indicator turns on if the workstation user changed this field'],
-      ['chginpdft', 'CHGINPDFT', 'Change input defaults'],
     ].forEach(function (row) {
       var id = ownerKey + '-inp-' + row[0];
       var kw = DspfWriter.getFileFlagKeyword(keywords, row[1]);
       html += flagRowHtml(id, row[1], kw.present, undefined, undefined, kw.conditions, expandedSet);
     });
+    // Bug fix: CHGINPDFT gets its own dedicated sub-flag checkboxes (see
+    // chgInpDftFlagHtml's own comment) instead of the bare on/off row
+    // above - it's the one keyword in this list whose real DDS syntax
+    // takes parameters at all.
+    html += chgInpDftFlagHtml(keywords, ownerKey + '-inp-chginpdft', 'CHGINPDFT', expandedSet);
     return html;
   }
 
   function wireInputKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
-    ['dup', 'blanks', 'change', 'chginpdft'].forEach(function (k, i) {
-      var name = ['DUP', 'BLANKS', 'CHANGE', 'CHGINPDFT'][i];
+    ['dup', 'blanks', 'change'].forEach(function (k, i) {
+      var name = ['DUP', 'BLANKS', 'CHANGE'][i];
       var id = ownerKey + '-inp-' + k;
       wireFlagRow(
         id,
@@ -1428,6 +1432,7 @@
         rerender
       );
     });
+    wireChgInpDftFlag(function () { return keywords; }, onChange, ownerKey + '-inp-chginpdft', expandedSet, rerender);
   }
 
   /** "Select General Keywords" - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/HLPID
@@ -2058,6 +2063,84 @@
     }, expandedSet, rerender);
   }
 
+  // Bug fix (reported: user's own screenshot of real SDA's "Change Input
+  // Defaults" screen for CHGINPDFT): every wireFlagRow call site for
+  // CHGINPDFT offered only a bare on/off checkbox (or, at File/Record
+  // level, a raw free-text parameter box) - there was no way to pick
+  // CHGINPDFT's own 9 sub-flags (HI/RI/CS/BL/UL/LC/ME/MF/FE) the way real
+  // SDA's dedicated "Select parameters" sub-screen does, confirmed
+  // against the uploaded screenshot ("Field . . . : D1_DESC"). One shared
+  // component here, reused at every CHGINPDFT call site (File-level,
+  // Record General, SFLMSG General, Field Input keywords) per this
+  // codebase's own "build once, wire in many places" convention (see
+  // PICKER-SCREENS-PLAN.md) - CHGINPDFT's shape doesn't vary by level.
+  var CHGINPDFT_CODES = ['HI', 'RI', 'CS', 'BL', 'UL', 'LC', 'ME', 'MF', 'FE'];
+  var CHGINPDFT_LABELS = {
+    HI: 'High intensity', RI: 'Reverse image', CS: 'Column separators', BL: 'Blink',
+    UL: 'Underline', LC: 'Lowercase allowed', ME: 'Mandatory entry', MF: 'Mandatory fill',
+    FE: 'Field exit key required',
+  };
+
+  /** flagRowHtml's own checkbox+Conditioning row for CHGINPDFT, PLUS its 9
+   *  sub-flag checkboxes (same `.attr-checks`/`.attr-check` markup
+   *  colorAttrEditorHtml already uses for DSPATR, so it inherits that
+   *  styling for free). flagRowHtml itself is called with NO visible
+   *  params box (paramsPlaceholder omitted) - a hidden input carries the
+   *  space-joined code list instead, so wireFlagRow's existing
+   *  id+'-params' commit wiring can stay completely unchanged; the
+   *  checkboxes just keep that hidden input in sync (see
+   *  wireChgInpDftFlag below). */
+  function chgInpDftFlagHtml(keywords, id, label, expandedSet) {
+    var kw = DspfWriter.getFileFlagKeyword(keywords, 'CHGINPDFT');
+    var codes = (kw.parameters || '').trim().length ? kw.parameters.trim().split(/\s+/) : [];
+    var html = flagRowHtml(id, label, kw.present, undefined, undefined, kw.conditions, expandedSet);
+    html += '<input type="hidden" id="' + id + '-params" value="' + escapeHtml(kw.parameters || '') + '" />';
+    html += '<div class="attr-checks" style="margin:2px 0 10px 22px;">';
+    CHGINPDFT_CODES.forEach(function (code) {
+      var checked = codes.indexOf(code) >= 0;
+      html += '<label class="attr-check" title="' + escapeHtml(CHGINPDFT_LABELS[code]) + '"><input type="checkbox" class="' + id + '-code" value="' + code + '" ' + (checked ? 'checked' : '') + '/>' + code + '</label>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  /** Wires chgInpDftFlagHtml's row exactly like any other flagRowHtml (via
+   *  wireFlagRow, unchanged) PLUS the 9 sub-flag checkboxes: each one
+   *  recomputes the space-joined code list into the hidden params input
+   *  and dispatches 'change' on it, which wireFlagRow's own existing
+   *  paramsEl listener already picks up - no new commit path needed.
+   *  Checking any code also force-checks the main on/off box (a code with
+   *  CHGINPDFT absent would otherwise be silently dropped by
+   *  setFileFlagKeyword's own `if (present)` gate - see its doc comment).
+   *  `getKeywords` is a FUNCTION (matching wireFlagRow's own contract, and
+   *  every other 'simple'-style call site in this file) rather than a
+   *  plain array, so a commit always reflects whatever else has already
+   *  been committed on this same render - callers with only a captured
+   *  array in scope just wrap it as `function () { return keywords; }`. */
+  function wireChgInpDftFlag(getKeywords, onChange, id, expandedSet, rerender) {
+    wireFlagRow(
+      id,
+      getKeywords,
+      onChange,
+      function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, 'CHGINPDFT', present, params, undefined, conditions); },
+      DspfWriter.getFileFlagKeyword(getKeywords(), 'CHGINPDFT').conditions,
+      expandedSet,
+      rerender
+    );
+    document.querySelectorAll('.' + id + '-code').forEach(function (el) {
+      el.addEventListener('change', function () {
+        var codes = Array.prototype.slice.call(document.querySelectorAll('.' + id + '-code:checked')).map(function (e) { return e.value; });
+        var onEl = document.getElementById(id + '-on');
+        if (codes.length && onEl && !onEl.checked) onEl.checked = true;
+        var paramsEl = document.getElementById(id + '-params');
+        if (paramsEl) {
+          paramsEl.value = codes.join(' ');
+          paramsEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+    });
+  }
+
   var WDWBORDER_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL'];
   var BORDER_POSITIONS = [
     { key: 0, label: 'Top-left-corner' },
@@ -2214,8 +2297,9 @@
     g += flagRowHtml('fk-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
     var fDsprl = DspfWriter.getFileFlagKeyword(kw, 'DSPRL');
     g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', fDsprl.present, undefined, undefined, fDsprl.conditions, expandedSet);
-    var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
-    g += flagRowHtml('fk-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)', chginpdft.conditions, expandedSet);
+    // Bug fix: dedicated sub-flag checkboxes for CHGINPDFT (see
+    // chgInpDftFlagHtml's own comment) instead of a bare free-text box.
+    g += chgInpDftFlagHtml(kw, 'fk-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
     g += flagRowHtml('fk-entfldatr', 'Entry field attribute (ENTFLDATR)', entfldatr.present, entfldatr.parameters, 'e.g. UL', entfldatr.conditions, expandedSet);
     var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
@@ -2331,7 +2415,7 @@
     wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RLTB').conditions, expandedSet, rerender);
     wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
     simple('fk-dsprl', 'DSPRL');
-    simple('fk-chginpdft', 'CHGINPDFT', true);
+    wireChgInpDftFlag(getKeywords, onChange, 'fk-chginpdft', expandedSet, rerender);
     simple('fk-entfldatr', 'ENTFLDATR', true);
     simple('fk-errsfl', 'ERRSFL');
     var refLib = document.getElementById('fk-ref-library');
@@ -2461,8 +2545,7 @@
     g += flagRowHtml(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, fRetkey.conditions, expandedSet);
     var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
     g += flagRowHtml(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, fRetcmdkey.conditions, expandedSet);
-    var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
-    g += flagRowHtml(p + '-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)', chginpdft.conditions, expandedSet);
+    g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     var mnubardsp = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP');
     g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, mnubardsp.parameters, 'parameters (optional)', mnubardsp.conditions, expandedSet);
     var entfldatr = DspfWriter.getFileFlagKeyword(kw, 'ENTFLDATR');
@@ -2719,8 +2802,7 @@
     g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
     g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
-    var chginpdft = DspfWriter.getFileFlagKeyword(kw, 'CHGINPDFT');
-    g += flagRowHtml('sm-chginpdft', 'Change input defaults (CHGINPDFT)', chginpdft.present, chginpdft.parameters, 'parameters (optional)', chginpdft.conditions, expandedSet);
+    g += chgInpDftFlagHtml(kw, 'sm-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     panels.general = g;
 
     // --- Indicator ---
@@ -2761,7 +2843,7 @@
     simple(p + '-alwrol', 'ALWROL');
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
-    simple(p + '-chginpdft', 'CHGINPDFT', true);
+    wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
     simple(p + '-mnubardsp', 'MNUBARDSP', true);
     simple(p + '-entfldatr', 'ENTFLDATR', true);
     wireTwoField(p + '-rtncsrloc-row', p + '-rtncsrloc-col', 'RTNCSRLOC');
@@ -3174,7 +3256,7 @@
     simple('sm-keep', 'KEEP');
     wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
     wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
-    simple('sm-chginpdft', 'CHGINPDFT', true);
+    wireChgInpDftFlag(getKeywords, onChange, 'sm-chginpdft', expandedSet, rerender);
 
     wireIndicatorTextRows('sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
   }
