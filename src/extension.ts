@@ -958,7 +958,7 @@ async function handleAddFieldsFromDatabase(
  * "Save" button. Every edit already lands in the document's live buffer
  * via 'applyEdit' (a WorkspaceEdit), which marks it dirty the same as
  * typing would - but nothing was actually WRITING that buffer to disk
- * until now; the only place `document.save()` was ever called was as a
+ * until now; the only place document.save() was ever called was as a
  * side effect of "Compile", which needs the on-disk copy since a compile
  * command reads the SAVED member, not this editor's live buffer (see
  * compileDspf/compileMenu's own comments for that same reasoning). A
@@ -966,14 +966,33 @@ async function handleAddFieldsFromDatabase(
  * justification - it exists simply because relying on VS Code's own
  * Ctrl+S (or Auto Save) isn't obvious from inside a webview panel, which
  * doesn't show the tab's own dirty-dot the way a normal text editor does.
- * No-ops quietly if the document is already clean (nothing to save) -
- * matches `isDirty` guards elsewhere in this file rather than calling
- * `save()` unconditionally.
+ * No-ops quietly if a document is already clean (nothing to save) -
+ * matches isDirty guards elsewhere in this file rather than calling
+ * save() unconditionally. `companionDocument` covers the menu designer's
+ * own MNUCMD companion (only passed when it's actually open, same as
+ * compileMenu's own openCommandDoc handling above) - the button saves
+ * BOTH documents together, same scope "Compile" already saves before it
+ * reads from disk.
  */
-async function handleSaveDocument(document: vscode.TextDocument): Promise<void> {
+async function handleSaveDocument(document: vscode.TextDocument, companionDocument?: vscode.TextDocument): Promise<void> {
   if (document.isDirty) {
     await document.save();
   }
+  if (companionDocument && companionDocument.isDirty) {
+    await companionDocument.save();
+  }
+}
+
+/**
+ * Suggestion C - pushes the Save button's own dirty-state indicator. The
+ * button we just added has no visual signal for whether there's actually
+ * anything TO save - this closes that gap. `docs` is every document the
+ * button's own save covers (see handleSaveDocument above - one for the
+ * DSPF designer, up to two for the menu designer's own MNUDDS+MNUCMD
+ * pair) - dirty if ANY of them is.
+ */
+function postDirtyState(webview: vscode.Webview, ...docs: vscode.TextDocument[]): void {
+  webview.postMessage({ type: 'dirtyState', isDirty: docs.some((d) => d.isDirty) });
 }
 
 function openDesigner(uri: vscode.Uri): void {
@@ -1013,9 +1032,26 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
 
     const changeSub = vscode.workspace.onDidChangeTextDocument((e) => {
       if (e.document.uri.toString() !== document.uri.toString()) return;
+      // Dirty-state push (Suggestion C) happens regardless of applyingFromWebview
+      // below - our OWN applyEdit calls mark the document dirty exactly the same
+      // way a real edit would, so the Save button's own indicator needs to know
+      // about it too, not just externally-originated changes.
+      postDirtyState(webviewPanel.webview, e.document);
       if (applyingFromWebview) return;
       webviewPanel.webview.postMessage({ type: 'externalUpdate', text: e.document.getText() });
     });
+    // Catches the "just saved, now clean" transition - onDidChangeTextDocument
+    // alone doesn't fire on save (no text changes), so without this the Save
+    // button's indicator would keep showing dirty after a successful save,
+    // whether via this panel's own Save button or VS Code's native Ctrl+S.
+    const saveSub = vscode.workspace.onDidSaveTextDocument((saved) => {
+      if (saved.uri.toString() !== document.uri.toString()) return;
+      postDirtyState(webviewPanel.webview, saved);
+    });
+    // Initial state - the document could already be dirty when the designer
+    // opens (e.g. edited just before opening it here), so the button needs to
+    // reflect that from the very first render, not just after the next edit.
+    postDirtyState(webviewPanel.webview, document);
 
     // Task L18: pushes a fresh "IBM i: Connected/Not connected/Not
     // installed" status to the webview's badge. Called on 'ready' (so the
@@ -1069,6 +1105,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.onDidDispose(() => {
       changeSub.dispose();
+      saveSub.dispose();
       messageSub.dispose();
       clearInterval(statusPollInterval);
       extChangeSub.dispose();
@@ -1138,8 +1175,22 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     // only meaningful when that document is actually open (see below).
     let applyingCommandFromWebview = false;
 
+    // Suggestion C - the Save button covers BOTH documents for the menu
+    // designer (see handleSaveDocument's own doc comment), so its dirty
+    // indicator needs to reflect BOTH too - dirty if either is. The
+    // companion document only has meaningful isDirty/save semantics while
+    // it's actually open in some editor (same "only meaningful when open"
+    // scoping commandChangeSub below already uses) - vscode.workspace.
+    // textDocuments is searched fresh each call rather than cached, since
+    // whether it's open can change over this panel's own lifetime.
+    function pushMenuDirtyState(): void {
+      const openCommandDoc = commandUri ? vscode.workspace.textDocuments.find((d) => d.uri.toString() === commandUri!.toString()) : undefined;
+      postDirtyState(webviewPanel.webview, document, ...(openCommandDoc ? [openCommandDoc] : []));
+    }
+
     const changeSub = vscode.workspace.onDidChangeTextDocument((e) => {
       if (e.document.uri.toString() !== document.uri.toString()) return;
+      pushMenuDirtyState();
       if (applyingFromWebview) return;
       webviewPanel.webview.postMessage({ type: 'externalUpdate', text: e.document.getText() });
     });
@@ -1151,6 +1202,7 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     const commandChangeSub = commandUri
       ? vscode.workspace.onDidChangeTextDocument((e) => {
           if (!commandUri || e.document.uri.toString() !== commandUri.toString()) return;
+          pushMenuDirtyState();
           if (applyingCommandFromWebview) return;
           webviewPanel.webview.postMessage({ type: 'externalCommandUpdate', text: e.document.getText() });
         })
@@ -1166,6 +1218,17 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     };
     const statusPollInterval = setInterval(() => { void sendCodeForIStatus(); }, 10000);
     const extChangeSub = vscode.extensions.onDidChange(() => { void sendCodeForIStatus(); });
+
+    // Same "just saved, now clean" transition as the DSPF designer's own
+    // saveSub - covers both documents, since either one being saved
+    // (independently - e.g. someone Ctrl+S's just the MNUCMD tab) should
+    // update the SAME combined indicator.
+    const saveSub = vscode.workspace.onDidSaveTextDocument((saved) => {
+      if (saved.uri.toString() !== document.uri.toString() && (!commandUri || saved.uri.toString() !== commandUri.toString())) return;
+      pushMenuDirtyState();
+    });
+    pushMenuDirtyState();
+
 
     const messageSub = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'applyEdit') {
@@ -1248,7 +1311,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await compileMenu(document.uri);
         await sendCodeForIStatus();
       } else if (msg.type === 'saveDocument') {
-        await handleSaveDocument(document);
+        const openCommandDocForSave = commandUri ? vscode.workspace.textDocuments.find((d) => d.uri.toString() === commandUri!.toString()) : undefined;
+        await handleSaveDocument(document, openCommandDocForSave);
       } else if (msg.type === 'error') {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'setUiStyle') {
@@ -1263,6 +1327,7 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.onDidDispose(() => {
       changeSub.dispose();
       commandChangeSub?.dispose();
+      saveSub.dispose();
       messageSub.dispose();
       clearInterval(statusPollInterval);
       extChangeSub.dispose();

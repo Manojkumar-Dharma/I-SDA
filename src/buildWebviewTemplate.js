@@ -289,6 +289,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .codefori-badge.disconnected { color: var(--warn); border-color: var(--warn); }
   .codefori-badge.unknown { color: var(--ink-dim); border-color: var(--panel-border); }
   #sizeBoundsWarning { white-space: pre-line; }
+  #overlapWarning { white-space: pre-line; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
   .rename-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
@@ -325,6 +326,8 @@ const htmlTemplate = `<!DOCTYPE html>
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
   .compile-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); }
   .save-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); font-weight: 600; }
+  .save-btn-dirty { background: #2a2410; color: var(--warn); border-color: var(--warn); animation: isda-save-pulse 1.8s ease-in-out infinite; }
+  @keyframes isda-save-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
   .compile-btn:hover { background: #1b2c22; }
   .keyword-chip { display: inline-flex; align-items: center; gap: 6px; background: #0d1310; border: 1px solid var(--panel-border); padding: 3px 6px; border-radius: 3px; font-size: 11px; margin: 2px 4px 2px 0; }
   .keyword-chip button { padding: 0 4px; font-size: 11px; border: none; background: transparent; color: var(--warn); }
@@ -425,6 +428,9 @@ const htmlTemplate = `<!DOCTYPE html>
   .props-accordion[open] > summary { border-bottom: 1px solid var(--panel-border); color: var(--chrome-accent); }
   .props-accordion-body { padding: 8px; }
   .place-btn-row { display: flex; gap: 6px; margin-top: 8px; }
+  .align-btn-row { display: flex; gap: 6px; margin-top: 6px; }
+  .align-btn { flex: 1; font-size: 11px; padding: 6px 4px; white-space: nowrap; }
+  .align-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .place-btn-row button { flex: 1; }
   .place-btn-row button.active { color: var(--chrome-accent); border-color: var(--chrome-accent); background: #0d1310; }
   .dspf-screen.placing { cursor: crosshair; }
@@ -653,6 +659,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="crosshair-readout hidden" id="crosshairReadout"></div>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
+  <div class="warn hidden" id="overlapWarning"></div>
 </main>
 <div class="props-panel" id="propsPanel">
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
@@ -786,6 +793,7 @@ const htmlTemplate = `<!DOCTYPE html>
   const sizeSelectRow = document.getElementById('sizeSelectRow');
   const sizeSelect = document.getElementById('sizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
+  const overlapWarning = document.getElementById('overlapWarning');
   const fileAttrsBtn = document.getElementById('fileAttrsBtn');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
   const newRecordToggleBtn = document.getElementById('newRecordToggleBtn');
@@ -1039,9 +1047,23 @@ const htmlTemplate = `<!DOCTYPE html>
   // show the editor tab's own dirty-dot. handleSaveDocument in extension.ts
   // does the actual document.save() host-side, same isDirty-guarded shape
   // "Compile"'s own save-before-compile step already uses.
-  document.getElementById('saveDocBtn').addEventListener('click', () => {
+  const saveDocBtn = document.getElementById('saveDocBtn');
+  saveDocBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'saveDocument' });
   });
+
+  // Suggestion C - dirty-state indicator on the Save button itself. The
+  // extension host pushes a 'dirtyState' message (see postDirtyState in
+  // extension.ts) on every document change AND on save, so this stays
+  // correct whether the change/save came from THIS button, VS Code's own
+  // Ctrl+S, or an edit made outside the designer entirely. Text swap
+  // (rather than just a CSS dot) keeps it legible without needing a
+  // legend, and .save-btn-dirty's own pulse animation (CSS) draws the eye
+  // without being alarming - this is routine, not an error state.
+  function updateSaveButtonDirtyState(isDirty) {
+    saveDocBtn.classList.toggle('save-btn-dirty', !!isDirty);
+    saveDocBtn.textContent = isDirty ? '\u{1F4BE} Save (unsaved changes)' : '\u{1F4BE} Save';
+  }
 
   // Creates a brand-new, empty record format (see DspfWriter.insertRecord's
   // own doc comment for placement rules) and immediately selects it, same
@@ -1687,6 +1709,32 @@ const htmlTemplate = `<!DOCTYPE html>
       "won't fit every declared screen size:\\n" + lines.join('\\n');
   }
 
+  /**
+   * Suggestion A - real DDS silently drops a field that overlaps another
+   * one already claiming the same screen cells (see resolveScreen's own
+   * "Position-sequence overlap resolution" comment in dspfEngine.js) -
+   * dragging or placing a field on top of another has always just made it
+   * mysteriously vanish from the preview with no explanation. The 'screen'
+   * argument is the SAME already-resolved object render() just built (its
+   * new 'overlaps' array, populated by that same resolution pass - not a
+   * second resolve call), so this never disagrees with what's actually
+   * shown. Pass null to hide it (error/no-record-formats states, where
+   * there's no resolved screen to check).
+   */
+  function updateOverlapWarning(screen) {
+    const overlaps = (screen && screen.overlaps) || [];
+    if (overlaps.length === 0) {
+      overlapWarning.classList.add('hidden');
+      overlapWarning.textContent = '';
+      return;
+    }
+    overlapWarning.classList.remove('hidden');
+    const lines = overlaps.map((o) => '\\u2022 ' + o.field + ' (line ' + o.line + ', col ' + o.column + ') is hidden behind ' + o.blockedBy + ' - they occupy the same screen cells.');
+    overlapWarning.textContent =
+      overlaps.length + (overlaps.length === 1 ? ' field is' : ' fields are') +
+      " hidden by overlapping another field (DDS shows only the first one placed):\\n" + lines.join('\\n');
+  }
+
   function rebuildIndicatorList(recordName) {
     rebuildIndicatorListFromSet(indicatorsForContext(recordName));
   }
@@ -1823,7 +1871,7 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildNewRecordDepOptions();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; updateRuler(null); renderProps(null); return; }
+    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; updateRuler(null); updateOverlapWarning(null); renderProps(null); return; }
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
     updateSizeBoundsWarning(recordName);
@@ -1839,7 +1887,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
     lastScreen = screen;
-    if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; updateRuler(screen); return; }
+    if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; updateRuler(screen); updateOverlapWarning(null); return; }
     previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
     if (!screen.isSflRecord && previewMultipleRows) { previewMultipleRows = false; previewRowsToggle.checked = false; }
     if (screen.isSflRecord && screen.previewRowCount) {
@@ -1852,6 +1900,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     updateRuler(screen);
+    updateOverlapWarning(screen);
     renderCompareBackdrop(recordName);
     // Every wiring call below is scoped to primaryScreenEl (the FIRST
     // .dspf-screen in the DOM - see renderCompareBackdrop's own comment on
@@ -2330,6 +2379,60 @@ const htmlTemplate = `<!DOCTYPE html>
       identities.forEach((id, i) => {
         if (!wasSelected[i] || !rec) return;
         const expected = { name: id.name, constantValue: id.constantValue, line: id.line + deltaLine, column: id.column + deltaColumn };
+        const found = findByIdentity(rec, expected);
+        if (found) newSelected.push({ sourceLine: found.sourceLine });
+      });
+      selectedKeys = newSelected;
+      selectedKey = newSelected.length ? newSelected[newSelected.length - 1] : null;
+
+      activePulldown = null;
+      suppressNextExternalUpdate = true;
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      render();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
+  }
+
+  // Suggestion B - align/distribute a multi-select group, each field to
+  // its OWN target line/column (not a uniform delta like commitGroupEdit
+  // above) - the align/distribute counterpart, built on the exact same
+  // identity-tracking reparse loop (see identityOf/findByIdentity's own
+  // doc comment) since repositioning one field can shift every later
+  // field's sourceLine, same as a delta move can. 'targets' is an array
+  // parallel to a fields list, each entry { field, newLine, newColumn } -
+  // computed ONCE up front from the group's ORIGINAL positions (by each
+  // align/distribute button's own click handler below), not recomputed
+  // mid-loop, so e.g. "align left" targets the group's own original
+  // leftmost column, not a column that's already shifted by an earlier
+  // field in this same batch. Re-selects whichever targets were selected
+  // beforehand, same as commitGroupEdit - by each field's own NEW
+  // (post-align) identity, since unlike a delta move the exact new
+  // position differs per field.
+  function commitAlignEdit(recordName, targets) {
+    try {
+      const identities = targets.map((t) => identityOf(t.field));
+      const wasSelected = targets.map((t) => selectedKeys.some((k) => k.sourceLine === t.field.sourceLine));
+
+      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      let currentModel = model;
+
+      identities.forEach((id, i) => {
+        const rec = currentModel.records.find((r) => r.name === recordName);
+        const f = rec && findByIdentity(rec, id);
+        if (!f) return;
+        lines = DspfWriter.applyFieldUpdate(f, lines, { line: targets[i].newLine, column: targets[i].newColumn });
+        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      });
+
+      sourceText = lines.join('\\n');
+      model = currentModel;
+
+      const rec = model.records.find((r) => r.name === recordName);
+      const newSelected = [];
+      identities.forEach((id, i) => {
+        if (!wasSelected[i] || !rec) return;
+        const expected = { name: id.name, constantValue: id.constantValue, line: targets[i].newLine, column: targets[i].newColumn };
         const found = findByIdentity(rec, expected);
         if (found) newSelected.push({ sourceLine: found.sourceLine });
       });
@@ -3267,6 +3370,17 @@ const htmlTemplate = `<!DOCTYPE html>
     let html = '<div class="status" style="margin-bottom:12px;">' + fields.length + ' fields selected. Shift/Ctrl-click ' +
       'or drag a rectangle on the canvas to change the selection; drag any selected field to move the whole block ' +
       'together.</div>';
+    html += '<div class="section-label">Align</div>' +
+      '<div class="align-btn-row">' +
+      '<button class="secondary align-btn" id="p-align-left" title="Align left edges to the leftmost field in the selection">&#8676; Left</button>' +
+      '<button class="secondary align-btn" id="p-align-right" title="Align right edges to the rightmost field in the selection">Right &#8677;</button>' +
+      '<button class="secondary align-btn" id="p-align-top" title="Align top edges to the topmost field in the selection">&#8593; Top</button>' +
+      '<button class="secondary align-btn" id="p-align-bottom" title="Align bottom edges to the bottommost field in the selection">&#8595; Bottom</button>' +
+      '</div>' +
+      '<div class="align-btn-row">' +
+      '<button class="secondary align-btn" id="p-distribute-h" title="Space evenly between the leftmost and rightmost field, left-to-right" ' + (fields.length < 3 ? 'disabled' : '') + '>&#8596; Distribute horiz.</button>' +
+      '<button class="secondary align-btn" id="p-distribute-v" title="Space evenly between the topmost and bottommost field, top-to-bottom" ' + (fields.length < 3 ? 'disabled' : '') + '>&#8597; Distribute vert.</button>' +
+      '</div>';
     html += WebviewClientHelpers.colorAttrStatesHtml(primary.keywords, 'multiselect-colorattr', expandedKeywordConditioning);
     html += '<button id="p-multi-copy" class="secondary" style="width:100%;margin-top:16px;">Duplicate selection</button>';
     html += '<div class="delete-hint">Press Delete or Backspace to remove all ' + fields.length + ' selected fields. ' +
@@ -3278,6 +3392,90 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!editable) return;
 
     document.getElementById('p-multi-copy').addEventListener('click', () => commitCopySelection(recordName));
+
+    // Suggestion B - align/distribute the selected group. Each button
+    // computes its own 'targets' (per-field { field, newLine, newColumn })
+    // from the group's CURRENT positions at click-time, then hands off to
+    // commitAlignEdit (see its own doc comment for why targets are
+    // computed up front rather than incrementally). Alignment/distribution
+    // is column/line-only - a field's own length/height (and therefore its
+    // right/bottom edge) come from resolveScreen's own field resolution,
+    // not stored on the raw parsed field, so "align right"/"align bottom"
+    // reuse the SAME rendered field list render() just built (via
+    // lastScreen) to know each field's actual occupied width/height,
+    // falling back to a width of 1 for a field lastScreen doesn't carry
+    // (conditioned out at the moment, say) rather than skipping it.
+    function occupiedWidthHeight(field) {
+      const resolved = lastScreen && lastScreen.fields && lastScreen.fields.find((rf) => rf.sourceLine === field.sourceLine);
+      return { width: resolved ? resolved.length : 1, height: resolved ? (resolved.height || 1) : 1 };
+    }
+    function currentLineCol(field) {
+      return { line: field.location.line != null ? field.location.line : 1, column: field.location.column != null ? field.location.column : 1 };
+    }
+    const alignLeftBtn = document.getElementById('p-align-left');
+    if (alignLeftBtn) alignLeftBtn.addEventListener('click', () => {
+      const leftmost = Math.min(...fields.map((f) => currentLineCol(f).column));
+      const targets = fields.map((f) => ({ field: f, newLine: currentLineCol(f).line, newColumn: leftmost }));
+      commitAlignEdit(recordName, targets);
+    });
+    const alignRightBtn = document.getElementById('p-align-right');
+    if (alignRightBtn) alignRightBtn.addEventListener('click', () => {
+      const rightEdges = fields.map((f) => currentLineCol(f).column + occupiedWidthHeight(f).width - 1);
+      const rightmostEdge = Math.max(...rightEdges);
+      const targets = fields.map((f) => ({ field: f, newLine: currentLineCol(f).line, newColumn: Math.max(1, rightmostEdge - occupiedWidthHeight(f).width + 1) }));
+      commitAlignEdit(recordName, targets);
+    });
+    const alignTopBtn = document.getElementById('p-align-top');
+    if (alignTopBtn) alignTopBtn.addEventListener('click', () => {
+      const topmost = Math.min(...fields.map((f) => currentLineCol(f).line));
+      const targets = fields.map((f) => ({ field: f, newLine: topmost, newColumn: currentLineCol(f).column }));
+      commitAlignEdit(recordName, targets);
+    });
+    const alignBottomBtn = document.getElementById('p-align-bottom');
+    if (alignBottomBtn) alignBottomBtn.addEventListener('click', () => {
+      const bottomEdges = fields.map((f) => currentLineCol(f).line + occupiedWidthHeight(f).height - 1);
+      const bottommostEdge = Math.max(...bottomEdges);
+      const targets = fields.map((f) => ({ field: f, newLine: Math.max(1, bottommostEdge - occupiedWidthHeight(f).height + 1), newColumn: currentLineCol(f).column }));
+      commitAlignEdit(recordName, targets);
+    });
+    // Distribute: spaces field CENTERS evenly between the leftmost and
+    // rightmost (or topmost/bottommost) member's own center, left-to-right
+    // (or top-to-bottom) by current position - the endpoints themselves
+    // don't move, only what's between them. Needs at least 3 fields to mean
+    // anything (2 fields have nothing "between" them to redistribute) - the
+    // buttons are disabled below that, per their own 'disabled' attribute
+    // in the HTML above.
+    const distributeHBtn = document.getElementById('p-distribute-h');
+    if (distributeHBtn) distributeHBtn.addEventListener('click', () => {
+      if (fields.length < 3) return;
+      const withCenters = fields.map((f) => ({ field: f, line: currentLineCol(f).line, center: currentLineCol(f).column + occupiedWidthHeight(f).width / 2 }))
+        .sort((a, b) => a.center - b.center);
+      const firstCenter = withCenters[0].center;
+      const lastCenter = withCenters[withCenters.length - 1].center;
+      const step = (lastCenter - firstCenter) / (withCenters.length - 1);
+      const targets = withCenters.map((w, i) => ({
+        field: w.field,
+        newLine: w.line,
+        newColumn: Math.max(1, Math.round(firstCenter + step * i - occupiedWidthHeight(w.field).width / 2)),
+      }));
+      commitAlignEdit(recordName, targets);
+    });
+    const distributeVBtn = document.getElementById('p-distribute-v');
+    if (distributeVBtn) distributeVBtn.addEventListener('click', () => {
+      if (fields.length < 3) return;
+      const withCenters = fields.map((f) => ({ field: f, column: currentLineCol(f).column, center: currentLineCol(f).line + occupiedWidthHeight(f).height / 2 }))
+        .sort((a, b) => a.center - b.center);
+      const firstCenter = withCenters[0].center;
+      const lastCenter = withCenters[withCenters.length - 1].center;
+      const step = (lastCenter - firstCenter) / (withCenters.length - 1);
+      const targets = withCenters.map((w, i) => ({
+        field: w.field,
+        newLine: Math.max(1, Math.round(firstCenter + step * i - occupiedWidthHeight(w.field).height / 2)),
+        newColumn: w.column,
+      }));
+      commitAlignEdit(recordName, targets);
+    });
+
     // The Style editor is built once, against the PRIMARY field's own
     // current color/attribute states (purely for what's shown pre-checked)
     // - on change, DspfWriter.getColorAttrStates recovers just the target
@@ -4207,6 +4405,8 @@ const htmlTemplate = `<!DOCTYPE html>
       if (overlay && overlay.__onDatabaseFieldsResult) overlay.__onDatabaseFieldsResult(msg);
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
+    } else if (msg.type === 'dirtyState') {
+      updateSaveButtonDirtyState(msg.isDirty);
     }
   });
 

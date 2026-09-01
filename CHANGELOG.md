@@ -3,6 +3,59 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.5] - 2026-08-31
+
+### Added
+- **Overlap warning banner (DSPF designer).** Real DDS silently drops a
+  field that overlaps another one already claiming the same screen cells
+  (position-sequence resolution: first one placed wins) - dragging or
+  placing a field on top of another always just made it mysteriously
+  vanish from the preview with no explanation. `resolveScreen()` in
+  `dspfEngine.js` now tracks which fields get dropped this way and what
+  they collided with (a new `overlaps` array on its return value,
+  alongside the already-resolved `fields`), and a new banner (mirroring
+  the existing `sizeBoundsWarning` pattern) names both fields. Verified
+  this correctly matches real SDA/DDS runtime behavior for conditioned
+  fields: two fields conditioned on mutually exclusive indicators (the
+  standard "toggle between two labels in the same spot" technique, e.g.
+  `01`/`N01`) never false-positive, in either indicator state, since a
+  conditioned-off field is already excluded before the overlap check
+  ever runs - while two fields on genuinely unrelated, non-complementary
+  indicators still correctly trigger the warning once both happen to be
+  toggled on together. See `runOverlapWarningScenario` and
+  `runConditionalOverlapScenario` in `dspfWebview.test.js`.
+- **Align/Distribute for a multi-select group (DSPF designer).** New
+  Align Left/Right/Top/Bottom and Distribute Horizontal/Vertical buttons
+  in the multi-field props panel (Task L10's own group-selection state).
+  Built on a new `commitAlignEdit()`, the align/distribute counterpart to
+  the existing `commitGroupEdit` - same identity-tracking reparse loop
+  (repositioning one field can shift every later field's source line,
+  same as a uniform delta move can), but computing a DIFFERENT absolute
+  target position per field rather than one shared delta. Align
+  right/bottom and both distribute directions read each field's actual
+  occupied width/height from the currently-resolved screen (`lastScreen`),
+  not just its raw declared length, so a widget/multi-row field aligns by
+  its real edge. Distribute is disabled below 3 selected fields (2 fields
+  have nothing "between" them to redistribute). See the new align
+  scenario in `multiSelect.test.js`.
+- **Save button dirty-state indicator (both designers).** The Save button
+  added in 0.9.99 had no visual signal for whether there was actually
+  anything to save. The extension host now pushes a `dirtyState` message
+  on document open, every change, and every save (new
+  `onDidChangeTextDocument`/`onDidSaveTextDocument` wiring, a shared
+  `postDirtyState()` helper) - the menu designer's own version correctly
+  covers BOTH the MNUDDS document and its MNUCMD companion, matching what
+  the Save button's own click already saves together. The button shows a
+  pulsing amber state and "(unsaved changes)" text when dirty. Extended
+  the shared test mock (`vscode-mock.js`) to realistically simulate
+  `isDirty`/`save()`/`onDidSaveTextDocument`, which it didn't before -
+  `isDirty` is now a real mutable flag that `save()` correctly flips back
+  to clean and fires save listeners for, rather than a fixed value set
+  once at construction. See the new scenarios in `extension.test.js`,
+  `dspfWebview.test.js`, and `menuWebview.test.js`.
+
+Full suite: 2118 checks, 0 failures.
+
 ## [0.10.4] - 2026-08-31
 
 ### Added

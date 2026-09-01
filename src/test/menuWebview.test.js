@@ -63,7 +63,18 @@ setTimeout(() => {
   check('"Save" button is present at the top of the left panel', !!doc.getElementById('saveDocBtn'));
   doc.getElementById('saveDocBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
   check('clicking it posts saveDocument', posted.some((m) => m.type === 'saveDocument'));
-  posted.length = 0; // clear before the rest of this file's chained scenarios, which assert on posted's own contents from a clean slate  check('option 1 shows its label from the DDS constant', rows[0].querySelector('.option-label-input').value === 'Display library list');
+  posted.length = 0; // clear before the rest of this file's chained scenarios, which assert on posted's own contents from a clean slate
+
+  console.log('Suggestion C: the Save button reflects the extension host\'s own dirtyState pushes');
+  const saveBtnEl = doc.getElementById('saveDocBtn');
+  check('starts without the dirty indicator', !saveBtnEl.classList.contains('save-btn-dirty'));
+  dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { type: 'dirtyState', isDirty: true } }));
+  check('dirty class applied on dirtyState: true', saveBtnEl.classList.contains('save-btn-dirty'));
+  check('button text signals unsaved changes', saveBtnEl.textContent.includes('unsaved changes'));
+  dom.window.dispatchEvent(new dom.window.MessageEvent('message', { data: { type: 'dirtyState', isDirty: false } }));
+  check('dirty class removed on dirtyState: false', !saveBtnEl.classList.contains('save-btn-dirty'));
+
+  check('option 1 shows its label from the DDS constant', rows[0].querySelector('.option-label-input').value === 'Display library list');
   check('option 1 shows its command from the MNUCMD source', rows[0].querySelector('.option-cmd').value === 'DSPLIBL');
   check('option 2 cross-references correctly too', rows[1].querySelector('.option-cmd').value === 'CHGCURLIB');
   check('option 10 (two-digit) parses correctly and has no command yet', rows[2].querySelector('.option-num-badge').textContent === '10' && rows[2].querySelector('.option-cmd').value === '');

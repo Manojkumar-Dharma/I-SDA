@@ -290,6 +290,145 @@ function runSizeBoundsScenario() {
     const bannerAfter = boundsDoc.getElementById('sizeBoundsWarning');
     check('still warns after switching to the size the field fits within (checks ALL sizes, not just the active one)', bannerAfter && !bannerAfter.classList.contains('hidden'));
 
+    runOverlapWarningScenario();
+  }, 0);
+}
+
+// Suggestion A - overlap warning banner. Real DDS silently drops a field
+// that overlaps another one already claiming the same cells (see
+// resolveScreen's own "Position-sequence overlap resolution" comment in
+// dspfEngine.js) - this scenario deliberately places two constants on
+// overlapping cells and checks the new banner names both of them.
+function runOverlapWarningScenario() {
+  console.log('\noverlap warning: two fields claiming the same screen cells');
+  const overlapSource =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', line: '5', col: '2', func: "'First text'" }),
+      buildLine({ seq: '00030', line: '5', col: '5', func: "'Second one'" }),
+      buildLine({ seq: '00040', line: '10', col: '2', func: "'No overlap here'" }),
+    ].join('\n') + '\n';
+  const overlapHtml = getWebviewHtml('vscode-webview://fake', 'testnonce12', overlapSource, 'OVERLAPTEST.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const overlapDom = new JSDOM(overlapHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const overlapDoc = overlapDom.window.document;
+    const banner = overlapDoc.getElementById('overlapWarning');
+    check('the overlap warning banner is shown', banner && !banner.classList.contains('hidden'));
+    check('names the field that got hidden ("Second one" was placed after "First text", so it loses)', /Second one/.test(banner.textContent));
+    check('names which field it collided with', /First text/.test(banner.textContent));
+    check('the non-overlapping field is not mentioned', !/No overlap here/.test(banner.textContent));
+    check('DDS itself still only renders one of the two overlapping fields (the resolved screen matches the warning)', overlapDoc.querySelectorAll('.dspf-field').length === 2); // "First text" + "No overlap here" - "Second one" is dropped
+
+    console.log('  a clean (no-overlap) screen keeps the banner hidden');
+    const cleanSource =
+      [
+        buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+        buildLine({ seq: '00020', line: '5', col: '2', func: "'Only field'" }),
+      ].join('\n') + '\n';
+    const cleanHtml = getWebviewHtml('vscode-webview://fake', 'testnonce13', cleanSource, 'CLEANTEST.DSPF').replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const cleanDom = new JSDOM(cleanHtml, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+      },
+    });
+    setTimeout(() => {
+      const cleanDoc = cleanDom.window.document;
+      const cleanBanner = cleanDoc.getElementById('overlapWarning');
+      check('no overlap warning for a screen with no colliding fields', cleanBanner && cleanBanner.classList.contains('hidden'));
+
+      runConditionalOverlapScenario();
+    }, 0);
+  }, 0);
+}
+
+// Follow-up check requested after Task A shipped: does the overlap warning
+// correctly treat two same-position fields conditioned on MUTUALLY
+// EXCLUSIVE indicators (the standard "toggle between two labels in the
+// same spot" DDS technique - e.g. "Add" vs "Change" mode text) the same
+// way real SDA does - i.e. NOT a false-positive overlap, since the two can
+// never both be visible at once? resolveScreen's own candidate list is
+// built AFTER conditionsSatisfied() already filters by the CURRENTLY
+// toggled indicators (see resolveRecordFields in dspfEngine.js) - a field
+// conditioned off for the current toggle state never becomes a candidate,
+// so it can never collide with anything. For a strict N01/01 pair, that's
+// true for BOTH possible states of indicator 01 (it's always one or the
+// other, never both), so this scenario checks both toggle states, not
+// just the default. As a contrast, two fields conditioned on UNRELATED
+// (non-complementary) indicators that genuinely COULD be on simultaneously
+// still correctly trigger the warning once both are toggled on - proving
+// this isn't a blanket "any conditioned field is exempt" rule, only a
+// genuinely-can't-co-occur one.
+function runConditionalOverlapScenario() {
+  console.log('\nfollow-up: overlap warning respects indicator conditioning, same as real SDA/DDS would at runtime');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00020', line: '5', col: '2', ind1: '01', func: "'Change mode'" }),
+      buildLine({ seq: '00030', line: '5', col: '2', ind1: 'N01', func: "'Add mode'" }),
+      buildLine({ seq: '00040', line: '10', col: '2', ind1: '05', func: "'Fifth flag on'" }),
+      buildLine({ seq: '00050', line: '10', col: '2', ind1: '07', func: "'Seventh flag on'" }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce14', src, 'CONDOVERLAP.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const banner = doc.getElementById('overlapWarning');
+    const toggle = (num) => {
+      const label = Array.from(doc.getElementById('indicatorList').querySelectorAll('label')).find((l) => l.textContent.includes('Ind ' + num));
+      const cb = label && label.querySelector('input');
+      if (cb) {
+        cb.checked = !cb.checked; // a real click toggles this as a side effect before 'change' fires - dispatching 'change' alone doesn't
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    };
+
+    console.log('  default state (indicator 01 off): only "Add mode" (N01) is a candidate - no overlap');
+    check('overlap warning hidden by default', banner.classList.contains('hidden'));
+    check('only the N01-conditioned field is actually rendered', doc.querySelectorAll('.dspf-field').length === 1 && doc.querySelector('.dspf-field').textContent.includes('Add mode'));
+
+    console.log('  toggling indicator 01 ON: only "Change mode" (01) is a candidate now - still no overlap, same pair, other state');
+    toggle('01');
+    check('overlap warning still hidden with indicator 01 on', banner.classList.contains('hidden'));
+    check('only the 01-conditioned field is rendered now', doc.querySelectorAll('.dspf-field').length === 1 && doc.querySelector('.dspf-field').textContent.includes('Change mode'));
+    toggle('01'); // back off, for a clean slate before the next check
+
+    console.log('  two fields on UNRELATED (non-complementary) indicators 05/07: toggling BOTH on together genuinely creates an overlap - the warning correctly still fires for this pair');
+    check('overlap warning still hidden - neither 05 nor 07 is toggled on yet', banner.classList.contains('hidden'));
+    toggle('05');
+    check('still hidden with just 05 on (only one of the pair is visible)', banner.classList.contains('hidden'));
+    toggle('07');
+    check('overlap warning now shown - indicators 05 AND 07 are both on, so both fields are visible at the same position', !banner.classList.contains('hidden'));
+    check('names one of the genuinely-colliding fields', /Fifth flag on|Seventh flag on/.test(banner.textContent));
+
     runConstantTextEditScenario();
   }, 0);
 }
@@ -4770,6 +4909,15 @@ function runDatabaseFieldsPickerScenario() {
     check('setup: Save button is present at the top of the left panel', !!saveBtn);
     saveBtn.dispatchEvent(new Event('click', { bubbles: true }));
     check('posts saveDocument', posted.some((m) => m.type === 'saveDocument'));
+
+    console.log('  Suggestion C: the Save button reflects the extension host\'s own dirtyState pushes');
+    check('starts without the dirty indicator (no dirtyState message received yet)', !saveBtn.classList.contains('save-btn-dirty'));
+    dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'dirtyState', isDirty: true } }));
+    check('dirty class applied on dirtyState: true', saveBtn.classList.contains('save-btn-dirty'));
+    check('button text signals unsaved changes', saveBtn.textContent.includes('unsaved changes'));
+    dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'dirtyState', isDirty: false } }));
+    check('dirty class removed on dirtyState: false', !saveBtn.classList.contains('save-btn-dirty'));
+    check('button text back to plain "Save"', !saveBtn.textContent.includes('unsaved changes'));
 
     console.log('  clicking the button opens the modal');
     const openBtn = doc.getElementById('addFromDbBtn');

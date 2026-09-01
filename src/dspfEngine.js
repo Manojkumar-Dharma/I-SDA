@@ -1091,20 +1091,42 @@
     candidates.sort(function (a, b) {
       return a.line - b.line || a.column - b.column;
     });
-    var occupied = {}; // "line:col" -> true
+    var occupied = {}; // "line:col" -> the WINNING field that claimed it (so a
+                        // blocked field can report exactly who it collided with,
+                        // not just "something" - see `overlaps` below)
     var resolved = [];
+    // Fields DDS's own overlap rule silently drops - surfaced separately (not
+    // just discarded like before this existed) so the UI can warn about them
+    // instead of a field just mysteriously not appearing with no explanation.
+    // Kept as its own array off resolveScreen's return rather than folding into
+    // `resolved`/dropping them, so nothing about the actual rendered screen
+    // (which is what real DDS would show) changes because of this - it's a
+    // side channel, purely for the warning banner.
+    var overlaps = [];
     candidates.forEach(function (f) {
       var blocked = false;
+      var blockedBy = null;
       var h = f.height || 1;
       for (var r = 0; r < h && !blocked; r++) {
         for (var c = f.column; c < f.column + f.length; c++) {
-          if (occupied[(f.line + r) + ':' + c]) { blocked = true; break; }
+          var key = (f.line + r) + ':' + c;
+          if (occupied[key]) { blocked = true; blockedBy = occupied[key]; break; }
         }
       }
-      if (blocked) return;
+      if (blocked) {
+        overlaps.push({
+          field: f.name || f.text || '(unnamed constant)',
+          sourceLine: f.sourceLine,
+          blockedBy: blockedBy.name || blockedBy.text || '(unnamed constant)',
+          blockedBySourceLine: blockedBy.sourceLine,
+          line: f.line,
+          column: f.column,
+        });
+        return;
+      }
       for (var r2 = 0; r2 < h; r2++) {
         for (var c2 = f.column; c2 < f.column + f.length; c2++) {
-          occupied[(f.line + r2) + ':' + c2] = true;
+          occupied[(f.line + r2) + ':' + c2] = f;
         }
       }
       resolved.push(f);
@@ -1158,6 +1180,7 @@
       availableSizes: size.sizes,
       recordName: recordName,
       fields: resolved,
+      overlaps: overlaps,
       window: windowBox,
       subfilePreview: subfilePreview,
       pulldown: pulldown,

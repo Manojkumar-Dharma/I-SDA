@@ -41,6 +41,7 @@ let lastWrittenFile = null;
 const mockFiles = {}; // uri.toString() -> text content, for workspace.fs.readFile in tests
 const mockConfig = {}; // 'section.key' -> value, for workspace.getConfiguration(...).get(...) in tests
 const changeListeners = []; // every registered workspace.onDidChangeTextDocument handler
+const saveListeners = []; // every registered workspace.onDidSaveTextDocument handler
 const openTextDocuments = []; // simulates vscode.workspace.textDocuments
 const executedCommands = []; // every vscode.commands.executeCommand call, for assertions
 let runCommandHandler = null; // test-supplied handler for 'code-for-ibmi.runCommand'
@@ -157,6 +158,14 @@ const vscodeMock = {
       changeListeners.push(handler);
       return { dispose: () => { const i = changeListeners.indexOf(handler); if (i >= 0) changeListeners.splice(i, 1); } };
     },
+    // Suggestion C - fires when a mockDocument's own save() runs (see
+    // mockDocument below - it's the one that actually pushes into this
+    // array), matching real VS Code's own onDidSaveTextDocument, which
+    // fires after a document's isDirty flips back to false.
+    onDidSaveTextDocument: (handler) => {
+      saveListeners.push(handler);
+      return { dispose: () => { const i = saveListeners.indexOf(handler); if (i >= 0) saveListeners.splice(i, 1); } };
+    },
     get textDocuments() { return openTextDocuments; },
   },
   __registeredCommands: registeredCommands,
@@ -190,16 +199,28 @@ function mockDocument(text, uri, options) {
   const docUri = uri || new Uri('file', '/workspace/TEST.dspf');
   const opts = options || {};
   let saveCount = 0;
-  return {
+  // Suggestion C - isDirty is now a real mutable flag (was a fixed boolean
+  // set once at construction) so save() can realistically flip it back to
+  // clean, matching real vscode.TextDocument's own isDirty/save() contract -
+  // needed to test the dirty-state push flow end-to-end, not just its
+  // initial value.
+  let dirty = !!opts.isDirty;
+  const doc = {
     uri: docUri,
     fileName: docUri.path,
     getText: () => text,
     positionAt: (offset) => ({ line: 0, character: offset }),
     lineAt: (n) => ({ text: '' }),
-    isDirty: !!opts.isDirty,
-    save: () => { saveCount++; return Promise.resolve(true); },
+    get isDirty() { return dirty; },
+    save: () => {
+      saveCount++;
+      dirty = false;
+      saveListeners.slice().forEach((h) => h(doc));
+      return Promise.resolve(true);
+    },
     get saveCount() { return saveCount; },
   };
+  return doc;
 }
 
 module.exports = vscodeMock;

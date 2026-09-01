@@ -89,6 +89,32 @@ async function run() {
   check('wires a message handler', typeof messageHandler === 'function');
   check('wires a dispose handler', typeof disposeHandler === 'function');
 
+  console.log('\nSuggestion C: initial dirtyState push on open, and on every change/save');
+  check('posts an initial dirtyState reflecting the document\'s own isDirty (this mock doc is clean by default)', posted.some((m) => m.type === 'dirtyState' && m.isDirty === false));
+  {
+    const dirtyOnOpenDoc = vscodeMock.__mockDocument('     A          R MENU\n', undefined, { isDirty: true });
+    const posted3 = [];
+    const panel3 = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: () => ({ dispose: () => {} }),
+        postMessage: (m) => posted3.push(m),
+      },
+      onDidDispose: () => {},
+    };
+    providerEntry.provider.resolveCustomTextEditor(dirtyOnOpenDoc, panel3, {});
+    check('a document that\'s ALREADY dirty when the designer opens gets an initial dirtyState: true (not just after the next edit)', posted3.some((m) => m.type === 'dirtyState' && m.isDirty === true));
+
+    posted3.length = 0;
+    vscodeMock.__changeListener({ document: dirtyOnOpenDoc });
+    check('a subsequent change event also posts dirtyState: true (still dirty)', posted3.some((m) => m.type === 'dirtyState' && m.isDirty === true));
+
+    posted3.length = 0;
+    await dirtyOnOpenDoc.save();
+    check('saving flips it to dirtyState: false, via the document\'s own onDidSaveTextDocument event (mockDocument.save() fires it directly)', posted3.some((m) => m.type === 'dirtyState' && m.isDirty === false));
+  }
+
   console.log('\napplyEdit message -> WorkspaceEdit');
   await messageHandler({ type: 'applyEdit', text: '     A          R MENU2\n' });
   check('applies a WorkspaceEdit with the new text', vscodeMock.__lastAppliedEdit.edits[0].newText === '     A          R MENU2\n');
@@ -449,10 +475,17 @@ async function run() {
   fakeWebviewPanel.webview.postMessage = (m) => posted2.push(m);
   const editPromise = messageHandler({ type: 'applyEdit', text: 'NEW TEXT' });
   vscodeMock.__changeListener({ document: doc }); // our own edit's change event, fired synchronously in the window before the edit "settles"
-  check('suppresses the change event our own in-flight edit produces', posted2.length === 0);
+  // Suggestion C's own dirtyState push is DELIBERATELY not suppressed here -
+  // our own edit genuinely does make the document dirty, same as anyone
+  // else's edit would, so the Save button's indicator should reflect that
+  // immediately rather than waiting for the edit to "settle". What IS still
+  // suppressed is externalUpdate specifically - re-echoing our own just-
+  // applied text back into the webview as if it were a foreign change,
+  // which is the actual infinite-loop risk this mechanism exists for.
+  check('suppresses externalUpdate for our own in-flight edit (dirtyState still fires - that\'s fine, see comment above)', !posted2.some((m) => m.type === 'externalUpdate'));
   await editPromise;
   vscodeMock.__changeListener({ document: doc }); // a genuinely external change after our edit settled
-  check('propagates a genuinely external change after settling', posted2.length === 1 && posted2[0].type === 'externalUpdate');
+  check('propagates a genuinely external change after settling', posted2.some((m) => m.type === 'externalUpdate'));
 
   const otherDoc = vscodeMock.__mockDocument('other');
   otherDoc.uri = { toString: () => 'file:///unrelated.dspf' };

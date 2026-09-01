@@ -249,6 +249,86 @@ setTimeout(() => {
       check('FLD2 got COLOR(RED) too', hasColorRed(applied2));
       check('the unselected FLD3 was left untouched', notApplied3 && !hasColorRed(notApplied3));
 
+      runAlignScenario();
+    }, 0);
+  }
+
+  // Suggestion B - align/distribute the multi-select group. FLD1/FLD2/FLD3
+  // sit at columns 5/5/5, lines 3/5/7 (see the fixture at the top of this
+  // file) - deliberately already left-aligned so "Align left" is a no-op
+  // to verify separately from "Align top" actually moving something.
+  function runAlignScenario() {
+    console.log('\nAlign/distribute buttons for a multi-select group');
+    const { dom: dom5, posted: posted5 } = setup();
+    const doc5 = dom5.window.document;
+    setTimeout(() => {
+      console.log('  selecting all 3 fields and clicking "Align left" (they already share column 5, so this is a no-op check)');
+      const f1 = fieldByName(doc5, 'FLD1');
+      const f2 = fieldByName(doc5, 'FLD2');
+      const f3 = fieldByName(doc5, 'FLD3');
+      f1.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true }));
+      f2.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      f3.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+
+      const alignLeftBtn = doc5.getElementById('p-align-left');
+      check('the Align Left button is present for a 3-field selection', !!alignLeftBtn);
+      posted5.length = 0;
+      alignLeftBtn.dispatchEvent(new dom5.window.Event('click', { bubbles: true }));
+      let model = latestDspf(posted5);
+      let rec = model && model.records.find((r) => r.name === 'SCR1');
+      check('all three fields stay at column 5 (already aligned)', rec && ['FLD1', 'FLD2', 'FLD3'].every((n) => rec.fields.find((f) => f.name === n).location.column === 5));
+
+      console.log('  moving FLD2 to a different column, then re-selecting and clicking "Align left" moves it back to the leftmost column');
+      // Re-select fresh from the just-committed model's own DOM (posted5's
+      // edit already re-rendered f2 at its new column via the app's own
+      // externalUpdate-equivalent render() call, so look it up again rather
+      // than reusing the stale f2 reference from before the edit).
+      posted5.length = 0;
+      const f1b = fieldByName(doc5, 'FLD1');
+      f1b.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true }));
+      const dragHandleTarget = fieldByName(doc5, 'FLD2');
+      // Nudge FLD2 right by 10 columns via the existing arrow-key nudge
+      // (Task L10-adjacent, already shipped) rather than re-deriving drag
+      // math here - simplest reliable way to move just one field off-column
+      // for this test.
+      dragHandleTarget.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true }));
+      for (let i = 0; i < 10; i++) {
+        doc5.body.dispatchEvent(new dom5.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      }
+      model = latestDspf(posted5);
+      rec = model && model.records.find((r) => r.name === 'SCR1');
+      check('setup: FLD2 moved off column 5', rec && rec.fields.find((f) => f.name === 'FLD2').location.column === 15);
+
+      const f1c = fieldByName(doc5, 'FLD1');
+      const f2c = fieldByName(doc5, 'FLD2');
+      const f3c = fieldByName(doc5, 'FLD3');
+      f1c.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true }));
+      f2c.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      f3c.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      posted5.length = 0;
+      doc5.getElementById('p-align-left').dispatchEvent(new dom5.window.Event('click', { bubbles: true }));
+      model = latestDspf(posted5);
+      rec = model && model.records.find((r) => r.name === 'SCR1');
+      check('Align Left brings FLD2 back to column 5, matching the other two', rec && rec.fields.find((f) => f.name === 'FLD2').location.column === 5);
+      check('FLD1/FLD3 (already at column 5) are untouched', rec && rec.fields.find((f) => f.name === 'FLD1').location.column === 5 && rec.fields.find((f) => f.name === 'FLD3').location.column === 5);
+
+      console.log('  "Align top" moves every selected field to the topmost row among them');
+      posted5.length = 0;
+      const f1d = fieldByName(doc5, 'FLD1');
+      const f2d = fieldByName(doc5, 'FLD2');
+      const f3d = fieldByName(doc5, 'FLD3');
+      f1d.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true }));
+      f2d.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      f3d.dispatchEvent(new dom5.window.MouseEvent('click', { bubbles: true, shiftKey: true }));
+      doc5.getElementById('p-align-top').dispatchEvent(new dom5.window.Event('click', { bubbles: true }));
+      model = latestDspf(posted5);
+      rec = model && model.records.find((r) => r.name === 'SCR1');
+      check('all three fields now share line 3 (the original topmost)', rec && ['FLD1', 'FLD2', 'FLD3'].every((n) => rec.fields.find((f) => f.name === n).location.line === 3));
+
+      console.log('  Distribute buttons are disabled below 3 fields, enabled at 3+');
+      const distributeBtn = doc5.getElementById('p-distribute-v');
+      check('Distribute vertical is enabled with exactly 3 fields selected', distributeBtn && !distributeBtn.disabled);
+
       finish();
     }, 0);
   }

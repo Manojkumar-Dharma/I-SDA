@@ -193,6 +193,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
   .compile-btn { width: 100%; background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
   .save-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; font-weight: 600; }
+  .save-btn-dirty { background: #2a2410; color: var(--warn); border-color: var(--warn); animation: isda-save-pulse 1.8s ease-in-out infinite; }
+  @keyframes isda-save-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
   .compile-btn:hover { background: #1b2c22; }
   .rename-row { display: flex; gap: 6px; margin-top: 8px; }
   .rename-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); font-size: 12px; }
@@ -1575,9 +1577,21 @@ const htmlTemplate = `<!DOCTYPE html>
   // disk until VS Code's own Ctrl+S/Auto Save fires - not obvious from
   // inside a webview panel. handleSaveDocument in extension.ts does the
   // actual document.save() host-side.
-  document.getElementById('saveDocBtn').addEventListener('click', () => {
+  const saveDocBtn = document.getElementById('saveDocBtn');
+  saveDocBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'saveDocument' });
   });
+
+  // Suggestion C - dirty-state indicator, same as the DSPF designer's own
+  // (buildWebviewTemplate.js's updateSaveButtonDirtyState) - the extension
+  // host's postDirtyState covers BOTH the MNUDDS document and its MNUCMD
+  // companion for this designer (see handleSaveDocument's own doc comment
+  // in extension.ts), so this single indicator reflects either one being
+  // dirty, matching what the Save button's own click actually saves.
+  function updateSaveButtonDirtyState(isDirty) {
+    saveDocBtn.classList.toggle('save-btn-dirty', !!isDirty);
+    saveDocBtn.textContent = isDirty ? '\u{1F4BE} Save (unsaved changes)' : '\u{1F4BE} Save';
+  }
 
   if (cmdStatusEl) {
     if (commandStatus === 'loaded') cmdStatusEl.textContent = 'Commands: ' + commandFileName;
@@ -1616,6 +1630,8 @@ const htmlTemplate = `<!DOCTYPE html>
       renderOptions();
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
+    } else if (msg.type === 'dirtyState') {
+      updateSaveButtonDirtyState(msg.isDirty);
     }
   });
 
