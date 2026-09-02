@@ -560,6 +560,11 @@
    * DspfWriter.getWdwBorder) is also resolved here and rendered as an
    * actual character overlay (see renderScreenHtml) rather than a CSS box
    * border, since a plain CSS border can't represent 8 independent glyphs.
+   * Task L32: when a WDWBORDER keyword IS present but only sets SOME of its
+   * sub-parameter groups (e.g. only *DSPATR), the group(s) left unset still
+   * get IBM's own documented per-parameter defaults (*COLOR -> blue, *CHAR ->
+   * the period/colon pattern) rather than staying null/blank - each group's
+   * default is independent of whether its siblings were specified.
    * @returns {{color: string|null, attrs: string[], chars: string[]}} color is
    *   a CSS hex string (via COLOR_HEX) or null if no *COLOR group was set
    *   anywhere in scope; attrs is the DSPATR code list (possibly empty);
@@ -584,12 +589,26 @@
         result.chars = chars.map(function (c) { return c.slice(1, -1); });
         while (result.chars.length < 8) result.chars.push('');
       }
+      // Task L32: IBM's own WDWBORDER documentation gives each sub-parameter
+      // group ITS OWN default, independent of whether the sibling groups were
+      // specified - a keyword that sets only *DSPATR (say) still gets the
+      // documented *COLOR-blue / *CHAR-period-colon defaults, exactly as if
+      // *COLOR/*CHAR had been spelled out explicitly. This only fires when
+      // WDWBORDER IS present (parse() already returned null above otherwise,
+      // which is L29's separate "entirely absent" fallback below) and only
+      // for the sub-parameter group(s) that weren't specified - an explicit
+      // *COLOR or *CHAR always wins outright, same as before.
+      if (!colorM) result.color = COLOR_HEX.BLU;
+      if (!charM) result.chars = ['.', '.', '.', ':', ':', ':', '.', ':'];
       return result;
     }
     return (
       parse(record && record.keywords) ||
       parse(dspfFile && dspfFile.fileKeywords) ||
-      // No WDWBORDER anywhere in scope (record or file) - reported as
+      // No WDWBORDER anywhere in scope (record or file) - the per-sub-parameter
+      // defaults above (Task L32) don't apply here since there's no keyword at
+      // all to partially fill in; this is the original, entirely-separate L29
+      // fallback - reported as
       // "windows in SDA have default fill/reverse image at the border
       // when no border parameter is provided." Checked against IBM's own
       // WDWBORDER doc: that's not quite right (a plain empty/no-styling

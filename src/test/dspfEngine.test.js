@@ -412,7 +412,12 @@ console.log('\nBug fix: WDWBORDER on a WINDOW record actually reflects in the re
   check('resolved window carries the *DSPATR attribute list', screen.window.border.attrs.indexOf('HI') >= 0);
 
   const html = DspfEngine.renderScreenHtml(screen);
-  check('the rendered window div carries the border color as an inline style', html.includes('border-color:' + DspfEngine.COLOR_HEX.BLU));
+  // Task L32: this WDWBORDER doesn't specify *CHAR, so it now picks up the
+  // documented *CHAR default (period/colon pattern) and switches into
+  // char-mode - the plain CSS box border-color is suppressed in char mode
+  // (color is applied per-character instead, see the *CHAR test below), so
+  // this is no longer a plain box border with an inline border-color.
+  check('the rendered window div is switched into char-mode (no *CHAR was specified, so it now gets the documented default)', /dspf-window-border[^"]*dspf-window-border-charmode/.test(html));
   check('the rendered window div carries the HI-attribute class', /dspf-window-border[^"]*dspf-window-border-hi/.test(html) || /dspf-window-border-hi[^"]*dspf-window-border/.test(html));
 }
 
@@ -469,7 +474,7 @@ console.log('\nWDWBORDER *CHAR: *COLOR applies to the rendered characters themse
   check('a rendered border-char cell carries the *COLOR as its own inline color', new RegExp('dspf-window-char" style="grid-row:3;grid-column:10;color:' + DspfEngine.COLOR_HEX.BLU).test(html));
 }
 
-console.log('\nWDWBORDER: no *CHAR group at all still falls back to the plain CSS box border, unaffected');
+console.log('\nTask L32: a partial WDWBORDER (only *COLOR set) still gets IBM\u2019s own documented per-sub-parameter defaults for the groups it left unset, rather than staying blank');
 {
   const src = [
     buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
@@ -478,9 +483,27 @@ console.log('\nWDWBORDER: no *CHAR group at all still falls back to the plain CS
   ].join('\n') + '\n';
   const model = DspfParser.parseDspf(src);
   const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('the explicit *COLOR RED still wins outright', screen.window.border.color === DspfEngine.COLOR_HEX.RED);
+  check('the unset *CHAR group picks up the documented period/colon default instead of staying blank', screen.window.border.chars.join(',') === '.,.,.,:,:,:,.,:');
+
   const html = DspfEngine.renderScreenHtml(screen);
-  check('no dspf-window-char cells rendered when *CHAR is absent', !/dspf-window-char/.test(html));
-  check('the window div is NOT switched into char-mode', !/dspf-window-border-charmode/.test(html));
+  check('dspf-window-char cells ARE now rendered (the *CHAR default makes them "specified")', /dspf-window-char/.test(html));
+  check('the window div IS switched into char-mode', /dspf-window-border-charmode/.test(html));
+  check('the rendered border characters carry the explicit RED color, not the *CHAR default\u2019s own unrelated color', new RegExp('dspf-window-char" style="grid-row:3;grid-column:10;color:' + DspfEngine.COLOR_HEX.RED).test(html));
+}
+
+console.log('\nTask L32: a partial WDWBORDER (only *DSPATR set) gets BOTH the *COLOR-blue and *CHAR-period/colon defaults, independent of each other');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: 'WDWBORDER((*DSPATR HI))' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('the explicit *DSPATR HI still wins outright', screen.window.border.attrs.indexOf('HI') >= 0);
+  check('the unset *COLOR group defaults to blue', screen.window.border.color === DspfEngine.COLOR_HEX.BLU);
+  check('the unset *CHAR group defaults to the period/colon pattern', screen.window.border.chars.join(',') === '.,.,.,:,:,:,.,:');
 }
 
 console.log('\nWDWBORDER: record-level keyword takes precedence over a file-level default (matches every other record-vs-file DDS keyword)');

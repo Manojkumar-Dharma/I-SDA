@@ -2450,7 +2450,12 @@ function runWindowBorderAndDefaultColorScenario() {
     const doc = dom.window.document;
     const windowEl = doc.querySelector('.dspf-window-border');
     check('setup: the window renders', !!windowEl);
-    check('WDWBORDER *COLOR RED is applied as the window\u2019s own border color (COLOR_HEX.RED = #ff5c5c)', windowEl.style.borderColor === 'rgb(255, 92, 92)' || /#ff5c5c/i.test(windowEl.getAttribute('style') || ''));
+    // Task L32: this WDWBORDER doesn't specify *CHAR, so it now picks up the
+    // documented period/colon default and switches into char-mode - *COLOR
+    // RED is applied per-character (see the char-cell check below) rather
+    // than as a plain box border-color, which char-mode suppresses.
+    const charCells = Array.from(doc.querySelectorAll('.dspf-window-char'));
+    check('WDWBORDER *COLOR RED is applied to the (now-defaulted) border characters (COLOR_HEX.RED = #ff5c5c)', charCells.length > 0 && charCells.every((el) => /#ff5c5c/i.test(el.getAttribute('style') || '')));
     check('WDWBORDER *DSPATR HI adds the bolder-border class', windowEl.classList.contains('dspf-window-border-hi'));
 
     runDefaultColorScenario();
@@ -2982,7 +2987,7 @@ function runDefaultWindowBorderScenario() {
     check('bottom-left corner is a colon (NOT a period, per the documented irregular default)', bottomLeftCorner && bottomLeftCorner.textContent === ':');
     check('bottom border (middle) is a period', bottomBorderMid && bottomBorderMid.textContent === '.');
 
-    console.log('\n  an EXPLICIT WDWBORDER still wins outright - this default only ever applies when the keyword is entirely absent');
+    console.log('\n  an EXPLICIT WDWBORDER value still wins outright over the L29 "entirely absent" default, but Task L32 now backfills any of ITS OWN unset sub-parameters with IBM\u2019s documented per-parameter default instead of leaving them blank');
     const explicitSrc =
       [
         '     A          R WIN2',
@@ -3004,9 +3009,10 @@ function runDefaultWindowBorderScenario() {
     });
     setTimeout(() => {
       const explicitDoc = explicitDom.window.document;
-      const explicitWindowEl = explicitDoc.querySelector('.dspf-window-border');
-      check('an explicit WDWBORDER(*COLOR RED) with no *CHAR still renders NO character overlay (unaffected by the new default - that default is scoped to "no WDWBORDER at all")', !explicitDoc.querySelector('.dspf-window-char'));
-      check('the explicit red color is applied to the plain box border, not overridden by the new blue default', explicitWindowEl.style.borderColor === 'rgb(255, 92, 92)' || /#ff5c5c/i.test(explicitWindowEl.getAttribute('style') || ''));
+      const explicitCharCells = Array.from(explicitDoc.querySelectorAll('.dspf-window-char'));
+      check('Task L32: WDWBORDER(*COLOR RED) with no *CHAR now DOES render a character overlay (the unset *CHAR group picks up the documented period/colon default)', explicitCharCells.length > 0);
+      check('the rendered border characters carry the explicit red color (own *COLOR still wins), not the entirely-separate L29 blue default', explicitCharCells.every((el) => /#ff5c5c/i.test(el.getAttribute('style') || '')));
+      check('the default period/colon pattern is used for the *CHAR positions themselves', explicitCharCells.some((el) => el.textContent === '.') && explicitCharCells.some((el) => el.textContent === ':'));
 
       console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
       process.exit(failures === 0 ? 0 : 1);

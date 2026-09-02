@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-02 — Partial WDWBORDER per-sub-parameter defaults (Task L32)
+
+- **0.10.14** — Task L32: a `WDWBORDER` keyword that's present but only sets SOME of its sub-parameters (e.g. only `*DSPATR`, or only `*COLOR`) now gets IBM's own documented default for each sub-parameter group left unset (`*COLOR` -> blue, `*CHAR` -> the period/colon pattern), matching the "entirely absent" default L29 already applied — an explicit `*COLOR`/`*CHAR` still always wins. Deferred sliver from L29.
+
 ## 2026-09-02 — Cmd key multi-instance conditioning, CMP legacy synonym (Tasks L31, L34)
 
 - **0.10.13** — Task L31: command keys (`CAnn`/`CFnn`) now support multiple independently-conditioned instances of the SAME key number (e.g. F3 reading "Exit" under one indicator and "Cancel" under another), a deferred sliver from L27. New index-based `setCommandKeyAt`/`removeCommandKeyAt` pair edits/removes one specific instance without disturbing a sibling instance of the same number; `allCommandKeyNumbers()` replaces the old already-used-number exclusion in the "+ Add command key" picker.
