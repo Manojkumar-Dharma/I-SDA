@@ -116,5 +116,26 @@ console.log('\nsetValidityCheckInstances - unrelated keywords on the field are l
   check('clearing all instances removes ONLY the validity-check keyword, COLOR still there', kw.length === 1 && kw[0].name === 'COLOR');
 }
 
+console.log('\nBug fix (Task L34 - watch for other legacy-keyword-synonym gaps beyond ROLLUP/ROLLDOWN): CMP is a documented legacy alternate spelling of COMP (IBM\u2019s own DDS Reference: "This keyword is equivalent to the COMP keyword... The COMP keyword is preferred")');
+{
+  const kw = [{ name: 'CMP', parameters: 'GT 0', conditions: [], raw: '', sourceLines: [] }];
+  const instances = DspfWriter.getValidityCheckInstances(kw);
+  check('a raw CMP keyword is recognized by getValidityCheckInstances at all (previously invisible - not in VALIDITY_CHECK_KEYWORDS)', instances.length === 1);
+  check('read back with kind normalized to COMP, not CMP', instances[0] && instances[0].kind === 'COMP');
+  check('parameters carried over unchanged', instances[0] && instances[0].parameters === 'GT 0');
+
+  const legacy = DspfWriter.getValidityCheck(kw);
+  check('the older superseded getValidityCheck also recognizes CMP, normalized to COMP', legacy.kind === 'COMP' && legacy.parameters === 'GT 0');
+
+  console.log('  editing a CMP-sourced field through the picker at all normalizes it to COMP - the dropdown never offers CMP as a kind, so any re-commit writes COMP');
+  const recommitted = DspfWriter.setValidityCheckInstances(kw, instances);
+  check('re-committing the read-back instances writes COMP, not CMP', recommitted.length === 1 && recommitted[0].name === 'COMP');
+  check('no stray CMP left behind', !recommitted.some((k) => k.name === 'CMP'));
+
+  console.log('  clearing validity check on a CMP-sourced field removes the legacy CMP entry too (not left behind as an unrecognized keyword)');
+  const cleared = DspfWriter.setValidityCheckInstances(kw, []);
+  check('CMP is gone', !cleared.some((k) => k.name === 'CMP' || k.name === 'COMP'));
+}
+
 console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);
