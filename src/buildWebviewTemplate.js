@@ -2730,12 +2730,16 @@ const htmlTemplate = `<!DOCTYPE html>
    * number already used by some record does NOT block adding it at the file
    * level too (that record's own definition simply keeps overriding the
    * file-level one it now shares a number with; see the comment above
-   * DspfWriter.availableCommandKeyNumbers).
+   * DspfWriter.availableCommandKeyNumbers). Task L31: this now uses
+   * DspfWriter.allCommandKeyNumbers() (always "01".."24") instead - a
+   * number already used WITHIN this same scope no longer excludes it
+   * either, since real SDA allows multiple independently-conditioned
+   * instances of the same number (see setCommandKeyAt's own doc comment).
    */
 
   function renderFileProps() {
     const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords, expandedKeywordConditioning);
-    const availableForFile = DspfWriter.availableCommandKeyNumbers(model.fileKeywords);
+    const availableForFile = DspfWriter.allCommandKeyNumbers();
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, availableForFile, 'file', expandedKeywordConditioning);
     // Task L13 - file-level comment lines (the same "preamble" area file
     // keywords like DSPSIZ live in) get their own tab, same shape as the
@@ -3630,8 +3634,11 @@ const htmlTemplate = `<!DOCTYPE html>
     // --- Command keys tab --- (only this record's own keywords exclude
     // numbers here; a number already used at the file level can still be
     // picked to override it for this record - see the comment above
-    // DspfWriter.availableCommandKeyNumbers)
-    const availableForRecord = DspfWriter.availableCommandKeyNumbers(rec.keywords);
+    // DspfWriter.availableCommandKeyNumbers). Task L31: uses
+    // DspfWriter.allCommandKeyNumbers() now - a number already used
+    // WITHIN this record no longer excludes it either (multiple
+    // independently-conditioned instances of the same number).
+    const availableForRecord = DspfWriter.allCommandKeyNumbers();
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('this record', rec.keywords, availableForRecord, 'record', expandedKeywordConditioning);
 
     // --- Structure tab: help entries + source field order + reference fields + comments ---

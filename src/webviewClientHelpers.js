@@ -511,16 +511,27 @@
     if (parsed.length === 0) {
       html += '<div class="empty-state" style="margin-bottom:6px;">None defined.</div>';
     }
-    parsed.forEach(function (k) {
+    // Task L31: `idx` (this instance's own 0-based position among ALL
+    // command-key instances, in source order - the SAME numbering
+    // setCommandKeyAt/removeCommandKeyAt use) is each row's real identity
+    // now, not `k.number` - real SDA allows multiple instances of the
+    // SAME number (e.g. F3 reading "Exit" under one indicator and
+    // "Cancel" under another), so `data-number` alone can no longer
+    // uniquely pick a row. `data-number` is kept on every element below
+    // too (display, and so any pre-L31 selector matching a still-unique
+    // number in a file with no duplicates keeps working unchanged), but
+    // wireCommandKeysSection's own remove/conditioning wiring always acts
+    // on `data-index`.
+    parsed.forEach(function (k, idx) {
       var label = 'F' + parseInt(k.number, 10) + ' = ' + k.type + k.number + (k.indicator ? ' (ind ' + k.indicator + ')' : '') + (k.text ? " '" + k.text + "'" : '');
-      var condExpandKey = idPrefix + '-cmdkey-' + k.number + ':cond';
+      var condExpandKey = idPrefix + '-cmdkey-' + idx + ':cond';
       var condSummary = k.conditions.length > 0 ? ' (' + k.conditions.length + ')' : '';
       var condExpanded = !!(expandedSet && expandedSet.has(condExpandKey));
-      html += '<div class="cmdkey-row" data-prefix="' + idPrefix + '" data-number="' + k.number + '" style="margin-bottom:6px;">';
-      html += '<span class="keyword-chip">' + escapeHtml(label) + '<button class="cmdkey-remove" data-prefix="' + idPrefix + '" data-number="' + k.number + '">\u00d7</button></span>';
-      html += '<span class="kw-cond-toggle cmdkey-cond-toggle" data-prefix="' + idPrefix + '" data-number="' + k.number + '" style="margin-left:6px;">Conditioning' + condSummary + (condExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      html += '<div class="cmdkey-row" data-prefix="' + idPrefix + '" data-number="' + k.number + '" data-index="' + idx + '" style="margin-bottom:6px;">';
+      html += '<span class="keyword-chip">' + escapeHtml(label) + '<button class="cmdkey-remove" data-prefix="' + idPrefix + '" data-number="' + k.number + '" data-index="' + idx + '">\u00d7</button></span>';
+      html += '<span class="kw-cond-toggle cmdkey-cond-toggle" data-prefix="' + idPrefix + '" data-number="' + k.number + '" data-index="' + idx + '" style="margin-left:6px;">Conditioning' + condSummary + (condExpanded ? ' \u25b4' : ' \u25be') + '</span>';
       if (condExpanded) {
-        html += '<div class="kw-cond-body">' + conditionsEditorHtml(k.conditions, idPrefix + '-cmdkey-' + k.number + '-cond', expandedSet) + '</div>';
+        html += '<div class="kw-cond-body">' + conditionsEditorHtml(k.conditions, idPrefix + '-cmdkey-' + idx + '-cond', expandedSet) + '</div>';
       }
       html += '</div>';
     });
@@ -533,44 +544,55 @@
     html += '<div class="two-col" style="margin-top:4px;">' +
       '<input type="text" class="cmdkey-indicator" data-prefix="' + idPrefix + '" placeholder="indicator (opt)" maxlength="2" />' +
       '<input type="text" class="cmdkey-text" data-prefix="' + idPrefix + '" placeholder="on-screen text (opt)" /></div>';
-    html += '<button class="secondary cmdkey-add" data-prefix="' + idPrefix + '" style="width:100%;margin-top:6px;" ' +
-      (availableNumbers.length === 0 ? 'disabled title="All 24 key numbers are already assigned"' : '') + '>+ Add command key</button>';
+    html += '<button class="secondary cmdkey-add" data-prefix="' + idPrefix + '" style="width:100%;margin-top:6px;">+ Add command key</button>';
+    // Task L31: a number already in use is no longer excluded from
+    // `availableNumbers` (see allCommandKeyNumbers/
+    // availableCommandKeyNumbers's own updated doc comments) - adding
+    // another, independently-conditioned instance of an already-used
+    // number is the whole point, so the "+ Add" button is never disabled
+    // for that reason anymore (only if somehow 0 numbers were passed in
+    // at all, which no current caller does).
     return html;
   }
 
   function wireCommandKeysSection(idPrefix, keywords, onChange, expandedSet, rerender) {
     document.querySelectorAll('.cmdkey-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        onChange(DspfWriter.removeCommandKey(keywords, btn.getAttribute('data-number')));
+        onChange(DspfWriter.removeCommandKeyAt(keywords, parseInt(btn.getAttribute('data-index'), 10)));
       });
     });
 
     // Each existing key's own Conditioning toggle/editor (Task L27: "cmd
-    // keys can also have conditionings") - edits that ONE key's conditions
-    // in place (same type/indicator/text, only the conditions change), via
-    // setCommandKey's own "replace the entry for this number" behavior.
-    // Deliberately no equivalent staging step on the "+ Add" form itself -
-    // conditionsEditorHtml/wireConditionsEditor commit immediately on every
-    // click (no batched-until-Add mode, unlike repeatableConditionedInstancesHtml's
-    // own staging row), so there's no stable place to hold a not-yet-created
-    // key's conditions between edits; add the key first (unconditioned, same
-    // as always), then expand ITS OWN Conditioning toggle below - matches
-    // flagRowHtml's own precedent, which likewise only conditions an
-    // existing row, never a staging/creation step.
+    // keys can also have conditionings"). Task L31: this now edits the
+    // ONE instance at this row's own `data-index` via setCommandKeyAt
+    // (same type/number/indicator/text, only the conditions change),
+    // rather than setCommandKey's older "replace whatever has this
+    // number" behavior, which would have silently deleted a SIBLING
+    // instance of the same number (e.g. editing "Exit"'s conditioning
+    // would have wiped out the separate "Cancel" instance of the same
+    // key). Deliberately still no equivalent staging step on the "+ Add"
+    // form itself - conditionsEditorHtml/wireConditionsEditor commit
+    // immediately on every click (no batched-until-Add mode, unlike
+    // repeatableConditionedInstancesHtml's own staging row), so there's
+    // no stable place to hold a not-yet-created key's conditions between
+    // edits; add the key first (unconditioned, same as always), then
+    // expand ITS OWN Conditioning toggle below - matches flagRowHtml's
+    // own precedent, which likewise only conditions an existing row,
+    // never a staging/creation step.
     if (expandedSet && rerender) {
       document.querySelectorAll('.cmdkey-cond-toggle[data-prefix="' + idPrefix + '"]').forEach(function (toggle) {
-        var number = toggle.getAttribute('data-number');
-        var expandKey = idPrefix + '-cmdkey-' + number + ':cond';
+        var index = parseInt(toggle.getAttribute('data-index'), 10);
+        var expandKey = idPrefix + '-cmdkey-' + index + ':cond';
         toggle.addEventListener('click', function () {
           if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
           else expandedSet.add(expandKey);
           rerender();
         });
         if (expandedSet.has(expandKey)) {
-          var existing = DspfWriter.parseCommandKeys(keywords).find(function (k) { return k.number === number; });
+          var existing = DspfWriter.parseCommandKeys(keywords)[index];
           if (existing) {
-            wireConditionsEditor(idPrefix + '-cmdkey-' + number + '-cond', existing.conditions, function (newConditions) {
-              onChange(DspfWriter.setCommandKey(keywords, existing.type, existing.number, existing.indicator, existing.text, newConditions));
+            wireConditionsEditor(idPrefix + '-cmdkey-' + index + '-cond', existing.conditions, function (newConditions) {
+              onChange(DspfWriter.setCommandKeyAt(keywords, index, existing.type, existing.number, existing.indicator, existing.text, newConditions));
             }, expandedSet, rerender);
           }
         }
@@ -586,7 +608,12 @@
         if (!number) return;
         var indicator = document.querySelector('.cmdkey-indicator[data-prefix="' + idPrefix + '"]').value.trim();
         var text = document.querySelector('.cmdkey-text[data-prefix="' + idPrefix + '"]').value.trim();
-        onChange(DspfWriter.setCommandKey(keywords, type, number, indicator || null, text || null));
+        // Task L31: append (index === current count) rather than
+        // setCommandKey's replace-by-number, so adding a second instance
+        // of an already-used number keeps the first one intact instead
+        // of overwriting it.
+        var count = DspfWriter.parseCommandKeys(keywords).length;
+        onChange(DspfWriter.setCommandKeyAt(keywords, count, type, number, indicator || null, text || null));
       });
     }
   }

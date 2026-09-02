@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-02 — Cmd key multi-instance conditioning (Task L31)
+
+- **0.10.12** — Task L31: command keys (`CAnn`/`CFnn`) now support multiple independently-conditioned instances of the SAME key number (e.g. F3 reading "Exit" under one indicator and "Cancel" under another), a deferred sliver from L27. New index-based `setCommandKeyAt`/`removeCommandKeyAt` pair edits/removes one specific instance without disturbing a sibling instance of the same number; `allCommandKeyNumbers()` replaces the old already-used-number exclusion in the "+ Add command key" picker.
+
 ## 2026-09-02 — Cmd key conditioning, panel reorder, window border/drag fixes (Tasks L27–L30)
 
 - **0.10.11** — Task L27: command keys (`CAnn`/`CFnn`) can now carry indicator conditioning. Task L28: the open file's own name in the left panel moved up, right under the panel's own heading. Task L29: windows with no `WDWBORDER` anywhere now get the real DDS-documented default border (period/colon in blue) instead of a plain unstyled box. Task L30: fixed the window move handle snapping to the raw cursor position instead of preserving the drag's grab offset.

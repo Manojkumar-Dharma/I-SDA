@@ -566,12 +566,20 @@
   }
 
   /** Key numbers ("01".."24") not already claimed WITHIN the given scope's own keyword
-   *  list - what that scope's new-key picker should offer. Pass the file's keywords when
-   *  adding a file-level key, or a single record's own keywords when adding a record-level
-   *  key. Deliberately does NOT cross-check the other scope: a record is allowed to
-   *  (re)define a number already used at the file level (a per-record override, not a
-   *  conflict), and different records are independent scopes that may reuse the same
-   *  number for unrelated purposes - see the comment above parseCommandKeys. */
+   *  list - what that scope's new-key picker OFFERED before Task L31. Pass the file's
+   *  keywords when adding a file-level key, or a single record's own keywords when adding
+   *  a record-level key. Deliberately does NOT cross-check the other scope: a record is
+   *  allowed to (re)define a number already used at the file level (a per-record override,
+   *  not a conflict), and different records are independent scopes that may reuse the same
+   *  number for unrelated purposes - see the comment above parseCommandKeys.
+   *
+   *  Task L31 superseded this as the "+ Add command key" picker's own number list: real
+   *  SDA allows multiple independently-conditioned instances of the SAME number (see
+   *  setCommandKeyAt's own doc comment), so excluding an already-used number here would
+   *  block exactly the case L31 exists to support. commandKeysSectionHtml now uses
+   *  allCommandKeyNumbers() (always "01".."24") instead. This function is kept, unchanged,
+   *  for any other caller still relying on the older single-instance-per-number
+   *  exclusion. */
   function availableCommandKeyNumbers(scopeKeywords) {
     var used = {};
     parseCommandKeys(scopeKeywords).forEach(function (k) { used[k.number] = true; });
@@ -596,11 +604,12 @@
    *  silently written unconditioned regardless of what was already there. This still
    *  keeps the existing one-definition-per-number-per-scope model (see the file header
    *  comment above parseCommandKeys) - conditioning one key's SINGLE definition on/off,
-   *  not multiple independently-conditioned instances of the same number (real SDA's own
-   *  Design Image screen does support that too, e.g. F3 reading "Exit" vs "Cancel" under
-   *  different indicators, but that's a bigger multi-instance redesign - same family as
-   *  Task L1's COLOR/DSPATR states - deliberately left as a documented follow-up rather
-   *  than attempted here alongside 3 unrelated fixes). */
+   *  not multiple independently-conditioned instances of the same number. Task L31 added
+   *  that (real SDA's own Design Image screen does support it too, e.g. F3 reading "Exit"
+   *  vs "Cancel" under different indicators) as setCommandKeyAt/removeCommandKeyAt below,
+   *  a separate index-based pair rather than a breaking change to this function's own
+   *  by-number signature - every existing caller here (including every test) keeps its
+   *  original single-instance-per-number behavior unchanged. */
   function setCommandKey(keywords, type, number, indicator, text, conditions) {
     var paddedNumber = padKeyNumber(number);
     var filtered = (keywords || []).filter(function (k) {
@@ -622,6 +631,83 @@
       var m = COMMAND_KEY_RE.exec(k.name);
       return !(m && m[2] === paddedNumber);
     });
+  }
+
+  /** All 24 possible key numbers ("01".."24"), unconditionally - the
+   *  multi-instance counterpart to availableCommandKeyNumbers now that a
+   *  number can have more than one instance (Task L31, see that
+   *  function's own doc comment for the full story). Exists as its own
+   *  named function, rather than callers hardcoding a `for` loop, purely
+   *  so "every number is always offered now" reads as a deliberate
+   *  choice at the call site instead of a mystery range. */
+  function allCommandKeyNumbers() {
+    var all = [];
+    for (var n = 1; n <= 24; n++) all.push(padKeyNumber(n));
+    return all;
+  }
+
+  /** Returns a NEW keywords array with the Nth (0-based, in the SAME
+   *  source-order this function's own instance ever appears in
+   *  parseCommandKeys' result) CAxx/CFxx instance replaced in place -
+   *  changing its type/number/indicator/text/conditions without touching
+   *  any OTHER command-key instance, INCLUDING another instance that
+   *  happens to share the same key number.
+   *
+   *  Task L31: real SDA's own Design Image screen allows multiple
+   *  independently-conditioned instances of the same key number - e.g.
+   *  F3 reading "Exit" under one indicator and "Cancel" under another,
+   *  each its own separate CA03 line. The older setCommandKey (still kept
+   *  above, unchanged, for every existing single-instance-per-number
+   *  caller) can't express this: it always removes EVERY existing
+   *  instance of a number before writing the one it was given, so editing
+   *  either "Exit" or "Cancel" through it would silently delete the
+   *  other. setCommandKeyAt instead targets one SPECIFIC instance by its
+   *  ordinal position, leaving every other instance - same number or not
+   *  - completely untouched.
+   *
+   *  Pass `index === parseCommandKeys(keywords).length` (one past the
+   *  end, e.g. the current count) to APPEND a brand new instance instead
+   *  of editing an existing one - this is what "+ Add command key" now
+   *  uses, deliberately without first checking whether that number is
+   *  already used (see allCommandKeyNumbers above) - adding a second
+   *  instance of an already-used number is exactly the point of this
+   *  function existing. */
+  function setCommandKeyAt(keywords, index, type, number, indicator, text, conditions) {
+    var all = keywords || [];
+    var cmdIndices = [];
+    all.forEach(function (k, i) { if (COMMAND_KEY_RE.test(k.name)) cmdIndices.push(i); });
+    var paddedNumber = padKeyNumber(number);
+    var params = '';
+    if (indicator != null && String(indicator).trim() !== '') {
+      params = padKeyNumber(indicator) + (text ? " '" + String(text).replace(/'/g, "''") + "'" : '');
+    }
+    var entry = { name: type.toUpperCase() + paddedNumber, parameters: params, conditions: conditions || [], raw: '', sourceLines: [] };
+    var next = all.slice();
+    if (index != null && index >= 0 && index < cmdIndices.length) {
+      next[cmdIndices[index]] = entry;
+    } else {
+      next.push(entry);
+    }
+    return next;
+  }
+
+  /** Returns a NEW keywords array with the Nth (0-based, same ordinal
+   *  numbering as setCommandKeyAt/parseCommandKeys) CAxx/CFxx instance
+   *  removed - Task L31's per-instance counterpart to removeCommandKey
+   *  (which removes EVERY instance sharing a number - still correct for
+   *  the single-instance-per-number callers that still use it, but wrong
+   *  here since it would delete a sibling instance too, e.g. removing the
+   *  "Cancel" CA03 would also take "Exit"'s CA03 with it). An
+   *  out-of-range `index` is a no-op (returns a shallow copy, same
+   *  "nothing to remove" convention every other bounds-checked setter in
+   *  this file follows rather than throwing). */
+  function removeCommandKeyAt(keywords, index) {
+    var all = keywords || [];
+    var cmdIndices = [];
+    all.forEach(function (k, i) { if (COMMAND_KEY_RE.test(k.name)) cmdIndices.push(i); });
+    if (index == null || index < 0 || index >= cmdIndices.length) return all.slice();
+    var removeAt = cmdIndices[index];
+    return all.filter(function (k, i) { return i !== removeAt; });
   }
 
   // -----------------------------------------------------------------------
@@ -3635,6 +3721,9 @@
     availableCommandKeyNumbers: availableCommandKeyNumbers,
     setCommandKey: setCommandKey,
     removeCommandKey: removeCommandKey,
+    allCommandKeyNumbers: allCommandKeyNumbers,
+    setCommandKeyAt: setCommandKeyAt,
+    removeCommandKeyAt: removeCommandKeyAt,
     reorderFields: reorderFields,
     getColorAttr: getColorAttr,
     setColorAttr: setColorAttr,

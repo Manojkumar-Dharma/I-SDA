@@ -579,6 +579,63 @@ console.log("\nTask L27: command keys (CAnn/CFnn) can carry indicator conditioni
   check('omitting the conditions argument still defaults to unconditioned', DspfWriter.parseCommandKeys(withoutConditionsArg).find((k) => k.number === '12').conditions.length === 0);
 }
 
+console.log('\nTask L31: command keys support multiple independently-conditioned instances of the SAME key number');
+{
+  const src = [
+    '     A          R MENU',
+    "     A                                  1  2'Hi'",
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  check('allCommandKeyNumbers always returns all 24, regardless of usage', DspfWriter.allCommandKeyNumbers().length === 24 && DspfWriter.allCommandKeyNumbers()[0] === '01' && DspfWriter.allCommandKeyNumbers()[23] === '24');
+
+  const condA = [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '80', not: false }] }];
+  const condB = [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '81', not: false }] }];
+
+  // setCommandKeyAt with index === current count (0, since nothing exists yet) appends.
+  let kw = DspfWriter.setCommandKeyAt(model.fileKeywords, 0, 'CA', 3, '90', 'Exit', condA);
+  check('first CA03 instance added (appended, since index 0 === count 0)', DspfWriter.parseCommandKeys(kw).length === 1);
+
+  // Appending a SECOND CA03 (index === current count again, now 1) does NOT remove the first.
+  kw = DspfWriter.setCommandKeyAt(kw, 1, 'CA', 3, '91', 'Cancel', condB);
+  const allCa03 = DspfWriter.parseCommandKeys(kw).filter((k) => k.number === '03');
+  check('a second, independently-conditioned CA03 instance was appended alongside the first, not replacing it', allCa03.length === 2);
+  check('the first instance (Exit, indicator 90, conditioned on 80) is untouched', allCa03.some((k) => k.text === 'Exit' && k.indicator === '90' && k.conditions[0].indicators[0].number === '80'));
+  check('the second instance (Cancel, indicator 91, conditioned on 81) was written correctly', allCa03.some((k) => k.text === 'Cancel' && k.indicator === '91' && k.conditions[0].indicators[0].number === '81'));
+
+  // Editing the SECOND instance in place (index 1) by number must not disturb the FIRST (also number 03).
+  const condC = [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '82', not: false }] }];
+  kw = DspfWriter.setCommandKeyAt(kw, 1, 'CA', 3, '91', 'Cancel now', condC);
+  const afterEdit = DspfWriter.parseCommandKeys(kw).filter((k) => k.number === '03');
+  check('editing the second instance in place still leaves exactly two CA03 instances', afterEdit.length === 2);
+  check('the first instance (Exit) is STILL untouched after editing the second one', afterEdit.some((k) => k.text === 'Exit' && k.conditions[0].indicators[0].number === '80'));
+  check("the second instance's text/conditioning were actually updated", afterEdit.some((k) => k.text === 'Cancel now' && k.conditions[0].indicators[0].number === '82'));
+
+  // A third, unrelated command key (CF12) added in between must not shift
+  // which instance index 1 refers to for a LATER edit against a stale
+  // index computed before the insert - this documents that index-based
+  // addressing is only ever safe against a keywords array captured at
+  // the SAME moment the index was read, same convention every other
+  // index/position-based setter in this codebase already follows.
+  kw = DspfWriter.setCommandKeyAt(kw, DspfWriter.parseCommandKeys(kw).length, 'CF', 12, null, null);
+  check('the unrelated CF12 key was added without disturbing either CA03 instance', DspfWriter.parseCommandKeys(kw).filter((k) => k.number === '03').length === 2 && DspfWriter.parseCommandKeys(kw).some((k) => k.number === '12'));
+
+  // removeCommandKeyAt removes ONLY the targeted instance, by index - not every instance sharing its number.
+  const indexOfSecondCa03 = DspfWriter.parseCommandKeys(kw).findIndex((k) => k.number === '03' && k.text === 'Cancel now');
+  kw = DspfWriter.removeCommandKeyAt(kw, indexOfSecondCa03);
+  const afterRemove = DspfWriter.parseCommandKeys(kw);
+  check('exactly one CA03 remains after removing the second instance by its own index', afterRemove.filter((k) => k.number === '03').length === 1);
+  check('the REMAINING CA03 is the first one (Exit), not the removed one', afterRemove.some((k) => k.number === '03' && k.text === 'Exit'));
+  check('the unrelated CF12 key survives removing a CA03 instance', afterRemove.some((k) => k.number === '12'));
+
+  // Out-of-range index is a safe no-op (same bounds-checked convention every other setter in this file follows).
+  const beforeOOB = kw.length;
+  kw = DspfWriter.removeCommandKeyAt(kw, 999);
+  check('removeCommandKeyAt with an out-of-range index is a no-op', kw.length === beforeOOB);
+  kw = DspfWriter.setCommandKeyAt(kw, 999, 'CA', 7, null, null);
+  check('setCommandKeyAt with an out-of-range (but not === count) index safely appends rather than throwing', DspfWriter.parseCommandKeys(kw).some((k) => k.number === '07'));
+}
+
 console.log("\nDspfWriter.applyFileKeywordsUpdate() - inserts a fresh block at the top when the file has none yet");
 {
   const src = [

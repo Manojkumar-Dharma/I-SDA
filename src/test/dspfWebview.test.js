@@ -839,13 +839,22 @@ function runCommandKeysScenario() {
     console.log('  Task L27: SCR1\'s own CA03 override can carry indicator conditioning too (\"cmd keys can also have conditionings\")');
     doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
     check('CA03 starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.cmdkey-cond-toggle[data-prefix="record"][data-number="03"]').textContent));
+    // Task L31: a command key's own conditioning-editor id prefix is now
+    // keyed by its ordinal INDEX among this scope's command-key instances
+    // (data-index), not its key number (data-number) - real SDA allows
+    // multiple instances of the same number, so the number alone can no
+    // longer identify a unique row. Read the row's own data-index here
+    // rather than hardcoding it, so this test doesn't silently depend on
+    // exactly which slot CA03 happens to land in.
+    const ca03Index = doc.querySelector('.cmdkey-cond-toggle[data-prefix="record"][data-number="03"]').getAttribute('data-index');
+    const ca03CondPrefix = 'record-cmdkey-' + ca03Index + '-cond';
     doc.querySelector('.cmdkey-cond-toggle[data-prefix="record"][data-number="03"]').dispatchEvent(new Event('click', { bubbles: true }));
     const cmdkeyPendingCountBefore = posted.length;
-    doc.querySelector('.cond-add-group[data-prefix="record-cmdkey-03-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + ca03CondPrefix + '"]').dispatchEvent(new Event('click', { bubbles: true }));
     check('clicking + OR condition does not write yet (pending, not committed)', posted.length === cmdkeyPendingCountBefore);
     const cmdkeyPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
     cmdkeyPendingNumInput.value = '80';
-    doc.querySelector('.cond-ind-add[data-prefix="record-cmdkey-03-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-ind-add[data-prefix="' + ca03CondPrefix + '"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     check('the pending-condition click did not itself post an edit; only the following + indicator click does', posted.length === cmdkeyPendingCountBefore + 1);
     last = posted[posted.length - 1];
     const scr1AfterCond = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'SCR1');
@@ -853,6 +862,20 @@ function runCommandKeysScenario() {
     check("SCR1's own CA03 is now conditioned on indicator 80", ca03AfterCond && ca03AfterCond.conditions.length === 1 && ca03AfterCond.conditions[0].indicators[0].number === '80');
     check("the CA03 override's own indicator (95) and text ('Local exit') survive the conditioning-only edit - not blanked out", ca03AfterCond.indicator === '95' && ca03AfterCond.text === 'Local exit');
     check("the unrelated record-level CF05 key is untouched by CA03's own conditioning edit", scr1AfterCond.keywords.some((k) => k.name === 'CF05'));
+
+    console.log('  Task L31: a SECOND, independently-conditioned CA03 instance can be added on top of the existing (now-conditioned) one, without disturbing it');
+    doc.querySelector('.cmdkey-type[data-prefix="record"]').value = 'CA';
+    doc.querySelector('.cmdkey-number[data-prefix="record"]').value = '03';
+    check('key 03 is STILL offered even though it is already in use twice over (file-level + this record) - Task L31 no longer excludes used numbers', Array.from(doc.querySelector('.cmdkey-number[data-prefix="record"]').options).some((o) => o.value === '03'));
+    doc.querySelector('.cmdkey-indicator[data-prefix="record"]').value = '81';
+    doc.querySelector('.cmdkey-text[data-prefix="record"]').value = 'Cancel';
+    doc.querySelector('.cmdkey-add[data-prefix="record"]').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    const scr1AfterSecondCa03 = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'SCR1');
+    const allCa03 = DspfWriter.parseCommandKeys(scr1AfterSecondCa03.keywords).filter((k) => k.number === '03');
+    check('SCR1 now carries TWO separate CA03 instances', allCa03.length === 2);
+    check('the first (Local exit, conditioned on 80) is untouched by adding the second', allCa03.some((k) => k.text === 'Local exit' && k.conditions.length === 1 && k.conditions[0].indicators[0].number === '80'));
+    check('the new second instance (Cancel, indicator 81) has no conditioning of its own', allCa03.some((k) => k.text === 'Cancel' && k.indicator === '81' && k.conditions.length === 0));
 
     runRulerScenario();
   }, 0);
