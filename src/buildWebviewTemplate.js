@@ -1794,6 +1794,20 @@ const htmlTemplate = `<!DOCTYPE html>
   function indicatorsForContext(recordName) {
     const set = new Set();
     const collect = (conds) => (conds || []).forEach((g) => g.indicators.forEach((i) => set.add(i.number)));
+
+    // File-level keywords (CAxx/CFxx command keys, ALARM, INDARA-family
+    // flags, etc. - see renderFileProps/fileKeywordsPanelsHtml) can carry
+    // their own conditioning indicator(s) too, and unlike record-level
+    // conditioning they apply across the WHOLE display file, not just one
+    // record - so, unlike everything else this function scopes to the
+    // currently-previewed record, file-level indicators are always
+    // included here regardless of which record is on screen. Previously
+    // these were skipped entirely: an indicator ONLY used to condition a
+    // file-level keyword never appeared in this list to toggle, even
+    // though it's genuinely "used on this screen" from real SDA's own
+    // point of view (file-level keywords apply to every record).
+    (model.fileKeywords || []).forEach((k) => collect(k.conditions));
+
     const collectRecord = (rec) => {
       if (!rec) return;
       collect(rec.conditions);
@@ -3669,15 +3683,42 @@ const htmlTemplate = `<!DOCTYPE html>
    * options.location instead of copyField's own one-row-below default, which is what was
    * causing the reported overlap.
    */
+  /**
+   * Task L36: the props panel shown while a 'COPY' pendingPlacement is active - the click
+   * that landed it has already chosen a starting line/column (still editable here, same
+   * "kept editable in case the click landed a cell or two off" reasoning renderPlacementProps'
+   * own doc comment gives for FIELD/CONSTANT). Length/type/keywords/conditions all come from
+   * pendingCopySource.field unchanged - only Line/Column plus (Task L43) the copy's own
+   * Name (for a named field) or text (for a literal constant) are editable here, since DDS
+   * doesn't allow two same-named fields in one record and a copy of a constant is commonly
+   * meant to say something slightly different, not read identically to the original.
+   * Reuses DspfWriter.copyField exactly as commitCopy did, only now with an explicit
+   * options.location/options.name/options.constantValue instead of copyField's own
+   * one-row-below-and-auto-numbered-name defaults.
+   */
   function renderCopyPlacementProps(recordName) {
     const source = pendingCopySource;
     if (!source) { pendingPlacement = null; render(); return; }
     const field = source.field;
     const isConstant = field.nameType === 'CONSTANT';
+    const isNamedField = !isConstant && !!field.name;
+    // A constant's "text" can also come from a system-value keyword (e.g. *DATE) rather
+    // than literal quoted text - field.constantValue is empty in that case (see L16's own
+    // fix for this same distinction) - so the editable text box only makes sense for a
+    // genuinely literal constant; a system-value constant's copy keeps reading identically
+    // to the original, same as every other keyword on it.
+    const isLiteralConstant = isConstant && !!field.constantValue;
     const rawLabel = isConstant ? (field.constantValue || '(constant)') : (field.name || '(field)');
     const label = rawLabel.length > 30 ? rawLabel.slice(0, 30) + '\u2026' : rawLabel;
+    const rec = model.records.find((r) => r.name === recordName);
+    const suggestedName = isNamedField && rec ? DspfWriter.nextAvailableFieldName(rec, field.name) : '';
     let html = '<div class="section-label">Copy ' + (isConstant ? 'constant' : 'field') + '</div>';
     html += '<div class="field-row"><label>Copy of</label><div>' + DspfEngine.escapeHtml(label) + '</div></div>';
+    if (isNamedField) {
+      html += '<div class="field-row"><label>Name</label><input type="text" id="p-copy-name" maxlength="10" value="' + DspfEngine.escapeHtml(suggestedName) + '" /></div>';
+    } else if (isLiteralConstant) {
+      html += '<div class="field-row"><label>Text</label><input type="text" id="p-copy-text" value="' + DspfEngine.escapeHtml(field.constantValue) + '" /></div>';
+    }
     html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
     html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
     html += '<div class="rename-error" id="p-place-error"></div>';
@@ -3689,8 +3730,8 @@ const htmlTemplate = `<!DOCTYPE html>
     document.getElementById('p-place-add').addEventListener('click', () => {
       const errorEl = document.getElementById('p-place-error');
       errorEl.textContent = '';
-      const rec = model.records.find((r) => r.name === recordName);
-      if (!rec) { errorEl.textContent = 'No record selected.'; return; }
+      const targetRec = model.records.find((r) => r.name === recordName);
+      if (!targetRec) { errorEl.textContent = 'No record selected.'; return; }
       // Copying into a DIFFERENT record than the one the field was copied from is deliberately
       // allowed (same as Ctrl+X/C/V's cross-record paste - see clipboardField's own doc
       // comment) - the recordName passed in here is whichever record is currently shown, not
@@ -3698,8 +3739,24 @@ const htmlTemplate = `<!DOCTYPE html>
       const line = Math.max(1, parseInt(document.getElementById('p-place-line').value, 10) || pendingPlacement.line);
       const column = Math.max(1, parseInt(document.getElementById('p-place-col').value, 10) || pendingPlacement.column);
 
+      const copyOptions = { location: { line: line, column: column } };
+      if (isNamedField) {
+        const name = document.getElementById('p-copy-name').value.trim().toUpperCase();
+        if (!name) { errorEl.textContent = 'Enter a name for the copy.'; return; }
+        if (!WebviewClientHelpers.isValidDdsName(name)) { errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
+        // Renaming into the SAME name the copy would already default to is fine (it's
+        // guaranteed free by nextAvailableFieldName above); only a collision with some
+        // OTHER already-used name in the target record is actually blocked.
+        if (targetRec.fields.some((f) => f.name === name)) { errorEl.textContent = 'A field named "' + name + '" already exists in this record.'; return; }
+        copyOptions.name = name;
+      } else if (isLiteralConstant) {
+        const text = document.getElementById('p-copy-text').value;
+        if (!text) { errorEl.textContent = 'Enter the constant text.'; return; }
+        copyOptions.constantValue = text;
+      }
+
       commitSourceChange(
-        (lines) => DspfWriter.copyField(rec, lines, field, { location: { line: line, column: column } }),
+        (lines) => DspfWriter.copyField(targetRec, lines, field, copyOptions),
         () => {
           const freshRec = model.records.find((r) => r.name === recordName);
           const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];

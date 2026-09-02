@@ -3033,11 +3033,19 @@
    * below the original, same column - purely a starting point the user
    * repositions by dragging; no collision/bounds checking is done here,
    * same as insertField itself).
+   *
+   * `options.constantValue` (Task L43) overrides a literal constant's own
+   * text - defaults to the source's own text unchanged. Has no effect on
+   * a named FIELD (which has no constantValue at all) or a system-value
+   * constant (constantValue is already empty on those - see L16's own
+   * literal-vs-system-value distinction; there's no literal text on that
+   * kind of constant to override).
    */
   function copyField(record, sourceLines, field, options) {
     options = options || {};
     var isNamedField = field.nameType === 'FIELD' && !!field.name;
     var name = isNamedField ? (options.name || nextAvailableFieldName(record, field.name)) : '';
+    var constantValue = options.constantValue !== undefined ? options.constantValue : field.constantValue;
     var location = options.location || {
       line: field.location.line != null ? field.location.line + 1 : null,
       column: field.location.column,
@@ -3045,7 +3053,7 @@
     var newField = {
       nameType: field.nameType,
       name: name,
-      constantValue: field.constantValue,
+      constantValue: constantValue,
       length: field.length,
       dataType: field.dataType,
       decimalPositions: field.decimalPositions,

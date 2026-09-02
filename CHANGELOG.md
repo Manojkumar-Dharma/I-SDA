@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — File-level conditioning indicators now shown, copy placement supports renaming (Task L43)
+
+- **0.10.21** — Task L43: an indicator used only on a file-level keyword (a command key, `ALARM`, etc.) now shows up in the left panel's "Conditioning indicators (preview)" list — it was previously invisible there since only record/field-level conditioning was collected. The copy-placement panel (Task L36) now also lets you rename the copy (for a named field, pre-filled with the same auto-generated name it would otherwise use) or edit the text (for a literal constant, pre-filled with the original) before placing it, instead of always keeping the source's name/text unchanged.
+
 ## 2026-09-03 — Comment line numbers + choose-where-to-add (Task L42)
 
 - **0.10.20** — Task L42: the file-level Comments tab's rows previously showed only the comment text with no indication of which source line each one lived at, and "+ Add comment" always appended after the last existing comment. Every comment row (file-level and record-level) now shows its own source line as a small "L{n}" badge, and the file-level tab gained an optional "Line #" input next to Add comment — type a target line and the new comment lands exactly there, pushing everything from that line down by one; left blank, it still appends at the end as before. `DspfWriter.addComment` gained an optional `desiredLine` parameter to support this, clamped to a safe range.

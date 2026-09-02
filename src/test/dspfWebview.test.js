@@ -533,7 +533,9 @@ function runCopyFieldScenario() {
     check('opens a placement form pre-filled with the clicked line', !!placeLine && placeLine.value === '9');
     check('...and column', !!placeCol && placeCol.value === '32');
     check('labels what is being copied', doc.getElementById('propsBody') && doc.getElementById('propsBody').textContent.includes('CUSTNAME'));
-    check('the "Place copy" button is present (no Name/Length/Type inputs - those all come from the source field)', !!doc.getElementById('p-place-add') && !doc.getElementById('p-place-name'));
+    const copyNameInput = doc.getElementById('p-copy-name');
+    check('Task L43: a Name input is offered, pre-filled with the same auto-generated distinct name copyField would otherwise pick (no Length/Type inputs - those still come from the source field)', !!copyNameInput && copyNameInput.value === 'CUSTNAME2' && !doc.getElementById('p-place-name'));
+    check('the "Place copy" button is present', !!doc.getElementById('p-place-add'));
 
     doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
@@ -550,6 +552,39 @@ function runCopyFieldScenario() {
     check('the new copy is selected (Name input shows the auto-generated name)', doc.getElementById('p-name') && doc.getElementById('p-name').value === 'CUSTNAME2');
     check('the placement form is gone afterward (pendingPlacement/pendingCopySource cleared)', !doc.getElementById('p-place-add'));
 
+    console.log('  Task L43: copy placement lets the user rename the copy instead of accepting the auto-generated name');
+    posted.length = 0;
+    // Re-select the original CUSTNAME field (not the CUSTNAME2 copy just made)
+    // so the auto-generated suggestion this second copy starts from is predictable.
+    const origFieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME') && !el.textContent.includes('CUSTNAME2'));
+    origFieldEl.dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('p-copy').dispatchEvent(new Event('click', { bubbles: true }));
+    // Re-query .dspf-screen fresh - the earlier `screenEl` reference is stale by now
+    // (render() replaces screenOutput's innerHTML on every selection/placement-mode
+    // change, so it no longer points at a node in the live document).
+    doc.querySelector('.dspf-screen').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 405, clientY: 155 }));
+    const renameInput = doc.getElementById('p-copy-name');
+    check('setup: the copy-name input is present again for a second copy', !!renameInput);
+    renameInput.value = 'CUSTOM';
+    renameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+    let renameEdit = posted.find((m) => m.type === 'applyEdit');
+    check('the copy uses the user-chosen name instead of an auto-generated one', renameEdit && /\bCUSTOM\b/.test(renameEdit.text));
+    check('the original field is still untouched', renameEdit && /CUSTNAME\s+30A/.test(renameEdit.text));
+
+    console.log('  Task L43: renaming the copy to an already-used name in the target record is rejected');
+    posted.length = 0;
+    Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME') && !el.textContent.includes('CUSTNAME2') && !el.textContent.includes('CUSTOM')).dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('p-copy').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.dspf-screen').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 505, clientY: 155 }));
+    const renameInput2 = doc.getElementById('p-copy-name');
+    renameInput2.value = 'CUSTNAME';
+    renameInput2.dispatchEvent(new Event('input', { bubbles: true }));
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+    check('no applyEdit posted for a colliding name', !posted.some((m) => m.type === 'applyEdit'));
+    check('an actionable error is shown', /already exists/i.test(doc.getElementById('p-place-error').textContent));
+    doc.getElementById('p-place-cancel').dispatchEvent(new Event('click', { bubbles: true }));
+
     console.log('  Ctrl+D on a constant');
     posted.length = 0;
     const constantEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('Some label'));
@@ -562,6 +597,20 @@ function runCopyFieldScenario() {
     check('posts applyEdit after Ctrl+D', !!applyEdit);
     check('the constant text is duplicated (appears twice)', applyEdit && (applyEdit.text.match(/Some label/g) || []).length === 2);
     check('the screen re-renders with one more field', doc.querySelectorAll('.dspf-field').length === beforeCount2 + 1);
+
+    console.log('  Task L43: copy placement lets the user edit a literal constant\'s own text, not just its position');
+    posted.length = 0;
+    Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('Some label')).dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('p-copy').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.dspf-screen').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 605, clientY: 195 }));
+    const copyTextInput = doc.getElementById('p-copy-text');
+    check('a Text input is offered, pre-filled with the source constant\'s own text', !!copyTextInput && copyTextInput.value === 'Some label');
+    copyTextInput.value = 'A different label';
+    copyTextInput.dispatchEvent(new Event('input', { bubbles: true }));
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+    const constCopyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('the copy uses the edited text, not a duplicate of the original', constCopyEdit && /A different label/.test(constCopyEdit.text));
+    check('the original constant text is untouched', constCopyEdit && /Some label/.test(constCopyEdit.text));
 
     console.log('  Ctrl+D while typing in a text input must NOT copy the selected field');
     posted.length = 0;
@@ -2627,6 +2676,46 @@ function runSflIndicatorPairingScenario() {
     labels2 = indicatorLabels();
     check('SFLCTL\'s own indicator 62 is listed', labels2.includes('Ind 62'));
     check('the paired SFL record\'s indicator 61 is ALSO listed - toggling it changes the subfile rows drawn here', labels2.includes('Ind 61'));
+
+    runFileIndicatorScenario();
+  }, 0);
+}
+
+// Bug fix (Task L43): a conditioning indicator used ONLY on a file-level
+// keyword (CAxx/CFxx command keys, ALARM, etc. - see fileKeywordsPanelsHtml)
+// never showed up in the left-panel indicator list at all, because
+// indicatorsForContext() previously only walked record/field-level
+// conditions and never model.fileKeywords. Unlike record-level conditioning,
+// a file-level keyword's conditioning applies across every record in the
+// file, so (unlike the SFL-pairing scoping above) this always shows
+// regardless of which record is currently being previewed.
+function runFileIndicatorScenario() {
+  console.log('\nBug fix: a conditioning indicator used ONLY on a file-level keyword (never on any record/field) now shows up in the left-panel indicator list too');
+  const src =
+    [
+      // 71 conditions the file-level CA03 command key only - no record or
+      // field (or their own keywords) ever reference indicator 71.
+      buildLine({ seq: '00010', ind1: '71', func: 'CA03' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'FILEIND.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const labels = Array.from(doc.getElementById('indicatorList').querySelectorAll('span')).map((el) => el.textContent.trim());
+    check('indicator 71 (conditioning ONLY the file-level CA03 keyword) is listed for toggling', labels.includes('Ind 71'));
 
     runChgInpDftFileRecordScenario();
   }, 0);
