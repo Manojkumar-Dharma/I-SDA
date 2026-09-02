@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-02 — Field-drag off-origin jump fix (Task L33)
+
+- **0.10.15** — Task L33: field-dragging (`startDrag`/`startGroupDrag`) had the identical absolute-snap-to-cursor bug L30 fixed for window-dragging — grabbing a field anywhere other than its exact top-left cell jumped it instead of preserving the click offset. Both now thread the mousedown event through and compute moves as a delta from the grab point, same as `startWindowMove`. Deferred sliver from L30.
+
 ## 2026-09-02 — Partial WDWBORDER per-sub-parameter defaults (Task L32)
 
 - **0.10.14** — Task L32: a `WDWBORDER` keyword that's present but only sets SOME of its sub-parameters (e.g. only `*DSPATR`, or only `*COLOR`) now gets IBM's own documented default for each sub-parameter group left unset (`*COLOR` -> blue, `*CHAR` -> the period/colon pattern), matching the "entirely absent" default L29 already applied — an explicit `*COLOR`/`*CHAR` still always wins. Deferred sliver from L29.

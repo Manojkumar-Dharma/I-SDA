@@ -2013,7 +2013,7 @@ const htmlTemplate = `<!DOCTYPE html>
           // THIS row instance moves together, and every NAMED field of the
           // record is batch-committed together - see commitGroupEdit.
           const siblingEls = Array.from(primaryScreenEl.querySelectorAll('[data-tag="' + tag.replace(/"/g, '\\\\"') + '"]'));
-          startGroupDrag(siblingEls, ownerRecord.fields.filter((f) => f.name), ownerRecordName);
+          startGroupDrag(siblingEls, ownerRecord.fields.filter((f) => f.name), ownerRecordName, e);
         } else if (selectedKeys.length > 1 && selectedKeys.some((k) => k.sourceLine === underlying.sourceLine)) {
           // Task L10: dragging a field that's already part of a multi-select
           // (built via shift/ctrl-click or rubber-band drag-select above)
@@ -2028,15 +2028,15 @@ const htmlTemplate = `<!DOCTYPE html>
           // comment) - so any stray cross-record entry is simply dropped.
           const selectedFields = getSelectedFields().filter((sf) => sf.record.name === ownerRecordName);
           const selectedEls = selectedFields.map((sf) => fieldElBySourceLine[sf.field.sourceLine]).filter(Boolean);
-          if (selectedEls.length > 1) startGroupDrag(selectedEls, selectedFields.map((sf) => sf.field), ownerRecordName);
-          else startDrag(el, underlying, ownerRecordName);
+          if (selectedEls.length > 1) startGroupDrag(selectedEls, selectedFields.map((sf) => sf.field), ownerRecordName, e);
+          else startDrag(el, underlying, ownerRecordName, e);
         } else {
           // Also the pulldown-field path: unlike a subfile row, a PULLDOWN
           // record's fields aren't a repeated template - it's an ordinary
           // record shown as an overlay - so a plain single-field drag,
           // writing back to its own PULLDOWN record via ownerRecordName, is
           // the correct model here, not a group drag.
-          startDrag(el, underlying, ownerRecordName);
+          startDrag(el, underlying, ownerRecordName, e);
         }
       });
     });
@@ -2163,8 +2163,23 @@ const htmlTemplate = `<!DOCTYPE html>
   // and for subfile rows (dragging any visible row instance moves the one
   // template row that actually exists in the DDS source, shifting every
   // rendered row together).
-  function startDrag(el, field, recordName) {
-    const { rect, colWidth, rowHeight } = gridMetrics();
+  //
+  // Task L33 fix - the identical absolute-snap-to-cursor bug L30 fixed for
+  // window-dragging: the old 'onMove' here snapped the field's rendered
+  // origin straight to the raw mouse position ('newCol = round((mouseX -
+  // rect.left) / colWidth) + 1'), as if the cursor itself WAS the field's
+  // own top-left cell - so grabbing a field anywhere other than its exact
+  // top-left pixel jumped it the instant the drag started, aligning that
+  // grabbed point with the field's new left edge instead of preserving
+  // wherever within the field it was actually grabbed. Fixed the same way
+  // startWindowMove already was: capture the mouse's own starting point at
+  // mousedown ('startEvent', now threaded through from the mousedown
+  // listener above) and compute every subsequent 'onMove' as how far the
+  // MOUSE itself has moved, applied as a delta onto the field's original
+  // rendered origin - not a fresh absolute position derived from the
+  // cursor each time.
+  function startDrag(el, field, recordName, startEvent) {
+    const { colWidth, rowHeight } = gridMetrics();
     const origRenderLine = parseInt(el.getAttribute('data-render-line'), 10);
     const origRenderColumn = parseInt(el.getAttribute('data-render-column'), 10);
     const renderLength = parseInt(el.getAttribute('data-length'), 10) || field.length || 1;
@@ -2175,12 +2190,15 @@ const htmlTemplate = `<!DOCTYPE html>
     // commitEdit for the known limitation this implies for relative-offset columns
     // inside a window).
     const origSourceColumn = field.location.column != null ? field.location.column : origRenderColumn;
+    const startX = startEvent.clientX, startY = startEvent.clientY;
     el.classList.add('dragging');
 
     function onMove(e) {
       dragState = dragState || {};
-      const newCol = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
-      const newLine = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+      const deltaCol = Math.round((e.clientX - startX) / colWidth);
+      const deltaLine = Math.round((e.clientY - startY) / rowHeight);
+      const newCol = Math.max(1, origRenderColumn + deltaCol);
+      const newLine = Math.max(1, origRenderLine + deltaLine);
       el.style.gridColumn = newCol + ' / span ' + renderLength;
       el.style.gridRow = newLine + (renderHeight > 1 ? ' / span ' + renderHeight : '');
       dragState.renderLine = newLine; dragState.renderColumn = newCol;
@@ -2229,12 +2247,11 @@ const htmlTemplate = `<!DOCTYPE html>
   // itself has moved and applies that same delta to the original origin -
   // preserving wherever within the strip it was grabbed, the same
   // grab-offset-preserving idea 'startDrag' already gets right for fields
-  // via its own onUp delta (though notably 'startDrag''s own onMove has
-  // this identical absolute-snap pattern too - not touched here since
-  // fields weren't part of this report and field-dragging has extensive
-  // existing test coverage keyed to the current behavior; flagged as a
-  // follow-up sliver in LIMITATIONS-PLAN.md rather than changed alongside
-  // an unrelated, unrequested fix).
+  // via its own onUp delta. 'startDrag'/'startGroupDrag' had this
+  // identical absolute-snap pattern in their own 'onMove' too - not
+  // touched here since fields weren't part of this report and
+  // field-dragging has extensive existing test coverage keyed to the
+  // current behavior; fixed later as its own task - see Task L33.
   function startWindowMove(windowEl, record, startEvent) {
     const { colWidth, rowHeight } = gridMetrics();
     const origLine = parseInt(windowEl.getAttribute('data-window-line'), 10);
@@ -2300,8 +2317,16 @@ const htmlTemplate = `<!DOCTYPE html>
   // delta, visually together and as one batched source edit - every rendered row
   // instance corresponds to the SAME template, so this is really just "move the
   // template" with N visual copies following along, not N independent edits.
-  function startGroupDrag(els, fields, recordName) {
-    const { rect, colWidth, rowHeight } = gridMetrics();
+  //
+  // Task L33 fix - the same absolute-snap-to-cursor pattern startDrag above
+  // had (see its own comment): 'onMove' used to derive the reference field's
+  // new position directly from the raw cursor position, jumping the whole
+  // group so the grabbed point aligned with the reference field's left edge
+  // rather than preserving the actual click offset. Fixed identically:
+  // capture the mouse's starting point at mousedown and apply how far the
+  // MOUSE has moved as a delta onto the reference field's original position.
+  function startGroupDrag(els, fields, recordName, startEvent) {
+    const { colWidth, rowHeight } = gridMetrics();
     const originals = els.map((el) => ({
       el,
       origRenderLine: parseInt(el.getAttribute('data-render-line'), 10),
@@ -2311,20 +2336,23 @@ const htmlTemplate = `<!DOCTYPE html>
     }));
     const ref = originals[0];
     if (!ref) return;
+    const startX = startEvent.clientX, startY = startEvent.clientY;
     els.forEach((el) => el.classList.add('dragging'));
 
     function onMove(e) {
       dragState = dragState || {};
-      const newCol = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
-      const newLine = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
-      const deltaLine = newLine - ref.origRenderLine;
-      const deltaColumn = newCol - ref.origRenderColumn;
+      const deltaCol = Math.round((e.clientX - startX) / colWidth);
+      const deltaLine = Math.round((e.clientY - startY) / rowHeight);
+      const newCol = Math.max(1, ref.origRenderColumn + deltaCol);
+      const newLine = Math.max(1, ref.origRenderLine + deltaLine);
+      const deltaLineFromOrig = newLine - ref.origRenderLine;
+      const deltaColumnFromOrig = newCol - ref.origRenderColumn;
       originals.forEach((o) => {
-        o.el.style.gridColumn = (o.origRenderColumn + deltaColumn) + ' / span ' + o.renderLength;
-        o.el.style.gridRow = (o.origRenderLine + deltaLine) + (o.renderHeight > 1 ? ' / span ' + o.renderHeight : '');
+        o.el.style.gridColumn = (o.origRenderColumn + deltaColumnFromOrig) + ' / span ' + o.renderLength;
+        o.el.style.gridRow = (o.origRenderLine + deltaLineFromOrig) + (o.renderHeight > 1 ? ' / span ' + o.renderHeight : '');
       });
-      dragState.deltaLine = deltaLine;
-      dragState.deltaColumn = deltaColumn;
+      dragState.deltaLine = deltaLineFromOrig;
+      dragState.deltaColumn = deltaColumnFromOrig;
     }
     function onUp() {
       window.removeEventListener('mousemove', onMove);

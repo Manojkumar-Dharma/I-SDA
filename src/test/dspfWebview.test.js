@@ -3210,11 +3210,77 @@ function runWindowMoveOffOriginScenario() {
     check('NOT the old bug\'s jump-to-cursor result, which would have snapped the origin to roughly col 30/row 3 - the raw grab point itself', last && !/WINDOW\(3 30/.test(last.text) && !/WINDOW\(4 30/.test(last.text));
     check("the window's own field content is untouched", last && /In the window/.test(last.text));
 
-    runSubfileControlEditScenario();
+    runFieldDragOffOriginScenario();
   }, 0);
 }
 
-// SFLCTL-side subfile preview is now EDITABLE (0.9.38) rather than a
+// Task L33: the same absolute-snap-to-cursor bug L30 fixed for window
+// dragging, but for a regular field on the canvas via startDrag. Grabbing a
+// multi-column-wide field anywhere other than its own top-left cell used to
+// jump it the instant the drag started (before the mouse even moved), since
+// the old 'onMove' derived the field's new position directly from the raw
+// cursor pixel rather than preserving the click offset.
+function runFieldDragOffOriginScenario() {
+  console.log('\nTask L33: grabbing a field somewhere other than its exact top-left cell must not jump it (same bug L30 fixed for windows, now fixed for field-dragging via startDrag)');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+      buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '10' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce27', src, 'FLDDRAG.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      // Same 10px/col x 20px/row mock the window-drag scenarios use.
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent } = dom.window;
+    const fieldEl = doc.querySelector('.dspf-field');
+    check('setup: the field is rendered', !!fieldEl);
+
+    // FLDA is 6 wide starting at col 10 (cols 10-15), line 3. Its own true
+    // top-left pixel is ((10-1)*10, (3-1)*20) = (90, 40) - grab well AWAY
+    // from that, in the middle of the field instead: col 13 -> pixel
+    // (13-1)*10 = 120, same row 3 -> pixel 40.
+    posted.length = 0;
+    fieldEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 120, clientY: 40 }));
+    // No mouse movement at all yet - a real drag hasn't started. The OLD
+    // bug would already have snapped the field's origin to roughly col 13
+    // (where it was grabbed) purely from this first onMove firing at the
+    // SAME pixel, with no movement needed to trigger the jump.
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 40 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    check('zero mouse movement after the grab posts NO edit at all (not the old bug\'s instant jump-on-grab)', posted.length === 0);
+
+    // Now actually drag: move the mouse by exactly one grid cell right, one
+    // cell down (+10px col, +20px row) from the SAME off-origin grab point -
+    // a real drag nudge, not a jump.
+    fieldEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 120, clientY: 40 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 130, clientY: 60 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    const last = posted[posted.length - 1];
+    const reparsed = last && DspfParser.parseDspf(last.text);
+    const movedField = reparsed && reparsed.records[0].fields.find((f) => f.name === 'FLDA');
+    check('the field moved by exactly one column/one row from its ORIGINAL position (col 10->11, line 3->4), preserving the grab offset', movedField && movedField.location.line === 4 && movedField.location.column === 11);
+    check('NOT the old bug\'s jump-to-cursor result, which would have snapped the origin to roughly col 13/14', movedField && movedField.location.column !== 13 && movedField.location.column !== 14);
+
+    runSubfileControlEditScenario();
+  }, 0);
+}
 // protected read-only reference layer: dragging any field in the preview
 // moves the whole row template, writing back to the PAIRED SFL record -
 // without switching records first, matching the SFL-side "Preview SFLPAG
