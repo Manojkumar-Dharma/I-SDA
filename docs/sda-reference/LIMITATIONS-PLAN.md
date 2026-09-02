@@ -1,21 +1,19 @@
-# Known limitations — follow-up task breakdown
+# Known limitations and follow-up task breakdown
 
-Source: the "Known limitations" / "Planned enhancements" sections in the
-main [`README.md`](../../README.md), covering BOTH the DSPF (screen)
-designer and Menu designer subsections. This tracks the subset of those
-limitations that are genuinely actionable follow-up work, broken into
-tasks the same way [`PICKER-SCREENS-PLAN.md`](./PICKER-SCREENS-PLAN.md)
-tracked the picker screens effort — so parallel sessions can pick one up,
-mark it `in progress`, and not collide with each other. DSPF designer
-tasks are prefixed `L`; Menu designer tasks are prefixed `M` so the two
-sets can never collide on an ID even though they're tracked in one doc.
+This is the single place tracking both **accepted constraints** (things
+that aren't going to change — inherent DDS/CRTMNU behavior, or a
+reasonable default already in place) and **genuinely actionable follow-up
+work**, for both the DSPF (screen) designer and the Menu designer. This
+used to be split across README's own "Known limitations"/"Planned
+enhancements" sections and this file; README now just links here. DSPF
+designer tasks are prefixed `L`; Menu designer tasks are prefixed `M` so
+the two sets can never collide on an ID even though they're tracked in
+one doc.
 
-Not every bullet in README's Known limitations list has a task here.
-Several are either inherent constraints with no real fix (e.g.
-`WINDOW(*DFT)`'s runtime-only position — genuinely unknowable at design
-time, not a bug), or edge cases already handled with a reasonable default
-(e.g. M/P field-usage panels failing open rather than guessing). Only the
-items below are being tracked as real work.
+Not every accepted-constraint bullet below has a matching task — see
+[Known limitations (accepted constraints)](#known-limitations-accepted-constraints)
+for those. Only genuinely fixable gaps are tracked as tasks in the
+sections below that.
 
 Update the Status column (`not started` / `in progress` / `done`) when you
 pick up or finish a task so parallel sessions don't collide, and check
@@ -24,6 +22,75 @@ upstream drift between parallel sessions is the main risk here, same as
 it was for the picker screens.
 
 ---
+
+## Known limitations (accepted constraints)
+
+These are accepted constraints or inherent DDS/CRTMNU behaviors, not open
+work — nothing below is tracked as a task. See the sections after this
+one for genuinely fixable, tracked work.
+
+### DSPF (screen) designer
+
+- `WINDOW` positions that depend on a runtime value (`*DFT`, or a
+  program-to-system field name) can't be known at design time, so they
+  render at a fixed placeholder position with a dashed border instead
+  (staggered per-window in compare mode so multiple placeholders don't
+  overlap). `WINDOW(record-format-name)` (inheriting another record's
+  geometry) is fully resolved, as is every other `WINDOW`/`WDWBORDER`
+  form.
+- `CHCCTL` (per-choice runtime field-setting logic) has no visual
+  representation - it's a logic construct, not a layout one.
+- Deleting a named field that something else in the source looks like it
+  references by name (e.g. `REFFLD`) is blocked on a confirmation dialog
+  naming those lines, but confirming still doesn't rewrite the reference
+  itself - there's nothing sensible to auto-fix it TO (same reasoning as
+  rename's own limitation below).
+- `EDTCDE(Y)`/`EDTCDE(W)` "date edit" codes are left at the field's coded
+  length rather than a guessed display width, since their separator
+  width depends on the job's runtime `DATSEP` attribute - not knowable
+  at design time, the same ambiguity that keeps `WINDOW(*DFT)` a
+  placeholder above. Every other `EDTCDE`/`EDTWRD` case gets an exact
+  computed width.
+- M/P (Message text/Program-to-system) field usages aren't covered by
+  real SDA's own field-keyword "For Field Type" table, so their keyword
+  panels fail open (show every category) by design rather than guessing
+  which apply.
+- Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`), Choice keywords, and
+  Choice colors & attributes stay constant-excluded, since they require
+  real, named, indicator-controlled field semantics a constant
+  structurally can't have.
+- The real SDA `WINDOW` screen's "Roll" column isn't a DDS keyword at
+  all - it turned out to be SDA's own in-terminal roll-key editing
+  convenience, so there's nothing to model.
+
+### Menu designer
+
+- **Compile Menu (CRTMNU)** requires the DDS record format to be named
+  exactly the same as the menu member - CRTMNU's own requirement, not an
+  iSDA choice.
+- No command-key (`CAxx`/`CFxx`) assignment UI, unlike the DSPF designer -
+  CRTMNU-compiled numbered-option menus don't use them in practice (F3=Exit,
+  F12=Cancel etc. are handled by CRTMNU's own generated program logic, not
+  by DDS command keys the menu designer would let you assign).
+- **Compile Menu only ever produces `TYPE(*DSPF)` menus - by design, not
+  as a gap to fill.** `CRTMNU` also supports `TYPE(*PGM)` (calls a program
+  directly, with no display file or screen at all - nothing for a visual
+  DDS screen designer to design) and `TYPE(*UIM)` (written in UIM's own
+  tag-based panel-group language, compiled via `CRTPNLGRP`, a completely
+  different, non-DDS markup that would need its own dedicated designer
+  rather than an extension of this one). `TYPE(*DSPF)` is the only menu
+  type backed by an actual DDS-designed screen, which is why it's the
+  only one real SDA's own "Menu design" mode - and this DSPF/MNUDDS-
+  focused tool - ever produces.
+
+## Planned enhancements (tracked tasks)
+
+Forward-looking, fixable work. Every currently-tracked DSPF designer task
+(L1 through L26, including L5d-ii) and every currently-tracked menu
+designer task (M1 through M6) is **done** — see the task tables below for
+the full history if a past decision needs revisiting. If a new limitation
+surfaces, add it as a new task continuing the `L`/`M` numbering rather
+than folding it into an existing row.
 
 ## High priority
 
@@ -179,16 +246,10 @@ task.
 
 ## Out of scope here
 
-The "not really fixable" and "already handled reasonably" items noted in
-README's Known limitations list (e.g. `WINDOW(*DFT)`'s placeholder
-position, `CHCCTL` having no visual form, `EDTCDE`/`EDTWRD` width
-estimation edge cases, the `WINDOW` picker's missing Roll row, M/P
-usage fail-open behavior, constants staying Choice-keyword-excluded,
-Menu designer's `CRTMNU` record-format-naming requirement, and Menu
-designer's missing command-key UI) are accepted constraints or
-reasonable defaults, not tracked as tasks. `TYPE(*PGM)`/`TYPE(*UIM)`
-menu support (formerly Task M5) belongs in this category too — see
-its row above for why it's out of scope rather than merely
-deprioritized. If any of those turns out to be more fixable than it
-looks, raise it as a new task here rather than silently reinterpreting
-its priority.
+The "not really fixable" and "already handled reasonably" items are
+tracked in [Known limitations (accepted constraints)](#known-limitations-accepted-constraints)
+near the top of this file, not as tasks here. `TYPE(*PGM)`/`TYPE(*UIM)`
+menu support (formerly Task M5) belongs in that category too — see its
+row above for why it's out of scope rather than merely deprioritized. If
+any of those turns out to be more fixable than it looks, raise it as a
+new task here rather than silently reinterpreting its priority.

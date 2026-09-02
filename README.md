@@ -15,14 +15,98 @@ original source — all inside VS Code.
 Early but functional. The parser, screen resolver, and interactive editor
 have been verified against IBM's own published DDS examples and round-trip
 tested (edit → regenerate source lines → re-parse → confirm nothing else
-changed). Every DDS keyword category - file-, record-, and field-level -
-now has a dedicated SDA-style picker screen mapped against real SDA's own
-"Select/Define \_\_\_ Keywords" panels, replacing free-typed keyword entry
-with pick-from-a-screen UI; see
-[`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md) and
-[`CHANGELOG.md`](CHANGELOG.md) for the full task-by-task history. The
-generic Keywords tab (free-text name/parameters) remains the catch-all
-for anything without a dedicated screen.
+changed). See [Features](#features) below for what's covered at each DDS
+scoping level.
+
+## Features
+
+DDS scopes keywords at three levels — file, record, and field — and iSDA's
+own dedicated pickers follow that same structure, replacing free-typed
+keyword entry with pick-from-a-screen UI mapped against real SDA's own
+"Select/Define ___ Keywords" panels. See
+[`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md) for
+the full per-screen build history and
+[`CHANGELOG.md`](CHANGELOG.md) for the version-by-version record. The
+generic Keywords tab (free-text name/parameters) remains the catch-all for
+anything without a dedicated screen yet.
+
+### File-level
+
+- All 9 real-SDA "Select File Keywords" categories in one picker: General,
+  Indicator, Print, Help, Display Sizes, DBCS Conversion, Alternate, Window
+  Border, Menu-bar.
+- Multiple `DSPSIZ` display sizes with a size switcher, plus adding a
+  second size to a file that only declares one (or none).
+- `MSGLOC` (message line per display size).
+- Command keys (`CAxx`/`CFxx`) with correct DDS override semantics — a
+  record may redefine a number already used at the file level (a
+  per-record override, not a conflict), and different records may reuse
+  the same number independently.
+- File-level comments (DDS `*`-column-7 comment lines).
+- "IBM i: Connected/Not connected/Not installed" status badge.
+
+### Record-level
+
+- Base Record Keywords picker (General, Indicator, Application Help, Help,
+  Output, Input, Overlay, Print) — one component reused across `RECORD`,
+  `SFLCTL`, `SFLMSGCTL`, `WINDOW`, `WNDSFCTL`, `PULLDOWN`, `PDNSFLCTL`,
+  `MNUBAR`, and `USRDFN`.
+- Subfile (`SFL`/`SFLCTL`) editing that matches real SDA behavior: the
+  paired record's row template repeats correctly, and both sides of the
+  pairing (control record and detail record) are independently editable
+  and previewable.
+- `SFLMSG`/`SFLMSGCTL` message-subfile pickers.
+- `WINDOW`-specific picker (size/roll, border parameters/color/attributes/
+  characters, restrict-cursor, message line) plus drag/resize/move handles
+  and click-to-rename window title directly on the preview.
+- `PULLDOWN`/`MNUBAR`-specific pickers, with pull-down and menu-bar
+  choices rendering visually rather than as an empty box.
+- Record-level comments.
+- Whole-record create/copy/delete, record rename with safe cross-reference
+  rewriting, and a full SDA record-type list (including subfile/window/
+  pull-down/menu-bar starter templates) for "+ Add record" and "Create New
+  Display File".
+
+### Field-level
+
+- Field base keyword pickers: Display Attributes, Colors, Keying Options,
+  Validity Check (`RANGE`/`COMP`/`VALUES`/`CHECK`/`CHKMSGID`), Input
+  Keywords, General, Database Reference, Error Messages, Message ID —
+  wired across character, numeric, and constant field types with the
+  right subset for each.
+- Multi-instance, independently-conditioned keywords: real DDS allows
+  e.g. `COLOR(RED)` under indicator 10 and `COLOR(GRN)` under indicator 20
+  on the same field — Color & attributes, Error messages, Subfile
+  Messages, Keying options, Validity check, and Message ID all support
+  this rather than collapsing to one instance.
+- Menu-bar choice fields (`MNUBARCHC`/`MNUBARSEP`/`SNGCHCFLD`/
+  `MLTCHCFLD`/`CHOICE`/`CHCCTL`/`CHCACCEL`/`CHCAVAIL`/`CHCUNAVAIL`/
+  `CHCSLT`).
+- `CNTFLD` (continued-entry field), wrapping correctly over multiple
+  lines and respecting its own conditioning indicator.
+- System-value constants (`*DATE`/`*TIME`/`*USER`/`*SYSTEM`/`*PAGNBR`).
+- Resolve Referenced Field (and "Resolve All") plus bulk "+ Fields from
+  database file" (real SDA's own F10 key), both via Code for i.
+- Click-to-place, drag, arrow-key nudge (Shift+Arrow for 5 cells at a
+  time), and Ctrl+X/C/V cut/copy/paste of a field's whole definition.
+
+### Canvas-wide and menu designer
+
+- Multi-field select (Shift/Ctrl-click or rubber-band drag) with block
+  move/copy/delete/style, matching real SDA's own block-command
+  convention.
+- Overlap warning banner — real DDS silently drops an overlapping field;
+  iSDA flags it instead of letting it vanish unexplained.
+- Ruler overlay (row/column numbers, SDA's own F14) and a crosshair
+  position readout.
+- Dimmed-overlay compare mode, showing another record format behind the
+  one being edited.
+- A Save button, and Compile (`CRTDSPF`/`CRTMNU`) via Code for i.
+- Menu designer (MNUDDS/MNUCMD): dedicated option-attribute pickers,
+  editable option label text, whole-record create/copy/delete, collapsible
+  panels, and message-file-safe `CRTMNU` compiling — see
+  [Menu design (MNUDDS)](#menu-design-mnudds) below for the two-member
+  model this all sits on.
 
 ## Architecture
 
@@ -60,7 +144,8 @@ Works for a MNUDDS member opened as a remote IBM i source member through
 (`member:` scheme), a local `.mnudds` file (as of v0.9.15, deriving a
 sibling `<basename>QQ.mnucmd` file instead), or an IFS streamfile opened
 through Code for i (`streamfile:` scheme, same sibling-file convention as a
-local file) - see Known limitations below.
+local file) - see [`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md)
+for known constraints.
 **"Compile Menu (CRTMNU)"** (added v0.9.3) runs the real compile sequence
 via Code for i's `code-for-ibmi.runCommand` API - `CRTDSPF`, updating the
 message file in place (`ADDMSGD` per option, falling back to `CHGMSGD` for
@@ -121,89 +206,15 @@ automatically pop out into its own window.
 
 See `vsc-extension-quickstart.md` for more on the extension dev loop.
 
-## Known limitations
+## Known limitations and planned work
 
-These are accepted constraints or inherent DDS/CRTMNU behaviors, not
-open work - nothing actionable below is being tracked as a task. See
-[Planned enhancements](#planned-enhancements) for the fixable gaps.
-
-### DSPF (screen) designer
-
-- `WINDOW` positions that depend on a runtime value (`*DFT`, or a
-  program-to-system field name) can't be known at design time, so they
-  render at a fixed placeholder position with a dashed border instead
-  (staggered per-window in compare mode so multiple placeholders don't
-  overlap). `WINDOW(record-format-name)` (inheriting another record's
-  geometry) is fully resolved, as is every other `WINDOW`/`WDWBORDER`
-  form.
-- `CHCCTL` (per-choice runtime field-setting logic) has no visual
-  representation - it's a logic construct, not a layout one.
-- Deleting a named field that something else in the source looks like it
-  references by name (e.g. `REFFLD`) is blocked on a confirmation dialog
-  naming those lines, but confirming still doesn't rewrite the reference
-  itself - there's nothing sensible to auto-fix it TO (same reasoning as
-  rename's own limitation below).
-- `EDTCDE(Y)`/`EDTCDE(W)` "date edit" codes are left at the field's coded
-  length rather than a guessed display width, since their separator
-  width depends on the job's runtime `DATSEP` attribute - not knowable
-  at design time, the same ambiguity that keeps `WINDOW(*DFT)` a
-  placeholder above. Every other `EDTCDE`/`EDTWRD` case gets an exact
-  computed width.
-- M/P (Message text/Program-to-system) field usages aren't covered by
-  real SDA's own field-keyword "For Field Type" table, so their keyword
-  panels fail open (show every category) by design rather than guessing
-  which apply.
-- Choice selection type (`SNGCHCFLD`/`MLTCHCFLD`), Choice keywords, and
-  Choice colors & attributes stay constant-excluded, since they require
-  real, named, indicator-controlled field semantics a constant
-  structurally can't have.
-- The real SDA `WINDOW` screen's "Roll" column isn't a DDS keyword at
-  all - it turned out to be SDA's own in-terminal roll-key editing
-  convenience, so there's nothing to model.
-
-### Menu designer
-
-- **Compile Menu (CRTMNU)** requires the DDS record format to be named
-  exactly the same as the menu member - CRTMNU's own requirement, not an
-  iSDA choice.
-- No command-key (`CAxx`/`CFxx`) assignment UI, unlike the DSPF designer -
-  CRTMNU-compiled numbered-option menus don't use them in practice (F3=Exit,
-  F12=Cancel etc. are handled by CRTMNU's own generated program logic, not
-  by DDS command keys the menu designer would let you assign).
-- **Compile Menu only ever produces `TYPE(*DSPF)` menus - by design, not
-  as a gap to fill.** `CRTMNU` also supports `TYPE(*PGM)` (calls a program
-  directly, with no display file or screen at all - nothing for a visual
-  DDS screen designer to design) and `TYPE(*UIM)` (written in UIM's own
-  tag-based panel-group language, compiled via `CRTPNLGRP`, a completely
-  different, non-DDS markup that would need its own dedicated designer
-  rather than an extension of this one). `TYPE(*DSPF)` is the only menu
-  type backed by an actual DDS-designed screen, which is why it's the
-  only one real SDA's own "Menu design" mode - and this DSPF/MNUDDS-
-  focused tool - ever produces.
-
-## Planned enhancements
-
-Forward-looking, fixable work - not yet started. Items tagged with a
-task ID are tracked in
-[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) the same
-way the picker screens were - pick one, mark it `in progress` there, and
-sync before pushing to avoid colliding with other parallel sessions.
-Untagged items aren't yet broken into a tracked task. Completed tasks
-are removed from this list rather than accumulated here - see
-`LIMITATIONS-PLAN.md` and `CHANGELOG.md` for what's already shipped and
-how.
-
-### DSPF (screen) designer
-
-Every currently-tracked DSPF designer task (L1 through L26, including
-L5d-ii) is done. See `LIMITATIONS-PLAN.md` for the full history if a
-past decision needs revisiting.
-
-### Menu designer
-
-No open items right now - every currently-tracked menu designer task
-(M1 through M6) is done. See `LIMITATIONS-PLAN.md` for the full
-history if a past decision needs revisiting.
+Accepted constraints, inherent DDS/CRTMNU behaviors, and forward-looking
+fixable work all live in
+[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) now,
+rather than being duplicated here — that doc already tracks status
+(`not started`/`in progress`/`done`) per item the same way it tracks
+everything else, so it's the single place to check what's an accepted
+constraint versus genuinely open work.
 
 ## License
 
