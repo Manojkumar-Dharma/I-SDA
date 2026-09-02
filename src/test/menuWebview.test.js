@@ -1167,6 +1167,44 @@ function runCrossRecordOptionScopingScenario() {
     rightToggle.dispatchEvent(new Event('click', { bubbles: true }));
     check('clicking it again re-expands the options panel', !optionsPanelElT.classList.contains('panel-collapsed'));
 
+    runFileNamePositionScenario();
+  }, 100);
+}
+
+function runFileNamePositionScenario() {
+  console.log('\nTask L28: the open file\'s own name in the left panel moved up, right under the "Menu Design" heading, instead of buried down near the File attributes/Compile button');
+  const menuSrc =
+    [
+      "     A          R MAINMENU",
+      "     A                                  1  2'MAIN MENU'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce23', menuSrc, '', 'REORDERED.MNUDDS', 'REORDEREDQQ.MNUCMD', 'loaded').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const fileStatus = doc.getElementById('fileStatus');
+    check('the file name is shown', fileStatus && /REORDERED\.MNUDDS/.test(fileStatus.textContent));
+
+    const panelBody = doc.querySelector('aside .panel-body') || doc.querySelector('aside');
+    const children = Array.from(panelBody.children);
+    const h2Idx = children.findIndex((el) => el.tagName === 'H2');
+    const fileStatusIdx = children.indexOf(fileStatus);
+    const badgeIdx = children.findIndex((el) => el.id === 'codeForIBadge');
+    check('the "Menu Design" heading is present', h2Idx !== -1 && /Menu Design/i.test(children[h2Idx].textContent));
+    check('the file name sits directly after the "Menu Design" h2 (nothing else in between)', fileStatusIdx === h2Idx + 1);
+    check('the Code for IBM i badge comes right after the file name', badgeIdx === fileStatusIdx + 1);
+
     console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
     process.exit(failures === 0 ? 0 : 1);
   }, 100);

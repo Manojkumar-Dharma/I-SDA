@@ -548,7 +548,7 @@
           if (pm[2] != null) text = pm[2].replace(/''/g, "'");
         }
       }
-      result.push({ type: m[1], number: m[2], indicator: indicator, text: text, keyword: k });
+      result.push({ type: m[1], number: m[2], indicator: indicator, text: text, conditions: k.conditions || [], keyword: k });
     });
     return result;
   }
@@ -585,8 +585,23 @@
 
   /** Returns a NEW keywords array with key `number` set to CAnn/CFnn(indicator 'text').
    *  Any existing CA/CF keyword for that same number is removed first, so switching a
-   *  key's type (CA<->CF) or overwriting its indicator/text never leaves a duplicate. */
-  function setCommandKey(keywords, type, number, indicator, text) {
+   *  key's type (CA<->CF) or overwriting its indicator/text never leaves a duplicate.
+   *  `conditions` (optional, defaults to unconditioned `[]`) - reported as "cmd keys can
+   *  also have conditionings": real DDS lets ANY keyword, CAnn/CFnn included, carry the
+   *  standard indicator-conditioning (position 7-16 AND/OR indicator group) that turns
+   *  the keyword itself on/off at runtime - a SEPARATE mechanism from the embedded
+   *  response indicator (the `indicator` param above, which the SYSTEM sets ON when
+   *  that key is pressed; conditioning instead reads existing indicator state to decide
+   *  whether the key definition applies at all). Before this, every command key was
+   *  silently written unconditioned regardless of what was already there. This still
+   *  keeps the existing one-definition-per-number-per-scope model (see the file header
+   *  comment above parseCommandKeys) - conditioning one key's SINGLE definition on/off,
+   *  not multiple independently-conditioned instances of the same number (real SDA's own
+   *  Design Image screen does support that too, e.g. F3 reading "Exit" vs "Cancel" under
+   *  different indicators, but that's a bigger multi-instance redesign - same family as
+   *  Task L1's COLOR/DSPATR states - deliberately left as a documented follow-up rather
+   *  than attempted here alongside 3 unrelated fixes). */
+  function setCommandKey(keywords, type, number, indicator, text, conditions) {
     var paddedNumber = padKeyNumber(number);
     var filtered = (keywords || []).filter(function (k) {
       var m = COMMAND_KEY_RE.exec(k.name);
@@ -596,7 +611,7 @@
     if (indicator != null && String(indicator).trim() !== '') {
       params = padKeyNumber(indicator) + (text ? " '" + String(text).replace(/'/g, "''") + "'" : '');
     }
-    filtered.push({ name: type.toUpperCase() + paddedNumber, parameters: params, conditions: [], raw: '', sourceLines: [] });
+    filtered.push({ name: type.toUpperCase() + paddedNumber, parameters: params, conditions: conditions || [], raw: '', sourceLines: [] });
     return filtered;
   }
 

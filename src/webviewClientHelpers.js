@@ -504,7 +504,7 @@
   // it was given.
   // -----------------------------------------------------------------------
 
-  function commandKeysSectionHtml(scopeLabel, keywords, availableNumbers, idPrefix) {
+  function commandKeysSectionHtml(scopeLabel, keywords, availableNumbers, idPrefix, expandedSet) {
     var parsed = DspfWriter.parseCommandKeys(keywords);
     var html = '<div class="section-label">Command keys' + (scopeLabel ? ' (' + escapeHtml(scopeLabel) + ')' : '') + '</div>';
     html += '<div id="' + idPrefix + '-cmdkeys">';
@@ -513,7 +513,16 @@
     }
     parsed.forEach(function (k) {
       var label = 'F' + parseInt(k.number, 10) + ' = ' + k.type + k.number + (k.indicator ? ' (ind ' + k.indicator + ')' : '') + (k.text ? " '" + k.text + "'" : '');
+      var condExpandKey = idPrefix + '-cmdkey-' + k.number + ':cond';
+      var condSummary = k.conditions.length > 0 ? ' (' + k.conditions.length + ')' : '';
+      var condExpanded = !!(expandedSet && expandedSet.has(condExpandKey));
+      html += '<div class="cmdkey-row" data-prefix="' + idPrefix + '" data-number="' + k.number + '" style="margin-bottom:6px;">';
       html += '<span class="keyword-chip">' + escapeHtml(label) + '<button class="cmdkey-remove" data-prefix="' + idPrefix + '" data-number="' + k.number + '">\u00d7</button></span>';
+      html += '<span class="kw-cond-toggle cmdkey-cond-toggle" data-prefix="' + idPrefix + '" data-number="' + k.number + '" style="margin-left:6px;">Conditioning' + condSummary + (condExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      if (condExpanded) {
+        html += '<div class="kw-cond-body">' + conditionsEditorHtml(k.conditions, idPrefix + '-cmdkey-' + k.number + '-cond', expandedSet) + '</div>';
+      }
+      html += '</div>';
     });
     html += '</div>';
     html += '<div class="two-col" style="margin-top:6px;">' +
@@ -529,12 +538,45 @@
     return html;
   }
 
-  function wireCommandKeysSection(idPrefix, keywords, onChange) {
+  function wireCommandKeysSection(idPrefix, keywords, onChange, expandedSet, rerender) {
     document.querySelectorAll('.cmdkey-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         onChange(DspfWriter.removeCommandKey(keywords, btn.getAttribute('data-number')));
       });
     });
+
+    // Each existing key's own Conditioning toggle/editor (Task L27: "cmd
+    // keys can also have conditionings") - edits that ONE key's conditions
+    // in place (same type/indicator/text, only the conditions change), via
+    // setCommandKey's own "replace the entry for this number" behavior.
+    // Deliberately no equivalent staging step on the "+ Add" form itself -
+    // conditionsEditorHtml/wireConditionsEditor commit immediately on every
+    // click (no batched-until-Add mode, unlike repeatableConditionedInstancesHtml's
+    // own staging row), so there's no stable place to hold a not-yet-created
+    // key's conditions between edits; add the key first (unconditioned, same
+    // as always), then expand ITS OWN Conditioning toggle below - matches
+    // flagRowHtml's own precedent, which likewise only conditions an
+    // existing row, never a staging/creation step.
+    if (expandedSet && rerender) {
+      document.querySelectorAll('.cmdkey-cond-toggle[data-prefix="' + idPrefix + '"]').forEach(function (toggle) {
+        var number = toggle.getAttribute('data-number');
+        var expandKey = idPrefix + '-cmdkey-' + number + ':cond';
+        toggle.addEventListener('click', function () {
+          if (expandedSet.has(expandKey)) expandedSet.delete(expandKey);
+          else expandedSet.add(expandKey);
+          rerender();
+        });
+        if (expandedSet.has(expandKey)) {
+          var existing = DspfWriter.parseCommandKeys(keywords).find(function (k) { return k.number === number; });
+          if (existing) {
+            wireConditionsEditor(idPrefix + '-cmdkey-' + number + '-cond', existing.conditions, function (newConditions) {
+              onChange(DspfWriter.setCommandKey(keywords, existing.type, existing.number, existing.indicator, existing.text, newConditions));
+            }, expandedSet, rerender);
+          }
+        }
+      });
+    }
+
     var addBtn = document.querySelector('.cmdkey-add[data-prefix="' + idPrefix + '"]');
     if (addBtn) {
       addBtn.addEventListener('click', function () {

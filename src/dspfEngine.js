@@ -588,7 +588,22 @@
     }
     return (
       parse(record && record.keywords) ||
-      parse(dspfFile && dspfFile.fileKeywords) || { color: null, attrs: [], chars: ['', '', '', '', '', '', '', ''] }
+      parse(dspfFile && dspfFile.fileKeywords) ||
+      // No WDWBORDER anywhere in scope (record or file) - reported as
+      // "windows in SDA have default fill/reverse image at the border
+      // when no border parameter is provided." Checked against IBM's own
+      // WDWBORDER doc: that's not quite right (a plain empty/no-styling
+      // border, which is what this function used to fall back to here,
+      // was ALSO not right) - the actual documented default is period
+      // (.) for the top border and both top corners, colon (:) for both
+      // side borders and both BOTTOM corners (an irregular mix, not a
+      // uniform box - the bottom corners match the SIDE character, not
+      // the bottom border's own), with color defaulting to blue and no
+      // display attribute. Order matches DspfWriter.getWdwBorder/
+      // renderWindowBorderCharsHtml's own 8-position convention
+      // (top-left, top, top-right, left, right, bottom-left, bottom,
+      // bottom-right).
+      { color: COLOR_HEX.BLU, attrs: [], chars: ['.', '.', '.', ':', ':', ':', '.', ':'] }
     );
   }
 

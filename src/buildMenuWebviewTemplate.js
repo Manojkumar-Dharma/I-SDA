@@ -322,6 +322,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
+  <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile Menu (CRTMNU) needs a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="section-label">Record</div>
@@ -341,7 +342,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="file-attrs-toggle" id="fileAttrsToggle">File attributes &#x25be;</div>
   <div class="file-attrs-body hidden" id="fileAttrsBody"></div>
   <div class="section-label" style="margin-top:20px;">File</div>
-  <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="status" id="cmdStatus" style="margin-top:6px;"></div>
   <button class="compile-btn" id="compileBtn" style="margin-top:20px;">Compile Menu (CRTMNU)</button>
   <div class="status" style="margin-top:6px;">Runs CRTDSPF, rebuilds the message file, then CRTMNU on your connected IBM i. Requires Code for i.</div>

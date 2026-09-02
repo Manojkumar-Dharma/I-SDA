@@ -836,6 +836,24 @@ function runCommandKeysScenario() {
     check("SCR1's own record-level CA03 override survives the unrelated file-level removal", last && /CA03\(95 'Local exit'\)/.test(last.text));
     check('the record-level CF05 survives the unrelated file-level removal', last && /CF05/.test(last.text));
 
+    console.log('  Task L27: SCR1\'s own CA03 override can carry indicator conditioning too (\"cmd keys can also have conditionings\")');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    check('CA03 starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.cmdkey-cond-toggle[data-prefix="record"][data-number="03"]').textContent));
+    doc.querySelector('.cmdkey-cond-toggle[data-prefix="record"][data-number="03"]').dispatchEvent(new Event('click', { bubbles: true }));
+    const cmdkeyPendingCountBefore = posted.length;
+    doc.querySelector('.cond-add-group[data-prefix="record-cmdkey-03-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition does not write yet (pending, not committed)', posted.length === cmdkeyPendingCountBefore);
+    const cmdkeyPendingNumInput = doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num');
+    cmdkeyPendingNumInput.value = '80';
+    doc.querySelector('.cond-ind-add[data-prefix="record-cmdkey-03-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('the pending-condition click did not itself post an edit; only the following + indicator click does', posted.length === cmdkeyPendingCountBefore + 1);
+    last = posted[posted.length - 1];
+    const scr1AfterCond = DspfParser.parseDspf(last.text).records.find((r) => r.name === 'SCR1');
+    const ca03AfterCond = DspfWriter.parseCommandKeys(scr1AfterCond.keywords).find((k) => k.number === '03');
+    check("SCR1's own CA03 is now conditioned on indicator 80", ca03AfterCond && ca03AfterCond.conditions.length === 1 && ca03AfterCond.conditions[0].indicators[0].number === '80');
+    check("the CA03 override's own indicator (95) and text ('Local exit') survive the conditioning-only edit - not blanked out", ca03AfterCond.indicator === '95' && ca03AfterCond.text === 'Local exit');
+    check("the unrelated record-level CF05 key is untouched by CA03's own conditioning edit", scr1AfterCond.keywords.some((k) => k.name === 'CF05'));
+
     runRulerScenario();
   }, 0);
 }
@@ -2858,8 +2876,118 @@ function runFieldSearchScenario() {
     check('Enter selected CUSTNAME', !!selectedEl3 && selectedEl3.getAttribute('data-field') === 'CUSTNAME');
     check('switched back to SCR1 (CUSTNAME\'s own record)', doc.getElementById('recordSelect').value === 'SCR1');
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    runFileNamePositionScenario();
+  }, 0);
+}
+
+function runFileNamePositionScenario() {
+  console.log('\nTask L28: the open file\'s own name in the left panel moved up, right under the "Screen Design" heading, instead of buried down near the File attributes/Compile buttons');
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', dspfSource, 'REORDERED.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const fileStatus = doc.getElementById('fileStatus');
+    check('the file name is shown', fileStatus && /REORDERED\.DSPF/.test(fileStatus.textContent));
+
+    const panelBody = doc.getElementById('leftPanelBody');
+    const children = Array.from(panelBody.children);
+    const h2Idx = children.findIndex((el) => el.tagName === 'H2');
+    const fileStatusIdx = children.indexOf(fileStatus);
+    const badgeIdx = children.findIndex((el) => el.id === 'codeForIBadge');
+    const fileAttrsBtnIdx = children.findIndex((el) => el.id === 'fileAttrsBtn');
+    check('the "Screen Design" heading is present', h2Idx !== -1 && /Screen Design/i.test(children[h2Idx].textContent));
+    check('the file name sits directly after the "Screen Design" h2 (nothing else in between)', fileStatusIdx === h2Idx + 1);
+    check('the Code for IBM i badge comes right after the file name', badgeIdx === fileStatusIdx + 1);
+    check('the file name is well before the File attributes button (previously it was directly above it)', fileStatusIdx < fileAttrsBtnIdx - 1);
+
+    runDefaultWindowBorderScenario();
+  }, 0);
+}
+
+function runDefaultWindowBorderScenario() {
+  console.log('\nTask L29: a window with NO WDWBORDER anywhere (record or file) gets the real DDS-documented default border - period(.)/colon(:) chars in blue - instead of a plain unstyled box');
+  const src =
+    [
+      '     A          R WIN1',
+      '     A                                      WINDOW(3 10 8 30)',
+      "     A                                  1  2'Hello'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce24', src, 'NOBORDER.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const windowEl = doc.querySelector('.dspf-window-border');
+    check('setup: the window renders', !!windowEl);
+    check('char-mode is active (the default border characters count as "specified" chars)', windowEl.classList.contains('dspf-window-border-charmode'));
+    const charCells = Array.from(doc.querySelectorAll('.dspf-window-char'));
+    check('border character cells were actually rendered (not an empty overlay)', charCells.length > 0);
+    check('every rendered border character cell defaults to blue (the documented WDWBORDER *COLOR default)', charCells.every((el) => /#4a9eff/i.test(el.getAttribute('style') || '')));
+    // Row 3 (top) is periods at every position; row 10 (bottom, height 8 -> rows 3-10) should
+    // have periods along the horizontal run but colons at both bottom corners specifically -
+    // the one irregular part of the documented default (bottom corners follow the SIDE
+    // character, not the bottom border's own).
+    const topLeftCorner = charCells.find((el) => /grid-row:\s*3;grid-column:\s*10;/.test(el.getAttribute('style')));
+    const topBorderMid = charCells.find((el) => /grid-row:\s*3;grid-column:\s*15;/.test(el.getAttribute('style')));
+    const leftSideMid = charCells.find((el) => /grid-row:\s*6;grid-column:\s*10;/.test(el.getAttribute('style')));
+    const bottomLeftCorner = charCells.find((el) => /grid-row:\s*10;grid-column:\s*10;/.test(el.getAttribute('style')));
+    const bottomBorderMid = charCells.find((el) => /grid-row:\s*10;grid-column:\s*15;/.test(el.getAttribute('style')));
+    check('top-left corner is a period', topLeftCorner && topLeftCorner.textContent === '.');
+    check('top border (middle) is a period', topBorderMid && topBorderMid.textContent === '.');
+    check('left side (middle) is a colon', leftSideMid && leftSideMid.textContent === ':');
+    check('bottom-left corner is a colon (NOT a period, per the documented irregular default)', bottomLeftCorner && bottomLeftCorner.textContent === ':');
+    check('bottom border (middle) is a period', bottomBorderMid && bottomBorderMid.textContent === '.');
+
+    console.log('\n  an EXPLICIT WDWBORDER still wins outright - this default only ever applies when the keyword is entirely absent');
+    const explicitSrc =
+      [
+        '     A          R WIN2',
+        '     A                                      WINDOW(3 10 8 30)',
+        '     A                                      WDWBORDER((*COLOR RED))',
+        "     A                                  1  2'Hello'",
+      ].join('\n') + '\n';
+    const explicitHtml = getWebviewHtml('vscode-webview://fake', 'testnonce25', explicitSrc, 'EXPLICITBORDER.DSPF').replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const explicitDom = new JSDOM(explicitHtml, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+      },
+    });
+    setTimeout(() => {
+      const explicitDoc = explicitDom.window.document;
+      const explicitWindowEl = explicitDoc.querySelector('.dspf-window-border');
+      check('an explicit WDWBORDER(*COLOR RED) with no *CHAR still renders NO character overlay (unaffected by the new default - that default is scoped to "no WDWBORDER at all")', !explicitDoc.querySelector('.dspf-window-char'));
+      check('the explicit red color is applied to the plain box border, not overridden by the new blue default', explicitWindowEl.style.borderColor === 'rgb(255, 92, 92)' || /#ff5c5c/i.test(explicitWindowEl.getAttribute('style') || ''));
+
+      console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+      process.exit(failures === 0 ? 0 : 1);
+    }, 0);
   }, 0);
 }
 
@@ -2986,6 +3114,72 @@ function runWindowMoveResizeScenario() {
     dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
     last = posted[posted.length - 1];
     check('resizing a *DFT window keeps *DFT and only changes height/width', last && last.type === 'applyEdit' && /WINDOW\(\*DFT/.test(last.text));
+
+    runWindowMoveOffOriginScenario();
+  }, 0);
+}
+
+// Task L30 - reported as "when dragging windows I feel like it is jumping
+// to the right side." A DEDICATED, fresh scenario (not appended onto
+// runWindowMoveResizeScenario's own state above) since that scenario's own
+// move+resize steps already mutate WDWREC's window geometry away from its
+// declared WINDOW(3 10 8 40) - reusing that mutated state here would make
+// the expected post-drag numbers fragile and hard to follow. The move
+// handle spans the window's ENTIRE top edge (left:0; right:0 in its own
+// CSS), so grabbing it anywhere but the exact leftmost pixel - the
+// realistic case - is exactly what used to jump the window: the old code
+// snapped the window's origin straight to the raw mouse position on every
+// move, ignoring the offset between where it was grabbed and the window's
+// own true top-left corner.
+function runWindowMoveOffOriginScenario() {
+  console.log('\nTask L30: grabbing the window\'s move handle somewhere other than its exact top-left pixel must not jump the window');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R WDWREC',
+      '     A                                      WINDOW(3 10 8 40)',
+      "     A                                  1  2'In the window'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce26', src, 'WDWDRAG.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      // Same 10px/col x 20px/row mock as the other window scenarios.
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent } = dom.window;
+    const windowEl = doc.querySelector('.dspf-window-border');
+    check('setup: the window is rendered', !!windowEl);
+    const moveHandle = windowEl.querySelector('.dspf-window-move-handle');
+    check('setup: a move handle is present', !!moveHandle);
+
+    // WINDOW(3 10 8 40): row 3, col 10. The window's own true top-left
+    // pixel is ((10-1)*10, (3-1)*20) = (90, 40) - grab well AWAY from
+    // that, in the middle of the 40-wide title strip instead: col 10+20=30
+    // -> pixel (30-1)*10=290, same row 3 -> pixel 40.
+    posted.length = 0;
+    moveHandle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 290, clientY: 40 }));
+    // Move the mouse by exactly one grid cell right, one cell down
+    // (+10px col, +20px row) - a real drag nudge, not a jump.
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 60 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    const last = posted[posted.length - 1];
+    check('the window moved by exactly one column/one row (col 10->11, row 3->4), preserving the grab offset', last && last.type === 'applyEdit' && /WINDOW\(4 11 8 40\)/.test(last.text));
+    check('NOT the old bug\'s jump-to-cursor result, which would have snapped the origin to roughly col 30/row 3 - the raw grab point itself', last && !/WINDOW\(3 30/.test(last.text) && !/WINDOW\(4 30/.test(last.text));
+    check("the window's own field content is untouched", last && /In the window/.test(last.text));
 
     runSubfileControlEditScenario();
   }, 0);
