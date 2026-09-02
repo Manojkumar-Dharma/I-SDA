@@ -470,6 +470,65 @@ async function run() {
     vscodeMock.__setRunCommandHandler(null);
   }
 
+  console.log('\nTask L38: getModTrackingConfig() / \'modTrackingConfig\' push - reads isda.trackSourceModifications/isda.modificationTag, resends on live config changes, scoped to the DSPF designer only');
+  {
+    vscodeMock.__clearMockConfig();
+    const modSrc = buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }) + '\n';
+    const modDoc = vscodeMock.__mockDocument(modSrc);
+    let modMessageHandler = null;
+    let modDisposeHandler = null;
+    const modPosted = [];
+    const modPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { modMessageHandler = h; return { dispose: () => {} }; },
+        postMessage: (m) => modPosted.push(m),
+      },
+      onDidDispose: (h) => { modDisposeHandler = h; },
+    };
+    providerEntry.provider.resolveCustomTextEditor(modDoc, modPanel, {});
+
+    console.log('  \'ready\' pushes the current setting values, defaulting to off/blank when unset');
+    modPosted.length = 0;
+    await modMessageHandler({ type: 'ready' });
+    let modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
+    check('posts modTrackingConfig on ready', !!modMsg);
+    check('defaults to enabled=false, tag=\'\' when neither setting is configured', modMsg && modMsg.enabled === false && modMsg.tag === '');
+
+    console.log('  reflects isda.trackSourceModifications/isda.modificationTag when set');
+    vscodeMock.__setMockConfig('isda.trackSourceModifications', true);
+    vscodeMock.__setMockConfig('isda.modificationTag', 'JDOE0902XX');
+    modPosted.length = 0;
+    await modMessageHandler({ type: 'ready' });
+    modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
+    check('enabled reflects the setting', modMsg && modMsg.enabled === true);
+    check('tag reflects the setting, capped at 10 characters', modMsg && modMsg.tag === 'JDOE0902XX'.slice(0, 10));
+
+    console.log('  a live settings.json change while the panel is open pushes a fresh modTrackingConfig, without needing another ready');
+    vscodeMock.__setMockConfig('isda.trackSourceModifications', false);
+    modPosted.length = 0;
+    vscodeMock.__fireConfigChange('isda.trackSourceModifications');
+    modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
+    check('config-change listener re-sends without waiting for another ready', !!modMsg && modMsg.enabled === false);
+
+    console.log('  an unrelated config change does not trigger a resend');
+    modPosted.length = 0;
+    vscodeMock.__fireConfigChange('isda.designerOpenColumn');
+    check('no modTrackingConfig sent for an unrelated setting', !modPosted.some((m) => m.type === 'modTrackingConfig'));
+
+    console.log('  dispose cleans up the config-change subscription without throwing');
+    let modDisposeThrew = false;
+    try {
+      modDisposeHandler();
+    } catch (e) {
+      modDisposeThrew = true;
+    }
+    check('disposes cleanly', !modDisposeThrew);
+
+    vscodeMock.__clearMockConfig();
+  }
+
   console.log('\necho-suppression (the core anti-infinite-loop mechanism)');
   const posted2 = [];
   fakeWebviewPanel.webview.postMessage = (m) => posted2.push(m);

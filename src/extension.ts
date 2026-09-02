@@ -1070,6 +1070,23 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     const statusPollInterval = setInterval(() => { void sendCodeForIStatus(); }, 10000);
     const extChangeSub = vscode.extensions.onDidChange(() => { void sendCodeForIStatus(); });
 
+    // Task L38: pushes the global modification-tracking defaults to the
+    // webview - once up front (on 'ready', same timing sendCodeForIStatus
+    // uses) and again whenever either setting changes while this panel is
+    // still open, so a settings.json edit made mid-session is reflected
+    // without needing to reopen the designer. The webview's own session
+    // state (checkbox/tag box) only reads this as a STARTING value - see
+    // getModTrackingConfig's own doc comment.
+    const sendModTrackingConfig = () => {
+      const cfg = getModTrackingConfig();
+      webviewPanel.webview.postMessage({ type: 'modTrackingConfig', enabled: cfg.enabled, tag: cfg.tag });
+    };
+    const modTrackingConfigSub = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('isda.trackSourceModifications') || e.affectsConfiguration('isda.modificationTag')) {
+        sendModTrackingConfig();
+      }
+    });
+
     const messageSub = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'applyEdit') {
         const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
@@ -1100,6 +1117,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
       } else if (msg.type === 'ready') {
         await sendCodeForIStatus();
+        sendModTrackingConfig();
       }
     });
 
@@ -1109,6 +1127,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       messageSub.dispose();
       clearInterval(statusPollInterval);
       extChangeSub.dispose();
+      modTrackingConfigSub.dispose();
     });
   }
 }
@@ -1994,6 +2013,21 @@ async function getCodeForIStatus(): Promise<{ installed: boolean; connected: boo
   const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
   const connected = !!(connection && typeof connection.runCommand === 'function');
   return { installed: true, connected };
+}
+
+/** Task L38 (docs/sda-reference/LIMITATIONS-PLAN.md): reads the two global
+ *  modification-tracking settings - these are only ever the STARTING values
+ *  a designer session's own Properties-panel checkbox/tag box initialize
+ *  from (see commitSourceChange's own use of DspfWriter.applyModificationTracking
+ *  in buildWebviewTemplate.js); toggling them in the panel is session-only
+ *  and never writes back here, the same relationship Task L11's ruler
+ *  toggle already has with nothing in settings at all. */
+function getModTrackingConfig(): { enabled: boolean; tag: string } {
+  const config = vscode.workspace.getConfiguration('isda');
+  return {
+    enabled: !!config.get<boolean>('trackSourceModifications', false),
+    tag: (config.get<string>('modificationTag', '') || '').slice(0, 10),
+  };
 }
 
 /** Task L4 (docs/sda-reference/LIMITATIONS-PLAN.md): ADDPFM (used below to

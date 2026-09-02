@@ -3700,6 +3700,133 @@
     return msgId + ' ' + msgFile + (library ? ' ' + library : '');
   }
 
+  // ---------------------------------------------------------------------
+  // Task L38 - source modification tracking. Rather than threading an
+  // options param through every individual apply*/insert*/delete*
+  // function above (dozens of call sites across buildWebviewTemplate.js/
+  // buildMenuWebviewTemplate.js/extension.ts), this is a single
+  // POST-PROCESSING step meant to wrap the one before/after pair every
+  // edit already produces (original sourceLines in, a new sourceLines
+  // array out) - exactly what buildWebviewTemplate.js's own
+  // commitSourceChange() choke point already has on hand, since virtually
+  // every DSPF designer edit funnels through it. Every apply*/insert*/
+  // delete* function above already follows the same "one contiguous
+  // range replaced, everything else byte-for-byte untouched" shape (see
+  // this file's own top-of-file doc comment), so a plain common-prefix/
+  // common-suffix trim - not a general-purpose diff/LCS algorithm - is
+  // enough to isolate exactly the range that changed.
+  // ---------------------------------------------------------------------
+
+  function commonPrefixLen(a, b) {
+    var n = Math.min(a.length, b.length);
+    var i = 0;
+    while (i < n && a[i] === b[i]) i++;
+    return i;
+  }
+
+  function commonSuffixLen(a, b, maxLen) {
+    var n = Math.min(a.length, b.length, maxLen == null ? Infinity : maxLen);
+    var i = 0;
+    while (i < n && a[a.length - 1 - i] === b[b.length - 1 - i]) i++;
+    return i;
+  }
+
+  /** Turns an existing line into a plain DDS comment - column 7 set to '*'
+   *  (the same flag buildCommentLine's own freshly-typed comments use),
+   *  every other column (sequence number/form type in 1-6, the line's own
+   *  original content from 8 on) left exactly as it was, so the line
+   *  reads as history rather than being reworded into a synthetic note.
+   *  A too-short line is padded (never truncated) before columns 1-6/7
+   *  are addressed by index. */
+  function commentOutLine(line) {
+    var s = line == null ? '' : String(line);
+    if (s.length < 7) s = s + new Array(7 - s.length + 1).join(' ');
+    return (s.slice(0, 6) + '*' + s.slice(7)).replace(/\s+$/, '');
+  }
+
+  /** Normalizes whatever the person typed into the properties panel's
+   *  modification-tag box into the fixed 10-character payload that gets
+   *  written to columns 81-90 - stripped of newlines (a tag is always
+   *  one line) and capped at 10 characters; no particular format is
+   *  imposed beyond that, per how this task was scoped. */
+  function buildModTag(rawTag) {
+    return (rawTag || '').replace(/[\r\n]/g, '').slice(0, 10);
+  }
+
+  /** Appends `tag` starting at column 81 - past LINE_WIDTH (80), i.e. past
+   *  every column DDS's own compiler ever reads for a source member with
+   *  a record length long enough to hold it - padding the line out to
+   *  exactly 80 columns first (never truncating real column 1-80
+   *  content) so the tag always lands in the same fixed column no matter
+   *  how short the line's own compiled content is. A blank/empty tag is a
+   *  no-op (nothing appended, line returned unchanged). */
+  function appendModTag(line, tag) {
+    if (!tag) return line;
+    var s = line == null ? '' : String(line);
+    if (s.length < LINE_WIDTH) s = s + new Array(LINE_WIDTH - s.length + 1).join(' ');
+    return (s + tag).replace(/\s+$/, '');
+  }
+
+  /**
+   * Wraps a completed edit's (oldLines -> newLines) pair with modification
+   * tracking, when `options.enabled` is true: the common prefix/suffix
+   * between the two arrays is trimmed off first (untouched lines, which
+   * can dwarf the actually-edited range in a large file), then every
+   * position within the remaining differing range is classified:
+   *   - present in both, identical -> left alone, no tag
+   *   - present in both, different -> the OLD line is commented out
+   *     (commentOutLine) immediately before the NEW line, which itself
+   *     gets the inline tag (appendModTag)
+   *   - only in the new range (the edit grew the line count) -> tagged,
+   *     nothing to comment out
+   *   - only in the old range (the edit shrank the line count) -> kept,
+   *     commented out, rather than silently dropped - this is what keeps
+   *     a deletion's history in the file too, not just an in-place edit's
+   *   - a genuinely blank old line dropped by a shrinking edit is NOT
+   *     preserved as an empty comment - there is no content worth a
+   *     history entry for
+   * `options.enabled` false (the common case - feature is off) returns
+   * `newLines` completely unchanged, so this is always safe to call
+   * unconditionally from a single choke point like commitSourceChange().
+   */
+  function applyModificationTracking(oldLines, newLines, options) {
+    options = options || {};
+    if (!options.enabled) return newLines;
+    var tag = buildModTag(options.tag);
+    if (!tag) return newLines;
+
+    var prefix = commonPrefixLen(oldLines, newLines);
+    var maxSuffix = Math.min(oldLines.length, newLines.length) - prefix;
+    var suffix = commonSuffixLen(oldLines, newLines, maxSuffix);
+
+    var oldMid = oldLines.slice(prefix, oldLines.length - suffix);
+    var newMid = newLines.slice(prefix, newLines.length - suffix);
+    if (oldMid.length === 0 && newMid.length === 0) return newLines;
+
+    var outMid = [];
+    var maxLen = Math.max(oldMid.length, newMid.length);
+    for (var i = 0; i < maxLen; i++) {
+      var o = i < oldMid.length ? oldMid[i] : null;
+      var n = i < newMid.length ? newMid[i] : null;
+      if (n == null) {
+        if (o != null && o.trim() !== '') outMid.push(commentOutLine(o));
+        continue;
+      }
+      if (o == null) {
+        outMid.push(appendModTag(n, tag));
+        continue;
+      }
+      if (o === n) {
+        outMid.push(n);
+        continue;
+      }
+      outMid.push(commentOutLine(o));
+      outMid.push(appendModTag(n, tag));
+    }
+
+    return newLines.slice(0, prefix).concat(outMid, newLines.slice(newLines.length - suffix));
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
@@ -3742,6 +3869,10 @@
     setCommandKeyAt: setCommandKeyAt,
     removeCommandKeyAt: removeCommandKeyAt,
     reorderFields: reorderFields,
+    commentOutLine: commentOutLine,
+    buildModTag: buildModTag,
+    appendModTag: appendModTag,
+    applyModificationTracking: applyModificationTracking,
     getColorAttr: getColorAttr,
     setColorAttr: setColorAttr,
     getColorAttrStates: getColorAttrStates,

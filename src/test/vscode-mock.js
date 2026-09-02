@@ -42,6 +42,7 @@ const mockFiles = {}; // uri.toString() -> text content, for workspace.fs.readFi
 const mockConfig = {}; // 'section.key' -> value, for workspace.getConfiguration(...).get(...) in tests
 const changeListeners = []; // every registered workspace.onDidChangeTextDocument handler
 const saveListeners = []; // every registered workspace.onDidSaveTextDocument handler
+const configChangeListeners = []; // every registered workspace.onDidChangeConfiguration handler
 const openTextDocuments = []; // simulates vscode.workspace.textDocuments
 const executedCommands = []; // every vscode.commands.executeCommand call, for assertions
 let runCommandHandler = null; // test-supplied handler for 'code-for-ibmi.runCommand'
@@ -166,6 +167,15 @@ const vscodeMock = {
       saveListeners.push(handler);
       return { dispose: () => { const i = saveListeners.indexOf(handler); if (i >= 0) saveListeners.splice(i, 1); } };
     },
+    // Task L38 - minimal support for the real vscode.workspace.onDidChangeConfiguration
+    // API: registered handlers are called with a ConfigurationChangeEvent-shaped
+    // object whose affectsConfiguration(key) does a simple prefix/exact match
+    // against whatever key __fireConfigChange was told changed - enough for
+    // resolveCustomTextEditor's own e.affectsConfiguration('isda.xxx') checks.
+    onDidChangeConfiguration: (handler) => {
+      configChangeListeners.push(handler);
+      return { dispose: () => { const i = configChangeListeners.indexOf(handler); if (i >= 0) configChangeListeners.splice(i, 1); } };
+    },
     get textDocuments() { return openTextDocuments; },
   },
   __registeredCommands: registeredCommands,
@@ -180,6 +190,10 @@ const vscodeMock = {
   __clearMockFiles: () => { Object.keys(mockFiles).forEach((k) => delete mockFiles[k]); },
   __setMockConfig: (fullKey, value) => { mockConfig[fullKey] = value; },
   __clearMockConfig: () => { Object.keys(mockConfig).forEach((k) => delete mockConfig[k]); },
+  __fireConfigChange: (changedKey) => {
+    const event = { affectsConfiguration: (key) => changedKey === key || changedKey.indexOf(key + '.') === 0 || key.indexOf(changedKey + '.') === 0 };
+    configChangeListeners.slice().forEach((handler) => handler(event));
+  },
   __setOpenTextDocuments: (docs) => { openTextDocuments.length = 0; openTextDocuments.push(...docs); },
   get __executedCommands() { return executedCommands; },
   __setRunCommandHandler: (fn) => { runCommandHandler = fn; },

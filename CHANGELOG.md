@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-02 — Source modification tracking (Task L38)
+
+- **0.10.18** — Task L38: an optional way to keep edit history inside the DDS source itself. When "Track modifications" is on (a checkbox + 10-char tag box in the properties panel, or the `isda.trackSourceModifications`/`isda.modificationTag` settings), any edit that changes an existing source line now comments the original line out (column 7) immediately above the new one instead of silently overwriting it, and the new/changed line gets the typed tag written to columns 81-90 — past what the DDS compiler ever reads. Off by default; a global setting supplies the session's starting values, a per-session toggle in the panel overrides them without writing back. Scoped to the DSPF designer for this pass.
+
 ## 2026-09-02 — File-panel cleanup + "Find keyword" quick-nav (Task L37)
 
 - **0.10.17** — Task L37: the "File" section-label in the left panel moved up next to the filename (right under the "Screen Design" heading) and is now bold, instead of sitting stranded near the bottom; the redundant standalone "File attributes" button was removed (the "File" crumb at the top of the properties panel already opens the same view one click away — the bold "File" label now does too). The properties panel also gained a "Find keyword" search box that jumps straight to a keyword wherever it lives — any tab/subtab, or the Advanced/raw-keywords list — switching tabs, opening accordions, and scrolling/flashing the match as needed.

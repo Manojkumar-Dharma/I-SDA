@@ -107,6 +107,13 @@ anything without a dedicated screen yet.
   panels, and message-file-safe `CRTMNU` compiling — see
   [Menu design (MNUDDS)](#menu-design-mnudds) below for the two-member
   model this all sits on.
+- Optional source modification tracking (DSPF designer): when on, an edit
+  to an existing line comments the original out instead of overwriting it,
+  and tags the new/changed line in columns 81-90 (past what the compiler
+  reads) with a freely-typed marker — so a line's history stays visible
+  in the source itself. Off by default; toggle per-session in the
+  properties panel or set `isda.trackSourceModifications`/
+  `isda.modificationTag`.
 
 ## Architecture
 

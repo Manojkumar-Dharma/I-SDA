@@ -384,6 +384,10 @@ const htmlTemplate = `<!DOCTYPE html>
      etc. tabs (or the Advanced/raw keywords accordion) and briefly flashes
      it so it's easy to spot after the jump. */
   .keyword-finder-row { position: relative; margin-bottom: 10px; }
+  .mod-tracking-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .mod-tracking-row .compare-toggle { margin-top: 0; white-space: nowrap; }
+  .mod-tracking-row input[type="text"] { flex: 1; min-width: 0; }
+  .mod-tracking-row input[type="text"]:disabled { opacity: 0.5; }
   .kw-jump-highlight { animation: kwJumpFlash 1.6s ease-out; }
   @keyframes kwJumpFlash {
     0% { background: rgba(var(--chrome-accent-rgb), 0.55); }
@@ -679,6 +683,10 @@ const htmlTemplate = `<!DOCTYPE html>
     <input type="text" id="keywordFinderInput" placeholder="e.g. COLOR, DSPATR, REF…" autocomplete="off" title="Jump to a keyword wherever it lives in this panel (any tab, or the Advanced/raw keywords list)" />
     <div id="keywordFinderResults" class="field-search-results hidden"></div>
   </div>
+  <div class="mod-tracking-row">
+    <label class="compare-toggle"><input type="checkbox" id="modTrackingToggle" /> Track modifications</label>
+    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads. Session-only; doesn't change the isda.modificationTag setting." />
+  </div>
   <div id="propsBreadcrumb"></div>
   <div id="propsBody"><div class="empty-state">Select a field to edit it.</div></div>
   </div>
@@ -772,6 +780,19 @@ const htmlTemplate = `<!DOCTYPE html>
   // Crosshair (Task L11 follow-up): same session-only convention as the
   // ruler above - never persisted, always starts off.
   let crosshairEnabled = false;
+  // Modification tracking (Task L38): session-only override of the
+  // isda.trackSourceModifications/isda.modificationTag settings, same
+  // "starts from the setting, never writes back to it" convention the
+  // UI style toggle documents elsewhere - only the checked/tag STATE is
+  // session-only here, not persistence of the setting itself (which the
+  // extension host owns). Starts off/blank until the 'modTrackingConfig'
+  // message (sent on 'ready') supplies the real starting values.
+  let modTrackingEnabled = false;
+  let modTrackingTag = '';
+  // True once the person has touched either control directly - after that,
+  // a later 'modTrackingConfig' push (e.g. a live settings.json edit) no
+  // longer overwrites their in-session choice.
+  let modTrackingSessionTouched = false;
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
   let lastScreen = null; // most recently resolved screen ({lines, columns, ...}) - kept around so the props
                           // panel's "Center on screen" action knows the current record's width without
@@ -801,6 +822,8 @@ const htmlTemplate = `<!DOCTYPE html>
   const rulerCols = document.getElementById('rulerCols');
   const rulerRows = document.getElementById('rulerRows');
   const crosshairToggle = document.getElementById('crosshairToggle');
+  const modTrackingToggle = document.getElementById('modTrackingToggle');
+  const modTrackingTagInput = document.getElementById('modTrackingTagInput');
   const crosshairV = document.getElementById('crosshairV');
   const crosshairH = document.getElementById('crosshairH');
   const crosshairReadout = document.getElementById('crosshairReadout');
@@ -1379,6 +1402,20 @@ const htmlTemplate = `<!DOCTYPE html>
   crosshairToggle.addEventListener('change', () => {
     crosshairEnabled = crosshairToggle.checked;
     if (!crosshairEnabled) hideCrosshair();
+  });
+
+  // Task L38 - session-only, same "toggling here never writes back to the
+  // isda.* settings" relationship the UI style toggle documents elsewhere;
+  // only the 'modTrackingConfig' message (sent by the extension host on
+  // 'ready', see getModTrackingConfig in extension.ts) ever sets the
+  // STARTING values these two controls show.
+  modTrackingToggle.addEventListener('change', () => {
+    modTrackingEnabled = modTrackingToggle.checked;
+    modTrackingSessionTouched = true;
+  });
+  modTrackingTagInput.addEventListener('input', () => {
+    modTrackingTag = DspfWriter.buildModTag(modTrackingTagInput.value);
+    modTrackingSessionTouched = true;
   });
 
   // Crosshair (Task L11 follow-up) - listens on rulerWrap, NOT screenOutput,
@@ -4147,8 +4184,14 @@ const htmlTemplate = `<!DOCTYPE html>
   function commitSourceChange(transform, afterReparse) {
     try {
       const lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      const newLines = transform(lines);
+      let newLines = transform(lines);
       if (!newLines) return;
+      // Task L38 - a single post-processing step over every edit's own
+      // (before, after) line-array pair, rather than threading tracking
+      // options through each individual DspfWriter call above - see
+      // applyModificationTracking's own doc comment in dspfWriter.js for
+      // why a plain prefix/suffix trim is enough here.
+      newLines = DspfWriter.applyModificationTracking(lines, newLines, { enabled: modTrackingEnabled, tag: modTrackingTag });
       sourceText = newLines.join('\\n');
       model = DspfParser.parseDspf(sourceText);
       activePulldown = null;
@@ -4761,6 +4804,18 @@ const htmlTemplate = `<!DOCTYPE html>
       if (overlay && overlay.__onDatabaseFieldsResult) overlay.__onDatabaseFieldsResult(msg);
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
+    } else if (msg.type === 'modTrackingConfig') {
+      // Task L38 - only ever the STARTING values (see this message's own
+      // sendModTrackingConfig() doc comment in extension.ts); if the person
+      // has already toggled either control this session, a live
+      // settings.json change while the panel is open is deliberately NOT
+      // clobbering that in-progress override.
+      if (!modTrackingSessionTouched) {
+        modTrackingEnabled = !!msg.enabled;
+        modTrackingTag = DspfWriter.buildModTag(msg.tag);
+        modTrackingToggle.checked = modTrackingEnabled;
+        modTrackingTagInput.value = modTrackingTag;
+      }
     } else if (msg.type === 'dirtyState') {
       updateSaveButtonDirtyState(msg.isDirty);
     }
