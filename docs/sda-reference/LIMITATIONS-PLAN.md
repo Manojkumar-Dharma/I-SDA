@@ -255,27 +255,27 @@ handle snapping to the cursor instead of preserving the drag's grab
 offset, making a window jump right the instant it was grabbed anywhere
 but its exact top-left pixel. See each row for the full writeup.
 
-**L32 through L34 are open (`not started`)** - three deferred slivers
-flagged (but deliberately not implemented) while fixing L29/L30, now
-given their own rows so they can be picked up independently: L32 is a
+**L32 and L33 are open (`not started`)** - two deferred slivers flagged
+(but deliberately not implemented) while fixing L29/L30, now given
+their own rows so they can be picked up independently: L32 is a
 genuinely partial `WDWBORDER` (e.g. only `*DSPATR` set) not getting
 IBM's own per-sub-parameter defaults the way an entirely-absent one now
 does (L29); L33 is field-dragging having the identical
 absolute-snap-to-cursor pattern that caused the L30 window-drag jump
 bug, not yet fixed there since it needs existing pixel-exact test
-coverage re-verified too; L34 is exploratory (not a confirmed bug) - a
-reminder to watch for other legacy-keyword-synonym gaps in the same
-family as L22's ROLLUP/ROLLDOWN fix next time a keyword-inventory audit
-happens.
+coverage re-verified too.
 
-**L31 is also now `done`.** Command keys support multiple
+**L31 and L34 are also now `done`.** L31: command keys support multiple
 independently-conditioned instances of the same key number now (real
 SDA's own F3-reads-"Exit"-vs-"Cancel" pattern) - a new index-based
 `setCommandKeyAt`/`removeCommandKeyAt` pair in `dspfWriter.js`
 addresses one specific instance without disturbing a sibling instance
 of the same number, and `allCommandKeyNumbers()` replaces the old
-already-used-number exclusion in the "+ Add command key" picker; see
-L31's own row for the full writeup.
+already-used-number exclusion in the "+ Add command key" picker. L34:
+its own speculative question (other legacy-keyword-synonym gaps beyond
+ROLLUP/ROLLDOWN) turned up one confirmed pair, `CMP`/`COMP`, now
+recognized and normalized the same way. See each row for the full
+writeup.
 
 **L35 is `not applicable`** - reported as "code for ibm i runcommand is
 not valid, it should be code for ibm i runaction." Investigated against
@@ -287,7 +287,7 @@ different, unrelated end-user feature (runs a project-configured
 `actions.json` entry) that would break every compile/DSPFFD call here
 if swapped in. See L35's own row for the full citation.
 
-There's no other pending work to parallelize right now beyond L32-L34
+There's no other pending work to parallelize right now beyond L32-L33
 above; every other currently-tracked task is closed. If a new limitation surfaces, add it as a new task here
 (continuing the
 `L`/`M` numbering) rather than folding it into an existing row, and
