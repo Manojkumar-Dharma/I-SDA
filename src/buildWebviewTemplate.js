@@ -1381,6 +1381,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function setPlacementMode(mode) {
     placementMode = placementMode === mode ? null : mode; // clicking the active button again cancels
     pendingPlacement = null;
+    if (placementMode !== 'COPY') pendingCopySource = null; // Task L36: only COPY mode needs it
     placeFieldBtn.classList.toggle('active', placementMode === 'FIELD');
     placeConstantBtn.classList.toggle('active', placementMode === 'CONSTANT');
     placementHint.classList.toggle('hidden', !placementMode);
@@ -1393,6 +1394,18 @@ const htmlTemplate = `<!DOCTYPE html>
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && (placementMode || pendingPlacement)) { setPlacementMode(null); pendingPlacement = null; render(); }
   });
+
+  // Task L36: "Copy field"/"Copy constant" (the p-copy button in the field properties panel)
+  // used to insert the duplicate immediately at DspfWriter.copyField's own default location
+  // (one row below the original, same column), which visibly overlaps the original for a
+  // single-line field. Now reuses the SAME click-to-place flow the "+ Field"/"+ Constant"
+  // buttons already have: snapshot the field being copied, enter 'COPY' placement mode, and
+  // let the existing screenOutput click handler capture where the user actually wants it
+  // (still editable as line/column numbers afterward, same as a brand-new field).
+  function beginCopyPlacement(recordName, field) {
+    pendingCopySource = { recordName: recordName, field: JSON.parse(JSON.stringify(field)) };
+    setPlacementMode('COPY');
+  }
 
   document.getElementById('addFromDbBtn').addEventListener('click', () => {
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
@@ -2141,11 +2154,18 @@ const htmlTemplate = `<!DOCTYPE html>
   // Ctrl+D "duplicate in place": Ctrl+D always inserts into the SAME record
   // immediately; Copy+Paste can move a field's definition across records.
   let clipboardField = null;
-  let placementMode = null; // null | 'FIELD' | 'CONSTANT' - set by the "+ Field"/"+ Constant"
-                             // buttons; the next click on the screen preview background
-                             // becomes the new field/constant's starting position.
+  let placementMode = null; // null | 'FIELD' | 'CONSTANT' | 'COPY' - set by the "+ Field"/
+                             // "+ Constant" buttons (or by "Copy field"/"Copy constant" -
+                             // Task L36); the next click on the screen preview background
+                             // becomes the new (or copied) field/constant's starting position.
   let pendingPlacement = null; // null | { kind, line, column } - set once that click lands,
                                 // and cleared once the placement form commits or is cancelled.
+  // Task L36: the field/constant being duplicated once 'COPY' placement mode is active - a
+  // plain-data snapshot (decoupled from the live model, same reasoning as clipboardField's
+  // own doc comment above) captured when "Copy field"/"Copy constant" is clicked, consumed by
+  // renderPlacementProps once the user picks where it goes. Cleared whenever COPY placement
+  // mode ends (commit, cancel, Escape, or switching to a different placement mode).
+  let pendingCopySource = null; // null | { recordName, field }
 
   function gridMetrics() {
     const screenEl = screenOutput.querySelector('.dspf-screen');
@@ -2659,7 +2679,9 @@ const htmlTemplate = `<!DOCTYPE html>
     } else if (selectedHelpSourceLine != null) {
       html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Help entry</span>';
     } else if (pendingPlacement) {
-      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">New ' + (pendingPlacement.kind === 'CONSTANT' ? 'constant' : 'field') + '</span>';
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' +
+        (pendingPlacement.kind === 'COPY' ? 'Place copy' : 'New ' + (pendingPlacement.kind === 'CONSTANT' ? 'constant' : 'field')) +
+        '</span>';
     }
     html += '</div>';
     propsBreadcrumb.innerHTML = html;
@@ -2671,6 +2693,7 @@ const htmlTemplate = `<!DOCTYPE html>
       clearSelection();
       selectedHelpSourceLine = null;
       pendingPlacement = null;
+      pendingCopySource = null;
       render();
     });
     const recordCrumb = document.getElementById('crumb-record');
@@ -2680,6 +2703,7 @@ const htmlTemplate = `<!DOCTYPE html>
       clearSelection();
       selectedHelpSourceLine = null;
       pendingPlacement = null;
+      pendingCopySource = null;
       render();
     });
   }
@@ -3034,7 +3058,7 @@ const htmlTemplate = `<!DOCTYPE html>
       }
       commitEdit(ownerRecordName, field, updates);
     });
-    document.getElementById('p-copy').addEventListener('click', () => commitCopy(ownerRecordName, field));
+    document.getElementById('p-copy').addEventListener('click', () => beginCopyPlacement(ownerRecordName, field));
     const resolveRefBtn = document.getElementById('p-resolve-ref');
     if (resolveRefBtn) {
       resolveRefBtn.addEventListener('click', () => {
@@ -3317,6 +3341,12 @@ const htmlTemplate = `<!DOCTYPE html>
    */
   function renderPlacementProps(recordName) {
     const kind = pendingPlacement.kind;
+    // Task L36: 'COPY' is a much shorter form than 'FIELD'/'CONSTANT' - the field's own
+    // name/length/type/etc. are already known (snapshotted in pendingCopySource), so this
+    // only ever needs the Line/Column the click-to-place flow already collects. Handled as
+    // its own early return rather than falling through the FIELD/CONSTANT branches below,
+    // since none of their name/length/type inputs apply here.
+    if (kind === 'COPY') { renderCopyPlacementProps(recordName); return; }
     let html = '<div class="section-label">' + (kind === 'CONSTANT' ? 'New constant' : 'New field') + '</div>';
     html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
     html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
@@ -3401,6 +3431,59 @@ const htmlTemplate = `<!DOCTYPE html>
           const freshRec = model.records.find((r) => r.name === recordName);
           const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
           pendingPlacement = null;
+          setSingleSelection(newField ? newField.sourceLine : null);
+        }
+      );
+    });
+  }
+
+  /**
+   * Task L36: the props panel shown while a 'COPY' pendingPlacement is active - the click
+   * that landed it has already chosen a starting line/column (still editable here, same
+   * "kept editable in case the click landed a cell or two off" reasoning renderPlacementProps'
+   * own doc comment gives for FIELD/CONSTANT). Unlike a brand-new field there's nothing else
+   * to ask - name/length/type/keywords/conditions all come from pendingCopySource.field
+   * unchanged - so this is just Line/Column plus a confirm button. Reuses
+   * DspfWriter.copyField exactly as commitCopy did, only now with an explicit
+   * options.location instead of copyField's own one-row-below default, which is what was
+   * causing the reported overlap.
+   */
+  function renderCopyPlacementProps(recordName) {
+    const source = pendingCopySource;
+    if (!source) { pendingPlacement = null; render(); return; }
+    const field = source.field;
+    const isConstant = field.nameType === 'CONSTANT';
+    const rawLabel = isConstant ? (field.constantValue || '(constant)') : (field.name || '(field)');
+    const label = rawLabel.length > 30 ? rawLabel.slice(0, 30) + '\u2026' : rawLabel;
+    let html = '<div class="section-label">Copy ' + (isConstant ? 'constant' : 'field') + '</div>';
+    html += '<div class="field-row"><label>Copy of</label><div>' + DspfEngine.escapeHtml(label) + '</div></div>';
+    html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
+    html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
+    html += '<div class="rename-error" id="p-place-error"></div>';
+    html += '<button id="p-place-add" style="width:100%;margin-top:8px;">Place copy</button>';
+    html += '<button id="p-place-cancel" class="secondary" style="width:100%;margin-top:8px;">Cancel</button>';
+    propsBody.innerHTML = html;
+
+    document.getElementById('p-place-cancel').addEventListener('click', () => { pendingPlacement = null; pendingCopySource = null; render(); });
+    document.getElementById('p-place-add').addEventListener('click', () => {
+      const errorEl = document.getElementById('p-place-error');
+      errorEl.textContent = '';
+      const rec = model.records.find((r) => r.name === recordName);
+      if (!rec) { errorEl.textContent = 'No record selected.'; return; }
+      // Copying into a DIFFERENT record than the one the field was copied from is deliberately
+      // allowed (same as Ctrl+X/C/V's cross-record paste - see clipboardField's own doc
+      // comment) - the recordName passed in here is whichever record is currently shown, not
+      // necessarily source.recordName.
+      const line = Math.max(1, parseInt(document.getElementById('p-place-line').value, 10) || pendingPlacement.line);
+      const column = Math.max(1, parseInt(document.getElementById('p-place-col').value, 10) || pendingPlacement.column);
+
+      commitSourceChange(
+        (lines) => DspfWriter.copyField(rec, lines, field, { location: { line: line, column: column } }),
+        () => {
+          const freshRec = model.records.find((r) => r.name === recordName);
+          const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
+          pendingPlacement = null;
+          pendingCopySource = null;
           setSingleSelection(newField ? newField.sourceLine : null);
         }
       );

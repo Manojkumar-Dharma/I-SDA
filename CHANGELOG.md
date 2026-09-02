@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-02 — Copy field/constant now asks where to place the copy (Task L36)
+
+- **0.10.16** — Task L36: the "Copy field"/"Copy constant" button in the properties panel used to drop the copy one row directly below the original (same column), overlapping it on screen for single-line fields. It now reuses the same click-to-place flow "+ Field"/"+ Constant" already have — click Copy, then click the screen preview to choose where the copy lands (still editable as line/column numbers) before it's inserted. Ctrl+D, Ctrl+X/C/V, and multi-select "Duplicate selection" are unchanged.
+
 ## 2026-09-02 — Field-drag off-origin jump fix (Task L33)
 
 - **0.10.15** — Task L33: field-dragging (`startDrag`/`startGroupDrag`) had the identical absolute-snap-to-cursor bug L30 fixed for window-dragging — grabbing a field anywhere other than its exact top-left cell jumped it instead of preserving the click offset. Both now thread the mousedown event through and compute moves as a delta from the grab point, same as `startWindowMove`. Deferred sliver from L30.

@@ -495,6 +495,13 @@ function runCopyFieldScenario() {
     pretendToBeVisual: true,
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      // Task L36: the Copy button now goes through the same click-to-place flow as
+      // "+ Field"/"+ Constant" - gridMetrics() needs a non-zero rect to convert a pixel
+      // click into a line/column (jsdom does no real layout). Same 10px/col, 20px/row
+      // stub runClickToPlaceScenario uses.
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
     },
   });
 
@@ -502,7 +509,7 @@ function runCopyFieldScenario() {
     const doc = dom.window.document;
     const { Event, KeyboardEvent } = dom.window;
 
-    console.log('  Copy button on a named field');
+    console.log('  Copy button on a named field - now asks where to place the copy instead of dropping it one row below (Task L36)');
     const fieldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('CUSTNAME'));
     check('setup: the target field is present', !!fieldEl);
     fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
@@ -510,13 +517,38 @@ function runCopyFieldScenario() {
 
     const beforeCount = doc.querySelectorAll('.dspf-field').length;
     doc.getElementById('p-copy').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking Copy does NOT immediately post an edit', !posted.some((m) => m.type === 'applyEdit'));
+    check('instead activates the same crosshair placement class the canvas uses', !!doc.querySelector('.dspf-screen.placing'));
+    check('nothing new on the canvas yet', doc.querySelectorAll('.dspf-field').length === beforeCount);
+
+    // Click at pixel (305, 155) on the 10px/col x 20px/row grid: gridMetrics'
+    // conversion is Math.round(px/cell) + 1, so this lands at col 32, line 9
+    // (round(305/10)=31, +1=32; round(155/20)=8, +1=9).
+    const screenEl = doc.querySelector('.dspf-screen');
+    screenEl.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 305, clientY: 155 }));
+    check('placement mode turns off once the click lands', !doc.querySelector('.dspf-screen.placing'));
+
+    const placeLine = doc.getElementById('p-place-line');
+    const placeCol = doc.getElementById('p-place-col');
+    check('opens a placement form pre-filled with the clicked line', !!placeLine && placeLine.value === '9');
+    check('...and column', !!placeCol && placeCol.value === '32');
+    check('labels what is being copied', doc.getElementById('propsBody') && doc.getElementById('propsBody').textContent.includes('CUSTNAME'));
+    check('the "Place copy" button is present (no Name/Length/Type inputs - those all come from the source field)', !!doc.getElementById('p-place-add') && !doc.getElementById('p-place-name'));
+
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
-    check('posts applyEdit after clicking Copy', !!applyEdit);
+    check('posts applyEdit only once the placement is confirmed', !!applyEdit);
     check('the copy gets an auto-generated distinct name', applyEdit && /CUSTNAME2/.test(applyEdit.text));
     check('the original field is untouched', applyEdit && /CUSTNAME\s+30A/.test(applyEdit.text));
     check('the copy keeps the DSPATR keyword', applyEdit && (applyEdit.text.match(/DSPATR\(HI\)/g) || []).length === 2);
+    check('the copy lands at the clicked line/column, not overlapping the original', applyEdit && (() => {
+      const reparsedRec = DspfParser.parseDspf(applyEdit.text).records[0];
+      const copy = reparsedRec.fields.find((f) => f.name === 'CUSTNAME2');
+      return !!copy && copy.location.line === 9 && copy.location.column === 32;
+    })());
     check('the screen re-renders with one more field', doc.querySelectorAll('.dspf-field').length === beforeCount + 1);
     check('the new copy is selected (Name input shows the auto-generated name)', doc.getElementById('p-name') && doc.getElementById('p-name').value === 'CUSTNAME2');
+    check('the placement form is gone afterward (pendingPlacement/pendingCopySource cleared)', !doc.getElementById('p-place-add'));
 
     console.log('  Ctrl+D on a constant');
     posted.length = 0;
