@@ -379,6 +379,16 @@ const htmlTemplate = `<!DOCTYPE html>
   .field-search-row .fsr-name { color: var(--ink); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .field-search-row .fsr-meta { color: var(--ink-dim); font-size: 10px; white-space: nowrap; flex-shrink: 0; }
   .field-search-empty { padding: 8px; font-size: 11px; color: var(--ink-dim); }
+  /* Task L37 - "Find keyword" quick-nav in the properties panel: jumps to
+     a keyword wherever it lives among the current General/Indicator/Print/
+     etc. tabs (or the Advanced/raw keywords accordion) and briefly flashes
+     it so it's easy to spot after the jump. */
+  .keyword-finder-row { position: relative; margin-bottom: 10px; }
+  .kw-jump-highlight { animation: kwJumpFlash 1.6s ease-out; }
+  @keyframes kwJumpFlash {
+    0% { background: rgba(var(--chrome-accent-rgb), 0.55); }
+    100% { background: transparent; }
+  }
   /* Task L13 - comment text input reuses .rename-input's own look (flex:1,
      same dark input styling) inside a .field-order-row so a comment row
      lines up visually with the Structure tab's other rows above it. */
@@ -569,6 +579,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
+  <div class="section-label" id="fileSectionLabel" style="font-weight:700;margin-top:0;">File</div>
   <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
@@ -623,8 +634,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <div id="compareRecordList" class="hidden"></div>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
-  <div class="section-label">File</div>
-  <button id="fileAttrsBtn" class="secondary" style="width:100%;margin-top:8px;">File attributes</button>
   <button id="compileDspfBtn" class="compile-btn" style="width:100%;margin-top:8px;">Compile Display File (CRTDSPF)</button>
   <details class="props-accordion" id="uiSettingsAccordion" style="margin-top:10px;">
     <summary>&#9881; UI Settings</summary>
@@ -665,6 +674,11 @@ const htmlTemplate = `<!DOCTYPE html>
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
   <div class="panel-body" id="rightPanelBody">
   <h2 style="font-size:13px;">Properties</h2>
+  <div class="field-row keyword-finder-row">
+    <label>Find keyword</label>
+    <input type="text" id="keywordFinderInput" placeholder="e.g. COLOR, DSPATR, REF…" autocomplete="off" title="Jump to a keyword wherever it lives in this panel (any tab, or the Advanced/raw keywords list)" />
+    <div id="keywordFinderResults" class="field-search-results hidden"></div>
+  </div>
   <div id="propsBreadcrumb"></div>
   <div id="propsBody"><div class="empty-state">Select a field to edit it.</div></div>
   </div>
@@ -794,7 +808,6 @@ const htmlTemplate = `<!DOCTYPE html>
   const sizeSelect = document.getElementById('sizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
   const overlapWarning = document.getElementById('overlapWarning');
-  const fileAttrsBtn = document.getElementById('fileAttrsBtn');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
   const newRecordToggleBtn = document.getElementById('newRecordToggleBtn');
   const newRecordForm = document.getElementById('newRecordForm');
@@ -877,12 +890,23 @@ const htmlTemplate = `<!DOCTYPE html>
   });
   applyPanelCollapse();
 
-  fileAttrsBtn.addEventListener('click', () => {
-    showFileProps = true;
-    clearSelection();
-    selectedHelpSourceLine = null;
-    renderProps(recordSelect.value);
-  });
+  // Task L37: the standalone "File attributes" button was removed - opening
+  // the file-level keyword panel is already one click away via the "File"
+  // crumb at the top of the properties panel (see renderBreadcrumb's
+  // crumb-file wiring below). The "File" section-label up here in the left
+  // panel now does the same thing, so there's still a quick way in from
+  // this side without a redundant second button.
+  const fileSectionLabel = document.getElementById('fileSectionLabel');
+  if (fileSectionLabel) {
+    fileSectionLabel.style.cursor = 'pointer';
+    fileSectionLabel.title = 'Open file-level attributes';
+    fileSectionLabel.addEventListener('click', () => {
+      showFileProps = true;
+      clearSelection();
+      selectedHelpSourceLine = null;
+      renderProps(recordSelect.value);
+    });
+  }
 
   // Task L8 - "Compile Display File (CRTDSPF)" - mirrors the Menu designer's
   // own "Compile Menu (CRTMNU)" button/message pair (buildMenuWebviewTemplate.js's
@@ -1038,6 +1062,132 @@ const htmlTemplate = `<!DOCTYPE html>
     // preventDefault, but blur can still fire first in some browsers) gets
     // a chance to run its jump before the dropdown is torn down.
     setTimeout(closeFieldSearchResults, 150);
+  });
+
+  // Task L37 - "Find keyword" in the properties panel (right side). Rather
+  // than maintaining a separate keyword->tab lookup table that would drift
+  // out of sync with fileKeywordsPanelsHtml/recordKeywordsPanelsHtml's own
+  // category choices, this searches the ALREADY-RENDERED propsBody DOM
+  // directly - every tabsHtml()/subtabsHtml() panel is present in the DOM
+  // at once (just CSS-hidden via the missing .active class - see
+  // wireTabs/wireSubTabs above), so a plain text search over the row
+  // labels/keyword chips already finds a match no matter which tab it
+  // lives under, with nothing extra to keep in sync as panels evolve.
+  const keywordFinderInput = document.getElementById('keywordFinderInput');
+  const keywordFinderResults = document.getElementById('keywordFinderResults');
+  let keywordFinderMatches = [];
+  let keywordFinderActiveIndex = -1;
+
+  // A .keyword-chip's textContent includes its own "x" remove button label;
+  // strip that back out so the search index only sees the keyword itself.
+  function keywordChipOwnText(el) {
+    if (!el.classList || !el.classList.contains('keyword-chip')) return el.textContent.trim();
+    let text = '';
+    el.childNodes.forEach((node) => { if (node.nodeType === 3) text += node.textContent; });
+    return text.trim();
+  }
+
+  function findKeywordMatches(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const out = [];
+    const seen = new Set();
+    propsBody.querySelectorAll('label, .section-label, .keyword-chip').forEach((el) => {
+      const text = keywordChipOwnText(el);
+      if (!text || text.toLowerCase().indexOf(q) === -1) return;
+      const tabPanel = el.closest('.props-tab-panel');
+      const subtabPanel = el.closest('.props-subtab-panel');
+      const tabId = tabPanel ? tabPanel.getAttribute('data-tab-panel') : null;
+      const subtabId = subtabPanel ? subtabPanel.getAttribute('data-subtab-panel') : null;
+      // Same visible text can legitimately appear more than once (e.g. a
+      // field's General tab and a differently-scoped tab both mentioning
+      // "Color"); de-dupe on text+tab so the list stays short without
+      // hiding genuinely distinct matches.
+      const key = text.toLowerCase() + '|' + tabId + '|' + subtabId;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ element: el, text: text, tabId: tabId, subtabId: subtabId });
+    });
+    return out.slice(0, 30);
+  }
+
+  function closeKeywordFinderResults() {
+    keywordFinderResults.classList.add('hidden');
+    keywordFinderResults.innerHTML = '';
+    keywordFinderMatches = [];
+    keywordFinderActiveIndex = -1;
+  }
+
+  function renderKeywordFinderResults() {
+    if (!keywordFinderMatches.length) {
+      keywordFinderResults.innerHTML = '<div class="field-search-empty">No matching keywords in the current view.</div>';
+      keywordFinderResults.classList.remove('hidden');
+      return;
+    }
+    keywordFinderResults.innerHTML = keywordFinderMatches.map((m, idx) => {
+      const meta = m.tabId ? DspfEngine.escapeHtml(m.tabId) : '';
+      return '<div class="field-search-row' + (idx === keywordFinderActiveIndex ? ' active' : '') + '" data-idx="' + idx + '">' +
+        '<span class="fsr-name">' + DspfEngine.escapeHtml(m.text) + '</span>' +
+        '<span class="fsr-meta">' + meta + '</span>' +
+        '</div>';
+    }).join('');
+    keywordFinderResults.classList.remove('hidden');
+    keywordFinderResults.querySelectorAll('.field-search-row[data-idx]').forEach((row) => {
+      row.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        jumpToKeywordMatch(keywordFinderMatches[parseInt(row.getAttribute('data-idx'), 10)]);
+      });
+    });
+  }
+
+  // Reveals the match's tab/subtab (and opens its accordion, if any) without
+  // triggering a full propsBody re-render - clicking the existing tab/subtab
+  // button just toggles the .active class (see wireTabs/wireSubTabs), so the
+  // matched element reference captured in findKeywordMatches stays valid.
+  function jumpToKeywordMatch(match) {
+    if (!match || !match.element) return;
+    if (match.tabId) {
+      const tabBtn = propsBody.querySelector('.props-tab[data-tab="' + match.tabId + '"]');
+      if (tabBtn && !tabBtn.classList.contains('active')) tabBtn.click();
+    }
+    if (match.subtabId) {
+      const subtabBtn = propsBody.querySelector('.props-subtab[data-subtab="' + match.subtabId + '"]');
+      if (subtabBtn && !subtabBtn.classList.contains('active')) subtabBtn.click();
+    }
+    const details = match.element.closest('details.props-accordion');
+    if (details && !details.open) details.open = true;
+    const target = match.element.closest('.field-row, .kw-row, .keyword-chip') || match.element;
+    if (target.scrollIntoView) target.scrollIntoView({ block: 'center' });
+    target.classList.add('kw-jump-highlight');
+    setTimeout(() => target.classList.remove('kw-jump-highlight'), 1600);
+    closeKeywordFinderResults();
+  }
+
+  keywordFinderInput.addEventListener('input', () => {
+    keywordFinderMatches = findKeywordMatches(keywordFinderInput.value);
+    keywordFinderActiveIndex = keywordFinderMatches.length ? 0 : -1;
+    if (keywordFinderInput.value.trim()) renderKeywordFinderResults();
+    else closeKeywordFinderResults();
+  });
+  keywordFinderInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeKeywordFinderResults();
+      keywordFinderInput.blur();
+    } else if (e.key === 'ArrowDown' && keywordFinderMatches.length) {
+      e.preventDefault();
+      keywordFinderActiveIndex = (keywordFinderActiveIndex + 1) % keywordFinderMatches.length;
+      renderKeywordFinderResults();
+    } else if (e.key === 'ArrowUp' && keywordFinderMatches.length) {
+      e.preventDefault();
+      keywordFinderActiveIndex = (keywordFinderActiveIndex - 1 + keywordFinderMatches.length) % keywordFinderMatches.length;
+      renderKeywordFinderResults();
+    } else if (e.key === 'Enter' && keywordFinderMatches.length) {
+      e.preventDefault();
+      jumpToKeywordMatch(keywordFinderMatches[keywordFinderActiveIndex >= 0 ? keywordFinderActiveIndex : 0]);
+    }
+  });
+  keywordFinderInput.addEventListener('blur', () => {
+    setTimeout(closeKeywordFinderResults, 150);
   });
 
   // "Save" - every edit already lands in the document's live buffer via

@@ -725,11 +725,11 @@ function runFileAttrsScenario() {
     const doc = dom.window.document;
     const { Event } = dom.window;
 
-    console.log('  File attributes button opens the file-level keyword panel');
+    console.log('  the "File" crumb (and the bold File label in the sidebar) opens the file-level keyword panel');
     check('setup: no field/record is selected yet, so the record panel (with rename) shows by default', doc.getElementById('p-record-name') !== null);
-    const fileAttrsBtn = doc.getElementById('fileAttrsBtn');
-    check('setup: the File attributes button exists in the sidebar', !!fileAttrsBtn);
-    fileAttrsBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const fileCrumbBtn = doc.getElementById('crumb-file');
+    check('setup: the File crumb exists in the properties panel breadcrumb', !!fileCrumbBtn);
+    fileCrumbBtn.dispatchEvent(new Event('click', { bubbles: true }));
     check('switches the props panel to the file-level view', doc.getElementById('crumb-file') !== null && doc.getElementById('crumb-file').classList.contains('current'));
     check('shows the existing DSPSIZ keyword as a chip', /DSPSIZ/.test(doc.getElementById('kwed-file').textContent));
     check('no record-level Name/rename input in this view', doc.getElementById('p-record-name') === null);
@@ -805,7 +805,7 @@ function runCommandKeysScenario() {
     check('function-key legend starts empty (no keys defined yet)', doc.getElementById('fkeyLegend').querySelectorAll('.fkey-chip').length === 0);
 
     console.log('  file-level command keys now live under File attributes > Cmd keys, not a standalone left-panel section');
-    doc.getElementById('fileAttrsBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('crumb-file').dispatchEvent(new Event('click', { bubbles: true }));
     doc.querySelector('.props-tab[data-tab="commandkeys"]').dispatchEvent(new Event('click', { bubbles: true }));
 
     console.log('  add a file-level key');
@@ -860,7 +860,7 @@ function runCommandKeysScenario() {
     check("the legend resolves key 03 to SCR1's own override text (F3=Local exit), not the file-level one (F3=Exit)", /F3=Local exit/.test(doc.getElementById('fkeyLegend').textContent));
 
     console.log('  remove the file-level key - SCR1 keeps its own override, and SCR2 (no override) loses F3 entirely');
-    doc.getElementById('fileAttrsBtn').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('crumb-file').dispatchEvent(new Event('click', { bubbles: true }));
     doc.querySelector('.cmdkey-remove[data-prefix="file"][data-number="03"]').dispatchEvent(new Event('click', { bubbles: true }));
     last = posted[posted.length - 1];
     const ca03Count = last ? (last.text.match(/\bCA03\(/g) || []).length : -1;
@@ -2963,13 +2963,18 @@ function runFileNamePositionScenario() {
     const panelBody = doc.getElementById('leftPanelBody');
     const children = Array.from(panelBody.children);
     const h2Idx = children.findIndex((el) => el.tagName === 'H2');
+    const fileLabel = doc.getElementById('fileSectionLabel');
+    const fileLabelIdx = children.indexOf(fileLabel);
     const fileStatusIdx = children.indexOf(fileStatus);
     const badgeIdx = children.findIndex((el) => el.id === 'codeForIBadge');
-    const fileAttrsBtnIdx = children.findIndex((el) => el.id === 'fileAttrsBtn');
+    const compileBtnIdx = children.findIndex((el) => el.id === 'compileDspfBtn');
     check('the "Screen Design" heading is present', h2Idx !== -1 && /Screen Design/i.test(children[h2Idx].textContent));
-    check('the file name sits directly after the "Screen Design" h2 (nothing else in between)', fileStatusIdx === h2Idx + 1);
+    check('Task L37: a bold "File" label sits directly after the "Screen Design" h2 (nothing else in between)', fileLabelIdx === h2Idx + 1);
+    check('Task L37: the "File" label is bold', /font-weight\s*:\s*(700|bold)/i.test(fileLabel.getAttribute('style') || ''));
+    check('the file name sits directly after the "File" label', fileStatusIdx === fileLabelIdx + 1);
     check('the Code for IBM i badge comes right after the file name', badgeIdx === fileStatusIdx + 1);
-    check('the file name is well before the File attributes button (previously it was directly above it)', fileStatusIdx < fileAttrsBtnIdx - 1);
+    check('Task L37: the standalone "File attributes" button is gone (redundant with the "File" crumb in the properties panel)', !doc.getElementById('fileAttrsBtn'));
+    check('the Compile Display File button is still present', compileBtnIdx !== -1);
 
     runDefaultWindowBorderScenario();
   }, 0);
