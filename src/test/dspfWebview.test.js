@@ -3115,6 +3115,72 @@ function runWindowMoveResizeScenario() {
     last = posted[posted.length - 1];
     check('resizing a *DFT window keeps *DFT and only changes height/width', last && last.type === 'applyEdit' && /WINDOW\(\*DFT/.test(last.text));
 
+    runWindowMoveOffOriginScenario();
+  }, 0);
+}
+
+// Task L30 - reported as "when dragging windows I feel like it is jumping
+// to the right side." A DEDICATED, fresh scenario (not appended onto
+// runWindowMoveResizeScenario's own state above) since that scenario's own
+// move+resize steps already mutate WDWREC's window geometry away from its
+// declared WINDOW(3 10 8 40) - reusing that mutated state here would make
+// the expected post-drag numbers fragile and hard to follow. The move
+// handle spans the window's ENTIRE top edge (left:0; right:0 in its own
+// CSS), so grabbing it anywhere but the exact leftmost pixel - the
+// realistic case - is exactly what used to jump the window: the old code
+// snapped the window's origin straight to the raw mouse position on every
+// move, ignoring the offset between where it was grabbed and the window's
+// own true top-left corner.
+function runWindowMoveOffOriginScenario() {
+  console.log('\nTask L30: grabbing the window\'s move handle somewhere other than its exact top-left pixel must not jump the window');
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R WDWREC',
+      '     A                                      WINDOW(3 10 8 40)',
+      "     A                                  1  2'In the window'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce26', src, 'WDWDRAG.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      // Same 10px/col x 20px/row mock as the other window scenarios.
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent } = dom.window;
+    const windowEl = doc.querySelector('.dspf-window-border');
+    check('setup: the window is rendered', !!windowEl);
+    const moveHandle = windowEl.querySelector('.dspf-window-move-handle');
+    check('setup: a move handle is present', !!moveHandle);
+
+    // WINDOW(3 10 8 40): row 3, col 10. The window's own true top-left
+    // pixel is ((10-1)*10, (3-1)*20) = (90, 40) - grab well AWAY from
+    // that, in the middle of the 40-wide title strip instead: col 10+20=30
+    // -> pixel (30-1)*10=290, same row 3 -> pixel 40.
+    posted.length = 0;
+    moveHandle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 290, clientY: 40 }));
+    // Move the mouse by exactly one grid cell right, one cell down
+    // (+10px col, +20px row) - a real drag nudge, not a jump.
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 60 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    const last = posted[posted.length - 1];
+    check('the window moved by exactly one column/one row (col 10->11, row 3->4), preserving the grab offset', last && last.type === 'applyEdit' && /WINDOW\(4 11 8 40\)/.test(last.text));
+    check('NOT the old bug\'s jump-to-cursor result, which would have snapped the origin to roughly col 30/row 3 - the raw grab point itself', last && !/WINDOW\(3 30/.test(last.text) && !/WINDOW\(4 30/.test(last.text));
+    check("the window's own field content is untouched", last && /In the window/.test(last.text));
+
     runSubfileControlEditScenario();
   }, 0);
 }

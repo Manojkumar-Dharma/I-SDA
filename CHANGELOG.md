@@ -3,6 +3,39 @@
 All notable changes to the iSDA extension are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.10] - 2026-09-02
+
+### Added
+- **Task L27: command keys (CAnn/CFnn) can now carry indicator
+  conditioning.** Reported as "Cmd keys can also have conditionings."
+  `setCommandKey`/`parseCommandKeys` now read/write each key's own
+  `conditions`; each existing command-key chip gets its own
+  "Conditioning" toggle reusing the same generic conditions editor
+  every other conditioned keyword already uses.
+
+### Fixed
+- **Task L28: the open file's own name in the left panel was buried
+  down near the File attributes/Compile buttons.** Reported as a
+  request to move it "below Screen design at top." Moved `#fileStatus`
+  to right after the panel's own `<h2>` heading, before the Code for
+  IBM i badge, in both the DSPF and Menu designers.
+- **Task L29: windows with no WDWBORDER anywhere rendered with a
+  plain, unstyled border instead of the real DDS-documented default.**
+  Reported as "windows in SDA have default fill/reverse image at the
+  border." Checked against IBM's own WDWBORDER documentation rather
+  than taking that description at face value - the actual default is
+  period/colon border characters in blue, not reverse image.
+  `resolveWdwBorder`'s fallback now matches that documented default.
+- **Task L30: dragging a window by its move handle made it jump, not
+  slide.** Reported as "when dragging windows I feel like it is
+  jumping to right side." The move handle spans the window's entire
+  top edge, but the drag code snapped the window's origin straight to
+  the raw mouse position instead of preserving the offset from where
+  it was actually grabbed. Fixed with proper delta-based dragging,
+  matching how resize already worked correctly.
+
+Full suite: all checks passed, 0 failures.
+
 ## [0.10.9] - 2026-09-01
 
 ### Added
