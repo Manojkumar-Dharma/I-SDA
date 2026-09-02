@@ -358,6 +358,18 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .field-order-row button:disabled { opacity: 0.35; cursor: default; }
   .field-order-row button:not(:disabled):hover { border-color: var(--chrome-accent); }
+  /* Task L42 - the small "L{n}" source-line badge on each comment row
+     (commentsListHtml), and the optional "insert at line #" row shown
+     next to the Add-comment button on scopes that allow choosing where a
+     new comment lands (file-level only for now). */
+  .comment-line-badge {
+    flex: 0 0 auto; font-size: 10px; color: var(--ink-dim); background: var(--panel);
+    border: 1px solid var(--panel-border); border-radius: 3px; padding: 2px 5px;
+    font-family: var(--mono);
+  }
+  .comment-add-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .comment-add-line-input { width: 64px; flex: 0 0 auto; }
+  .comment-add-row button { flex: 1; }
   /* Task L19 - "Find field" search results dropdown, right under the search
      box in the aside. Deliberately its own floating panel (not inline in
      normal document flow) so it overlays whatever's below it (the Record
@@ -2984,7 +2996,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // keywords like DSPSIZ live in) get their own tab, same shape as the
     // record-level Structure tab's own Comments section below.
     const fileComments = DspfWriter.getFileComments(model);
-    const fileCommentsHtml = commentsListHtml(fileComments, 'filecomments');
+    const fileCommentsHtml = commentsListHtml(fileComments, 'filecomments', true);
     let html = '<div class="status" style="margin-bottom:12px;">SDA-style keyword picker for the whole display file - not tied to any one record format.</div>';
     html += tabsHtml([
       { id: 'general', label: 'General', content: panels.general },
@@ -3010,7 +3022,7 @@ const htmlTemplate = `<!DOCTYPE html>
       'filecomments',
       () => DspfWriter.getFileComments(model),
       0,
-      (comments, fallbackAfterLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '')),
+      (comments, fallbackAfterLine, desiredLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '', desiredLine)),
       (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
       (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
     );
@@ -3332,20 +3344,38 @@ const htmlTemplate = `<!DOCTYPE html>
    * re-renders of THIS panel, but like every other source-line-keyed id
    * in this file, it shifts on any edit that adds/removes lines above it,
    * so it's only ever read at click/blur time, never cached.
+   *
+   * Task L42 - each row also shows its own source line number (a plain
+   * "L{n}" badge, not editable - a comment's line is a consequence of
+   * where it sits in the file, not a property you'd set on the row
+   * itself) so the person has line numbers to reference when placing a
+   * NEW comment. 'allowCustomLine' (true only for the file-level tab -
+   * see the two call sites) additionally renders a line-number input next
+   * to the "+ Add comment" button, read by wireCommentsSection at
+   * add-click time; left blank, adding still behaves exactly as before
+   * (append after the last existing comment).
    */
-  function commentsListHtml(comments, idPrefix) {
+  function commentsListHtml(comments, idPrefix, allowCustomLine) {
     let html = '<div class="section-label">Comments</div>';
     if (comments.length === 0) {
       html += '<div class="empty-state">No comment lines yet.</div>';
     } else {
       comments.slice().sort((a, b) => a.line - b.line).forEach((c) => {
         html += '<div class="field-order-row" data-source-line="' + c.line + '">' +
+          '<span class="comment-line-badge" title="Source line ' + c.line + '">L' + c.line + '</span>' +
           '<input type="text" class="comment-text-input" data-source-line="' + c.line + '" value="' + DspfEngine.escapeHtml(c.text) + '" placeholder="(blank comment line)" />' +
           '<button class="comment-delete-btn" data-source-line="' + c.line + '" title="Delete this comment line">&times;</button>' +
           '</div>';
       });
     }
-    html += '<button id="' + idPrefix + '-add-comment" class="secondary" style="width:100%;margin-top:8px;">+ Add comment</button>';
+    if (allowCustomLine) {
+      html += '<div class="comment-add-row">' +
+        '<input type="number" id="' + idPrefix + '-add-comment-line" class="comment-add-line-input" min="1" placeholder="Line #" title="Line number the new comment should land at - leave blank to add after the last comment" />' +
+        '<button id="' + idPrefix + '-add-comment" class="secondary">+ Add comment</button>' +
+        '</div>';
+    } else {
+      html += '<button id="' + idPrefix + '-add-comment" class="secondary" style="width:100%;margin-top:8px;">+ Add comment</button>';
+    }
     return html;
   }
 
@@ -3373,7 +3403,11 @@ const htmlTemplate = `<!DOCTYPE html>
     });
     const addBtn = document.getElementById(idPrefix + '-add-comment');
     if (addBtn) {
-      addBtn.addEventListener('click', () => commitInsert(getComments(), fallbackAfterLine));
+      addBtn.addEventListener('click', () => {
+        const lineInput = document.getElementById(idPrefix + '-add-comment-line');
+        const desiredLine = lineInput && lineInput.value !== '' ? parseInt(lineInput.value, 10) : null;
+        commitInsert(getComments(), fallbackAfterLine, desiredLine);
+      });
     }
   }
 

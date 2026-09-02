@@ -1503,6 +1503,15 @@ console.log('\nTask L13 - DDS comment lines (parser collection + DspfWriter CRUD
   newRec2 = reparsed.records.find((r) => r.name === 'RECORD2');
   check('comment removed entirely', DspfWriter.getRecordComments(reparsed, newRec2).length === 0);
   check('RECORD2\'s own field survives the delete', newRec2.fields.some((f) => f.constantValue === 'World'));
+
+  console.log('\n  Task L42: addComment() with an explicit desiredLine places the new comment at that exact physical line');
+  const plainLines = ['L1', 'L2', 'L3', 'L4'];
+  check('desiredLine=1 inserts at the very top', DspfWriter.addComment(plainLines, [], 2, 'hi', 1)[0] === '     A*hi');
+  const midResult = DspfWriter.addComment(plainLines, [], 2, 'hi', 3);
+  check('desiredLine=3 lands the new comment as the file\'s 3rd line, pushing the rest down', midResult[2] === '     A*hi' && midResult[3] === 'L3');
+  check('a too-large desiredLine clamps to appending at the end, same as no desiredLine at all', DspfWriter.addComment(plainLines, [], 2, 'hi', 999).join('\n') === plainLines.concat(['     A*hi']).join('\n'));
+  check('a too-small (<1) desiredLine clamps to the top rather than throwing', DspfWriter.addComment(plainLines, [], 2, 'hi', -5)[0] === '     A*hi');
+  check('omitting desiredLine falls back to the original append-after-fallback/last-comment behavior, unchanged', DspfWriter.addComment(plainLines, [], 2, 'hi').join('\n') === DspfWriter.addComment(plainLines, [], 2, 'hi', undefined).join('\n'));
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

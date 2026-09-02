@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — Comment line numbers + choose-where-to-add (Task L42)
+
+- **0.10.20** — Task L42: the file-level Comments tab's rows previously showed only the comment text with no indication of which source line each one lived at, and "+ Add comment" always appended after the last existing comment. Every comment row (file-level and record-level) now shows its own source line as a small "L{n}" badge, and the file-level tab gained an optional "Line #" input next to Add comment — type a target line and the new comment lands exactly there, pushing everything from that line down by one; left blank, it still appends at the end as before. `DspfWriter.addComment` gained an optional `desiredLine` parameter to support this, clamped to a safe range.
+
 ## 2026-09-02 — WDWBORDER real-world single-quoted *CHAR fix (Task L41)
 
 - **0.10.19** — Task L41: a `WDWBORDER` whose `*CHAR` sub-parameter was written as ONE combined character string (real-world DDS's actual documented syntax, e.g. `(*CHAR '        ')`) rather than 8 separate quoted literals (this codebase's own written format) rendered no border at all — the whole string landed in position 0, wrongly triggering "char mode" for an all-blank border and suppressing the plain colored box border in favor of rendering nothing. `resolveWdwBorder`/`getWdwBorder` now split a single quoted group's own characters across the 8 positions; multiple quoted groups still map one-to-one, unchanged. Reported with reference screenshots (iSDA showing no border, real SDA showing a solid blue box, and the DDS source itself).

@@ -3151,11 +3151,27 @@
    * right after `fallbackAfterLine` (the caller's own choice of where an
    * empty scope's first comment should land - see the two call sites in
    * buildWebviewTemplate.js for what each passes).
+   *
+   * `desiredLine` (Task L42) overrides that default when given: it's the
+   * 1-based physical line number the NEW comment itself should end up as
+   * in the resulting file, so inserting at `desiredLine` pushes whatever
+   * was already at that line (and everything after it) down by one,
+   * rather than requiring the caller to think in "insert after" terms.
+   * Clamped to [1, sourceLines.length + 1] - a too-small value lands the
+   * comment at the very top of the file, a too-large one appends it at
+   * the very end - so a stale/out-of-range typed line number can never
+   * throw or silently no-op.
    */
-  function addComment(sourceLines, existingComments, fallbackAfterLine, text) {
-    var insertAfterLine = existingComments.length > 0
-      ? Math.max.apply(null, existingComments.map(function (c) { return c.line; }))
-      : fallbackAfterLine;
+  function addComment(sourceLines, existingComments, fallbackAfterLine, text, desiredLine) {
+    var insertAfterLine;
+    if (desiredLine != null && !isNaN(desiredLine)) {
+      var clamped = Math.max(1, Math.min(sourceLines.length + 1, Math.floor(desiredLine)));
+      insertAfterLine = clamped - 1;
+    } else {
+      insertAfterLine = existingComments.length > 0
+        ? Math.max.apply(null, existingComments.map(function (c) { return c.line; }))
+        : fallbackAfterLine;
+    }
     var newLine = buildCommentLine(text);
     return sourceLines.slice(0, insertAfterLine).concat([newLine], sourceLines.slice(insertAfterLine));
   }

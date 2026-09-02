@@ -5331,6 +5331,36 @@ function runCommentsScenario() {
     let inputs = Array.from(doc.querySelectorAll('.comment-text-input')).map((i) => i.value);
     check('exactly the file header comment shown', inputs.length === 1 && inputs[0] === 'File header comment');
 
+    console.log('  Task L42: the file header comment\'s own source line is shown as a badge');
+    let badges = Array.from(doc.querySelectorAll('.comment-line-badge')).map((b) => b.textContent);
+    check('exactly one line badge, matching the header comment\'s own line (1)', badges.length === 1 && badges[0] === 'L1');
+
+    console.log('  Task L42: file-level Comments tab has a "line #" input next to Add comment; record-level does not');
+    check('file-level: an add-comment-line input exists', !!doc.querySelector('[id$="-add-comment-line"]'));
+
+    console.log('  Task L42: adding a file-level comment with an explicit line number inserts it there, not appended at the end');
+    const fileAddLineInput = doc.querySelector('[id$="-add-comment-line"]');
+    fileAddLineInput.value = '2';
+    const fileAddBtn = doc.querySelector('[id$="-add-comment"]');
+    fileAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEditL42 = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEditL42);
+    const l42Lines = applyEditL42.text.split(/\r\n|\r|\n/);
+    check('the new blank comment landed exactly at physical line 2, as typed', l42Lines[1] === '     A*');
+    check('the original header comment (line 1) and DSPSIZ line (now pushed to line 3) both survive untouched', l42Lines[0] === '     A*File header comment' && l42Lines[2].includes('DSPSIZ'));
+    posted.length = 0;
+
+    console.log('  Task L42: leaving the line # input blank still falls back to appending after the last existing comment (unchanged old behavior)');
+    const fileAddLineInput2 = doc.querySelector('[id$="-add-comment-line"]');
+    fileAddLineInput2.value = '';
+    const fileAddBtn2 = doc.querySelector('[id$="-add-comment"]');
+    fileAddBtn2.dispatchEvent(new Event('click', { bubbles: true }));
+    applyEditL42 = posted.find((m) => m.type === 'applyEdit');
+    const l42Reparsed = DspfParser.parseDspf(applyEditL42.text);
+    const fileCommentsAfter = DspfWriter.getFileComments(l42Reparsed);
+    check('now 3 file-level comments; the new blank one is appended after the existing ones, not inserted mid-file', fileCommentsAfter.length === 3 && fileCommentsAfter[2].text === '' && fileCommentsAfter[2].line > fileCommentsAfter[1].line);
+    posted.length = 0;
+
     console.log('  RECORD1 (no comment of its own) shows an empty Comments section, not the file-level or RECORD2 one');
     recordSelect.value = 'RECORD1';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -5339,6 +5369,7 @@ function runCommentsScenario() {
     inputs = Array.from(doc.querySelectorAll('.comment-text-input')).map((i) => i.value);
     check('no comments shown for RECORD1', inputs.length === 0);
     check('empty-state message shown instead', /No comment lines yet/.test(doc.getElementById('propsBody').textContent));
+    check('Task L42: record-level Comments section has no add-comment-line input (file-level only)', !doc.querySelector('[id$="-add-comment-line"]'));
 
     console.log('  RECORD2 shows exactly its own comment, scoped correctly (not RECORD1\'s or the file\'s)');
     recordSelect.value = 'RECORD2';
@@ -5347,6 +5378,7 @@ function runCommentsScenario() {
     structureTab.dispatchEvent(new Event('click', { bubbles: true }));
     inputs = Array.from(doc.querySelectorAll('.comment-text-input')).map((i) => i.value);
     check('exactly RECORD2\'s own comment shown', inputs.length === 1 && inputs[0] === 'This belongs to RECORD2');
+    check('Task L42: record-level rows show a line badge too (display-only, universal across scopes)', doc.querySelectorAll('.comment-line-badge').length === 1);
 
     console.log('  editing RECORD2\'s comment rewrites just that line, columns 1-7 untouched');
     let input = doc.querySelector('.comment-text-input');

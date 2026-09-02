@@ -42,7 +42,9 @@ anything without a dedicated screen yet.
   record may redefine a number already used at the file level (a
   per-record override, not a conflict), and different records may reuse
   the same number independently.
-- File-level comments (DDS `*`-column-7 comment lines).
+- File-level comments (DDS `*`-column-7 comment lines), each row showing
+  its own source line number, with an option to insert a new comment at
+  a chosen line rather than always at the end.
 - "IBM i: Connected/Not connected/Not installed" status badge.
 
 ### Record-level
@@ -61,7 +63,7 @@ anything without a dedicated screen yet.
   and click-to-rename window title directly on the preview.
 - `PULLDOWN`/`MNUBAR`-specific pickers, with pull-down and menu-bar
   choices rendering visually rather than as an empty box.
-- Record-level comments.
+- Record-level comments (also showing each row's own source line number).
 - Whole-record create/copy/delete, record rename with safe cross-reference
   rewriting, and a full SDA record-type list (including subfile/window/
   pull-down/menu-bar starter templates) for "+ Add record" and "Create New
