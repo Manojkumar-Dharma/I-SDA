@@ -968,6 +968,23 @@
   }
 
   var VALIDITY_CHECK_KEYWORDS = ['RANGE', 'COMP', 'VALUES'];
+  // Bug fix (Task L34 - the exploratory "watch for other legacy-keyword-
+  // synonym gaps beyond ROLLUP/ROLLDOWN" follow-up): CMP is a documented
+  // legacy alternate spelling of COMP too - confirmed via IBM's own DDS
+  // Reference ("This keyword is equivalent to the COMP keyword... The
+  // COMP keyword is preferred"), the exact same "keyword X is the same
+  // as keyword Y" pattern PAGEDOWN/ROLLUP already had. A field imported
+  // with the legacy CMP spelling used to be invisible to the Validity
+  // Check picker entirely (getRepeatableKeywordInstances only matched
+  // VALIDITY_CHECK_KEYWORDS by exact name) - not just "shown unchecked"
+  // like the ROLLUP case, since validity check has no separate on/off
+  // flag to begin with. Read-side recognizes CMP alongside RANGE/COMP/
+  // VALUES; write-side never re-emits CMP (the kind dropdown only ever
+  // offers RANGE/COMP/VALUES), so editing a CMP-sourced field through
+  // this picker at all normalizes it to the preferred COMP spelling -
+  // same "read both, always write the modern name" rule ROLLUP/ROLLDOWN
+  // already established.
+  var VALIDITY_CHECK_READ_KEYWORDS = VALIDITY_CHECK_KEYWORDS.concat(['CMP']);
 
   /** A field carries at most ONE validity-check keyword at a time, so this just
    *  finds whichever of RANGE/COMP/VALUES is present - { kind: ''|'RANGE'|
@@ -983,8 +1000,8 @@
    *  setColorAttr were kept alongside L1a's getColorAttrStates/
    *  setColorAttrStates. */
   function getValidityCheck(keywords) {
-    var k = (keywords || []).find(function (k) { return VALIDITY_CHECK_KEYWORDS.indexOf(k.name) >= 0; });
-    return k ? { kind: k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
+    var k = (keywords || []).find(function (k) { return VALIDITY_CHECK_READ_KEYWORDS.indexOf(k.name) >= 0; });
+    return k ? { kind: k.name === 'CMP' ? 'COMP' : k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
   }
 
   /** Returns a NEW keywords array with any existing RANGE/COMP/VALUES removed
@@ -995,7 +1012,7 @@
    *  where DDS requires quoting. Superseded by setValidityCheckInstances (Task
    *  L5) - see getValidityCheck's own doc comment. */
   function setValidityCheck(keywords, kind, parameters) {
-    var next = (keywords || []).filter(function (k) { return VALIDITY_CHECK_KEYWORDS.indexOf(k.name) < 0; });
+    var next = (keywords || []).filter(function (k) { return VALIDITY_CHECK_READ_KEYWORDS.indexOf(k.name) < 0; });
     if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
     return next;
   }
@@ -1024,9 +1041,9 @@
    *  occurrence (no grouping/pairing needed - see this section's doc
    *  comment above). */
   function getValidityCheckInstances(keywords) {
-    var instances = getRepeatableKeywordInstances(keywords, VALIDITY_CHECK_KEYWORDS);
+    var instances = getRepeatableKeywordInstances(keywords, VALIDITY_CHECK_READ_KEYWORDS);
     return instances.map(function (inst) {
-      return { conditions: inst.conditions, kind: inst.name, parameters: inst.parameters || '' };
+      return { conditions: inst.conditions, kind: inst.name === 'CMP' ? 'COMP' : inst.name, parameters: inst.parameters || '' };
     });
   }
 
@@ -1046,7 +1063,7 @@
     var flat = (states || [])
       .filter(function (state) { return state && state.kind; })
       .map(function (state) { return { name: state.kind, parameters: state.parameters || '', conditions: (state && state.conditions) || [] }; });
-    return setRepeatableKeywordInstances(keywords, VALIDITY_CHECK_KEYWORDS, flat);
+    return setRepeatableKeywordInstances(keywords, VALIDITY_CHECK_READ_KEYWORDS, flat);
   }
 
   var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD', 'EDTMSK'];
