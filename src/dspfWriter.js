@@ -1942,8 +1942,17 @@
     if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
     var charM = /\*CHAR\s+((?:'[^']*'\s*)+)/i.exec(text);
     if (charM) {
-      var chars = charM[1].match(/'[^']*'/g) || [];
-      result.chars = chars.map(function (c) { return c.slice(1, -1); });
+      // Bug fix - see the matching comment in dspfEngine.js's
+      // resolveWdwBorder for the full rationale: a single quoted group is
+      // real DDS's actual *CHAR syntax (one character-string value, up to
+      // 8 characters, split positionally) - not 8 separate quoted
+      // literals, which is only what THIS file's own setWdwBorder writes.
+      var charGroups = charM[1].match(/'[^']*'/g) || [];
+      if (charGroups.length === 1) {
+        result.chars = charGroups[0].slice(1, -1).split('').slice(0, 8);
+      } else {
+        result.chars = charGroups.map(function (c) { return c.slice(1, -1); });
+      }
       while (result.chars.length < 8) result.chars.push('');
     }
     return result;

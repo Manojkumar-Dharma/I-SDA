@@ -474,6 +474,37 @@ console.log('\nWDWBORDER *CHAR: *COLOR applies to the rendered characters themse
   check('a rendered border-char cell carries the *COLOR as its own inline color', new RegExp('dspf-window-char" style="grid-row:3;grid-column:10;color:' + DspfEngine.COLOR_HEX.BLU).test(html));
 }
 
+console.log('\nBug fix (reported: "no border color" - a window rendered with no border at all, where real SDA showed a solid colored box): WDWBORDER\u2019s *CHAR takes ONE combined character-string value (up to 8 characters, positional), not 8 separate quoted literals - real-world DDS commonly writes it that way (confirmed against IBM\u2019s own WDWBORDER documentation), even though this codebase\u2019s own writer (setWdwBorder) always emits 8 separate quotes');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*CHAR '12345678'))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('a single combined 8-char string is split across the 8 positions, same as 8 separate quotes would be', screen.window.border.chars.join(',') === '1,2,3,4,5,6,7,8');
+}
+
+console.log('\nBug fix (same report, the exact reported case): a single combined *CHAR string of ALL BLANKS is correctly read as 8 individual blank positions - not as one non-blank 8-character blob in position 0 with positions 1-7 silently empty, which used to wrongly trigger "char mode" (suppressing the plain colored box border) while rendering nothing visible in any of the 8 cells - net result, no border shown at all');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'WIN1', func: 'WINDOW(3 10 4 6)' }),
+    buildLine({ seq: '00020', func: "WDWBORDER((*COLOR BLU) (*DSPATR RI)-" }),
+    buildLine({ seq: '00025', func: "  (*CHAR '        '))" }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hi'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'WIN1', new Set());
+  check('all 8 positions are individually blank, not one 8-space blob in position 0', screen.window.border.chars.every((c) => c === ' '));
+  check('*COLOR still resolves to blue', screen.window.border.color === DspfEngine.COLOR_HEX.BLU);
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('the window div is NOT switched into char-mode (all-blank chars means "no border characters", not "char mode with invisible characters")', !/dspf-window-border[^"]*dspf-window-border-charmode/.test(html));
+  check('the plain box border is shown instead, carrying *COLOR as its own inline border-color - matching real SDA\u2019s solid blue box', new RegExp('class="dspf-window-border" style="[^"]*border-color:' + DspfEngine.COLOR_HEX.BLU).test(html));
+  check('no dspf-window-char cells are rendered at all (nothing to draw - blank means nothing drawn there)', !/class="dspf-window-char"/.test(html));
+}
+
 console.log('\nTask L32: a partial WDWBORDER (only *COLOR set) still gets IBM\u2019s own documented per-sub-parameter defaults for the groups it left unset, rather than staying blank');
 {
   const src = [

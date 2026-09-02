@@ -126,6 +126,20 @@ console.log('\ngetWdwBorder / setWdwBorder - WDWBORDER color/attrs/chars sub-gro
 
   const none = DspfWriter.setWdwBorder([{ name: 'WDWBORDER', parameters: '(*COLOR RED)' }], { colorEnabled: false, attrsEnabled: false, charsEnabled: false });
   check('disabling every sub-group removes WDWBORDER entirely', none.length === 0);
+
+  // Bug fix (reported: "no border color" - iSDA showed a window with no
+  // border at all, real SDA showed a solid blue box): real-world DDS
+  // commonly writes *CHAR as ONE combined character-string value rather
+  // than 8 separate quoted literals (this file's own setWdwBorder above
+  // only ever emits the latter, which is why this case was never
+  // exercised until now) - getWdwBorder must still read it correctly.
+  const realWorldSingleQuote = [{ name: 'WDWBORDER', parameters: "(*COLOR BLU) (*DSPATR RI) (*CHAR '        ')" }];
+  const readBack = DspfWriter.getWdwBorder(realWorldSingleQuote);
+  check('a single combined 8-blank-character string reads as 8 individual blank positions, not one 8-char blob in position 0', readBack.chars.every((c) => c === ' '));
+  check('color still reads correctly alongside it', readBack.color === 'BLU');
+
+  const realWorldMixed = [{ name: 'WDWBORDER', parameters: "(*CHAR '12345678')" }];
+  check('a single combined non-blank 8-character string splits across the 8 positions in order, same as 8 separate quotes would', DspfWriter.getWdwBorder(realWorldMixed).chars.join('') === '12345678');
 }
 
 console.log('\ngetDisplaySizesList / setDisplaySizesList - DSPSIZ full replace');

@@ -585,8 +585,33 @@
       if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
       var charM = /\*CHAR\s+((?:'[^']*'\s*)+)/i.exec(text);
       if (charM) {
-        var chars = charM[1].match(/'[^']*'/g) || [];
-        result.chars = chars.map(function (c) { return c.slice(1, -1); });
+        // Bug fix (reported: "no border color" - iSDA showed a window with
+        // no border at all, while real SDA/5250 showed a solid blue box):
+        // real DDS's *CHAR sub-parameter is ONE character-string value (up
+        // to 8 characters, positional - top-left, top, top-right, left,
+        // right, bottom-left, bottom, bottom-right, confirmed against
+        // IBM's own WDWBORDER documentation and real-world DDS examples
+        // like `(*CHAR '...:- ::.:')` and `(*CHAR ' ')`), NOT 8 separate
+        // quoted single-character literals - this file's OWN writer
+        // (DspfWriter.setWdwBorder) happens to emit 8 separate quotes,
+        // which is why round-tripping iSDA's own output always worked,
+        // but reading real-world DDS with one combined string (e.g. 8
+        // blanks in a single quote, as in the reported file) put the
+        // WHOLE string into position 0 and left positions 1-7 empty -
+        // hasWdwBorderChars then saw position 0 as "not blank" (an
+        // 8-character string isn't `=== ' '`) even though every
+        // INDIVIDUAL character in it WAS blank, so it wrongly rendered in
+        // "char mode" (suppressing the plain colored box border) with
+        // nothing actually visible in any of the 8 character cells.
+        // Fixed: a single quoted group has its OWN characters split across
+        // the 8 positions; multiple quoted groups (iSDA's own written
+        // format) still map one group to one position, unchanged.
+        var charGroups = charM[1].match(/'[^']*'/g) || [];
+        if (charGroups.length === 1) {
+          result.chars = charGroups[0].slice(1, -1).split('').slice(0, 8);
+        } else {
+          result.chars = charGroups.map(function (c) { return c.slice(1, -1); });
+        }
         while (result.chars.length < 8) result.chars.push('');
       }
       // Task L32: IBM's own WDWBORDER documentation gives each sub-parameter
