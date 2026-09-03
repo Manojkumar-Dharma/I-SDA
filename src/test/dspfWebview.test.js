@@ -5618,6 +5618,20 @@ function runCommentsScenario() {
     check('now 3 file-level comments; the new blank one is appended after the existing ones, not inserted mid-file', fileCommentsAfter.length === 3 && fileCommentsAfter[2].text === '' && fileCommentsAfter[2].line > fileCommentsAfter[1].line);
     posted.length = 0;
 
+    console.log('  Task L46: the add-row text input lets the comment\'s wording be typed in the SAME action that places it (file-level)');
+    const fileAddTextInput = doc.querySelector('[id$="-add-comment-text"]');
+    check('setup: the file-level add-row text input is present', !!fileAddTextInput);
+    const fileAddLineInput3 = doc.querySelector('[id$="-add-comment-line"]');
+    fileAddLineInput3.value = '2';
+    fileAddTextInput.value = 'Inserted with its own text';
+    const fileAddBtn3 = doc.querySelector('[id$="-add-comment"]');
+    fileAddBtn3.dispatchEvent(new Event('click', { bubbles: true }));
+    const applyEditL46 = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEditL46);
+    const l46Lines = applyEditL46.text.split(/\r\n|\r|\n/);
+    check('the new comment landed at the typed line WITH the typed text, not blank', l46Lines[1] === '     A*Inserted with its own text');
+    posted.length = 0;
+
     console.log('  RECORD1 (no comment of its own) shows an empty Comments section, not the file-level or RECORD2 one');
     recordSelect.value = 'RECORD1';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -5673,7 +5687,7 @@ function runCommentsScenario() {
     check('the new blank comment line sits right after RECORD1\'s own header, before its field', reparsed.comments.some((c) => c.line === rec1.sourceLine + 1 && c.text === ''));
     posted.length = 0;
 
-    console.log('  Task L45: adding a record-level comment with an explicit line number inserts it there, not appended at the end');
+    console.log('  Task L45/L46: adding a record-level comment with an explicit line number AND text inserts it there with that wording, not appended blank at the end');
     recordSelect.value = 'RECORD2';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
     structureTab = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Structure');
@@ -5681,16 +5695,32 @@ function runCommentsScenario() {
     const rec2Before = reparsed.records.find((r) => r.name === 'RECORD2');
     const rec2FieldLine = rec2Before.fields[0].sourceLine; // RECORD2's one field, "World" - see buildLine fixture above
     const recAddLineInput = doc.querySelector('[id$="-add-comment-line"]');
+    const recAddTextInput = doc.querySelector('[id$="-add-comment-text"]');
     check('setup: the record-level line-# input is present', !!recAddLineInput);
+    check('setup: the record-level add-row text input is present too', !!recAddTextInput);
     recAddLineInput.value = String(rec2FieldLine);
+    recAddTextInput.value = 'Comment for RECORD2';
     const recAddBtn = doc.querySelector('[id$="-add-comment"]');
     recAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('an edit was posted', !!applyEdit);
     const l45Reparsed = DspfParser.parseDspf(applyEdit.text);
-    check('the new comment landed exactly at the requested physical line, ahead of the field it used to precede', l45Reparsed.comments.some((c) => c.line === rec2FieldLine && c.text === ''));
+    check('the new comment landed exactly at the requested physical line, WITH the typed text, ahead of the field it used to precede', l45Reparsed.comments.some((c) => c.line === rec2FieldLine && c.text === 'Comment for RECORD2'));
     const rec2After = l45Reparsed.records.find((r) => r.name === 'RECORD2');
     check('RECORD2\'s own field survived, pushed down by exactly one line', rec2After.fields[0].sourceLine === rec2FieldLine + 1);
+    posted.length = 0;
+
+    console.log('  Task L46: leaving the add-row text blank still adds an empty comment (unchanged old behavior)');
+    recordSelect.value = 'RECORD1';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    structureTab = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Structure');
+    structureTab.dispatchEvent(new Event('click', { bubbles: true }));
+    const recAddBtn2 = doc.querySelector('[id$="-add-comment"]');
+    recAddBtn2.dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    const l46RecReparsed = DspfParser.parseDspf(applyEdit.text);
+    const rec1AfterBlank = l46RecReparsed.records.find((r) => r.name === 'RECORD1');
+    check('a blank comment was still added right after RECORD1\'s own header', l46RecReparsed.comments.some((c) => c.line === rec1AfterBlank.sourceLine + 1 && c.text === ''));
     posted.length = 0;
 
     runDatabaseFieldsPickerScenario();

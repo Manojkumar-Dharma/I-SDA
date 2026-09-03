@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — Add-comment row can now enter the comment's text, not just where it lands (Task L46)
+
+- **0.10.25** — Task L46: "+ Add comment" always inserted a blank comment line, even after L45 let you pick which line it landed on — you still had to type the wording in as a separate edit right after. Asked directly once L45 shipped ("Do I have option to enter the comment line text option in this build?"). The add-row now has its own text box alongside the line-number one, on both the file-level and record-level Comments tabs — type the line and the wording together, click Add, done. Leaving it blank still adds an empty comment line exactly like before.
+
 ## 2026-09-03 — Record-level comments get the same "insert at line #" option file-level already had (Task L45)
 
 - **0.10.24** — Task L45: the "Line #" input next to "+ Add comment" (built generically by L42) only ever rendered on the file-level Comments tab — the record-level Comments section right below it in each record's Structure tab never had `allowCustomLine` turned on, and its own commit callback still silently dropped a line number even if one had somehow been supplied. Both are now wired through identically to the file-level tab: type a target line, the new comment lands exactly there.

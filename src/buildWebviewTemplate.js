@@ -369,7 +369,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .comment-add-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
   .comment-add-line-input { width: 64px; flex: 0 0 auto; }
-  .comment-add-row button { flex: 1; }
+  .comment-add-row button { flex: 0 0 auto; }
   /* Task L19 - "Find field" search results dropdown, right under the search
      box in the aside. Deliberately its own floating panel (not inline in
      normal document flow) so it overlays whatever's below it (the Record
@@ -408,7 +408,7 @@ const htmlTemplate = `<!DOCTYPE html>
   /* Task L13 - comment text input reuses .rename-input's own look (flex:1,
      same dark input styling) inside a .field-order-row so a comment row
      lines up visually with the Structure tab's other rows above it. */
-  .comment-text-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 4px 6px; font-family: var(--mono); font-size: 12px; }
+  .comment-text-input, .comment-add-text-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 4px 6px; font-family: var(--mono); font-size: 12px; }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 16px 0 8px; }
   .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
   .compare-toggle input { accent-color: var(--warn); }
@@ -3137,7 +3137,7 @@ const htmlTemplate = `<!DOCTYPE html>
       'filecomments',
       () => DspfWriter.getFileComments(model),
       0,
-      (comments, fallbackAfterLine, desiredLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '', desiredLine)),
+      (comments, fallbackAfterLine, desiredLine, text) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, text, desiredLine)),
       (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
       (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
     );
@@ -3464,11 +3464,24 @@ const htmlTemplate = `<!DOCTYPE html>
    * "L{n}" badge, not editable - a comment's line is a consequence of
    * where it sits in the file, not a property you'd set on the row
    * itself) so the person has line numbers to reference when placing a
-   * NEW comment. 'allowCustomLine' (true only for the file-level tab -
-   * see the two call sites) additionally renders a line-number input next
-   * to the "+ Add comment" button, read by wireCommentsSection at
-   * add-click time; left blank, adding still behaves exactly as before
-   * (append after the last existing comment).
+   * NEW comment. 'allowCustomLine' (true for both the file-level and
+   * record-level tabs as of Task L45 - see the two call sites)
+   * additionally renders a line-number input next to the "+ Add comment"
+   * button, read by wireCommentsSection at add-click time; left blank,
+   * adding still behaves exactly as before (append after the last
+   * existing comment).
+   *
+   * Task L46 - the add-row also gets its own text input now ("comment-
+   * add-text-input" - a separate class from each existing row's own
+   * "comment-text-input" so a generic ".comment-text-input" query for
+   * EXISTING comments, as several call sites already do, doesn't also
+   * pick up this one; visually identical via the shared CSS rule), so the new comment's wording can be typed in the SAME action
+   * that places it, instead of always landing blank and needing a second,
+   * separate edit right after (asked for directly once L45 made "choose
+   * the line" possible: "Do I have option to enter the comment line text
+   * option in this build?"). Read by wireCommentsSection alongside the
+   * line-number input; left blank, adding still inserts an empty comment
+   * line exactly like before this task.
    */
   function commentsListHtml(comments, idPrefix, allowCustomLine) {
     let html = '<div class="section-label">Comments</div>';
@@ -3483,14 +3496,13 @@ const htmlTemplate = `<!DOCTYPE html>
           '</div>';
       });
     }
+    html += '<div class="comment-add-row">';
     if (allowCustomLine) {
-      html += '<div class="comment-add-row">' +
-        '<input type="number" id="' + idPrefix + '-add-comment-line" class="comment-add-line-input" min="1" placeholder="Line #" title="Line number the new comment should land at - leave blank to add after the last comment" />' +
-        '<button id="' + idPrefix + '-add-comment" class="secondary">+ Add comment</button>' +
-        '</div>';
-    } else {
-      html += '<button id="' + idPrefix + '-add-comment" class="secondary" style="width:100%;margin-top:8px;">+ Add comment</button>';
+      html += '<input type="number" id="' + idPrefix + '-add-comment-line" class="comment-add-line-input" min="1" placeholder="Line #" title="Line number the new comment should land at - leave blank to add after the last comment" />';
     }
+    html += '<input type="text" id="' + idPrefix + '-add-comment-text" class="comment-add-text-input" placeholder="Comment text (optional)" title="Text for the new comment line - leave blank to add an empty one" />' +
+      '<button id="' + idPrefix + '-add-comment" class="secondary">+ Add comment</button>' +
+      '</div>';
     return html;
   }
 
@@ -3521,7 +3533,14 @@ const htmlTemplate = `<!DOCTYPE html>
       addBtn.addEventListener('click', () => {
         const lineInput = document.getElementById(idPrefix + '-add-comment-line');
         const desiredLine = lineInput && lineInput.value !== '' ? parseInt(lineInput.value, 10) : null;
-        commitInsert(getComments(), fallbackAfterLine, desiredLine);
+        // Task L46: the add-row's own text input - id has no "[data-source-line]"
+        // (it isn't an existing comment's own row), so it's read separately here
+        // rather than picked up by the generic ".comment-text-input[data-source-line]"
+        // wiring above, same reasoning the line-number input already needed its
+        // own lookup for.
+        const textInput = document.getElementById(idPrefix + '-add-comment-text');
+        const text = textInput ? textInput.value : '';
+        commitInsert(getComments(), fallbackAfterLine, desiredLine, text);
       });
     }
   }
@@ -4294,6 +4313,10 @@ const htmlTemplate = `<!DOCTYPE html>
     // landed at the end regardless of what was typed in the Line # box,
     // even though that box didn't even render before the commentsListHtml
     // fix above.
+    // Task L46: commitInsert now also accepts/forwards the add-row's own
+    // typed text, same as desiredLine above - both call sites (this one
+    // and the file-level one in renderFileProps) stayed in lockstep for
+    // L45 and now do for this too.
     wireCommentsSection(
       recPrefix,
       () => {
@@ -4301,7 +4324,7 @@ const htmlTemplate = `<!DOCTYPE html>
         return freshRec ? DspfWriter.getRecordComments(model, freshRec) : [];
       },
       DspfWriter.getRecordLineRange(rec)[1],
-      (comments, fallbackAfterLine, desiredLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '', desiredLine)),
+      (comments, fallbackAfterLine, desiredLine, text) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, text, desiredLine)),
       (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
       (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
     );
