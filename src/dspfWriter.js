@@ -306,13 +306,25 @@
    *  constant literal (if any) plus at most its FIRST unconditioned keyword, then every remaining
    *  keyword (further unconditioned ones, plus every conditioned one) as its own dedicated line -
    *  one keyword per physical DDS line, each with room for its own conditioning indicators,
-   *  matching real SDA's own output rather than packing multiple keywords onto a shared line. */
+   *  matching real SDA's own output rather than packing multiple keywords onto a shared line.
+   *
+   *  Bug fix: a bare CONSTANT (no name/type/length occupying the position columns - just the
+   *  quoted literal itself) never lets ANY keyword ride its own content line, not even the
+   *  first - real SDA always gives a constant's keyword(s) their own dedicated line(s), e.g. a
+   *  menu option label like 'Back' with COLOR(BLU) applied renders as two physical lines
+   *  ("15  6'Back'" then a separate "COLOR(BLU)" line below it), never combined onto one. A
+   *  NAMED field is unaffected - it keeps the existing, deliberate "first unconditioned keyword
+   *  rides the field's own declaration line" convention (see keywordLineLayout.test.js), which
+   *  matches real SDA's own output for named fields (e.g. "FLDA 20I 2O 2 2DSPATR(HI)").
+   *  Reported directly with a screenshot showing a keyword newly added through the picker
+   *  collapsing onto the constant's own line instead of getting a new one. */
   function serializeFieldEntry(field, originalLine1to6) {
     var allKeywords = field.keywords || [];
+    var isBareConstant = field.nameType === 'CONSTANT' && field.constantValue != null;
     var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
     var conditioned = allKeywords.filter(function (k) { return k.conditions && k.conditions.length > 0; });
-    var firstUnconditioned = unconditioned.slice(0, 1);
-    var restKeywords = unconditioned.slice(1).concat(conditioned);
+    var firstUnconditioned = isBareConstant ? [] : unconditioned.slice(0, 1);
+    var restKeywords = isBareConstant ? unconditioned.concat(conditioned) : unconditioned.slice(1).concat(conditioned);
 
     var fieldPrefixLines = serializeConditionPrefixLines(field.conditions, originalLine1to6);
     var posCols = serializePositionalCols(field, originalLine1to6);

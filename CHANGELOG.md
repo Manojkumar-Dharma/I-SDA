@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — Constant keywords no longer collapse onto the literal's own line (Task L48)
+
+- **0.10.31** — Task L48: reported directly from the Menu designer with two screenshots — adding a keyword (e.g. `COLOR`) to a bare constant with no existing keywords collapsed it onto the constant's own literal line instead of giving it a dedicated new line, the opposite of real SDA's own output (a menu option label split across several constants should show each fragment's `COLOR(BLU)` on its own line right below it). The same report's second symptom, "menu color not displayed correctly," turned out to be this same bug, not a separate rendering-path issue — the screenshot's DDS snippet was the *expected* shape being compared against the tool's actual (buggy) output. A named field is unaffected — it keeps its existing, correct "first keyword rides the declaration line" convention; only a bare constant (no name/type/length of its own) now always gives every keyword, including the first, its own dedicated line.
+
 ## 2026-09-03 — Real-world SQL0206 fixed: "Add fields from database file" queried a column, WHFLDO, that doesn't exist
 
 - **0.10.30** — Bug fix reported with a screenshot, found immediately after 0.10.29 shipped the previous "Add fields from database file" fix: `Could not read field list for .../...: Error: [SQL0206] Column or global variable WHFLDO not found., 42703, -206`. The `ORDER BY WHFLDO` in `fetchDatabaseFileFields`'s two SQL queries referenced a column that has never existed in the real DSPFFD *OUTFILE layout (`QWHDRFFD` in `QSYS/QADSPFFD`) - a genuine, well-documented mix-up (multiple midrange forum threads show people confusing `WHFLDI`/`WHFLDE`/`WHFLDO` from memory). The real column for a field's position within its record format, matching DDS declaration order, is `WHFOBO` (Output Buffer Position). Both queries now `ORDER BY WHFOBO` (or `WHNAME, WHFOBO` for the multi-format case) instead.

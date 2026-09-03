@@ -23,6 +23,23 @@
  * own overly-long name+parameters text across multiple physical lines,
  * never to concatenate separate keywords together.
  *
+ * Task L48 follow-up bug fix (reported directly with a menu-designer
+ * screenshot): a bare CONSTANT is a stricter case than a named field -
+ * it never lets ANY keyword ride its own content line, not even the
+ * FIRST one. A named field still keeps the original "first unconditioned
+ * keyword rides the declaration line" convention (real SDA's own output
+ * for e.g. "FLDA 20I 2O 2 2DSPATR(HI)"), but a constant's line is JUST
+ * the quoted literal - real SDA always gives a constant's keyword(s)
+ * their own dedicated line(s) underneath, which is what the menu
+ * designer's per-option-label-fragment COLOR/DSPATR styling (Task M1/M7)
+ * depends on to match its own reference screenshots. Previously, a
+ * constant with NO existing keywords got its first one collapsed onto
+ * the literal's own line the moment one was added through the picker -
+ * only a SECOND keyword correctly got a new line, because
+ * serializeFieldEntry treated a constant exactly like a named field for
+ * this one decision. See serializeFieldEntry's own doc comment for the
+ * fix (`isBareConstant`).
+ *
  * Pure Node, no vscode/jsdom needed.
  * Run with: node src/test/keywordLineLayout.test.js
  */
@@ -146,7 +163,7 @@ console.log("\nA single keyword whose own text is too long for one line still wr
   check('COLOR unaffected by the neighboring wrap', rfield.keywords.find((k) => k.name === 'COLOR').parameters.trim() === 'BLU');
 }
 
-console.log('\nConstant fields: the literal + its FIRST keyword may share the content line (same convention named fields already follow), but a SECOND keyword still gets its own new line rather than joining that line too');
+console.log('\nConstant fields: unlike a named field, a bare constant NEVER lets any keyword - not even the first - share its own content line; every keyword (including the first) always gets its own dedicated line (Task L48 bug fix, reported with a menu-designer screenshot)');
 {
   const src = [buildLine({ seq: '00010', nameType: 'R', name: 'REC1' })].join('\n') + '\n';
   const model = DspfParser.parseDspf(src);
@@ -163,8 +180,9 @@ console.log('\nConstant fields: the literal + its FIRST keyword may share the co
   };
   const afterInsert = DspfWriter.insertField(model.records[0], lines, newField);
   const nonBlank = afterInsert.filter((l) => l.trim().length > 0);
-  check("the literal 'Hello' and its first keyword DSPATR(HI) share the content line", nonBlank.some((l) => /'Hello'/.test(l) && /DSPATR\(HI\)/.test(l)));
-  check('the SECOND keyword COLOR(BLU) does NOT join that line - it gets its own', !nonBlank.some((l) => /COLOR\(BLU\)/.test(l) && /'Hello'/.test(l)));
+  check("the literal 'Hello' does NOT share its line with the first keyword DSPATR(HI)", !nonBlank.some((l) => /'Hello'/.test(l) && /DSPATR\(HI\)/.test(l)));
+  check('DSPATR(HI) is on its own separate line', nonBlank.some((l) => /DSPATR\(HI\)/.test(l) && !/'Hello'|COLOR/.test(l)));
+  check('the SECOND keyword COLOR(BLU) does NOT join that line either - it gets its own', !nonBlank.some((l) => /COLOR\(BLU\)/.test(l) && /'Hello'/.test(l)));
   check('COLOR(BLU) is on its own separate line', nonBlank.some((l) => /COLOR\(BLU\)/.test(l) && !/'Hello'|DSPATR/.test(l)));
 
   const reparsed = DspfParser.parseDspf(afterInsert.join('\n'));
@@ -172,6 +190,29 @@ console.log('\nConstant fields: the literal + its FIRST keyword may share the co
   check('constant value survives', rconst.constantValue === 'Hello');
   check('DSPATR(HI) survives', rconst.keywords.some((k) => k.name === 'DSPATR' && k.parameters.trim() === 'HI'));
   check('COLOR(BLU) survives', rconst.keywords.some((k) => k.name === 'COLOR' && k.parameters.trim() === 'BLU'));
+}
+
+console.log('\nAdding a SINGLE keyword to a constant that previously had NONE also gets its own new line, never sharing the literal\'s own line (the exact menu-designer scenario reported: applying COLOR to an option label fragment)');
+{
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'APMENU' }),
+    buildLine({ seq: '00020', line: '15', col: '6', func: "'Back'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const field = model.records[0].fields[0];
+
+  const newKeywords = field.keywords.concat([{ name: 'COLOR', parameters: 'BLU', conditions: [], raw: '', sourceLines: [] }]);
+  const newLines = DspfWriter.applyFieldUpdate(field, lines, { keywords: newKeywords });
+  const nonBlank = newLines.filter((l) => l.trim().length > 0);
+
+  check("the literal 'Back' does NOT gain COLOR(BLU) on its own line", !nonBlank.some((l) => /'Back'/.test(l) && /COLOR\(BLU\)/.test(l)));
+  check('COLOR(BLU) is its own dedicated line', nonBlank.some((l) => /COLOR\(BLU\)/.test(l) && !/'Back'/.test(l)));
+  check('exactly 3 non-blank lines (record + literal line + keyword line)', nonBlank.length === 3);
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const rfield = reparsed.records[0].fields[0];
+  check('COLOR(BLU) survives the round-trip', rfield.keywords.some((k) => k.name === 'COLOR' && k.parameters.trim() === 'BLU'));
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
