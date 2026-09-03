@@ -159,28 +159,43 @@ through Code for i (`streamfile:` scheme, same sibling-file convention as a
 local file) - see [`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md)
 for known constraints.
 **"Compile Menu (CRTMNU)"** (added v0.9.3) runs the real compile sequence
-via Code for i's `code-for-ibmi.runCommand` API - `CRTDSPF`, updating the
+via Code for i's `runCommand` connection API - `CRTDSPF`, updating the
 message file in place (`ADDMSGD` per option, falling back to `CHGMSGD` for
 one that's already there - see v0.9.14; the `USRnnnn` message-ID format
 `TYPE(*DSPF)` menus expect is documented in [IBM's own note on adding a
 menu option](https://www.ibm.com/support/pages/node/7267003)), then
 `CRTMNU`. Compiling itself still requires a real, connected IBM i member,
-regardless of how the menu was opened for editing.
+regardless of how the menu was opened for editing. As of v0.10.29, the
+button is hidden outright (not just left clickable and doomed to fail)
+whenever the "IBM i: Connected/Not connected/Not installed" badge isn't
+showing connected.
 
 ### Screen design (DSPF)
 
 **"Compile Display File (CRTDSPF)"** (added v0.9.77) is the DSPF
 designer's own counterpart to the menu designer's "Compile Menu" button
-above - a single `CRTDSPF` via Code for i's `code-for-ibmi.runCommand`
-API, with no message-file/`CRTMNU` steps (those are `MNUDDS`-specific).
-Same requirement as "Compile Menu": a real, connected IBM i member.
+above - a single `CRTDSPF` via Code for i's `runCommand` connection API,
+with no message-file/`CRTMNU` steps (those are `MNUDDS`-specific). Same
+requirement as "Compile Menu": a real, connected IBM i member. Also
+hidden while not connected, as of v0.10.29.
 
 **"+ Fields from database file"** (Task L14, added v0.9.96) - real
 SDA's own F10 (Database) key: browse a PF/LF's field list (via Code for
 i's `runCommand`/`runSQL`, same connection "Compile"/"Resolve Referenced
 Field" already use) and place several fields on the screen at once as
 `REFFLD`-based fields, rather than creating and referencing them one at
-a time.
+a time. Also hidden while not connected, as of v0.10.29.
+
+As of v0.10.29, all three of the above call `.runCommand()` directly on
+the connection object from Code for i's own `instance.getConnection()`
+rather than through `vscode.commands.executeCommand('code-for-ibmi.runCommand', ...)`
+- the latter depends on Code for i having finished registering that
+command in the VS Code command registry (a command it registers at its
+own activation time, not declared in `contributes.commands`), which was
+occasionally still catching up even once `isActive` was true, surfacing
+as a confusing "command 'code-for-ibmi.runCommand' not found" error on
+an otherwise-working connection. Calling the connection object's own
+method instead sidesteps that registry dependency entirely.
 
 ## Getting started
 

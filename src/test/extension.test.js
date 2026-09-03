@@ -195,6 +195,10 @@ async function run() {
       exports: {
         instance: {
           getConnection: () => ({
+            runCommand: async (info) => {
+              check('runs DSPFFD against the REF file (MYLIB/CUSMSTP)', info.command.includes('DSPFFD FILE(MYLIB/CUSMSTP)'));
+              return { code: 0, stdout: '', stderr: '' };
+            },
             runSQL: async (sql) => {
               runSqlCalls.push(sql);
               return [{ WHFLDT: 'A', WHFLDB: 25, WHFLDD: 0, WHFLDP: 0 }];
@@ -202,10 +206,6 @@ async function run() {
           }),
         },
       },
-    });
-    vscodeMock.__setRunCommandHandler((info) => {
-      check('runs DSPFFD against the REF file (MYLIB/CUSMSTP)', info.command.includes('DSPFFD FILE(MYLIB/CUSMSTP)'));
-      return { code: 0, stdout: '', stderr: '' };
     });
     vscodeMock.__lastAppliedEdit = undefined;
     vscodeMock.__lastInformation = undefined;
@@ -219,9 +219,8 @@ async function run() {
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
       id: 'halcyontechltd.code-for-ibmi',
       isActive: true,
-      exports: { instance: { getConnection: () => ({ runSQL: async () => [] }) } },
+      exports: { instance: { getConnection: () => ({ runCommand: async () => ({ code: 0, stdout: '', stderr: '' }), runSQL: async () => [] }) } },
     });
-    vscodeMock.__setRunCommandHandler(() => ({ code: 0, stdout: '', stderr: '' }));
     vscodeMock.__lastError = undefined;
     await refMessageHandler({ type: 'resolveReferencedField', recordName: 'SCR1', fieldSourceLine: 3 });
     check('surfaces a not-found error', /was not found/.test(vscodeMock.__lastError || ''));
@@ -233,19 +232,18 @@ async function run() {
       exports: {
         instance: {
           getConnection: () => ({
+            runCommand: async () => ({ code: 0, stdout: '', stderr: '' }),
             runSQL: async () => [{ WHFLDT: 'A', WHFLDB: 30, WHFLDD: 0, WHFLDP: 0 }],
           }),
         },
       },
     });
-    vscodeMock.__setRunCommandHandler(() => ({ code: 0, stdout: '', stderr: '' }));
     vscodeMock.__lastInformation = undefined;
     await refMessageHandler({ type: 'resolveAllReferencedFields', recordName: 'SCR1' });
     check('resolves both reference fields on the record', /Resolved 2 referenced fields/.test(vscodeMock.__lastInformationMessage || ''));
 
     // Restore the default-installed mock extension for any later tests in this file.
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
-    vscodeMock.__setRunCommandHandler(null);
   }
 
   console.log('\nTask L14: listDatabaseFields / addFieldsFromDatabase (bulk "Add fields from database file")');
@@ -286,6 +284,7 @@ async function run() {
       exports: {
         instance: {
           getConnection: () => ({
+            runCommand: async (info) => { dspffdCommand = info.command; return { code: 0, stdout: '', stderr: '' }; },
             runSQL: async (sql) => {
               runSqlCalls.push(sql);
               return [
@@ -298,7 +297,6 @@ async function run() {
       },
     });
     let dspffdCommand = null;
-    vscodeMock.__setRunCommandHandler((info) => { dspffdCommand = info.command; return { code: 0, stdout: '', stderr: '' }; });
     dbPosted.length = 0;
     await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTP' });
     check('ran DSPFFD against the qualified file', !!dspffdCommand && dspffdCommand.includes('DSPFFD FILE(MYLIB/CUSMSTP)'));
@@ -317,6 +315,7 @@ async function run() {
       exports: {
         instance: {
           getConnection: () => ({
+            runCommand: async () => ({ code: 0, stdout: '', stderr: '' }),
             runSQL: async (sql) => {
               runSqlCalls.push(sql);
               if (sql.includes("WHNAME = 'FMT2'")) {
@@ -400,7 +399,6 @@ async function run() {
 
     // Restore the default-installed mock extension for any later tests in this file.
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
-    vscodeMock.__setRunCommandHandler(null);
   }
 
   console.log('\nTask L18: getCodeForIStatus() / \'codeForIStatus\' badge push - distinguishes not-installed from installed-but-not-connected (getConnectedCodeForIBMi() collapses those into one "undefined")');
@@ -467,7 +465,6 @@ async function run() {
 
     // Restore the default-installed mock extension for any later tests in this file.
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
-    vscodeMock.__setRunCommandHandler(null);
   }
 
   console.log('\nTask L38: getModTrackingConfig() / \'modTrackingConfig\' push - reads isda.trackSourceModifications/isda.modificationTag, resends on live config changes, scoped to the DSPF designer only');

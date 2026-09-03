@@ -959,6 +959,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // extension.ts's compileDspf() does the actual work host-side (this webview
   // has no IBM i connection of its own).
   const compileDspfBtn = document.getElementById('compileDspfBtn');
+  const addFromDbBtn = document.getElementById('addFromDbBtn');
   if (compileDspfBtn) {
     compileDspfBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'compileDspf' });
@@ -988,6 +989,15 @@ const htmlTemplate = `<!DOCTYPE html>
       codeForIBadge.textContent = 'IBM i: connected';
       codeForIBadge.title = 'Code for IBM i is connected - Compile, Resolve Referenced Field, and Add fields from database file are available.';
     }
+    // Bug-fix follow-up (screenshot report): rather than leaving Compile and
+    // "+ Fields from database file" visible-but-doomed-to-fail when there's
+    // no live connection, hide them outright - same "not connected" state
+    // the badge above already reports, just acted on instead of only
+    // displayed. Both buttons reappear the moment 'codeForIStatus' next
+    // reports connected: true (on 'ready', after any Code-for-i action, or
+    // the cheap poll), no reload needed.
+    if (compileDspfBtn) compileDspfBtn.classList.toggle('hidden', !connected);
+    if (addFromDbBtn) addFromDbBtn.classList.toggle('hidden', !connected);
   }
 
   // Task L19 - "Find field" search box: filters every record's fields/
@@ -1616,11 +1626,13 @@ const htmlTemplate = `<!DOCTYPE html>
     setPlacementMode('COPY');
   }
 
-  document.getElementById('addFromDbBtn').addEventListener('click', () => {
-    const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) return;
-    showDatabaseFieldsPicker(recordName);
-  });
+  if (addFromDbBtn) {
+    addFromDbBtn.addEventListener('click', () => {
+      const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+      if (!recordName) return;
+      showDatabaseFieldsPicker(recordName);
+    });
+  }
 
   // Task L14 - "Add fields from database file" (real SDA's F10/Database
   // key). A two-step overlay: list the target file's fields (round-trip to

@@ -364,6 +364,31 @@ wording be typed in at the same time too, instead of always landing
 blank? It now can - the add-row gained its own text input alongside
 the line-number one. See its own row for the full implementation.
 
+**Standalone bug fix (2026-09-03, found by a real screenshot report,
+not part of any brainstorm above):** "Add fields from database file"
+(L14) was failing with `DSPFFD failed for .../...: Error: command
+'code-for-ibmi.runCommand' not found` even though Code for i showed as
+installed. Root cause: `fetchReferencedFieldAttributes`,
+`fetchDatabaseFileFields`, `compileMenu`, and `compileDspf` all ran
+their CL commands through
+`vscode.commands.executeCommand('code-for-ibmi.runCommand', ...)` - a
+command Code for i registers at its OWN activation time, not declared
+in `contributes.commands`, so VS Code's usual auto-activate-on-command
+mechanism doesn't cover it. The existing `ext.activate()` guard (added
+for the L18/createNewDspf "installed but not yet active" bug) only
+narrows that race, it doesn't close it. All four now call
+`.runCommand()` directly on the connection object from
+`instance.getConnection()` instead - the same object
+`fetchReferencedFieldAttributes`/`fetchDatabaseFileFields` already
+trusted for `runSQL()` without ever hitting this problem, since that
+path never goes through the VS Code command registry at all.
+Follow-up UX improvement in the same pass: Compile Display File,
+Compile Menu, and "+ Fields from database file" are now hidden
+outright (not just left clickable and doomed to fail) whenever the L18
+connection badge reports anything other than connected - they
+reappear the moment a fresh `codeForIStatus` reports `connected:
+true`.
+
 There's no other pending work to parallelize right now; every
 currently-tracked task is closed. If a new limitation surfaces, add it as a new task here
 (continuing the

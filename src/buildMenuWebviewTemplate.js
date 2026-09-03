@@ -1650,6 +1650,12 @@ const htmlTemplate = `<!DOCTYPE html>
       codeForIBadge.textContent = 'IBM i: connected';
       codeForIBadge.title = 'Code for IBM i is connected - Compile Menu (CRTMNU) is available.';
     }
+    // Bug-fix follow-up (screenshot report): hide Compile Menu outright
+    // when there's no live connection, rather than leaving it clickable and
+    // doomed to fail - same "not connected" state the badge already
+    // reports, just acted on instead of only displayed. Reappears the
+    // moment 'codeForIStatus' next reports connected: true.
+    if (compileBtn) compileBtn.classList.toggle('hidden', !connected);
   }
 
   // "Save" - same reasoning as the DSPF designer's own Save button

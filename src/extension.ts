@@ -327,9 +327,25 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
     try {
       await ext.activate();
     } catch {
-      // fall through - the executeCommand calls below will surface any
+      // fall through - the runCommand calls below will surface any
       // real problem with a specific error, same as always
     }
+  }
+  // Bug fix (screenshot report - "DSPFFD failed for .../...: Error: command
+  // 'code-for-ibmi.runCommand' not found"): this used to run every step
+  // through vscode.commands.executeCommand('code-for-ibmi.runCommand', ...),
+  // which depends on Code for i having finished registering that command in
+  // the VS Code command registry - a genuinely separate thing from
+  // ext.isActive being true, and the activate() nudge above only narrows
+  // that race, it doesn't close it. Getting the connection object directly
+  // (same as fetchReferencedFieldAttributes/fetchDatabaseFileFields do) and
+  // calling connection.runCommand() removes the dependency on the command
+  // registry entirely.
+  const instance: any = ext.exports && ext.exports.instance;
+  const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
+  if (!connection || typeof connection.runCommand !== 'function') {
+    vscode.window.showErrorMessage('iSDA: Compile Menu requires an active connection - connect via the Code for IBM i panel first.');
+    return;
   }
 
   // Compiles read from the SAVED member on the IBM i, not this editor's live
@@ -381,7 +397,7 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
 
   async function run(command: string, label: string): Promise<{ ok: boolean; message: string }> {
     try {
-      const result: any = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command, environment: 'ile' });
+      const result: any = await connection.runCommand({ command, environment: 'ile' });
       if (result && typeof result.code === 'number' && result.code !== 0) {
         return { ok: false, message: `${label} failed:\n${result.stderr || result.stdout || 'unknown error'}` };
       }
@@ -469,9 +485,19 @@ async function compileDspf(uri: vscode.Uri): Promise<void> {
     try {
       await ext.activate();
     } catch {
-      // fall through - the executeCommand call below will surface any
+      // fall through - the runCommand call below will surface any
       // real problem with a specific error, same as always
     }
+  }
+  // Bug fix - see the identical comment in compileMenu() above: getting the
+  // connection object directly and calling connection.runCommand() removes
+  // the dependency on Code for i having finished registering
+  // code-for-ibmi.runCommand in the VS Code command registry.
+  const instance: any = ext.exports && ext.exports.instance;
+  const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
+  if (!connection || typeof connection.runCommand !== 'function') {
+    vscode.window.showErrorMessage('iSDA: Compile Display File requires an active connection - connect via the Code for IBM i panel first.');
+    return;
   }
 
   // Same reasoning as compileMenu(): compiles read from the SAVED member on
@@ -486,7 +512,7 @@ async function compileDspf(uri: vscode.Uri): Promise<void> {
 
   async function run(command: string, label: string): Promise<{ ok: boolean; message: string }> {
     try {
-      const result: any = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command, environment: 'ile' });
+      const result: any = await connection.runCommand({ command, environment: 'ile' });
       if (result && typeof result.code === 'number' && result.code !== 0) {
         return { ok: false, message: `${label} failed:\n${result.stderr || result.stdout || 'unknown error'}` };
       }
@@ -620,7 +646,18 @@ async function fetchReferencedFieldAttributes(
   const dspffdCmd = `DSPFFD FILE(${qualifiedFile}) OUTPUT(*OUTFILE) OUTFILE(QTEMP/${tempMember}) OUTMBR(*FIRST *REPLACE)`;
   let cmdResult: any;
   try {
-    cmdResult = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command: dspffdCmd, environment: 'ile' });
+    // Bug fix (screenshot report): this used to go through
+    // vscode.commands.executeCommand('code-for-ibmi.runCommand', ...), which
+    // depends on Code for i having registered that command in the VS Code
+    // command registry - a genuinely separate thing from ext.isActive being
+    // true (see the comment on ext.activate() above). connection.runSQL(),
+    // called a few lines below in this SAME function, never had this problem
+    // because it calls a method directly on the already-obtained connection
+    // object instead of going through vscode.commands at all. Calling
+    // connection.runCommand() here the same way removes the dependency on
+    // VS Code's command registry entirely, closing the race instead of just
+    // narrowing it with the activate() nudge.
+    cmdResult = await connection.runCommand({ command: dspffdCmd, environment: 'ile' });
   } catch (err) {
     return { error: `DSPFFD failed for ${qualifiedFile}: ${err}` };
   }
@@ -704,7 +741,14 @@ async function fetchDatabaseFileFields(
   const dspffdCmd = `DSPFFD FILE(${qualifiedFile}) OUTPUT(*OUTFILE) OUTFILE(QTEMP/${tempMember}) OUTMBR(*FIRST *REPLACE)`;
   let cmdResult: any;
   try {
-    cmdResult = await vscode.commands.executeCommand('code-for-ibmi.runCommand', { command: dspffdCmd, environment: 'ile' });
+    // Bug fix (screenshot report - "DSPFFD failed for .../...: Error: command
+    // 'code-for-ibmi.runCommand' not found"): see the identical comment in
+    // fetchReferencedFieldAttributes() above for the full reasoning - calling
+    // connection.runCommand() directly (same object this function already
+    // trusts for nothing else here, but the sibling function trusts for
+    // runSQL) removes the dependency on Code for i having finished
+    // registering its command in the VS Code command registry.
+    cmdResult = await connection.runCommand({ command: dspffdCmd, environment: 'ile' });
   } catch (err) {
     return { error: `DSPFFD failed for ${qualifiedFile}: ${err}` };
   }

@@ -46,6 +46,25 @@ const configChangeListeners = []; // every registered workspace.onDidChangeConfi
 const openTextDocuments = []; // simulates vscode.workspace.textDocuments
 const executedCommands = []; // every vscode.commands.executeCommand call, for assertions
 let runCommandHandler = null; // test-supplied handler for 'code-for-ibmi.runCommand'
+// Bug fix follow-up: the extension no longer calls
+// vscode.commands.executeCommand('code-for-ibmi.runCommand', ...) - it calls
+// .runCommand() directly on the connection object from
+// ext.exports.instance.getConnection() instead (see extension.ts's own
+// comments on fetchReferencedFieldAttributes/fetchDatabaseFileFields/
+// compileMenu/compileDspf for why). This mock connection routes through the
+// SAME runCommandHandler tests already use via __setRunCommandHandler, so
+// every existing test that only ever set up isActive/activate (no explicit
+// exports.instance.getConnection of its own) keeps working unchanged -
+// getExtension() below only attaches this default connection when a test
+// hasn't already supplied its own exports.
+function makeDefaultConnection() {
+  return {
+    runCommand: (args) => {
+      const result = runCommandHandler ? runCommandHandler(args) : { code: 0, stdout: '', stderr: '' };
+      return result && typeof result.then === 'function' ? result : Promise.resolve(result);
+    },
+  };
+}
 // Simulates the Code for i extension being installed by default (the common
 // case) - tests that need "not installed" delete this entry first.
 const mockExtensions = { 'halcyontechltd.code-for-ibmi': { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() } };
@@ -83,7 +102,25 @@ const vscodeMock = {
   },
   ProgressLocation: { Notification: 15 },
   extensions: {
-    getExtension: (id) => (Object.prototype.hasOwnProperty.call(mockExtensions, id) ? mockExtensions[id] : undefined),
+    getExtension: (id) => {
+      if (!Object.prototype.hasOwnProperty.call(mockExtensions, id)) return undefined;
+      const ext = mockExtensions[id];
+      // Only synthesize a default connection for the well-known Code for i
+      // id, and only when the test hasn't already supplied its own `exports`
+      // (tests exercising the L14 database-fields/resolve-referenced-field
+      // flows, or connection-specific scenarios, set exports.instance
+      // themselves and that must win untouched). Mutates the SAME object
+      // (rather than returning a spread copy) so it still works for tests
+      // whose extStub.activate() flips isActive to true asynchronously
+      // AFTER this first getExtension() call already happened - extension.ts
+      // holds onto that one `ext` reference throughout, exactly like real
+      // VS Code's Extension objects are live/stable, not point-in-time
+      // snapshots.
+      if (id === 'halcyontechltd.code-for-ibmi' && ext && !ext.exports) {
+        ext.exports = { instance: { getConnection: () => makeDefaultConnection() } };
+      }
+      return ext;
+    },
     // Task L18 - the connection-status badge subscribes to this to catch
     // Code for i being installed/uninstalled while a designer panel is
     // already open; no test currently needs to actually FIRE it, so a

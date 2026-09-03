@@ -1370,7 +1370,59 @@ function runFileNamePositionScenario() {
     check('the file name sits directly after the "Menu Design" h2 (nothing else in between)', fileStatusIdx === h2Idx + 1);
     check('the Code for IBM i badge comes right after the file name', badgeIdx === fileStatusIdx + 1);
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    runCodeForIBadgeHideScenario();
+  }, 100);
+}
+
+// Bug-fix follow-up (screenshot report - I-SDA's L14 "Add fields from
+// database file" throwing "command 'code-for-ibmi.runCommand' not found"):
+// alongside fixing the underlying race (extension.ts now calls
+// connection.runCommand() directly instead of going through
+// vscode.commands.executeCommand()), Compile Menu is now hidden outright
+// whenever there's no live connection, rather than left clickable and
+// doomed to fail - same "not connected" state the badge already reports,
+// just acted on instead of only displayed.
+function runCodeForIBadgeHideScenario() {
+  console.log('\nBug-fix follow-up: Compile Menu is hidden while not connected, reappears once connected');
+  const menuSrc =
+    [
+      "     A          R MAINMENU",
+      "     A                                  1  2'MAIN MENU'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce24', menuSrc, '', 'BADGEHIDE.MNUDDS', 'BADGEHIDEQQ.MNUCMD', 'loaded').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const compileBtn = doc.getElementById('compileBtn');
+    check('setup: the Compile Menu button exists', !!compileBtn);
+
+    dom.window.postMessage({ type: 'codeForIStatus', installed: false, connected: false }, '*');
+    setTimeout(() => {
+      check('hidden when Code for i is not installed', compileBtn.classList.contains('hidden'));
+
+      dom.window.postMessage({ type: 'codeForIStatus', installed: true, connected: false }, '*');
+      setTimeout(() => {
+        check('stays hidden when installed but not connected', compileBtn.classList.contains('hidden'));
+
+        dom.window.postMessage({ type: 'codeForIStatus', installed: true, connected: true }, '*');
+        setTimeout(() => {
+          check('reappears once connected', !compileBtn.classList.contains('hidden'));
+
+          console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+          process.exit(failures === 0 ? 0 : 1);
+        }, 0);
+      }, 0);
+    }, 0);
   }, 100);
 }

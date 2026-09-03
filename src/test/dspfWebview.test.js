@@ -2937,6 +2937,8 @@ function runCodeForIBadgeScenario() {
   setTimeout(() => {
     const { document: doc, MessageEvent } = dom.window;
     const badge = doc.getElementById('codeForIBadge');
+    const compileBtn = doc.getElementById('compileDspfBtn');
+    const dbBtn = doc.getElementById('addFromDbBtn');
 
     console.log('  starts in the neutral "checking..." state, before any status message arrives');
     check('badge is present', !!badge);
@@ -2947,18 +2949,28 @@ function runCodeForIBadgeScenario() {
     setTimeout(() => {
       check('shows "not installed"', /not installed/i.test(badge.textContent));
       check('styled as unknown/neutral, not a warning', badge.classList.contains('unknown') && !badge.classList.contains('disconnected') && !badge.classList.contains('connected'));
+      // Bug-fix follow-up (screenshot report): Compile and "+ Fields from
+      // database file" are hidden outright (not just left clickable and
+      // doomed to fail) whenever there's no live connection - "not
+      // installed" is one such case.
+      check('Compile Display File button is hidden while not installed', compileBtn.classList.contains('hidden'));
+      check('"+ Fields from database file" button is hidden while not installed', dbBtn.classList.contains('hidden'));
 
       console.log('  installed but not connected');
       dom.window.postMessage({ type: 'codeForIStatus', installed: true, connected: false }, '*');
       setTimeout(() => {
         check('shows "not connected"', /not connected/i.test(badge.textContent));
         check('styled as disconnected (warning color)', badge.classList.contains('disconnected') && !badge.classList.contains('connected') && !badge.classList.contains('unknown'));
+        check('Compile Display File button stays hidden while installed but not connected', compileBtn.classList.contains('hidden'));
+        check('"+ Fields from database file" button stays hidden while installed but not connected', dbBtn.classList.contains('hidden'));
 
         console.log('  connected');
         dom.window.postMessage({ type: 'codeForIStatus', installed: true, connected: true }, '*');
         setTimeout(() => {
           check('shows "connected"', /\bconnected\b/i.test(badge.textContent) && !/not connected/i.test(badge.textContent));
           check('styled as connected', badge.classList.contains('connected') && !badge.classList.contains('disconnected') && !badge.classList.contains('unknown'));
+          check('Compile Display File button reappears once connected', !compileBtn.classList.contains('hidden'));
+          check('"+ Fields from database file" button reappears once connected', !dbBtn.classList.contains('hidden'));
 
           runFieldSearchScenario();
         }, 0);
