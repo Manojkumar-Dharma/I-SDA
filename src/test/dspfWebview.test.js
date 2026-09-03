@@ -832,7 +832,7 @@ function runFileAttrsScenario() {
     check('shows the record panel again', doc.getElementById('p-record-name') !== null);
 
     console.log('  Field order: Up/Down buttons reorder fields in the DDS source');
-    let rows = Array.from(doc.querySelectorAll('.field-order-row'));
+    let rows = Array.from(doc.querySelectorAll('.field-order-row[data-idx]'));
     check('setup: three field-order rows shown, in source order', rows.length === 3 && /First/.test(rows[0].textContent) && /Second/.test(rows[1].textContent) && /Third/.test(rows[2].textContent));
     check('the first row\'s Up button is disabled (already first)', rows[0].querySelector('.field-order-up').disabled);
     check('the last row\'s Down button is disabled (already last)', rows[2].querySelector('.field-order-down').disabled);
@@ -845,7 +845,7 @@ function runFileAttrsScenario() {
     const firstIdx = applyEdit ? applyEdit.text.indexOf('First') : -1;
     check('Second now appears before First in the source text', secondIdx >= 0 && firstIdx >= 0 && secondIdx < firstIdx);
 
-    rows = Array.from(doc.querySelectorAll('.field-order-row'));
+    rows = Array.from(doc.querySelectorAll('.field-order-row[data-idx]'));
     check('the on-screen list reflects the new order too', rows.length === 3 && /Second/.test(rows[0].textContent) && /First/.test(rows[1].textContent) && /Third/.test(rows[2].textContent));
 
     console.log('\n' + (failures === 0 ? 'FILE ATTRS / FIELD ORDER: ALL CHECKS PASSED SO FAR' : failures + ' CHECK(S) FAILED SO FAR'));
@@ -5704,6 +5704,14 @@ function runCommentsScenario() {
 
     console.log('  Task L42: file-level Comments tab has a "line #" input next to Add comment');
     check('file-level: an add-comment-line input exists', !!doc.querySelector('[id$="-add-comment-line"]'));
+
+    console.log('  Task L47: the add-row is visually unified with existing comment rows - same field-order-row wrapper, a plain "+" button rather than a wide text one');
+    const fileAddRow = doc.querySelector('[id$="-add-comment-line"]').closest('.field-order-row');
+    check('the add-row uses the SAME row class every existing comment row uses (inherits identical height/padding/border)', !!fileAddRow);
+    check('no leftover bespoke .comment-add-row wrapper class', !doc.querySelector('.comment-add-row'));
+    const fileAddBtnEl = doc.querySelector('[id$="-add-comment"]');
+    check('the Add button is now a plain "+", not the old wide "+ Add comment" text button', fileAddBtnEl.textContent.trim() === '+');
+    check('the Add button gets the exact same 22x22 square styling every "x" delete button gets, for free from the shared .field-order-row button rule (no bespoke class of its own)', !fileAddBtnEl.className);
 
     console.log('  Task L42: adding a file-level comment with an explicit line number inserts it there, not appended at the end');
     const fileAddLineInput = doc.querySelector('[id$="-add-comment-line"]');

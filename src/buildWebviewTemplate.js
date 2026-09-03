@@ -367,9 +367,19 @@ const htmlTemplate = `<!DOCTYPE html>
     border: 1px solid var(--panel-border); border-radius: 3px; padding: 2px 5px;
     font-family: var(--mono);
   }
-  .comment-add-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-  .comment-add-line-input { width: 64px; flex: 0 0 auto; }
-  .comment-add-row button { flex: 0 0 auto; }
+  /* Task L47 - the add-row (last child of commentsListHtml's list, no
+     data-source-line) is now a plain .field-order-row like every comment
+     row above it, so it inherits that row's exact height/padding/border
+     for free. This line-number input just needs to occupy roughly the
+     same column width the read-only "L{n}" badge above it does - it's
+     the one piece commentsListHtml's editable rows still need their own
+     rule for, since .field-order-row itself has no opinion on an
+     input's own width. */
+  .comment-add-line-input {
+    flex: 0 0 auto; width: 46px; text-align: center;
+    background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border);
+    border-radius: 3px; padding: 4px 2px; font-family: var(--mono); font-size: 11px;
+  }
   /* Task L19 - "Find field" search results dropdown, right under the search
      box in the aside. Deliberately its own floating panel (not inline in
      normal document flow) so it overlays whatever's below it (the Record
@@ -3482,6 +3492,19 @@ const htmlTemplate = `<!DOCTYPE html>
    * option in this build?"). Read by wireCommentsSection alongside the
    * line-number input; left blank, adding still inserts an empty comment
    * line exactly like before this task.
+   *
+   * Task L47 - the add-row now reuses the SAME "field-order-row" class
+   * every existing comment row already has (line-number input in the
+   * badge's own slot, text input taking the rest, a 22x22 square button
+   * at the end) instead of its own bespoke layout, which had gotten
+   * cramped enough at the panel's actual width to force a horizontal
+   * scrollbar (reported directly, with a screenshot) - the previous
+   * "+ Add comment" TEXT button was the main culprit, competing with the
+   * line-number input and text input for the same narrow row's width; a
+   * plain "+" square, matching every "x" delete button's own size
+   * exactly, fixes that AND reads as "the next row in this same list",
+   * which is what was actually asked for over the alternative of just
+   * shrinking the same layout further.
    */
   function commentsListHtml(comments, idPrefix, allowCustomLine) {
     let html = '<div class="section-label">Comments</div>';
@@ -3496,12 +3519,12 @@ const htmlTemplate = `<!DOCTYPE html>
           '</div>';
       });
     }
-    html += '<div class="comment-add-row">';
+    html += '<div class="field-order-row">';
     if (allowCustomLine) {
       html += '<input type="number" id="' + idPrefix + '-add-comment-line" class="comment-add-line-input" min="1" placeholder="Line #" title="Line number the new comment should land at - leave blank to add after the last comment" />';
     }
     html += '<input type="text" id="' + idPrefix + '-add-comment-text" class="comment-add-text-input" placeholder="Comment text (optional)" title="Text for the new comment line - leave blank to add an empty one" />' +
-      '<button id="' + idPrefix + '-add-comment" class="secondary">+ Add comment</button>' +
+      '<button id="' + idPrefix + '-add-comment" title="Add this comment">+</button>' +
       '</div>';
     return html;
   }

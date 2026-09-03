@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — Comment add-row visually unified with existing rows (Task L47)
+
+- **0.10.27** — Task L47: the comment add-row's line-number box, text box, and "+ Add comment" button were cramped enough to force a horizontal scrollbar on the panel (reported with a screenshot). The add-row now reuses the exact same row styling every existing comment row already has - line-number input in roughly the badge's own column, text input taking the rest, and a plain "+" in a small square button matching every row's own "x" delete button exactly, instead of a wide "+ Add comment" text button competing for the same narrow row.
+
 ## 2026-09-03 — Arrow-key nudge now respects window/subfile boundaries too (Tasks L39 + L40 follow-up)
 
 - **0.10.26** — Follow-up to Tasks L39/L40 (0.10.22): the mouse-drag boundary fixes didn't cover arrow-key nudging, since `nudgeSelected` moves fields using source coordinates rather than `startDrag`'s render coordinates. A new `computeNudgeBounds` helper (source-coordinate sibling of `computeDragBounds`) now enforces the same two rules for arrow-key nudge, in both the single-field and multi-select paths: a field inside a `WINDOW` record can't be nudged on/outside the window's own border, and a field in a paired `SFL`/`SFLCTL` subfile can't be nudged onto a line the other half's own fields occupy.
