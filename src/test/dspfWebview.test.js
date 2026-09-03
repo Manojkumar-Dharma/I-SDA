@@ -3627,6 +3627,116 @@ function runSflRegionDragBoundaryScenario() {
     dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
     check("dragging DETAIL onto HEADER's own (now-current) line is blocked too - no edit posted", posted.length === 0);
 
+    runWindowNudgeBoundaryScenario();
+  }, 0);
+}
+
+// Task L39 (arrow-key nudge variant): nudging a field inside a WINDOW
+// record with the arrow keys must not be able to push it on/outside the
+// window's own border either - same rule as the mouse-drag version above,
+// just exercised through computeNudgeBounds' SOURCE-coordinate path
+// instead of computeDragBounds' render-coordinate one.
+function runWindowNudgeBoundaryScenario() {
+  console.log("\nTask L39 (nudge): arrow keys must not push a field inside a WINDOW record past the window's own border");
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'WDWREC', func: 'WINDOW(5 10 6 20)' }),
+      buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '5' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce39n', src, 'WDWNUDGE.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event, KeyboardEvent } = dom.window;
+    const fieldEl = doc.querySelector('.dspf-field');
+    check('setup: the field is rendered', !!fieldEl);
+    fieldEl.dispatchEvent(new Event('click', { bubbles: true }));
+
+    // WINDOW(5 10 6 20): interior in SOURCE (window-relative) coordinates
+    // is line 2..5, col 2..19 (height-1=5, width-1=19). FLDA starts at
+    // window-relative line 3, col 5 - well inside. Shift+ArrowUp nudges by
+    // 5, aiming for line 3-5=-2 - clamp should hold it at line 2 instead.
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', shiftKey: true, bubbles: true, cancelable: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('Shift+ArrowUp posts an edit (it DID move, just not the full 5 rows)', !!applyEdit);
+    let reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text);
+    let movedField = reparsed && reparsed.records[0].fields.find((f) => f.name === 'FLDA');
+    check('clamped to the window interior\'s top edge (window-relative line 2), not line -2', movedField && movedField.location.line === 2);
+
+    posted.length = 0;
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', shiftKey: true, bubbles: true, cancelable: true }));
+    check('already at the interior boundary - a further Shift+ArrowUp posts no edit at all', posted.length === 0);
+
+    runSflRegionNudgeBoundaryScenario();
+  }, 0);
+}
+
+// Task L40 (arrow-key nudge variant): nudging a field belonging to either
+// half of a paired SFL/SFLCTL subfile must not be able to push it onto a
+// line the OTHER half's own fields occupy - same rule as the mouse-drag
+// version above, exercised through computeNudgeBounds' SOURCE-coordinate
+// path (no lineOffset needed here - see its own doc comment).
+function runSflRegionNudgeBoundaryScenario() {
+  console.log("\nTask L40 (nudge): arrow keys must not push a field in a paired SFL/SFLCTL subfile onto the OTHER record's own line");
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+      buildLine({ seq: '00030', name: 'DETAIL', length: '10', dataType: 'A', usage: 'O', line: '5', col: '2' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'SFLCTLREC', func: 'SFLCTL(SFLREC)' }),
+      buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
+      buildLine({ seq: '00060', name: 'HEADER', length: '10', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce40n', src, 'SFLNUDGE.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event, KeyboardEvent } = dom.window;
+    doc.getElementById('recordSelect').value = 'SFLCTLREC';
+    doc.getElementById('recordSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    const headerEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('HEADER'));
+    check("setup: HEADER (SFLCTLREC's own field, line 3) is rendered", !!headerEl);
+    headerEl.dispatchEvent(new Event('click', { bubbles: true }));
+
+    // Line 4 is unoccupied - ArrowDown once should go through normally.
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('ArrowDown onto an unoccupied line (4) is allowed through normally', !!applyEdit);
+    let reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text);
+    let movedHeader = reparsed && reparsed.records.find((r) => r.name === 'SFLCTLREC').fields.find((f) => f.name === 'HEADER');
+    check('HEADER is now at line 4', movedHeader && movedHeader.location.line === 4);
+
+    // HEADER is now on line 4; another ArrowDown aims for line 5 - DETAIL's
+    // (the paired SFL record's own field) line. Must be blocked entirely.
+    posted.length = 0;
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    check("ArrowDown onto the paired SFL record's own line (5) posts no edit at all", posted.length === 0);
+
     runPulldownEditScenario();
   }, 0);
 }

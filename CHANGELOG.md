@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — Arrow-key nudge now respects window/subfile boundaries too (Tasks L39 + L40 follow-up)
+
+- **0.10.26** — Follow-up to Tasks L39/L40 (0.10.22): the mouse-drag boundary fixes didn't cover arrow-key nudging, since `nudgeSelected` moves fields using source coordinates rather than `startDrag`'s render coordinates. A new `computeNudgeBounds` helper (source-coordinate sibling of `computeDragBounds`) now enforces the same two rules for arrow-key nudge, in both the single-field and multi-select paths: a field inside a `WINDOW` record can't be nudged on/outside the window's own border, and a field in a paired `SFL`/`SFLCTL` subfile can't be nudged onto a line the other half's own fields occupy.
+
 ## 2026-09-03 — Add-comment row can now enter the comment's text, not just where it lands (Task L46)
 
 - **0.10.25** — Task L46: "+ Add comment" always inserted a blank comment line, even after L45 let you pick which line it landed on — you still had to type the wording in as a separate edit right after. Asked directly once L45 shipped ("Do I have option to enter the comment line text option in this build?"). The add-row now has its own text box alongside the line-number one, on both the file-level and record-level Comments tabs — type the line and the wording together, click Add, done. Leaving it blank still adds an empty comment line exactly like before.

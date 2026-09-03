@@ -4637,13 +4637,80 @@ const htmlTemplate = `<!DOCTYPE html>
   // multi-field nudge always has an absolute baseline per field already,
   // via commitGroupEdit's own column fallback, so that fallback doesn't
   // need to be threaded through here too).
+  /**
+   * Task L39/L40 (arrow-key nudge variant): same two boundary rules as
+   * computeDragBounds, but expressed in SOURCE coordinates instead of
+   * absolute render coordinates - nudgeSelected moves fields by editing
+   * field.location directly (via commitEdit/commitGroupEdit), it never
+   * touches the DOM's rendered grid position the way startDrag does.
+   *
+   * Real DDS addresses a field inside a WINDOW relative to the window's
+   * OWN origin (source line 1/col 1 IS the window's own top-left corner -
+   * see startDrag's own comment on why it falls back to the rendered
+   * column when a field's absolute source column isn't known), so the
+   * window-interior bounds here are just the window's own height/width,
+   * not lastScreen.window's absolute line/col at all: source line
+   * 2..height-1, source column 2..width-1 - one cell in from the
+   * always-reserved border ring on every side (default period/colon chars
+   * even with no WDWBORDER - L29/L32).
+   *
+   * SFL/SFLCTL's own forbidden lines are compared with NO offset added
+   * (unlike computeDragBounds' own lineOffset adjustment) - both halves of
+   * a pair already declare their own fields in the SAME frame (window-
+   * relative if a window's involved, absolute otherwise), so their raw
+   * location.line values are already directly comparable here.
+   */
+  function computeNudgeBounds(recordName, footprintLength, footprintHeight) {
+    let minCol = 1, maxCol = Infinity, minLine = 1, maxLine = Infinity;
+    const windowBox = lastScreen && lastScreen.window;
+    if (windowBox) {
+      minCol = 2;
+      maxCol = windowBox.width - 1 - (footprintLength - 1);
+      minLine = 2;
+      maxLine = windowBox.height - 1 - (footprintHeight - 1);
+      if (maxCol < minCol) maxCol = minCol;
+      if (maxLine < minLine) maxLine = minLine;
+    }
+    let sflForbidden = null;
+    const pairing = DspfEngine.findSflPairing(model, recordName);
+    if (pairing && pairing.sflRecord && pairing.sflCtlRecord) {
+      const isCtl = pairing.sflCtlRecord.name === recordName;
+      const otherRecord = isCtl ? pairing.sflRecord : pairing.sflCtlRecord;
+      const lines = otherRecord.fields
+        .filter((f) => f.location && f.location.line != null)
+        .map((f) => f.location.line);
+      if (lines.length > 0) {
+        sflForbidden = { min: Math.min.apply(null, lines), max: Math.max.apply(null, lines) };
+      }
+    }
+    return { minCol, maxCol, minLine, maxLine, sflForbidden };
+  }
+
   function nudgeSelected(deltaLine, deltaColumn) {
     const selected = getSelectedFields();
     if (selected.length === 0) return;
     if (selected.length > 1) {
       const recordName = selected[0].record.name;
       const sameRecord = selected.filter((s) => s.record.name === recordName);
-      commitGroupEdit(recordName, sameRecord.map((s) => s.field), deltaLine, deltaColumn);
+      const fields = sameRecord.map((s) => s.field);
+      // Group footprint bounding box in SOURCE coordinates - same
+      // unset/relative-column fallback identityOf's own doc comment uses,
+      // since a bound needs a concrete number to clamp against.
+      const lines = fields.map((f) => (f.location.line != null ? f.location.line : 1));
+      const cols = fields.map((f) => (f.location.column != null ? f.location.column : 1));
+      const minGroupLine = Math.min.apply(null, lines);
+      const maxGroupLine = Math.max.apply(null, lines);
+      const minGroupCol = Math.min.apply(null, cols);
+      const maxGroupCol = Math.max.apply(null, cols.map((c, i) => c + (fields[i].length || 1) - 1));
+      const bounds = computeNudgeBounds(recordName, maxGroupCol - minGroupCol + 1, maxGroupLine - minGroupLine + 1);
+      let clampedDeltaLine = Math.min(bounds.maxLine - minGroupLine, Math.max(bounds.minLine - minGroupLine, deltaLine));
+      const clampedDeltaColumn = Math.min(bounds.maxCol - minGroupCol, Math.max(bounds.minCol - minGroupCol, deltaColumn));
+      if (bounds.sflForbidden) {
+        const occTop = minGroupLine + clampedDeltaLine, occBottom = maxGroupLine + clampedDeltaLine;
+        if (occTop <= bounds.sflForbidden.max && occBottom >= bounds.sflForbidden.min) clampedDeltaLine = 0;
+      }
+      if (clampedDeltaLine === 0 && clampedDeltaColumn === 0) return;
+      commitGroupEdit(recordName, fields, clampedDeltaLine, clampedDeltaColumn);
       return;
     }
     const { record, field } = selected[0];
@@ -4655,8 +4722,15 @@ const htmlTemplate = `<!DOCTYPE html>
     // startDrag), so fall back to the rendered column actually on screen.
     const fallbackColumn = selectedEl ? parseInt(selectedEl.getAttribute('data-render-column'), 10) : 1;
     const origSourceColumn = field.location.column != null ? field.location.column : fallbackColumn;
-    const newLine = Math.max(1, origSourceLine + deltaLine);
-    const newColumn = Math.max(1, origSourceColumn + deltaColumn);
+    const renderLength = (selectedEl && parseInt(selectedEl.getAttribute('data-length'), 10)) || field.length || 1;
+    const renderHeight = (selectedEl && parseInt(selectedEl.getAttribute('data-height'), 10)) || 1;
+    const bounds = computeNudgeBounds(record.name, renderLength, renderHeight);
+    let newLine = Math.min(bounds.maxLine, Math.max(bounds.minLine, origSourceLine + deltaLine));
+    const newColumn = Math.min(bounds.maxCol, Math.max(bounds.minCol, origSourceColumn + deltaColumn));
+    if (bounds.sflForbidden) {
+      const occTop = newLine, occBottom = newLine + renderHeight - 1;
+      if (occTop <= bounds.sflForbidden.max && occBottom >= bounds.sflForbidden.min) newLine = origSourceLine;
+    }
     if (newLine === origSourceLine && newColumn === origSourceColumn) return;
     commitEdit(record.name, field, { line: newLine, column: newColumn });
   }
