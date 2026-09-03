@@ -90,7 +90,10 @@ anything without a dedicated screen yet.
 - Resolve Referenced Field (and "Resolve All") plus bulk "+ Fields from
   database file" (real SDA's own F10 key), both via Code for i.
 - Click-to-place, drag, arrow-key nudge (Shift+Arrow for 5 cells at a
-  time), and Ctrl+X/C/V cut/copy/paste of a field's whole definition.
+  time), and Ctrl+D duplicate / Ctrl+X/C/V cut/copy/paste of a field's
+  whole definition — a single-field duplicate or paste asks where to
+  place it via the same click-to-place flow as the Copy button, rather
+  than landing at a fixed default position.
 
 ### Canvas-wide and menu designer
 

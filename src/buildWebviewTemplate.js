@@ -4504,33 +4504,13 @@ const htmlTemplate = `<!DOCTYPE html>
     doDelete();
   }
 
-  // Duplicates the selected field/constant via DspfWriter.copyField (default
-  // placement: one row below, same column - the same "drag it into place
-  // afterward" expectation insertField's own doc comment sets). The copy
-  // always lands at the bottom of the record's field array (insertField's
-  // placement rule), so it's picked back up the same way regardless of
-  // whether it's a named field or an unnamed constant, then selected so the
-  // user can immediately drag it where it actually belongs.
-  function commitCopy(recordName, field) {
-    const rec = model.records.find((r) => r.name === recordName);
-    if (!rec) return;
-    commitSourceChange(
-      (lines) => DspfWriter.copyField(rec, lines, field, {}),
-      () => {
-        const freshRec = model.records.find((r) => r.name === recordName);
-        const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
-        setSingleSelection(newField ? newField.sourceLine : null);
-      }
-    );
-  }
-
   // Task L10: inserts a SNAPSHOT of one or more fields/constants into
   // 'recordName', each shifted by the SAME uniform delta (default: one row
   // below its own original line, same column) - a uniform delta is what
   // keeps a pasted/duplicated BLOCK looking like the block it was copied
   // from (every field's position relative to its neighbors is preserved),
   // rather than every field independently landing "one row below itself"
-  // and piling up on the same spot. Generalizes copyField/commitCopy's own
+  // and piling up on the same spot. Generalizes copyField's own
   // single-field "one row below, same column" default to N fields.
   //
   // Uses a per-field reparse loop, same as commitGroupEdit's own doc
@@ -4578,10 +4558,19 @@ const htmlTemplate = `<!DOCTYPE html>
   // pasteFieldsBlock's own doc comment), then selects the whole new block -
   // same "land somewhere sensible, then drag it into place" spirit
   // commitCopy's own doc comment already sets for a single field.
+  // Task L44: single-field Ctrl+D now reuses the SAME click-to-place flow
+  // the "Copy" button in the field props panel already has
+  // (beginCopyPlacement, defined above) instead of silently landing the
+  // copy one row below with no way to choose where it actually goes -
+  // this is what commitCopy (removed) used to do unconditionally.
+  // Multi-select Ctrl+D (2+ fields at once) keeps its own uniform-delta
+  // block-duplicate behavior below unchanged - there is no equivalent
+  // "click to place a whole block" UI today (the Copy button, and so
+  // this shortcut's own single-field case, only ever place ONE field).
   function commitCopySelection(recordName) {
     const selected = getSelectedFields().filter((s) => s.record.name === recordName);
     if (selected.length === 0) return;
-    if (selected.length === 1) { commitCopy(recordName, selected[0].field); return; }
+    if (selected.length === 1) { beginCopyPlacement(recordName, selected[0].field); return; }
     try {
       const snapshots = selected.map((s) => JSON.parse(JSON.stringify(s.field)));
       const inserted = pasteFieldsBlock(recordName, snapshots);
@@ -4729,25 +4718,30 @@ const htmlTemplate = `<!DOCTYPE html>
   // Paste: inserts the clipboard snapshot into whichever record is
   // CURRENTLY being viewed (recordSelect.value) - which may be a different
   // record than the one it was copied/cut from, unlike Ctrl+D's own
-  // always-same-record duplicate. Reuses pasteFieldsBlock (Task L10 - see
-  // its own doc comment) for both a single-field and a multi-field
-  // clipboard, since a length-1 'fields' array degenerates to exactly the
-  // old single-field behavior (copyField's own default placement - one row
-  // below, same column - covers the same-record paste case as cleanly as
-  // it covers duplicate; for a cross-record paste it's simply the pasted
-  // field's own original position shifted down one row, since there's no
-  // "one row below itself" to speak of in a different record).
-  // copyField's own nextAvailableFieldName call handles a name collision
-  // with the target record automatically - note it ALWAYS assigns a fresh
-  // suffixed name (see its own doc comment), never reusing the original
-  // exactly even if it's free again (e.g. after a Cut immediately followed
-  // by a Paste back into the same record) - same behavior every other
-  // copyField caller already has, so Paste doesn't special-case it.
+  // always-same-record duplicate. A single-field clipboard (Task L44) now
+  // goes through the SAME click-to-place flow as the Copy button and
+  // single-field Ctrl+D (beginCopyPlacement), instead of landing
+  // immediately - renderCopyPlacementProps' own "targetRec" is already
+  // whichever record the click happened over, exactly this cross-record
+  // case. A multi-field clipboard still uses pasteFieldsBlock (Task L10 -
+  // see its own doc comment) and its uniform-delta immediate placement -
+  // same "no equivalent block placement UI today" scoping commitCopySelection
+  // documents above (Task L44) - for a cross-record multi-paste it's
+  // simply every field's own original position shifted down one row,
+  // since there's no "one row below itself" to speak of in a different
+  // record. copyField's own nextAvailableFieldName call handles a name
+  // collision with the target record automatically - note it ALWAYS
+  // assigns a fresh suffixed name (see its own doc comment), never
+  // reusing the original exactly even if it's free again (e.g. after a
+  // Cut immediately followed by a Paste back into the same record) - same
+  // behavior every other copyField caller already has, so Paste doesn't
+  // special-case it.
   function commitPaste() {
     if (!clipboardField || !clipboardField.fields || clipboardField.fields.length === 0) return;
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     const rec = model.records.find((r) => r.name === recordName);
     if (!rec) return;
+    if (clipboardField.fields.length === 1) { beginCopyPlacement(recordName, clipboardField.fields[0]); return; }
     try {
       const inserted = pasteFieldsBlock(recordName, clipboardField.fields);
       selectedKeys = inserted.map((sl) => ({ sourceLine: sl }));
@@ -4953,6 +4947,16 @@ const htmlTemplate = `<!DOCTYPE html>
     const isArrowKey = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight';
     if (!isDuplicateShortcut && !isDeleteShortcut && !isCutShortcut && !isCopyShortcut && !isPasteShortcut && !isArrowKey) return;
     if (dragState) return;
+    // Task L44: Ctrl+D/Ctrl+V can themselves now ENTER placement mode
+    // (beginCopyPlacement) - if one's already active (a placement click
+    // still pending, or the placement props panel already open waiting
+    // on Line/Column/Place), a second shortcut firing on top of it would
+    // silently clobber pendingCopySource/pendingPlacement out from under
+    // whichever placement was already in progress. Escape already exists
+    // to back out of a placement in progress (see the window keydown
+    // handler above) - so this doesn't leave a way to cancel, just
+    // prevents accidentally starting a second one.
+    if (placementMode || pendingPlacement) return;
     if (document.querySelector('.confirm-overlay')) return;
     const tag = (e.target && e.target.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;

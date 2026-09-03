@@ -585,7 +585,7 @@ function runCopyFieldScenario() {
     check('an actionable error is shown', /already exists/i.test(doc.getElementById('p-place-error').textContent));
     doc.getElementById('p-place-cancel').dispatchEvent(new Event('click', { bubbles: true }));
 
-    console.log('  Ctrl+D on a constant');
+    console.log('  Task L44: Ctrl+D on a constant now asks where to place the copy too, same click-to-place flow as the Copy button');
     posted.length = 0;
     const constantEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('Some label'));
     check('setup: the target constant is present', !!constantEl);
@@ -593,8 +593,19 @@ function runCopyFieldScenario() {
 
     const beforeCount2 = doc.querySelectorAll('.dspf-field').length;
     doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true, cancelable: true }));
+    check('Ctrl+D does NOT immediately post an edit', !posted.some((m) => m.type === 'applyEdit'));
+    check('instead activates the same placement-mode crosshair the Copy button uses', !!doc.querySelector('.dspf-screen.placing'));
+    check('nothing new on the canvas yet', doc.querySelectorAll('.dspf-field').length === beforeCount2);
+
+    console.log('  Task L44: a second Ctrl+D fired while this placement is still pending is ignored, not a fresh clobbering placement');
+    doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true, cancelable: true }));
+    check('still just the one pending placement (form not reset) - the placement-mode crosshair is still active', !!doc.querySelector('.dspf-screen.placing'));
+
+    doc.querySelector('.dspf-screen').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 705, clientY: 235 }));
+    check('opens the same placement form the Copy button opens (a Text input, since this is a literal constant)', !!doc.getElementById('p-copy-text') && doc.getElementById('p-copy-text').value === 'Some label');
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
-    check('posts applyEdit after Ctrl+D', !!applyEdit);
+    check('posts applyEdit only once placement is confirmed', !!applyEdit);
     check('the constant text is duplicated (appears twice)', applyEdit && (applyEdit.text.match(/Some label/g) || []).length === 2);
     check('the screen re-renders with one more field', doc.querySelectorAll('.dspf-field').length === beforeCount2 + 1);
 
@@ -654,6 +665,15 @@ function runNudgeCutCopyPasteScenario() {
     pretendToBeVisual: true,
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      // Task L44: Ctrl+V (single-field clipboard) now goes through the
+      // same click-to-place flow as the Copy button/Ctrl+D - see
+      // runCopyFieldScenario's own identical stub for why gridMetrics()
+      // needs this (jsdom does no real layout, so getBoundingClientRect
+      // returns all zeros by default, which would make every click-to-
+      // grid conversion divide by zero).
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
     },
   });
 
@@ -706,8 +726,13 @@ function runNudgeCutCopyPasteScenario() {
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
 
     doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+    check('Task L44: Ctrl+V does NOT immediately post an edit - it opens the same click-to-place flow the Copy button uses', !posted.some((m) => m.type === 'applyEdit'));
+    check('activates the placement-mode crosshair', !!doc.querySelector('.dspf-screen.placing'));
+    doc.querySelector('.dspf-screen').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 305, clientY: 155 }));
+    check('opens the placement form, pre-filled with the auto-generated distinct name (same collision handling as Copy button/Ctrl+D)', !!doc.getElementById('p-copy-name') && doc.getElementById('p-copy-name').value === 'CUSTNAME2');
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
-    check('Ctrl+V posts an applyEdit', !!applyEdit);
+    check('Ctrl+V posts an applyEdit once placement is confirmed', !!applyEdit);
     const joined = applyEdit ? applyEdit.text.replace(/\n/g, ' ') : '';
     check('the pasted field lands under SCR2, not back under SCR1', applyEdit && /SCR2[\s\S]*CUSTNAME2/.test(applyEdit.text));
     check('the original CUSTNAME field under SCR1 is untouched', /SCR1[\s\S]*CUSTNAME\s+30A/.test(applyEdit ? applyEdit.text : ''));
@@ -731,7 +756,11 @@ function runNudgeCutCopyPasteScenario() {
     recordSelect.value = 'SCR1';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
     doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+    check('Task L44: this Ctrl+V also opens the click-to-place flow rather than landing immediately', !posted.some((m) => m.type === 'applyEdit'));
+    doc.querySelector('.dspf-screen').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 405, clientY: 155 }));
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('a following Ctrl+V posts an applyEdit once placement is confirmed', !!applyEdit);
     // Note: this does NOT come back named "CUSTNAME" - nextAvailableFieldName
     // always assigns a fresh suffixed name (see its own doc comment in
     // dspfWriter.js), the same behavior every other copyField caller already

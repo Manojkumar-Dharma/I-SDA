@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — Ctrl+D/Ctrl+V now ask where the copy lands too (Task L44)
+
+- **0.10.23** — Task L44: the "Copy" button in the field props panel already lets you click the canvas to choose exactly where a copy lands (and, since L43, rename it there too) - but single-field Ctrl+D (duplicate) and Ctrl+V (paste) both skipped that and landed the copy one row below the original with no placement step at all. Both now go through the same click-to-place flow as the Copy button. Multi-select (2+ field) Ctrl+D/Ctrl+V are unchanged - there's no "place a whole block" UI yet, same as the Copy button itself only ever handling one field.
+
 ## 2026-09-03 — File-level conditioning indicators now shown, copy placement supports renaming (Task L43)
 
 - **0.10.21** — Task L43: an indicator used only on a file-level keyword (a command key, `ALARM`, etc.) now shows up in the left panel's "Conditioning indicators (preview)" list — it was previously invisible there since only record/field-level conditioning was collected. The copy-placement panel (Task L36) now also lets you rename the copy (for a named field, pre-filled with the same auto-generated name it would otherwise use) or edit the text (for a literal constant, pre-filled with the original) before placing it, instead of always keeping the source's name/text unchanged.
