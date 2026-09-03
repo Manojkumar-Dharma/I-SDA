@@ -86,11 +86,13 @@ one for genuinely fixable, tracked work.
 ## Planned enhancements (tracked tasks)
 
 Forward-looking, fixable work. Every currently-tracked DSPF designer task
-(L1 through L46, including L5d-ii) and every currently-tracked menu
+(L1 through L48, including L5d-ii) and every currently-tracked menu
 designer task (M1 through M7) is **done** — see the task tables below for
-the full history if a past decision needs revisiting. If a new limitation
-surfaces, add it as a new task continuing the `L`/`M` numbering rather
-than folding it into an existing row.
+the full history if a past decision needs revisiting. The P series (below,
+new feature work rather than a bug fix) is deliberately **not started** -
+deprioritized until after the L/M-series bug-fix backlog is fully
+stabilized. If a new limitation surfaces, add it as a new task continuing
+the `L`/`M` numbering rather than folding it into an existing row.
 
 ## High priority
 
@@ -399,14 +401,42 @@ connection badge reports anything other than connected - they
 reappear the moment a fresh `codeForIStatus` reports `connected:
 true`.
 
-There's no other pending work to parallelize right now; every
-currently-tracked task is closed. If a new limitation surfaces, add it as a new task here
-(continuing the
+There's no other pending BUG-FIX work to parallelize right now; every
+currently-tracked L/M-series task is closed. The P series below (new
+feature work, not a bug fix) is intentionally sitting **not started** -
+see its own section for why. If a new limitation surfaces, add it as a
+new task here (continuing the
 `L`/`M` numbering) rather than folding it into an existing row, and
 follow the same process this effort used throughout: `git fetch` +
 `git log --oneline main..FETCH_HEAD` to check for drift before every
 push, and update the Status column the moment you pick up or finish a
 task.
+
+## P series — one-click toolbox tools (DSPF designer, new feature work)
+
+Requested directly: a Paint-style toolbox in the DSPF (screen) designer -
+click an icon, get a ready-made starter record dropped onto the canvas
+(a basic `WINDOW` with a title, a `PULLDOWN`/`MNUBAR` menu, etc.) instead
+of building one keyword-by-keyword through the properties panel. Explicitly
+scoped to the DSPF designer only (not the Menu/MNUDDS designer - see P1's
+own note on why "Menu" is ambiguous across the two). **Deliberately
+deprioritized** - the person's own words: "will pick them after
+stabilizing the iSDA." Do not start any P-series task without checking
+with the person first, even if it looks like a quiet moment to pick one up -
+"stabilized" is their own call to make, not inferrable from an empty
+L/M-series queue.
+
+Unlike every L/M-series task above, this is new feature work with no real
+SDA equivalent to verify against (real SDA has no one-click template
+tool) - defaults (geometry, naming, which keywords a template includes)
+are this project's own design calls, not something to match against IBM
+documentation the way an L/M bug fix would be.
+
+| ID | Description | Depends on | Status |
+|---|---|---|---|
+| **P1** | **Shared "click-to-place a whole template" primitive - build this FIRST, using the Window tool (P2) as its first real exercise, rather than each tool below reinventing its own multi-entity placement.** Today's click-to-place (`beginCopyPlacement`, used by Copy/Ctrl+D/Ctrl+V/+Field/+Constant) only ever places ONE field/constant - Task L44's own writeup explicitly called a multi-field "click to place a whole block" primitive **out of scope**, confirming it doesn't exist anywhere in this codebase yet. A one-click template tool needs exactly that: a new record (possibly plus child fields/keywords) landing together as one unit, from one click, as one undo step. The "+ Add record" wizard's own multi-step insert (record, then loop over `extraFields` with a reparse between each - see its own SFLMSG handling) is the closest existing precedent and should be reused/generalized rather than building a second pattern from scratch. Needs its own default-geometry/collision story too - today's single-field overlap warning doesn't know about "I'm about to drop N fields as one unit" (see the conversation's own caveat list for the fuller reasoning). | L44 (documents the gap this fills), the "+ Add record" wizard (`buildTypedRecordPlan`/`insertTypedRecordWithDependent` - the multi-entity-insert pattern to generalize) | not started |
+| **P2** | **"Window" toolbox icon: one click (then click-to-place on the canvas) drops a ready-made basic window - a new record carrying `WINDOW(line col height width)` sized from the click, plus `WDWTITLE('...')` for its title bar.** Simpler than first assumed: DDS already has a dedicated `WDWTITLE` keyword for a window's own title (`resolveWindowTitle`/`wireWindowPanels` in dspfEngine.js/buildWebviewTemplate.js already fully support it, rendered as `.dspf-window-title` in the preview) - no separate manually-placed title *field* is needed to get a labeled window, just the one new record and its two keywords. Auto-generates a unique record name (`WDW1`, `WDW2`, ...) via the existing `isValidDdsName`/uniqueness-check convention rather than prompting for one on every click. | P1 (needs the click-to-place-a-block primitive; this is P1's own first real exercise, not built independently of it) | not started |
+| **P3** | **"Menu" toolbox icon: drops a `PULLDOWN` record.** Confirmed directly with the person which "menu" this means, since the term is ambiguous in this codebase: a real numbered CRTMNU-style menu can only exist in the separate Menu (MNUDDS) designer - a completely different file type/webview (`buildMenuWebviewTemplate.js`) that this DSPF-designer toolbox has no reach into - so the only thing a DSPF-designer "Menu" icon can sensibly create is DDS's own `PULLDOWN` record type (already selectable today via the "+ Add record" wizard's TYPE picker, just not as a single-click starter template with sensible defaults pre-filled). `MNUBAR` (the menu-BAR itself, as opposed to one of its dropdown panels) is file/record-scope rather than something "placed" the same click-to-place way - worth its own separate icon and its own small design decision on what "clicking" it even means, not folded into this same row. | P1 (same placement primitive) | not started |
 
 ## Out of scope here
 
