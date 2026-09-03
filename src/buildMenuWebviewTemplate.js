@@ -534,11 +534,31 @@ const htmlTemplate = `<!DOCTYPE html>
    * form. Returns one entry per option number with enough to both render
    * and edit correctly regardless of which form it's in:
    *   - numberField: the constant holding "N." or "N. label"
-   *   - labelField: the constant holding the label text - same object as
-   *     numberField for the combined form, a separate constant for the
-   *     split form, or null if a number marker has no paired text at all
-   *     (a bare "1." with nothing else on that line to its right)
-   *   - label: the resolved label text either way
+   *   - labelFields: the constant(s) holding the label text, left to
+   *     right - [numberField] for the combined form, one or more SEPARATE
+   *     constants for the split form (real DDS sources commonly break a
+   *     multi-word option label into several constants at different
+   *     columns on the same line - e.g. "11.", "Back", "to", "Main",
+   *     "Menu" as five separate constants - rather than one long quoted
+   *     literal), or [] if a number marker has no paired text at all (a
+   *     bare "1." with nothing else on that line to its right)
+   *   - labelField: labelFields[0], kept for any reader that only cares
+   *     about "a" label field rather than every fragment (e.g. which
+   *     field's keywords the Style picker shows as this option's current
+   *     state - see renderOptions)
+   *   - label: the resolved label text, every fragment's own text joined
+   *     left to right with the same number of spaces its own column gap
+   *     from the previous fragment implies (so "Back"+"to"+"Main"+"Menu"
+   *     at columns 10/15/18/23 reads "Back to Main Menu", not
+   *     "BacktoMainMenu")
+   *
+   * Bug fix: previously only paired a number-only marker with the SINGLE
+   * next constant on its line - a label split across 3+ constants (common
+   * for multi-word options, see above) silently lost every fragment past
+   * the first: the Options panel showed only "Back" instead of "Back to
+   * Main Menu", and editing conditioning/style/etc only ever touched that
+   * one fragment, leaving the rest of the visible text unstyled/
+   * unconditioned - reported directly with screenshots of both symptoms.
    */
   // recordName is optional - omit it for the few call sites that
   // genuinely need every option in the file regardless of which record it
@@ -560,7 +580,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const records = recordName != null ? m.records.filter((r) => r.name === recordName) : m.records;
     records.forEach((record) => {
       // Group this record's constants by source line, sorted left-to-right,
-      // so a number-only marker can look for "the next constant on this
+      // so a number-only marker can look for "the next constant(s) on this
       // line" without a second pass over the whole record.
       const byLine = new Map();
       record.fields.forEach((f) => {
@@ -583,6 +603,7 @@ const htmlTemplate = `<!DOCTYPE html>
             line: f.location.line,
             column: f.location.column,
             numberField: f,
+            labelFields: [f],
             labelField: f,
           });
           return;
@@ -591,16 +612,38 @@ const htmlTemplate = `<!DOCTYPE html>
         if (numberOnly) {
           const siblings = byLine.get(f.location.line) || [];
           const myCol = f.location.column || 0;
-          const labelField = siblings.find((s) => s !== f && (s.location.column || 0) > myCol) || null;
+          // Every constant to the right of the number marker, UP TO (not
+          // including) whichever one starts the NEXT option - i.e. is
+          // itself a number-only or combined marker - or the end of the
+          // line, whichever comes first. Two options sharing one physical
+          // line is unusual but not impossible (a very tight menu layout),
+          // so this stops there rather than assuming everything rightward
+          // belongs to THIS option.
+          const labelFields = [];
+          for (const s of siblings) {
+            if ((s.location.column || 0) <= myCol) continue;
+            if (NUMBER_ONLY_RE.test(s.constantValue) || COMBINED_RE.test(s.constantValue)) break;
+            labelFields.push(s);
+          }
+          let label = '';
+          labelFields.forEach((lf, idx) => {
+            const text = lf.constantValue;
+            if (idx === 0) { label = text; return; }
+            const prev = labelFields[idx - 1];
+            const prevEnd = (prev.location.column || 0) + prev.constantValue.length;
+            const gap = Math.max(1, (lf.location.column || 0) - prevEnd);
+            label += repeatChar(' ', gap) + text;
+          });
           options.push({
             numberValue: parseInt(numberOnly[1], 10),
             optionNumber: MnuCmdEngine.padOptionNumber(numberOnly[1]),
-            label: labelField ? labelField.constantValue.trim() : '',
+            label: label.trim(),
             recordName: record.name,
             line: f.location.line,
             column: f.location.column,
             numberField: f,
-            labelField: labelField,
+            labelFields: labelFields,
+            labelField: labelFields[0] || null,
           });
         }
       });
@@ -612,6 +655,10 @@ const htmlTemplate = `<!DOCTYPE html>
       seen.add(o.numberValue);
       return true;
     });
+  }
+
+  function repeatChar(ch, n) {
+    return n > 0 ? new Array(n + 1).join(ch) : '';
   }
 
   function commandFor(numberValue) {
@@ -631,11 +678,22 @@ const htmlTemplate = `<!DOCTYPE html>
   /**
    * Writes a new label for an option, in whichever form it's actually in -
    * combined ("N. label", rewrite the one constant with the number prefix
-   * kept), split with an existing label constant (rewrite just that
-   * constant, verbatim, no number prefix - the number lives in its own
-   * constant untouched), or split with NO label constant yet (insert a new
-   * one right after the number marker on the same line, rather than
-   * silently doing nothing).
+   * kept), split with exactly one existing label constant (rewrite just
+   * that constant, verbatim, no number prefix - the number lives in its
+   * own constant untouched), split with NO label constant yet (insert a
+   * new one right after the number marker on the same line, rather than
+   * silently doing nothing), or split across SEVERAL constants (a
+   * multi-word label written as "Back"/"to"/"Main"/"Menu" as separate
+   * fields at different columns - see extractMenuOptions). That last case
+   * is collapsed back down to a single constant: the new full text
+   * replaces the FIRST fragment and every fragment after it is deleted,
+   * rather than trying to guess how to redistribute arbitrary new text
+   * back across however many fragments there used to be. A multi-fragment
+   * label typed by hand originally is a layout choice a person made on
+   * purpose; this doesn't try to preserve that shape through an edit that
+   * changes the wording, only through edits that don't touch the label at
+   * all (conditioning/style - see updateOptionConditions/
+   * updateOptionKeywords, which DO keep every fragment in sync).
    */
   function writeOptionLabel(currentLines, currentModel, option, newLabel) {
     const label = newLabel.trim();
@@ -646,8 +704,17 @@ const htmlTemplate = `<!DOCTYPE html>
     if (option.labelField === option.numberField) {
       return DspfWriter.applyFieldUpdate(option.numberField, currentLines, { constantValue: String(option.numberValue) + '. ' + label });
     }
-    if (option.labelField) {
-      return DspfWriter.applyFieldUpdate(option.labelField, currentLines, { constantValue: label });
+    const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
+    if (labelFields.length > 1) {
+      let lines = DspfWriter.deleteFields(labelFields.slice(1), currentLines);
+      const freshModel = DspfParser.parseDspf(lines.join('\\n'));
+      const freshOption = findOption(freshModel, option.recordName, option.numberValue);
+      const target = (freshOption && freshOption.labelFields && freshOption.labelFields[0]) || null;
+      if (!target) return currentLines;
+      return DspfWriter.applyFieldUpdate(target, lines, { constantValue: label });
+    }
+    if (labelFields.length === 1) {
+      return DspfWriter.applyFieldUpdate(labelFields[0], currentLines, { constantValue: label });
     }
     const numberField = option.numberField;
     const gapColumn = (numberField.location.column || 1) + numberField.constantValue.length + 2;
@@ -737,26 +804,29 @@ const htmlTemplate = `<!DOCTYPE html>
     renderAll();
   }
 
-  // A menu option is one or two DDS CONSTANTs (see extractMenuOptions) - conditioning
-  // "the option" means conditioning both of them identically, so the number marker and
-  // its label text always show/hide together rather than one lagging the other. Applied
-  // to numberField first, then labelField (re-fetched from the freshly-reparsed model,
-  // since the first edit shifts source line numbers for everything after it) only when
-  // it's a genuinely separate constant from numberField (the combined "1. Do a thing"
-  // form only has the one field to begin with).
+  // A menu option is one or more DDS CONSTANTs (see extractMenuOptions) - conditioning
+  // "the option" means conditioning ALL of them identically, so the number marker and
+  // every fragment of its label text always show/hide together rather than one lagging
+  // the others. Applied to numberField first, then each of labelFields in turn - each
+  // one re-fetched from the freshly-reparsed model right before it's touched, since
+  // every edit shifts source line numbers for everything after it, and a multi-fragment
+  // label can have several fragments still waiting their turn.
   function updateOptionConditions(recordName, numberValue, newConditions) {
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
     lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { conditions: newConditions });
     let currentModel = DspfParser.parseDspf(lines.join('\\n'));
-    if (option.labelField && option.labelField !== option.numberField) {
+    const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
+    labelFields.forEach((lf) => {
+      if (lf === option.numberField) return;
       const fresh = findOption(currentModel, recordName, numberValue);
-      if (fresh && fresh.labelField) {
-        lines = DspfWriter.applyFieldUpdate(fresh.labelField, lines, { conditions: newConditions });
+      const freshField = fresh && (fresh.labelFields || []).find((f) => f.location.column === lf.location.column);
+      if (freshField) {
+        lines = DspfWriter.applyFieldUpdate(freshField, lines, { conditions: newConditions });
         currentModel = DspfParser.parseDspf(lines.join('\\n'));
       }
-    }
+    });
     sourceText = lines.join('\\n');
     model = currentModel;
     vscode.postMessage({ type: 'applyEdit', text: sourceText });
@@ -765,30 +835,38 @@ const htmlTemplate = `<!DOCTYPE html>
 
   // Task M1 - a menu option is just a DDS CONSTANT (see extractMenuOptions'
   // own comment above), so it takes COLOR/DSPATR/etc the same as any other
-  // constant. Synced across numberField AND labelField the same way
-  // updateOptionConditions syncs conditions above, so the number marker and
-  // its label text always carry the SAME styling rather than one lagging
-  // the other - the split-constant form (a separate number + label field)
-  // would otherwise let them drift apart, which real SDA's own "the option"
-  // framing never allows since it edits both as one screen. Applied to
-  // numberField first, then labelField (re-fetched from the freshly-
-  // reparsed model, same reasoning as updateOptionConditions - the first
-  // edit shifts source line numbers for everything after it) only when
-  // it's a genuinely separate constant (the combined "1. Do a thing" form
-  // only has the one field to begin with).
+  // constant. Synced across numberField AND every labelFields fragment the
+  // same way updateOptionConditions syncs conditions above, so the number
+  // marker and every piece of its label text always carry the SAME styling
+  // rather than some fragments lagging the others - the split-constant form
+  // (a separate number + one-or-more label fields) would otherwise let them
+  // drift apart, which real SDA's own "the option" framing never allows
+  // since it edits the whole thing as one screen.
+  //
+  // Bug fix: this used to only sync numberField and a SINGLE labelField -
+  // for a label split across 3+ constants (see extractMenuOptions' own bug
+  // fix note), every fragment past the first silently kept its OLD styling
+  // (usually none), so applying e.g. COLOR(BLU) to an option like "Back to
+  // Main Menu" colored only "11." and "Back", leaving "to Main Menu" in the
+  // default color - easy to read as "the color isn't applying at all" since
+  // most of the visible text stayed unchanged. Reported directly with a
+  // screenshot.
   function updateOptionKeywords(recordName, numberValue, newKeywords) {
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
     lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { keywords: newKeywords });
     let currentModel = DspfParser.parseDspf(lines.join('\\n'));
-    if (option.labelField && option.labelField !== option.numberField) {
+    const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
+    labelFields.forEach((lf) => {
+      if (lf === option.numberField) return;
       const fresh = findOption(currentModel, recordName, numberValue);
-      if (fresh && fresh.labelField) {
-        lines = DspfWriter.applyFieldUpdate(fresh.labelField, lines, { keywords: newKeywords });
+      const freshField = fresh && (fresh.labelFields || []).find((f) => f.location.column === lf.location.column);
+      if (freshField) {
+        lines = DspfWriter.applyFieldUpdate(freshField, lines, { keywords: newKeywords });
         currentModel = DspfParser.parseDspf(lines.join('\\n'));
       }
-    }
+    });
     sourceText = lines.join('\\n');
     model = currentModel;
     vscode.postMessage({ type: 'applyEdit', text: sourceText });
@@ -892,8 +970,8 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   // Deletes an option entirely: both its DDS constant(s) (the number-marker
-  // and, for the split-constant form, the separate label constant too - see
-  // extractMenuOptions) AND its MNUCMD command mapping if one exists. No
+  // and, for the split-constant form, every separate label fragment too -
+  // see extractMenuOptions) AND its MNUCMD command mapping if one exists. No
   // renumbering of other options - deleting is a normal WorkspaceEdit like
   // every other change here, so Ctrl+Z undoes it the same way. Called
   // directly for the common case (see commitDeleteOption above), or as the
@@ -903,9 +981,8 @@ const htmlTemplate = `<!DOCTYPE html>
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
 
-    const fields = option.labelField && option.labelField !== option.numberField
-      ? [option.numberField, option.labelField]
-      : [option.numberField];
+    const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
+    const fields = [option.numberField].concat(labelFields.filter((f) => f !== option.numberField));
     let lines = sourceText.split(/\\r\\n|\\r|\\n/);
     lines = DspfWriter.deleteFields(fields, lines);
     sourceText = lines.join('\\n');
@@ -985,22 +1062,26 @@ const htmlTemplate = `<!DOCTYPE html>
     lines = DspfWriter.applyFieldUpdate(newNumberField, lines, { constantValue: newNumberValue });
 
     if (!isCombined) {
-      // Split form: the label lives in its own constant - copy that one
-      // too, placed on the SAME row the number copy just landed on (the
+      // Split form: the label lives in one or more SEPARATE constants (see
+      // extractMenuOptions' own note on multi-fragment labels) - copy each
+      // one, placed on the SAME row the number copy just landed on (the
       // collision-checked safeRow above, not copyField's own "one row
-      // below ITS original" default), same column the original label
-      // used, so the pair stays aligned as one visual option like the
-      // source did.
-      currentModel = DspfParser.parseDspf(lines.join('\\n'));
-      freshRec = currentModel.records.find((r) => r.name === option.recordName);
-      const origLabelFresh = freshRec.fields.find(
-        (f) => f.location && f.location.line === option.line && f.location.column === option.labelField.location.column && f !== newNumberField
-      );
-      if (origLabelFresh) {
-        lines = DspfWriter.copyField(freshRec, lines, origLabelFresh, {
-          location: { line: safeRow, column: origLabelFresh.location.column },
-        });
-      }
+      // below ITS original" default), same column each original fragment
+      // used, so the whole option - however many pieces it's actually
+      // made of - stays aligned as one visual line like the source did.
+      const origColumns = (option.labelFields || [option.labelField]).map((f) => f.location.column);
+      origColumns.forEach((col) => {
+        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+        freshRec = currentModel.records.find((r) => r.name === option.recordName);
+        const origFragmentFresh = freshRec.fields.find(
+          (f) => f.location && f.location.line === option.line && f.location.column === col && f !== newNumberField
+        );
+        if (origFragmentFresh) {
+          lines = DspfWriter.copyField(freshRec, lines, origFragmentFresh, {
+            location: { line: safeRow, column: origFragmentFresh.location.column },
+          });
+        }
+      });
     }
 
     sourceText = lines.join('\\n');

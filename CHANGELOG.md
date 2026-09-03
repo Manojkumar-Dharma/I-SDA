@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-04 — Multi-fragment menu option labels now read AND style correctly (Task M7)
+
+- **0.10.28** — Task M7: a menu option's label split across 3+ separate DDS constants on one line (a common real-world layout - "11."/"Back"/"to"/"Main"/"Menu" as five separate constants at different columns) lost every fragment past the first: the Options panel showed just "Back" instead of "Back to Main Menu" (reported with a screenshot), and applying a style like COLOR only ever colored the first two constants, leaving the rest of the visible text in the default color - easy to read as "the color isn't applying at all" (reported with a second screenshot). `extractMenuOptions` now collects every fragment on the line, joins them with proper spacing, and every editor that touches "the label" (conditioning, style/keywords, delete, copy) now syncs across all of them, not just one. Editing the wording itself collapses a multi-fragment label back to a single constant, since there's no principled way to redistribute new text across an arbitrary number of old fragments.
+
 ## 2026-09-03 — Comment add-row visually unified with existing rows (Task L47)
 
 - **0.10.27** — Task L47: the comment add-row's line-number box, text box, and "+ Add comment" button were cramped enough to force a horizontal scrollbar on the panel (reported with a screenshot). The add-row now reuses the exact same row styling every existing comment row already has - line-number input in roughly the badge's own column, text input taking the rest, and a plain "+" in a small square button matching every row's own "x" delete button exactly, instead of a wide "+ Add comment" text button competing for the same narrow row.

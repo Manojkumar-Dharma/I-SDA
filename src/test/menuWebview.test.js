@@ -330,8 +330,173 @@ function runSplitConstantScenario() {
     check('the number marker constant is untouched', editMsg && editMsg.text.includes("'1.'"));
     check('the label constant is updated, verbatim, with no number prefix', editMsg && editMsg.text.includes("'Show libraries'") && !editMsg.text.includes("'1. Show libraries'"));
 
-    runScreenSpaceScenario();
+    runMultiFragmentLabelScenario();
   }, 100);
+}
+
+/**
+ * A menu option's label split across THREE OR MORE separate DDS constants
+ * on the same line (not just the one number + one label pair
+ * runSplitConstantScenario above already covers) - reported directly with
+ * screenshots: "11." / "Back" / "to" / "Main" / "Menu" as five separate
+ * constants at columns 6/10/15/18/23 on line 40. Bug fix: extractMenuOptions
+ * used to pair a number marker with only the SINGLE next constant on its
+ * line, so "to"/"Main"/"Menu" were silently invisible - the Options panel
+ * showed "Back" instead of "Back to Main Menu", and editing conditioning/
+ * style only ever touched "11."/"Back", leaving "to Main Menu" unstyled -
+ * easy to read as "the color isn't applying at all" since most of the
+ * visible text stayed unchanged.
+ */
+function runMultiFragmentLabelScenario() {
+  console.log('\nmulti-fragment split-constant options (a label spread across 3+ separate DDS constants on one line)');
+  const src =
+    [
+      "     A                                      DSPSIZ(43 132 *DS4)",
+      "     A          R MENU",
+      "     A                                 40  6'11.'",
+      "     A                                 40 10'Back'",
+      "     A                                 40 15'to'",
+      "     A                                 40 18'Main'",
+      "     A                                 40 23'Menu'",
+    ].join('\n') + '\n';
+  const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce3b', src, '', 'MULTI.MNUDDS', 'MULTIQQ.MNUCMD', 'missing').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const rows = Array.from(doc.querySelectorAll('.option-row'));
+    check('finds exactly one option (5 constants, 1 number marker)', rows.length === 1);
+    const row = rows[0];
+    check('the label joins EVERY fragment, not just the first one after the number marker', row && row.querySelector('.option-label-input').value === 'Back to Main Menu');
+
+    console.log('  Task M?: applying a style (COLOR) syncs across every fragment, not just the first');
+    const styleToggle = row.querySelector('.option-style-toggle');
+    styleToggle.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    // Re-query - clicking the toggle calls renderOptions(), which replaces optionsBody's
+    // innerHTML wholesale, so the earlier `row`/`styleBody` references are now detached.
+    const row1b = doc.querySelector('.option-row');
+    const styleBody = row1b.querySelector('.option-style-body');
+    const colorSelect = styleBody.querySelector('select[id$="-color"]') || Array.from(styleBody.querySelectorAll('select')).find((s) => Array.from(s.options).some((o) => o.value === 'BLU'));
+    check('setup: a color selector is present in the style picker', !!colorSelect);
+    colorSelect.value = 'BLU';
+    // No existing COLOR keyword yet, so this is the STAGING (new instance)
+    // row - it doesn't commit on 'change' alone; "+ Add instance" reads its
+    // current values and commits them, same as every other repeatable
+    // conditioned-instance picker in this codebase (RANGE/COMP/VALUES,
+    // CHECK, etc. - see wireRepeatableConditionedInstances).
+    const addBtn = styleBody.querySelector('.repeat-inst-add');
+    check('setup: the "+ Add instance" button is present', !!addBtn);
+    addBtn.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    const styleEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!styleEdit);
+    const colorCount = (styleEdit.text.match(/COLOR\(BLU\)/g) || []).length;
+    check('COLOR(BLU) landed on ALL FIVE constants (the number marker plus all 4 label fragments), not just the first two', colorCount === 5);
+    posted.length = 0;
+
+    console.log('  Task M?: editing the label text collapses the multiple fragments back into one constant');
+    const reparsed1 = DspfParser.parseDspf(styleEdit.text);
+    const html2 = getMenuWebviewHtml('vscode-webview://fake', 'testnonce3c', styleEdit.text, '', 'MULTI.MNUDDS', 'MULTIQQ.MNUCMD', 'missing').replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const posted2 = [];
+    const dom2 = new JSDOM(html2, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted2.push(m) });
+      },
+    });
+    setTimeout(() => {
+      const doc2 = dom2.window.document;
+      const row2 = doc2.querySelector('.option-row');
+      const labelInput2 = row2.querySelector('.option-label-input');
+      check('setup: the full joined label still reads correctly on the second load too', labelInput2.value === 'Back to Main Menu');
+      labelInput2.value = 'Return to the main menu';
+      labelInput2.dispatchEvent(new dom2.window.Event('change', { bubbles: true }));
+      const editMsg2 = posted2.find((m) => m.type === 'applyEdit');
+      check('an edit was posted', !!editMsg2);
+      const reparsed2 = DspfParser.parseDspf(editMsg2.text);
+      const menuRec = reparsed2.records.find((r) => r.name === 'MENU');
+      const constants = menuRec.fields.filter((f) => f.nameType === 'CONSTANT');
+      check('collapsed down to exactly 2 constants (the number marker + one label constant)', constants.length === 2);
+      check('the new full text landed in the (now singular) label constant', constants.some((f) => f.constantValue === 'Return to the main menu'));
+      check('the number marker itself is untouched', constants.some((f) => f.constantValue.trim() === '11.'));
+
+      console.log('  Task M?: copying a multi-fragment option duplicates ALL of its fragments, not just the first');
+      const html3 = getMenuWebviewHtml('vscode-webview://fake', 'testnonce3d', src, '', 'MULTI.MNUDDS', 'MULTIQQ.MNUCMD', 'missing').replace(
+        /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+        ''
+      );
+      const posted3 = [];
+      const dom3 = new JSDOM(html3, {
+        runScripts: 'dangerously',
+        resources: 'usable',
+        pretendToBeVisual: true,
+        beforeParse(window) {
+          window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted3.push(m) });
+        },
+      });
+      setTimeout(() => {
+        const doc3 = dom3.window.document;
+        const row3 = doc3.querySelector('.option-row');
+        const copyBtn3 = row3.querySelector('.option-copy-btn');
+        check('setup: found the Copy button', !!copyBtn3);
+        copyBtn3.dispatchEvent(new dom3.window.Event('click', { bubbles: true }));
+        const copyEdit = posted3.find((m) => m.type === 'applyEdit');
+        check('an edit was posted', !!copyEdit);
+        const reparsed3 = DspfParser.parseDspf(copyEdit.text);
+        const rows3 = extractOptionsForTest(reparsed3);
+        const copied = rows3.find((o) => o.numberValue === 12); // next available after 11
+        check('the copy exists as option 12', !!copied);
+        check('the copy carries the FULL joined label, not just "Back" - i.e. every fragment was duplicated', copied && copied.label === 'Back to Main Menu');
+        check('the original option 11 is untouched', rows3.some((o) => o.numberValue === 11 && o.label === 'Back to Main Menu'));
+
+        runScreenSpaceScenario();
+      }, 100);
+    }, 100);
+  }, 100);
+}
+
+// Small test-only mirror of extractMenuOptions' own reading logic (can't
+// reach into the webview's closed-over module state from here), just
+// enough to confirm a copied option's label reads back correctly across
+// however many fragments it's made of - same NUMBER_ONLY_RE/COMBINED_RE
+// shapes buildMenuWebviewTemplate.js itself uses.
+function extractOptionsForTest(m) {
+  const NUMBER_ONLY_RE = /^\s*(\d{1,2})[.)]\s*$/;
+  const options = [];
+  m.records.forEach((record) => {
+    const byLine = new Map();
+    record.fields.forEach((f) => {
+      if (f.nameType !== 'CONSTANT' || f.constantValue == null || !f.location || f.location.line == null) return;
+      if (!byLine.has(f.location.line)) byLine.set(f.location.line, []);
+      byLine.get(f.location.line).push(f);
+    });
+    byLine.forEach((fields) => fields.sort((a, b) => (a.location.column || 0) - (b.location.column || 0)));
+    record.fields.forEach((f) => {
+      if (f.nameType !== 'CONSTANT' || f.constantValue == null) return;
+      const m2 = NUMBER_ONLY_RE.exec(f.constantValue);
+      if (!m2) return;
+      const siblings = byLine.get(f.location.line) || [];
+      const myCol = f.location.column || 0;
+      const parts = siblings.filter((s) => (s.location.column || 0) > myCol && !NUMBER_ONLY_RE.test(s.constantValue));
+      options.push({ numberValue: parseInt(m2[1], 10), label: parts.map((p) => p.constantValue).join(' ') });
+    });
+  });
+  return options;
 }
 
 /**
