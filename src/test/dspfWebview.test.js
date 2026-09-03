@@ -3459,6 +3459,145 @@ function runSubfileControlEditScenario() {
     check('dragging it posts an applyEdit', last && last.type === 'applyEdit');
     check("the edit landed on the PAIRED SFL record's field, not the SFLCTL record", last && /SEQNO/.test(last.text));
 
+    runWindowFieldDragBoundaryScenario();
+  }, 0);
+}
+
+// Task L39: dragging a field inside a WINDOW record must not be able to land
+// it on/outside the window's own border - the border is ALWAYS reserved
+// space (default period/colon chars even with no WDWBORDER - see L29/L32),
+// so the usable interior is height-2 x width-2, one cell in from every edge.
+function runWindowFieldDragBoundaryScenario() {
+  console.log('\nTask L39: dragging a field inside a WINDOW record must not cross the window\'s own border');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'WDWREC', func: 'WINDOW(5 10 6 20)' }),
+      buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '5' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce39', src, 'WDWDRAG.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent } = dom.window;
+    const fieldEl = doc.querySelector('.dspf-field');
+    check('setup: the field is rendered', !!fieldEl);
+
+    // WINDOW(5 10 6 20): box is rows 5-10, cols 10-29 - border occupies the
+    // outermost ring, so the usable interior is rows 6-9, cols 11-28. FLDA
+    // (window-relative line 3, col 5) renders at line 3+(5-1)=7, col
+    // 5+(10-1)=14 - comfortably inside that interior. Its own top-left pixel
+    // is ((14-1)*10, (7-1)*20) = (130, 120).
+    fieldEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 130, clientY: 120 }));
+    // Drag toward the top-left corner, far enough (-5 cols, -3 rows) to
+    // aim PAST the border (render col 9, line 4) if nothing stopped it.
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 80, clientY: 60 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+
+    const last = posted[posted.length - 1];
+    const reparsed = last && DspfParser.parseDspf(last.text);
+    const movedField = reparsed && reparsed.records[0].fields.find((f) => f.name === 'FLDA');
+    check('posts an edit (it DID move, just not as far as the raw drag aimed)', !!movedField);
+    check(
+      'the field is clamped to the window\'s interior (render line 6/col 11 -> window-relative line 2/col 2), not the border row/col (line 5/col 10) or beyond',
+      movedField && movedField.location.line === 2 && movedField.location.column === 2
+    );
+
+    runSflRegionDragBoundaryScenario();
+  }, 0);
+}
+
+// Task L40: dragging a field belonging to either half of a paired
+// SFL/SFLCTL subfile must not be able to land it on a line the OTHER
+// half's own fields occupy - the two "regions" stay strictly apart, same
+// as real SDA's own Design Image screen for subfiles.
+function runSflRegionDragBoundaryScenario() {
+  console.log('\nTask L40: dragging a field in a paired SFL/SFLCTL subfile must not cross into the OTHER record\'s own region');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+      buildLine({ seq: '00030', name: 'DETAIL', length: '10', dataType: 'A', usage: 'O', line: '5', col: '2' }),
+      buildLine({ seq: '00040', nameType: 'R', name: 'SFLCTLREC', func: 'SFLCTL(SFLREC)' }),
+      buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
+      buildLine({ seq: '00060', name: 'HEADER', length: '10', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce40', src, 'SFLBOUND.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { MouseEvent, Event } = dom.window;
+
+    doc.getElementById('recordSelect').value = 'SFLCTLREC';
+    doc.getElementById('recordSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    const headerEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('HEADER'));
+    check('setup: HEADER (SFLCTLREC\'s own field, line 3) is rendered', !!headerEl);
+
+    // HEADER's own top-left pixel: line 3 -> (3-1)*20=40, col 2 -> (2-1)*10=10.
+    // Drag it down by 2 rows, aiming exactly at line 5 - the line DETAIL (the
+    // paired SFL record's own field) occupies.
+    posted.length = 0;
+    headerEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 40 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 10, clientY: 80 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    check('landing exactly on the SFL record\'s own line posts NO edit at all - the drag is held back, not just re-clamped elsewhere', posted.length === 0);
+
+    // Same drag, but only 1 row down (line 4) - NOT DETAIL's own line, so
+    // this one should go through normally.
+    headerEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 40 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 10, clientY: 60 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    let last = posted[posted.length - 1];
+    let reparsed = last && DspfParser.parseDspf(last.text);
+    let movedHeader = reparsed && reparsed.records.find((r) => r.name === 'SFLCTLREC').fields.find((f) => f.name === 'HEADER');
+    check('a line NOT occupied by the paired record (line 4) is allowed through normally', movedHeader && movedHeader.location.line === 4);
+
+    // Now the other direction: switch to SFLREC and try to drag DETAIL onto
+    // line 3 - HEADER's (SFLCTLREC's own field) line.
+    doc.getElementById('recordSelect').value = 'SFLREC';
+    doc.getElementById('recordSelect').dispatchEvent(new Event('change', { bubbles: true }));
+    const detailEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => el.textContent.includes('DETAIL'));
+    check('setup: DETAIL (SFLREC\'s own field, line 5) is rendered', !!detailEl);
+
+    posted.length = 0;
+    // DETAIL's own top-left pixel: line 5 -> (5-1)*20=80, col 2 -> 10. HEADER
+    // is now at line 4 (the prior "allowed" drag above actually moved it
+    // there), so THAT'S the line to aim DETAIL at here - pixel y=(4-1)*20=60.
+    detailEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 80 }));
+    dom.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 10, clientY: 60 }));
+    dom.window.dispatchEvent(new MouseEvent('mouseup', {}));
+    check("dragging DETAIL onto HEADER's own (now-current) line is blocked too - no edit posted", posted.length === 0);
+
     runPulldownEditScenario();
   }, 0);
 }

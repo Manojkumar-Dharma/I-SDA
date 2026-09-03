@@ -1773,6 +1773,7 @@
     renderRulerRowsHtml: renderRulerRowsHtml,
     isPulldownRecord: isPulldownRecord,
     findSflPairing: findSflPairing,
+    resolveWindow: resolveWindow,
     escapeHtml: escapeHtml,
     availableScreenSizes: availableScreenSizes,
     validateSizeBounds: validateSizeBounds,

@@ -30,6 +30,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 
 - **0.10.17** — Task L37: the "File" section-label in the left panel moved up next to the filename (right under the "Screen Design" heading) and is now bold, instead of sitting stranded near the bottom; the redundant standalone "File attributes" button was removed (the "File" crumb at the top of the properties panel already opens the same view one click away — the bold "File" label now does too). The properties panel also gained a "Find keyword" search box that jumps straight to a keyword wherever it lives — any tab/subtab, or the Advanced/raw-keywords list — switching tabs, opening accordions, and scrolling/flashing the match as needed.
 
+## 2026-09-03 — Field drag stays inside its own region (Tasks L39 + L40)
+
+- **0.10.22** — Dragging a field/constant inside a `WINDOW` record can no longer be dropped on or outside the window's own border (Task L39); dragging a field belonging to either half of a paired `SFL`/`SFLCTL` subfile can no longer be dropped onto a line the OTHER half's own fields occupy (Task L40). Both match real SDA's own Design Image screen behavior. Applies to single-field drag, multi-select group drag, and the SFLPAG-preview group-drag path. Arrow-key nudging is not yet covered for either (tracked as a follow-up).
+
 ## 2026-09-02 — Copy field/constant now asks where to place the copy (Task L36)
 
 - **0.10.16** — Task L36: the "Copy field"/"Copy constant" button in the properties panel used to drop the copy one row directly below the original (same column), overlapping it on screen for single-line fields. It now reuses the same click-to-place flow "+ Field"/"+ Constant" already have — click Copy, then click the screen preview to choose where the copy lands (still editable as line/column numbers) before it's inserted. Ctrl+D, Ctrl+X/C/V, and multi-select "Duplicate selection" are unchanged.

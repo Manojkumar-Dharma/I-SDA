@@ -2411,6 +2411,73 @@ const htmlTemplate = `<!DOCTYPE html>
   // MOUSE itself has moved, applied as a delta onto the field's original
   // rendered origin - not a fresh absolute position derived from the
   // cursor each time.
+  /**
+   * Task L39/L40: geometric limits a field/constant drag (or nudge) must respect,
+   * matching real SDA's own Design Image screen: a field inside a WINDOW record
+   * can't be dropped on or outside the window's own border (L39), and a field
+   * belonging to either half of a paired SFL/SFLCTL subfile can't be dropped
+   * onto a line the OTHER half's own fields occupy (L40) - the two "regions"
+   * (SFLCTL's own header/footer rows vs the SFL detail record's own declared
+   * row(s), later replayed SFLPAG times at runtime) stay strictly apart.
+   *
+   * Deliberately returns raw bounds/exclusion data rather than a single
+   * clamp() function - startDrag's single-field footprint and
+   * startGroupDrag's combined group footprint clamp differently (a group
+   * clamps its own bounding box's edges, not each field's own footprint one
+   * by one), so each caller applies these numbers its own way.
+   *
+   * @returns {{minCol:number, maxCol:number, minLine:number, maxLine:number,
+   *   sflForbidden: {min:number, max:number} | null}} maxCol/maxLine are
+   *   already footprint-length/-height aware (the LAST valid position for
+   *   the footprint's own top-left corner, not the window's own edge).
+   */
+  function computeDragBounds(recordName, footprintLength, footprintHeight) {
+    let minCol = 1, maxCol = Infinity, minLine = 1, maxLine = Infinity;
+
+    // L39: window interior only - excludes the border ring. The border is
+    // ALWAYS drawn (default period/colon chars when no WDWBORDER *CHAR is
+    // given - see Task L29/L32), so the outermost row/col of the window's
+    // own {line,col,height,width} box is never usable field space, whether
+    // or not a visible border character happens to be showing there.
+    // lastScreen.window reflects whatever window is in effect for the
+    // CURRENTLY VIEWED record - correct even when recordName is a paired
+    // SFL record's own preview row rather than lastScreen.recordName
+    // itself, since resolveSubfilePreview positions those rows using that
+    // SAME window's lineOffset/colOffset (see dspfEngine.js resolveScreen).
+    const windowBox = lastScreen && lastScreen.window;
+    if (windowBox) {
+      minCol = windowBox.col + 1;
+      maxCol = windowBox.col + windowBox.width - 2 - (footprintLength - 1);
+      minLine = windowBox.line + 1;
+      maxLine = windowBox.line + windowBox.height - 2 - (footprintHeight - 1);
+      // Guard a window too small to have any real interior (height/width < 3) -
+      // not expected from valid DDS, but never let max end up below min.
+      if (maxCol < minCol) maxCol = minCol;
+      if (maxLine < minLine) maxLine = minLine;
+    }
+
+    // L40: SFL/SFLCTL own-region separation. Reads the OTHER record's own
+    // declared field lines straight from the model (not the rendered
+    // screen - the paired record's fields aren't part of lastScreen.fields
+    // at all, only the CURRENT record's own are), offset by the same
+    // window lineOffset both sides share when a window is in effect.
+    let sflForbidden = null;
+    const pairing = DspfEngine.findSflPairing(model, recordName);
+    if (pairing && pairing.sflRecord && pairing.sflCtlRecord) {
+      const isCtl = pairing.sflCtlRecord.name === recordName;
+      const otherRecord = isCtl ? pairing.sflRecord : pairing.sflCtlRecord;
+      const lineOffset = windowBox ? windowBox.line - 1 : 0;
+      const lines = otherRecord.fields
+        .filter((f) => f.location && f.location.line != null)
+        .map((f) => f.location.line + lineOffset);
+      if (lines.length > 0) {
+        sflForbidden = { min: Math.min.apply(null, lines), max: Math.max.apply(null, lines) };
+      }
+    }
+
+    return { minCol, maxCol, minLine, maxLine, sflForbidden };
+  }
+
   function startDrag(el, field, recordName, startEvent) {
     const { colWidth, rowHeight } = gridMetrics();
     const origRenderLine = parseInt(el.getAttribute('data-render-line'), 10);
@@ -2426,12 +2493,26 @@ const htmlTemplate = `<!DOCTYPE html>
     const startX = startEvent.clientX, startY = startEvent.clientY;
     el.classList.add('dragging');
 
+    const bounds = computeDragBounds(recordName, renderLength, renderHeight);
+    let lastValidLine = origRenderLine; // L40: held here whenever a candidate line would
+                                         // land the field's own footprint on a line the
+                                         // OTHER half of an SFL/SFLCTL pair owns - the drag
+                                         // "resists" crossing into that region rather than
+                                         // snapping to a computed nearest-legal line, same
+                                         // reject-and-hold feel a physical boundary has.
+
     function onMove(e) {
       dragState = dragState || {};
       const deltaCol = Math.round((e.clientX - startX) / colWidth);
       const deltaLine = Math.round((e.clientY - startY) / rowHeight);
-      const newCol = Math.max(1, origRenderColumn + deltaCol);
-      const newLine = Math.max(1, origRenderLine + deltaLine);
+      const newCol = Math.min(bounds.maxCol, Math.max(bounds.minCol, origRenderColumn + deltaCol));
+      let newLine = Math.min(bounds.maxLine, Math.max(bounds.minLine, origRenderLine + deltaLine));
+      if (bounds.sflForbidden) {
+        const occTop = newLine, occBottom = newLine + renderHeight - 1;
+        const overlapsForbidden = occTop <= bounds.sflForbidden.max && occBottom >= bounds.sflForbidden.min;
+        newLine = overlapsForbidden ? lastValidLine : newLine;
+      }
+      lastValidLine = newLine;
       el.style.gridColumn = newCol + ' / span ' + renderLength;
       el.style.gridRow = newLine + (renderHeight > 1 ? ' / span ' + renderHeight : '');
       dragState.renderLine = newLine; dragState.renderColumn = newCol;
@@ -2572,14 +2653,34 @@ const htmlTemplate = `<!DOCTYPE html>
     const startX = startEvent.clientX, startY = startEvent.clientY;
     els.forEach((el) => el.classList.add('dragging'));
 
+    // L39/L40: same boundary rules as single-field startDrag, applied to the
+    // GROUP's own combined bounding box rather than each field's individual
+    // footprint - a group can't be dragged so ANY member ends up on/outside a
+    // window's border, or so the group's own line-span invades the other
+    // half of an SFL/SFLCTL pair's region.
+    const minOrigCol = Math.min.apply(null, originals.map((o) => o.origRenderColumn));
+    const maxOrigColEnd = Math.max.apply(null, originals.map((o) => o.origRenderColumn + o.renderLength - 1));
+    const minOrigLine = Math.min.apply(null, originals.map((o) => o.origRenderLine));
+    const maxOrigLineEnd = Math.max.apply(null, originals.map((o) => o.origRenderLine + o.renderHeight - 1));
+    const groupWidth = maxOrigColEnd - minOrigCol + 1;
+    const groupHeight = maxOrigLineEnd - minOrigLine + 1;
+    const bounds = computeDragBounds(recordName, groupWidth, groupHeight);
+    let lastValidDeltaLine = 0; // see startDrag's own lastValidLine comment - same reject-and-hold idea
+
     function onMove(e) {
       dragState = dragState || {};
       const deltaCol = Math.round((e.clientX - startX) / colWidth);
       const deltaLine = Math.round((e.clientY - startY) / rowHeight);
-      const newCol = Math.max(1, ref.origRenderColumn + deltaCol);
-      const newLine = Math.max(1, ref.origRenderLine + deltaLine);
-      const deltaLineFromOrig = newLine - ref.origRenderLine;
-      const deltaColumnFromOrig = newCol - ref.origRenderColumn;
+      const newMinCol = Math.min(bounds.maxCol, Math.max(bounds.minCol, minOrigCol + deltaCol));
+      let newMinLine = Math.min(bounds.maxLine, Math.max(bounds.minLine, minOrigLine + deltaLine));
+      let deltaLineFromOrig = newMinLine - minOrigLine;
+      if (bounds.sflForbidden) {
+        const occTop = minOrigLine + deltaLineFromOrig, occBottom = maxOrigLineEnd + deltaLineFromOrig;
+        const overlapsForbidden = occTop <= bounds.sflForbidden.max && occBottom >= bounds.sflForbidden.min;
+        deltaLineFromOrig = overlapsForbidden ? lastValidDeltaLine : deltaLineFromOrig;
+      }
+      lastValidDeltaLine = deltaLineFromOrig;
+      const deltaColumnFromOrig = newMinCol - minOrigCol;
       originals.forEach((o) => {
         o.el.style.gridColumn = (o.origRenderColumn + deltaColumnFromOrig) + ' / span ' + o.renderLength;
         o.el.style.gridRow = (o.origRenderLine + deltaLineFromOrig) + (o.renderHeight > 1 ? ' / span ' + o.renderHeight : '');
