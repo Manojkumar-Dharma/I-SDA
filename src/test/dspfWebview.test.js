@@ -5592,7 +5592,7 @@ function runCommentsScenario() {
     let badges = Array.from(doc.querySelectorAll('.comment-line-badge')).map((b) => b.textContent);
     check('exactly one line badge, matching the header comment\'s own line (1)', badges.length === 1 && badges[0] === 'L1');
 
-    console.log('  Task L42: file-level Comments tab has a "line #" input next to Add comment; record-level does not');
+    console.log('  Task L42: file-level Comments tab has a "line #" input next to Add comment');
     check('file-level: an add-comment-line input exists', !!doc.querySelector('[id$="-add-comment-line"]'));
 
     console.log('  Task L42: adding a file-level comment with an explicit line number inserts it there, not appended at the end');
@@ -5626,7 +5626,10 @@ function runCommentsScenario() {
     inputs = Array.from(doc.querySelectorAll('.comment-text-input')).map((i) => i.value);
     check('no comments shown for RECORD1', inputs.length === 0);
     check('empty-state message shown instead', /No comment lines yet/.test(doc.getElementById('propsBody').textContent));
-    check('Task L42: record-level Comments section has no add-comment-line input (file-level only)', !doc.querySelector('[id$="-add-comment-line"]'));
+
+    console.log('  Task L45: record-level Comments section now ALSO has a "line #" input (built for file-level by L42, wired here for the first time)');
+    const recAddLineInput0 = doc.querySelector('[id$="-add-comment-line"]');
+    check('record-level: an add-comment-line input exists too, not file-level only', !!recAddLineInput0);
 
     console.log('  RECORD2 shows exactly its own comment, scoped correctly (not RECORD1\'s or the file\'s)');
     recordSelect.value = 'RECORD2';
@@ -5668,6 +5671,26 @@ function runCommentsScenario() {
     const reparsed = DspfParser.parseDspf(applyEdit.text);
     const rec1 = reparsed.records.find((r) => r.name === 'RECORD1');
     check('the new blank comment line sits right after RECORD1\'s own header, before its field', reparsed.comments.some((c) => c.line === rec1.sourceLine + 1 && c.text === ''));
+    posted.length = 0;
+
+    console.log('  Task L45: adding a record-level comment with an explicit line number inserts it there, not appended at the end');
+    recordSelect.value = 'RECORD2';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    structureTab = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'Structure');
+    structureTab.dispatchEvent(new Event('click', { bubbles: true }));
+    const rec2Before = reparsed.records.find((r) => r.name === 'RECORD2');
+    const rec2FieldLine = rec2Before.fields[0].sourceLine; // RECORD2's one field, "World" - see buildLine fixture above
+    const recAddLineInput = doc.querySelector('[id$="-add-comment-line"]');
+    check('setup: the record-level line-# input is present', !!recAddLineInput);
+    recAddLineInput.value = String(rec2FieldLine);
+    const recAddBtn = doc.querySelector('[id$="-add-comment"]');
+    recAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    const l45Reparsed = DspfParser.parseDspf(applyEdit.text);
+    check('the new comment landed exactly at the requested physical line, ahead of the field it used to precede', l45Reparsed.comments.some((c) => c.line === rec2FieldLine && c.text === ''));
+    const rec2After = l45Reparsed.records.find((r) => r.name === 'RECORD2');
+    check('RECORD2\'s own field survived, pushed down by exactly one line', rec2After.fields[0].sourceLine === rec2FieldLine + 1);
     posted.length = 0;
 
     runDatabaseFieldsPickerScenario();

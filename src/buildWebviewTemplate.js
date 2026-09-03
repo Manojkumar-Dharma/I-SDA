@@ -4138,9 +4138,15 @@ const htmlTemplate = `<!DOCTYPE html>
       structureHtml += '<button id="p-resolve-all-ref" class="secondary" style="width:100%;margin-top:16px;">Resolve all referenced fields (' + referenceFieldCount + ')</button>';
     }
     // Task L13 - record-level comment lines, same section shape as the
-    // file-level Comments tab in renderFileProps.
+    // file-level Comments tab in renderFileProps. Task L45: allowCustomLine
+    // is now 'true' here too - the "Line #" input + desiredLine plumbing
+    // (DspfWriter.addComment's own desiredLine parameter, added by L42) was
+    // built generically enough to cover this panel already, it just was
+    // never actually turned on here - see wireRecordProps' own
+    // wireCommentsSection call below for the other missing half of this
+    // same fix (its commitInsert callback silently dropped the value).
     const recPrefix = 'reccomments-' + rec.name;
-    structureHtml += commentsListHtml(DspfWriter.getRecordComments(model, rec), recPrefix);
+    structureHtml += commentsListHtml(DspfWriter.getRecordComments(model, rec), recPrefix, true);
 
     // --- Hidden tab: usage=H fields have no on-screen footprint to click,
     // so they need their own add/select/delete surface separate from the
@@ -4281,6 +4287,13 @@ const htmlTemplate = `<!DOCTYPE html>
     // getFullRecordLineRange - i.e. right before the first field, same
     // spot insertField itself defaults to for a record with no fields
     // yet), only actually used when this record has NO existing comments.
+    // Task L45: commitInsert now also accepts/forwards desiredLine (the
+    // "Line #" input's value, turned on above) - this callback previously
+    // only declared (comments, fallbackAfterLine), so wireCommentsSection's
+    // own 3rd argument was silently dropped and every record-level comment
+    // landed at the end regardless of what was typed in the Line # box,
+    // even though that box didn't even render before the commentsListHtml
+    // fix above.
     wireCommentsSection(
       recPrefix,
       () => {
@@ -4288,7 +4301,7 @@ const htmlTemplate = `<!DOCTYPE html>
         return freshRec ? DspfWriter.getRecordComments(model, freshRec) : [];
       },
       DspfWriter.getRecordLineRange(rec)[1],
-      (comments, fallbackAfterLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '')),
+      (comments, fallbackAfterLine, desiredLine) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, '', desiredLine)),
       (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
       (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
     );

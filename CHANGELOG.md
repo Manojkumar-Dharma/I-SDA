@@ -10,9 +10,17 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-03 — Record-level comments get the same "insert at line #" option file-level already had (Task L45)
+
+- **0.10.24** — Task L45: the "Line #" input next to "+ Add comment" (built generically by L42) only ever rendered on the file-level Comments tab — the record-level Comments section right below it in each record's Structure tab never had `allowCustomLine` turned on, and its own commit callback still silently dropped a line number even if one had somehow been supplied. Both are now wired through identically to the file-level tab: type a target line, the new comment lands exactly there.
+
 ## 2026-09-03 — Ctrl+D/Ctrl+V now ask where the copy lands too (Task L44)
 
 - **0.10.23** — Task L44: the "Copy" button in the field props panel already lets you click the canvas to choose exactly where a copy lands (and, since L43, rename it there too) - but single-field Ctrl+D (duplicate) and Ctrl+V (paste) both skipped that and landed the copy one row below the original with no placement step at all. Both now go through the same click-to-place flow as the Copy button. Multi-select (2+ field) Ctrl+D/Ctrl+V are unchanged - there's no "place a whole block" UI yet, same as the Copy button itself only ever handling one field.
+
+## 2026-09-03 — Field drag stays inside its own region (Tasks L39 + L40)
+
+- **0.10.22** — Dragging a field/constant inside a `WINDOW` record can no longer be dropped on or outside the window's own border (Task L39); dragging a field belonging to either half of a paired `SFL`/`SFLCTL` subfile can no longer be dropped onto a line the OTHER half's own fields occupy (Task L40). Both match real SDA's own Design Image screen behavior. Applies to single-field drag, multi-select group drag, and the SFLPAG-preview group-drag path. Arrow-key nudging is not yet covered for either (tracked as a follow-up).
 
 ## 2026-09-03 — File-level conditioning indicators now shown, copy placement supports renaming (Task L43)
 
@@ -33,10 +41,6 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 ## 2026-09-02 — File-panel cleanup + "Find keyword" quick-nav (Task L37)
 
 - **0.10.17** — Task L37: the "File" section-label in the left panel moved up next to the filename (right under the "Screen Design" heading) and is now bold, instead of sitting stranded near the bottom; the redundant standalone "File attributes" button was removed (the "File" crumb at the top of the properties panel already opens the same view one click away — the bold "File" label now does too). The properties panel also gained a "Find keyword" search box that jumps straight to a keyword wherever it lives — any tab/subtab, or the Advanced/raw-keywords list — switching tabs, opening accordions, and scrolling/flashing the match as needed.
-
-## 2026-09-03 — Field drag stays inside its own region (Tasks L39 + L40)
-
-- **0.10.22** — Dragging a field/constant inside a `WINDOW` record can no longer be dropped on or outside the window's own border (Task L39); dragging a field belonging to either half of a paired `SFL`/`SFLCTL` subfile can no longer be dropped onto a line the OTHER half's own fields occupy (Task L40). Both match real SDA's own Design Image screen behavior. Applies to single-field drag, multi-select group drag, and the SFLPAG-preview group-drag path. Arrow-key nudging is not yet covered for either (tracked as a follow-up).
 
 ## 2026-09-02 — Copy field/constant now asks where to place the copy (Task L36)
 
