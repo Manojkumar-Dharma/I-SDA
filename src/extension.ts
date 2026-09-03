@@ -694,14 +694,26 @@ type DatabaseFileField = ReferencedFieldAttributes & { name: string; text: strin
  * (not just one already-named field, unlike fetchReferencedFieldAttributes
  * above, which this otherwise mirrors closely - same DSPFFD OUTFILE
  * approach, same activation handling, same attribute mapping via
- * mapDspffdRowToAttributes). WHFLDO is DSPFFD's own field-ORDER column, so
- * results come back in the file's own natural field order, matching what
- * you'd see paging through the file's fields in real SDA's own F10
- * (Database) picker rather than some arbitrary SQL ordering - but WHFLDO
- * only orders correctly WITHIN one record format (a multi-format logical
- * file has its own separate 1-based WHFLDO sequence PER format), so a
- * SPECIFIC format must be selected first if the file has more than one -
- * see the `recordFormat` parameter and its own reasoning below.
+ * mapDspffdRowToAttributes). Real DSPFFD *OUTFILE column names come from
+ * QWHDRFFD in QSYS/QADSPFFD; the column used here for field order is
+ * WHFOBO (Output Buffer Position) - the field's position in the file's own
+ * output buffer, which lines up with DDS declaration order. (There is no
+ * WHFLDO column - an earlier version of this code used that name by
+ * mistake, which is a real, easy mix-up: multiple midrange forums show
+ * people making the same WHFLDI/WHFLDO/WHFLDE mix-up when working from
+ * memory rather than the actual outfile layout. Ordering by a
+ * nonexistent column surfaces as SQL0206 "Column or global variable ...
+ * not found" - reported with a screenshot - rather than silently doing
+ * nothing, since QTEMP.<outfile> is a real table and this is a real
+ * column reference, not something any activation/connection check could
+ * catch ahead of time.) Results come back in the file's own natural
+ * field order, matching what you'd see paging through the file's fields
+ * in real SDA's own F10 (Database) picker rather than some arbitrary SQL
+ * ordering - but WHFOBO only orders correctly WITHIN one record format (a
+ * multi-format logical file has its own separate 1-based WHFOBO sequence
+ * PER format), so a SPECIFIC format must be selected first if the file
+ * has more than one - see the `recordFormat` parameter and its own
+ * reasoning below.
  *
  * `recordFormat` is optional. When omitted and the file turns out to have
  * only one format (by far the common case - most files a REFFLD points to
@@ -709,7 +721,7 @@ type DatabaseFileField = ReferencedFieldAttributes & { name: string; text: strin
  * changes from before this scoping existed. When omitted and the file has
  * MULTIPLE formats, returns `{ formats: [...] }` instead of `{ fields }` -
  * an explicit "pick one" response - rather than silently mixing fields
- * from every format together (which would misorder WHFLDO across formats)
+ * from every format together (which would misorder WHFOBO across formats)
  * or silently guessing the first one (which could pick the WRONG format
  * for what the person actually wanted, with no indication anything was
  * even ambiguous).
@@ -762,8 +774,8 @@ async function fetchDatabaseFileFields(
   // format change, exactly the "group by format" this function itself
   // needs to do next).
   const sql = recordFormat
-    ? `SELECT WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} WHERE WHNAME = '${recordFormat.toUpperCase().replace(/'/g, "''")}' ORDER BY WHFLDO`
-    : `SELECT WHNAME, WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} ORDER BY WHNAME, WHFLDO`;
+    ? `SELECT WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} WHERE WHNAME = '${recordFormat.toUpperCase().replace(/'/g, "''")}' ORDER BY WHFOBO`
+    : `SELECT WHNAME, WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} ORDER BY WHNAME, WHFOBO`;
   let rows: any[];
   try {
     rows = await connection.runSQL(sql);

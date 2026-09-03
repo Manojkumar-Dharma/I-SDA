@@ -276,7 +276,7 @@ async function run() {
     const notInstalledResult = dbPosted.find((m) => m.type === 'databaseFieldsResult');
     check('posts a databaseFieldsResult error naming the extension, no crash', !!notInstalledResult && /Code for IBM i extension/.test(notInstalledResult.error || ''));
 
-    console.log('  listDatabaseFields: connected, single-format file - returns fields in WHFLDO order with names/attrs/text');
+    console.log('  listDatabaseFields: connected, single-format file - returns fields in WHFOBO order with names/attrs/text');
     const runSqlCalls = [];
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
       id: 'halcyontechltd.code-for-ibmi',
@@ -300,7 +300,7 @@ async function run() {
     dbPosted.length = 0;
     await dbMessageHandler({ type: 'listDatabaseFields', library: 'MYLIB', file: 'CUSMSTP' });
     check('ran DSPFFD against the qualified file', !!dspffdCommand && dspffdCommand.includes('DSPFFD FILE(MYLIB/CUSMSTP)'));
-    check('queried grouped by format, WHFLDO within each (the file\'s own natural field order)', runSqlCalls.some((sql) => sql.includes('ORDER BY WHNAME, WHFLDO')));
+    check('queried grouped by format, WHFOBO within each (the file\'s own natural field order)', runSqlCalls.some((sql) => sql.includes('ORDER BY WHNAME, WHFOBO')));
     const listResult = dbPosted.find((m) => m.type === 'databaseFieldsResult');
     check('posts back both fields, no error, no ambiguous-formats prompt (only one format present)', !!listResult && !listResult.error && !listResult.formats && listResult.fields.length === 2);
     check('reports which record format the fields came from', listResult.recordFormat === 'CUSMSTPR');
@@ -308,7 +308,7 @@ async function run() {
     check('numeric field: length from WHFLDD (digits, not bytes), decimals from WHFLDP', listResult.fields[1].name === 'BALANCE' && listResult.fields[1].length === 9 && listResult.fields[1].decimalPositions === 2 && listResult.fields[1].dataType === 'S');
     check('carries the field text description through', listResult.fields[0].text === 'Customer number');
 
-    console.log('  listDatabaseFields: MULTI-format file (a logical file with more than one record format) - returns { formats } instead of guessing which one, since WHFLDO only orders correctly WITHIN one format');
+    console.log('  listDatabaseFields: MULTI-format file (a logical file with more than one record format) - returns { formats } instead of guessing which one, since WHFOBO only orders correctly WITHIN one format');
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', {
       id: 'halcyontechltd.code-for-ibmi',
       isActive: true,
