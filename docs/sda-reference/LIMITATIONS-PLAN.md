@@ -425,48 +425,82 @@ follow the same process this effort used throughout: `git fetch` +
 push, and update the Status column the moment you pick up or finish a
 task.
 
-## P series — one-click toolbox tools (DSPF designer, new feature work)
+## P series — one-click toolbox tools (New UI only, DSPF designer)
 
 Requested directly: a Paint-style toolbox in the DSPF (screen) designer -
 click an icon, get a ready-made starter record dropped onto the canvas
 (a basic `WINDOW` with a title, a `PULLDOWN`/`MNUBAR` menu, etc.) instead
 of building one keyword-by-keyword through the properties panel. Explicitly
-scoped to the DSPF designer only (not the Menu/MNUDDS designer - see P4's
-own note on why "Menu" is ambiguous across the two). Refined twice since
-the first draft, both times toward a more modern, canvas-first layout:
+scoped to the DSPF designer only (not the Menu/MNUDDS designer - see P5's
+own note on why "Menu" is ambiguous across the two). Refined three times
+since the first draft:
 
 1. The toolbox itself should be a **floating icon that expands on click**
    (a FAB-style popover, not another permanently-visible stack of
    buttons), hosting the record/field/constant/database-fields creation
    actions.
-2. Then further: **remove the left (`<aside>`) panel entirely** and fold
-   most of what lives there into the right-side properties panel
-   (`propsPanel`) instead, freeing that whole strip of width back to the
-   screen-preview canvas. The person's own words: "provide more canvas
-   area." Two side panels shrinking the canvas down to whatever's left
-   in the middle is the layout being moved away from.
+2. Then: fold most of the left (`<aside>`) panel's content into the
+   right-side properties panel (`propsPanel`) too, freeing that width
+   back to the screen-preview canvas - the person's own words: "provide
+   more canvas area."
+3. Then, both a scoping and a sequencing correction: **every P-series
+   change applies to the "New UI" style ONLY** (`body[data-ui-style=
+   "modern"]`, toggled by `#uiStyleToggle` - see `buildWebviewTemplate.js`
+   line ~22). **"Classic UI [`data-ui-style="classic"`] should work as it
+   is"** - unchanged, pixel-for-pixel and behavior-for-behavior, forever.
+   And on sequencing: the floating toolbox and its tools get built FIRST,
+   **coexisting alongside the still-fully-present left panel** in New UI -
+   the old aside panel and its existing `+ Field`/`+ Constant`/
+   `+ Add record`/`+ Fields from database file` buttons stay exactly as
+   they are, not hidden or disabled, for the whole time tools are being
+   added to the new floating toolbox. Only once every planned tool icon
+   exists does removing the aside panel (folding its content into the
+   right panel) happen, as the LAST step, and only for New UI - the
+   person's own words: "will remove leftside panel once all tools are
+   mapped till then both tools and leftside co-exist."
+
+**Important existing-architecture wrinkle, worth knowing before this is
+picked up:** today "classic" vs "modern" is a **CSS skin over ONE shared
+HTML/JS structure** - same markup, same element IDs (`#placeFieldBtn`,
+`#newRecordToggleBtn`, `#addFromDbBtn`, etc.), same event wiring, just
+different theming applied via `body[data-ui-style="modern"]` CSS
+selectors (see `buildWebviewTemplate.js` lines ~489-555). There is no
+structural fork today. This P series needs one: the floating toolbox,
+the aside-panel content migrating into the right panel, and (eventually)
+the aside panel's removal are all STRUCTURAL DOM changes, and per the
+"classic should work as it is" requirement they must only ever apply
+under `data-ui-style="modern"`. That means `buildWebviewTemplate.js`
+needs to start conditionally emitting genuinely different DOM (not just
+different CSS) for New UI vs classic, and every affected script's event
+wiring needs to know which structure it's attached to - a materially
+bigger technical lift than today's skin-only toggle, not a detail to
+discover partway through implementation.
 
 **Deliberately deprioritized** - the person's own words: "will pick them
 after stabilizing the iSDA." Do not start any P-series task without
 checking with the person first, even if it looks like a quiet moment to
 pick one up - "stabilized" is their own call to make, not inferrable from
-an empty L/M-series queue.
+an empty L/M-series queue. The same applies to the LAST task below
+(removing the aside panel) even once the rest of the series is done -
+"once all tools are mapped" is the person's own judgment call too, not
+something to infer just because P2/P4/P5 (or whatever tools exist by
+then) all show `done`.
 
 Unlike every L/M-series task above, this is new feature work with no real
 SDA equivalent to verify against (real SDA is a fixed two/three-panel
-5250 layout, nothing floating or canvas-first) - defaults (geometry,
-naming, which keywords a template includes, the popover's own layout/
-icon set, where each migrated control lands in the right panel) are this
-project's own design calls, not something to match against IBM
+5250 layout, nothing floating, canvas-first, or style-toggled) - defaults
+(geometry, naming, which keywords a template includes, the popover's own
+layout/icon set, where each migrated control lands in the right panel)
+are this project's own design calls, not something to match against IBM
 documentation the way an L/M bug fix would be.
 
 | ID | Description | Depends on | Status |
 |---|---|---|---|
-| **P1** | **Remove the left `<aside>` panel; migrate most of its content into the right-side `propsPanel` instead, so the canvas (`<main>`) picks up the freed width.** Today's grid is `[left 240px] [canvas 1fr] [right 300px]` (see the `gridTemplateColumns` logic keyed off `leftPanelCollapsed`/`rightPanelCollapsed`) - this becomes a two-column `[canvas 1fr] [right panel]`, and the `leftPanelToggle`/`leftPanelCollapsed` machinery goes away entirely rather than becoming dead code. Full inventory of what's in the aside today and needs a new home: file status label, the Code-for-IBM-i connection badge, the Save button, Find-field search (+ its results dropdown), the Record select, the screen-size select, the compare-mode/overlay/SFLPAG-preview toggles, the ruler/crosshair toggles, the compare-record list, the conditioning-indicators preview list, the Compile Display File button, and the UI Settings accordion (style/theme). The `h1`/`h2` branding header needs a decision too - fold into the right panel's own header, a slim top bar, or drop it; not assumed here. **Two real risks to design around, not just move-the-HTML busywork:** (1) the right panel's `propsBody` today gets WHOLESALE REPLACED with an "Select a field to edit it" empty-state whenever nothing is selected - any migrated control (Save, Compile, Record select, etc.) has to live OUTSIDE that swapped region, not inside it, or it'll disappear the moment nothing's selected. (2) the right panel already has its own `rightPanelToggle` "Hide panel" affordance - collapsing everything into one panel means that toggle could now hide Save/Compile/the Record select along with it, which the LEFT panel's own independent toggle never risked before; needs either an always-visible pinned strip that survives collapse, or a rethink of what "hide panel" even means once it's the only panel. With this many more controls landing in one place, the right panel likely needs its own accordion/section grouping (the existing `props-accordion` pattern `UI Settings` already uses is the natural template) rather than one long flat stack. | none (P2/P3/P4/P5 all assume the floating toolbox floats over the WIDER canvas this produces, so this is the natural first step, but isn't a hard technical dependency either way) | not started |
-| **P2** | **Floating expandable toolbox UI shell.** A single floating icon (FAB-style, positioned over/near the screen preview canvas - now wider once P1 lands) that's collapsed by default and expands on click into a popover. Existing entry points migrate IN as icons here and are REMOVED from their old spot: `+ Field`, `+ Constant`, `+ Add record`, `+ Fields from database file`. Two of these are NOT single-click-and-done actions today and that doesn't change just because they're now icons: `+ Add record` opens a multi-step form (record TYPE picker, conditional SFLCTL-name/window-inherit/SFLMSG sub-fields depending on type, then a name + Create button - see `newRecordForm`'s existing markup) and `+ Fields from database file` opens its own file/field-browsing flow (Task L14) that's ALSO conditionally hidden today whenever the Code for IBM i connection badge isn't `connected` (see the L18-era "hidden outright, not just doomed to fail" fix) - that same conditional visibility has to carry over to its icon inside the popover, not just to the old button being deleted. `+ Field`/`+ Constant` keep behaving exactly as they do now (immediate click-to-place, Esc to cancel) once triggered from their new icon. | P1 (the canvas this floats over, and the connection badge/record-type data it reads, both move in P1) | not started |
-| **P3** | **Shared "click-to-place a whole template" primitive - needed specifically for the NEW Window/Menu tools (P4/P5), not for the four migrated buttons above (those already have working placement flows of their own).** Today's click-to-place (`beginCopyPlacement`, used by Copy/Ctrl+D/Ctrl+V/+Field/+Constant) only ever places ONE field/constant - Task L44's own writeup explicitly called a multi-field "click to place a whole block" primitive **out of scope**, confirming it doesn't exist anywhere in this codebase yet. A one-click template tool needs exactly that: a new record (possibly plus child fields/keywords) landing together as one unit, from one click, as one undo step. The "+ Add record" wizard's own multi-step insert (record, then loop over `extraFields` with a reparse between each - see its own SFLMSG handling) is the closest existing precedent and should be reused/generalized rather than building a second pattern from scratch. Needs its own default-geometry/collision story too - today's single-field overlap warning doesn't know about "I'm about to drop N fields as one unit" (see the conversation's own caveat list for the fuller reasoning). | P2 (the popover these tools' icons live in), L44 (documents the gap this fills), the "+ Add record" wizard (`buildTypedRecordPlan`/`insertTypedRecordWithDependent` - the multi-entity-insert pattern to generalize) | not started |
-| **P4** | **"Window" toolbox icon: one click (then click-to-place on the canvas) drops a ready-made basic window - a new record carrying `WINDOW(line col height width)` sized from the click, plus `WDWTITLE('...')` for its title bar.** Simpler than first assumed: DDS already has a dedicated `WDWTITLE` keyword for a window's own title (`resolveWindowTitle`/`wireWindowPanels` in dspfEngine.js/buildWebviewTemplate.js already fully support it, rendered as `.dspf-window-title` in the preview) - no separate manually-placed title *field* is needed to get a labeled window, just the one new record and its two keywords. Auto-generates a unique record name (`WDW1`, `WDW2`, ...) via the existing `isValidDdsName`/uniqueness-check convention rather than prompting for one on every click. | P2 (popover to live in), P3 (needs the click-to-place-a-block primitive; this is P3's own first real exercise, not built independently of it) | not started |
-| **P5** | **"Menu" toolbox icon: drops a `PULLDOWN` record.** Confirmed directly with the person which "menu" this means, since the term is ambiguous in this codebase: a real numbered CRTMNU-style menu can only exist in the separate Menu (MNUDDS) designer - a completely different file type/webview (`buildMenuWebviewTemplate.js`) that this DSPF-designer toolbox has no reach into - so the only thing a DSPF-designer "Menu" icon can sensibly create is DDS's own `PULLDOWN` record type (already selectable today via the "+ Add record" wizard's TYPE picker, just not as a single-click starter template with sensible defaults pre-filled). `MNUBAR` (the menu-BAR itself, as opposed to one of its dropdown panels) is file/record-scope rather than something "placed" the same click-to-place way - worth its own separate icon and its own small design decision on what "clicking" it even means, not folded into this same row. | P2 (popover to live in), P3 (same placement primitive) | not started |
+| **P1** | **Floating expandable toolbox UI shell (New UI only).** A single floating icon (FAB-style, positioned over/near the screen preview canvas) that's collapsed by default and expands on click into a popover, appearing ADDITIONALLY alongside the still-fully-present left `<aside>` panel - not replacing anything yet. Existing entry points get NEW icon-triggered duplicates here, matching whatever they do today, while the aside panel's own originals stay untouched and fully functional (see the coexistence note above): `+ Field`, `+ Constant`, `+ Add record`, `+ Fields from database file`. Two of these are NOT single-click-and-done actions today: `+ Add record` opens a multi-step form (record TYPE picker, conditional SFLCTL-name/window-inherit/SFLMSG sub-fields depending on type, then a name + Create button - see `newRecordForm`'s existing markup) and `+ Fields from database file` opens its own file/field-browsing flow (Task L14) that's ALSO conditionally hidden today whenever the Code for IBM i connection badge isn't `connected` (see the L18-era "hidden outright, not just doomed to fail" fix) - that same conditional visibility has to carry over to its icon inside the popover. `+ Field`/`+ Constant` keep behaving exactly as they do now (immediate click-to-place, Esc to cancel) once triggered from their new icon. Classic UI (`data-ui-style="classic"`) is completely unaffected - the floating icon must not render, or even exist in the DOM, when classic style is active. | none - the safest place to start, since it's purely additive (nothing existing is removed or changed yet) | not started |
+| **P2** | **Shared "click-to-place a whole template" primitive - needed specifically for the NEW Window/Menu tools (P4/P5), not for the four duplicated buttons in P1 (those already have working placement flows of their own).** Today's click-to-place (`beginCopyPlacement`, used by Copy/Ctrl+D/Ctrl+V/+Field/+Constant) only ever places ONE field/constant - Task L44's own writeup explicitly called a multi-field "click to place a whole block" primitive **out of scope**, confirming it doesn't exist anywhere in this codebase yet. A one-click template tool needs exactly that: a new record (possibly plus child fields/keywords) landing together as one unit, from one click, as one undo step. The "+ Add record" wizard's own multi-step insert (record, then loop over `extraFields` with a reparse between each - see its own SFLMSG handling) is the closest existing precedent and should be reused/generalized rather than building a second pattern from scratch. Needs its own default-geometry/collision story too - today's single-field overlap warning doesn't know about "I'm about to drop N fields as one unit" (see the conversation's own caveat list for the fuller reasoning). | P1 (the popover these tools' icons live in), L44 (documents the gap this fills), the "+ Add record" wizard (`buildTypedRecordPlan`/`insertTypedRecordWithDependent` - the multi-entity-insert pattern to generalize) | not started |
+| **P3** | **"Window" toolbox icon: one click (then click-to-place on the canvas) drops a ready-made basic window - a new record carrying `WINDOW(line col height width)` sized from the click, plus `WDWTITLE('...')` for its title bar.** Simpler than first assumed: DDS already has a dedicated `WDWTITLE` keyword for a window's own title (`resolveWindowTitle`/`wireWindowPanels` in dspfEngine.js/buildWebviewTemplate.js already fully support it, rendered as `.dspf-window-title` in the preview) - no separate manually-placed title *field* is needed to get a labeled window, just the one new record and its two keywords. Auto-generates a unique record name (`WDW1`, `WDW2`, ...) via the existing `isValidDdsName`/uniqueness-check convention rather than prompting for one on every click. | P1 (popover to live in), P2 (needs the click-to-place-a-block primitive; this is P2's own first real exercise, not built independently of it) | not started |
+| **P4** | **"Menu" toolbox icon: drops a `PULLDOWN` record.** Confirmed directly with the person which "menu" this means, since the term is ambiguous in this codebase: a real numbered CRTMNU-style menu can only exist in the separate Menu (MNUDDS) designer - a completely different file type/webview (`buildMenuWebviewTemplate.js`) that this DSPF-designer toolbox has no reach into - so the only thing a DSPF-designer "Menu" icon can sensibly create is DDS's own `PULLDOWN` record type (already selectable today via the "+ Add record" wizard's TYPE picker, just not as a single-click starter template with sensible defaults pre-filled). `MNUBAR` (the menu-BAR itself, as opposed to one of its dropdown panels) is file/record-scope rather than something "placed" the same click-to-place way - worth its own separate icon and its own small design decision on what "clicking" it even means, not folded into this same row. | P1 (popover to live in), P2 (same placement primitive) | not started |
+| **P5** | **LAST: remove the left `<aside>` panel (New UI only), once every planned toolbox icon above is done - not before, and only once the person confirms "all tools are mapped."** Migrates the aside panel's remaining content into the right-side `propsPanel`. Today's grid is `[left 240px] [canvas 1fr] [right 300px]` (see the `gridTemplateColumns` logic keyed off `leftPanelCollapsed`/`rightPanelCollapsed`) - under New UI only, this becomes a two-column `[canvas 1fr] [right panel]`; classic UI keeps the three-column layout forever. Full inventory of what's in the aside today and needs a new home: file status label, the Code-for-IBM-i connection badge, the Save button, Find-field search (+ its results dropdown), the Record select, the screen-size select, the compare-mode/overlay/SFLPAG-preview toggles, the ruler/crosshair toggles, the compare-record list, the conditioning-indicators preview list, the Compile Display File button, and the UI Settings accordion (style/theme) - the style toggle itself has to survive this, since it's how a person would ever switch back to classic. The `h1`/`h2` branding header needs a decision too - fold into the right panel's own header, a slim top bar, or drop it; not assumed here. **Two real risks to design around, not just move-the-HTML busywork:** (1) the right panel's `propsBody` today gets WHOLESALE REPLACED with a "Select a field to edit it" empty-state whenever nothing is selected - any migrated control (Save, Compile, Record select, etc.) has to live OUTSIDE that swapped region, not inside it, or it'll disappear the moment nothing's selected. (2) the right panel already has its own `rightPanelToggle` "Hide panel" affordance - collapsing everything into one panel means that toggle could now hide Save/Compile/the Record select along with it, which the LEFT panel's own independent toggle never risked before; needs either an always-visible pinned strip that survives collapse, or a rethink of what "hide panel" even means once it's the only panel. With this many more controls landing in one place, the right panel likely needs its own accordion/section grouping (the existing `props-accordion` pattern `UI Settings` already uses is the natural template) rather than one long flat stack. Once this lands, P1's temporary "duplicate button in both places" state resolves - the aside's own originals are gone, the toolbox icons (or their migrated equivalents in the right panel) are the only way left, in New UI. | P1, P2, P3, P4 (every planned tool icon must exist first - see the coexistence note above) | not started |
 
 ## Out of scope here
 
