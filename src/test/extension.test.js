@@ -467,7 +467,7 @@ async function run() {
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
   }
 
-  console.log('\nTask L38: getModTrackingConfig() / \'modTrackingConfig\' push - reads isda.trackSourceModifications/isda.modificationTag, resends on live config changes, scoped to the DSPF designer only');
+  console.log('\nTask L38: getModTrackingConfig() / \'modTrackingConfig\' push - reads isda.trackSourceModifications/isda.modificationTag, resends on live config changes (DSPF designer)');
   {
     vscodeMock.__clearMockConfig();
     const modSrc = buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }) + '\n';
@@ -522,6 +522,68 @@ async function run() {
       modDisposeThrew = true;
     }
     check('disposes cleanly', !modDisposeThrew);
+
+    vscodeMock.__clearMockConfig();
+  }
+
+  console.log('\nTask M8: the SAME modTrackingConfig push/resend, ported to the menu designer (MenuDesignerEditorProvider) - shares the exact same isda.* settings as the DSPF designer above');
+  {
+    vscodeMock.__clearMockConfig();
+    const menuProviderEntry = vscodeMock.__registeredCustomEditorProviders['dspfDesigner.menuEditor'];
+    const mnuSrc = "     A          R MENU\n     A            10 20'1. Display current library'\n";
+    const mnuUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MODMENU.MNUDDS');
+    vscodeMock.__setMockFile(new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MODMENUQQ.MNUCMD'), '0001 DSPLIBL\n');
+    const mnuDoc = vscodeMock.__mockDocument(mnuSrc, mnuUri);
+    let mnuModMessageHandler = null;
+    let mnuModDisposeHandler = null;
+    const mnuModPosted = [];
+    const mnuModPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { mnuModMessageHandler = h; return { dispose: () => {} }; },
+        postMessage: (m) => mnuModPosted.push(m),
+      },
+      onDidDispose: (h) => { mnuModDisposeHandler = h; },
+    };
+    await menuProviderEntry.provider.resolveCustomTextEditor(mnuDoc, mnuModPanel, {});
+
+    console.log('  \'ready\' pushes the current setting values, defaulting to off/blank when unset');
+    mnuModPosted.length = 0;
+    await mnuModMessageHandler({ type: 'ready' });
+    let mnuModMsg = mnuModPosted.find((m) => m.type === 'modTrackingConfig');
+    check('posts modTrackingConfig on ready', !!mnuModMsg);
+    check('defaults to enabled=false, tag=\'\' when neither setting is configured', mnuModMsg && mnuModMsg.enabled === false && mnuModMsg.tag === '');
+
+    console.log('  reflects isda.trackSourceModifications/isda.modificationTag when set - the SAME settings the DSPF designer reads, confirming they are shared rather than duplicated per-designer');
+    vscodeMock.__setMockConfig('isda.trackSourceModifications', true);
+    vscodeMock.__setMockConfig('isda.modificationTag', 'JDOE0902XX');
+    mnuModPosted.length = 0;
+    await mnuModMessageHandler({ type: 'ready' });
+    mnuModMsg = mnuModPosted.find((m) => m.type === 'modTrackingConfig');
+    check('enabled reflects the setting', mnuModMsg && mnuModMsg.enabled === true);
+    check('tag reflects the setting, capped at 10 characters', mnuModMsg && mnuModMsg.tag === 'JDOE0902XX'.slice(0, 10));
+
+    console.log('  a live settings.json change while the panel is open pushes a fresh modTrackingConfig, without needing another ready');
+    vscodeMock.__setMockConfig('isda.trackSourceModifications', false);
+    mnuModPosted.length = 0;
+    vscodeMock.__fireConfigChange('isda.trackSourceModifications');
+    mnuModMsg = mnuModPosted.find((m) => m.type === 'modTrackingConfig');
+    check('config-change listener re-sends without waiting for another ready', !!mnuModMsg && mnuModMsg.enabled === false);
+
+    console.log('  an unrelated config change does not trigger a resend');
+    mnuModPosted.length = 0;
+    vscodeMock.__fireConfigChange('isda.designerOpenColumn');
+    check('no modTrackingConfig sent for an unrelated setting', !mnuModPosted.some((m) => m.type === 'modTrackingConfig'));
+
+    console.log('  dispose cleans up the config-change subscription without throwing (alongside the menu designer\'s other own subscriptions)');
+    let mnuModDisposeThrew = false;
+    try {
+      mnuModDisposeHandler();
+    } catch (e) {
+      mnuModDisposeThrew = true;
+    }
+    check('disposes cleanly', !mnuModDisposeThrew);
 
     vscodeMock.__clearMockConfig();
   }

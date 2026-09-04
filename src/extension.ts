@@ -1294,6 +1294,23 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     const statusPollInterval = setInterval(() => { void sendCodeForIStatus(); }, 10000);
     const extChangeSub = vscode.extensions.onDidChange(() => { void sendCodeForIStatus(); });
 
+    // Task M8: same modification-tracking config push as
+    // DspfDesignerEditorProvider's own sendModTrackingConfig/
+    // modTrackingConfigSub (see that copy's own doc comment) - the setting
+    // is shared across both designers (isda.trackSourceModifications/
+    // isda.modificationTag), so the menu designer's webview needs the exact
+    // same 'modTrackingConfig' push on 'ready' and on a live settings.json
+    // change while this panel is open.
+    const sendModTrackingConfig = () => {
+      const cfg = getModTrackingConfig();
+      webviewPanel.webview.postMessage({ type: 'modTrackingConfig', enabled: cfg.enabled, tag: cfg.tag });
+    };
+    const modTrackingConfigSub = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('isda.trackSourceModifications') || e.affectsConfiguration('isda.modificationTag')) {
+        sendModTrackingConfig();
+      }
+    });
+
     // Same "just saved, now clean" transition as the DSPF designer's own
     // saveSub - covers both documents, since either one being saved
     // (independently - e.g. someone Ctrl+S's just the MNUCMD tab) should
@@ -1396,6 +1413,7 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
       } else if (msg.type === 'ready') {
         await sendCodeForIStatus();
+        sendModTrackingConfig();
       }
     });
 
@@ -1406,6 +1424,7 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       messageSub.dispose();
       clearInterval(statusPollInterval);
       extChangeSub.dispose();
+      modTrackingConfigSub.dispose();
     });
   }
 }

@@ -151,6 +151,19 @@ const htmlTemplate = `<!DOCTYPE html>
   .panel-collapsed .panel-body { display: none; }
   .panel-collapsed .panel-toggle-btn { margin-bottom: 0; writing-mode: vertical-rl; height: 100%; padding: 10px 0; }
   .option-count { font-size: 10px; color: var(--ink-dim); background: #0d1310; border: 1px solid var(--panel-border); border-radius: 10px; padding: 2px 9px; white-space: nowrap; }
+  /* Task M8 - same "Track modifications" checkbox + tag box the DSPF
+     designer's own props panel has (Task L38, buildWebviewTemplate.js) -
+     identical markup/behavior, ported into commitMenuSourceChange's own
+     single choke point (see that function's own doc comment) instead of
+     the DSPF designer's commitSourceChange. .compare-toggle isn't defined
+     anywhere else in THIS file (it's a DSPF-designer-only class there),
+     so both rules are copied here rather than assuming a shared stylesheet. */
+  .mod-tracking-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .mod-tracking-row .compare-toggle { margin-top: 0; white-space: nowrap; }
+  .mod-tracking-row input[type="text"] { flex: 1; min-width: 0; }
+  .mod-tracking-row input[type="text"]:disabled { opacity: 0.5; }
+  .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
+  .compare-toggle input { accent-color: var(--warn); }
   .options-hint { font-size: 11px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 14px; }
   .options-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 
@@ -384,6 +397,10 @@ const htmlTemplate = `<!DOCTYPE html>
     <h2 style="font-size:13px;">Options</h2>
     <span class="option-count" id="optionCount"></span>
   </div>
+  <div class="mod-tracking-row">
+    <label class="compare-toggle"><input type="checkbox" id="modTrackingToggle" /> Track modifications</label>
+    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads. Session-only; doesn't change the isda.modificationTag setting." />
+  </div>
   <div class="options-hint">Each option's number, text, and command. Drag ⣿ to swap two options.</div>
   <div class="options-list" id="optionsBody"></div>
   <div class="add-option">
@@ -457,6 +474,22 @@ const htmlTemplate = `<!DOCTYPE html>
   let model = DspfParser.parseDspf(sourceText);
   let cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
 
+  // Task M8 - same session-only modification-tracking state the DSPF
+  // designer's own props panel keeps (Task L38, buildWebviewTemplate.js's
+  // own copy of these three variables) - starts off/blank until the
+  // 'modTrackingConfig' message (sent by MenuDesignerEditorProvider on
+  // 'ready', mirroring DspfDesignerEditorProvider's own sendModTrackingConfig
+  // in extension.ts) supplies the isda.trackSourceModifications/
+  // isda.modificationTag settings' current values as a STARTING point only -
+  // never written back to the settings themselves.
+  let modTrackingEnabled = false;
+  let modTrackingTag = '';
+  // True once the person has touched either control directly - after that,
+  // a later 'modTrackingConfig' push (e.g. a live settings.json edit) no
+  // longer overwrites their in-session choice. Same convention as the DSPF
+  // designer's own modTrackingSessionTouched.
+  let modTrackingSessionTouched = false;
+
   // Left/right side-panel hide controls - same fix and same reasoning as
   // the DSPF designer's own copy of this block (buildWebviewTemplate.js):
   // collapsing either panel frees up horizontal space for the screen
@@ -495,6 +528,8 @@ const htmlTemplate = `<!DOCTYPE html>
   const screenOutput = document.getElementById('screenOutput');
   const optionsBody = document.getElementById('optionsBody');
   const optionCountEl = document.getElementById('optionCount');
+  const modTrackingToggle = document.getElementById('modTrackingToggle');
+  const modTrackingTagInput = document.getElementById('modTrackingTagInput');
   const cmdStatusEl = document.getElementById('cmdStatus');
   const addOptionNumInput = document.getElementById('addOptionNum');
   const addOptionLabelInput = document.getElementById('addOptionLabel');
@@ -516,6 +551,21 @@ const htmlTemplate = `<!DOCTYPE html>
   const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded, shared with the DSPF designer's own convention
   const expandedOptionConditioning = new Set(); // numberValues whose "Conditioning" panel is expanded - survives renderOptions() rebuilding all rows
   const expandedOptionStyle = new Set(); // numberValues whose "Style (keywords)" panel is expanded - Task M1, same survives-rerender convention as expandedOptionConditioning above
+
+  // Task M8 - session-only, same "toggling here never writes back to the
+  // isda.* settings" relationship the DSPF designer's own copy of this
+  // block documents (buildWebviewTemplate.js); only the 'modTrackingConfig'
+  // message (sent by the extension host on 'ready', see
+  // sendModTrackingConfig in MenuDesignerEditorProvider) ever sets the
+  // STARTING values these two controls show.
+  modTrackingToggle.addEventListener('change', () => {
+    modTrackingEnabled = modTrackingToggle.checked;
+    modTrackingSessionTouched = true;
+  });
+  modTrackingTagInput.addEventListener('input', () => {
+    modTrackingTag = DspfWriter.buildModTag(modTrackingTagInput.value);
+    modTrackingSessionTouched = true;
+  });
 
   // A menu option is any DDS constant shaped like "1. Do a thing" or "12) Do a thing" -
   // that's the one thing that distinguishes menu-option text from any other constant
@@ -787,12 +837,7 @@ const htmlTemplate = `<!DOCTYPE html>
     fileAttrsBody.classList.remove('hidden');
     fileAttrsBody.innerHTML = WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning);
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => {
-      let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-      lines = DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords);
-      sourceText = lines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
-      vscode.postMessage({ type: 'applyEdit', text: sourceText });
-      renderAll();
+      commitMenuSourceChange((lines) => DspfWriter.applyFileKeywordsUpdate(model, lines, newKeywords));
     }, 'file', expandedKeywordConditioning, renderFileAttrs);
   }
 
@@ -804,12 +849,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function updateOptionLabel(recordName, numberValue, newLabel) {
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = writeOptionLabel(lines, model, option, newLabel);
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-    renderAll();
+    commitMenuSourceChange((lines) => writeOptionLabel(lines, model, option, newLabel));
   }
 
   // A menu option is one or more DDS CONSTANTs (see extractMenuOptions) - conditioning
@@ -822,23 +862,21 @@ const htmlTemplate = `<!DOCTYPE html>
   function updateOptionConditions(recordName, numberValue, newConditions) {
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { conditions: newConditions });
-    let currentModel = DspfParser.parseDspf(lines.join('\\n'));
-    const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
-    labelFields.forEach((lf) => {
-      if (lf === option.numberField) return;
-      const fresh = findOption(currentModel, recordName, numberValue);
-      const freshField = fresh && (fresh.labelFields || []).find((f) => f.location.column === lf.location.column);
-      if (freshField) {
-        lines = DspfWriter.applyFieldUpdate(freshField, lines, { conditions: newConditions });
-        currentModel = DspfParser.parseDspf(lines.join('\\n'));
-      }
+    commitMenuSourceChange((lines) => {
+      lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { conditions: newConditions });
+      let currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
+      labelFields.forEach((lf) => {
+        if (lf === option.numberField) return;
+        const fresh = findOption(currentModel, recordName, numberValue);
+        const freshField = fresh && (fresh.labelFields || []).find((f) => f.location.column === lf.location.column);
+        if (freshField) {
+          lines = DspfWriter.applyFieldUpdate(freshField, lines, { conditions: newConditions });
+          currentModel = DspfParser.parseDspf(lines.join('\\n'));
+        }
+      });
+      return lines;
     });
-    sourceText = lines.join('\\n');
-    model = currentModel;
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-    renderAll();
   }
 
   // Task M1 - a menu option is just a DDS CONSTANT (see extractMenuOptions'
@@ -862,23 +900,21 @@ const htmlTemplate = `<!DOCTYPE html>
   function updateOptionKeywords(recordName, numberValue, newKeywords) {
     const option = findOption(model, recordName, numberValue);
     if (!option) return;
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { keywords: newKeywords });
-    let currentModel = DspfParser.parseDspf(lines.join('\\n'));
-    const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
-    labelFields.forEach((lf) => {
-      if (lf === option.numberField) return;
-      const fresh = findOption(currentModel, recordName, numberValue);
-      const freshField = fresh && (fresh.labelFields || []).find((f) => f.location.column === lf.location.column);
-      if (freshField) {
-        lines = DspfWriter.applyFieldUpdate(freshField, lines, { keywords: newKeywords });
-        currentModel = DspfParser.parseDspf(lines.join('\\n'));
-      }
+    commitMenuSourceChange((lines) => {
+      lines = DspfWriter.applyFieldUpdate(option.numberField, lines, { keywords: newKeywords });
+      let currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
+      labelFields.forEach((lf) => {
+        if (lf === option.numberField) return;
+        const fresh = findOption(currentModel, recordName, numberValue);
+        const freshField = fresh && (fresh.labelFields || []).find((f) => f.location.column === lf.location.column);
+        if (freshField) {
+          lines = DspfWriter.applyFieldUpdate(freshField, lines, { keywords: newKeywords });
+          currentModel = DspfParser.parseDspf(lines.join('\\n'));
+        }
+      });
+      return lines;
     });
-    sourceText = lines.join('\\n');
-    model = currentModel;
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-    renderAll();
   }
 
   // Task M3 (docs/sda-reference/LIMITATIONS-PLAN.md) - ported verbatim from
@@ -991,17 +1027,11 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const labelFields = option.labelFields || (option.labelField ? [option.labelField] : []);
     const fields = [option.numberField].concat(labelFields.filter((f) => f !== option.numberField));
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.deleteFields(fields, lines);
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-
-    if (commandStatus !== 'unsupported' && commandFor(numberValue)) {
-      vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: numberValue, command: '' }] });
-    }
-
-    renderAll();
+    commitMenuSourceChange((lines) => DspfWriter.deleteFields(fields, lines), () => {
+      if (commandStatus !== 'unsupported' && commandFor(numberValue)) {
+        vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: numberValue, command: '' }] });
+      }
+    });
   }
 
   // Duplicates an option's underlying constant(s) via DspfWriter.copyField -
@@ -1056,47 +1086,44 @@ const htmlTemplate = `<!DOCTYPE html>
       return;
     }
 
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.copyField(record, lines, option.numberField, {
-      location: { line: safeRow, column: option.numberField.location.column },
-    });
-    let currentModel = DspfParser.parseDspf(lines.join('\\n'));
-    let freshRec = currentModel.records.find((r) => r.name === option.recordName);
-    const newNumberField = freshRec && freshRec.fields[freshRec.fields.length - 1];
-    if (!newNumberField) return;
-
-    const isCombined = !option.labelField || option.labelField === option.numberField;
-    const newNumberValue = isCombined ? nextNum + punctuation + ' ' + option.label : String(nextNum) + punctuation;
-    lines = DspfWriter.applyFieldUpdate(newNumberField, lines, { constantValue: newNumberValue });
-
-    if (!isCombined) {
-      // Split form: the label lives in one or more SEPARATE constants (see
-      // extractMenuOptions' own note on multi-fragment labels) - copy each
-      // one, placed on the SAME row the number copy just landed on (the
-      // collision-checked safeRow above, not copyField's own "one row
-      // below ITS original" default), same column each original fragment
-      // used, so the whole option - however many pieces it's actually
-      // made of - stays aligned as one visual line like the source did.
-      const origColumns = (option.labelFields || [option.labelField]).map((f) => f.location.column);
-      origColumns.forEach((col) => {
-        currentModel = DspfParser.parseDspf(lines.join('\\n'));
-        freshRec = currentModel.records.find((r) => r.name === option.recordName);
-        const origFragmentFresh = freshRec.fields.find(
-          (f) => f.location && f.location.line === option.line && f.location.column === col && f !== newNumberField
-        );
-        if (origFragmentFresh) {
-          lines = DspfWriter.copyField(freshRec, lines, origFragmentFresh, {
-            location: { line: safeRow, column: origFragmentFresh.location.column },
-          });
-        }
+    commitMenuSourceChange((lines) => {
+      lines = DspfWriter.copyField(record, lines, option.numberField, {
+        location: { line: safeRow, column: option.numberField.location.column },
       });
-    }
+      let currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      let freshRec = currentModel.records.find((r) => r.name === option.recordName);
+      const newNumberField = freshRec && freshRec.fields[freshRec.fields.length - 1];
+      if (!newNumberField) return null;
 
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-    expandedOptionConditioning.delete(nextNum);
-    renderAll();
+      const isCombined = !option.labelField || option.labelField === option.numberField;
+      const newNumberValue = isCombined ? nextNum + punctuation + ' ' + option.label : String(nextNum) + punctuation;
+      lines = DspfWriter.applyFieldUpdate(newNumberField, lines, { constantValue: newNumberValue });
+
+      if (!isCombined) {
+        // Split form: the label lives in one or more SEPARATE constants (see
+        // extractMenuOptions' own note on multi-fragment labels) - copy each
+        // one, placed on the SAME row the number copy just landed on (the
+        // collision-checked safeRow above, not copyField's own "one row
+        // below ITS original" default), same column each original fragment
+        // used, so the whole option - however many pieces it's actually
+        // made of - stays aligned as one visual line like the source did.
+        const origColumns = (option.labelFields || [option.labelField]).map((f) => f.location.column);
+        origColumns.forEach((col) => {
+          currentModel = DspfParser.parseDspf(lines.join('\\n'));
+          freshRec = currentModel.records.find((r) => r.name === option.recordName);
+          const origFragmentFresh = freshRec.fields.find(
+            (f) => f.location && f.location.line === option.line && f.location.column === col && f !== newNumberField
+          );
+          if (origFragmentFresh) {
+            lines = DspfWriter.copyField(freshRec, lines, origFragmentFresh, {
+              location: { line: safeRow, column: origFragmentFresh.location.column },
+            });
+          }
+        });
+      }
+
+      return lines;
+    }, () => expandedOptionConditioning.delete(nextNum));
   }
 
   // Swaps what's shown at two option NUMBERS - label text AND command -
@@ -1135,28 +1162,24 @@ const htmlTemplate = `<!DOCTYPE html>
     const secondNum = aIsLater ? numberB : numberA;
     const secondNewLabel = aIsLater ? labelA : labelB;
 
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    let currentModel = model;
+    commitMenuSourceChange((lines) => {
+      let currentModel = model;
 
-    let opt = findOption(currentModel, recordName, firstNum);
-    lines = writeOptionLabel(lines, currentModel, opt, firstNewLabel);
-    currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      let opt = findOption(currentModel, recordName, firstNum);
+      lines = writeOptionLabel(lines, currentModel, opt, firstNewLabel);
+      currentModel = DspfParser.parseDspf(lines.join('\\n'));
 
-    opt = findOption(currentModel, recordName, secondNum);
-    lines = writeOptionLabel(lines, currentModel, opt, secondNewLabel);
-    currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      opt = findOption(currentModel, recordName, secondNum);
+      lines = writeOptionLabel(lines, currentModel, opt, secondNewLabel);
 
-    sourceText = lines.join('\\n');
-    model = currentModel;
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-
-    const commandA = commandFor(numberA);
-    const commandB = commandFor(numberB);
-    if (commandStatus !== 'unsupported' && (commandA || commandB)) {
-      vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: numberA, command: commandB }, { numberValue: numberB, command: commandA }] });
-    }
-
-    renderAll();
+      return lines;
+    }, () => {
+      const commandA = commandFor(numberA);
+      const commandB = commandFor(numberB);
+      if (commandStatus !== 'unsupported' && (commandA || commandB)) {
+        vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: numberA, command: commandB }, { numberValue: numberB, command: commandA }] });
+      }
+    });
   }
 
   function renderOptions() {
@@ -1296,6 +1319,44 @@ const htmlTemplate = `<!DOCTYPE html>
     renderScreen();
     renderOptions();
     renderFileAttrs();
+  }
+
+  // Task M8 - the single choke point nearly every menu-designer edit now
+  // funnels through, matching the DSPF designer's own commitSourceChange
+  // (buildWebviewTemplate.js) both in shape and in purpose: transform()
+  // receives the CURRENT source split into lines and returns the new
+  // lines array (transform() returning null/undefined is "nothing to do" -
+  // no message posted, no re-render, same convention as the DSPF side).
+  // Once transform() returns, applyModificationTracking wraps the
+  // (before, after) pair exactly the way it already does there - a plain
+  // prefix/suffix trim is enough since every DspfWriter apply/insert/delete
+  // primitive replaces one contiguous range and leaves the rest of the
+  // array byte-for-byte alone (see applyModificationTracking's own doc
+  // comment in dspfWriter.js). afterReparse, if given, runs AFTER model
+  // has been reparsed against the (possibly tracking-augmented) new source
+  // but BEFORE renderAll() - for the handful of callers that need the
+  // freshly-parsed model to do more work (an advisory reference scan, a
+  // conditioning-panel Set cleanup) before the screen/options/file-attrs
+  // panels actually redraw. A caller that needs to select something in the
+  // just-rebuilt DOM (recordSelect.value = newName, which only "sticks" to
+  // an <option> that already exists) still has to do that itself AFTER
+  // calling this - same two-step gotcha the DSPF designer's own record
+  // selection already documents - since that DOM only exists once this
+  // function's own renderAll() call has already run.
+  function commitMenuSourceChange(transform, afterReparse) {
+    try {
+      const lines = sourceText.split(/\\r\\n|\\r|\\n/);
+      let newLines = transform(lines);
+      if (!newLines) return;
+      newLines = DspfWriter.applyModificationTracking(lines, newLines, { enabled: modTrackingEnabled, tag: modTrackingTag });
+      sourceText = newLines.join('\\n');
+      model = DspfParser.parseDspf(sourceText);
+      vscode.postMessage({ type: 'applyEdit', text: sourceText });
+      if (afterReparse) afterReparse();
+      renderAll();
+    } catch (err) {
+      vscode.postMessage({ type: 'error', message: err.message });
+    }
   }
 
   // Placement for a brand-new option: one row below the last existing option
@@ -1473,21 +1534,16 @@ const htmlTemplate = `<!DOCTYPE html>
       }
     }
 
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.insertField(record, lines, {
+    commitMenuSourceChange((lines) => DspfWriter.insertField(record, lines, {
       nameType: 'CONSTANT',
       constantValue: numberValue + '. ' + label,
       location: { line: line, column: column },
+    }), () => {
+      addOptionNumInput.value = '';
+      addOptionLabelInput.value = '';
+      addOptionRowInput.value = '';
+      addOptionColInput.value = '';
     });
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-
-    addOptionNumInput.value = '';
-    addOptionLabelInput.value = '';
-    addOptionRowInput.value = '';
-    addOptionColInput.value = '';
-    renderAll();
   }
 
   addOptionBtn.addEventListener('click', addNewOption);
@@ -1514,30 +1570,27 @@ const htmlTemplate = `<!DOCTYPE html>
     const record = model.records.find((r) => r.name === oldName);
     if (!record) return;
 
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.renameRecordReferences(model, lines, oldName, newName);
-    lines = DspfWriter.renameRecordFormat(record, lines, newName);
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-
-    // Re-scan AFTER both rewrites: anything findLikelyNameReferences still
-    // finds genuinely couldn't be auto-fixed (not one of the SFLCTL/WINDOW/
-    // MNUBARCHC shapes renameRecordReferences recognizes, or a reference
-    // sitting inside a comment) and needs a manual look.
-    const renamed = model.records.find((r) => r.name === newName);
-    const ownRange = renamed ? DspfWriter.getRecordLineRange(renamed) : null;
-    const remaining = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
-    if (remaining.length > 0) {
-      vscode.postMessage({
-        type: 'error',
-        message:
-          'iSDA: line(s) ' + remaining.join(', ') + ' in this source still look like they might reference "' + oldName +
-          '" - not one of the SFLCTL/WINDOW/MNUBARCHC shapes this can auto-fix. Review those manually.',
-      });
-    }
-
-    renderAll();
+    commitMenuSourceChange((lines) => {
+      lines = DspfWriter.renameRecordReferences(model, lines, oldName, newName);
+      lines = DspfWriter.renameRecordFormat(record, lines, newName);
+      return lines;
+    }, () => {
+      // Re-scan AFTER both rewrites: anything findLikelyNameReferences still
+      // finds genuinely couldn't be auto-fixed (not one of the SFLCTL/WINDOW/
+      // MNUBARCHC shapes renameRecordReferences recognizes, or a reference
+      // sitting inside a comment) and needs a manual look.
+      const renamed = model.records.find((r) => r.name === newName);
+      const ownRange = renamed ? DspfWriter.getRecordLineRange(renamed) : null;
+      const remaining = WebviewClientHelpers.findLikelyNameReferences(sourceText, oldName, ownRange);
+      if (remaining.length > 0) {
+        vscode.postMessage({
+          type: 'error',
+          message:
+            'iSDA: line(s) ' + remaining.join(', ') + ' in this source still look like they might reference "' + oldName +
+            '" - not one of the SFLCTL/WINDOW/MNUBARCHC shapes this can auto-fix. Review those manually.',
+        });
+      }
+    });
   });
 
   // Creates a brand-new, empty record format via DspfWriter.insertRecord
@@ -1552,20 +1605,16 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
     if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
 
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.insertRecord(model, lines, { name: name });
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-    newRecordName.value = '';
+    commitMenuSourceChange((lines) => DspfWriter.insertRecord(model, lines, { name: name }), () => {
+      newRecordName.value = '';
+    });
 
     // Setting recordSelect.value to a name with no matching <option> yet is
     // a silent no-op (rebuildRecordSelect only "sticks" a value that's
-    // already an existing <option>), so this has to happen AFTER the model
-    // above has been reparsed and renderAll()'s own rebuildRecordSelect has
-    // had a chance to run once first - same two-step fix the DSPF
-    // designer's own record-selection bug required.
-    renderAll();
+    // already an existing <option>), so this has to happen AFTER
+    // commitMenuSourceChange's own renderAll() call above has already run
+    // once - same two-step fix the DSPF designer's own record-selection
+    // bug required.
     if (model.records.some((r) => r.name === name)) {
       recordSelect.value = name;
       renderAll();
@@ -1586,15 +1635,10 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!rec) return;
 
     const copiedName = DspfWriter.nextAvailableRecordName(model, rec.name);
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.copyRecord(model, lines, rec, { name: copiedName });
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    commitMenuSourceChange((lines) => DspfWriter.copyRecord(model, lines, rec, { name: copiedName }));
 
     // Same "select only after the new <option> genuinely exists" gotcha as
     // "+ Add record" above.
-    renderAll();
     if (model.records.some((r) => r.name === copiedName)) {
       recordSelect.value = copiedName;
       renderAll();
@@ -1614,22 +1658,16 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!rec) return;
 
     const references = WebviewClientHelpers.findLikelyNameReferences(sourceText, rec.name, DspfWriter.getFullRecordLineRange(rec));
-    let lines = sourceText.split(/\\r\\n|\\r|\\n/);
-    lines = DspfWriter.deleteRecord(rec, lines);
-    sourceText = lines.join('\\n');
-    model = DspfParser.parseDspf(sourceText);
-    vscode.postMessage({ type: 'applyEdit', text: sourceText });
-
-    if (references.length > 0) {
-      vscode.postMessage({
-        type: 'error',
-        message:
-          'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + rec.name +
-          '" (e.g. SFLCTL, WINDOW, MNUBARCHC) - deleting a record never rewrites other keywords that reference it. Review those manually.',
-      });
-    }
-
-    renderAll();
+    commitMenuSourceChange((lines) => DspfWriter.deleteRecord(rec, lines), () => {
+      if (references.length > 0) {
+        vscode.postMessage({
+          type: 'error',
+          message:
+            'iSDA: line(s) ' + references.join(', ') + ' in this source look like they might still reference "' + rec.name +
+            '" (e.g. SFLCTL, WINDOW, MNUBARCHC) - deleting a record never rewrites other keywords that reference it. Review those manually.',
+        });
+      }
+    });
   });
 
   const compileBtn = document.getElementById('compileBtn');
@@ -1725,6 +1763,19 @@ const htmlTemplate = `<!DOCTYPE html>
       renderOptions();
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
+    } else if (msg.type === 'modTrackingConfig') {
+      // Task M8 - only ever the STARTING values (see this message's own
+      // sendModTrackingConfig() doc comment in extension.ts, shared with the
+      // DSPF designer's own handling of the same message type); if the
+      // person has already toggled either control this session, a live
+      // settings.json change while the panel is open is deliberately NOT
+      // clobbering that in-progress override.
+      if (!modTrackingSessionTouched) {
+        modTrackingEnabled = !!msg.enabled;
+        modTrackingTag = DspfWriter.buildModTag(msg.tag);
+        modTrackingToggle.checked = modTrackingEnabled;
+        modTrackingTagInput.value = modTrackingTag;
+      }
     } else if (msg.type === 'dirtyState') {
       updateSaveButtonDirtyState(msg.isDirty);
     }
