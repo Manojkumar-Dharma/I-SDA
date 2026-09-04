@@ -777,6 +777,7 @@ const htmlTemplate = `<!DOCTYPE html>
       <button type="button" class="toolbox-fab-item" id="fabPlaceConstantBtn">+ Constant</button>
       <button type="button" class="toolbox-fab-item" id="fabAddRecordBtn">+ Add record</button>
       <button type="button" class="toolbox-fab-item" id="fabWindowBtn" title="Task P3: click here, then click the screen preview to drop a ready-made window record (WINDOW sized from the click, plus a WDWTITLE placeholder title)">Window</button>
+      <button type="button" class="toolbox-fab-item" id="fabMenuBtn" title="Task P4: drops a ready-made PULLDOWN record - no canvas click needed, since PULLDOWN takes no line/col/size of its own">Menu</button>
       <button type="button" class="toolbox-fab-item hidden" id="fabAddFromDbBtn" title="Task L14: real SDA's F10 (Database) key - browse a PF/LF's field list and place several at once as REFFLD-based fields">+ Fields from database file</button>
     </div>
     <button type="button" id="toolboxFabToggle" title="Add to screen" aria-haspopup="true" aria-expanded="false">+</button>
@@ -1809,6 +1810,19 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     }
 
+    // Task P4 - "Menu" (PULLDOWN), same "no aside-panel original to proxy"
+    // situation as Window above, but simpler still: no placement mode to
+    // arm at all, since there's no canvas position for a PULLDOWN record
+    // to wait for (see commitMenuPulldownPlacement's own doc comment).
+    // Closing the popover and committing happen in the same click.
+    const fabMenuBtn = document.getElementById('fabMenuBtn');
+    if (fabMenuBtn) {
+      fabMenuBtn.addEventListener('click', () => {
+        setOpen(false);
+        commitMenuPulldownPlacement();
+      });
+    }
+
     // +Field/+Constant reflect which placement mode is currently active,
     // same as the aside originals already do (see setPlacementMode's own
     // placeFieldBtn/placeConstantBtn.classList.toggle('active', ...)
@@ -2071,6 +2085,69 @@ const htmlTemplate = `<!DOCTYPE html>
     // Same post-commit "select what was just created" pattern newRecordBtn's
     // own handler uses above - has to happen AFTER commitSourceChange()
     // returns, once its render() has actually created the <option>.
+    if (model.records.some((r) => r.name === name)) {
+      recordSelect.value = name;
+      render();
+    }
+  }
+
+  // Task P4 (LIMITATIONS-PLAN.md's P series) - the toolbox's "Menu" tool:
+  // drops a ready-made PULLDOWN record. Deliberately does NOT arm a
+  // placement mode or wait for a canvas click the way Window (P3) does -
+  // a PULLDOWN record carries no WINDOW keyword and has no line/col/size
+  // of its own in real DDS (see buildTypedRecordPlan's own type === 'PULDWN'
+  // case in webviewClientHelpers.js, which the "+ Add record"
+  // wizard already relies on: mainKeywords: [kw('PULLDOWN', '')],
+  // dependent: null, extraFields: [], no geometry anywhere in it) - a
+  // choice field elsewhere is what actually invokes it, at THAT field's
+  // own position, not the pulldown record's. Forcing a canvas click that
+  // would then go completely unused (placeRecordTemplate's own anchor
+  // parameter is only ever read when an extraField supplies an offset -
+  // see its own doc comment - and this template has no extraFields at
+  // all) would just be motion for its own sake, not a real placement
+  // step, so the fab item commits immediately on click instead.
+  //
+  // Auto-names via a small dedicated nextPulldownRecordName (PDN1, PDN2,
+  // ...) for the exact same reason nextWindowRecordName exists rather
+  // than reusing DspfWriter.nextAvailableRecordName above - that helper
+  // numbers a COPY of an EXISTING record (so it always starts at 2, past
+  // the original's own un-suffixed name); a brand-new record has nothing
+  // to skip past. "PDN" (not "PULDWN" or "MENU") matches this codebase's
+  // own internal record-type code for a pull-down (type === 'PULDWN'
+  // above, and 'PDNSFL' for its SFL-family companion) rather than
+  // inventing a second abbreviation for the same concept.
+  function nextPulldownRecordName() {
+    const used = {};
+    model.records.forEach((r) => { if (r.name) used[r.name.toUpperCase()] = true; });
+    let n = 1;
+    while (used['PDN' + n]) n++;
+    return 'PDN' + n;
+  }
+
+  function commitMenuPulldownPlacement() {
+    const name = nextPulldownRecordName();
+    commitSourceChange(
+      (lines) => {
+        const result = WebviewClientHelpers.placeRecordTemplate(
+          DspfWriter,
+          model,
+          lines,
+          { mainRecord: { name: name, keywords: [{ name: 'PULLDOWN', parameters: '', conditions: [], raw: '', sourceLines: [] }] }, dependent: null, extraFields: [] },
+          // anchor is unused (no extraFields with an offset - see this
+          // function's own doc comment above), but placeRecordTemplate's
+          // signature still expects one; { line: 1, column: 1 } is a
+          // harmless placeholder, never read.
+          { line: 1, column: 1 },
+          (sourceText) => DspfParser.parseDspf(sourceText)
+        );
+        return result.lines;
+      },
+      () => {
+        clearSelection();
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+      }
+    );
     if (model.records.some((r) => r.name === name)) {
       recordSelect.value = name;
       render();
