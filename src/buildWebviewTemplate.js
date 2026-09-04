@@ -384,11 +384,22 @@ const htmlTemplate = `<!DOCTYPE html>
      same column width the read-only "L{n}" badge above it does - it's
      the one piece commentsListHtml's editable rows still need their own
      rule for, since .field-order-row itself has no opinion on an
-     input's own width. */
+     input's own width.
+     Follow-up (reported directly, screenshots of both scopes: "Line
+     number box is too wide compared to existing line box, comment text
+     box too small or too narrow") - this was originally a flat 46px/11px,
+     visibly wider than the read-only .comment-line-badge column it's
+     meant to line up under (that badge is auto-width off its own
+     shorter "L{n}" text at 10px, padding 2px 5px), and every pixel this
+     box claimed beyond the badge's own footprint came directly out of
+     the sibling .comment-add-text-input's flex:1 share, since both boxes
+     live in the same fixed-width row. Narrowed to a width/padding/font-size
+     that sits in the badge's own column instead of overshooting it, so
+     the text input regains the space it lost. */
   .comment-add-line-input {
-    flex: 0 0 auto; width: 46px; text-align: center;
+    flex: 0 0 auto; width: 30px; text-align: center;
     background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border);
-    border-radius: 3px; padding: 4px 2px; font-family: var(--mono); font-size: 11px;
+    border-radius: 3px; padding: 2px 3px; font-family: var(--mono); font-size: 10px;
   }
   /* Task L19 - "Find field" search results dropdown, right under the search
      box in the aside. Deliberately its own floating panel (not inline in

@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-04 — Comment add-row line-number box narrowed to match the "L{n}" badge column (Task L50)
+
+- **0.10.35** — Task L50: follow-up to L47's comment add-row fix, reported directly with screenshots of both the file-level and record-level Comments scopes: the add-row's line-number input was still visibly wider than the read-only `.comment-line-badge` above it, and every extra pixel it claimed came straight out of the text input's own `flex: 1` share. `.comment-add-line-input` narrowed from `width: 46px`/`font-size: 11px`/`padding: 4px 2px` to `width: 30px`/`font-size: 10px`/`padding: 2px 3px`, sized to sit in the badge's own column instead of overshooting it. CSS-only, no JS/data changes. Also repaired a table-corruption bug found in `LIMITATIONS-PLAN.md` along the way: the L48 and L49 rows had been merged onto one physical line (joined by a literal `\n` text sequence rather than a real newline) and were out of numeric order — split back into two properly ordered rows.
+
 ## 2026-09-04 — Field usage (I/O/B) and data type (char/num) now visually distinct in the design canvas (Task L49)
 
 - **0.10.34** — Named fields now carry two new CSS classes in the 5250 canvas: `dspf-usage-{i|o|b}` (from the field's `USAGE` column) and `dspf-dtype-{char|num}` (from its data type). Input (I) and Both (B) fields get `text-decoration: underline` — the 5250 terminal's own input-field indicator, matching IBM SDA Design Image exactly. Output (O) fields have no underline (the absence is the correct visual distinction). The X / 9 placeholder text already distinguished character from numeric; the new `dspf-dtype-*` classes add a CSS hook for future theming. Constants and help specs never get these classes (they have no usage/dtype of their own). The hover tooltip was upgraded from the bare `[B]` letter to a descriptive `· Both (B) · Character` suffix so the field type is readable without memorizing the single-letter codes.
