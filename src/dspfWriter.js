@@ -187,7 +187,7 @@
       chars[35] = dec2[0];
       chars[36] = dec2[1];
 
-      chars[37] = field.usage && field.usage !== 'O' ? field.usage : ' '; // col38, blank == O
+      chars[37] = field.usage || 'O'; // col38 - written explicitly, including 'O' (DDS also accepts blank here as a synonym for Output, and DspfParser.parseUsage's own `|| 'O'` fallback still reads a blank column back as 'O' for any file this tool didn't write itself - but iSDA's own output always spells it out)
     }
 
     var lineStr = field.location && field.location.line != null ? String(field.location.line) : '';

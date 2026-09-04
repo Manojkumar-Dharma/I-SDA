@@ -395,8 +395,24 @@ const htmlTemplate = `<!DOCTYPE html>
      the sibling .comment-add-text-input's flex:1 share, since both boxes
      live in the same fixed-width row. Narrowed to a width/padding/font-size
      that sits in the badge's own column instead of overshooting it, so
-     the text input regains the space it lost. */
-  .comment-add-line-input {
+     the text input regains the space it lost.
+     Task L51 - L50's own narrowing never actually rendered: the generic
+     "select, input[type=text], input[type=number]" rule (near the top of
+     this stylesheet) has higher CSS specificity than a bare class
+     selector (a type selector + an attribute selector outweighs one
+     class, regardless of source order), so it won 100% width - AND every
+     other property that rule sets (background, color, border, padding,
+     font-family, font-size) - out from under .comment-add-line-input for
+     every property they both touch. Combined with this input's own
+     "flex: 0 0 auto" (flex-basis: auto, so the browser falls back to the
+     width property to size it), the losing "width: 30px" meant the box
+     actually rendered at the row's FULL width, squeezing the text input
+     and the "+" button - exactly the mis-sized/cramped layout reported
+     directly with screenshots. Scoped the selector to
+     ".field-order-row .comment-add-line-input" (two classes) so it
+     unconditionally outweighs the generic rule's type+attribute
+     selector, independent of source order. */
+  .field-order-row .comment-add-line-input {
     flex: 0 0 auto; width: 30px; text-align: center;
     background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border);
     border-radius: 3px; padding: 2px 3px; font-family: var(--mono); font-size: 10px;

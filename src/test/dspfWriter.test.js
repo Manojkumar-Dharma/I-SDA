@@ -51,6 +51,60 @@ console.log('DspfWriter.insertField() - appending after existing fields');
   check('existing fields are untouched', fields[0].constantValue === 'MAIN MENU' && fields[1].constantValue === '1. Display library list');
 }
 
+console.log('\nTask L51: usage O is written explicitly (column 38), not left blank');
+{
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R REC1',
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const record = model.records.find((r) => r.name === 'REC1');
+  const lines = src.split(/\r\n|\r|\n/);
+
+  const newLines = DspfWriter.insertField(record, lines, {
+    nameType: 'FIELD',
+    name: 'FLDO',
+    dataType: 'A',
+    length: 10,
+    usage: 'O',
+    location: { line: 3, column: 5 },
+  });
+  const fldLine = newLines.find((l) => l.slice(18, 22) === 'FLDO');
+  check('setup: found the new field\'s positional line', !!fldLine);
+  check("column 38 (index 37) is the literal 'O', not blank", fldLine && fldLine[37] === 'O');
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const fld = reparsed.records.find((r) => r.name === 'REC1').fields.find((f) => f.name === 'FLDO');
+  check('round-trips back to usage O', fld && fld.usage === 'O');
+
+  // A field with no usage supplied at all (undefined) still defaults to an
+  // explicit 'O' on write, matching a brand-new field created via the "+
+  // Field" flow before any usage is chosen in the props panel.
+  const newLines2 = DspfWriter.insertField(record, lines, {
+    nameType: 'FIELD',
+    name: 'FLDU',
+    dataType: 'A',
+    length: 10,
+    location: { line: 4, column: 5 },
+  });
+  const fldLine2 = newLines2.find((l) => l.slice(18, 22) === 'FLDU');
+  check("a field with no usage set defaults to explicit 'O', not blank", fldLine2 && fldLine2[37] === 'O');
+
+  // A blank column 38 in DDS someone else wrote (or that iSDA wrote before
+  // this fix) is still a valid synonym for Output and must keep parsing as
+  // 'O' - this fix only changes what iSDA WRITES, never what it reads.
+  const legacyBlankSrc =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R REC2',
+      '     A            FLDB      10A         1  5',
+    ].join('\n') + '\n';
+  const legacyModel = DspfParser.parseDspf(legacyBlankSrc);
+  const legacyField = legacyModel.records.find((r) => r.name === 'REC2').fields.find((f) => f.name === 'FLDB');
+  check('a pre-existing blank column 38 still parses as usage O', legacyField && legacyField.usage === 'O');
+}
+
 console.log('\nDspfWriter.insertField() - record with no fields yet');
 {
   const src = ['     A                                      DSPSIZ(24 80 *DS3)', '     A          R MENU'].join('\n') + '\n';
