@@ -1701,6 +1701,7 @@ const htmlTemplate = `<!DOCTYPE html>
     placementMode = placementMode === mode ? null : mode; // clicking the active button again cancels
     pendingPlacement = null;
     if (placementMode !== 'COPY') pendingCopySource = null; // Task L36: only COPY mode needs it
+    if (placementMode !== 'DBFIELDS') pendingDbFieldsSource = null; // Task L53: only DBFIELDS mode needs it
     placeFieldBtn.classList.toggle('active', placementMode === 'FIELD');
     placeConstantBtn.classList.toggle('active', placementMode === 'CONSTANT');
     if (fabWindowBtn) fabWindowBtn.classList.toggle('active', placementMode === 'WINDOW');
@@ -1727,12 +1728,25 @@ const htmlTemplate = `<!DOCTYPE html>
     setPlacementMode('COPY');
   }
 
+  // Task L53: "Add fields" in the database-fields picker (showDatabaseFieldsPicker below) used
+  // to insert the whole batch immediately, stacked one row below the record's own current last
+  // field at a fixed column (see handleAddFieldsFromDatabase's own doc comment in extension.ts
+  // for that previous default) - no way to choose where the batch actually lands, unlike "+
+  // Field"/"+ Constant"/"Copy field" which all go through click-to-place. Now reuses that SAME
+  // flow: snapshot the checked fields, enter 'DBFIELDS' placement mode, and let the existing
+  // screenOutput click handler capture a starting Line/Column (each field still stacks one row
+  // below the previous from there, same as before - see renderDbFieldsPlacementProps).
+  function beginDbFieldsPlacement(library, file, fields) {
+    pendingDbFieldsSource = { library: library, file: file, fields: JSON.parse(JSON.stringify(fields)) };
+    setPlacementMode('DBFIELDS');
+  }
+
+  // Task L53: no longer needs a "current record" to open with - the target record is now
+  // decided later, by whichever record the placement click lands on (see
+  // beginDbFieldsPlacement's own doc comment) - browsing a database file's fields was never
+  // actually tied to one particular record to begin with.
   if (addFromDbBtn) {
-    addFromDbBtn.addEventListener('click', () => {
-      const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-      if (!recordName) return;
-      showDatabaseFieldsPicker(recordName);
-    });
+    addFromDbBtn.addEventListener('click', () => { showDatabaseFieldsPicker(); });
   }
 
   // Task P1 (LIMITATIONS-PLAN.md's P series) - floating "add to screen"
@@ -1864,8 +1878,11 @@ const htmlTemplate = `<!DOCTYPE html>
   // module-level variable, so a stray 'databaseFieldsResult' message
   // arriving after the dialog's already been closed/replaced has nothing to
   // call - the listener below only acts if a live overlay with that hook is
-  // still in the DOM.
-  function showDatabaseFieldsPicker(recordName) {
+  // still in the DOM. Task L53: "commit" no longer means posting
+  // addFieldsFromDatabase straight from here - the checked fields are handed
+  // to beginDbFieldsPlacement instead, so no target record needs to be known
+  // (or passed in) at all while this dialog is open.
+  function showDatabaseFieldsPicker() {
     const existing = document.querySelector('.dbfields-overlay');
     if (existing) existing.remove();
     const overlay = document.createElement('div');
@@ -1977,20 +1994,19 @@ const htmlTemplate = `<!DOCTYPE html>
       listEl.querySelectorAll('.dbf-field-cb').forEach((cb) => { cb.checked = selectAllCb.checked; });
     });
 
+    // Task L53: no longer posts addFieldsFromDatabase directly - closes this
+    // dialog and hands the checked fields off to the same click-to-place flow
+    // "+ Field"/"+ Constant"/"Copy field" already use (see beginDbFieldsPlacement's
+    // own doc comment), so the person picks where the batch lands on the screen
+    // preview instead of it always landing one row below the record's last field.
     addBtn.addEventListener('click', () => {
       const selected = [];
       listEl.querySelectorAll('.dbf-field-cb').forEach((cb) => {
         if (cb.checked) selected.push(currentFields[parseInt(cb.getAttribute('data-idx'), 10)]);
       });
       if (selected.length === 0) return;
-      vscode.postMessage({
-        type: 'addFieldsFromDatabase',
-        recordName: recordName,
-        library: libraryInput.value.trim().toUpperCase() || null,
-        file: fileInput.value.trim().toUpperCase(),
-        fields: selected,
-      });
       overlay.remove();
+      beginDbFieldsPlacement(libraryInput.value.trim().toUpperCase() || null, fileInput.value.trim().toUpperCase(), selected);
     });
   }
 
@@ -2751,10 +2767,11 @@ const htmlTemplate = `<!DOCTYPE html>
   // Ctrl+D "duplicate in place": Ctrl+D always inserts into the SAME record
   // immediately; Copy+Paste can move a field's definition across records.
   let clipboardField = null;
-  let placementMode = null; // null | 'FIELD' | 'CONSTANT' | 'COPY' - set by the "+ Field"/
-                             // "+ Constant" buttons (or by "Copy field"/"Copy constant" -
-                             // Task L36); the next click on the screen preview background
-                             // becomes the new (or copied) field/constant's starting position.
+  let placementMode = null; // null | 'FIELD' | 'CONSTANT' | 'COPY' | 'DBFIELDS' - set by the
+                             // "+ Field"/"+ Constant" buttons (or by "Copy field"/"Copy constant" -
+                             // Task L36, or by "Add fields" in the database-fields picker - Task L53);
+                             // the next click on the screen preview background becomes the new (or
+                             // copied, or database-sourced) field/constant's starting position.
   let pendingPlacement = null; // null | { kind, line, column } - set once that click lands,
                                 // and cleared once the placement form commits or is cancelled.
   // Task L36: the field/constant being duplicated once 'COPY' placement mode is active - a
@@ -2763,6 +2780,19 @@ const htmlTemplate = `<!DOCTYPE html>
   // renderPlacementProps once the user picks where it goes. Cleared whenever COPY placement
   // mode ends (commit, cancel, Escape, or switching to a different placement mode).
   let pendingCopySource = null; // null | { recordName, field }
+  // Task L53: the batch of database fields waiting to be placed once 'DBFIELDS' placement mode
+  // is active - set by beginDbFieldsPlacement (called when "Add fields" is confirmed in the
+  // database-fields picker, see showDatabaseFieldsPicker's own doc comment) and consumed by
+  // renderDbFieldsPlacementProps once the user picks a starting Line/Column, same "snapshot,
+  // then let the canvas click decide where it lands" flow beginCopyPlacement already uses for a
+  // single copied field. Deliberately doesn't carry a recordName the way pendingCopySource does -
+  // the target record is always whichever one is CURRENTLY being previewed at the moment the
+  // canvas click lands (renderPlacementProps' own recordName argument), same as Copy/Paste's own
+  // "target is wherever the click happened, not necessarily where it came from" reasoning (see
+  // renderCopyPlacementProps' own doc comment) - a database field list was never tied to one
+  // particular record to begin with. Cleared whenever DBFIELDS placement mode ends (commit,
+  // cancel, Escape, or switching to a different placement mode).
+  let pendingDbFieldsSource = null; // null | { library, file, fields }
 
   function gridMetrics() {
     const screenEl = screenOutput.querySelector('.dspf-screen');
@@ -3377,9 +3407,13 @@ const htmlTemplate = `<!DOCTYPE html>
     } else if (selectedHelpSourceLine != null) {
       html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Help entry</span>';
     } else if (pendingPlacement) {
-      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' +
-        (pendingPlacement.kind === 'COPY' ? 'Place copy' : 'New ' + (pendingPlacement.kind === 'CONSTANT' ? 'constant' : 'field')) +
-        '</span>';
+      let placementLabel;
+      if (pendingPlacement.kind === 'COPY') placementLabel = 'Place copy';
+      else if (pendingPlacement.kind === 'DBFIELDS') {
+        const n = pendingDbFieldsSource ? pendingDbFieldsSource.fields.length : 0;
+        placementLabel = 'Place ' + n + ' field' + (n === 1 ? '' : 's');
+      } else placementLabel = 'New ' + (pendingPlacement.kind === 'CONSTANT' ? 'constant' : 'field');
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' + placementLabel + '</span>';
     }
     html += '</div>';
     propsBreadcrumb.innerHTML = html;
@@ -3392,6 +3426,7 @@ const htmlTemplate = `<!DOCTYPE html>
       selectedHelpSourceLine = null;
       pendingPlacement = null;
       pendingCopySource = null;
+      pendingDbFieldsSource = null;
       render();
     });
     const recordCrumb = document.getElementById('crumb-record');
@@ -3402,6 +3437,7 @@ const htmlTemplate = `<!DOCTYPE html>
       selectedHelpSourceLine = null;
       pendingPlacement = null;
       pendingCopySource = null;
+      pendingDbFieldsSource = null;
       render();
     });
   }
@@ -4099,6 +4135,10 @@ const htmlTemplate = `<!DOCTYPE html>
     // its own early return rather than falling through the FIELD/CONSTANT branches below,
     // since none of their name/length/type inputs apply here.
     if (kind === 'COPY') { renderCopyPlacementProps(recordName); return; }
+    // Task L53: 'DBFIELDS' is its own early return for the same reason 'COPY' is above - the
+    // batch's own name/length/type/REFFLD data is already known (snapshotted in
+    // pendingDbFieldsSource), so this only ever needs a starting Line/Column.
+    if (kind === 'DBFIELDS') { renderDbFieldsPlacementProps(recordName); return; }
     let html = '<div class="section-label">' + (kind === 'CONSTANT' ? 'New constant' : 'New field') + '</div>';
     html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
     html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
@@ -4282,6 +4322,59 @@ const htmlTemplate = `<!DOCTYPE html>
           setSingleSelection(newField ? newField.sourceLine : null);
         }
       );
+    });
+  }
+
+  /**
+   * Task L53: the props panel shown while a 'DBFIELDS' pendingPlacement is active - the click
+   * that landed it has already chosen a starting Line/Column (still editable here, same
+   * "kept editable in case the click landed a cell or two off" reasoning renderPlacementProps'
+   * own doc comment gives for FIELD/CONSTANT/COPY). Every field's own name/length/dataType/
+   * decimalPositions/REFFLD wiring is already fixed by whichever fields were checked in the
+   * database-fields picker (pendingDbFieldsSource.fields) - there's nothing else to edit per
+   * field here, just where the whole batch starts. Unlike the click-to-place flows above, this
+   * one doesn't build the new field(s) locally via DspfWriter/commitSourceChange - it posts
+   * 'addFieldsFromDatabase' straight to the extension host exactly as showDatabaseFieldsPicker's
+   * old immediate-commit path did (see handleAddFieldsFromDatabase in extension.ts), just with
+   * an explicit location now included so the host stacks the batch starting there instead of
+   * one row below the record's own current last field.
+   */
+  function renderDbFieldsPlacementProps(recordName) {
+    const source = pendingDbFieldsSource;
+    if (!source) { pendingPlacement = null; render(); return; }
+    const names = source.fields.map((f) => f.name).join(', ');
+    let html = '<div class="section-label">Add ' + source.fields.length + ' field' + (source.fields.length === 1 ? '' : 's') + ' from database file</div>';
+    html += '<div class="field-row"><label>From</label><div>' + DspfEngine.escapeHtml((source.library ? source.library + '/' : '') + source.file) + '</div></div>';
+    html += '<div class="field-row"><label>Fields</label><div>' + DspfEngine.escapeHtml(names) + '</div></div>';
+    html += '<div class="two-col"><div class="field-row"><label>Start line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
+    html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
+    if (source.fields.length > 1) {
+      html += '<div class="hint-readonly">Each field stacks one row below the last, starting here.</div>';
+    }
+    html += '<div class="rename-error" id="p-place-error"></div>';
+    html += '<button id="p-place-add" style="width:100%;margin-top:8px;">Place field' + (source.fields.length === 1 ? '' : 's') + '</button>';
+    html += '<button id="p-place-cancel" class="secondary" style="width:100%;margin-top:8px;">Cancel</button>';
+    propsBody.innerHTML = html;
+
+    document.getElementById('p-place-cancel').addEventListener('click', () => { pendingPlacement = null; pendingDbFieldsSource = null; render(); });
+    document.getElementById('p-place-add').addEventListener('click', () => {
+      const errorEl = document.getElementById('p-place-error');
+      errorEl.textContent = '';
+      const targetRec = model.records.find((r) => r.name === recordName);
+      if (!targetRec) { errorEl.textContent = 'No record selected.'; return; }
+      const line = Math.max(1, parseInt(document.getElementById('p-place-line').value, 10) || pendingPlacement.line);
+      const column = Math.max(1, parseInt(document.getElementById('p-place-col').value, 10) || pendingPlacement.column);
+      vscode.postMessage({
+        type: 'addFieldsFromDatabase',
+        recordName: recordName,
+        library: source.library,
+        file: source.file,
+        fields: source.fields,
+        location: { line: line, column: column },
+      });
+      pendingPlacement = null;
+      pendingDbFieldsSource = null;
+      render();
     });
   }
 

@@ -397,6 +397,48 @@ async function run() {
     check('no NEW edit applied (same as before this call - __lastAppliedEdit has no setter/reset, so compare by reference rather than to undefined)', vscodeMock.__lastAppliedEdit === editBefore);
     check('tells the user nothing was selected', /no fields were selected/.test(vscodeMock.__lastInformationMessage || ''));
 
+    console.log('  addFieldsFromDatabase: Task L53 - an explicit `location` (from the webview\'s click-to-place flow) starts the batch there instead of one row below the existing field');
+    const locationSrc =
+      buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }) + '\n' +
+      buildLine({ seq: '00020', name: 'EXISTING', length: '5', dataType: 'A', usage: 'B', line: '3', col: '2' }) + '\n';
+    const locationDoc = vscodeMock.__mockDocument(locationSrc);
+    let locationHandler = null;
+    const locationPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { locationHandler = h; return { dispose: () => {} }; },
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    providerEntry.provider.resolveCustomTextEditor(locationDoc, locationPanel, {});
+    vscodeMock.__lastAppliedEdit = undefined;
+    await locationHandler({
+      type: 'addFieldsFromDatabase',
+      recordName: 'SCR1',
+      library: 'MYLIB',
+      file: 'CUSMSTP',
+      fields: [
+        { name: 'CUSTNO', length: 6, dataType: '', decimalPositions: null, text: 'Customer number' },
+        { name: 'BALANCE', length: 9, dataType: 'S', decimalPositions: 2, text: 'Account balance' },
+      ],
+      location: { line: 10, column: 40 },
+    });
+    const locationEdit = vscodeMock.__lastAppliedEdit;
+    const locationText = locationEdit ? locationEdit.edits[0].newText : '';
+    const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
+    const locationModel = DspfParser.parseDspf(locationText);
+    const locationRec = locationModel.records.find((r) => r.name === 'SCR1');
+    // nextAvailableFieldName always suffixes (see its own doc comment in dspfWriter.js) -
+    // same pre-existing behavior Copy/Paste already relies on - so the created fields are
+    // CUSTNO2/BALANCE2, not bare CUSTNO/BALANCE; match by prefix rather than exact name.
+    const custnoField = locationRec.fields.find((f) => f.name.startsWith('CUSTNO'));
+    const balanceField = locationRec.fields.find((f) => f.name.startsWith('BALANCE'));
+    check('the existing field is untouched, still at its own original position', /EXISTING\s+5A/.test(locationText));
+    check('CUSTNO lands at the clicked line/column, not one row below EXISTING', custnoField && custnoField.location.line === 10 && custnoField.location.column === 40);
+    check('BALANCE stacks one row below CUSTNO, same column', balanceField && balanceField.location.line === 11 && balanceField.location.column === 40);
+
     // Restore the default-installed mock extension for any later tests in this file.
     vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
   }

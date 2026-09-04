@@ -5878,7 +5878,14 @@ function runDatabaseFieldsPickerScenario() {
     pretendToBeVisual: true,
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-
+      // Task L53: "Add fields" now goes through click-to-place, which needs
+      // gridMetrics() to have a non-zero rect to convert a pixel click into a
+      // line/column - same 800x480/10px-col/20px-row mock the other
+      // click-to-place scenarios use (see e.g. runD4ConstantWiringScenario's
+      // own "+ Constant"/"+ Field" click-to-place coverage).
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
     },
   });
 
@@ -5937,14 +5944,37 @@ function runDatabaseFieldsPickerScenario() {
     check('every checkbox starts checked (select-all-by-default)', Array.from(doc.querySelectorAll('.dbf-field-cb')).every((cb) => cb.checked));
     check('"Add fields" button is now visible', !doc.getElementById('dbf-add-btn').classList.contains('hidden'));
 
-    console.log('  unchecking one field and clicking "Add fields" posts only the checked ones');
+    console.log('  unchecking one field and clicking "Add fields" enters click-to-place instead of committing immediately');
     doc.querySelectorAll('.dbf-field-cb')[1].checked = false; // uncheck BALANCE
     doc.getElementById('dbf-add-btn').dispatchEvent(new Event('click', { bubbles: true }));
+    check('the modal closes right away', !doc.querySelector('.dbfields-overlay'));
+    check('no addFieldsFromDatabase posted yet', !posted.some((m) => m.type === 'addFieldsFromDatabase'));
+    check('activates the same crosshair placement class the canvas uses', !!doc.querySelector('.dspf-screen.placing'));
+    check('shows the placement hint banner', !doc.getElementById('placementHint').classList.contains('hidden'));
+
+    console.log('  clicking the screen preview opens the placement form pre-filled with the clicked line/column');
+    // Click at pixel (155, 95) on the 10px/col x 20px/row grid: gridMetrics'
+    // conversion is Math.round(px/cell) + 1, so this lands at col 17, line 6
+    // (round(155/10)=16, +1=17; round(95/20)=5, +1=6).
+    doc.querySelector('.dspf-screen').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 155, clientY: 95 }));
+    check('placement mode turns off once the click lands', !doc.querySelector('.dspf-screen.placing'));
+    const dbPlaceLine = doc.getElementById('p-place-line');
+    const dbPlaceCol = doc.getElementById('p-place-col');
+    check('opens the placement form pre-filled with the clicked line', !!dbPlaceLine && dbPlaceLine.value === '6');
+    check('...and column', !!dbPlaceCol && dbPlaceCol.value === '17');
+    const dbFieldsPanelText = doc.getElementById('propsBody').textContent;
+    check('lists only the still-checked field (CUSTNO)', dbFieldsPanelText.includes('CUSTNO') && !dbFieldsPanelText.includes('BALANCE'));
+    const dbPlaceAddBtn = doc.getElementById('p-place-add');
+    check('the "Place field" button is present', !!dbPlaceAddBtn && /Place field/.test(dbPlaceAddBtn.textContent));
+
+    console.log('  clicking "Place field" posts addFieldsFromDatabase with the checked field(s) and the clicked location');
+    dbPlaceAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
     const addMsg = posted.find((m) => m.type === 'addFieldsFromDatabase');
     check('posts addFieldsFromDatabase', !!addMsg);
     check('only the still-checked field (CUSTNO) is included', addMsg && addMsg.fields.length === 1 && addMsg.fields[0].name === 'CUSTNO');
-    check('carries the record name it was opened for', addMsg && addMsg.recordName === 'SCR1');
-    check('the modal closes after confirming', !doc.querySelector('.dbfields-overlay'));
+    check('carries the record currently shown on the canvas', addMsg && addMsg.recordName === 'SCR1');
+    check('carries the clicked location', addMsg && addMsg.location && addMsg.location.line === 6 && addMsg.location.column === 17);
+    check('the placement form is gone afterward (pendingPlacement/pendingDbFieldsSource cleared)', !doc.getElementById('p-place-add'));
 
     console.log('  a databaseFieldsResult with { formats } (a multi-format file) shows a format picker, not the field checklist yet');
     doc.getElementById('addFromDbBtn').dispatchEvent(new Event('click', { bubbles: true }));

@@ -921,15 +921,22 @@ async function handleListDatabaseFields(
 /**
  * Task L14 - handles the 'addFieldsFromDatabase' commit: creates one new
  * REFFLD-based field per selected database field, stacked one screen-row
- * below the previous (starting one row below the record's own current last
- * field, or its header line if it has none yet), same fixed column for all
- * of them - a starting point, not a final layout; each is individually
- * draggable/editable afterward like any other field, same framing Task
- * L14's own plan-doc row uses. `fields` already carries every attribute
- * (length/dataType/decimalPositions/text) from the 'listDatabaseFields'
- * round-trip the webview's picker already displayed - reusing that instead
- * of re-querying DSPFFD a second time here, since it's the exact same data
- * the person already saw and picked from a moment ago.
+ * below the previous, same fixed column for all of them - a starting point,
+ * not a final layout; each is individually draggable/editable afterward
+ * like any other field, same framing Task L14's own plan-doc row uses.
+ * `fields` already carries every attribute (length/dataType/
+ * decimalPositions/text) from the 'listDatabaseFields' round-trip the
+ * webview's picker already displayed - reusing that instead of re-querying
+ * DSPFFD a second time here, since it's the exact same data the person
+ * already saw and picked from a moment ago.
+ *
+ * Task L53: the batch's starting position now comes from `msg.location` -
+ * the Line/Column the person clicked on the screen preview via the
+ * click-to-place flow (see beginDbFieldsPlacement/renderDbFieldsPlacementProps
+ * in buildWebviewTemplate.js) - instead of always defaulting to one row
+ * below the record's own current last field at a fixed column. `location`
+ * stays optional (falling back to that old default) so any other caller of
+ * this same message that doesn't go through the placement UI still works.
  *
  * Re-parses the model after EACH field is inserted, same "never trust a
  * stale record/field reference after an edit" discipline
@@ -946,6 +953,7 @@ async function handleAddFieldsFromDatabase(
     library: string | null;
     file: string;
     fields: Array<{ name: string; length: number; dataType: string; decimalPositions: number | null; text: string }>;
+    location?: { line: number; column: number };
   }
 ): Promise<void> {
   const initialModel = parseDspf(document.getText());
@@ -961,16 +969,23 @@ async function handleAddFieldsFromDatabase(
 
   let text = document.getText();
   let currentModel = parseDspf(text);
-  // Screen row to place the NEXT field at - starts one row below whichever
-  // row is currently lowest among the record's own existing fields (or row
-  // 1 if it has none yet), then increments by 1 for each field this call
-  // adds, so the whole batch stacks down the screen one row per field
-  // rather than landing on top of each other.
+  // Screen row to place the NEXT field at, and the fixed column every field
+  // in the batch shares - Task L53: when a click-to-place location was
+  // given, that's the starting point; otherwise falls back to the original
+  // default of one row below whichever row is currently lowest among the
+  // record's own existing fields (or row 1 if it has none yet) at column 2.
+  // Either way, nextLine increments by 1 for each field this call adds, so
+  // the whole batch stacks down the screen one row per field rather than
+  // landing on top of each other.
   let nextLine = 1;
-  (initialRecord.fields || []).forEach((f: any) => {
-    if (f.location && typeof f.location.line === 'number' && f.location.line >= nextLine) nextLine = f.location.line + 1;
-  });
-  const PLACEMENT_COLUMN = 2;
+  if (!msg.location) {
+    (initialRecord.fields || []).forEach((f: any) => {
+      if (f.location && typeof f.location.line === 'number' && f.location.line >= nextLine) nextLine = f.location.line + 1;
+    });
+  } else {
+    nextLine = Math.max(1, msg.location.line);
+  }
+  const PLACEMENT_COLUMN = msg.location ? Math.max(1, msg.location.column) : 2;
 
   for (const dbField of msg.fields) {
     const rec = currentModel.records.find((r: any) => r.name === msg.recordName);
