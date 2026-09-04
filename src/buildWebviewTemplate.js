@@ -160,6 +160,16 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-underline { text-decoration: underline; }
   .dspf-blink { animation: dspf-blink 1s steps(1) infinite; }
   .dspf-protect { opacity: 0.65; }
+  /* Field usage — only emitted for nameType=FIELD divs (never constants/help).
+     Input (I) and Both (B): underlined, matching the 5250 terminal's own
+     input-field indicator shown in IBM SDA Design Image.
+     Output (O): no underline; display-only fields are already visually
+     distinguished by the absence of the underline and the 'O' in the tooltip.
+     dspf-dtype-char / dspf-dtype-num are emitted as rendering hooks — no
+     color override here; the X / 9 placeholder text already distinguishes
+     character from numeric, so a visual tint would be redundant. */
+  .dspf-field.dspf-usage-i,
+  .dspf-field.dspf-usage-b { text-decoration: underline; text-underline-offset: 3px; }
   /* DSPATR(PC) "position cursor" - real 5250 puts the cursor here on display; there's
      no text-attribute equivalent to render, so instead overlay a solid block at the
      field's first character that blinks like an actual terminal cursor. Only the one

@@ -879,6 +879,7 @@
         name: field.name,
         nameType: field.nameType,
         usage: field.usage,
+        dataType: field.dataType,   // forwarded for dspf-dtype-* CSS class in renderFieldDiv
         line: line,
         column: startCol,
         length: Math.max(renderLength, 1),
@@ -1467,6 +1468,20 @@
   /** Builds one field's grid-positioned div. Shared by the base screen and the pulldown overlay layer. */
   function renderFieldDiv(f) {
     var classes = ['dspf-field', 'dspf-' + f.nameType.toLowerCase()];
+    // Field usage (I/O/B) and data-type (char/num) classes — emitted ONLY for
+    // named FIELD entries, never for constants or help specs.
+    // • dspf-usage-i / dspf-usage-b → 5250-style input underline (IBM SDA
+    //   Design Image shows an underline on every input-capable field).
+    // • dspf-usage-o → output/display-only (no underline).
+    // • dspf-dtype-char / dspf-dtype-num → CSS hook matching the X/9 filler
+    //   already shown in the placeholder text (dspfEngine.placeholderChar).
+    if (f.nameType === 'FIELD') {
+      var u = (f.usage || '').toUpperCase();
+      if (u) classes.push('dspf-usage-' + u.toLowerCase());
+      var dt = (f.dataType || '').toUpperCase();
+      var isNum = dt === 'S' || dt === 'Y' || dt === 'N' || dt === 'D' || dt === 'F';
+      classes.push(isNum ? 'dspf-dtype-num' : 'dspf-dtype-char');
+    }
     if (f.style.hi) classes.push('dspf-hi');
     if (f.style.reverse) classes.push('dspf-reverse');
     if (f.style.underline) classes.push('dspf-underline');
@@ -1486,7 +1501,12 @@
     // would see THAT instead of this field's real color. Routing it through
     // `--dspf-fg` keeps the two independent - see the .dspf-reverse rule.
     var colorStyle = f.style.color ? '--dspf-fg:' + f.style.color + ';' : '';
-    var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + (f.usage ? ' [' + f.usage + ']' : '') + recordLabel);
+    var USAGE_LABEL = { I: 'Input (I)', O: 'Output (O)', B: 'Both (B)', H: 'Hidden (H)', M: 'Message (M)', P: 'Program-to-system (P)' };
+    var usageStr = f.usage ? ' · ' + (USAGE_LABEL[f.usage.toUpperCase()] || f.usage) : '';
+    var dtypeStr = f.nameType === 'FIELD'
+      ? ' · ' + ({ S: 'Signed numeric', Y: 'Numeric-only', N: 'Numeric', D: 'Float', F: 'Float' }[(f.dataType || '').toUpperCase()] || 'Character')
+      : '';
+    var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + usageStr + dtypeStr + recordLabel);
     var innerHtml = f.widget ? widgetInnerHtml(f) : (f.cntfld ? cntfldInnerHtml(f) : escapeHtml(f.text));
     var height = f.height || 1;
     return (

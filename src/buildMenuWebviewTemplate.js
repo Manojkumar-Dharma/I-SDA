@@ -88,6 +88,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-underline { text-decoration: underline; }
   .dspf-blink { animation: dspf-blink 1s steps(1) infinite; }
   .dspf-protect { opacity: 0.65; }
+  /* Field usage — mirrors the DSPF designer's own rules (see buildWebviewTemplate.js).
+     Input (I) / Both (B): underlined. Output (O): no underline. */
+  .dspf-field.dspf-usage-i,
+  .dspf-field.dspf-usage-b { text-decoration: underline; text-underline-offset: 3px; }
   @keyframes dspf-blink { 50% { opacity: 0; } }
   .dspf-subfile-row { background: rgba(51,255,102,0.04); }
   .dspf-field.dspf-cntfld { display: flex; flex-direction: column; white-space: normal; z-index: 1; }

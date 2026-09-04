@@ -1110,6 +1110,75 @@ console.log('\nTask L3: MNUBARCHC Text field (&var) / Return field variants rend
   check('the trailing return field is captured separately from the text', returnFieldField.widget.choices[0].returnField === '&RTNFLD');
 }
 
+console.log('\nTask L49: field usage (I/O/B) and data-type (char/num) CSS classes are emitted in renderFieldDiv');
+{
+  // --- Input (I) character field ---
+  const srcI = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }),
+    buildLine({ seq: '00020', name: 'CHRINP', length: 10, dataType: '', usage: 'I', line: '1', col: '2' }),
+  ].join('\n') + '\n';
+  const mdlI = DspfParser.parseDspf(srcI);
+  const scI = DspfEngine.resolveScreen(mdlI, 'REC1', new Set());
+  const htmlI = DspfEngine.renderScreenHtml(scI);
+  check('Input char field: dspf-usage-i class present', /class="[^"]*dspf-usage-i/.test(htmlI));
+  check('Input char field: dspf-dtype-char class present', /class="[^"]*dspf-dtype-char/.test(htmlI));
+  check('Input char field: no dspf-usage-o or dspf-usage-b class', !/dspf-usage-o/.test(htmlI) && !/dspf-usage-b/.test(htmlI));
+  check('Input char field: tooltip says "Input (I)"', htmlI.includes('Input (I)'));
+  check('Input char field: tooltip says "Character"', htmlI.includes('Character'));
+
+  // --- Output (O) numeric (signed) field ---
+  const srcO = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }),
+    buildLine({ seq: '00020', name: 'NUMOUT', length: 7, dataType: 'S', decimals: 2, usage: 'O', line: '2', col: '2' }),
+  ].join('\n') + '\n';
+  const mdlO = DspfParser.parseDspf(srcO);
+  const scO = DspfEngine.resolveScreen(mdlO, 'REC1', new Set());
+  const htmlO = DspfEngine.renderScreenHtml(scO);
+  check('Output num field: dspf-usage-o class present', /class="[^"]*dspf-usage-o/.test(htmlO));
+  check('Output num field: dspf-dtype-num class present', /class="[^"]*dspf-dtype-num/.test(htmlO));
+  check('Output num field: no input class (no underline emitted for output)', !/dspf-usage-i/.test(htmlO) && !/dspf-usage-b/.test(htmlO));
+  check('Output num field: tooltip says "Output (O)"', htmlO.includes('Output (O)'));
+  check('Output num field: tooltip says "Signed numeric"', htmlO.includes('Signed numeric'));
+
+  // --- Both (B) character field ---
+  const srcB = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }),
+    buildLine({ seq: '00020', name: 'FLDBT', length: 5, dataType: 'X', usage: 'B', line: '3', col: '2' }),
+  ].join('\n') + '\n';
+  const mdlB = DspfParser.parseDspf(srcB);
+  const scB = DspfEngine.resolveScreen(mdlB, 'REC1', new Set());
+  const htmlB = DspfEngine.renderScreenHtml(scB);
+  check('Both field: dspf-usage-b class present', /class="[^"]*dspf-usage-b/.test(htmlB));
+  check('Both field: dspf-dtype-char class present', /class="[^"]*dspf-dtype-char/.test(htmlB));
+  check('Both field: tooltip says "Both (B)"', htmlB.includes('Both (B)'));
+
+  // --- Constant: must NOT get usage or dtype classes ---
+  const srcC = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }),
+    buildLine({ seq: '00020', line: '1', col: '2', func: "'Label:'" }),
+  ].join('\n') + '\n';
+  const mdlC = DspfParser.parseDspf(srcC);
+  const scC = DspfEngine.resolveScreen(mdlC, 'REC1', new Set());
+  const htmlC = DspfEngine.renderScreenHtml(scC);
+  check('Constant: no dspf-usage-* class emitted', !/dspf-usage-/.test(htmlC));
+  check('Constant: no dspf-dtype-* class emitted', !/dspf-dtype-/.test(htmlC));
+
+  // --- All three numeric data-type codes produce dspf-dtype-num ---
+  const numTypes = [
+    { dataType: 'S', label: 'S (Zoned/Signed)' },
+    { dataType: 'Y', label: 'Y (Numeric-only)' },
+    { dataType: 'F', label: 'F (Float)' },
+  ];
+  numTypes.forEach(function (spec) {
+    const s = [
+      buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }),
+      buildLine({ seq: '00020', name: 'NFLD', length: 5, dataType: spec.dataType, decimals: 0, usage: 'O', line: '1', col: '2' }),
+    ].join('\n') + '\n';
+    const sc = DspfEngine.resolveScreen(DspfParser.parseDspf(s), 'REC1', new Set());
+    check('dataType ' + spec.label + ' → dspf-dtype-num', /dspf-dtype-num/.test(DspfEngine.renderScreenHtml(sc)));
+  });
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
 
