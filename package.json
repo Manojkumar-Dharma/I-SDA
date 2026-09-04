@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) — preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.10.31",
+  "version": "0.10.32",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -25,7 +25,11 @@
       "properties": {
         "isda.designerOpenColumn": {
           "type": "string",
-          "enum": ["active", "beside", "newWindow"],
+          "enum": [
+            "active",
+            "beside",
+            "newWindow"
+          ],
           "enumDescriptions": [
             "Open the designer full-width in the same tab, replacing the split (default) - less cramped, since you don't need the source visible at the same time.",
             "Open the designer in a split column next to the DDS source - lets you see the source and the visual designer side by side.",
@@ -52,9 +56,15 @@
         "viewType": "dspfDesigner.editor",
         "displayName": "iSDA Screen Design",
         "selector": [
-          { "filenamePattern": "*.dspf" },
-          { "filenamePattern": "*.DSPF" },
-          { "filenamePattern": "*.dspf38" }
+          {
+            "filenamePattern": "*.dspf"
+          },
+          {
+            "filenamePattern": "*.DSPF"
+          },
+          {
+            "filenamePattern": "*.dspf38"
+          }
         ],
         "priority": "option"
       },
@@ -62,8 +72,12 @@
         "viewType": "dspfDesigner.menuEditor",
         "displayName": "iSDA Menu Design",
         "selector": [
-          { "filenamePattern": "*.mnudds" },
-          { "filenamePattern": "*.MNUDDS" }
+          {
+            "filenamePattern": "*.mnudds"
+          },
+          {
+            "filenamePattern": "*.MNUDDS"
+          }
         ],
         "priority": "option"
       }

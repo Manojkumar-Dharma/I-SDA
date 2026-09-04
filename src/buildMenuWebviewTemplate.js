@@ -73,10 +73,18 @@ const htmlTemplate = `<!DOCTYPE html>
   main { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; overflow: auto; min-height: 0; }
   .screen-frame { background: #050705; border: 1px solid #1c2a22; border-radius: 4px; padding: 20px; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
   .dspf-screen { display: grid; font-family: var(--mono); font-size: 14px; line-height: 1.4em; position: relative; }
-  .dspf-field { white-space: pre; color: var(--accent); user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
-  .dspf-constant { color: #b7c9bf; }
+  /* COLOR keywords (and DSPATR RI reverse) are applied by renderFieldDiv
+     (dspfEngine.js) as --dspf-fg on the element's inline style. Both
+     .dspf-field and .dspf-constant must read that custom property so a
+     COLOR(BLU) etc. on a menu option constant is actually visible in the
+     canvas preview. .dspf-reverse must read --dspf-fg rather than
+     currentColor for the same reason fixed in the DSPF designer: currentColor
+     resolves against the final cascaded color (forced to #050705 by
+     !important), so background and text would both be near-black. */
+  .dspf-field { white-space: pre; color: var(--dspf-fg, var(--accent)); user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
+  .dspf-constant { color: var(--dspf-fg, #b7c9bf); }
   .dspf-hi { filter: brightness(1.6); font-weight: 600; }
-  .dspf-reverse { background: currentColor; color: #050705 !important; }
+  .dspf-reverse { background: var(--dspf-fg, var(--accent)); color: #050705 !important; }
   .dspf-underline { text-decoration: underline; }
   .dspf-blink { animation: dspf-blink 1s steps(1) infinite; }
   .dspf-protect { opacity: 0.65; }
