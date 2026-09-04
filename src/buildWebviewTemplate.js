@@ -605,6 +605,45 @@ const htmlTemplate = `<!DOCTYPE html>
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
   }
 
+  /* Task P1 (LIMITATIONS-PLAN.md's P series): floating "add to screen"
+     toolbox, modern style only. Deliberately additive for now - the
+     aside's own +Field/+Constant/+Add record/+Fields-from-db buttons
+     stay exactly as they are; this is a second way to reach the same
+     actions, not a replacement (P5 retires the aside originals, once
+     every planned toolbox tool exists and the person confirms it's
+     time - not this task). position: fixed on its own wrapper is used
+     instead of touching the shared main rule's position, so nothing
+     about classic's layout is touched by this at all - classic never
+     even sees #toolboxFab (display: none unless modern). */
+  #toolboxFab { display: none; }
+  body[data-ui-style="modern"] #toolboxFab {
+    display: flex; position: fixed; right: 24px; bottom: 24px; z-index: 40;
+    flex-direction: column; align-items: flex-end; gap: 8px;
+  }
+  #toolboxFabToggle {
+    width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--chrome-accent);
+    background: var(--panel); color: var(--chrome-accent); font-family: var(--mono);
+    font-size: 22px; line-height: 1; cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out);
+  }
+  #toolboxFabToggle:hover { background: rgba(var(--chrome-accent-rgb), 0.14); }
+  #toolboxFab.open #toolboxFabToggle { transform: rotate(45deg); }
+  #toolboxFabMenu {
+    display: none; flex-direction: column; gap: 4px; background: var(--panel);
+    border: 1px solid var(--panel-border); border-radius: 6px; padding: 8px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4); min-width: 210px;
+  }
+  #toolboxFab.open #toolboxFabMenu { display: flex; animation: isda-fade-in 120ms var(--ease-out); }
+  .toolbox-fab-item {
+    display: flex; align-items: center; width: 100%; text-align: left;
+    background: transparent; border: 1px solid transparent; border-radius: 4px;
+    padding: 7px 9px; font-family: var(--mono); font-size: 12px; color: var(--ink);
+    cursor: pointer;
+  }
+  .toolbox-fab-item:hover { border-color: var(--chrome-accent); color: var(--chrome-accent); }
+  .toolbox-fab-item.hidden { display: none; }
+  .toolbox-fab-item.active { border-color: var(--chrome-accent); color: var(--chrome-accent); background: rgba(var(--chrome-accent-rgb), 0.1); }
+
   /* Color themes - modern style only. Each only overrides --chrome-accent /
      --chrome-accent-rgb (see the :root comment above for why --accent
      itself is never touched), so every chrome rule above - already keyed
@@ -716,6 +755,15 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
   <div class="warn hidden" id="overlapWarning"></div>
+  <div id="toolboxFab">
+    <div id="toolboxFabMenu" role="menu" aria-label="Add to screen">
+      <button type="button" class="toolbox-fab-item" id="fabPlaceFieldBtn">+ Field</button>
+      <button type="button" class="toolbox-fab-item" id="fabPlaceConstantBtn">+ Constant</button>
+      <button type="button" class="toolbox-fab-item" id="fabAddRecordBtn">+ Add record</button>
+      <button type="button" class="toolbox-fab-item hidden" id="fabAddFromDbBtn" title="Task L14: real SDA's F10 (Database) key - browse a PF/LF's field list and place several at once as REFFLD-based fields">+ Fields from database file</button>
+    </div>
+    <button type="button" id="toolboxFabToggle" title="Add to screen" aria-haspopup="true" aria-expanded="false">+</button>
+  </div>
 </main>
 <div class="props-panel" id="propsPanel">
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
@@ -1654,6 +1702,96 @@ const htmlTemplate = `<!DOCTYPE html>
       showDatabaseFieldsPicker(recordName);
     });
   }
+
+  // Task P1 (LIMITATIONS-PLAN.md's P series) - floating "add to screen"
+  // toolbox, modern style only (the FAB itself is display:none under
+  // classic via CSS, but the JS is skipped too rather than relying on
+  // CSS alone, in case the DOM elements are ever queried programmatically
+  // elsewhere). Deliberately additive: every item here just proxy-clicks
+  // the SAME aside-panel button the classic UI has always had
+  // (placeFieldBtn/placeConstantBtn/newRecordToggleBtn/addFromDbBtn) -
+  // single source of truth, no re-implemented placement/wizard/browsing
+  // logic. The aside originals are untouched and stay fully usable; this
+  // is a second way to reach them, not a replacement (see P5 for when the
+  // aside originals actually go away).
+  (function () {
+    const fab = document.getElementById('toolboxFab');
+    const toggle = document.getElementById('toolboxFabToggle');
+    const menu = document.getElementById('toolboxFabMenu');
+    if (!fab || !toggle || !menu) return;
+
+    function setOpen(open) {
+      fab.classList.toggle('open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+    setOpen(false);
+
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setOpen(!fab.classList.contains('open'));
+    });
+    document.addEventListener('click', (e) => {
+      if (!fab.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    });
+
+    // Proxies a fab menu item to an existing aside button's own click
+    // handler. scrollTargetId, when given, is scrolled into view after -
+    // used for +Add record, whose form (#newRecordForm) opens inline in
+    // the aside rather than as its own overlay, so without this the
+    // person could click the fab item and see nothing change if the
+    // aside happens to be scrolled elsewhere.
+    function wireProxy(fabId, targetId, scrollTargetId) {
+      const fabBtn = document.getElementById(fabId);
+      const targetBtn = document.getElementById(targetId);
+      if (!fabBtn || !targetBtn) return;
+      fabBtn.addEventListener('click', () => {
+        targetBtn.click();
+        setOpen(false);
+        if (scrollTargetId) {
+          const scrollTarget = document.getElementById(scrollTargetId);
+          if (scrollTarget && typeof scrollTarget.scrollIntoView === 'function') {
+            scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      });
+    }
+    wireProxy('fabPlaceFieldBtn', 'placeFieldBtn');
+    wireProxy('fabPlaceConstantBtn', 'placeConstantBtn');
+    wireProxy('fabAddRecordBtn', 'newRecordToggleBtn', 'newRecordForm');
+    wireProxy('fabAddFromDbBtn', 'addFromDbBtn');
+
+    // +Field/+Constant reflect which placement mode is currently active,
+    // same as the aside originals already do (see setPlacementMode's own
+    // placeFieldBtn/placeConstantBtn.classList.toggle('active', ...)
+    // above) - observed rather than re-derived, so there's exactly one
+    // place that decides which mode is active.
+    function mirrorActiveState(targetId, fabId) {
+      const targetBtn = document.getElementById(targetId);
+      const fabBtn = document.getElementById(fabId);
+      if (!targetBtn || !fabBtn) return;
+      const sync = () => fabBtn.classList.toggle('active', targetBtn.classList.contains('active'));
+      sync();
+      new MutationObserver(sync).observe(targetBtn, { attributes: true, attributeFilter: ['class'] });
+    }
+    mirrorActiveState('placeFieldBtn', 'fabPlaceFieldBtn');
+    mirrorActiveState('placeConstantBtn', 'fabPlaceConstantBtn');
+
+    // +Fields from database file mirrors the aside button's own
+    // connection-gated visibility (see addFromDbBtn's own 'hidden' class
+    // toggling elsewhere in this file) rather than re-deriving the
+    // connection state a second time.
+    if (addFromDbBtn) {
+      const fabDbItem = document.getElementById('fabAddFromDbBtn');
+      if (fabDbItem) {
+        const syncDbVisibility = () => fabDbItem.classList.toggle('hidden', addFromDbBtn.classList.contains('hidden'));
+        syncDbVisibility();
+        new MutationObserver(syncDbVisibility).observe(addFromDbBtn, { attributes: true, attributeFilter: ['class'] });
+      }
+    }
+  })();
 
   // Task L14 - "Add fields from database file" (real SDA's F10/Database
   // key). A two-step overlay: list the target file's fields (round-trip to

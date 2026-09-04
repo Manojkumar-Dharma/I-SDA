@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-04 — Task P1: floating "add to screen" toolbox (New UI only)
+
+- **0.10.36** — First piece of the new P series (`docs/sda-reference/LIMITATIONS-PLAN.md`): a floating, expandable toolbox in the DSPF designer's screen preview, New UI style only. A circular toggle button (bottom-right, over the canvas) expands into a popover with `+ Field`, `+ Constant`, `+ Add record`, and `+ Fields from database file` - each one a pure proxy that clicks the real aside-panel button rather than re-implementing placement mode, the add-record wizard, or the database-fields browsing flow. Purely additive: the aside panel and its own original buttons are completely untouched, coexisting with the new toolbox until every planned tool exists (see the P series' own notes on why removal is deliberately a separate, later, explicitly-confirmed step). Classic UI is unaffected. New test file `src/test/toolboxFab.test.js`.
+
 ## 2026-09-04 — Comment add-row line-number box narrowed to match the "L{n}" badge column (Task L50)
 
 - **0.10.35** — Task L50: follow-up to L47's comment add-row fix, reported directly with screenshots of both the file-level and record-level Comments scopes: the add-row's line-number input was still visibly wider than the read-only `.comment-line-badge` above it, and every extra pixel it claimed came straight out of the text input's own `flex: 1` share. `.comment-add-line-input` narrowed from `width: 46px`/`font-size: 11px`/`padding: 4px 2px` to `width: 30px`/`font-size: 10px`/`padding: 2px 3px`, sized to sit in the badge's own column instead of overshooting it. CSS-only, no JS/data changes. Also repaired a table-corruption bug found in `LIMITATIONS-PLAN.md` along the way: the L48 and L49 rows had been merged onto one physical line (joined by a literal `\n` text sequence rather than a real newline) and were out of numeric order — split back into two properly ordered rows.
