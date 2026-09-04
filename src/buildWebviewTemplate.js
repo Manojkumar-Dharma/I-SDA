@@ -776,6 +776,7 @@ const htmlTemplate = `<!DOCTYPE html>
       <button type="button" class="toolbox-fab-item" id="fabPlaceFieldBtn">+ Field</button>
       <button type="button" class="toolbox-fab-item" id="fabPlaceConstantBtn">+ Constant</button>
       <button type="button" class="toolbox-fab-item" id="fabAddRecordBtn">+ Add record</button>
+      <button type="button" class="toolbox-fab-item" id="fabWindowBtn" title="Task P3: click here, then click the screen preview to drop a ready-made window record (WINDOW sized from the click, plus a WDWTITLE placeholder title)">Window</button>
       <button type="button" class="toolbox-fab-item hidden" id="fabAddFromDbBtn" title="Task L14: real SDA's F10 (Database) key - browse a PF/LF's field list and place several at once as REFFLD-based fields">+ Fields from database file</button>
     </div>
     <button type="button" id="toolboxFabToggle" title="Add to screen" aria-haspopup="true" aria-expanded="false">+</button>
@@ -1687,12 +1688,21 @@ const htmlTemplate = `<!DOCTYPE html>
   const placeConstantBtn = document.getElementById('placeConstantBtn');
   const placementHint = document.getElementById('placementHint');
 
+  // Task P3 - unlike +Field/+Constant, the toolbox's "Window" tool has no
+  // aside-panel original to proxy/mirror (it's a brand-new tool, not a
+  // duplicated entry point - see P1's own doc comment on that distinction),
+  // so its 'WINDOW' placement mode's active-state toggle lives directly
+  // here alongside +Field/+Constant's, rather than via the P1 IIFE's
+  // MutationObserver-based mirroring (there's nothing to mirror FROM).
+  const fabWindowBtn = document.getElementById('fabWindowBtn');
+
   function setPlacementMode(mode) {
     placementMode = placementMode === mode ? null : mode; // clicking the active button again cancels
     pendingPlacement = null;
     if (placementMode !== 'COPY') pendingCopySource = null; // Task L36: only COPY mode needs it
     placeFieldBtn.classList.toggle('active', placementMode === 'FIELD');
     placeConstantBtn.classList.toggle('active', placementMode === 'CONSTANT');
+    if (fabWindowBtn) fabWindowBtn.classList.toggle('active', placementMode === 'WINDOW');
     placementHint.classList.toggle('hidden', !placementMode);
     const screenEl = screenOutput.querySelector('.dspf-screen');
     if (screenEl) screenEl.classList.toggle('placing', !!placementMode);
@@ -1783,6 +1793,21 @@ const htmlTemplate = `<!DOCTYPE html>
     wireProxy('fabPlaceConstantBtn', 'placeConstantBtn');
     wireProxy('fabAddRecordBtn', 'newRecordToggleBtn', 'newRecordForm');
     wireProxy('fabAddFromDbBtn', 'addFromDbBtn');
+
+    // Task P3 - "Window" is the first fab item with no aside-panel original
+    // to proxy (see this IIFE's own doc comment on P1's "duplicate an
+    // existing entry point" scope, which this deliberately goes beyond):
+    // it arms 'WINDOW' placement mode directly rather than click()-ing some
+    // other button. setPlacementMode/commitWindowPlacement live in the
+    // outer scope above (screenOutput's own click handler), not in this
+    // IIFE, since they need placementMode/pendingPlacement/model, none of
+    // which this IIFE has access to or should duplicate.
+    if (fabWindowBtn) {
+      fabWindowBtn.addEventListener('click', () => {
+        setOpen(false);
+        setPlacementMode('WINDOW');
+      });
+    }
 
     // +Field/+Constant reflect which placement mode is currently active,
     // same as the aside originals already do (see setPlacementMode's own
@@ -1964,6 +1989,18 @@ const htmlTemplate = `<!DOCTYPE html>
     const { rect, colWidth, rowHeight } = gridMetrics();
     const col = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
     const line = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+    // Task P3 - unlike +Field/+Constant/Copy, a window template has nothing
+    // left to ask once its position is known (no name/length/type entry -
+    // see commitWindowPlacement's own doc comment), so this commits straight
+    // away instead of routing through pendingPlacement/renderPlacementProps
+    // the way every other click-to-place kind still does.
+    if (placementMode === 'WINDOW') {
+      placementMode = null;
+      if (fabWindowBtn) fabWindowBtn.classList.remove('active');
+      placementHint.classList.add('hidden');
+      commitWindowPlacement(line, col);
+      return;
+    }
     pendingPlacement = { kind: placementMode, line: line, column: col };
     placementMode = null;
     placeFieldBtn.classList.remove('active');
@@ -1971,6 +2008,74 @@ const htmlTemplate = `<!DOCTYPE html>
     placementHint.classList.add('hidden');
     render();
   }, true);
+
+  // Task P3 (LIMITATIONS-PLAN.md's P series) - the toolbox's "Window" tool:
+  // arm placement mode via fabWindowBtn (wired in the P1 IIFE below), then
+  // one click on the canvas drops a ready-made window record immediately.
+  // Reuses WebviewClientHelpers.placeRecordTemplate (Task P2) - the shared
+  // one-record-as-one-unit primitive - rather than a bespoke insert, so this
+  // is this primitive's first real exercise (per P2's own LIMITATIONS-PLAN.md
+  // row) and is proven against the exact same insertTypedRecord path the "+
+  // Add record" wizard's own WINDOW record type already uses.
+  //
+  // Auto-names via nextWindowRecordName (WDW1, WDW2, ...) rather than
+  // DspfWriter.nextAvailableRecordName - that helper is built for COPYING an
+  // EXISTING record, where the copy's own un-suffixed name is already taken
+  // by the original, so its numbering always starts at 2; a brand-new
+  // record has no such collision to skip past, and "WDW1, WDW2, ..." (not
+  // "WDW2, WDW3, ...") is what this task's own LIMITATIONS-PLAN.md row
+  // promises.
+  //
+  // WDWTITLE gets a placeholder title via DspfWriter.setWindowTitleText (the
+  // same auto-quote/escape helper the record properties panel's own "Change
+  // Window Title" field already uses - see commitRecordEdit's
+  // p-window-title handler) rather than hand-building the quoted parameter
+  // string here, so quoting/escaping has exactly one implementation.
+  // Geometry is "line col 10 40" - the same default height/width the "+ Add
+  // record" wizard's own WINDOW type falls back to when no "inherit
+  // geometry from" record is picked (see buildTypedRecordPlan in
+  // webviewClientHelpers.js) - only line/col come from the click, matching
+  // that same wizard's own precedent rather than inventing a new default.
+  function nextWindowRecordName() {
+    const used = {};
+    model.records.forEach((r) => { if (r.name) used[r.name.toUpperCase()] = true; });
+    let n = 1;
+    while (used['WDW' + n]) n++;
+    return 'WDW' + n;
+  }
+
+  function commitWindowPlacement(line, col) {
+    const name = nextWindowRecordName();
+    const keywords = DspfWriter.setWindowTitleText(
+      [{ name: 'WINDOW', parameters: line + ' ' + col + ' 10 40', conditions: [], raw: '', sourceLines: [] }],
+      'New window'
+    );
+    commitSourceChange(
+      (lines) => {
+        const result = WebviewClientHelpers.placeRecordTemplate(
+          DspfWriter,
+          model,
+          lines,
+          { mainRecord: { name: name, keywords: keywords }, dependent: null, extraFields: [] },
+          { line: line, column: col },
+          (sourceText) => DspfParser.parseDspf(sourceText)
+        );
+        return result.lines;
+      },
+      () => {
+        clearSelection();
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+      }
+    );
+    // Same post-commit "select what was just created" pattern newRecordBtn's
+    // own handler uses above - has to happen AFTER commitSourceChange()
+    // returns, once its render() has actually created the <option>.
+    if (model.records.some((r) => r.name === name)) {
+      recordSelect.value = name;
+      render();
+    }
+  }
 
   /** Indicators relevant to the CURRENTLY PREVIEWED context only - the primary
    *  record, plus (only when THAT primary record is the one actually drawing
