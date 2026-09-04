@@ -1439,29 +1439,34 @@ const htmlTemplate = `<!DOCTYPE html>
 
     commitSourceChange(
       (lines) => {
-        let newLines = plan.dependent
-          ? DspfWriter.insertTypedRecordWithDependent(model, lines, { name: name, keywords: plan.mainKeywords }, { name: plan.dependent.name, keywords: plan.dependent.keywords })
-          : DspfWriter.insertTypedRecord(model, lines, { name: name, keywords: plan.mainKeywords }, null);
-        // SFLMSG's two synthesized hidden fields (message key / program
-        // queue) insert ONE AT A TIME with a reparse between each: the
-        // freshly created record doesn't exist in 'model' yet, and after
-        // the FIRST field lands, a stale (still-zero-fields) record
-        // reference would place the second field back at the same spot
-        // instead of after the first - reparsing prevents forming any
-        // assumption about a record this transform itself just created.
-        (plan.extraFields || []).forEach((spec) => {
-          const midModel = DspfParser.parseDspf(newLines.join('\\n'));
-          const rec = midModel.records.find((r) => r.name === name);
-          if (!rec) return;
-          newLines = DspfWriter.insertField(rec, newLines, {
-            nameType: 'FIELD',
-            name: spec.name,
-            location: { line: null, column: null },
-            usage: spec.usage,
-            keywords: spec.keywords,
-          });
-        });
-        return newLines;
+        // Task P2 - this used to be its own inline "insert the record, then
+        // loop over extraFields with a reparse between each" - now shared
+        // with the floating toolbox's upcoming click-to-place tools via
+        // WebviewClientHelpers.placeRecordTemplate (see its own doc
+        // comment for why the reparse-per-field loop lives there and not
+        // in DspfWriter). The anchor argument below is irrelevant here
+        // since every extra field supplies its own explicit (positionless)
+        // location instead of an offset - see placeRecordTemplate's own
+        // doc comment on why offset is optional.
+        const result = WebviewClientHelpers.placeRecordTemplate(
+          DspfWriter,
+          model,
+          lines,
+          {
+            mainRecord: { name: name, keywords: plan.mainKeywords },
+            dependent: plan.dependent ? { name: plan.dependent.name, keywords: plan.dependent.keywords } : null,
+            extraFields: (plan.extraFields || []).map((spec) => ({
+              nameType: 'FIELD',
+              name: spec.name,
+              usage: spec.usage,
+              keywords: spec.keywords,
+              location: { line: null, column: null }, // hidden (usage H) fields have no screen position
+            })),
+          },
+          { line: 1, column: 1 },
+          (sourceText) => DspfParser.parseDspf(sourceText)
+        );
+        return result.lines;
       },
       () => {
         clearSelection();

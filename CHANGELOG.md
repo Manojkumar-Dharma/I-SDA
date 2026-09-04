@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-05 — Task P2: shared "click-to-place a whole template" primitive
+
+- **0.10.38** — Task P2 (LIMITATIONS-PLAN.md's P series), the foundation P3 (Window tool)/P4 (Menu tool) build on: `WebviewClientHelpers.placeRecordTemplate(DspfWriter, dspfFile, sourceLines, template, anchor, reparse)` generalizes the "+ Add record" wizard's own multi-step insert (record, then loop over `extraFields` with a reparse between each) into a reusable primitive for dropping a new record — optionally plus an SFLCTL-style dependent record, optionally plus extra fields placed relative to a clicked anchor — as one atomic unit, one undo step. Kept DOM/parser-free (like `buildTypedRecordPlan`) with `reparse` injected by the caller, matching `dspfWriter.js`'s own zero-parser-dependency layering. `newRecordBtn`'s click handler in `buildWebviewTemplate.js` now delegates to this instead of keeping its own copy of the reparse loop, so the primitive is proven against the existing SFLMSG-creation path rather than sitting untested until P3 exercises it. No new pre-commit collision check was built — the existing per-record overlap warning (`resolveScreen`/`updateOverlapWarning`) already recomputes from the live model after any change, template-created fields included. New coverage: `src/test/recordTemplatePlacement.test.js` (explicit-name and baseName-auto-numbered records, atomic main+dependent insert, anchor+offset field placement across a reparse boundary, and the offset-omitted/explicit-location case).
+
 ## 2026-09-04 — Task L51: the "Line #" box's real fix (a CSS specificity bug L50 didn't catch), plus usage O now written explicitly
 
 - **0.10.37** — Task L51, two independent reports in the same message, both confirmed by direct reproduction rather than taken at face value:

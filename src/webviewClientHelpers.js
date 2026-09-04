@@ -171,6 +171,103 @@
   }
 
   /**
+   * Task P2 (LIMITATIONS-PLAN.md's P series) - the shared "click-to-place a
+   * whole template" primitive the new floating-toolbox Window (P3) and Menu
+   * (P4) tools need: a new record format (optionally plus an SFLCTL-style
+   * dependent record, optionally plus child fields/constants) landing
+   * together as ONE unit, from one click, as one undo step. Generalizes the
+   * "+ Add record" wizard's own multi-step insert - newRecordBtn's click
+   * handler in buildWebviewTemplate.js now delegates to this instead of
+   * keeping its own copy of the same reparse-between-inserts loop - rather
+   * than building a second pattern from scratch (see this task's own
+   * LIMITATIONS-PLAN.md entry).
+   *
+   * Kept here (DOM-free, like buildTypedRecordPlan above) rather than in
+   * dspfWriter.js, since dspfWriter.js deliberately has zero parser
+   * dependency (see its own file-header comment) - inserting more than one
+   * extra field needs a fresh reparse between each insert (a field spec's
+   * insertion point depends on the record's CURRENT field list, and the
+   * record this function may have just created doesn't exist in the
+   * caller's stale `dspfFile` yet - same "never assume a record this
+   * transform itself just created" reasoning newRecordBtn's own old inline
+   * loop already documented). `reparse` is injected instead: the caller
+   * already has DspfParser in scope, this only generalizes the
+   * ORCHESTRATION, not the parsing itself.
+   *
+   * `template` shape:
+   *   {
+   *     mainRecord: { name?, baseName?, keywords?, conditions? } - required;
+   *       give either an explicit `name` or a `baseName` for
+   *       DspfWriter.nextAvailableRecordName to auto-number off of (P3/P4's
+   *       single-click tools have no name-entry step at all, unlike the "+
+   *       Add record" wizard which always asks for one explicitly)
+   *     dependent: { name?, baseName?, keywords?, conditions? } | null -
+   *       same name-or-baseName choice; mirrors insertTypedRecordWithDependent's
+   *       own `dependentRecord` (e.g. an auto-generated SFLCTL companion)
+   *     extraFields: [ { ...insertField's own newField shape
+   *       (nameType/name/length/dataType/... or nameType:'CONSTANT'/
+   *       constantValue/...), offset: { dLine, dColumn } } ] - `offset` is
+   *       relative to `anchor`, NOT an absolute location, so the exact same
+   *       template object can be dropped at any clicked position; OMIT
+   *       `offset` (and give an explicit `location` instead, same as
+   *       insertField's own newField shape already allows, including
+   *       `{ line: null, column: null }` for a positionless hidden field -
+   *       see buildTypedRecordPlan's SFLMSG fields) for an extra field that
+   *       has no meaningful screen position of its own, so this never
+   *       forces every extra field onto the clicked anchor
+   *   }
+   * `anchor` is the `{ line, column }` the person actually clicked - same
+   * shape pendingPlacement already uses in buildWebviewTemplate.js.
+   *
+   * Returns `{ lines, mainRecordName, dependentRecordName }` - the
+   * resulting spliced source lines plus the actual (post-auto-naming)
+   * names, so a caller can select/scroll to what it just created the same
+   * way newRecordBtn already does with its own `name` today.
+   */
+  function placeRecordTemplate(DspfWriter, dspfFile, sourceLines, template, anchor, reparse) {
+    var mainSpec = template.mainRecord;
+    var mainName = mainSpec.name || DspfWriter.nextAvailableRecordName(dspfFile, mainSpec.baseName || 'REC');
+    var mainRecord = { name: mainName, keywords: mainSpec.keywords || [], conditions: mainSpec.conditions || [] };
+
+    var dependentName = null;
+    var newLines;
+    if (template.dependent) {
+      var depSpec = template.dependent;
+      dependentName = depSpec.name || DspfWriter.nextAvailableRecordName(dspfFile, depSpec.baseName || mainName);
+      var dependentRecord = { name: dependentName, keywords: depSpec.keywords || [], conditions: depSpec.conditions || [] };
+      newLines = DspfWriter.insertTypedRecordWithDependent(dspfFile, sourceLines, mainRecord, dependentRecord);
+    } else {
+      newLines = DspfWriter.insertTypedRecord(dspfFile, sourceLines, mainRecord, null);
+    }
+
+    (template.extraFields || []).forEach(function (spec) {
+      // Reparse fresh each time - see the doc comment above for why a
+      // stale record reference (from before this loop's own prior insert)
+      // isn't safe to reuse.
+      var midModel = reparse(newLines.join('\n'));
+      var rec = midModel.records.filter(function (r) { return r.name === mainName; })[0];
+      if (!rec) return;
+      var fieldSpec = {};
+      Object.keys(spec).forEach(function (k) { if (k !== 'offset') fieldSpec[k] = spec[k]; });
+      // Only derive a location from `anchor`+`offset` when the caller
+      // actually gave an offset - an extra field with no meaningful screen
+      // position (e.g. SFLMSG's hidden key/queue fields) instead supplies
+      // its own explicit `location` (typically `{ line: null, column: null
+      // }`), which is left untouched here rather than forced onto the
+      // clicked anchor.
+      if (spec.offset) {
+        fieldSpec.location = {
+          line: Math.max(1, anchor.line + (spec.offset.dLine || 0)),
+          column: Math.max(1, anchor.column + (spec.offset.dColumn || 0)),
+        };
+      }
+      newLines = DspfWriter.insertField(rec, newLines, fieldSpec);
+    });
+
+    return { lines: newLines, mainRecordName: mainName, dependentRecordName: dependentName };
+  }
+
+  /**
    * Whether `name` is a syntactically valid DDS record-format name: 1-10
    * characters, starting with a letter or $/#/@. Doesn't check for
    * collisions with an existing name in the file - callers that care (a
@@ -3922,6 +4019,7 @@
     isSflFamilyRecordType: isSflFamilyRecordType,
     buildTypedRecordPlan: buildTypedRecordPlan,
     missingDependentMessage: missingDependentMessage,
+    placeRecordTemplate: placeRecordTemplate,
     isValidDdsName: isValidDdsName,
     findLikelyNameReferences: findLikelyNameReferences,
     conditionsEditorHtml: conditionsEditorHtml,
