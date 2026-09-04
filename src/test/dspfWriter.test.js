@@ -1568,5 +1568,63 @@ console.log('\nTask L13 - DDS comment lines (parser collection + DspfWriter CRUD
   check('omitting desiredLine falls back to the original append-after-fallback/last-comment behavior, unchanged', DspfWriter.addComment(plainLines, [], 2, 'hi').join('\n') === DspfWriter.addComment(plainLines, [], 2, 'hi', undefined).join('\n'));
 }
 
+console.log('\nDspfWriter.applyModificationTracking() - Task L52: comment-out lines and their replacements must land as two separate, contiguous blocks (all comments, then all new lines), never interleaved per-index');
+{
+  console.log('  the exact reported scenario: a menu option label split across two CONSTANT fragments (Vendor Master File / Data Maintenance), edited into one longer, re-wrapped constant');
+  const src = [
+    buildLine({ seq: '00010', nameType: 'R', name: 'APMENU' }),
+    buildLine({ seq: '00020', line: '5', col: '10', func: "'Vendor Master File'" }),
+    buildLine({ seq: '00030', col: '29', func: "'Data Maintenance'" }),
+  ].join('\n') + '\n';
+  const oldLines = src.split(/\r\n|\r|\n/);
+  const model = DspfParser.parseDspf(src);
+
+  // Mirrors buildMenuWebviewTemplate.js's own writeOptionLabel for the
+  // labelFields.length > 1 case: delete every fragment past the first,
+  // reparse, then rewrite the first fragment's own constant value to the
+  // new (longer) text - which now needs two physical lines to fit.
+  const field2 = model.records[0].fields[1];
+  let lines = DspfWriter.deleteFields([field2], oldLines);
+  const freshModel = DspfParser.parseDspf(lines.join('\n'));
+  const target = freshModel.records[0].fields[0];
+  const newLines = DspfWriter.applyFieldUpdate(target, lines, { constantValue: 'Vendor Master File Data Maintenanced' });
+
+  const tracked = DspfWriter.applyModificationTracking(oldLines, newLines, { enabled: true, tag: 'Tag' });
+  const nonBlank = tracked.filter((l) => l.trim().length > 0);
+  const isCommentLine = (l) => l.charAt(6) === '*';
+  const isNewLine = (l) => l.indexOf('Tag') >= 0;
+  const commentIdxs = nonBlank.map((l, i) => (isCommentLine(l) ? i : -1)).filter((i) => i >= 0);
+  const newIdxs = nonBlank.map((l, i) => (isNewLine(l) ? i : -1)).filter((i) => i >= 0);
+
+  check('both original fragments got commented out', commentIdxs.length === 2);
+  check('the new (wrapped, 2-line) content is tagged on both physical lines', newIdxs.length === 2);
+  check('the two comment lines are CONTIGUOUS (no new line sandwiched between them)', commentIdxs[1] === commentIdxs[0] + 1);
+  check('the two new lines are CONTIGUOUS (no comment line sandwiched between them)', newIdxs[1] === newIdxs[0] + 1);
+  check('every comment line comes BEFORE every new line - not interleaved, per Task L52 bug report', Math.max(...commentIdxs) < Math.min(...newIdxs));
+
+  // The corrupted (pre-fix) shape put an unrelated commented-out line
+  // between a continuation line and the line it continues, which is
+  // exactly what silently broke re-parsing and made the field disappear
+  // from the canvas - confirm it survives cleanly now.
+  const reparsed = DspfParser.parseDspf(tracked.join('\n'));
+  const survivor = reparsed.records[0].fields.find((f) => f.constantValue === 'Vendor Master File Data Maintenanced');
+  check('the field survives re-parsing with its full new text intact (was silently lost before this fix)', !!survivor);
+  check('exactly one live (non-commented) field remains for this label - the deleted 2nd fragment did not resurface', reparsed.records[0].fields.filter((f) => f.constantValue).length === 1);
+}
+
+console.log('\n  a simpler 1-old/1-new in-place edit is unaffected by the two-pass split (no regression for the common case)');
+{
+  const src = [buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }), buildLine({ seq: '00020', col: '5', func: "'Hello'" })].join('\n') + '\n';
+  const oldLines = src.split(/\r\n|\r|\n/);
+  const model = DspfParser.parseDspf(src);
+  const field = model.records[0].fields[0];
+  const newLines = DspfWriter.applyFieldUpdate(field, oldLines, { constantValue: 'Goodbye' });
+  const tracked = DspfWriter.applyModificationTracking(oldLines, newLines, { enabled: true, tag: 'Tag' });
+  const nonBlank = tracked.filter((l) => l.trim().length > 0);
+  check('exactly 3 lines: record + commented-out old + new tagged line', nonBlank.length === 3);
+  check('old line is commented out', nonBlank[1].charAt(6) === '*' && nonBlank[1].indexOf('Hello') >= 0);
+  check('new line carries the tag', nonBlank[2].indexOf('Goodbye') >= 0 && nonBlank[2].indexOf('Tag') >= 0);
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

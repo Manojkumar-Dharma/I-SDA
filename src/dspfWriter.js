@@ -3848,25 +3848,43 @@
     var newMid = newLines.slice(prefix, newLines.length - suffix);
     if (oldMid.length === 0 && newMid.length === 0) return newLines;
 
+    // Task L52 bug fix: this used to be ONE loop that pushed comment(old[i])
+    // then tag(new[i]) for each index in turn, interleaving old-comment and
+    // new-content lines whenever the mid region has more than one line on
+    // either side - e.g. editing text that spans two existing DDS lines
+    // (a two-line CONSTANT continuation, or - the reported case - a menu
+    // option label consolidating two separate CONSTANT fragments into one
+    // rewritten, re-wrapped one) produced [comment old0][new0][comment
+    // old1][new1] instead of grouping every comment together ahead of
+    // every new line. That's not just cosmetically wrong: DDS requires a
+    // continuation line ('-'/'+' in column 80) to immediately follow the
+    // line it continues, so an unrelated commented-out line landing
+    // between a new line and its own continuation corrupts the field
+    // entirely - it silently disappeared from the canvas because the
+    // parser could no longer reconstruct it. Two separate passes instead:
+    // every changed/removed OLD line gets commented out first, in its own
+    // original order, then every changed/added NEW line gets tagged and
+    // appended after, in its own new order - matching what real SDA's own
+    // pending-change display would look like, and what was reported
+    // directly as the expected shape. A line that's genuinely unchanged
+    // AT THE SAME index in both old and new mid (a rare but possible
+    // "sandwiched" case even after the prefix/suffix trim above) is
+    // carried through bare, once, in the second pass's own position -
+    // it needs neither commenting nor a tag, and pass two's natural
+    // left-to-right order is exactly where it belongs relative to the
+    // genuinely new content around it.
     var outMid = [];
     var maxLen = Math.max(oldMid.length, newMid.length);
     for (var i = 0; i < maxLen; i++) {
-      var o = i < oldMid.length ? oldMid[i] : null;
-      var n = i < newMid.length ? newMid[i] : null;
-      if (n == null) {
-        if (o != null && o.trim() !== '') outMid.push(commentOutLine(o));
-        continue;
-      }
-      if (o == null) {
-        outMid.push(appendModTag(n, tag));
-        continue;
-      }
-      if (o === n) {
-        outMid.push(n);
-        continue;
-      }
-      outMid.push(commentOutLine(o));
-      outMid.push(appendModTag(n, tag));
+      var oi = i < oldMid.length ? oldMid[i] : null;
+      var ni = i < newMid.length ? newMid[i] : null;
+      if (oi != null && oi !== ni && oi.trim() !== '') outMid.push(commentOutLine(oi));
+    }
+    for (var j = 0; j < maxLen; j++) {
+      var oj = j < oldMid.length ? oldMid[j] : null;
+      var nj = j < newMid.length ? newMid[j] : null;
+      if (nj == null) continue;
+      outMid.push(oj === nj ? nj : appendModTag(nj, tag));
     }
 
     return newLines.slice(0, prefix).concat(outMid, newLines.slice(newLines.length - suffix));
