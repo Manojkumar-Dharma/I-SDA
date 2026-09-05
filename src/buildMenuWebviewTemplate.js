@@ -22,9 +22,10 @@ const COMMAND_FILENAME_JSON_TOKEN = '%%MNU_COMMAND_FILENAME_JSON%%';
 // designer applies to both. See that file's UI_STYLE_TOKEN comment for why
 // this is baked into the initial HTML rather than only set client-side.
 const UI_STYLE_TOKEN = '%%MNU_UI_STYLE%%';
-// Same 'green'/'amber'/'cyan'/'violet' theme as the DSPF designer, shared
-// via the same extension-globalState key - see that file's UI_THEME_TOKEN
-// comment for the full explanation.
+// Same 'green'/'amber'/'cyan'/'violet'/'white' accent color as the DSPF
+// designer (Task L56 added 'white' and made it theme BOTH UI styles, not
+// modern-only), shared via the same extension-globalState key - see that
+// file's UI_THEME_TOKEN comment for the full explanation.
 const UI_THEME_TOKEN = '%%MNU_UI_THEME%%';
 
 const htmlTemplate = `<!DOCTYPE html>
@@ -36,15 +37,16 @@ const htmlTemplate = `<!DOCTYPE html>
 <style>
   :root {
     --bg: #0b0f0d; --panel: #111815; --panel-border: #23312b; --ink: #cfe8d8; --ink-dim: #6f8c7d;
-    --accent: #33ff66; --warn: #ff8a5c;
+    --accent: #33ff66; --accent-rgb: 51, 255, 102; --warn: #ff8a5c;
     --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    /* See buildWebviewTemplate.js's copy of this comment - same split,
-       same reason: --accent stays fixed for .dspf-field (the MNUDDS
-       screen preview text color), only --chrome-accent is themed. */
+    /* Task L56: see buildWebviewTemplate.js's copy of this comment - both
+       --accent (the MNUDDS screen preview's own default text color,
+       classic UI included) and --chrome-accent (panel chrome) are now
+       themed together, no longer split. */
     --chrome-accent: var(--accent);
-    --chrome-accent-rgb: 51, 255, 102;
+    --chrome-accent-rgb: var(--accent-rgb);
   }
   * { box-sizing: border-box; }
   /* Bug fix: body used to be "min-height: 100vh" (unbounded) with the three
@@ -93,7 +95,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-field.dspf-usage-i,
   .dspf-field.dspf-usage-b { text-decoration: underline; text-underline-offset: 3px; }
   @keyframes dspf-blink { 50% { opacity: 0; } }
-  .dspf-subfile-row { background: rgba(51,255,102,0.04); }
+  .dspf-subfile-row { background: rgba(var(--accent-rgb),0.04); }
   .dspf-field.dspf-cntfld { display: flex; flex-direction: column; white-space: normal; z-index: 1; }
   .dspf-cntfld-line { line-height: 1.4em; }
   .dspf-window-msgline {
@@ -328,17 +330,17 @@ const htmlTemplate = `<!DOCTYPE html>
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
   }
 
-  /* Color themes - modern style only. See buildWebviewTemplate.js's copy of
-     this comment for the full explanation; identical mechanism here. Both
-     controls now live in the aside's "UI Settings" section (see below)
-     rather than floating over the page, so there's no display-toggling
-     needed here beyond hiding the theme row entirely in classic mode. */
-  #uiThemeRow { display: none; }
-  body[data-ui-style="modern"] #uiThemeRow { display: block; }
+  /* Task L56: Accent color themes - BOTH UI styles now. See
+     buildWebviewTemplate.js's copy of this comment for the full
+     explanation; identical mechanism here. Both controls live in the
+     aside's "UI Settings" section (see below) rather than floating over
+     the page, and the row is no longer hidden in classic mode - see the
+     :root comment above for why classic now cares about this too. */
   .ui-theme-select { width: 100%; }
-  body[data-ui-style="modern"][data-ui-theme="amber"] { --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
-  body[data-ui-style="modern"][data-ui-theme="cyan"] { --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
-  body[data-ui-style="modern"][data-ui-theme="violet"] { --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
+  body[data-ui-theme="amber"] { --accent: #ffb347; --accent-rgb: 255, 179, 71; --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
+  body[data-ui-theme="cyan"] { --accent: #33d9ff; --accent-rgb: 51, 217, 255; --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
+  body[data-ui-theme="violet"] { --accent: #b366ff; --accent-rgb: 179, 102, 255; --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
+  body[data-ui-theme="white"] { --accent: #f2f6f4; --accent-rgb: 242, 246, 244; --chrome-accent: #f2f6f4; --chrome-accent-rgb: 242, 246, 244; }
 </style>
 </head>
 <body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
@@ -378,12 +380,13 @@ const htmlTemplate = `<!DOCTYPE html>
         <button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
       </div>
       <div id="uiThemeRow">
-        <label style="display:block;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Theme</label>
-        <select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
+        <label style="display:block;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Accent color</label>
+        <select class="ui-theme-select" id="uiThemeSelect" title="Accent color (Task L56 - screen default color in classic UI, panel chrome in New UI)">
           <option value="green">Green</option>
           <option value="amber">Amber</option>
           <option value="cyan">Cyan</option>
           <option value="violet">Violet</option>
+          <option value="white">White</option>
         </select>
       </div>
     </div>

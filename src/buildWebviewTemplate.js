@@ -24,10 +24,11 @@ const INITIAL_SOURCE_JSON_TOKEN = '%%DSPF_INITIAL_SOURCE_JSON%%';
 // reflected in the other next time it's opened. Baked into the initial HTML
 // (rather than only set client-side) to avoid a flash of the wrong style.
 const UI_STYLE_TOKEN = '%%DSPF_UI_STYLE%%';
-// 'green' (default, no CSS override needed) | 'amber' | 'cyan' | 'violet'.
-// Only ever affects --chrome-accent (panel chrome), never --accent (the
-// grid emulation) - see the --chrome-accent comment in the <style> block.
-// Same persistence/sharing story as UI_STYLE_TOKEN.
+// 'green' (default, no CSS override needed) | 'amber' | 'cyan' | 'violet' |
+// 'white'. Task L56: now affects BOTH --chrome-accent (panel chrome) AND
+// --accent (the grid emulation's own screen-default color, classic UI
+// included) - see the :root/body[data-ui-theme=...] comments in the
+// <style> block. Same persistence/sharing story as UI_STYLE_TOKEN.
 const UI_THEME_TOKEN = '%%DSPF_UI_THEME%%';
 
 const htmlTemplate = `<!DOCTYPE html>
@@ -39,25 +40,32 @@ const htmlTemplate = `<!DOCTYPE html>
 <style>
   :root {
     --bg: #0b0f0d; --panel: #111815; --panel-border: #23312b; --ink: #cfe8d8; --ink-dim: #6f8c7d;
-    --accent: #33ff66; --warn: #ff8a5c;
+    --accent: #33ff66; --accent-rgb: 51, 255, 102; --warn: #ff8a5c;
     --mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    /* Panel-chrome accent, separate from --accent above. --accent is the
-       CLASSIC-UI screen default (fixed green, matching real IBM i SDA's
-       own green-screen default for any unstyled constant/field). In
-       modern ("New UI") style, the screen's own default color follows the
-       chosen chrome theme too - see the body[data-ui-style="modern"]
-       .dspf-field override further down - rather than staying pinned to
-       green regardless of theme. --chrome-accent itself only ever changes
-       via the body[data-ui-theme=...] block below; defaults to the same
-       value as --accent so modern mode before a theme is picked still
-       looks identical to classic. Either way, an explicit COLOR keyword on
-       a field/constant always overrides both of these (applied as an
-       inline style - see dspfEngine.js's renderFieldDiv), matching real
-       DDS's own "explicit COLOR beats the green-screen default" behavior. */
+    /* Task L56: Accent color picker for BOTH UI styles, not modern-only -
+       matches real ACS 5250's own "Edit Colors" session setting, which
+       lets a person retint their whole 5250 session away from the
+       default green (a genuinely common ask - classic monochrome 5250
+       terminals shipped in green/amber/white phosphor variants, same as
+       the choices offered here). --accent is the screen's OWN default
+       field/constant color (real DDS's "green-screen default" for
+       anything with no explicit COLOR keyword); --chrome-accent is the
+       panel-chrome color. Both are now driven off the SAME
+       body[data-ui-theme=...] block further down regardless of
+       data-ui-style, so picking e.g. "Amber" recolors the screen default
+       in CLASSIC UI exactly the same way it already recolored modern's
+       chrome - previously --chrome-accent alone was themeable and
+       --accent stayed pinned to green no matter what. They default to
+       the same value here so an unthemed screen (uiTheme="green") still
+       looks identical in both styles. Either way, an explicit COLOR
+       keyword on a field/constant always overrides both of these
+       (applied as an inline style - see dspfEngine.js's renderFieldDiv),
+       matching real DDS's own "explicit COLOR beats the green-screen
+       default" behavior - unchanged by this task. */
     --chrome-accent: var(--accent);
-    --chrome-accent-rgb: 51, 255, 102;
+    --chrome-accent-rgb: var(--accent-rgb);
   }
   * { box-sizing: border-box; }
   /* Bug fix: body used to be "min-height: 100vh" (unbounded) with the three
@@ -135,12 +143,12 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-screen-backdrop-layer { position: absolute; top: 0; left: 0; opacity: 0.32; filter: grayscale(0.5); pointer-events: none; z-index: 0; }
   .dspf-screen-backdrop-layer .dspf-screen { z-index: 0; }
   .dspf-field { white-space: pre; color: var(--dspf-fg, var(--accent)); cursor: grab; user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
-  .dspf-field:hover { border-color: rgba(51,255,102,0.4); }
-  .dspf-field.selected { border-color: var(--accent); background: rgba(51,255,102,0.08); }
+  .dspf-field:hover { border-color: rgba(var(--accent-rgb),0.4); }
+  .dspf-field.selected { border-color: var(--accent); background: rgba(var(--accent-rgb),0.08); }
   /* Task L10: rubber-band drag-select rectangle - fixed-position (drawn in
      viewport coordinates, not the grid) since it tracks the raw mouse
      position across a canvas that may itself be scrolled. */
-  .dspf-rubber-band { position: fixed; border: 1px dashed var(--accent); background: rgba(51,255,102,0.08); pointer-events: none; z-index: 50; }
+  .dspf-rubber-band { position: fixed; border: 1px dashed var(--accent); background: rgba(var(--accent-rgb),0.08); pointer-events: none; z-index: 50; }
   .dspf-field.dragging { cursor: grabbing; opacity: 0.7; }
   .dspf-field.locked { cursor: not-allowed; }
   .dspf-field.locked:hover { border-color: rgba(255,138,92,0.5); }
@@ -201,8 +209,8 @@ const htmlTemplate = `<!DOCTYPE html>
     border: 1px dashed rgba(255,138,92,0.35) !important;
     cursor: not-allowed !important; pointer-events: none;
   }
-  .dspf-field[data-tag^="subfile-edit-row-"] { border-color: rgba(51,255,102,0.15); }
-  .dspf-field[data-tag^="subfile-edit-row-"]:hover { border-color: var(--accent); background: rgba(51,255,102,0.06); }
+  .dspf-field[data-tag^="subfile-edit-row-"] { border-color: rgba(var(--accent-rgb),0.15); }
+  .dspf-field[data-tag^="subfile-edit-row-"]:hover { border-color: var(--accent); background: rgba(var(--accent-rgb),0.06); }
   .dspf-window-border {
     position: relative; border: 2px solid #3a5a45; background: #0a0f0c; border-radius: 2px;
     box-shadow: 3px 3px 0 rgba(0,0,0,0.5); pointer-events: none; z-index: 0;
@@ -335,7 +343,7 @@ const htmlTemplate = `<!DOCTYPE html>
   .dbfields-list { border: 1px solid var(--panel-border); border-radius: 4px; margin: 10px 0; max-height: 260px; overflow-y: auto; }
   .dbfields-list-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; font-size: 11px; border-bottom: 1px solid var(--panel-border); cursor: pointer; }
   .dbfields-list-row:last-child { border-bottom: none; }
-  .dbfields-list-row:hover { background: rgba(51,255,102,0.06); }
+  .dbfields-list-row:hover { background: rgba(var(--accent-rgb),0.06); }
   .dbfields-list-row .fname { color: var(--accent); width: 90px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dbfields-list-row .fattrs { color: var(--ink-dim); width: 64px; flex-shrink: 0; }
   .dbfields-list-row .ftext { color: var(--ink-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -634,16 +642,19 @@ const htmlTemplate = `<!DOCTYPE html>
     border-radius: 3px; padding: 5px 9px; font-family: var(--mono); font-size: 11px; cursor: pointer;
   }
   .ui-style-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
-  #uiThemeRow { display: none; }
-  body[data-ui-style="modern"] #uiThemeRow { display: block; }
-  /* Task P5h - the pinned-toolbar (P5a accordion zone) copy of the row
-     above. Kept as its own id-based rule (matching #uiThemeRow's own
-     convention) rather than converting both to a shared class, since
-     that would touch the aside original's markup for no functional
-     gain - see #toolbarUiSettingsAccordion's own doc comment for why
-     this whole accordion is a genuine second element, not a move. */
-  #toolbarUiThemeRow { display: none; }
-  body[data-ui-style="modern"] #toolbarUiThemeRow { display: block; }
+  /* Task L56: the Theme row used to be display:none outside modern style
+     (--accent itself never changed in classic, so there was nothing for
+     the control to do there). Now that the same picker also drives
+     CLASSIC UI's own screen-default color (see the :root comment above),
+     it's shown unconditionally in both styles - no more
+     body[data-ui-style="modern"] gate on either copy of this row. */
+  /* Task P5h - #toolbarUiThemeRow is the pinned-toolbar (P5a accordion
+     zone) copy of #uiThemeRow above. Kept as its own id-based rule
+     (matching #uiThemeRow's own convention) rather than converting both
+     to a shared class, since that would touch the aside original's
+     markup for no functional gain - see #toolbarUiSettingsAccordion's
+     own doc comment for why this whole accordion is a genuine second
+     element, not a move. */
   .ui-theme-select { width: 100%; }
 
   body[data-ui-style="modern"] button,
@@ -776,19 +787,30 @@ const htmlTemplate = `<!DOCTYPE html>
   .toolbox-fab-item.hidden { display: none; }
   .toolbox-fab-item.active { border-color: var(--chrome-accent); color: var(--chrome-accent); background: rgba(var(--chrome-accent-rgb), 0.1); }
 
-  /* Color themes - modern style only. Each only overrides --chrome-accent /
-     --chrome-accent-rgb (see the :root comment above for why --accent
-     itself is never touched), so every chrome rule above - already keyed
-     off --chrome-accent - repaints automatically. "green" isn't listed
-     since it's just the :root default with no override needed. The
-     #uiThemeRow / .ui-theme-select rules that show/style the control
-     itself live earlier in this stylesheet, next to .ui-style-toggle -
-     both now live in the aside's "UI Settings" section rather than
-     floating over the page (see below), so there's nothing display-related
-     left to do here. */
-  body[data-ui-style="modern"][data-ui-theme="amber"] { --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
-  body[data-ui-style="modern"][data-ui-theme="cyan"] { --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
-  body[data-ui-style="modern"][data-ui-theme="violet"] { --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
+  /* Task L56: Accent color themes - BOTH UI styles, matching ACS 5250's
+     own "Edit Colors" session customization (see the :root comment
+     above). Each now overrides --accent/--accent-rgb (the screen's own
+     default field/constant color) AND --chrome-accent/--chrome-accent-rgb
+     (panel chrome) together, no longer scoped to
+     body[data-ui-style="modern"] - so a theme pick repaints the CLASSIC
+     screen preview's own unstyled fields exactly the same way it always
+     repainted modern's chrome. "green" isn't listed since it's just the
+     :root default with no override needed. "white" is new alongside the
+     existing amber/cyan/violet - real 5250/CRT terminals historically
+     shipped in green, amber, and white monochrome phosphor variants, so
+     it's the one addition with a direct real-hardware precedent rather
+     than being purely a modern-chrome color choice. The #uiThemeRow /
+     .ui-theme-select rules that show/style the control itself live
+     earlier in this stylesheet, next to .ui-style-toggle - both now live
+     in the aside's "UI Settings" section rather than floating over the
+     page (see below), so there's nothing display-related left to do
+     here. An explicit COLOR keyword on a field/constant still always
+     wins over whichever of these is active (see dspfEngine.js's
+     renderFieldDiv) - unchanged by this task. */
+  body[data-ui-theme="amber"] { --accent: #ffb347; --accent-rgb: 255, 179, 71; --chrome-accent: #ffb347; --chrome-accent-rgb: 255, 179, 71; }
+  body[data-ui-theme="cyan"] { --accent: #33d9ff; --accent-rgb: 51, 217, 255; --chrome-accent: #33d9ff; --chrome-accent-rgb: 51, 217, 255; }
+  body[data-ui-theme="violet"] { --accent: #b366ff; --accent-rgb: 179, 102, 255; --chrome-accent: #b366ff; --chrome-accent-rgb: 179, 102, 255; }
+  body[data-ui-theme="white"] { --accent: #f2f6f4; --accent-rgb: 242, 246, 244; --chrome-accent: #f2f6f4; --chrome-accent-rgb: 242, 246, 244; }
 </style>
 </head>
 <body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
@@ -861,12 +883,13 @@ const htmlTemplate = `<!DOCTYPE html>
         <button class="ui-style-toggle" id="uiStyleToggle" title="Switch UI style"></button>
       </div>
       <div class="field-row" id="uiThemeRow">
-        <label>Theme</label>
-        <select class="ui-theme-select" id="uiThemeSelect" title="Chrome color theme (modern style only)">
+        <label>Accent color</label>
+        <select class="ui-theme-select" id="uiThemeSelect" title="Accent color (Task L56 - screen default color in classic UI, panel chrome in New UI)">
           <option value="green">Green</option>
           <option value="amber">Amber</option>
           <option value="cyan">Cyan</option>
           <option value="violet">Violet</option>
+          <option value="white">White</option>
         </select>
       </div>
     </div>
@@ -947,12 +970,13 @@ const htmlTemplate = `<!DOCTYPE html>
           <button class="ui-style-toggle" id="toolbarUiStyleToggle" title="Switch UI style"></button>
         </div>
         <div class="field-row" id="toolbarUiThemeRow">
-          <label>Theme</label>
-          <select class="ui-theme-select" id="toolbarUiThemeSelect" title="Chrome color theme (modern style only)">
+          <label>Accent color</label>
+          <select class="ui-theme-select" id="toolbarUiThemeSelect" title="Accent color (Task L56 - screen default color in classic UI, panel chrome in New UI)">
             <option value="green">Green</option>
             <option value="amber">Amber</option>
             <option value="cyan">Cyan</option>
             <option value="violet">Violet</option>
+            <option value="white">White</option>
           </select>
         </div>
       </div>
@@ -1027,8 +1051,10 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   })();
 
-  // Color theme (modern style only) - same persistence pattern as the style
-  // toggle above, in a separate globalState key so the two are independent.
+  // Accent color (Task L56: BOTH UI styles now, not modern-only - see the
+  // :root/body[data-ui-theme=...] CSS comments) - same persistence pattern
+  // as the style toggle above, in a separate globalState key so the two
+  // are independent.
   // Task P5h - #toolbarUiThemeSelect is the pinned-accordion-zone copy of
   // #uiThemeSelect, same coexist-and-sync reasoning as the style toggle just
   // above: both selects are driven off ONE shared 'uiTheme' variable, kept

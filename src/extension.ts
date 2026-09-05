@@ -80,8 +80,10 @@ const DDS_LANGUAGE_SELECTOR: vscode.DocumentSelector = [
 // (now 'classic') look - with a one-click way back via #uiStyleToggle in
 // each webview.
 const UI_STYLE_KEY = 'isda.uiStyle';
-// Independent of UI_STYLE_KEY - a theme picked while in modern style is
-// remembered even if the person later reverts to classic and comes back.
+// Independent of UI_STYLE_KEY - a theme picked in either style is
+// remembered when switching to the other (Task L56: the accent color
+// picker now themes classic UI's own screen-default color too, not just
+// modern's panel chrome, so this is no longer a "modern-only" setting).
 const UI_THEME_KEY = 'isda.uiTheme';
 
 function getUiStyle(context: vscode.ExtensionContext): string {
