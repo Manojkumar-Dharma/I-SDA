@@ -590,6 +590,20 @@ const htmlTemplate = `<!DOCTYPE html>
   .toolbar-title { flex-basis: 100%; font-size: 13px; font-weight: 600; color: var(--ink); }
   .props-accordion-zone { display: none; }
   body[data-ui-style="modern"] .props-accordion-zone:not(:empty) { display: block; margin-bottom: 10px; }
+  /* Task P5e - Find-field search (+ its results dropdown) gets its own
+     third sibling region, #propsFindFieldRow, directly under
+     #propsPinnedToolbar and - like the toolbar itself - OUTSIDE
+     .panel-body, since P5a's own doc comment above already earmarked
+     this control for the "survives a full panel collapse" camp
+     alongside Save/Compile/Record select (P5b/c/d/f), not the
+     accordion zone's "survives the empty-state swap only" camp
+     (P5g/h). Block-level rather than the toolbar's own flex row, since
+     the results dropdown needs to sit BELOW the input, not beside it -
+     "given its own row rather than crammed into the toolbar strip
+     itself since it also needs room for a results dropdown underneath"
+     per this task's own description. */
+  .props-find-field-row { display: none; }
+  body[data-ui-style="modern"] .props-find-field-row:not(:empty) { display: block; margin-bottom: 8px; }
   #newRecordForm { border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px; margin-top: 8px; }
 
   /* ---------------------------------------------------------------------
@@ -871,6 +885,10 @@ const htmlTemplate = `<!DOCTYPE html>
     <button type="button" class="compile-btn" id="toolbarCompileBtn">Compile Display File (CRTDSPF)</button>
     <div class="field-row toolbar-field-row"><label>Record</label><select id="toolbarRecordSelect"></select></div>
     <div class="field-row toolbar-field-row hidden" id="toolbarSizeSelectRow"><label>Screen size</label><select id="toolbarSizeSelect"></select></div>
+  </div>
+  <div class="props-find-field-row" id="propsFindFieldRow">
+    <div class="field-row"><label>Find field</label><input type="text" id="toolbarFieldSearchInput" placeholder="Type a field or constant name…" autocomplete="off" /></div>
+    <div id="toolbarFieldSearchResults" class="field-search-results hidden"></div>
   </div>
   <div class="panel-body" id="rightPanelBody">
   <h2 style="font-size:13px;">Properties</h2>
@@ -1272,11 +1290,6 @@ const htmlTemplate = `<!DOCTYPE html>
   // record), not just the currently-shown one - the record you're looking
   // for might not be the one currently on screen, which is exactly the
   // case where a visual scan wouldn't have helped anyway.
-  const fieldSearchInput = document.getElementById('fieldSearchInput');
-  const fieldSearchResults = document.getElementById('fieldSearchResults');
-  let fieldSearchMatches = [];
-  let fieldSearchActiveIndex = -1;
-
   function fieldSearchLabel(f) {
     return f.nameType === 'CONSTANT' ? (f.constantValue || '(constant)') : (f.name || '(field)');
   }
@@ -1301,88 +1314,117 @@ const htmlTemplate = `<!DOCTYPE html>
     return out;
   }
 
-  function closeFieldSearchResults() {
-    fieldSearchResults.classList.add('hidden');
-    fieldSearchResults.innerHTML = '';
-    fieldSearchMatches = [];
-    fieldSearchActiveIndex = -1;
-  }
+  /**
+   * Task P5e - wires up one independent instance of the Find-field search
+   * widget (input + its results dropdown). Factored out so the aside's
+   * original and its new toolbar-adjacent twin (#propsFindFieldRow, a
+   * sibling of #propsPinnedToolbar - see that div's own doc comment for
+   * why it lives there) can each get a genuinely separate widget - own
+   * matches array, own active index, own open/closed state - rather than
+   * fighting over one shared piece of state the way two inputs bound to
+   * the same array would. Genuine second instance, not a proxy forwarding
+   * to the aside original, for the same reason P5b/c's own doc comments
+   * give: this widget is small and entirely self-contained (nothing
+   * outside this function ever reads fieldSearchInput or fieldSearchResults
+   * by name - unlike P5d's Record/Screen-size selects, which around a
+   * dozen other call sites read/write directly), and P5i eventually
+   * deletes the aside version outright, which a proxy would need
+   * re-wiring for anyway. findFieldMatches and fieldSearchLabel stay
+   * shared module-level helpers above, since neither touches any
+   * instance's own DOM or state - only model, which both instances read
+   * identically.
+   */
+  function wireFieldSearch(inputEl, resultsEl) {
+    if (!inputEl || !resultsEl) return;
+    let matches = [];
+    let activeIndex = -1;
 
-  function renderFieldSearchResults() {
-    if (!fieldSearchMatches.length) {
-      fieldSearchResults.innerHTML = '<div class="field-search-empty">No matching fields or constants.</div>';
-      fieldSearchResults.classList.remove('hidden');
-      return;
+    function closeResults() {
+      resultsEl.classList.add('hidden');
+      resultsEl.innerHTML = '';
+      matches = [];
+      activeIndex = -1;
     }
-    const currentRecordName = recordSelect.value;
-    fieldSearchResults.innerHTML = fieldSearchMatches.map((m, idx) => {
-      const meta = m.recordName === currentRecordName
-        ? (m.line != null ? 'Ln ' + m.line + (m.column != null ? '/' + m.column : '') : '')
-        : m.recordName + (m.line != null ? ' · Ln ' + m.line : '');
-      return '<div class="field-search-row' + (idx === fieldSearchActiveIndex ? ' active' : '') + '" data-idx="' + idx + '">' +
-        '<span class="fsr-name">' + DspfEngine.escapeHtml(m.label) + '</span>' +
-        '<span class="fsr-meta">' + DspfEngine.escapeHtml(meta) + '</span>' +
-        '</div>';
-    }).join('');
-    fieldSearchResults.classList.remove('hidden');
-    fieldSearchResults.querySelectorAll('.field-search-row[data-idx]').forEach((row) => {
-      row.addEventListener('mousedown', (e) => {
-        // mousedown (not click) fires before the input's own blur handler
-        // would otherwise close the dropdown out from under the click.
-        e.preventDefault();
-        jumpToFieldMatch(fieldSearchMatches[parseInt(row.getAttribute('data-idx'), 10)]);
+
+    function renderResults() {
+      if (!matches.length) {
+        resultsEl.innerHTML = '<div class="field-search-empty">No matching fields or constants.</div>';
+        resultsEl.classList.remove('hidden');
+        return;
+      }
+      const currentRecordName = recordSelect.value;
+      resultsEl.innerHTML = matches.map((m, idx) => {
+        const meta = m.recordName === currentRecordName
+          ? (m.line != null ? 'Ln ' + m.line + (m.column != null ? '/' + m.column : '') : '')
+          : m.recordName + (m.line != null ? ' · Ln ' + m.line : '');
+        return '<div class="field-search-row' + (idx === activeIndex ? ' active' : '') + '" data-idx="' + idx + '">' +
+          '<span class="fsr-name">' + DspfEngine.escapeHtml(m.label) + '</span>' +
+          '<span class="fsr-meta">' + DspfEngine.escapeHtml(meta) + '</span>' +
+          '</div>';
+      }).join('');
+      resultsEl.classList.remove('hidden');
+      resultsEl.querySelectorAll('.field-search-row[data-idx]').forEach((row) => {
+        row.addEventListener('mousedown', (e) => {
+          // mousedown (not click) fires before the input's own blur handler
+          // would otherwise close the dropdown out from under the click.
+          e.preventDefault();
+          jumpToMatch(matches[parseInt(row.getAttribute('data-idx'), 10)]);
+        });
       });
+    }
+
+    // Switches to the match's record if needed, selects the field the same
+    // way every other jump-by-sourceLine flow does (setSingleSelection then
+    // render, which both re-renders the props panel AND applies the
+    // '.selected' canvas highlight - see the forEach in render() that checks
+    // selectedKeys), then scrolls/centers it into view - render() rebuilds
+    // the canvas DOM from scratch, so the element has to be re-queried AFTER
+    // render() runs, not before.
+    function jumpToMatch(match) {
+      if (!match) return;
+      recordSelect.value = match.recordName;
+      setSingleSelection(match.sourceLine);
+      render();
+      const primaryScreenEl = screenOutput.querySelector('.dspf-screen');
+      const el = primaryScreenEl && primaryScreenEl.querySelector('.dspf-field[data-source-line="' + match.sourceLine + '"]');
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', inline: 'center' });
+      closeResults();
+      inputEl.value = match.label;
+    }
+
+    inputEl.addEventListener('input', () => {
+      matches = findFieldMatches(inputEl.value);
+      activeIndex = matches.length ? 0 : -1;
+      if (inputEl.value.trim()) renderResults();
+      else closeResults();
+    });
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeResults();
+        inputEl.blur();
+      } else if (e.key === 'ArrowDown' && matches.length) {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % matches.length;
+        renderResults();
+      } else if (e.key === 'ArrowUp' && matches.length) {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + matches.length) % matches.length;
+        renderResults();
+      } else if (e.key === 'Enter' && matches.length) {
+        e.preventDefault();
+        jumpToMatch(matches[activeIndex >= 0 ? activeIndex : 0]);
+      }
+    });
+    inputEl.addEventListener('blur', () => {
+      // Deferred so a result row's own mousedown handler (which calls
+      // preventDefault, but blur can still fire first in some browsers) gets
+      // a chance to run its jump before the dropdown is torn down.
+      setTimeout(closeResults, 150);
     });
   }
 
-  // Switches to the match's record if needed, selects the field the same
-  // way every other jump-by-sourceLine flow does (setSingleSelection then
-  // render, which both re-renders the props panel AND applies the
-  // '.selected' canvas highlight - see the forEach in render() that checks
-  // selectedKeys), then scrolls/centers it into view - render() rebuilds
-  // the canvas DOM from scratch, so the element has to be re-queried AFTER
-  // render() runs, not before.
-  function jumpToFieldMatch(match) {
-    if (!match) return;
-    recordSelect.value = match.recordName;
-    setSingleSelection(match.sourceLine);
-    render();
-    const primaryScreenEl = screenOutput.querySelector('.dspf-screen');
-    const el = primaryScreenEl && primaryScreenEl.querySelector('.dspf-field[data-source-line="' + match.sourceLine + '"]');
-    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', inline: 'center' });
-    closeFieldSearchResults();
-    fieldSearchInput.value = match.label;
-  }
-
-  fieldSearchInput.addEventListener('input', () => {
-    fieldSearchMatches = findFieldMatches(fieldSearchInput.value);
-    fieldSearchActiveIndex = fieldSearchMatches.length ? 0 : -1;
-    if (fieldSearchInput.value.trim()) renderFieldSearchResults();
-    else closeFieldSearchResults();
-  });
-  fieldSearchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      closeFieldSearchResults();
-      fieldSearchInput.blur();
-    } else if (e.key === 'ArrowDown' && fieldSearchMatches.length) {
-      e.preventDefault();
-      fieldSearchActiveIndex = (fieldSearchActiveIndex + 1) % fieldSearchMatches.length;
-      renderFieldSearchResults();
-    } else if (e.key === 'ArrowUp' && fieldSearchMatches.length) {
-      e.preventDefault();
-      fieldSearchActiveIndex = (fieldSearchActiveIndex - 1 + fieldSearchMatches.length) % fieldSearchMatches.length;
-      renderFieldSearchResults();
-    } else if (e.key === 'Enter' && fieldSearchMatches.length) {
-      e.preventDefault();
-      jumpToFieldMatch(fieldSearchMatches[fieldSearchActiveIndex >= 0 ? fieldSearchActiveIndex : 0]);
-    }
-  });
-  fieldSearchInput.addEventListener('blur', () => {
-    // Deferred so a result row's own mousedown handler (which calls
-    // preventDefault, but blur can still fire first in some browsers) gets
-    // a chance to run its jump before the dropdown is torn down.
-    setTimeout(closeFieldSearchResults, 150);
-  });
+  wireFieldSearch(document.getElementById('fieldSearchInput'), document.getElementById('fieldSearchResults'));
+  wireFieldSearch(document.getElementById('toolbarFieldSearchInput'), document.getElementById('toolbarFieldSearchResults'));
 
   // Task L37 - "Find keyword" in the properties panel (right side). Rather
   // than maintaining a separate keyword->tab lookup table that would drift
