@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-05 — Docs: README refreshed for the P-series/L56 UI work
+
+- **0.10.54** — README updated: Status now reflects that every tracked L/M/P-series task is `done` (only the A1/A2 screenshot audits remain open); a new "UI styles: Classic and New" section documents the toolbox, pinned toolbar, accordion zone, and the Green/Amber/Cyan/Violet/White accent-color picker (Task L56), none of which README mentioned despite already having shipped. No code changes.
+
 ## 2026-09-05 — Task L56: accent color option for classic UI (ACS 5250-style)
 
 - **0.10.53** — Task L56 (LIMITATIONS-PLAN.md), requested directly: an accent color option for classic UI, matching ACS 5250's own "Edit Colors" session customization. The existing Green/Amber/Cyan/Violet "Theme" picker only ever recolored New UI's own panel chrome (`--chrome-accent`) and was hidden entirely under classic; it now also drives the screen/MNUDDS preview's own default color (`--accent`, plus a new `--accent-rgb`) in BOTH UI styles, and gained a 5th option, **White** (a real monochrome-5250-phosphor precedent). Several previously-hardcoded `rgba(51,255,102,...)` selection/hover colors now read `rgba(var(--accent-rgb),...)` so they follow the chosen color too. Renamed the picker's label from "Theme" to "Accent color" in both designers. An explicit `COLOR` keyword on a field/constant still always wins, unchanged. Applied identically to `buildWebviewTemplate.js` and `buildMenuWebviewTemplate.js`. Full suite re-verified, zero failures.

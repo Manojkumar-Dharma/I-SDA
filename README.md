@@ -15,8 +15,16 @@ original source — all inside VS Code.
 Early but functional. The parser, screen resolver, and interactive editor
 have been verified against IBM's own published DDS examples and round-trip
 tested (edit → regenerate source lines → re-parse → confirm nothing else
-changed). See [Features](#features) below for what's covered at each DDS
-scoping level.
+changed). Every tracked L-series (DSPF designer) and M-series (Menu
+designer) limitation/bug-fix task is `done`, and the P-series New-UI
+layout migration (P1-P5i) is complete — see
+[`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) for the
+full history. All record-level and field-level picker screens tracked in
+[`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md) are
+also `done`. The only open items are two screenshot-inventory audits
+(A1/A2) — not features, just a verification pass against real SDA's own
+reference screens. See [Features](#features) below for what's covered at
+each DDS scoping level.
 
 ## Features
 
@@ -119,6 +127,33 @@ anything without a dedicated screen yet.
   history stays visible in the source itself. Off by default; toggle
   per-session in the properties/options panel or set
   `isda.trackSourceModifications`/`isda.modificationTag`.
+
+### UI styles: Classic and New
+
+Both designers offer two session-only UI styles, toggled live with no
+reload needed:
+
+- **Classic** — the original three-column layout (left panel, canvas,
+  right properties/aside panel), unchanged since early versions.
+- **New (modern)** — a redesigned two-column layout: the aside panel is
+  hidden (not removed — its logic is reused, not duplicated) in favor of
+  a floating, expandable **toolbox** over the canvas (`+ Field`,
+  `+ Constant`, `+ Add record`, `+ Fields from database file`, `Window`,
+  `Menu` — one click each) and a **pinned toolbar** at the top of the
+  properties panel (Save, Compile, file status/connection badge, Record
+  and Screen-size selects, Find-field search, and a live
+  "Screen Design · N records" title) that survives panel collapse. A
+  persistent accordion zone below the toolbar holds View toggles
+  (compare mode, ruler/crosshair, conditioning indicators) and UI
+  Settings (style/theme), so switching styles or colors never requires
+  digging through a collapsed panel.
+
+Both styles share a **Green/Amber/Cyan/Violet/White accent-color**
+picker (labeled "Accent color"), matching ACS 5250's own session color
+customization — it recolors the screen/MNUDDS preview's default color in
+both UI styles (New UI's own panel chrome too, under New UI). An
+explicit `COLOR` keyword on a field or constant always wins over the
+accent color, unchanged.
 
 ## Architecture
 
