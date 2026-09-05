@@ -831,7 +831,10 @@ const htmlTemplate = `<!DOCTYPE html>
 </main>
 <div class="props-panel" id="propsPanel">
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
-  <div class="props-pinned-toolbar" id="propsPinnedToolbar"></div>
+  <div class="props-pinned-toolbar" id="propsPinnedToolbar">
+    <button type="button" class="save-btn" id="toolbarSaveBtn" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
+    <button type="button" class="compile-btn" id="toolbarCompileBtn">Compile Display File (CRTDSPF)</button>
+  </div>
   <div class="panel-body" id="rightPanelBody">
   <h2 style="font-size:13px;">Properties</h2>
   <div class="field-row keyword-finder-row">
@@ -1095,8 +1098,25 @@ const htmlTemplate = `<!DOCTYPE html>
   // has no IBM i connection of its own).
   const compileDspfBtn = document.getElementById('compileDspfBtn');
   const addFromDbBtn = document.getElementById('addFromDbBtn');
+  // Task P5b (LIMITATIONS-PLAN.md's P series) - the pinned-toolbar
+  // (P5a) copy of Compile. Unlike P1's toolboxFab items, this is a genuine
+  // second button with its own click handler rather than a proxy that
+  // .click()s the aside original: Compile's own handler is a one-line
+  // postMessage, not complex placement/wizard logic worth avoiding
+  // duplicating, and P5i eventually deletes the aside original outright -
+  // a proxy would break at that point and need re-wiring anyway, so this
+  // is written to stand on its own from the start. Its connection-gated
+  // 'hidden' state and the aside original's are set from the SAME
+  // updateCodeForIBadge call below (one computed state, applied to both
+  // elements), not mirrored via observer.
+  const toolbarCompileBtn = document.getElementById('toolbarCompileBtn');
   if (compileDspfBtn) {
     compileDspfBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'compileDspf' });
+    });
+  }
+  if (toolbarCompileBtn) {
+    toolbarCompileBtn.addEventListener('click', () => {
       vscode.postMessage({ type: 'compileDspf' });
     });
   }
@@ -1132,6 +1152,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // reports connected: true (on 'ready', after any Code-for-i action, or
     // the cheap poll), no reload needed.
     if (compileDspfBtn) compileDspfBtn.classList.toggle('hidden', !connected);
+    if (toolbarCompileBtn) toolbarCompileBtn.classList.toggle('hidden', !connected);
     if (addFromDbBtn) addFromDbBtn.classList.toggle('hidden', !connected);
   }
 
@@ -1391,6 +1412,14 @@ const htmlTemplate = `<!DOCTYPE html>
   saveDocBtn.addEventListener('click', () => {
     vscode.postMessage({ type: 'saveDocument' });
   });
+  // Task P5b - same "genuine second button, not a proxy" reasoning as
+  // toolbarCompileBtn above.
+  const toolbarSaveBtn = document.getElementById('toolbarSaveBtn');
+  if (toolbarSaveBtn) {
+    toolbarSaveBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: 'saveDocument' });
+    });
+  }
 
   // Suggestion C - dirty-state indicator on the Save button itself. The
   // extension host pushes a 'dirtyState' message (see postDirtyState in
@@ -1399,10 +1428,16 @@ const htmlTemplate = `<!DOCTYPE html>
   // Ctrl+S, or an edit made outside the designer entirely. Text swap
   // (rather than just a CSS dot) keeps it legible without needing a
   // legend, and .save-btn-dirty's own pulse animation (CSS) draws the eye
-  // without being alarming - this is routine, not an error state.
+  // without being alarming - this is routine, not an error state. Task
+  // P5b: applies to both the aside original and the pinned-toolbar copy -
+  // one isDirty value, applied to whichever of the two elements exist.
   function updateSaveButtonDirtyState(isDirty) {
-    saveDocBtn.classList.toggle('save-btn-dirty', !!isDirty);
-    saveDocBtn.textContent = isDirty ? '\u{1F4BE} Save (unsaved changes)' : '\u{1F4BE} Save';
+    const text = isDirty ? '\u{1F4BE} Save (unsaved changes)' : '\u{1F4BE} Save';
+    [saveDocBtn, toolbarSaveBtn].forEach((btn) => {
+      if (!btn) return;
+      btn.classList.toggle('save-btn-dirty', !!isDirty);
+      btn.textContent = text;
+    });
   }
 
   // Creates a brand-new, empty record format (see DspfWriter.insertRecord's

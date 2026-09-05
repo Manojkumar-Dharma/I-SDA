@@ -4,11 +4,18 @@
  * Task P5a (LIMITATIONS-PLAN.md's P series) - the foundation for migrating
  * the aside panel's content into the right-side props-panel: two new
  * regions, #propsPinnedToolbar and #propsAccordionZone, siblings of
- * #propsBreadcrumb/#propsBody inside #propsPanel, that P5b-h will migrate
- * real content into later. Both are empty today - this only proves the
- * SHELL's own guarantees hold, since nothing has actually moved in yet:
+ * #propsBreadcrumb/#propsBody inside #propsPanel. Originally both were
+ * empty (nothing had migrated yet); Task P5b since populated
+ * #propsPinnedToolbar with real Save/Compile buttons, so the
+ * "invisible-while-empty" checks below now exercise that guarantee via a
+ * synthetic clear/repopulate rather than assuming the region starts empty
+ * by default - it doesn't anymore, and shouldn't have to for the
+ * underlying ":not(:empty)" CSS mechanism to still be provably correct.
+ * #propsAccordionZone (P5g/h's future home) is still genuinely empty as of
+ * this writing, so its own checks are unchanged. Covers:
  *   - present (but inert/invisible) under classic UI, exactly like every
- *     other modern-only control this codebase already has
+ *     other modern-only control this codebase already has - true whether
+ *     or not the region has real content
  *   - invisible while empty under modern UI too (no blank gap), visible
  *     once something is actually in them
  *   - #propsPinnedToolbar survives a full "Hide panel" collapse (P5's own
@@ -66,23 +73,31 @@ setTimeout(() => {
   const accordionZone = classicDoc.getElementById('propsAccordionZone');
   check('propsPinnedToolbar exists in the DOM under classic', !!toolbar);
   check('propsAccordionZone exists in the DOM under classic', !!accordionZone);
-  check('propsPinnedToolbar is invisible under classic (empty)', classicDom.window.getComputedStyle(toolbar).display === 'none');
+  check(
+    'propsPinnedToolbar is invisible under classic even with its real P5b content (Save/Compile)',
+    classicDom.window.getComputedStyle(toolbar).display === 'none'
+  );
   toolbar.innerHTML = '<button>Save</button>';
   check(
-    'propsPinnedToolbar STAYS invisible under classic even with real content - classic never shows it, empty or not',
+    'propsPinnedToolbar STAYS invisible under classic with synthetic content too - classic never shows it, empty or not',
     classicDom.window.getComputedStyle(toolbar).display === 'none'
   );
 
-  console.log('\nmodern UI: both regions render invisible while empty, visible once populated');
+  console.log('\nmodern UI: #propsPinnedToolbar (populated by P5b) renders visible by default; #propsAccordionZone (nothing migrated into it yet) starts invisible and visible once populated');
   const dom = makeDom('modern');
   const doc = dom.window.document;
   const modernToolbar = doc.getElementById('propsPinnedToolbar');
   const modernAccordionZone = doc.getElementById('propsAccordionZone');
-  check('propsPinnedToolbar is invisible under modern while empty (no blank gap)', dom.window.getComputedStyle(modernToolbar).display === 'none');
-  check('propsAccordionZone is invisible under modern while empty', dom.window.getComputedStyle(modernAccordionZone).display === 'none');
+  check('propsPinnedToolbar already has real content (P5b\'s Save/Compile buttons)', !!modernToolbar.querySelector('#toolbarSaveBtn') && !!modernToolbar.querySelector('#toolbarCompileBtn'));
+  check('propsPinnedToolbar is visible under modern by default, since it is no longer empty', dom.window.getComputedStyle(modernToolbar).display === 'flex');
+  check('propsAccordionZone is invisible under modern while still empty (nothing has migrated into it yet)', dom.window.getComputedStyle(modernAccordionZone).display === 'none');
+
+  console.log('\nthe underlying ":not(:empty)" CSS guarantee itself still holds - proven directly by clearing/repopulating rather than assumed from default state');
+  modernToolbar.innerHTML = '';
+  check('propsPinnedToolbar becomes invisible once actually emptied out', dom.window.getComputedStyle(modernToolbar).display === 'none');
   modernToolbar.innerHTML = '<button id="fakeSaveBtn">Save</button>';
   modernAccordionZone.innerHTML = '<details><summary>View</summary></details>';
-  check('propsPinnedToolbar becomes visible once populated', dom.window.getComputedStyle(modernToolbar).display === 'flex');
+  check('propsPinnedToolbar becomes visible again once repopulated', dom.window.getComputedStyle(modernToolbar).display === 'flex');
   check('propsAccordionZone becomes visible once populated', dom.window.getComputedStyle(modernAccordionZone).display === 'block');
 
   console.log('\nselecting a field swaps #propsBody wholesale (P5 risk 1) - the toolbar and accordion zone must not be touched by that swap');
