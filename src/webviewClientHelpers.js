@@ -1510,7 +1510,7 @@
    *  wireCheckInstancesEditor above for how the two panels safely share
    *  it) - each panel only touches ITS OWN slice of the code list per
    *  instance, merging with whatever the other panel already set there. */
-  function keyingOptionsHtml(keywords, ownerKey, expandedSet) {
+  function keyingOptionsHtml(keywords, ownerKey, expandedSet, dataType) {
     var html = '<div class="section-label">Keying options</div>';
     html += checkInstancesHtml(keywords, ownerKey + '-keying', expandedSet, KEYING_OPTION_CODES, '+ Add CHECK instance');
     // Task D3 - Keyboard shift attribute (KEYBRD), numeric-only real DDS
@@ -1525,20 +1525,36 @@
     // than several message/condition pairs, so this is a scoping choice,
     // not an oversight; see Known limitations in the README.
     //
-    // Bug fix (found during the L20/L21/L22 keyword-inventory audit):
-    // the value list here previously read ['S','N','Y','I','D'] - wrong on
-    // every count against real SDA's own screen (docs/sda-reference/
-    // screens/field-level/character/keying-options/image164.png), which
-    // shows N/A/X/W/I/D/M/J/O/E/G (11 letters, no S or Y at all). Fixed to
-    // match the screenshot exactly. Left unlabeled (just the bare letter,
-    // like real SDA's own screen shows no descriptive text here either)
-    // rather than guessing at English descriptions for each one without a
-    // confirmed DDS Reference citation for every value - see this
-    // codebase's own "research before implementing" principle.
+    // Bug fix (found during the L20/L21/L22 keyword-inventory audit): the
+    // CHARACTER field value list here previously read ['S','N','Y','I','D']
+    // - wrong on every count against real SDA's own CHARACTER screen
+    // (docs/sda-reference/screens/field-level/character/keying-options/
+    // image164.png), which shows N/A/X/W/I/D/M/J/O/E/G (11 letters, no S or
+    // Y at all). Fixed to match that screenshot for character fields.
+    //
+    // Bug fix (Task A2 - SDA screenshot keyword-inventory audit follow-up):
+    // that fix was applied unconditionally to BOTH character and numeric
+    // fields, but real SDA's NUMERIC "Select Keying Options" screen
+    // (screens/field-level/numeric/keying-options/image176.png) shows a
+    // DIFFERENT, shorter value list - S/N/Y/I/D (5 letters, confirmed
+    // identical again on the numeric Database Reference screen's own "New
+    // keyboard shift" override column, image183.png) - so numeric fields
+    // were being offered 6 character-only values (A/X/W/M/J/O/E/G minus the
+    // ones shared with numeric) that don't apply to them, while genuinely
+    // losing S and Y entirely (neither letter existed anywhere in the old
+    // unconditional 11-value list). `dataType` (the field's own DDS data-
+    // type column, e.g. 'A' for character, 'S'/'Y'/'B'/'P'/blank for
+    // numeric - same convention displayLength/renderFieldDiv already key
+    // off in dspfEngine.js) picks the correct list; a missing/unrecognized
+    // dataType falls back to the character list (the wider of the two, so
+    // nothing already-set becomes unselectable) rather than guessing wrong
+    // in the narrower direction.
+    var isNumericField = dataType === 'S' || dataType === 'Y' || dataType === 'B' || dataType === 'P' || dataType === 'L' || dataType === 'T' || dataType === 'Z' || dataType === 'F';
+    var keybrdValues = isNumericField ? ['', 'S', 'N', 'Y', 'I', 'D'] : ['', 'N', 'A', 'X', 'W', 'I', 'D', 'M', 'J', 'O', 'E', 'G'];
     var keybrd = DspfWriter.getFileFlagKeyword(keywords, 'KEYBRD');
     html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute (KEYBRD)</div>';
     html += '<select class="' + ownerKey + '-keybrd">' +
-      ['', 'N', 'A', 'X', 'W', 'I', 'D', 'M', 'J', 'O', 'E', 'G'].map(function (v) {
+      keybrdValues.map(function (v) {
         return '<option value="' + v + '"' + (keybrd.parameters === v ? ' selected' : '') + '>' + (v || '(none)') + '</option>';
       }).join('') +
       '</select>';
@@ -2844,6 +2860,21 @@
     // the file-level TEXT row's own comment above for the full rationale.
     g += '<div class="section-label">Record text (TEXT)</div>';
     g += '<input type="text" id="' + p + '-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
+    // Bug fix (Task A1 - SDA screenshot keyword-inventory audit): ALTNAME
+    // (Alternative Record Name - ALTNAME('alternative-name')) sits right
+    // beside TEXT on real SDA's "Select Record Keywords" screen for every
+    // record type (base RECORD, PULLDOWN, PDNSFLCTL, USRDFN all show it -
+    // see docs/sda-reference/screens/record-level/base-record-keywords/
+    // _menu-example-RECORD/image17.png) but was completely missing from
+    // this codebase. Confirmed against IBM's own DDS reference: a single
+    // quoted-string parameter, no sub-parameters, used to give a record an
+    // alternate name for program-described-file I/O (e.g. System/36
+    // compatibility) - the exact same "one quoted literal" shape TEXT/
+    // HLPTITLE/WDWTITLE already use, so this reuses
+    // DspfWriter.getFileQuotedText/setFileQuotedText directly rather than
+    // adding a new getX/setX pair.
+    g += '<div class="section-label">Alternative record name (ALTNAME)</div>';
+    g += '<input type="text" id="' + p + '-altname" placeholder="Alternative name for program-described-file I/O" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'ALTNAME')) + '" style="width:100%;" />';
     panels.general = g;
 
     // --- Indicator / screen-control keywords (Task L5d - repeatable,
@@ -3139,6 +3170,8 @@
     wireTwoField(p + '-rtncsrloc-row', p + '-rtncsrloc-col', 'RTNCSRLOC');
     var pText = document.getElementById(p + '-text');
     if (pText) pText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', pText.value)); });
+    var pAltname = document.getElementById(p + '-altname');
+    if (pAltname) pAltname.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'ALTNAME', pAltname.value)); });
 
     // Indicator / screen-control (Task L5d)
     wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender);
@@ -3610,6 +3643,31 @@
     }
     wp += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:10px;">Apply window parameters</button>';
     wp += '<div class="hint-small">Real SDA\u2019s Window Parameters screen also shows per-row "Display size"/"Roll" columns - "Roll" is SDA\u2019s own in-terminal editing convenience (not a DDS keyword), and "Display size" conditions a value by *DS3/*DS4 (multiple conditioned keyword instances, the same cross-cutting limitation R1/F1/D1 already defer) - both still left for the raw Keywords editor. "Message line" and "Restrict cursor to window" are now modeled above (Tasks L6/L7).</div>';
+    // Bug fix (Task A1 - SDA screenshot keyword-inventory audit, WNDSFCTL's
+    // own "Select General Keywords" screen: docs/sda-reference/screens/
+    // record-level/window-subfile-control-wndsfctl/general/image87.png):
+    // RMVWDW (Remove Window - record-level, no parameters, removes every
+    // window already on the display before this record is written; only
+    // meaningful alongside a real WINDOW keyword, per IBM's own DDS
+    // reference) and USRRSTDSP (User Restore Display - record-level, no
+    // parameters, tells the system the PROGRAM will handle restoring the
+    // display around a window instead of the system suspending/restoring
+    // it automatically) were shown right alongside WINDOW/WDWBORDER on that
+    // screen but were entirely missing from this codebase - not parsed,
+    // not exposed in any picker, not even reachable as a documented gap.
+    // Both are plain present/absent flags (option indicators valid, no
+    // parameters), the exact shape DspfWriter.getFileFlagKeyword/
+    // setFileFlagKeyword already handle generically, so no new dspfWriter.js
+    // functions were needed - same pattern as every other simple flag
+    // keyword in this file. Placed in the Window Parameters panel (rather
+    // than a new accordion) since real SDA shows them on the SAME screen as
+    // WINDOW itself, immediately after Border Parameters' own "Select
+    // parameters" toggle.
+    wp += '<div class="section-label" style="margin-top:10px;">Window control</div>';
+    var fRmvwdw = DspfWriter.getFileFlagKeyword(keywords, 'RMVWDW');
+    wp += flagRowHtml(idPrefix + '-rmvwdw', 'Remove existing windows before this record is displayed (RMVWDW)', fRmvwdw.present, undefined, undefined, fRmvwdw.conditions, expandedSet);
+    var fUsrrstdsp = DspfWriter.getFileFlagKeyword(keywords, 'USRRSTDSP');
+    wp += flagRowHtml(idPrefix + '-usrrstdsp', 'Program handles display restore around this window (USRRSTDSP)', fUsrrstdsp.present, undefined, undefined, fUsrrstdsp.conditions, expandedSet);
     panels.windowParameters = wp;
 
     // --- Border Parameters (shared with F1's file-level Window Border) ---
@@ -3655,6 +3713,26 @@
         onChange(DspfWriter.setWindowParamsKeyword(getKeywords(), state));
       });
     }
+
+    // Window control (Task A1 bug fix - RMVWDW/USRRSTDSP)
+    wireFlagRow(
+      idPrefix + '-rmvwdw',
+      getKeywords,
+      onChange,
+      function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, 'RMVWDW', present, params, undefined, conditions); },
+      DspfWriter.getFileFlagKeyword(getKeywords(), 'RMVWDW').conditions,
+      expandedSet,
+      rerender
+    );
+    wireFlagRow(
+      idPrefix + '-usrrstdsp',
+      getKeywords,
+      onChange,
+      function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, 'USRRSTDSP', present, params, undefined, conditions); },
+      DspfWriter.getFileFlagKeyword(getKeywords(), 'USRRSTDSP').conditions,
+      expandedSet,
+      rerender
+    );
 
     // Border Parameters
     wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);

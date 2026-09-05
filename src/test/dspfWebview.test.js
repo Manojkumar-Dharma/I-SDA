@@ -4819,6 +4819,7 @@ function runNumericFieldPickerScenario() {
       buildLine({ seq: '00030', name: 'AMT', dataType: 'S', length: '7', decimals: '2', usage: 'O', line: '1', col: '1' }),
       buildLine({ seq: '00040', name: 'QTY', dataType: 'S', length: '5', usage: 'H' }),
       buildLine({ seq: '00050', name: 'RECNBR', dataType: 'S', length: '5', usage: 'B', line: '1', col: '30' }),
+      buildLine({ seq: '00060', name: 'DESCR', dataType: 'A', length: '10', usage: 'B', line: '2', col: '1' }),
     ].join('\n') + '\n';
   const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'NUMERIC.DSPF').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
@@ -4872,17 +4873,20 @@ function runNumericFieldPickerScenario() {
     const hiddenEcKind = Array.from(doc.querySelectorAll('select')).find((s) => s.id.endsWith('-ec-kind'));
     check('no Edit code/word/mask select for a Hidden field', !hiddenEcKind);
 
-    console.log('  QTY (Usage H, Hidden): Keying options panel offers the Keyboard shift attribute (KEYBRD)');
+    console.log('  QTY (Usage H, Hidden, numeric): Keying options panel offers the Keyboard shift attribute (KEYBRD)');
     const keybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keybrd') >= 0);
     check('KEYBRD select present for a Hidden field (Keying options is Hidden/Input/Both)', !!keybrdSelect);
-    // Bug fix (L20/L21/L22 keyword-inventory audit): the value list used
-    // to be ['S','N','Y','I','D'] - wrong against real SDA's own screen
-    // (N/A/X/W/I/D/M/J/O/E/G, no S or Y at all). 'N' is valid under both
-    // the old and new lists, but confirm the corrected list's own values
-    // (A/X/W/M/J/O/E/G) are ALSO offered, not just the ones that happened
-    // to overlap with the old wrong list.
+    // Bug fix (Task A2 - SDA screenshot keyword-inventory audit follow-up):
+    // QTY is a NUMERIC field (dataType 'S'), so per real SDA's own numeric
+    // "Select Keying Options" screen (screens/field-level/numeric/keying-
+    // options/image176.png, confirmed again on the numeric Database
+    // Reference screen's "New keyboard shift" column, image183.png) it
+    // must offer exactly S/N/Y/I/D - NOT the character field's own N/A/X/
+    // W/I/D/M/J/O/E/G list (character/keying-options/image164.png), which
+    // this same assertion wrongly expected before this fix (when one
+    // unconditional list was used for every field regardless of type).
     const keybrdValues = Array.from(keybrdSelect.options).map((o) => o.value).filter(Boolean);
-    check('KEYBRD offers exactly N/A/X/W/I/D/M/J/O/E/G (real SDA\u2019s own screen), not the old wrong S/N/Y/I/D list', keybrdValues.sort().join(',') === 'A,D,E,G,I,J,M,N,O,W,X');
+    check('KEYBRD (numeric field) offers exactly D/I/N/S/Y (real SDA\u2019s own numeric screen), not the character-only list', keybrdValues.sort().join(',') === 'D,I,N,S,Y');
     keybrdSelect.value = 'N';
     keybrdSelect.dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
@@ -4890,6 +4894,14 @@ function runNumericFieldPickerScenario() {
     reparsed = DspfParser.parseDspf(applyEdit.text);
     const qtyField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'QTY');
     check('KEYBRD written with value N', qtyField.keywords.some((k) => k.name === 'KEYBRD' && k.parameters.trim() === 'N'));
+    posted.length = 0;
+
+    console.log('  DESCR (Usage B, character): Keying options panel offers the character-only Keyboard shift attribute list');
+    check('DESCR is selectable on the canvas', selectFieldByName('DESCR'));
+    const charKeybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keybrd') >= 0);
+    check('KEYBRD select present for a character field too', !!charKeybrdSelect);
+    const charKeybrdValues = Array.from(charKeybrdSelect.options).map((o) => o.value).filter(Boolean);
+    check('KEYBRD (character field) offers exactly A/D/E/G/I/J/M/N/O/W/X (real SDA\u2019s own character screen), not the numeric-only list', charKeybrdValues.sort().join(',') === 'A,D,E,G,I,J,M,N,O,W,X');
     posted.length = 0;
 
     console.log('  RECNBR (in an SFLCTL record): Subfile keywords panel is present, SFLRCDNBR/SFLROLVAL commit');

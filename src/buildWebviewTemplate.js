@@ -4171,7 +4171,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // Color & attributes / Validity check. Each gated per D2's usage-based
     // applicability rules above.
     if (!isConstant && catVis.keyingOptions) {
-      attrsHtml += accordionHtml('Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+      attrsHtml += accordionHtml('Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType), false);
     }
     if (!isConstant && catVis.inputKeywords) {
       attrsHtml += accordionHtml('Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
