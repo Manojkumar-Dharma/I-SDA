@@ -85,6 +85,16 @@ const htmlTemplate = `<!DOCTYPE html>
   h2 { font-size: 16px; margin: 0 0 14px; color: var(--chrome-accent); font-weight: 600; }
   select, input[type=text], input[type=number] { width: 100%; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 6px 8px; font-family: var(--mono); font-size: 13px; }
   .field-row { margin-bottom: 10px; }
+  /* Task P5d - Record/Screen-size selects DUPLICATED into the pinned
+     toolbar (a horizontal strip, hidden entirely under classic - see
+     .props-pinned-toolbar below) need a compact inline layout (label
+     beside its select, no bottom margin eating into the toolbar's own
+     row height) rather than the aside's own stacked block layout
+     (label above select) that plain .field-row assumes. Scoped to
+     .toolbar-field-row only, so every .field-row still living in the
+     aside is untouched. */
+  .toolbar-field-row { display: flex; align-items: center; gap: 6px; margin-bottom: 0; }
+  .toolbar-field-row label { white-space: nowrap; }
   .field-row label { display: block; font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .choice-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
@@ -836,6 +846,8 @@ const htmlTemplate = `<!DOCTYPE html>
     <div class="codefori-badge unknown" id="toolbarCodeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
     <button type="button" class="save-btn" id="toolbarSaveBtn" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
     <button type="button" class="compile-btn" id="toolbarCompileBtn">Compile Display File (CRTDSPF)</button>
+    <div class="field-row toolbar-field-row"><label>Record</label><select id="toolbarRecordSelect"></select></div>
+    <div class="field-row toolbar-field-row hidden" id="toolbarSizeSelectRow"><label>Screen size</label><select id="toolbarSizeSelect"></select></div>
   </div>
   <div class="panel-body" id="rightPanelBody">
   <h2 style="font-size:13px;">Properties</h2>
@@ -963,6 +975,10 @@ const htmlTemplate = `<!DOCTYPE html>
   const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded - survives renderProps() rebuilding the panel, same convention as the menu designer's expandedOptionConditioning
 
   const recordSelect = document.getElementById('recordSelect');
+  // Task P5d - genuine duplicate in the pinned toolbar; recordSelect above
+  // stays the one authoritative element (see rebuildRecordSelect's own doc
+  // comment for why this isn't a relocation).
+  const toolbarRecordSelect = document.getElementById('toolbarRecordSelect');
   const indicatorList = document.getElementById('indicatorList');
   const screenOutput = document.getElementById('screenOutput');
   const propsBody = document.getElementById('propsBody');
@@ -991,6 +1007,11 @@ const htmlTemplate = `<!DOCTYPE html>
   const crosshairReadout = document.getElementById('crosshairReadout');
   const sizeSelectRow = document.getElementById('sizeSelectRow');
   const sizeSelect = document.getElementById('sizeSelect');
+  // Task P5d - genuine duplicates in the pinned toolbar; sizeSelectRow/
+  // sizeSelect above stay authoritative (see rebuildSizeSelect's own doc
+  // comment).
+  const toolbarSizeSelectRow = document.getElementById('toolbarSizeSelectRow');
+  const toolbarSizeSelect = document.getElementById('toolbarSizeSelect');
   const sizeBoundsWarning = document.getElementById('sizeBoundsWarning');
   const overlapWarning = document.getElementById('overlapWarning');
   const fkeyLegendEl = document.getElementById('fkeyLegend');
@@ -1596,6 +1617,17 @@ const htmlTemplate = `<!DOCTYPE html>
     showFileProps = false;
     render();
   });
+  // Task P5d - toolbarSizeSelect forwards to sizeSelect's own real
+  // listener above (setting its value then re-dispatching 'change')
+  // rather than re-implementing the handler a second time, so there is
+  // exactly one behavior for changing the screen size, no matter which
+  // visible copy of the control the person actually used.
+  if (toolbarSizeSelect) {
+    toolbarSizeSelect.addEventListener('change', () => {
+      sizeSelect.value = toolbarSizeSelect.value;
+      sizeSelect.dispatchEvent(new Event('change'));
+    });
+  }
 
   compareModeToggle.addEventListener('change', () => {
     compareMode = compareModeToggle.checked;
@@ -2333,8 +2365,31 @@ const htmlTemplate = `<!DOCTYPE html>
     return Array.from(set).sort();
   }
 
+  // Task P5d - Record select duplicated into the pinned toolbar
+  // (#toolbarRecordSelect), unlike P5b's Save/Compile buttons which are
+  // genuinely independent one-line postMessage triggers: recordSelect's
+  // VALUE is read/written from well over a dozen places throughout this
+  // file (every "select what was just created" pattern P3/P4/newRecordBtn/
+  // etc. already use), so re-deriving or wrapping every one of those call
+  // sites would be exactly the kind of drift-prone duplication this
+  // codebase avoids everywhere else. Instead, recordSelect stays the ONE
+  // authoritative element - every existing call site keeps targeting it,
+  // completely unchanged - and this wrapper (already called on every
+  // render(), see below) is the SINGLE place that copies its resulting
+  // value onto the toolbar duplicate, right after rebuilding its own
+  // <option> list the same way. Selecting FROM the toolbar duplicate
+  // forwards to recordSelect's own real 'change' listener rather than
+  // re-implementing its handler - see the toolbarRecordSelect wiring
+  // below - so there is exactly one behavior, just two visible copies of
+  // the control (kept in sync here), matching classic UI's own
+  // requirement to keep recordSelect fully usable from the aside even
+  // though the toolbar itself is invisible under classic.
   function rebuildRecordSelect() {
-    WebviewClientHelpers.rebuildRecordSelect(recordSelect, model.records);
+    const value = WebviewClientHelpers.rebuildRecordSelect(recordSelect, model.records);
+    if (toolbarRecordSelect) {
+      WebviewClientHelpers.rebuildRecordSelect(toolbarRecordSelect, model.records);
+      toolbarRecordSelect.value = value;
+    }
   }
 
   /**
@@ -2383,24 +2438,43 @@ const htmlTemplate = `<!DOCTYPE html>
    * picker stays hidden and selectedSizeIndex is just always 0). Preserves
    * the current selection across re-renders where possible, same pattern as
    * rebuildRecordSelect.
+   *
+   * Task P5d - toolbarSizeSelect/toolbarSizeSelectRow are duplicated the
+   * same way rebuildRecordSelect duplicates onto toolbarRecordSelect above -
+   * sizeSelect stays the one authoritative element (selectedSizeIndex is
+   * only ever read from it), this function is the single place both
+   * copies get rebuilt from, and toolbarSizeSelect's own 'change' forwards
+   * to sizeSelect's real listener rather than re-implementing it (see the
+   * wiring below).
    */
   function rebuildSizeSelect() {
     const sizes = DspfEngine.availableScreenSizes(model);
     if (sizes.length <= 1) {
       sizeSelectRow.classList.add('hidden');
+      if (toolbarSizeSelectRow) toolbarSizeSelectRow.classList.add('hidden');
       selectedSizeIndex = 0;
       return;
     }
     sizeSelectRow.classList.remove('hidden');
+    if (toolbarSizeSelectRow) toolbarSizeSelectRow.classList.remove('hidden');
     if (selectedSizeIndex >= sizes.length) selectedSizeIndex = 0;
     sizeSelect.innerHTML = '';
+    if (toolbarSizeSelect) toolbarSizeSelect.innerHTML = '';
     sizes.forEach((s, i) => {
+      const label = s.lines + ' x ' + s.columns + (s.name ? ' (' + s.name + ')' : '');
       const opt = document.createElement('option');
       opt.value = String(i);
-      opt.textContent = s.lines + ' x ' + s.columns + (s.name ? ' (' + s.name + ')' : '');
+      opt.textContent = label;
       sizeSelect.appendChild(opt);
+      if (toolbarSizeSelect) {
+        const toolbarOpt = document.createElement('option');
+        toolbarOpt.value = String(i);
+        toolbarOpt.textContent = label;
+        toolbarSizeSelect.appendChild(toolbarOpt);
+      }
     });
     sizeSelect.value = String(selectedSizeIndex);
+    if (toolbarSizeSelect) toolbarSizeSelect.value = String(selectedSizeIndex);
   }
 
   /**
@@ -5711,6 +5785,17 @@ const htmlTemplate = `<!DOCTYPE html>
   });
 
   recordSelect.addEventListener('change', () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; render(); });
+  // Task P5d - toolbarRecordSelect forwards to recordSelect's own real
+  // listener above, same "set the authoritative element's value then
+  // re-dispatch 'change'" pattern as toolbarSizeSelect - exactly one
+  // behavior for switching records, regardless of which visible copy of
+  // the control was actually used.
+  if (toolbarRecordSelect) {
+    toolbarRecordSelect.addEventListener('change', () => {
+      recordSelect.value = toolbarRecordSelect.value;
+      recordSelect.dispatchEvent(new Event('change'));
+    });
+  }
 
   render();
   vscode.postMessage({ type: 'ready' });
