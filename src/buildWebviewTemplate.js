@@ -622,6 +622,14 @@ const htmlTemplate = `<!DOCTYPE html>
   .ui-style-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
   #uiThemeRow { display: none; }
   body[data-ui-style="modern"] #uiThemeRow { display: block; }
+  /* Task P5h - the pinned-toolbar (P5a accordion zone) copy of the row
+     above. Kept as its own id-based rule (matching #uiThemeRow's own
+     convention) rather than converting both to a shared class, since
+     that would touch the aside original's markup for no functional
+     gain - see #toolbarUiSettingsAccordion's own doc comment for why
+     this whole accordion is a genuine second element, not a move. */
+  #toolbarUiThemeRow { display: none; }
+  body[data-ui-style="modern"] #toolbarUiThemeRow { display: block; }
   .ui-theme-select { width: 100%; }
 
   body[data-ui-style="modern"] button,
@@ -875,7 +883,26 @@ const htmlTemplate = `<!DOCTYPE html>
     <label class="compare-toggle"><input type="checkbox" id="modTrackingToggle" /> Track modifications</label>
     <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads. Session-only; doesn't change the isda.modificationTag setting." />
   </div>
-  <div class="props-accordion-zone" id="propsAccordionZone"></div>
+  <div class="props-accordion-zone" id="propsAccordionZone">
+    <details class="props-accordion" id="toolbarUiSettingsAccordion">
+      <summary>&#9881; UI Settings</summary>
+      <div class="props-accordion-body">
+        <div class="field-row">
+          <label>Style</label>
+          <button class="ui-style-toggle" id="toolbarUiStyleToggle" title="Switch UI style"></button>
+        </div>
+        <div class="field-row" id="toolbarUiThemeRow">
+          <label>Theme</label>
+          <select class="ui-theme-select" id="toolbarUiThemeSelect" title="Chrome color theme (modern style only)">
+            <option value="green">Green</option>
+            <option value="amber">Amber</option>
+            <option value="cyan">Cyan</option>
+            <option value="violet">Violet</option>
+          </select>
+        </div>
+      </div>
+    </details>
+  </div>
   <div id="propsBreadcrumb"></div>
   <div id="propsBody"><div class="empty-state">Select a field to edit it.</div></div>
   </div>
@@ -893,41 +920,70 @@ const htmlTemplate = `<!DOCTYPE html>
   // token baked into the body tag; vscode.getState() is only consulted as a
   // same-session override in case the user just toggled it and the webview
   // got rebuilt before the extension host's globalState round-trip landed.
+  //
+  // Task P5h (LIMITATIONS-PLAN.md's P series) - #toolbarUiStyleToggle is the
+  // persistent-accordion-zone (P5a) copy of #uiStyleToggle above. This row's
+  // own plan-doc text says the UI Settings accordion "relocates as-is" (a
+  // move), but every other P5b-h migration so far (P5b/c/d/f) is actually a
+  // genuine SECOND element mirroring the aside original 1:1, kept in sync,
+  // coexisting until P5i finally deletes the aside outright - literally
+  // moving this control out of <aside> now would be the one migration in the
+  // group that can't be undone, and would leave classic UI (which keeps
+  // <aside> forever) with no working style toggle at all once it happened.
+  // So this follows the SAME established coexist-and-sync pattern instead,
+  // same reasoning P5f's own doc comment gives for its own "folded into"
+  // wording not meaning a literal move either. Both buttons are driven off
+  // ONE shared 'uiStyle' variable and updated together on every change -
+  // clicking either one updates both immediately, not just the one clicked.
   (function () {
-    const toggleBtn = document.getElementById('uiStyleToggle');
+    const toggleBtns = [document.getElementById('uiStyleToggle'), document.getElementById('toolbarUiStyleToggle')].filter(Boolean);
     function labelFor(style) {
       return style === 'modern' ? 'Classic UI' : 'New UI \u2728';
     }
-    let uiStyle = (vscode.getState() && vscode.getState().uiStyle) || document.body.dataset.uiStyle || 'modern';
-    document.body.dataset.uiStyle = uiStyle;
-    toggleBtn.textContent = labelFor(uiStyle);
-    toggleBtn.title = uiStyle === 'modern'
-      ? 'Switch back to the classic (no-animation) look'
-      : 'Try the new animated look';
-    toggleBtn.addEventListener('click', () => {
-      uiStyle = uiStyle === 'modern' ? 'classic' : 'modern';
-      document.body.dataset.uiStyle = uiStyle;
-      toggleBtn.textContent = labelFor(uiStyle);
-      toggleBtn.title = uiStyle === 'modern'
+    function titleFor(style) {
+      return style === 'modern'
         ? 'Switch back to the classic (no-animation) look'
         : 'Try the new animated look';
-      vscode.setState(Object.assign({}, vscode.getState(), { uiStyle }));
-      vscode.postMessage({ type: 'setUiStyle', value: uiStyle });
+    }
+    function applyToBoth(style) {
+      toggleBtns.forEach((btn) => {
+        btn.textContent = labelFor(style);
+        btn.title = titleFor(style);
+      });
+    }
+    let uiStyle = (vscode.getState() && vscode.getState().uiStyle) || document.body.dataset.uiStyle || 'modern';
+    document.body.dataset.uiStyle = uiStyle;
+    applyToBoth(uiStyle);
+    toggleBtns.forEach((toggleBtn) => {
+      toggleBtn.addEventListener('click', () => {
+        uiStyle = uiStyle === 'modern' ? 'classic' : 'modern';
+        document.body.dataset.uiStyle = uiStyle;
+        applyToBoth(uiStyle);
+        vscode.setState(Object.assign({}, vscode.getState(), { uiStyle }));
+        vscode.postMessage({ type: 'setUiStyle', value: uiStyle });
+      });
     });
   })();
 
   // Color theme (modern style only) - same persistence pattern as the style
   // toggle above, in a separate globalState key so the two are independent.
+  // Task P5h - #toolbarUiThemeSelect is the pinned-accordion-zone copy of
+  // #uiThemeSelect, same coexist-and-sync reasoning as the style toggle just
+  // above: both selects are driven off ONE shared 'uiTheme' variable, kept
+  // in sync with each other on every change.
   (function () {
-    const select = document.getElementById('uiThemeSelect');
+    const selects = [document.getElementById('uiThemeSelect'), document.getElementById('toolbarUiThemeSelect')].filter(Boolean);
     let uiTheme = (vscode.getState() && vscode.getState().uiTheme) || document.body.dataset.uiTheme || 'green';
     document.body.dataset.uiTheme = uiTheme;
-    select.value = uiTheme;
-    select.addEventListener('change', () => {
-      uiTheme = select.value;
-      document.body.dataset.uiTheme = uiTheme;
-      vscode.setState(Object.assign({}, vscode.getState(), { uiTheme }));
-      vscode.postMessage({ type: 'setUiTheme', value: uiTheme });
+    selects.forEach((select) => { select.value = uiTheme; });
+    selects.forEach((select) => {
+      select.addEventListener('change', () => {
+        uiTheme = select.value;
+        document.body.dataset.uiTheme = uiTheme;
+        selects.forEach((s) => { s.value = uiTheme; });
+        vscode.setState(Object.assign({}, vscode.getState(), { uiTheme }));
+        vscode.postMessage({ type: 'setUiTheme', value: uiTheme });
+      });
     });
   })();
 
