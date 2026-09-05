@@ -728,6 +728,30 @@ const htmlTemplate = `<!DOCTYPE html>
     display: flex; position: fixed; right: 24px; bottom: 24px; z-index: 40;
     flex-direction: column; align-items: flex-end; gap: 8px;
   }
+
+  /* Task P5i (LIMITATIONS-PLAN.md's P series) - "P5 retires the aside
+     originals, once every planned toolbox tool exists and the person
+     confirms it's time" (see P1's own comment just above) - this is that
+     task. Under modern UI, <aside> itself is hidden entirely rather than
+     removed from the DOM: every toolboxFab item still reaches its real
+     handler by calling .click() on the ORIGINAL aside button it proxies to
+     (wireProxy, see the P1 IIFE below) - #placeFieldBtn/#placeConstantBtn/
+     #newRecordToggleBtn/#addFromDbBtn were never migrated into the
+     pinned-toolbar/accordion-zone the way P5b-h's own controls were (P5's
+     own inventory never listed them - they're covered by P1-P4's toolbox
+     instead), so deleting the DOM nodes outright would silently break
+     every one of those proxies the moment someone tried them under modern.
+     display: none does not stop element.click() from firing a real click
+     event on a hidden element (unlike a real mouse click, which needs
+     visible/hit-testable geometry) - only the VISIBLE controls a person
+     can actually see/click are the toolbar/accordion-zone duplicates
+     (P5b-h) and the toolboxFab items (P1-P4); the aside itself becomes
+     pure inert wiring plumbing under modern, present but never rendered,
+     exactly like #toolboxFab already is under classic (the same
+     "shared markup, invisible via CSS, still functionally wired" pattern,
+     just the reverse direction). Classic UI's own <aside> is completely
+     unaffected - this selector only ever matches under modern. */
+  body[data-ui-style="modern"] aside { display: none; }
   #toolboxFabToggle {
     width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--chrome-accent);
     background: var(--panel); color: var(--chrome-accent); font-family: var(--mono);
@@ -990,6 +1014,13 @@ const htmlTemplate = `<!DOCTYPE html>
         uiStyle = uiStyle === 'modern' ? 'classic' : 'modern';
         document.body.dataset.uiStyle = uiStyle;
         applyToBoth(uiStyle);
+        // Task P5i - switching style live changes which grid-column formula
+        // applies (aside disappears/reappears under modern/classic), so the
+        // grid has to recompute right away, not just wait for the next
+        // panel-collapse click. applyPanelCollapse is declared further down
+        // this same script as a function (hoisted), so it's already
+        // available by the time anyone can click this button.
+        if (typeof applyPanelCollapse === 'function') applyPanelCollapse();
         vscode.setState(Object.assign({}, vscode.getState(), { uiStyle }));
         vscode.postMessage({ type: 'setUiStyle', value: uiStyle });
       });
@@ -1213,8 +1244,17 @@ const htmlTemplate = `<!DOCTYPE html>
   function applyPanelCollapse() {
     asideEl.classList.toggle('panel-collapsed', leftPanelCollapsed);
     propsPanelEl.classList.toggle('panel-collapsed', rightPanelCollapsed);
-    document.body.style.gridTemplateColumns =
-      (leftPanelCollapsed ? '28px' : '240px') + ' 1fr ' + (rightPanelCollapsed ? '28px' : '300px');
+    // Task P5i (LIMITATIONS-PLAN.md's P series) - under modern UI, <aside>
+    // itself is hidden entirely (see the body[data-ui-style="modern"] aside
+    // rule above), so the grid collapses to two columns instead of three;
+    // classic UI keeps the original three-column formula forever, aside
+    // included, completely unaffected by anything in this row. Re-run
+    // whenever the UI style itself changes at runtime (see uiStyleToggle's
+    // own click handlers below), not just on panel-collapse clicks, since
+    // switching styles live changes which formula applies here.
+    document.body.style.gridTemplateColumns = document.body.dataset.uiStyle === 'modern'
+      ? '1fr ' + (rightPanelCollapsed ? '28px' : '300px')
+      : (leftPanelCollapsed ? '28px' : '240px') + ' 1fr ' + (rightPanelCollapsed ? '28px' : '300px');
     leftPanelToggle.textContent = leftPanelCollapsed ? '\u25B6' : '\u25C0 Hide panel';
     leftPanelToggle.title = leftPanelCollapsed ? 'Show record/field panel' : 'Hide this panel';
     rightPanelToggle.textContent = rightPanelCollapsed ? '\u25C0' : 'Hide panel \u25B6';

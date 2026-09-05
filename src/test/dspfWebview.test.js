@@ -4005,7 +4005,16 @@ function runPanelCollapseScenario() {
       '     A          R SCR1',
       "     A                                  1  2'Screen one'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce15', src, 'PANELS.DSPF').replace(
+  // Task P5i: explicitly 'classic' here (was relying on getWebviewHtml's
+  // own 'modern' default before this task existed) - collapsing the LEFT
+  // (aside) panel only means something under classic now that modern hides
+  // <aside> outright and uses a two-column grid regardless of collapse
+  // state (see toolboxAsideHidden.test.js for that side of the story).
+  // Classic keeps this exact three-column/both-panels-toggleable behavior
+  // forever, completely unaffected by P5i - which is exactly what this
+  // scenario is actually testing, so pin it to the style it depends on
+  // rather than an implicit default that used to happen to match.
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce15', src, 'PANELS.DSPF', 'classic').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
     ''
   );
