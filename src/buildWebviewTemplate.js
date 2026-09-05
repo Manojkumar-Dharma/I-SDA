@@ -536,6 +536,36 @@ const htmlTemplate = `<!DOCTYPE html>
      floats just under the search box regardless of scroll position. */
   .panel-body { position: relative; }
   .panel-collapsed .panel-toggle-btn { margin-bottom: 0; writing-mode: vertical-rl; height: 100%; padding: 10px 0; }
+  /* Task P5a - foundation for migrating the aside panel's content into the
+     right-side props-panel (New UI only): two new regions, siblings of
+     rightPanelToggle/rightPanelBody inside #propsPanel, for content that
+     P5b-h will migrate in later. Both are empty right now (nothing has
+     migrated yet) - the ":not(:empty)" guard keeps them from rendering as
+     a blank gap while that's still true, without needing a separate
+     "hide if nothing's in it" toggle in JS.
+     #propsPinnedToolbar sits OUTSIDE .panel-body (a sibling, like
+     rightPanelToggle itself), specifically so ".panel-collapsed
+     .panel-body { display: none }" above never touches it - this is the
+     "survives a full panel collapse" region (Save/Compile/Record
+     select/status - P5b/c/d/e/f) per P5's own risk (2). Collapsed-width
+     tuning (today's 28px rail in applyPanelCollapse() may be too narrow
+     once this actually holds real content) is deliberately deferred to
+     whichever of P5b-h first lands content that doesn't fit - guessing a
+     pixel value against an empty box now would just be a number to
+     revisit blind later.
+     #propsAccordionZone sits INSIDE .panel-body, between the existing
+     mod-tracking-row and #propsBreadcrumb - it only needs to survive
+     #propsBody's own wholesale empty-state replace (P5's risk (1)), not
+     a full panel collapse, so living alongside #propsBreadcrumb rather
+     than beside the toolbar is the correct home for it (View/UI Settings
+     toggles - P5g/h). */
+  .props-pinned-toolbar { display: none; }
+  body[data-ui-style="modern"] .props-pinned-toolbar:not(:empty) {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 4px; margin-bottom: 8px; border-bottom: 1px solid var(--panel-border);
+  }
+  .props-accordion-zone { display: none; }
+  body[data-ui-style="modern"] .props-accordion-zone:not(:empty) { display: block; margin-bottom: 10px; }
   #newRecordForm { border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px; margin-top: 8px; }
 
   /* ---------------------------------------------------------------------
@@ -801,6 +831,7 @@ const htmlTemplate = `<!DOCTYPE html>
 </main>
 <div class="props-panel" id="propsPanel">
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
+  <div class="props-pinned-toolbar" id="propsPinnedToolbar"></div>
   <div class="panel-body" id="rightPanelBody">
   <h2 style="font-size:13px;">Properties</h2>
   <div class="field-row keyword-finder-row">
@@ -812,6 +843,7 @@ const htmlTemplate = `<!DOCTYPE html>
     <label class="compare-toggle"><input type="checkbox" id="modTrackingToggle" /> Track modifications</label>
     <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads. Session-only; doesn't change the isda.modificationTag setting." />
   </div>
+  <div class="props-accordion-zone" id="propsAccordionZone"></div>
   <div id="propsBreadcrumb"></div>
   <div id="propsBody"><div class="empty-state">Select a field to edit it.</div></div>
   </div>
