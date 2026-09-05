@@ -82,15 +82,19 @@ setTimeout(() => {
     'propsPinnedToolbar STAYS invisible under classic with synthetic content too - classic never shows it, empty or not',
     classicDom.window.getComputedStyle(toolbar).display === 'none'
   );
+  check(
+    'propsAccordionZone is invisible under classic too, even with its real P5g content (View accordion)',
+    classicDom.window.getComputedStyle(accordionZone).display === 'none'
+  );
 
-  console.log('\nmodern UI: #propsPinnedToolbar (populated by P5b) and #propsAccordionZone (populated by P5h) both render visible by default now that both have real content');
+  console.log('\nmodern UI: #propsPinnedToolbar (populated by P5b-f) and #propsAccordionZone (populated by both P5g\'s View accordion and P5h\'s UI Settings accordion) both render visible by default now that both have real content');
   const dom = makeDom('modern');
   const doc = dom.window.document;
   const modernToolbar = doc.getElementById('propsPinnedToolbar');
   const modernAccordionZone = doc.getElementById('propsAccordionZone');
   check('propsPinnedToolbar already has real content (P5b\'s Save/Compile buttons)', !!modernToolbar.querySelector('#toolbarSaveBtn') && !!modernToolbar.querySelector('#toolbarCompileBtn'));
   check('propsPinnedToolbar is visible under modern by default, since it is no longer empty', dom.window.getComputedStyle(modernToolbar).display === 'flex');
-  check('propsAccordionZone already has real content (P5h\'s UI Settings accordion)', !!modernAccordionZone.querySelector('#toolbarUiSettingsAccordion'));
+  check('propsAccordionZone already has real content (P5g\'s View accordion and P5h\'s UI Settings accordion)', !!modernAccordionZone.querySelector('#viewAccordion') && !!modernAccordionZone.querySelector('#toolbarUiSettingsAccordion'));
   check('propsAccordionZone is visible under modern by default, since it is no longer empty', dom.window.getComputedStyle(modernAccordionZone).display === 'block');
 
   console.log('\nthe underlying ":not(:empty)" CSS guarantee itself still holds - proven directly by clearing/repopulating rather than assumed from default state');

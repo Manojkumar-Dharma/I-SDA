@@ -902,6 +902,19 @@ const htmlTemplate = `<!DOCTYPE html>
     <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads. Session-only; doesn't change the isda.modificationTag setting." />
   </div>
   <div class="props-accordion-zone" id="propsAccordionZone">
+    <details class="props-accordion" id="viewAccordion">
+      <summary>&#128065; View</summary>
+      <div class="props-accordion-body">
+        <label class="compare-toggle"><input type="checkbox" id="toolbarCompareModeToggle" /> Show other record(s) dimmed behind</label>
+        <label class="compare-toggle hidden" id="toolbarCompareOverlayRow"><input type="checkbox" id="toolbarCompareOverlayToggle" /> Full overlay instead (read-only)</label>
+        <label class="compare-toggle hidden" id="toolbarPreviewRowsRow"><input type="checkbox" id="toolbarPreviewRowsToggle" /> Preview SFLPAG rows</label>
+        <label class="compare-toggle"><input type="checkbox" id="toolbarRulerToggle" /> Show ruler (row/column numbers)</label>
+        <label class="compare-toggle"><input type="checkbox" id="toolbarCrosshairToggle" /> Show crosshair (position readout)</label>
+        <div id="toolbarCompareRecordList" class="hidden"></div>
+        <div class="section-label">Conditioning indicators (preview)</div>
+        <div id="toolbarIndicatorList"></div>
+      </div>
+    </details>
     <details class="props-accordion" id="toolbarUiSettingsAccordion">
       <summary>&#9881; UI Settings</summary>
       <div class="props-accordion-body">
@@ -1076,6 +1089,13 @@ const htmlTemplate = `<!DOCTYPE html>
   // needs its own render()-time update - see updateToolbarTitle below.
   const toolbarTitle = document.getElementById('toolbarTitle');
   const indicatorList = document.getElementById('indicatorList');
+  // Task P5g - genuine duplicate in the pinned toolbar's new "View"
+  // accordion (P5a's persistent accordion zone); rebuildIndicatorListFromSet
+  // below now builds into both containers from the same active Set, same
+  // "one function, two visible copies" reasoning P5c/d already established
+  // - not a relocation, since classic UI never shows the accordion zone at
+  // all and the aside original must keep working there.
+  const toolbarIndicatorList = document.getElementById('toolbarIndicatorList');
   const screenOutput = document.getElementById('screenOutput');
   const propsBody = document.getElementById('propsBody');
   const propsBreadcrumb = document.getElementById('propsBreadcrumb');
@@ -1087,15 +1107,33 @@ const htmlTemplate = `<!DOCTYPE html>
   const compareOverlayRow = document.getElementById('compareOverlayRow');
   const compareOverlayToggle = document.getElementById('compareOverlayToggle');
   const compareRecordList = document.getElementById('compareRecordList');
+  // Task P5g - genuine duplicates of the five toggles/list above, living in
+  // the pinned toolbar's new "View" accordion instead. Checkboxes forward
+  // to their real counterpart (set .checked, re-dispatch 'change') rather
+  // than re-implementing each listener's own logic - same reasoning P5d's
+  // toolbarSizeSelect already established; syncViewToggles() (called from
+  // render(), and directly from ruler/crosshair's own listeners, neither of
+  // which calls render() itself) mirrors real -> duplicate afterward.
+  // compareRecordList's duplicate is built by renderCompareRecordList
+  // itself, alongside the original, from the same compareSelectedRecords
+  // Set - not synced separately.
+  const toolbarCompareModeToggle = document.getElementById('toolbarCompareModeToggle');
+  const toolbarCompareOverlayRow = document.getElementById('toolbarCompareOverlayRow');
+  const toolbarCompareOverlayToggle = document.getElementById('toolbarCompareOverlayToggle');
+  const toolbarCompareRecordList = document.getElementById('toolbarCompareRecordList');
   const mainHint = document.getElementById('mainHint');
   const previewRowsRow = document.getElementById('previewRowsRow');
   const previewRowsToggle = document.getElementById('previewRowsToggle');
+  const toolbarPreviewRowsRow = document.getElementById('toolbarPreviewRowsRow');
+  const toolbarPreviewRowsToggle = document.getElementById('toolbarPreviewRowsToggle');
   const rulerToggle = document.getElementById('rulerToggle');
+  const toolbarRulerToggle = document.getElementById('toolbarRulerToggle');
   const rulerWrap = document.getElementById('rulerWrap');
   const rulerCorner = document.getElementById('rulerCorner');
   const rulerCols = document.getElementById('rulerCols');
   const rulerRows = document.getElementById('rulerRows');
   const crosshairToggle = document.getElementById('crosshairToggle');
+  const toolbarCrosshairToggle = document.getElementById('toolbarCrosshairToggle');
   const modTrackingToggle = document.getElementById('modTrackingToggle');
   const modTrackingTagInput = document.getElementById('modTrackingTagInput');
   const crosshairV = document.getElementById('crosshairV');
@@ -1729,6 +1767,15 @@ const htmlTemplate = `<!DOCTYPE html>
     showFileProps = false;
     render();
   });
+  // Task P5g - forwards to the real listener above rather than
+  // re-implementing it, same "genuine duplicate, one behavior" reasoning
+  // P5d's toolbarSizeSelect already established.
+  if (toolbarPreviewRowsToggle) {
+    toolbarPreviewRowsToggle.addEventListener('change', () => {
+      previewRowsToggle.checked = toolbarPreviewRowsToggle.checked;
+      previewRowsToggle.dispatchEvent(new Event('change'));
+    });
+  }
 
   sizeSelect.addEventListener('change', () => {
     selectedSizeIndex = parseInt(sizeSelect.value, 10) || 0;
@@ -1755,23 +1802,72 @@ const htmlTemplate = `<!DOCTYPE html>
     compareOverlayRow.classList.toggle('hidden', !compareMode);
     render();
   });
+  // Task P5g - same forwarding pattern as toolbarPreviewRowsToggle above.
+  if (toolbarCompareModeToggle) {
+    toolbarCompareModeToggle.addEventListener('change', () => {
+      compareModeToggle.checked = toolbarCompareModeToggle.checked;
+      compareModeToggle.dispatchEvent(new Event('change'));
+    });
+  }
 
   compareOverlayToggle.addEventListener('change', () => {
     compareFullOverlay = compareOverlayToggle.checked;
     render();
   });
+  if (toolbarCompareOverlayToggle) {
+    toolbarCompareOverlayToggle.addEventListener('change', () => {
+      compareOverlayToggle.checked = toolbarCompareOverlayToggle.checked;
+      compareOverlayToggle.dispatchEvent(new Event('change'));
+    });
+  }
 
   rulerToggle.addEventListener('change', () => {
     rulerEnabled = rulerToggle.checked;
     // No re-resolve needed - the ruler is purely derived from lastScreen's
     // own lines/columns, same size/shape math render() already did.
     updateRuler(lastScreen);
+    // Task P5g - unlike compareMode/previewRows/compareOverlay above, this
+    // listener never calls render() (the ruler doesn't need a full
+    // re-resolve), so syncViewToggles() is called directly here rather
+    // than relying on render()'s own call to pick it up.
+    syncViewToggles();
   });
+  if (toolbarRulerToggle) {
+    toolbarRulerToggle.addEventListener('change', () => {
+      rulerToggle.checked = toolbarRulerToggle.checked;
+      rulerToggle.dispatchEvent(new Event('change'));
+    });
+  }
 
   crosshairToggle.addEventListener('change', () => {
     crosshairEnabled = crosshairToggle.checked;
     if (!crosshairEnabled) hideCrosshair();
+    // Task P5g - same "doesn't call render()" reasoning as rulerToggle above.
+    syncViewToggles();
   });
+  if (toolbarCrosshairToggle) {
+    toolbarCrosshairToggle.addEventListener('change', () => {
+      crosshairToggle.checked = toolbarCrosshairToggle.checked;
+      crosshairToggle.dispatchEvent(new Event('change'));
+    });
+  }
+
+  // Task P5g - mirrors the five real toggles' checked state, plus
+  // compareOverlayRow/previewRowsRow's own hidden-class visibility, onto
+  // their pinned-toolbar duplicates. Called from render() (after
+  // previewRowsRow's own visibility is finalized there - see render()'s
+  // own call to this) and directly from ruler/crosshair's listeners above,
+  // neither of which goes through render() itself.
+  function syncViewToggles() {
+    if (toolbarCompareModeToggle) toolbarCompareModeToggle.checked = compareModeToggle.checked;
+    if (toolbarCompareOverlayToggle) toolbarCompareOverlayToggle.checked = compareOverlayToggle.checked;
+    if (toolbarCompareOverlayRow) toolbarCompareOverlayRow.classList.toggle('hidden', compareOverlayRow.classList.contains('hidden'));
+    if (toolbarCompareRecordList) toolbarCompareRecordList.classList.toggle('hidden', compareRecordList.classList.contains('hidden'));
+    if (toolbarPreviewRowsToggle) toolbarPreviewRowsToggle.checked = previewRowsToggle.checked;
+    if (toolbarPreviewRowsRow) toolbarPreviewRowsRow.classList.toggle('hidden', previewRowsRow.classList.contains('hidden'));
+    if (toolbarRulerToggle) toolbarRulerToggle.checked = rulerToggle.checked;
+    if (toolbarCrosshairToggle) toolbarCrosshairToggle.checked = crosshairToggle.checked;
+  }
 
   // Task L38 - session-only, same "toggling here never writes back to the
   // isda.* settings" relationship the UI style toggle documents elsewhere;
@@ -2661,21 +2757,33 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildIndicatorListFromSet(indicatorsForContext(recordName));
   }
 
+  // Task P5g - builds into BOTH the aside's #indicatorList and the pinned
+  // toolbar's #toolbarIndicatorList (its "View" accordion duplicate) from
+  // the same active Set - one function, two visible copies, same
+  // reasoning P5c/d/f already established for their own migrated controls.
+  // Each container's own checkboxes mutate active and call render()
+  // independently rather than one forwarding to the other, since both are
+  // built fresh from the identical data on every call anyway - there is no
+  // separate "source of truth" element to keep in sync with here, unlike a
+  // single toggle/select.
   function rebuildIndicatorListFromSet(indicators) {
-    indicatorList.innerHTML = '';
-    if (indicators.length === 0) {
-      indicatorList.innerHTML = '<div class="empty-state" style="font-size:11px;">None used on this screen</div>';
-      return;
-    }
-    indicators.forEach((num) => {
-      const label = document.createElement('label');
-      label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:12px;';
-      label.innerHTML = '<input type="checkbox" ' + (active.has(num) ? 'checked' : '') + ' /> <span>Ind ' + num + '</span>';
-      label.querySelector('input').addEventListener('change', (e) => {
-        if (e.target.checked) active.add(num); else active.delete(num);
-        render();
+    [indicatorList, toolbarIndicatorList].forEach((container) => {
+      if (!container) return;
+      container.innerHTML = '';
+      if (indicators.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="font-size:11px;">None used on this screen</div>';
+        return;
+      }
+      indicators.forEach((num) => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:12px;';
+        label.innerHTML = '<input type="checkbox" ' + (active.has(num) ? 'checked' : '') + ' /> <span>Ind ' + num + '</span>';
+        label.querySelector('input').addEventListener('change', (e) => {
+          if (e.target.checked) active.add(num); else active.delete(num);
+          render();
+        });
+        container.appendChild(label);
       });
-      indicatorList.appendChild(label);
     });
   }
 
@@ -2691,21 +2799,27 @@ const htmlTemplate = `<!DOCTYPE html>
   // would be redundant. Rebuilt on every render (not just when compareMode
   // is on) so the list is already current the moment the user checks the
   // toggle, and so switching records updates which ones are offered without
-  // needing its own special-case.
+  // needing its own special-case. Task P5g - builds into BOTH the aside's
+  // #compareRecordList and the toolbar's #toolbarCompareRecordList, same
+  // "one function, two visible copies, both mutate the same Set directly"
+  // reasoning as rebuildIndicatorListFromSet above.
   function renderCompareRecordList(currentRecordName) {
-    const prevScroll = compareRecordList.scrollTop;
-    compareRecordList.innerHTML = '';
-    model.records.filter((r) => r.name !== currentRecordName).forEach((r) => {
-      const row = document.createElement('label');
-      row.className = 'compare-record-row';
-      row.innerHTML = '<input type="checkbox" ' + (compareSelectedRecords.has(r.name) ? 'checked' : '') + ' /> ' + r.name;
-      row.querySelector('input').addEventListener('change', (e) => {
-        if (e.target.checked) compareSelectedRecords.add(r.name); else compareSelectedRecords.delete(r.name);
-        render();
+    [compareRecordList, toolbarCompareRecordList].forEach((container) => {
+      if (!container) return;
+      const prevScroll = container.scrollTop;
+      container.innerHTML = '';
+      model.records.filter((r) => r.name !== currentRecordName).forEach((r) => {
+        const row = document.createElement('label');
+        row.className = 'compare-record-row';
+        row.innerHTML = '<input type="checkbox" ' + (compareSelectedRecords.has(r.name) ? 'checked' : '') + ' /> ' + r.name;
+        row.querySelector('input').addEventListener('change', (e) => {
+          if (e.target.checked) compareSelectedRecords.add(r.name); else compareSelectedRecords.delete(r.name);
+          render();
+        });
+        container.appendChild(row);
       });
-      compareRecordList.appendChild(row);
+      container.scrollTop = prevScroll;
     });
-    compareRecordList.scrollTop = prevScroll;
   }
 
   // Renders every OTHER checked record as a single dimmed, non-interactive
@@ -2794,11 +2908,18 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildNewRecordDepOptions();
 
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
-    if (!recordName) { indicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; updateRuler(null); updateOverlapWarning(null); renderProps(null); return; }
+    if (!recordName) { indicatorList.innerHTML = ''; if (toolbarIndicatorList) toolbarIndicatorList.innerHTML = ''; fkeyLegendEl.innerHTML = ''; screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>'; updateRuler(null); updateOverlapWarning(null); renderProps(null); return; }
     recordSelect.value = recordName;
     rebuildIndicatorList(recordName);
     updateSizeBoundsWarning(recordName);
     renderCompareRecordList(recordName);
+    // Task P5g - covers every render() exit path below (full-overlay
+    // return, screen.error return, and the normal path) for the toggles
+    // whose state doesn't depend on screen at all; the normal path also
+    // calls this again below, once previewRowsRow/previewRowsToggle's own
+    // screen-dependent final state is known - syncViewToggles() is
+    // idempotent, so calling it twice on that path is harmless.
+    syncViewToggles();
 
     if (compareMode && compareFullOverlay) {
       renderFullOverlay(recordName);
@@ -2813,6 +2934,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; updateRuler(screen); updateOverlapWarning(null); return; }
     previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
     if (!screen.isSflRecord && previewMultipleRows) { previewMultipleRows = false; previewRowsToggle.checked = false; }
+    syncViewToggles();
     if (screen.isSflRecord && screen.previewRowCount) {
       mainHint.textContent = screen.previewRowCount < screen.declaredPreviewRowCount
         ? 'Previewing ' + screen.previewRowCount + ' of ' + screen.declaredPreviewRowCount + ' SFLPAG rows (capped to fit the ' + screen.lines + '-line screen). Drag any field to move the whole row - they all come from the same template.'
