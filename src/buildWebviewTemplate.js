@@ -832,6 +832,8 @@ const htmlTemplate = `<!DOCTYPE html>
 <div class="props-panel" id="propsPanel">
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
   <div class="props-pinned-toolbar" id="propsPinnedToolbar">
+    <div class="status" id="toolbarFileStatus">${FILENAME_TOKEN}</div>
+    <div class="codefori-badge unknown" id="toolbarCodeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
     <button type="button" class="save-btn" id="toolbarSaveBtn" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
     <button type="button" class="compile-btn" id="toolbarCompileBtn">Compile Display File (CRTDSPF)</button>
   </div>
@@ -1128,22 +1130,30 @@ const htmlTemplate = `<!DOCTYPE html>
   // 'codeForIStatus' message - sent on 'ready', after every Code-for-i
   // dependent action, and on a cheap poll, all from the host side.
   const codeForIBadge = document.getElementById('codeForIBadge');
+  // Task P5c (LIMITATIONS-PLAN.md's P series) - the pinned-toolbar (P5a)
+  // copy of the badge, same "genuine second element sharing one computed
+  // state, not a proxy/observer-mirror" reasoning P5b's own doc comment
+  // above already gives for toolbarCompileBtn (and for the exact same
+  // "P5i deletes the aside original outright" future-proofing reason).
+  const toolbarCodeForIBadge = document.getElementById('toolbarCodeForIBadge');
   function updateCodeForIBadge(installed, connected) {
-    if (!codeForIBadge) return;
-    codeForIBadge.classList.remove('connected', 'disconnected', 'unknown');
-    if (!installed) {
-      codeForIBadge.classList.add('unknown');
-      codeForIBadge.textContent = 'IBM i: not installed';
-      codeForIBadge.title = 'Code for IBM i extension not found - Compile, Resolve Referenced Field, and Add fields from database file will not work until it is installed.';
-    } else if (!connected) {
-      codeForIBadge.classList.add('disconnected');
-      codeForIBadge.textContent = 'IBM i: not connected';
-      codeForIBadge.title = 'Code for IBM i is installed but not connected to a system - Compile, Resolve Referenced Field, and Add fields from database file will not work until you connect.';
-    } else {
-      codeForIBadge.classList.add('connected');
-      codeForIBadge.textContent = 'IBM i: connected';
-      codeForIBadge.title = 'Code for IBM i is connected - Compile, Resolve Referenced Field, and Add fields from database file are available.';
-    }
+    [codeForIBadge, toolbarCodeForIBadge].forEach((badge) => {
+      if (!badge) return;
+      badge.classList.remove('connected', 'disconnected', 'unknown');
+      if (!installed) {
+        badge.classList.add('unknown');
+        badge.textContent = 'IBM i: not installed';
+        badge.title = 'Code for IBM i extension not found - Compile, Resolve Referenced Field, and Add fields from database file will not work until it is installed.';
+      } else if (!connected) {
+        badge.classList.add('disconnected');
+        badge.textContent = 'IBM i: not connected';
+        badge.title = 'Code for IBM i is installed but not connected to a system - Compile, Resolve Referenced Field, and Add fields from database file will not work until you connect.';
+      } else {
+        badge.classList.add('connected');
+        badge.textContent = 'IBM i: connected';
+        badge.title = 'Code for IBM i is connected - Compile, Resolve Referenced Field, and Add fields from database file are available.';
+      }
+    });
     // Bug-fix follow-up (screenshot report): rather than leaving Compile and
     // "+ Fields from database file" visible-but-doomed-to-fail when there's
     // no live connection, hide them outright - same "not connected" state
