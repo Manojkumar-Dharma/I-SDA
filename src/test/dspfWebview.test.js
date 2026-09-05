@@ -2167,6 +2167,25 @@ function runFieldKeywordVisibilityScenario() {
     check('Color & attributes section is present (inline, not an accordion) for B', doc.getElementById('propsBody').innerHTML.indexOf('Color &amp; attributes') >= 0);
     check('Validity check section is present (inline) for B', doc.getElementById('propsBody').innerHTML.indexOf('Validity check') >= 0);
 
+    console.log('  Bug fix (Find keyword feature request): searching a keyword\'s real DDS code finds its panel even when that keyword is NOT currently set on the field - not just once it\'s already added');
+    const keywordFinderInput = doc.getElementById('keywordFinderInput');
+    const keywordFinderResults = doc.getElementById('keywordFinderResults');
+    check('FLDBOTH has no DSPATR set yet (setup for the check below)', !/DSPATR/.test(doc.querySelector('#propsBody .keyword-chip') ? doc.getElementById('propsBody').innerHTML : ''));
+    keywordFinderInput.value = 'DSPATR';
+    keywordFinderInput.dispatchEvent(new Event('input', { bubbles: true }));
+    let finderRows = Array.from(keywordFinderResults.querySelectorAll('.field-search-row'));
+    check('searching DSPATR finds the Color & Attributes panel even though DSPATR is not set on FLDBOTH', finderRows.length > 0 && /DSPATR/i.test(finderRows[0].textContent));
+    keywordFinderInput.value = 'COLOR';
+    keywordFinderInput.dispatchEvent(new Event('input', { bubbles: true }));
+    finderRows = Array.from(keywordFinderResults.querySelectorAll('.field-search-row'));
+    check('searching COLOR finds a match too (not set on FLDBOTH either)', finderRows.length > 0);
+    keywordFinderInput.value = 'RANGE';
+    keywordFinderInput.dispatchEvent(new Event('input', { bubbles: true }));
+    finderRows = Array.from(keywordFinderResults.querySelectorAll('.field-search-row'));
+    check('searching RANGE finds the Validity check panel even though no RANGE/COMP/VALUES is set on FLDBOTH', finderRows.length > 0 && /RANGE/i.test(finderRows[0].textContent));
+    keywordFinderInput.value = '';
+    keywordFinderInput.dispatchEvent(new Event('input', { bubbles: true }));
+
     console.log('  Usage I (Input): Message ID (Output-only) is hidden, everything Input-side stays');
     check('FLDIN is selectable', selectFieldByName('FLDIN'));
     labels = accordionLabels();
@@ -4495,6 +4514,16 @@ function runUsrDfnPickerScenario() {
     const plainLabels = keywordsSubtabLabels();
     check('all 7 category subtabs present', ['General', 'Indicator', 'Help', 'Output', 'Input', 'Overlay', 'Print'].every((l) => plainLabels.includes(l)));
     check('App help is NOT one of them', !plainLabels.includes('App help'));
+
+    console.log('  Bug fix (Find keyword feature request): searching a record-level indicator keyword\'s real code (VLDCMDKEY) finds its panel even though PLAIN has none of these set - previously only a <select><option> buried the code, never matched by the finder');
+    const keywordFinderInput = doc.getElementById('keywordFinderInput');
+    const keywordFinderResults = doc.getElementById('keywordFinderResults');
+    keywordFinderInput.value = 'VLDCMDKEY';
+    keywordFinderInput.dispatchEvent(new Event('input', { bubbles: true }));
+    const vldcmdkeyRows = Array.from(keywordFinderResults.querySelectorAll('.field-search-row'));
+    check('searching VLDCMDKEY finds the record Indicator panel even though PLAIN has none set', vldcmdkeyRows.length > 0 && /VLDCMDKEY/i.test(vldcmdkeyRows[0].textContent));
+    keywordFinderInput.value = '';
+    keywordFinderInput.dispatchEvent(new Event('input', { bubbles: true }));
 
     console.log('  a USRDFN record (carries the USRDFN keyword) only gets General/Help/Print');
     recordSelect.value = 'USERDEFN';

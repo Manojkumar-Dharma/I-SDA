@@ -779,7 +779,7 @@
       html += '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
     });
     html += '</div>';
-    return html;
+    return dataKwWrap(['COLOR', 'DSPATR'], html);
   }
 
   function wireColorAttrEditor(keywords, onChange, ownerKey) {
@@ -849,7 +849,7 @@
       staging += '</div>';
       return staging;
     });
-    return html;
+    return dataKwWrap(['COLOR', 'DSPATR'], html);
   }
 
   function wireColorAttrStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
@@ -947,13 +947,13 @@
   /** Validity check (RANGE/COMP/VALUES) panel (Task L5). */
   function validityCheckInstancesHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getValidityCheckInstances(keywords);
-    return repeatableConditionedInstancesHtml(
+    return dataKwWrap(['RANGE', 'COMP', 'VALUES'], repeatableConditionedInstancesHtml(
       instances,
       ownerKey + '-rep',
       function renderPayload(inst, instIdPrefix) { return validityCheckInstanceRowHtml(inst, instIdPrefix); },
       expandedSet,
       '+ Add validity check'
-    );
+    ));
   }
 
   function wireValidityCheckInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
@@ -1027,13 +1027,13 @@
   /** Record-level Indicator/screen-control keywords panel (Task L5d). */
   function recordIndicatorInstancesHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getRecordIndicatorInstances(keywords);
-    return repeatableConditionedInstancesHtml(
+    return dataKwWrap(['CLEAR', 'PAGEDOWN', 'PAGEUP', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'], repeatableConditionedInstancesHtml(
       instances,
       ownerKey + '-rep',
       function renderPayload(inst, instIdPrefix) { return recordIndicatorInstanceRowHtml(inst, instIdPrefix); },
       expandedSet,
       '+ Add indicator keyword'
-    );
+    ));
   }
 
   function wireRecordIndicatorInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
@@ -1442,7 +1442,7 @@
   // -----------------------------------------------------------------------
   function checkInstancesHtml(keywords, ownerKey, expandedSet, codeSpecs, addLabel) {
     var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['CHECK']);
-    return repeatableConditionedInstancesHtml(instances, ownerKey + '-check-rep', function (inst, instIdPrefix) {
+    return dataKwWrap(['CHECK'], repeatableConditionedInstancesHtml(instances, ownerKey + '-check-rep', function (inst, instIdPrefix) {
       var codes = DspfWriter.parseCheckCodes(inst.parameters);
       var html = '<div class="attr-checks">';
       codeSpecs.forEach(function (c) {
@@ -1455,7 +1455,7 @@
       });
       html += '</div>';
       return html;
-    }, expandedSet, addLabel || '+ Add CHECK instance');
+    }, expandedSet, addLabel || '+ Add CHECK instance'));
   }
 
   function wireCheckInstancesEditor(keywords, onChange, ownerKey, expandedSet, rerender, codeSpecs) {
@@ -2431,7 +2431,7 @@
       win += '<div class="field-row" style="margin-bottom:6px;"><label>' + escapeHtml(p.label) + '</label><input type="text" maxlength="1" id="' + idPrefix + '-char-' + p.key + '" value="' + escapeHtml(wb.chars[p.key] || '') + '" style="width:40px;" /></div>';
     });
     win += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:8px;">Apply window border</button>';
-    return win;
+    return dataKwWrap(['WDWBORDER'], win);
   }
 
   /** Wires a windowBorderPanelHtml()-produced panel. Same `getKeywords`
@@ -4088,6 +4088,30 @@
 
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Bug fix (Find keyword feature request, follow-up to the L37 quick-nav):
+  // findKeywordMatches (buildWebviewTemplate.js) searches the rendered
+  // propsBody DOM for label/.section-label/.keyword-chip text, on the
+  // theory that every picker row already shows its own keyword code. That
+  // holds for plain flagRowHtml rows ("Blink cursor (BLINK)"), but several
+  // panels intentionally show human-friendly labels or per-VALUE checkbox
+  // codes instead of the group's own DDS keyword name anywhere visible -
+  // COLOR/DSPATR's own "Color & attributes" section label never says
+  // "COLOR" or "DSPATR" literally; RANGE/COMP/VALUES' hint text lives in a
+  // <div class="hint-small"> that findKeywordMatches' selector doesn't even
+  // look at; WDWBORDER/CHCAVAIL/CHCUNAVAIL/CHCSLT/the record Indicator
+  // panel's 10 codes are only visible as <option> text inside a closed
+  // <select>. Each of those meant the keyword could never be FOUND unless
+  // it happened to already be set (then only visible via the Advanced/raw
+  // keywords editor's own .keyword-chip) - useless for jumping to a keyword
+  // you want to ADD. dataKwWrap tags the group's own outer container with
+  // a `data-kw="CODE1 CODE2 ..."` attribute so findKeywordMatches can match
+  // on the real keyword code regardless of what the visible label says or
+  // whether the keyword is currently present - see its own updated comment
+  // in buildWebviewTemplate.js for the DOM-search side of this fix.
+  function dataKwWrap(codes, innerHtml) {
+    return '<div data-kw="' + escapeHtml(codes.join(' ')) + '">' + innerHtml + '</div>';
   }
 
   return {

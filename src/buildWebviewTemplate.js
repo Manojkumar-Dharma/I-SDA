@@ -1539,6 +1539,25 @@ const htmlTemplate = `<!DOCTYPE html>
   // wireTabs/wireSubTabs above), so a plain text search over the row
   // labels/keyword chips already finds a match no matter which tab it
   // lives under, with nothing extra to keep in sync as panels evolve.
+  //
+  // Bug fix (Find keyword feature request): that text search alone only
+  // finds a keyword whose exact DDS code happens to be visible in a
+  // label/.section-label/.keyword-chip - true for plain flag rows ("Blink
+  // cursor (BLINK)"), but not for panels that show a friendly label instead
+  // (COLOR/DSPATR's "Color & attributes" section never says "COLOR" or
+  // "DSPATR"), bury the code in a <select>'s closed <option> text (the
+  // record Indicator panel's CLEAR/PAGEDOWN/etc.), or put it in a
+  // <div class="hint-small"> the old selector never looked at
+  // (RANGE/COMP/VALUES). For those, the ONLY way a keyword search ever
+  // found anything was via the Advanced/raw keywords editor's own
+  // .keyword-chip - which only exists once the keyword is already SET. That
+  // made the finder look like it only surfaces keywords already added,
+  // when the actual point of a keyword finder is jumping to where you'd
+  // ADD one. findKeywordMatches now ALSO matches on [data-kw="CODE ..."]
+  // attributes (see webviewClientHelpers.js's dataKwWrap) that these panels
+  // tag their own outer container with, independent of whatever text is
+  // actually visible - so searching "DSPATR" finds the Color & Attributes
+  // panel whether or not this field currently has any DSPATR set.
   const keywordFinderInput = document.getElementById('keywordFinderInput');
   const keywordFinderResults = document.getElementById('keywordFinderResults');
   let keywordFinderMatches = [];
@@ -1573,6 +1592,35 @@ const htmlTemplate = `<!DOCTYPE html>
       if (seen.has(key)) return;
       seen.add(key);
       out.push({ element: el, text: text, tabId: tabId, subtabId: subtabId });
+    });
+    // Bug fix (Find keyword feature request): the search above only finds
+    // keywords whose exact DDS code happens to be visible inside a
+    // label/.section-label/.keyword-chip. Several panels (Color & Attributes
+    // for COLOR/DSPATR, RANGE/COMP/VALUES' own hint text, WDWBORDER, and the
+    // record Indicator panel's CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/
+    // VLDCMDKEY/SETOF/CHANGE/INDTXT codes) only ever show a friendly label or
+    // bury the code inside a closed <select>'s <option> text - so searching
+    // the keyword's own real name previously found NOTHING there unless it
+    // happened to already be set (visible only via the Advanced/raw
+    // keywords editor's .keyword-chip). That made this feel like it only
+    // finds keywords ALREADY added, when the point of a keyword finder is to
+    // jump to where you'd ADD one. webviewClientHelpers.js's dataKwWrap now
+    // tags each such panel's own outer container with
+    // data-kw="CODE1 CODE2 ..."; match on that here too, independent of
+    // whatever the panel's visible text says.
+    propsBody.querySelectorAll('[data-kw]').forEach((el) => {
+      const codes = (el.getAttribute('data-kw') || '').split(/\s+/).filter(Boolean);
+      codes.forEach((code) => {
+        if (code.toLowerCase().indexOf(q) === -1) return;
+        const tabPanel = el.closest('.props-tab-panel');
+        const subtabPanel = el.closest('.props-subtab-panel');
+        const tabId = tabPanel ? tabPanel.getAttribute('data-tab-panel') : null;
+        const subtabId = subtabPanel ? subtabPanel.getAttribute('data-subtab-panel') : null;
+        const key = code.toLowerCase() + '|' + tabId + '|' + subtabId;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({ element: el, text: code, tabId: tabId, subtabId: subtabId });
+      });
     });
     return out.slice(0, 30);
   }
