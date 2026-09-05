@@ -582,6 +582,32 @@ documentation the way an L/M bug fix would be.
 | **P5h** | **UI Settings accordion (style/theme) relocates as-is into P5a's persistent accordion zone, alongside P5g's new one.** No redesign, just a new address - the style toggle itself must keep working exactly as it does today, since it's the only way back to classic UI once the aside is gone. | P5a | **done** — a second `#toolbarUiSettingsAccordion` added inside `#propsAccordionZone`, carrying its own `#toolbarUiStyleToggle`/`#toolbarUiThemeRow`/`#toolbarUiThemeSelect` (new ids throughout, since an id must be unique in the document). This row's own text says the accordion "relocates as-is" (a move), but - like every other P5b-h migration so far (P5b/c/d/f) - it's actually a genuine SECOND element mirroring the aside original 1:1, kept in sync, coexisting until P5i finally deletes the aside outright: literally moving this control out of `<aside>` now would be the one migration in the group that couldn't be undone, and would leave classic UI (which keeps `<aside>` forever) with no working style toggle at all in the meantime - see buildWebviewTemplate.js's own doc comment for the full reasoning, same "wording doesn't mean a literal move" precedent P5f's own row already set. Unlike P5b/c/d (where the toolbar copy only has to sync with the extension host), the two style-toggle buttons and two theme selects here ALSO have to sync with EACH OTHER directly, since either can be clicked/changed: both style-toggle IIFEs now collect every present element (aside + toolbar) into an array, apply one shared `uiStyle`/`uiTheme` variable's label/value to ALL of them on init, and re-apply to all of them again on any single element's own click/change handler - so toggling either one updates both immediately, and the underlying `postMessage`/`vscode.setState` call still only fires once per interaction. New dedicated test file `src/test/toolbarUiSettings.test.js` (added to `package.json`'s `test` script) covers: both accordions present with the aside original untouched, both style-toggle buttons/theme selects starting in sync, and - the bidirectional part specifically - clicking/changing either the toolbar OR the aside control updates the OTHER one to match, with only one `setUiStyle`/`setUiTheme` message posted per interaction either way. `propsPanelShell.test.js` (P5a) updated to match - `#propsAccordionZone` is no longer empty by default now that this task populated it, so its own "invisible while empty" checks were rewritten to clear/repopulate the region directly, same adjustment P5b already made for `#propsPinnedToolbar`. Full suite: 39/39 files, zero failures. |
 | **P5i** | **The actual removal: delete the `<aside>` element and flip the New-UI grid to the two-column `[canvas 1fr] [right panel]` layout (classic UI's three-column grid is untouched forever).** The one row in this group that can NOT run in parallel with P5b-h, since it deletes the very DOM those rows are each migrating content out of - only safe once every one of P5b-h has actually landed (every piece of the aside's old content has a confirmed real home first). This is the moment P1's own "duplicate button in both places" state finally resolves - the aside's originals are gone, the toolbox icons/their migrated equivalents in the right panel are the only way left, in New UI. | P5a, P5b, P5c, P5d, P5e, P5f, P5g, P5h (every migration must be done first) | not started |
 
+## A series — SDA reference screenshot keyword-inventory audit (follow-up to L22)
+
+Requested directly: complete the keyword-inventory audit L22 started but only
+partially finished. L22's own text says it covered File-level (all 9
+categories), Record-level base keywords (`base-record-keywords/*`, all 8
+categories), and ~30 of ~55 Field-level screenshots — and explicitly flagged
+the remaining ~130 record-level variant screenshots (`screens/record-level/*`
+minus `base-record-keywords`) and ~25 field-level screenshots as **not**
+re-audited in that pass. This series finishes that remainder: record-level
+variants first (SFL/SFLCTL/SFLMSG, WINDOW + border sub-screens, PULLDOWN,
+MNUBAR, and the WNDSFL/WNDSFCTL/PULDWNSFL/PDNSFLCTL combination types), then
+the remaining field-level screens (Colors/Validity Check/Error Messages/
+Message ID/Database Reference/Keying Options/Input Keywords for
+character+numeric, Subfile Keywords, and the Menu-bar choice sub-screens not
+already spot-checked). Per-screenshot: extract the keyword list shown, then
+cross-check both against the rendered designer UI (does a picker/field exist
+for it) and the generated DDS source (does `dspfWriter.js`/`dspfEngine.js`
+actually read/write that keyword) — this is an audit, not new implementation;
+any gap found gets logged as its own new `L`-series task, same as L22's own
+four findings (L23-L26) were.
+
+| ID | Description | Depends on | Status |
+|---|---|---|---|
+| **A1** | Record-level variant screenshot audit — `screens/record-level/*` excluding `base-record-keywords` (SFL, SFLCTL, SFLMSG, WINDOW incl. all border sub-screens, PULLDOWN, MNUBAR record, WNDSFL, WNDSFCTL, PULDWNSFL, PDNSFLCTL, USRDFN). | L22 (this is its own unfinished remainder) | in progress |
+| **A2** | Field-level remaining screenshot audit — `screens/field-level/*` screens not already spot-checked by L22 (Colors, Validity Check, Error Messages, Message ID, Database Reference, Keying Options, Input Keywords for character+numeric; Subfile Keywords; remaining Menu-bar choice sub-screens). | L22 (this is its own unfinished remainder) | not started |
+
 ## Out of scope here
 
 The "not really fixable" and "already handled reasonably" items are
