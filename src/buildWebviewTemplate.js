@@ -574,6 +574,20 @@ const htmlTemplate = `<!DOCTYPE html>
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 8px 4px; margin-bottom: 8px; border-bottom: 1px solid var(--panel-border);
   }
+  /* Task P5f - the aside's own h1 ("IBM i · DDS")/h2 ("Screen Design")
+     branding fold into this ONE line rather than a separate top bar, per
+     this task's own row - "IBM i · DDS" itself is dropped as purely
+     decorative product branding that isn't worth a toolbar's limited
+     width; "Screen Design" (still meaningfully distinguishes this from
+     the separate Menu designer webview) survives, now paired with a live
+     record count neither h1 nor h2 ever showed. flex-basis: 100% forces
+     this to its own row within the toolbar's flex-wrap container ahead
+     of Save/Compile/etc., rather than wrapping inline with them - the
+     "slim title line" this row's own text calls for, with no separate
+     wrapper element needed. The aside's own h1/h2 are untouched - this
+     is an addition to the toolbar, not a removal from the aside, same
+     coexist-until-P5i rule every P5b-h migration so far has followed. */
+  .toolbar-title { flex-basis: 100%; font-size: 13px; font-weight: 600; color: var(--ink); }
   .props-accordion-zone { display: none; }
   body[data-ui-style="modern"] .props-accordion-zone:not(:empty) { display: block; margin-bottom: 10px; }
   #newRecordForm { border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px; margin-top: 8px; }
@@ -842,6 +856,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <div class="props-panel" id="propsPanel">
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
   <div class="props-pinned-toolbar" id="propsPinnedToolbar">
+    <div class="toolbar-title" id="toolbarTitle">Screen Design</div>
     <div class="status" id="toolbarFileStatus">${FILENAME_TOKEN}</div>
     <div class="codefori-badge unknown" id="toolbarCodeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
     <button type="button" class="save-btn" id="toolbarSaveBtn" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
@@ -979,6 +994,13 @@ const htmlTemplate = `<!DOCTYPE html>
   // stays the one authoritative element (see rebuildRecordSelect's own doc
   // comment for why this isn't a relocation).
   const toolbarRecordSelect = document.getElementById('toolbarRecordSelect');
+  // Task P5f - the toolbar's slim title line; unlike toolbarFileStatus
+  // (a static filename baked in at HTML-generation time - see
+  // FILENAME_TOKEN's own doc comment - never touched again after that),
+  // the record count genuinely changes live as records are added/removed
+  // (the P3/P4 toolbox tools, "+ Add record", delete, etc.), so this one
+  // needs its own render()-time update - see updateToolbarTitle below.
+  const toolbarTitle = document.getElementById('toolbarTitle');
   const indicatorList = document.getElementById('indicatorList');
   const screenOutput = document.getElementById('screenOutput');
   const propsBody = document.getElementById('propsBody');
@@ -2392,6 +2414,15 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   }
 
+  // Task P5f - keeps the toolbar's "Screen Design · N records" title line
+  // current; called from render() alongside rebuildRecordSelect() above,
+  // the other function that already reacts to model.records changing.
+  function updateToolbarTitle() {
+    if (!toolbarTitle) return;
+    const count = model.records.length;
+    toolbarTitle.textContent = 'Screen Design \u00b7 ' + count + (count === 1 ? ' record' : ' records');
+  }
+
   /**
    * Syncs the "+ Add record" record-TYPE picker's dependent-record
    * controls to the currently-selected type and the LIVE model: the
@@ -2660,6 +2691,7 @@ const htmlTemplate = `<!DOCTYPE html>
     mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
 
     rebuildRecordSelect();
+    updateToolbarTitle();
     rebuildSizeSelect();
     rebuildNewRecordDepOptions();
 
