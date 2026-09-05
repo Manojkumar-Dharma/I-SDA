@@ -622,6 +622,24 @@ four findings (L23-L26) were.
 | **L58** | `RMVWDW` and `USRRSTDSP` (record-level flag keywords, both option-indicator-conditionable, no parameters) added to the Window Parameters panel (windowPanelsHtml/wireWindowPanels) via `getFileFlagKeyword`/`setFileFlagKeyword` — no new dspfWriter.js functions needed. | A1 | done |
 | **L59** | `keyingOptionsHtml` now takes the field's `dataType` and picks the correct KEYBRD value list: numeric fields get S/N/Y/I/D (real SDA's numeric Keying Options + Database Reference screens), character fields keep N/A/X/W/I/D/M/J/O/E/G (real SDA's character screen) — previously every field got the character list regardless of type, so numeric fields could never select S or Y and were wrongly offered 6 character-only letters. Unrecognized/missing `dataType` falls back to the wider character list. Existing regression test (QTY, a numeric field) updated to expect the corrected numeric list; new regression test added (DESCR, a character field) to lock in the character list too. | A2 | done |
 
+## Keyword index (docs, not a task)
+
+Requested directly, alongside A1/A2: a structured inventory of every DDS
+keyword iSDA exposes, one entry per keyword per UI category it appears
+under, meant for (1) side-by-side comparison against real IBM i SDA's own
+screens and (2) as the data layer for a future "quick find keyword"
+navigation feature (not yet built - this is groundwork, not a new picker).
+Lives at `docs/sda-reference/keyword-index/`: `KEYWORD-INDEX.json`
+(structured by level -> category, matching iSDA's own UI tabs exactly),
+`KEYWORD-LOOKUP.json` (flat keyword-name -> location map), `KEYWORD-INDEX.md`
+(human-readable rendering of both), plus the two Python scripts that
+generate them and a README explaining scope/regeneration. Built by reading
+`webviewClientHelpers.js`'s panel-building functions directly (ground truth,
+same code driving iSDA's own UI), not reconstructed from screenshots or
+memory. 200 keyword entries, 159 unique keyword names, 47 categories, dated
+in each JSON's own `meta.generated` field. This is a documentation artifact,
+not code - not compiled, not tested, not wired into the extension itself.
+
 ## Out of scope here
 
 The "not really fixable" and "already handled reasonably" items are

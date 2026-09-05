@@ -1,0 +1,2432 @@
+{
+  "meta": {
+    "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
+    "uniqueKeywords": 159,
+    "generated": "2026-09-05"
+  },
+  "keywords": {
+    "*AUTOENT": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Enable auto-enter on all displays",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*AUTOENTNN": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Auto-enter only when no numeric selection is possible",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*AUTOSLT": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Auto-select the choice on Enter",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*AUTOSLTENH": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Auto-select only with an enhanced controller",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*GUTTER": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Spaces between choice columns",
+        "parameters": "2-999",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*NOAUTOENT": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "No auto-enter",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*NOAUTOSLT": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "No auto-select",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*NORSTCSR": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "No cursor restriction",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*NOSLTIND": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "No select indicator display",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*NUMCOL": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Arrange choices in this many columns",
+        "parameters": "1-999",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*NUMROW": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Arrange choices in this many rows",
+        "parameters": "1-999",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*RSTCSR": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Restrict cursor to the choice field",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "*SLTIND": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Display a select indicator per choice",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "ALARM": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Sound the alarm",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "ALIAS": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Alternative field name",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "ALTHELP": [
+      {
+        "level": "file",
+        "category": "Alternate",
+        "description": "Alternative help key",
+        "parameters": "CA01-CA24",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/07-alternate-keywords",
+        "sharedWith": []
+      }
+    ],
+    "ALTNAME": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Alternative record name for program-described-file I/O",
+        "parameters": "'alternative-name'",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "ALTPAGEDWN": [
+      {
+        "level": "file",
+        "category": "Alternate",
+        "description": "Alternative page-down key",
+        "parameters": "CF01-CF24",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/07-alternate-keywords",
+        "sharedWith": []
+      }
+    ],
+    "ALTPAGEUP": [
+      {
+        "level": "file",
+        "category": "Alternate",
+        "description": "Alternative page-up key",
+        "parameters": "CF01-CF24",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/07-alternate-keywords",
+        "sharedWith": []
+      }
+    ],
+    "ALWGPH": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Allow graphics",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Allow graphics",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "ALWROL": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Allow rolling of lines",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "ASSUME": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Assume record is already on display",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "BLANKS": [
+      {
+        "level": "field",
+        "category": "Input Keywords",
+        "description": "Response for blank input",
+        "parameters": "response indicator, text",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/input-keywords",
+        "sharedWith": []
+      }
+    ],
+    "BLINK": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Blink the cursor",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "CA01-CA24": [
+      {
+        "level": "file",
+        "category": "Command Keys",
+        "description": "Command Attention key (no field/record I/O)",
+        "parameters": "indicator, response-indicator, 'text'",
+        "repeatable": true,
+        "screenshotDir": null,
+        "sharedWith": [
+          "record: General (all types)"
+        ]
+      }
+    ],
+    "CF01-CF24": [
+      {
+        "level": "file",
+        "category": "Command Keys",
+        "description": "Command Function key (returns to program)",
+        "parameters": "indicator, response-indicator, 'text'",
+        "repeatable": true,
+        "screenshotDir": null,
+        "sharedWith": [
+          "record: General (all types)"
+        ]
+      }
+    ],
+    "CHANGE": [
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Return-this-record-on-changed-field indicator",
+        "parameters": "indicator",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Subfile - Indicator (SFL)",
+        "description": "Return-on-changed indicator",
+        "parameters": "indicator",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/subfile-sfl/indicator",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      },
+      {
+        "level": "field",
+        "category": "Input Keywords",
+        "description": "Response for changed input",
+        "parameters": "response indicator, text",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/input-keywords",
+        "sharedWith": []
+      }
+    ],
+    "CHCACCEL": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Keywords (CHOICE/CHCCTL/CHCACCEL)",
+        "description": "Choice accelerator key text",
+        "parameters": "choice-number text-field 'text'",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-keywords",
+        "sharedWith": []
+      }
+    ],
+    "CHCAVAIL": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Colors and Attributes",
+        "description": "Color/attributes for an available choice",
+        "parameters": "(*COLOR c)(*DSPATR a)",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-number-entry",
+        "sharedWith": []
+      }
+    ],
+    "CHCCTL": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Keywords (CHOICE/CHCCTL/CHCACCEL)",
+        "description": "Choice control - conditioning field / message",
+        "parameters": "choice-number control-field message-id file library",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-keywords",
+        "sharedWith": []
+      }
+    ],
+    "CHCSLT": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Colors and Attributes",
+        "description": "Color/attributes for a selected choice",
+        "parameters": "(*COLOR c)(*DSPATR a)",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-number-entry",
+        "sharedWith": []
+      }
+    ],
+    "CHCUNAVAIL": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Colors and Attributes",
+        "description": "Color/attributes for an unavailable choice",
+        "parameters": "(*COLOR c)(*DSPATR a)",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-number-entry",
+        "sharedWith": []
+      }
+    ],
+    "CHECK": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Allow blanks (AB) / move cursor right-left top-bottom (RLTB) / right to left (RL)",
+        "parameters": "AB | RLTB | RL",
+        "repeatable": true,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Input",
+        "description": "Allow blanks (AB) / move cursor right-to-left (RL)",
+        "parameters": "AB | RL",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/input",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Subfile - General (SFL)",
+        "description": "Allow blanks (AB) / move cursor right to left (RL)",
+        "parameters": "AB | RL",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/general",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      },
+      {
+        "level": "field",
+        "category": "Keying Options",
+        "description": "Mandatory entry (ME) / auto record advance (ER) / mandatory fill (MF) / field exit required (FE) / right-adjust blank fill (RB) / right-adjust zero fill (RZ) / move cursor right-to-left (RL) / lowercase allowed (LC)",
+        "parameters": "ME | ER | MF | FE | RB | RZ | RL | LC",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/character/keying-options",
+        "sharedWith": []
+      },
+      {
+        "level": "field",
+        "category": "Validity Check",
+        "description": "Name-extended field (VNE) / name field (VN) / allow blanks (AB) / modulus-10 self-check (M10/M10F) / modulus-11 self-check (M11/M11F)",
+        "parameters": "VNE | VN | AB | M10 | M10F | M11 | M11F",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/character/validity-check",
+        "sharedWith": []
+      }
+    ],
+    "CHGINPDFT": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Change input field defaults",
+        "parameters": "attribute codes, e.g. HI RI CS BL UL LC ME MF FE",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Change input field defaults",
+        "parameters": "attribute codes",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Subfile - General (SFL)",
+        "description": "Change input defaults",
+        "parameters": "select parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/general",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      },
+      {
+        "level": "field",
+        "category": "Input Keywords",
+        "description": "Change input defaults",
+        "parameters": "select parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/input-keywords",
+        "sharedWith": []
+      }
+    ],
+    "CHKMSGID": [
+      {
+        "level": "field",
+        "category": "Validity Check",
+        "description": "Override the system-supplied validity-error message",
+        "parameters": "message-id [library/]message-file [&message-data-field]",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/validity-check",
+        "sharedWith": []
+      }
+    ],
+    "CHOICE": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Keywords (CHOICE/CHCCTL/CHCACCEL)",
+        "description": "Selection field choice - text/indicators for one choice number",
+        "parameters": "choice-number indicators text-field 'text' (deliberately deferred: variable-argument Text-field/Return-field forms, only the literal-text form is modeled)",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-keywords",
+        "sharedWith": []
+      }
+    ],
+    "CHRID": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Translate characters (graphic character set/code page)",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "CLEAR": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Indicator to clear the display",
+        "parameters": "10-99, or 01-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Indicator to clear the display",
+        "parameters": "10-99",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "CLRL": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Clear previous display from this line down",
+        "parameters": "line number, or nn ...",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "CNTFLD": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Continued field",
+        "parameters": "field name (character fields only)",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "COLOR": [
+      {
+        "level": "field",
+        "category": "Colors",
+        "description": "Field color",
+        "parameters": "BLU | GRN | PNK | RED | TRQ | WHT | YLW",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/character/colors",
+        "sharedWith": []
+      }
+    ],
+    "COMP": [
+      {
+        "level": "field",
+        "category": "Validity Check",
+        "description": "Valid value comparison",
+        "parameters": "operator value",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/validity-check",
+        "sharedWith": []
+      }
+    ],
+    "CSRLOC": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Hidden fields carrying cursor position for output",
+        "parameters": "row field, column field",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "DFT": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Default value",
+        "parameters": "'text or value'",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "DFTVAL": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Default value (conditioned)",
+        "parameters": "'text or value'",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "DLTCHK": [
+      {
+        "level": "field",
+        "category": "Database Reference",
+        "description": "Ignore previously specified validity check",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/database-reference",
+        "sharedWith": []
+      }
+    ],
+    "DLTEDT": [
+      {
+        "level": "field",
+        "category": "Database Reference",
+        "description": "Ignore previously specified editing",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/database-reference",
+        "sharedWith": []
+      }
+    ],
+    "DSPATR": [
+      {
+        "level": "field",
+        "category": "Display Attributes",
+        "description": "Display attribute(s)",
+        "parameters": "HI RI CS BL ND UL PC SP UH RE MDT (each independently toggleable)",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/character/display-attributes",
+        "sharedWith": []
+      }
+    ],
+    "DSPMOD": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Use alternate display mode",
+        "parameters": "display name, e.g. *DS3",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "DSPRL": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Right to left processing",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      }
+    ],
+    "DSPSIZ": [
+      {
+        "level": "file",
+        "category": "Display Sizes",
+        "description": "Supported display sizes (24x80 / 27x132), in priority order",
+        "parameters": "rows cols [*DS3|*DS4] ...",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/05-display-sizes",
+        "sharedWith": []
+      }
+    ],
+    "DUP": [
+      {
+        "level": "field",
+        "category": "Input Keywords",
+        "description": "Duplication handled by user program",
+        "parameters": "response indicator, text",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/input-keywords",
+        "sharedWith": []
+      }
+    ],
+    "EDTCDE": [
+      {
+        "level": "field",
+        "category": "Editing Keywords (numeric only)",
+        "description": "Edit code, optionally replacing leading zeros",
+        "parameters": "A-D, J-Q, W, Y, Z, 1-9; optional */$",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/numeric/editing-keywords",
+        "sharedWith": []
+      }
+    ],
+    "EDTMSK": [
+      {
+        "level": "field",
+        "category": "Editing Keywords (numeric only)",
+        "description": "Edit mask",
+        "parameters": "'mask'",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/numeric/editing-keywords",
+        "sharedWith": []
+      }
+    ],
+    "EDTWRD": [
+      {
+        "level": "field",
+        "category": "Editing Keywords (numeric only)",
+        "description": "Edit word",
+        "parameters": "'edit word mask'",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/numeric/editing-keywords",
+        "sharedWith": []
+      }
+    ],
+    "ENTFLDATR": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Default attribute for entry fields (referenced via entFldAtrHtml, shared with record-level)",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Default attribute for entry fields in this record",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "ERASE": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Erase all records below this one",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      }
+    ],
+    "ERASEINP": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Erase all input fields",
+        "parameters": "*MDTON or *ALL (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      }
+    ],
+    "ERRMSG": [
+      {
+        "level": "field",
+        "category": "Error Messages",
+        "description": "Error message text",
+        "parameters": "indicators 'text' more-indicator",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/character/error-messages",
+        "sharedWith": []
+      }
+    ],
+    "ERRMSGID": [
+      {
+        "level": "field",
+        "category": "Error Messages",
+        "description": "Error message by message ID",
+        "parameters": "indicators msgid file library indicator name",
+        "repeatable": true,
+        "screenshotDir": "screens/field-level/character/error-messages",
+        "sharedWith": []
+      }
+    ],
+    "ERRSFL": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Write error messages to a message subfile",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      }
+    ],
+    "FLDCSRPRG": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Field cursor progression order",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "FRCDTA": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Force data out before buffer is full",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "GETRETAIN": [
+      {
+        "level": "record",
+        "category": "Input",
+        "description": "Retain data on display if UNLOCK specified",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/input",
+        "sharedWith": []
+      }
+    ],
+    "HELP": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Indicator for the Help key",
+        "parameters": "10-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Indicator for the Help key",
+        "parameters": "10-99",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "HLPARA": [
+      {
+        "level": "record",
+        "category": "Application help",
+        "description": "Help specification area (Help-specification level)",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/application-help",
+        "sharedWith": []
+      }
+    ],
+    "HLPBDY": [
+      {
+        "level": "record",
+        "category": "Application help",
+        "description": "Help boundary area (Help-specification level)",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/application-help",
+        "sharedWith": []
+      }
+    ],
+    "HLPCLR": [
+      {
+        "level": "record",
+        "category": "Help",
+        "description": "Clear previous help text records",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/help",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "HLPCMDKEY": [
+      {
+        "level": "record",
+        "category": "Help",
+        "description": "Return command key from help",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/help",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "HLPEXCLD": [
+      {
+        "level": "record",
+        "category": "Application help",
+        "description": "Exclude area from help text (Help-specification level)",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/application-help",
+        "sharedWith": []
+      }
+    ],
+    "HLPFULL": [
+      {
+        "level": "file",
+        "category": "Help",
+        "description": "Full-screen help text",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/04-help-keywords",
+        "sharedWith": []
+      }
+    ],
+    "HLPID": [
+      {
+        "level": "field",
+        "category": "Constant field additions",
+        "description": "Help ID for a constant field",
+        "parameters": "identifier",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/constant/general",
+        "sharedWith": []
+      }
+    ],
+    "HLPPNLGRP": [
+      {
+        "level": "file",
+        "category": "Help",
+        "description": "Help text supplied by a UIM panel group",
+        "parameters": "panel-group-name library module-name",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/04-help-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Application help",
+        "description": "Help text supplied by a UIM panel group (Help-specification level, not record-level)",
+        "parameters": "panel-group-name library module-name",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/application-help",
+        "sharedWith": []
+      }
+    ],
+    "HLPRTN": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Indicator for Help return",
+        "parameters": "10-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Indicator for Help return",
+        "parameters": "10-99",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "HLPSCHIDX": [
+      {
+        "level": "file",
+        "category": "Help",
+        "description": "Enable a search index for help",
+        "parameters": "search-index-object library",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/04-help-keywords",
+        "sharedWith": []
+      }
+    ],
+    "HLPSEQ": [
+      {
+        "level": "record",
+        "category": "Help",
+        "description": "Sequence of help text records",
+        "parameters": "help group name, sequence number 0-99",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/help",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "HLPTITLE": [
+      {
+        "level": "file",
+        "category": "Help",
+        "description": "Help title text",
+        "parameters": "'quoted text'",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/04-help-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Help",
+        "description": "Help title text",
+        "parameters": "'quoted text'",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/help",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "HOME": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Indicator for the Home key",
+        "parameters": "10-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Indicator for the Home key",
+        "parameters": "10-99",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "IGCALTTYP": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Alter IGC (DBCS) type (character fields only)",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "IGCCNV": [
+      {
+        "level": "file",
+        "category": "DBCS Conversion",
+        "description": "DBCS conversion command-function key and line",
+        "parameters": "CF01-CF24, line 1-24",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/06-dbcs-conversion",
+        "sharedWith": []
+      }
+    ],
+    "INDARA": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Use a separate indicator area instead of field-level indicators",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      }
+    ],
+    "INDTXT": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Descriptive text for an indicator",
+        "parameters": "indicator 'text'",
+        "repeatable": true,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Descriptive text for an indicator",
+        "parameters": "indicator 'text'",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Subfile - Indicator (SFL)",
+        "description": "Descriptive text for an indicator",
+        "parameters": "indicator 'text'",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/subfile-sfl/indicator",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      },
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Descriptive text for an indicator",
+        "parameters": "indicator 'text'",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "INVITE": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Invite devices for later read",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Invite devices for later read",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "INZINP": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Initialize input fields",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      }
+    ],
+    "INZRCD": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Write record before issuing read if not already on display",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "KEEP": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Keep record on display when file closes",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Subfile - General (SFL)",
+        "description": "Keep records on display when closing the file",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/general",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      }
+    ],
+    "KEYBRD": [
+      {
+        "level": "field",
+        "category": "Keying Options",
+        "description": "Keyboard shift attribute - value list depends on the field's data type (Task L59: character gets N/A/X/W/I/D/M/J/O/E/G, numeric gets S/N/Y/I/D)",
+        "parameters": "one letter, type-dependent",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/keying-options",
+        "sharedWith": []
+      }
+    ],
+    "LOCK": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Do not unlock keyboard",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "LOGINP": [
+      {
+        "level": "record",
+        "category": "Input",
+        "description": "Write record to job log",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/input",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Subfile - General (SFL)",
+        "description": "Write record to job log (input)",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/general",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      }
+    ],
+    "LOGOUT": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Write record to job log",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Subfile - General (SFL)",
+        "description": "Write record to job log",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/general",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      }
+    ],
+    "MDTOFF": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Reset all modified data tags",
+        "parameters": "*UNPR or *ALL (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      }
+    ],
+    "MLTCHCFLD": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Multiple-choice selection field",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "MNUBAR": [
+      {
+        "level": "record",
+        "category": "Menu-Bar record - General",
+        "description": "This record is a menu bar, with an optional display separator",
+        "parameters": "Y | display-separator",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
+        "sharedWith": []
+      }
+    ],
+    "MNUBARCHC": [
+      {
+        "level": "field",
+        "category": "Menu-bar choices / Menu-bar separator field wiring",
+        "description": "This field is a menu-bar choice entry point",
+        "parameters": "choice-number indicators pull-down-record",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-keyword",
+        "sharedWith": []
+      }
+    ],
+    "MNUBARDSP": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Menu-bar display",
+        "parameters": "parameters (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Menu-Bar record - General",
+        "description": "Menu-bar display, optionally naming a pull-down input field",
+        "parameters": "field name (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Menu-Bar record - Menu-Bar Display Keywords",
+        "description": "Menu-bar display, conditioned per instance",
+        "parameters": "indicators, pull-down input field name",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/menu-bar-record-mnubar/menu-bar-display-keywords",
+        "sharedWith": []
+      }
+    ],
+    "MNUBARSEP": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Separator",
+        "description": "Menu-bar separator color/attributes/character",
+        "parameters": "(*COLOR c)(*DSPATR a)(*CHAR 'c')",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/separator",
+        "sharedWith": [
+          "record-level WDWBORDER (same 3-group shape, minus *CHAR default)"
+        ]
+      }
+    ],
+    "MNUBARSW": [
+      {
+        "level": "file",
+        "category": "Menu-bar",
+        "description": "Menu-bar switch key",
+        "parameters": "indicator, CA key 01-24",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/09-menu-bar-keywords",
+        "sharedWith": [
+          "record: MNUBAR"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Menu-Bar record - General",
+        "description": "Menu-bar switch key",
+        "parameters": "indicators, CA key 01-24",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
+        "sharedWith": []
+      }
+    ],
+    "MNUCNL": [
+      {
+        "level": "file",
+        "category": "Menu-bar",
+        "description": "Menu-cancel key",
+        "parameters": "indicator, CA key 01-24, response-indicator 01-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/09-menu-bar-keywords",
+        "sharedWith": [
+          "record: MNUBAR"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Menu-Bar record - General",
+        "description": "Menu-cancel key",
+        "parameters": "indicators, CA key 01-24, response-indicator 01-99",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
+        "sharedWith": []
+      }
+    ],
+    "MSGALARM": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Sound alarm on messages",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Sound alarm on messages",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "MSGID": [
+      {
+        "level": "field",
+        "category": "Message ID",
+        "description": "Message ID, optionally combined with a field/message-ID/message-number",
+        "parameters": "prefix, identifier [& field/msgid/msgnbr], file, library, indicators",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/message-id",
+        "sharedWith": []
+      }
+    ],
+    "MSGLOC": [
+      {
+        "level": "file",
+        "category": "Display Sizes",
+        "description": "Message line row, primary and per-size-conditioned",
+        "parameters": "line number, or conditioned by *DS3/*DS4",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/05-display-sizes",
+        "sharedWith": []
+      }
+    ],
+    "NOCCSID": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "No coded character set ID",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "OPENPRT": [
+      {
+        "level": "file",
+        "category": "Print",
+        "description": "Leave print file open until display file is closed",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/03-print-keywords",
+        "sharedWith": []
+      }
+    ],
+    "OVERLAY": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Overlay without erasing",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      }
+    ],
+    "OVRATR": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Override attribute",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      },
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Override attributes",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "OVRDTA": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Override data",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      },
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Override data",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "PAGEDOWN": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Indicator for Page down (legacy alias ROLLUP recognized)",
+        "parameters": "10-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Indicator for Page down (alias ROLLUP)",
+        "parameters": "10-99",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "PAGEUP": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Indicator for Page up (legacy alias ROLLDOWN recognized)",
+        "parameters": "10-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Indicator for Page up (alias ROLLDOWN)",
+        "parameters": "10-99",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "PASSRCD": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Record to pass unformatted data to/from",
+        "parameters": "record name",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      }
+    ],
+    "PRINT": [
+      {
+        "level": "file",
+        "category": "Print",
+        "description": "Enable the Print key",
+        "parameters": "response indicator (optional, if program handles it)",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/03-print-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Print",
+        "description": "Enable the Print key",
+        "parameters": "response indicator (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/print",
+        "sharedWith": []
+      }
+    ],
+    "PROTECT": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Protect all input fields",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      }
+    ],
+    "PRTFILE": [
+      {
+        "level": "file",
+        "category": "Print",
+        "description": "System handles print via this print file",
+        "parameters": "file / library",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/03-print-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Print",
+        "description": "System handles print via this print file",
+        "parameters": "file / library",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/print",
+        "sharedWith": []
+      }
+    ],
+    "PULLDOWN": [
+      {
+        "level": "record",
+        "category": "Pull-Down - General",
+        "description": "This record is a pull-down, with selection-indicator/cursor-restriction sub-flags",
+        "parameters": "*SLTIND *RSTCSR (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/pulldown-puldwn/general",
+        "sharedWith": []
+      }
+    ],
+    "PUTOVR": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Activate OVRDTA and OVRATR",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      }
+    ],
+    "PUTRETAIN": [
+      {
+        "level": "record",
+        "category": "Overlay",
+        "description": "Retain data on re-display",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/overlay",
+        "sharedWith": []
+      },
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Retain field on display",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "RANGE": [
+      {
+        "level": "field",
+        "category": "Validity Check",
+        "description": "Valid value range",
+        "parameters": "low high",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/validity-check",
+        "sharedWith": []
+      }
+    ],
+    "REF": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Reference database file for field attributes",
+        "parameters": "library / record",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      }
+    ],
+    "REFFLD": [
+      {
+        "level": "field",
+        "category": "Database Reference",
+        "description": "Reference field for attributes (implemented via the separate 'Resolve Referenced Field via Code for i' feature, not a plain getX/setX pair)",
+        "parameters": "field [(if different)] file library record",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/database-reference",
+        "sharedWith": []
+      }
+    ],
+    "RETCMDKEY": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Retain CFnn/CAnn command keys",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "RETKEY": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Retain CLEAR/HELP/HOME/ROLL keys",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "RETLCKSTS": [
+      {
+        "level": "record",
+        "category": "Input",
+        "description": "Retain LOCK status on next read",
+        "parameters": "indicators (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/input",
+        "sharedWith": []
+      }
+    ],
+    "RMVWDW": [
+      {
+        "level": "record",
+        "category": "Window control (WNDSFCTL general screen)",
+        "description": "Remove existing windows before this record is displayed",
+        "parameters": "indicators (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/window-subfile-control-wndsfctl/general",
+        "sharedWith": []
+      }
+    ],
+    "RTNCSRLOC": [
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Return cursor location to these hidden fields",
+        "parameters": "row field, column field",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "RTNDTA": [
+      {
+        "level": "record",
+        "category": "Input",
+        "description": "Return same input data on next read",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/input",
+        "sharedWith": []
+      }
+    ],
+    "SETOF": [
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Set indicator(s) off when this record is used",
+        "parameters": "indicator, up to 3",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Subfile - Indicator (SFL)",
+        "description": "Set indicator(s) off",
+        "parameters": "indicator",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/subfile-sfl/indicator",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      }
+    ],
+    "SFLCLR": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Clear subfile records",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLCSRRRN": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Subfile cursor relative record number field",
+        "parameters": "name",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLCTL": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "This is a subfile control record, naming its related SFL",
+        "parameters": "subfile record name",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLDLT": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Delete subfile area",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLDROP": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Subfile initially truncated",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLDSP": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Display subfile records",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLDSPCTL": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Display control record",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLEND": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Indicate more records exist",
+        "parameters": "*MORE | *SCRBAR",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLENTER": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Use Enter key instead of a command key to process the subfile",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLFOLD": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Subfile initially folded",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLINZ": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Initialize subfile fields",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLLIN": [
+      {
+        "level": "record",
+        "category": "Subfile Control - Display Layout",
+        "description": "Spaces between subfile records",
+        "parameters": "number",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/display-layout",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLMODE": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Subfile mode field",
+        "parameters": "name",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLMSG": [
+      {
+        "level": "record",
+        "category": "Subfile Control - Subfile Messages",
+        "description": "Subfile message text",
+        "parameters": "indicators 'text' more-indicator",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/subfile-messages",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLMSGID": [
+      {
+        "level": "record",
+        "category": "Subfile Control - Subfile Messages",
+        "description": "Subfile message by message ID",
+        "parameters": "msgid file library indicator name",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/subfile-messages",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLMSGKEY": [
+      {
+        "level": "record",
+        "category": "Subfile Message record (SFLMSG record type) - Message Record",
+        "description": "Message ID field (program builds queue one message at a time)",
+        "parameters": "field name",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-message-sflmsg/message-record",
+        "sharedWith": []
+      }
+    ],
+    "SFLMSGRCD": [
+      {
+        "level": "record",
+        "category": "Subfile Message record (SFLMSG record type) - Message Record",
+        "description": "Line number for the first message, conditioned by display size, with roll",
+        "parameters": "1-27 [, *DS3/*DS4] [, +/-]",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-message-sflmsg/message-record",
+        "sharedWith": []
+      }
+    ],
+    "SFLNXTCHG": [
+      {
+        "level": "record",
+        "category": "Subfile - General (SFL)",
+        "description": "Return this record on read next changed",
+        "parameters": "indicators",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/general",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      }
+    ],
+    "SFLPAG": [
+      {
+        "level": "record",
+        "category": "Subfile Control - Display Layout",
+        "description": "Number of records per display page",
+        "parameters": "number [, display-size]",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/display-layout",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLPGMQ": [
+      {
+        "level": "record",
+        "category": "Subfile Message record (SFLMSG record type) - Message Record",
+        "description": "Program message queue field, or generate a 276-byte field",
+        "parameters": "field name | Y=Yes",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-message-sflmsg/message-record",
+        "sharedWith": []
+      }
+    ],
+    "SFLRCDNBR": [
+      {
+        "level": "record",
+        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL)",
+        "description": "Subfile record number field",
+        "parameters": "*TOP, or a numeric field",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/subfile-keywords",
+        "sharedWith": []
+      }
+    ],
+    "SFLRNA": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Record not active",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLROLVAL": [
+      {
+        "level": "record",
+        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL)",
+        "description": "Number of records to roll",
+        "parameters": "value or field",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/subfile-keywords",
+        "sharedWith": []
+      }
+    ],
+    "SFLSIZ": [
+      {
+        "level": "record",
+        "category": "Subfile Control - Display Layout",
+        "description": "Number of records in the subfile",
+        "parameters": "number [, display-size]",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/display-layout",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SLNO": [
+      {
+        "level": "record",
+        "category": "Output",
+        "description": "Start line number",
+        "parameters": "*VAR, or line number",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "SNGCHCFLD": [
+      {
+        "level": "field",
+        "category": "Menu-bar choice - Choice Selection Type",
+        "description": "Single-choice selection field",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/menu-bar-choice/choice-selection-type",
+        "sharedWith": []
+      }
+    ],
+    "TEXT": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Documentation text - no compiled/runtime effect",
+        "parameters": "'quoted text'",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Documentation text - no compiled/runtime effect",
+        "parameters": "'quoted text'",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
+    "UNLOCK": [
+      {
+        "level": "record",
+        "category": "Input",
+        "description": "Unlock keyboard after input operation",
+        "parameters": "*ERASE, *MDTOFF (optional flags)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/input",
+        "sharedWith": []
+      }
+    ],
+    "USRDSPMGT": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Manage display in S/36 mode",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      }
+    ],
+    "USRRSTDSP": [
+      {
+        "level": "record",
+        "category": "Window control (WNDSFCTL general screen)",
+        "description": "Program handles display restore around this window",
+        "parameters": "indicators (optional)",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/window-subfile-control-wndsfctl/general",
+        "sharedWith": []
+      }
+    ],
+    "VALUES": [
+      {
+        "level": "field",
+        "category": "Validity Check",
+        "description": "Valid value list",
+        "parameters": "value list",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/validity-check",
+        "sharedWith": []
+      }
+    ],
+    "VLDCMDKEY": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Indicator for an invalid command key",
+        "parameters": "10-99",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "Indicator",
+        "description": "Indicator for an invalid command key",
+        "parameters": "10-99",
+        "repeatable": true,
+        "screenshotDir": "screens/record-level/base-record-keywords/indicator",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "WINDOW",
+          "PULLDOWN",
+          "MNUBAR"
+        ]
+      }
+    ],
+    "WDWBORDER": [
+      {
+        "level": "file",
+        "category": "Window Border",
+        "description": "Default window border color/display-attributes/characters for the whole file",
+        "parameters": "(*COLOR c)(*DSPATR a)(*CHAR 'cccccccc')",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/08-window-border",
+        "sharedWith": [
+          "record: WINDOW",
+          "record: WNDSFCTL",
+          "record: PULLDOWN"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Border Parameters / Border Color / Border Display Attributes / Border Characters",
+        "description": "Window border color / display attributes / 8-position border characters",
+        "parameters": "(*COLOR c)(*DSPATR a1 a2 ...)(*CHAR 'cccccccc')",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/window/border-parameters",
+        "sharedWith": [
+          "file-level Window Border",
+          "MNUBAR record's MNUBARSEP (same *CHAR/*COLOR/*DSPATR group shape)"
+        ]
+      },
+      {
+        "level": "record",
+        "category": "Pull-Down - General",
+        "description": "Pull-down border styling",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/pulldown-puldwn/general",
+        "sharedWith": []
+      }
+    ],
+    "WINDOW": [
+      {
+        "level": "record",
+        "category": "Window Parameters",
+        "description": "Window definition or reference to another window",
+        "parameters": "referenced-window-name | start-line start-col lines cols [*NOMSGLIN] [*RSTCSR|*NORSTCSR]",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/window/window-parameters-size-roll",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PULLDOWN"
+        ]
+      }
+    ]
+  }
+}
