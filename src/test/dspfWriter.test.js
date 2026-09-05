@@ -105,6 +105,58 @@ console.log('\nTask L51: usage O is written explicitly (column 38), not left bla
   check('a pre-existing blank column 38 still parses as usage O', legacyField && legacyField.usage === 'O');
 }
 
+console.log('\nTask L54: adding a comment at a chosen line never splices into the middle of a DDS function-area (+/-) continuation');
+{
+  // FLDA's VALUES keyword is built via insertField itself (not hand-typed
+  // columns) so its wrapping is guaranteed to match exactly what this
+  // engine's own writer produces: a real +/- continuation onto a second
+  // physical line, whose columns 7-44 are blank (a valid pure
+  // continuation), carrying only the rest of the parameter list.
+  const baseSrc =
+    [
+      '     A                                      DSPSIZ(24 80 *DS3)',
+      '     A          R REC1',
+    ].join('\n') + '\n';
+  const baseModel = DspfParser.parseDspf(baseSrc);
+  const baseRecord = baseModel.records.find((r) => r.name === 'REC1');
+  const baseLines = baseSrc.split(/\r\n|\r|\n/);
+  const withField = DspfWriter.insertField(baseRecord, baseLines, {
+    nameType: 'FIELD',
+    name: 'FLDA',
+    dataType: 'A',
+    length: 10,
+    usage: 'B',
+    location: { line: 1, column: 2 },
+    keywords: [{ name: 'VALUES', parameters: "'AAAAAAAAAA' 'BBBBBBBBBB' 'CCCCCCCCCC' 'DDDDDDDDDD'" }],
+  });
+  const lines = withField.concat(["     A                                  2  2'World'"]);
+
+  console.log('  setup: confirms the fixture really does produce a continuation, and DspfWriter can see it coming');
+  const chainStarts = DspfWriter.continuationChainStarts(lines);
+  check('line 4 (the continuation line) maps back to line 3 (its own chain start)', chainStarts[3] === 3);
+  check('line 3 (a normal entry) maps to itself', chainStarts[2] === 3);
+  check('line 6 (an unrelated, single-line entry) maps to itself', chainStarts[5] === 6);
+
+  console.log('  asking to insert AT line 4 - squarely inside the continuation - gets pulled back to line 3 instead');
+  const newLines = DspfWriter.addComment(lines, [], 0, 'Inserted mid-continuation', 4);
+  const commentLineIndex = newLines.findIndex((l) => l.indexOf('*Inserted mid-continuation') !== -1);
+  check('the new comment landed at line 3 (before the whole FLDA entry), not spliced into line 4', commentLineIndex === 2);
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  check('no parse errors', reparsed.errors.length === 0);
+  const rec = reparsed.records.find((r) => r.name === 'REC1');
+  check('REC1 still has exactly its original 2 entries - no phantom field split out of the continuation', rec && rec.fields.length === 2);
+  const fldA = rec.fields.find((f) => f.name === 'FLDA');
+  const valuesKw = fldA && fldA.keywords.find((k) => k.name === 'VALUES');
+  check("FLDA's VALUES keyword is still intact, not truncated by the interrupted continuation", valuesKw && valuesKw.parameters.indexOf('DDDDDDDDDD') !== -1);
+  check('the inserted comment itself is still there, now on line 3', reparsed.comments.some((c) => c.text === 'Inserted mid-continuation' && c.line === 3));
+
+  console.log('  a target line that is NOT part of any continuation is spliced in exactly as asked, unaffected by this guard');
+  const newLines2 = DspfWriter.addComment(lines, [], 0, 'Inserted before World', 6);
+  const commentLineIndex2 = newLines2.findIndex((l) => l.indexOf('*Inserted before World') !== -1);
+  check('lands at line 6 exactly as requested (line 6 starts its own chain, so nothing pulls it back)', commentLineIndex2 === 5);
+}
+
 console.log('\nDspfWriter.insertField() - record with no fields yet');
 {
   const src = ['     A                                      DSPSIZ(24 80 *DS3)', '     A          R MENU'].join('\n') + '\n';

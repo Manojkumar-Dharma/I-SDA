@@ -3154,6 +3154,56 @@
     return (dspfFile.comments || []).filter(function (c) { return c.line >= record.sourceLine && c.line < nextStart; });
   }
 
+  /**
+   * Task L54 - maps every physical line (1-based) in `sourceLines` to the
+   * 1-based line number that starts its own DDS function-area continuation
+   * chain (itself, if the line isn't a continuation line at all). A
+   * function-area continuation is a line whose own cols 45-80 end in '+'
+   * or '-', continued by the NEXT physical line PROVIDED that next line's
+   * cols 7-44 are blank (DspfParser's own buildLogicalEntries resolves it
+   * the exact same way - this duplicates that walk rather than importing
+   * it, since it needs the flat per-line answer table up front, before any
+   * line is spliced in, and dspfParser.ts's own version only classifies
+   * already-final lines).
+   *
+   * Exists so a raw comment line (col 7 = '*') can be kept OUT of the
+   * middle of one of these chains: splicing one in there doesn't just
+   * misplace the comment - a continuation line's cols 7-44 are expected to
+   * be blank, so a comment's '*' there desyncs the parser's own
+   * continuation resolution entirely. The interrupted entry's function
+   * text silently truncates at the dangling +/-, and what was meant to be
+   * ITS continuation gets re-parsed instead as an unrelated new
+   * keyword-only line - visibly breaking whatever field/record/keyword the
+   * continuation belonged to. That corruption, not the comment itself, is
+   * almost certainly why a comment inserted this way appeared to vanish
+   * instead of landing where asked.
+   */
+  function continuationChainStarts(sourceLines) {
+    var starts = new Array(sourceLines.length);
+    var pendingContinuation = false;
+    var chainStart = null;
+    for (var i = 0; i < sourceLines.length; i++) {
+      var padded = padTo(sourceLines[i], LINE_WIDTH);
+      var col7 = padded.charAt(6);
+      var cols7to44Blank = padded.slice(6, 44).trim() === '';
+      if (pendingContinuation && cols7to44Blank) {
+        starts[i] = chainStart;
+        var continuedChunk = padded.slice(FUNCTION_AREA_START - 1, LINE_WIDTH).replace(/\s+$/, '');
+        pendingContinuation = continuedChunk.length > 0 &&
+          (continuedChunk.charAt(continuedChunk.length - 1) === '+' || continuedChunk.charAt(continuedChunk.length - 1) === '-');
+        continue;
+      }
+      pendingContinuation = false;
+      chainStart = i + 1;
+      starts[i] = chainStart;
+      if (col7 !== '*') {
+        var chunk = padded.slice(FUNCTION_AREA_START - 1, LINE_WIDTH).replace(/\s+$/, '');
+        pendingContinuation = chunk.length > 0 && (chunk.charAt(chunk.length - 1) === '+' || chunk.charAt(chunk.length - 1) === '-');
+      }
+    }
+    return starts;
+  }
+
   /** Builds one raw 80-column comment line: blank sequence number/form-type
    *  area (columns 1-6, matching the plain 'A' every other freshly-typed
    *  line in this codebase uses - see insertField's own doc comment),
@@ -3181,12 +3231,26 @@
    * comment at the very top of the file, a too-large one appends it at
    * the very end - so a stale/out-of-range typed line number can never
    * throw or silently no-op.
+   *
+   * Task L54 - `desiredLine` is further pulled back, if needed, to the
+   * start of whatever function-area continuation chain it would otherwise
+   * land in the middle of (see continuationChainStarts's own doc comment
+   * for why splicing a comment mid-chain corrupts far more than just this
+   * one comment). The new comment ends up right before that whole
+   * multi-line entry instead - never inside it.
    */
   function addComment(sourceLines, existingComments, fallbackAfterLine, text, desiredLine) {
     var insertAfterLine;
     if (desiredLine != null && !isNaN(desiredLine)) {
       var clamped = Math.max(1, Math.min(sourceLines.length + 1, Math.floor(desiredLine)));
-      insertAfterLine = clamped - 1;
+      var chainStarts = continuationChainStarts(sourceLines);
+      // chainStarts is indexed by (clamped - 1) since it's a 0-based array
+      // over sourceLines and clamped is the 1-based line the comment would
+      // land AT (pushing that line and beyond down by one) - a value of
+      // sourceLines.length + 1 (append at the very end) has no entry to
+      // look up and is never mid-chain anyway.
+      var safeLine = clamped <= sourceLines.length ? chainStarts[clamped - 1] : clamped;
+      insertAfterLine = safeLine - 1;
     } else {
       insertAfterLine = existingComments.length > 0
         ? Math.max.apply(null, existingComments.map(function (c) { return c.line; }))
@@ -3905,6 +3969,7 @@
     getFileComments: getFileComments,
     getRecordComments: getRecordComments,
     addComment: addComment,
+    continuationChainStarts: continuationChainStarts,
     updateComment: updateComment,
     deleteComment: deleteComment,
     serializeRecordEntry: serializeRecordEntry,

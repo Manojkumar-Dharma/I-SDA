@@ -417,6 +417,22 @@ const htmlTemplate = `<!DOCTYPE html>
     background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border);
     border-radius: 3px; padding: 2px 3px; font-family: var(--mono); font-size: 10px;
   }
+  /* Task L55 - reported directly: the up/down spinner arrows a bare
+     <input type="number"> gets by default aren't wanted here - this box
+     is meant to read as a small line-number badge to type into, the same
+     as its sibling .comment-line-badge (a plain <span>, which never had
+     arrows to begin with), not as a stepper control nobody asked to
+     increment/decrement by mistake. -moz-appearance: textfield removes
+     Firefox's built-in spinner outright; Chrome/Edge/Safari (WebKit/
+     Blink) don't respect that property and need their own pseudo-elements
+     hidden instead, hence the second rule. Typing digits, and the field's
+     own min="1" attribute, both still work identically - only the
+     mouse-driven increment/decrement UI is gone. */
+  .field-order-row .comment-add-line-input { -moz-appearance: textfield; }
+  .field-order-row .comment-add-line-input::-webkit-outer-spin-button,
+  .field-order-row .comment-add-line-input::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
   /* Task L19 - "Find field" search results dropdown, right under the search
      box in the aside. Deliberately its own floating panel (not inline in
      normal document flow) so it overlays whatever's below it (the Record

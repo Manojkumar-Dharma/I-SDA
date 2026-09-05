@@ -5725,6 +5725,25 @@ function runCommentsScenario() {
     check('the Add button is now a plain "+", not the old wide "+ Add comment" text button', fileAddBtnEl.textContent.trim() === '+');
     check('the Add button gets the exact same 22x22 square styling every "x" delete button gets, for free from the shared .field-order-row button rule (no bespoke class of its own)', !fileAddBtnEl.className);
 
+    console.log('  Task L51: the "Line #" box actually renders at the badge\u2019s own width now, not the row\u2019s full width (L50\u2019s own fix never took visual effect - see its own CHANGELOG entry)');
+    {
+      const lineInputEl = doc.querySelector('[id$="-add-comment-line"]');
+      const probeRow = doc.createElement('div');
+      probeRow.className = 'field-order-row';
+      const probeInput = doc.createElement('input');
+      probeInput.setAttribute('type', 'number');
+      probeInput.className = lineInputEl.className;
+      probeRow.appendChild(probeInput);
+      doc.body.appendChild(probeRow);
+      const computedWidth = dom.window.getComputedStyle(probeInput).width;
+      check('a fresh .comment-add-line-input resolves to the narrow 30px width, not the generic input[type=number] rule\u2019s 100%', computedWidth === '30px');
+      probeRow.remove();
+    }
+
+    console.log('  Task L55: the "Line #" box has no up/down spinner arrows - it\u2019s a small number-typed badge, not a stepper control');
+    check('the stylesheet suppresses Firefox\u2019s built-in number spinner for this input (-moz-appearance: textfield)', /\.field-order-row \.comment-add-line-input\s*\{\s*-moz-appearance:\s*textfield;?\s*\}/.test(html));
+    check('the stylesheet hides the WebKit/Chromium spin-button pseudo-elements for this input', /\.field-order-row \.comment-add-line-input::-webkit-outer-spin-button,\s*\n?\s*\.field-order-row \.comment-add-line-input::-webkit-inner-spin-button\s*\{\s*-webkit-appearance:\s*none;/.test(html));
+
     console.log('  Task L42: adding a file-level comment with an explicit line number inserts it there, not appended at the end');
     const fileAddLineInput = doc.querySelector('[id$="-add-comment-line"]');
     fileAddLineInput.value = '2';
