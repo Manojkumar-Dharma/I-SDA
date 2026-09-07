@@ -297,6 +297,19 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-field.dspf-pulldown-field { z-index: 3; }
   .dspf-field.dspf-pulldown-field.dspf-widget-radio, .dspf-field.dspf-pulldown-field.dspf-widget-checkbox { background: #0a0f0c; }
   .status { color: var(--ink-dim); font-size: 11px; }
+  /* Bug fix - Save/Compile results now surface here (in the canvas, right
+     below #mainHint), not ONLY as a VS Code toast notification easy to
+     miss - see extension.ts's compileDspf/handleSaveDocument, which now
+     postMessage a 'compileResult'/'saveResult' the webview renders into
+     this element (window.addEventListener('message', ...) below), in
+     ADDITION to (not instead of) the existing vscode.window.show*Message
+     calls for anyone invoking Compile from outside this webview (e.g. the
+     command palette on a member with no designer open). Auto-hides on the
+     next successful render() so a stale success/failure message doesn't
+     linger forever once the person's moved on. */
+  .canvas-message { font-size: 12px; padding: 6px 10px; border-radius: 3px; border: 1px solid; white-space: pre-line; }
+  .canvas-message.ok { color: var(--chrome-accent); border-color: var(--chrome-accent); background: rgba(var(--chrome-accent-rgb), 0.08); }
+  .canvas-message.fail { color: var(--warn); border-color: var(--warn); background: rgba(255, 138, 92, 0.1); }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
   /* Task L18 - "IBM i: Connected/Not connected/Not installed" badge. Chrome
      UI (aside panel), so this uses --chrome-accent/--warn/--ink-dim, never
@@ -610,7 +623,16 @@ const htmlTemplate = `<!DOCTYPE html>
      "given its own row rather than crammed into the toolbar strip
      itself since it also needs room for a results dropdown underneath"
      per this task's own description. */
-  .props-find-field-row { display: none; }
+  /* Bug fix - this row's own .field-search-results dropdown is
+     position:absolute with left:0/right:0 (see the "Find field" dropdown
+     rule above), which needs THIS element as its positioned containing
+     block so it's sized/placed against the toolbar row rather than
+     falling back to the viewport (the next positioned ancestor up the
+     tree, since #propsFindFieldRow deliberately sits OUTSIDE .panel-body -
+     see this region's own P5e doc comment below) - without this, the
+     results list rendered edge-to-edge across the whole window instead of
+     under the search box. */
+  .props-find-field-row { display: none; position: relative; }
   body[data-ui-style="modern"] .props-find-field-row:not(:empty) { display: block; margin-bottom: 8px; }
   #newRecordForm { border: 1px solid var(--panel-border); border-radius: 3px; padding: 8px; margin-top: 8px; }
 
@@ -908,6 +930,7 @@ const htmlTemplate = `<!DOCTYPE html>
   </div></div>
   <div class="crosshair-readout hidden" id="crosshairReadout"></div>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
+  <div class="canvas-message hidden" id="canvasMessage"></div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
   <div class="warn hidden" id="overlapWarning"></div>
   <div id="toolboxFab">
@@ -926,7 +949,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <button class="panel-toggle-btn" id="rightPanelToggle" title="Hide this panel">Hide panel &#9654;</button>
   <div class="props-pinned-toolbar" id="propsPinnedToolbar">
     <div class="toolbar-title" id="toolbarTitle">Screen Design</div>
-    <div class="status" id="toolbarFileStatus">${FILENAME_TOKEN}</div>
     <div class="codefori-badge unknown" id="toolbarCodeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
     <button type="button" class="save-btn" id="toolbarSaveBtn" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
     <button type="button" class="compile-btn" id="toolbarCompileBtn">Compile Display File (CRTDSPF)</button>
@@ -1179,6 +1201,23 @@ const htmlTemplate = `<!DOCTYPE html>
   const toolbarCompareOverlayToggle = document.getElementById('toolbarCompareOverlayToggle');
   const toolbarCompareRecordList = document.getElementById('toolbarCompareRecordList');
   const mainHint = document.getElementById('mainHint');
+  const canvasMessage = document.getElementById('canvasMessage');
+  // Bug fix - Save/Compile results (see extension.ts's compileDspf/
+  // handleSaveDocument) render here instead of ONLY as a VS Code toast
+  // notification. The ok flag picks the green/red styling; the element is
+  // cleared again at the start of the next render() below, so a stale
+  // message doesn't linger once the person's navigated elsewhere.
+  function showCanvasMessage(ok, text) {
+    if (!canvasMessage) return;
+    canvasMessage.textContent = text;
+    canvasMessage.classList.remove('hidden', 'ok', 'fail');
+    canvasMessage.classList.add(ok ? 'ok' : 'fail');
+  }
+  function clearCanvasMessage() {
+    if (!canvasMessage) return;
+    canvasMessage.classList.add('hidden');
+    canvasMessage.textContent = '';
+  }
   const previewRowsRow = document.getElementById('previewRowsRow');
   const previewRowsToggle = document.getElementById('previewRowsToggle');
   const toolbarPreviewRowsRow = document.getElementById('toolbarPreviewRowsRow');
@@ -3013,6 +3052,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
   function render() {
     hideCrosshair();
+    clearCanvasMessage();
     mainHint.classList.remove('hint-readonly');
     mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
 
@@ -6147,6 +6187,13 @@ const htmlTemplate = `<!DOCTYPE html>
       }
     } else if (msg.type === 'dirtyState') {
       updateSaveButtonDirtyState(msg.isDirty);
+    } else if (msg.type === 'compileResult' || msg.type === 'saveResult') {
+      // Bug fix - Save/Compile errors previously only ever reached a VS
+      // Code toast notification (vscode.window.show*Message), easy to
+      // miss and separate from the designer canvas itself; extension.ts's
+      // compileDspf/handleSaveDocument now ALSO postMessage this, and it
+      // renders right below the "Click a field..." hint.
+      showCanvasMessage(!!msg.ok, msg.message);
     }
   });
 

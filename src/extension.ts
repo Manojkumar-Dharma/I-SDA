@@ -466,17 +466,35 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
  * pre-validate - that's a CRTMNU-only constraint - and no message-file
  * rebuild/CRTMNU afterward, since a plain DSPF member has neither).
  */
-async function compileDspf(uri: vscode.Uri): Promise<void> {
+async function compileDspf(uri: vscode.Uri, webview?: vscode.Webview): Promise<void> {
+  // Bug fix - Compile FAILURES previously only ever reached a VS Code
+  // toast notification (easy to miss, and separate from the designer
+  // itself); when this was triggered from a webview's own Compile button
+  // (the only caller that has one - see the 'compileDspf' message handler
+  // below), also post a 'compileResult' the webview renders inline in the
+  // canvas below its "Click a field..." hint. Kept ADDITIVE (the
+  // vscode.window.showErrorMessage calls below are untouched) since
+  // dspfDesigner.compileDspf is also reachable with no webview at all
+  // (command palette / context menu on a member with no designer open),
+  // where the toast is the only surface available. Deliberately NOT
+  // mirroring the success toast too - a one-off confirmation is enough
+  // there, and a lingering "compiled OK" banner in the canvas would just
+  // be clutter for something that already worked.
+  function reportFailure(message: string): void {
+    if (webview) webview.postMessage({ type: 'compileResult', ok: false, message });
+  }
   const parsed = parseMemberUri(uri);
   if (!parsed) {
-    vscode.window.showErrorMessage('iSDA: Compile Display File only works for a DSPF member opened from an IBM i connection (Code for i).');
+    const msg = 'iSDA: Compile Display File only works for a DSPF member opened from an IBM i connection (Code for i).';
+    vscode.window.showErrorMessage(msg);
+    reportFailure(msg);
     return;
   }
   const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
   if (!ext) {
-    vscode.window.showErrorMessage(
-      'iSDA: Compile Display File requires the Code for IBM i extension (halcyontechltd.code-for-ibmi) to be installed and connected.'
-    );
+    const msg = 'iSDA: Compile Display File requires the Code for IBM i extension (halcyontechltd.code-for-ibmi) to be installed and connected.';
+    vscode.window.showErrorMessage(msg);
+    reportFailure(msg);
     return;
   }
   // Same reasoning as compileMenu() above (see its own comment) -
@@ -498,7 +516,9 @@ async function compileDspf(uri: vscode.Uri): Promise<void> {
   const instance: any = ext.exports && ext.exports.instance;
   const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
   if (!connection || typeof connection.runCommand !== 'function') {
-    vscode.window.showErrorMessage('iSDA: Compile Display File requires an active connection - connect via the Code for IBM i panel first.');
+    const msg = 'iSDA: Compile Display File requires an active connection - connect via the Code for IBM i panel first.';
+    vscode.window.showErrorMessage(msg);
+    reportFailure(msg);
     return;
   }
 
@@ -529,6 +549,7 @@ async function compileDspf(uri: vscode.Uri): Promise<void> {
     const step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
     if (!step.ok) {
       vscode.window.showErrorMessage('iSDA: ' + step.message);
+      reportFailure('iSDA: ' + step.message);
       return;
     }
     vscode.window.showInformationMessage(`iSDA: Display file ${library}/${objectName} compiled.`);
@@ -1047,12 +1068,24 @@ async function handleAddFieldsFromDatabase(
  * BOTH documents together, same scope "Compile" already saves before it
  * reads from disk.
  */
-async function handleSaveDocument(document: vscode.TextDocument, companionDocument?: vscode.TextDocument): Promise<void> {
-  if (document.isDirty) {
-    await document.save();
-  }
-  if (companionDocument && companionDocument.isDirty) {
-    await companionDocument.save();
+async function handleSaveDocument(document: vscode.TextDocument, companionDocument?: vscode.TextDocument, webview?: vscode.Webview): Promise<void> {
+  // Bug fix - same "also surface FAILURES in the canvas, not just a
+  // toast" treatment as compileDspf() above (see its own doc comment for
+  // why success isn't mirrored here too). document.save() rejecting is
+  // rare in practice, but wasn't handled here at all before - any
+  // rejection would have propagated as an unhandled rejection from the
+  // message handler rather than reaching the person at all.
+  try {
+    if (document.isDirty) {
+      await document.save();
+    }
+    if (companionDocument && companionDocument.isDirty) {
+      await companionDocument.save();
+    }
+  } catch (err) {
+    const msg = `iSDA: Save failed: ${err}`;
+    if (webview) webview.postMessage({ type: 'saveResult', ok: false, message: msg });
+    else vscode.window.showErrorMessage(msg);
   }
 }
 
@@ -1180,10 +1213,10 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await handleAddFieldsFromDatabase(document, msg);
         await sendCodeForIStatus();
       } else if (msg.type === 'compileDspf') {
-        await compileDspf(document.uri);
+        await compileDspf(document.uri, webviewPanel.webview);
         await sendCodeForIStatus();
       } else if (msg.type === 'saveDocument') {
-        await handleSaveDocument(document);
+        await handleSaveDocument(document, undefined, webviewPanel.webview);
       } else if (msg.type === 'setUiStyle') {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       } else if (msg.type === 'setUiTheme') {

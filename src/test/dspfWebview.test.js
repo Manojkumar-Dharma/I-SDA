@@ -1989,9 +1989,21 @@ function runFieldPropertyHelpersScenario() {
     const amountEl5 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl5.dispatchEvent(new Event('click', { bubbles: true }));
     const m10Check = doc.querySelector('.' + fieldKey + '-validity-check-rep-inst0-code[data-code="M10"]');
-    const m10Immed = doc.querySelector('.' + fieldKey + '-validity-check-rep-inst0-code-immed[data-for="M10"]');
-    check('setup: M10 checkbox and its Immed checkbox are both present', !!m10Check && !!m10Immed);
+    check('setup: M10 checkbox is present', !!m10Check);
+    // Bug fix - Immed is hidden until M10 itself is checked (previously
+    // always shown regardless), so it isn't in the DOM yet at this point.
+    check('...and its Immed checkbox is NOT yet present (M10 itself is not checked yet)', !doc.querySelector('.' + fieldKey + '-validity-check-rep-inst0-code-immed[data-for="M10"]'));
     m10Check.checked = true;
+    m10Check.dispatchEvent(new Event('change', { bubbles: true }));
+    let plainM10Edit = posted.find((m) => m.type === 'applyEdit');
+    const plainM10Check = DspfParser.parseDspf(plainM10Edit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'CHECK');
+    check('checking M10 alone writes plain M10', plainM10Check && plainM10Check.parameters.split(/\s+/).indexOf('M10') >= 0);
+
+    // The commit above re-rendered the whole props panel (commitSourceChange
+    // calls render()), so re-query fresh rather than reusing m10Check.
+    posted.length = 0;
+    const m10Immed = doc.querySelector('.' + fieldKey + '-validity-check-rep-inst0-code-immed[data-for="M10"]');
+    check('once M10 is checked, its Immed checkbox becomes available', !!m10Immed);
     m10Immed.checked = true;
     m10Immed.dispatchEvent(new Event('change', { bubbles: true }));
     let immedEdit = posted.find((m) => m.type === 'applyEdit');

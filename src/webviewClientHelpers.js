@@ -20,6 +20,26 @@
   'use strict';
 
   /**
+   * Bug fix - a collapsible <details> wrapper, identical markup to
+   * buildWebviewTemplate.js's own accordionHtml() (props-accordion /
+   * props-accordion-body classes, so the existing CSS and the Find-keyword
+   * feature's jumpToKeywordMatch() - which already opens the nearest
+   * "details.props-accordion" ancestor on a match - both just work without
+   * any changes on that side). Duplicated as a small local helper rather
+   * than calling buildWebviewTemplate.js's copy directly: that copy is a
+   * plain top-level function declaration inside the webview's OWN inline
+   * <script> tag, not something this module exports/imports - in the
+   * browser the two happen to share one global scope (so it'd resolve as a
+   * bare global), but this file is also require()'d directly under plain
+   * Node for the test suite, where no such global exists. Kept private
+   * (not part of the returned API below) since nothing outside this file
+   * needs it yet.
+   */
+  function accordionWrapHtml(label, bodyHtml, openByDefault) {
+    return '<details class="props-accordion"' + (openByDefault ? ' open' : '') + '><summary>' + label + '</summary><div class="props-accordion-body">' + bodyHtml + '</div></details>';
+  }
+
+  /**
    * Rebuilds a <select> element's <option> list from `records` (each with a
    * `.name`), preserving the previously-selected value if it still exists
    * among the new records (falls back to whatever the browser selects by
@@ -818,7 +838,7 @@
 
   function colorAttrStatesHtml(keywords, ownerKey, expandedSet) {
     var states = DspfWriter.getColorAttrStates(keywords);
-    var html = '<div class="section-label">Color &amp; attributes</div>';
+    var html = '';
     html += repeatableConditionedInstancesHtml(states, ownerKey + '-colorattr', function (inst, instIdPrefix) {
       var split = splitAttrsAndPgmField(inst.attrs);
       var payload = '<div class="field-row"><label>Color</label><select id="' + instIdPrefix + '-color">' +
@@ -849,7 +869,15 @@
       staging += '</div>';
       return staging;
     });
-    return dataKwWrap(['COLOR', 'DSPATR'], html);
+    // Bug fix - was always-expanded raw HTML (the only one of these
+    // panels that wasn't a collapsible <details>, unlike Error messages/
+    // Keying options right below it); now the same collapsible accordion
+    // as those, collapsed by default. The accordion wraps dataKwWrap's own
+    // div (not the other way around) so Find-keyword's
+    // ".closest('details.props-accordion')" - triggered off a match on
+    // this element's own [data-kw] attribute - actually finds an ancestor
+    // details to open, not a sibling/child.
+    return accordionWrapHtml('Color &amp; attributes', dataKwWrap(['COLOR', 'DSPATR'], html), false);
   }
 
   function wireColorAttrStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
@@ -1065,58 +1093,79 @@
     );
   }
 
+  /** Bug fix - "Validity check" (RANGE/COMP/VALUES + CHECK's AB/VN/VNE/
+   *  M10/M11 codes) as its own collapsible accordion, split out of what
+   *  used to be one always-expanded validityAndEditHtml() blob so it can
+   *  collapse independently of Check message identifier/Edit code-word-
+   *  mask below - same "collapsed by default" treatment Error messages/
+   *  Keying options already got. */
+  function validityCheckSectionHtml(keywords, ownerKey, expandedSet) {
+    var html = '<div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
+    html += '<div style="margin-top:4px;">' + validityCheckInstancesHtml(keywords, ownerKey + '-vc', expandedSet) + '</div>';
+
+    // Task L1d - CHECK's AB/VN/VNE/M10/M11 codes, as L1's repeatable
+    // instances (see checkInstancesHtml/wireCheckInstancesEditor's own
+    // doc comment for why this is shared with the Keying options
+    // panel). Commits IMMEDIATELY per checkbox/field, same as Task L5's
+    // RANGE/COMP/VALUES instances just above now do too - both live on
+    // the L1 repeatable-instance component, which has no batching
+    // mechanism of its own (unlike EDTCDE/EDTWRD/EDTMSK below, still
+    // single-instance and still behind the "Apply" button).
+    html += '<div style="margin-top:6px;">' + checkInstancesHtml(keywords, ownerKey + '-validity', expandedSet, VALIDITY_CHECK_CODES, '+ Add CHECK instance') + '</div>';
+    return accordionWrapHtml('Validity check', html, false);
+  }
+
+  /** Bug fix - CHKMSGID split into its own collapsible accordion (see
+   *  validityCheckSectionHtml's own doc comment above for why). */
+  function checkMsgIdSectionHtml(keywords, ownerKey) {
+    // CHKMSGID - overrides the system-supplied error message a validity
+    // check issues. Real SDA's own "Define Validity Check Keywords"
+    // screen reaches this on a SECOND page (its "More..." key), but it's
+    // the same field-level keyword picker as RANGE/COMP/VALUES/CHECK
+    // just above, not a separate panel - see DspfWriter.getCheckMsgId's
+    // own doc comment for the DDS format. Single-instance, own "Apply"
+    // button (a genuinely different keyword than EDTCDE/EDTWRD/EDTMSK's
+    // own Apply below, so bundling the two commits would be misleading).
+    var cm = DspfWriter.getCheckMsgId(keywords);
+    var html = '<div class="two-col">' +
+      '<input type="text" id="' + ownerKey + '-cm-msgid" placeholder="Message identifier" value="' + escapeHtml(cm.msgId) + '" />' +
+      '<input type="text" id="' + ownerKey + '-cm-msgfile" placeholder="Message file" value="' + escapeHtml(cm.msgFile) + '" />' +
+      '</div><div class="two-col" style="margin-top:4px;">' +
+      '<input type="text" id="' + ownerKey + '-cm-library" placeholder="Library (optional, *LIBL if blank)" value="' + escapeHtml(cm.library) + '" />' +
+      '<input type="text" id="' + ownerKey + '-cm-msgdata" placeholder="Message data field (optional)" value="' + escapeHtml(cm.msgDataField) + '" />' +
+      '</div><div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed.</div>' +
+      '<button class="secondary ' + ownerKey + '-cm-apply" style="width:100%;margin-top:8px;">Apply CHKMSGID</button>';
+    return accordionWrapHtml('Check message identifier', html, false);
+  }
+
+  /** Bug fix - EDTCDE/EDTWRD/EDTMSK split into its own collapsible
+   *  accordion (see validityCheckSectionHtml's own doc comment above for
+   *  why). */
+  function editKeywordSectionHtml(keywords, ownerKey) {
+    var ec = DspfWriter.getEditKeyword(keywords);
+    var html = '<div class="two-col">' +
+      '<select id="' + ownerKey + '-ec-kind">' +
+      ['', 'EDTCDE', 'EDTWRD', 'EDTMSK'].map(function (k) {
+        return '<option value="' + k + '"' + (ec.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
+      }).join('') +
+      '</select>' +
+      '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
+      '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>' +
+      '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply edit code/word/mask</button>';
+    return accordionWrapHtml('Edit code / word / mask', html, false);
+  }
+
   function validityAndEditHtml(keywords, ownerKey, options, expandedSet) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
-    var ec = DspfWriter.getEditKeyword(keywords);
 
     var html = '';
     if (includeValidity) {
-      html += '<div class="section-label">Validity check</div>';
-      html += '<div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
-      html += '<div style="margin-top:4px;">' + validityCheckInstancesHtml(keywords, ownerKey + '-vc', expandedSet) + '</div>';
-
-      // Task L1d - CHECK's AB/VN/VNE/M10/M11 codes, as L1's repeatable
-      // instances (see checkInstancesHtml/wireCheckInstancesEditor's own
-      // doc comment for why this is shared with the Keying options
-      // panel). Commits IMMEDIATELY per checkbox/field, same as Task L5's
-      // RANGE/COMP/VALUES instances just above now do too - both live on
-      // the L1 repeatable-instance component, which has no batching
-      // mechanism of its own (unlike EDTCDE/EDTWRD/EDTMSK below, still
-      // single-instance and still behind the "Apply" button).
-      html += '<div style="margin-top:6px;">' + checkInstancesHtml(keywords, ownerKey + '-validity', expandedSet, VALIDITY_CHECK_CODES, '+ Add CHECK instance') + '</div>';
-
-      // CHKMSGID - overrides the system-supplied error message a validity
-      // check issues. Real SDA's own "Define Validity Check Keywords"
-      // screen reaches this on a SECOND page (its "More..." key), but it's
-      // the same field-level keyword picker as RANGE/COMP/VALUES/CHECK
-      // just above, not a separate panel - see DspfWriter.getCheckMsgId's
-      // own doc comment for the DDS format. Single-instance, own "Apply"
-      // button (a genuinely different keyword than EDTCDE/EDTWRD/EDTMSK's
-      // own Apply below, so bundling the two commits would be misleading).
-      var cm = DspfWriter.getCheckMsgId(keywords);
-      html += '<div class="section-label" style="margin-top:10px;">Check message identifier</div>';
-      html += '<div class="two-col">' +
-        '<input type="text" id="' + ownerKey + '-cm-msgid" placeholder="Message identifier" value="' + escapeHtml(cm.msgId) + '" />' +
-        '<input type="text" id="' + ownerKey + '-cm-msgfile" placeholder="Message file" value="' + escapeHtml(cm.msgFile) + '" />' +
-        '</div><div class="two-col" style="margin-top:4px;">' +
-        '<input type="text" id="' + ownerKey + '-cm-library" placeholder="Library (optional, *LIBL if blank)" value="' + escapeHtml(cm.library) + '" />' +
-        '<input type="text" id="' + ownerKey + '-cm-msgdata" placeholder="Message data field (optional)" value="' + escapeHtml(cm.msgDataField) + '" />' +
-        '</div><div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed.</div>' +
-        '<button class="secondary ' + ownerKey + '-cm-apply" style="width:100%;margin-top:8px;">Apply CHKMSGID</button>';
+      html += validityCheckSectionHtml(keywords, ownerKey, expandedSet);
+      html += checkMsgIdSectionHtml(keywords, ownerKey);
     }
-
     if (includeEditKeyword) {
-      html += '<div class="section-label"' + (includeValidity ? ' style="margin-top:10px;"' : '') + '>Edit code / word / mask</div>';
-      html += '<div class="two-col">' +
-        '<select id="' + ownerKey + '-ec-kind">' +
-        ['', 'EDTCDE', 'EDTWRD', 'EDTMSK'].map(function (k) {
-          return '<option value="' + k + '"' + (ec.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
-        }).join('') +
-        '</select>' +
-        '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
-        '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>' +
-        '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply edit code/word/mask</button>';
+      html += editKeywordSectionHtml(keywords, ownerKey);
     }
     return html;
   }
@@ -1449,7 +1498,14 @@
         var isImmed = !!c.immedCode && codes.indexOf(c.immedCode) >= 0;
         var checked = codes.indexOf(c.code) >= 0 || isImmed;
         html += '<label class="attr-check" title="' + escapeHtml(c.label) + '"><input type="checkbox" class="' + instIdPrefix + '-code" data-code="' + c.code + '" ' + (checked ? 'checked' : '') + '/>' + c.code + '</label>';
-        if (c.immedCode) {
+        // Bug fix - Immed only makes sense once its own code (M10/M11) is
+        // actually selected, so it's now hidden until then instead of
+        // always showing regardless of whether the checkbox next to it is
+        // even checked. Re-rendered fresh (this whole panel re-renders on
+        // every commit - see commitSourceChange's own render() call), so
+        // checking the code checkbox immediately reveals Immed on the very
+        // next render, no separate live-toggle wiring needed here.
+        if (c.immedCode && checked) {
           html += '<label class="attr-check" title="Immediate (check each keystroke rather than at Enter)"><input type="checkbox" class="' + instIdPrefix + '-code-immed" data-for="' + c.code + '" data-immed-code="' + c.immedCode + '" ' + (isImmed ? 'checked' : '') + '/>Immed</label>';
         }
       });
