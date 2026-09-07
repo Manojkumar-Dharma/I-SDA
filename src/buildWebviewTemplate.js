@@ -1201,6 +1201,14 @@ const htmlTemplate = `<!DOCTYPE html>
   const toolbarCompareOverlayToggle = document.getElementById('toolbarCompareOverlayToggle');
   const toolbarCompareRecordList = document.getElementById('toolbarCompareRecordList');
   const mainHint = document.getElementById('mainHint');
+  // Bug fix - see accordionHtml's own doc comment just below for the full
+  // story. Declared once, never reset for the life of this webview.
+  const accordionOpenState = new Map();
+  document.addEventListener('toggle', (e) => {
+    const details = e.target;
+    if (!details || typeof details.matches !== 'function' || !details.matches('details.props-accordion[data-accordion-key]')) return;
+    accordionOpenState.set(details.getAttribute('data-accordion-key'), details.open);
+  }, true);
   const canvasMessage = document.getElementById('canvasMessage');
   // Bug fix - Save/Compile results (see extension.ts's compileDspf/
   // handleSaveDocument) render here instead of ONLY as a VS Code toast
@@ -4063,9 +4071,30 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
-  /** A collapsible <details> section for dense content (raw keywords, conditioning). */
-  function accordionHtml(label, bodyHtml, openByDefault) {
-    return '<details class="props-accordion"' + (openByDefault ? ' open' : '') + '><summary>' + label + '</summary><div class="props-accordion-body">' + bodyHtml + '</div></details>';
+  /**
+   * Bug fix - every accordion (Color & attributes, Error messages, Keying
+   * options, Advanced/raw keywords, etc.) used to snap back CLOSED on every
+   * single edit inside it, because the props panel fully re-renders from
+   * scratch on every commit (see commitSourceChange's own render() call)
+   * and openByDefault was a fixed true/false with no memory of what the
+   * person actually had open - e.g. picking a color from Color &
+   * attributes' own dropdown would immediately re-collapse the very
+   * accordion the person was still working in. accordionOpenState (a
+   * plain Map, declared once below, never reset - it just accumulates one
+   * entry per accordion the person has ever toggled this session) now
+   * remembers each accordion's open/closed state across re-renders, keyed
+   * by a caller-supplied key that must be unique across the WHOLE props
+   * panel (not just within one call site) - e.g. 'field-42::keying-
+   * options', so the same-labelled accordion on two different fields (or a
+   * multi-select) tracks independently. A single delegated 'toggle'
+   * listener (wired once, right below, NOT re-wired per render) keeps the
+   * map in sync; native details toggle events don't bubble, but DO still
+   * reach a capturing-phase listener on an ancestor regardless, which is
+   * exactly what that listener uses.
+   */
+  function accordionHtml(key, label, bodyHtml, openByDefault) {
+    const isOpen = accordionOpenState.has(key) ? accordionOpenState.get(key) : !!openByDefault;
+    return '<details class="props-accordion" data-accordion-key="' + DspfEngine.escapeHtml(key) + '"' + (isOpen ? ' open' : '') + '><summary>' + label + '</summary><div class="props-accordion-body">' + bodyHtml + '</div></details>';
   }
 
   /**
@@ -4119,7 +4148,7 @@ const htmlTemplate = `<!DOCTYPE html>
       { id: 'menubar', label: 'Menu-bar', content: panels.menuBar },
       { id: 'comments', label: 'Comments', content: fileCommentsHtml },
     ], activeFileTab);
-    html += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning), false);
+    html += accordionHtml('file::raw', 'Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(model.fileKeywords, 'file', expandedKeywordConditioning), false);
     propsBody.innerHTML = html;
     wireTabs(propsBody, (id) => { activeFileTab = id; });
 
@@ -4235,7 +4264,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // doesn't change a constant's existing Color & attributes visibility.
     const catVis = WebviewClientHelpers.fieldKeywordCategoryVisibility(field.usage, field.dataType);
     let attrsHtml = '';
-    if (catVis.colorAndAttributes) attrsHtml += WebviewClientHelpers.colorAttrStatesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning);
+    if (catVis.colorAndAttributes) attrsHtml += WebviewClientHelpers.colorAttrStatesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, accordionOpenState);
     if (!isConstant && field.isReference) {
       // Position 29 'R' - this field's length/type/decimals come from a
       // referenced database field (REF/REFFLD - see DspfEngine.resolveReferenceTarget)
@@ -4246,12 +4275,12 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += '<button id="p-resolve-ref" class="secondary" style="width:100%;margin-bottom:12px;">Resolve Referenced Field (Code for i)</button>';
     }
     if (!isConstant) {
-      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning);
+      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, accordionOpenState);
     } else if (isSystemValueConstant) {
-      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false }, expandedKeywordConditioning);
+      attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false }, expandedKeywordConditioning, accordionOpenState);
     }
     if (!isConstant && catVis.errorMessages) {
-      attrsHtml += accordionHtml('Error messages', WebviewClientHelpers.errorMessageInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::error-messages', 'Error messages', WebviewClientHelpers.errorMessageInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     // Remaining SDA "Select Field Keywords" categories (docs/sda-reference/
     // task D1) - collapsed by default, same as the Keywords/Conditioning
@@ -4259,22 +4288,22 @@ const htmlTemplate = `<!DOCTYPE html>
     // Color & attributes / Validity check. Each gated per D2's usage-based
     // applicability rules above.
     if (!isConstant && catVis.keyingOptions) {
-      attrsHtml += accordionHtml('Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::keying-options', 'Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType), false);
     }
     if (!isConstant && catVis.inputKeywords) {
-      attrsHtml += accordionHtml('Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::input-keywords', 'Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (catVis.generalKeywords) {
-      attrsHtml += accordionHtml('General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::general-keywords', 'General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (!isConstant && catVis.databaseReference) {
       let dbRefBody = '';
       if (field.isReference) dbRefBody += '<div class="hint-small">REFFLD/REF are managed by the Resolve Referenced Field button above.</div>';
       dbRefBody += WebviewClientHelpers.referenceOverridesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning);
-      attrsHtml += accordionHtml('Database reference', dbRefBody, false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::database-reference', 'Database reference', dbRefBody, false);
     }
     if (!isConstant && catVis.messageId) {
-      attrsHtml += accordionHtml('Message ID', WebviewClientHelpers.messageIdInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::message-id', 'Message ID', WebviewClientHelpers.messageIdInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     // Task D3 - Subfile Keywords (SFLRCDNBR/SFLROLVAL), for a numeric field
     // living directly in an SFL or SFLCTL record - gated on the OWNING
@@ -4282,7 +4311,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // MNUBARCHC/MNUBARSEP gate.
     const isSflOrSflCtlRecord = !isConstant && (WebviewClientHelpers.isSflRecord(found.record) || WebviewClientHelpers.isSflCtlRecord(found.record));
     if (isSflOrSflCtlRecord) {
-      attrsHtml += accordionHtml('Subfile keywords (SFLRCDNBR/SFLROLVAL)', WebviewClientHelpers.subfileFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::subfile-keywords', 'Subfile keywords (SFLRCDNBR/SFLROLVAL)', WebviewClientHelpers.subfileFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
     // D5 - Menu-bar choice fields (docs/sda-reference/ task D5). Two
     // distinct gates, since these serve two different field kinds:
@@ -4310,21 +4339,21 @@ const htmlTemplate = `<!DOCTYPE html>
     const ownerRecord = found.record;
     const isMenuBarRecord = ownerRecord.keywords.some((k) => k.name === 'MNUBAR');
     if (isMenuBarRecord) {
-      attrsHtml += accordionHtml('Menu-bar choices (MNUBARCHC)', WebviewClientHelpers.menuBarChoicesHtml(field.keywords, 'field-' + field.sourceLine), false);
-      attrsHtml += accordionHtml('Menu-bar separator (MNUBARSEP)', WebviewClientHelpers.menuBarSeparatorHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::menubar-choices', 'Menu-bar choices (MNUBARCHC)', WebviewClientHelpers.menuBarChoicesHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::menubar-separator', 'Menu-bar separator (MNUBARSEP)', WebviewClientHelpers.menuBarSeparatorHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
     if (!isConstant) {
-      attrsHtml += accordionHtml('Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-selection-type', 'Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
       const isChoiceField = DspfWriter.getChoiceSelectionType(field.keywords).kind !== '';
       if (isChoiceField) {
-        attrsHtml += accordionHtml('Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine), false);
-        attrsHtml += accordionHtml('Choice colors & attributes', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-keywords', 'Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-colors-attrs', 'Choice colors & attributes', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine), false);
       }
     }
 
     // --- Keywords tab: the dense raw-keyword chip editor + conditioning, each collapsed by default ---
-    let keywordsHtml = accordionHtml('Keywords', WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), true);
-    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field', expandedKeywordConditioning), false);
+    let keywordsHtml = accordionHtml('field-' + field.sourceLine + '::keywords', 'Keywords', WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), true);
+    keywordsHtml += accordionHtml('field-' + field.sourceLine + '::conditioning', 'Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field', expandedKeywordConditioning), false);
 
     html += tabsHtml([
       { id: 'basic', label: isConstant ? 'Text' : 'Basic', content: basicHtml },
@@ -5002,7 +5031,7 @@ const htmlTemplate = `<!DOCTYPE html>
       '<div class="align-btn-row">' +
       '<button class="secondary align-btn" id="p-center-group" title="Center the whole selection as a block, keeping each field\u2019s position relative to the others">&#8596; Center on screen</button>' +
       '</div>';
-    html += WebviewClientHelpers.colorAttrStatesHtml(primary.keywords, 'multiselect-colorattr', expandedKeywordConditioning);
+    html += WebviewClientHelpers.colorAttrStatesHtml(primary.keywords, 'multiselect-colorattr', expandedKeywordConditioning, accordionOpenState);
     html += '<button id="p-multi-copy" class="secondary" style="width:100%;margin-top:16px;">Duplicate selection</button>';
     html += '<div class="delete-hint">Press Delete or Backspace to remove all ' + fields.length + ' selected fields. ' +
       'Ctrl+D duplicates the whole block in place; Ctrl+X/C/V cut/copy/paste it as one block (Ctrl+V pastes into ' +
@@ -5200,8 +5229,8 @@ const htmlTemplate = `<!DOCTYPE html>
         ];
     const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
     let keywordsHtml = subtabsHtml(rkTabs, rkActiveTab);
-    keywordsHtml += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
-    keywordsHtml += accordionHtml('Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record', expandedKeywordConditioning), false);
+    keywordsHtml += accordionHtml('record-' + rec.name + '::raw', 'Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
+    keywordsHtml += accordionHtml('record-' + rec.name + '::conditioning', 'Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record', expandedKeywordConditioning), false);
 
     // --- Command keys tab --- (only this record's own keywords exclude
     // numbers here; a number already used at the file level can still be
@@ -5309,39 +5338,39 @@ const htmlTemplate = `<!DOCTYPE html>
     ];
     if (isSflMsg) {
       const sflMsgHtml =
-        accordionHtml('Message Record', sflMsgPanels.messageRecord, true) +
-        accordionHtml('General', sflMsgPanels.general, false) +
-        accordionHtml('Indicator', sflMsgPanels.indicator, false);
+        accordionHtml('record-' + rec.name + '::sflmsg-message-record', 'Message Record', sflMsgPanels.messageRecord, true) +
+        accordionHtml('record-' + rec.name + '::sflmsg-general', 'General', sflMsgPanels.general, false) +
+        accordionHtml('record-' + rec.name + '::sflmsg-indicator', 'Indicator', sflMsgPanels.indicator, false);
       tabs.push({ id: 'sflmsg', label: 'SFLMSG', content: sflMsgHtml });
     }
     if (hasWindow) {
       const windowHtml =
-        accordionHtml('Window Parameters', windowPanels.windowParameters, true) +
-        accordionHtml('Border Parameters', windowPanels.borderParameters, false);
+        accordionHtml('record-' + rec.name + '::window-params', 'Window Parameters', windowPanels.windowParameters, true) +
+        accordionHtml('record-' + rec.name + '::window-border', 'Border Parameters', windowPanels.borderParameters, false);
       tabs.push({ id: 'window', label: 'Window', content: windowHtml });
     }
     if (isPulldown) {
       const pulldownHtml =
-        accordionHtml('General', pulldownPanels.general, true) +
-        accordionHtml('Border Parameters', pulldownPanels.borderParameters, false);
+        accordionHtml('record-' + rec.name + '::pulldown-general', 'General', pulldownPanels.general, true) +
+        accordionHtml('record-' + rec.name + '::pulldown-border', 'Border Parameters', pulldownPanels.borderParameters, false);
       tabs.push({ id: 'pulldown', label: 'Pull-down', content: pulldownHtml });
     }
     if (isSfl) {
       const sflHtml =
-        accordionHtml('General', sflPanels.general, true) +
-        accordionHtml('Indicator', sflPanels.indicator, false);
+        accordionHtml('record-' + rec.name + '::sfl-general', 'General', sflPanels.general, true) +
+        accordionHtml('record-' + rec.name + '::sfl-indicator', 'Indicator', sflPanels.indicator, false);
       tabs.push({ id: 'sfl', label: 'SFL', content: sflHtml });
     }
     if (isSflCtl) {
       const sflCtlHtml =
-        accordionHtml('General', sflCtlPanels.general, true) +
-        accordionHtml('Indicator', sflCtlPanels.indicator, false) +
-        accordionHtml('Display Layout', sflCtlPanels.displayLayout, false) +
-        accordionHtml('Subfile Messages', sflCtlPanels.subfileMessages, false);
+        accordionHtml('record-' + rec.name + '::sflctl-general', 'General', sflCtlPanels.general, true) +
+        accordionHtml('record-' + rec.name + '::sflctl-indicator', 'Indicator', sflCtlPanels.indicator, false) +
+        accordionHtml('record-' + rec.name + '::sflctl-layout', 'Display Layout', sflCtlPanels.displayLayout, false) +
+        accordionHtml('record-' + rec.name + '::sflctl-messages', 'Subfile Messages', sflCtlPanels.subfileMessages, false);
       tabs.push({ id: 'sflctl', label: 'SFLCTL', content: sflCtlHtml });
     }
     if (isMnuBar) {
-      const mnuBarHtml = accordionHtml('General', mnuBarPanels.general, true);
+      const mnuBarHtml = accordionHtml('record-' + rec.name + '::mnubar-general', 'General', mnuBarPanels.general, true);
       tabs.push({ id: 'mnubar', label: 'MNUBAR', content: mnuBarHtml });
     }
     html += tabsHtml(tabs, activeRecordTab);
@@ -5452,7 +5481,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // own doc comment). The raw keyword editor below still covers
     // anything else an H specification might carry.
     if (editable) html += WebviewClientHelpers.applicationHelpFieldsHtml(help.keywords, 'help-' + help.sourceLine, expandedKeywordConditioning);
-    html += accordionHtml('Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(help.keywords, 'help-' + help.sourceLine, expandedKeywordConditioning), false);
+    html += accordionHtml('help-' + help.sourceLine + '::raw', 'Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(help.keywords, 'help-' + help.sourceLine, expandedKeywordConditioning), false);
     propsBody.innerHTML = html;
 
     document.getElementById('p-back').addEventListener('click', () => { selectedHelpSourceLine = null; renderProps(recordName); });

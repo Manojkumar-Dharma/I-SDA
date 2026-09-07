@@ -20,23 +20,38 @@
   'use strict';
 
   /**
-   * Bug fix - a collapsible <details> wrapper, identical markup to
+   * A collapsible <details> wrapper, identical markup to
    * buildWebviewTemplate.js's own accordionHtml() (props-accordion /
-   * props-accordion-body classes, so the existing CSS and the Find-keyword
-   * feature's jumpToKeywordMatch() - which already opens the nearest
-   * "details.props-accordion" ancestor on a match - both just work without
-   * any changes on that side). Duplicated as a small local helper rather
-   * than calling buildWebviewTemplate.js's copy directly: that copy is a
-   * plain top-level function declaration inside the webview's OWN inline
+   * props-accordion-body classes, data-accordion-key attribute, and the
+   * same open/closed persistence contract - see that function's own doc
+   * comment for the full story on why this needed to exist at all: the
+   * props panel fully re-renders on every commit, so without SOME memory
+   * of what the person had open, every accordion snaps shut again on the
+   * very next edit inside it). `openState` is optional and Map-like (only
+   * `.has(key)`/`.get(key)` are used) - the caller passes its own
+   * accordionOpenState through; omitted entirely (as every Node-based
+   * unit test in src/test/ that calls colorAttrStatesHtml et al directly
+   * does), this just falls back to `openByDefault` every time, same as
+   * before this existed.
+   * Duplicated as a small local helper rather than calling
+   * buildWebviewTemplate.js's copy directly: that copy is a plain
+   * top-level function declaration inside the webview's OWN inline
    * <script> tag, not something this module exports/imports - in the
-   * browser the two happen to share one global scope (so it'd resolve as a
-   * bare global), but this file is also require()'d directly under plain
-   * Node for the test suite, where no such global exists. Kept private
-   * (not part of the returned API below) since nothing outside this file
-   * needs it yet.
+   * browser the two happen to share one global scope, but this file is
+   * also require()'d directly under plain Node for the test suite, where
+   * no such global (or its accordionOpenState) exists. The native
+   * <details> toggle events these emit are picked up by ONE delegated
+   * listener buildWebviewTemplate.js wires on `document` (not per-file,
+   * not per-render) - it doesn't care which file generated the markup, so
+   * these behave identically to buildWebviewTemplate.js's own accordions
+   * without this file needing any listener-wiring of its own.
    */
-  function accordionWrapHtml(label, bodyHtml, openByDefault) {
-    return '<details class="props-accordion"' + (openByDefault ? ' open' : '') + '><summary>' + label + '</summary><div class="props-accordion-body">' + bodyHtml + '</div></details>';
+  function accordionWrapHtml(key, label, bodyHtml, openByDefault, openState) {
+    var isOpen = !!openByDefault;
+    if (openState && typeof openState.has === 'function' && openState.has(key)) {
+      isOpen = !!openState.get(key);
+    }
+    return '<details class="props-accordion" data-accordion-key="' + escapeHtml(key) + '"' + (isOpen ? ' open' : '') + '><summary>' + label + '</summary><div class="props-accordion-body">' + bodyHtml + '</div></details>';
   }
 
   /**
@@ -836,7 +851,7 @@
   // COLOR/DSPATR editor is still wanted.
   // -----------------------------------------------------------------------
 
-  function colorAttrStatesHtml(keywords, ownerKey, expandedSet) {
+  function colorAttrStatesHtml(keywords, ownerKey, expandedSet, openState) {
     var states = DspfWriter.getColorAttrStates(keywords);
     var html = '';
     html += repeatableConditionedInstancesHtml(states, ownerKey + '-colorattr', function (inst, instIdPrefix) {
@@ -877,7 +892,7 @@
     // ".closest('details.props-accordion')" - triggered off a match on
     // this element's own [data-kw] attribute - actually finds an ancestor
     // details to open, not a sibling/child.
-    return accordionWrapHtml('Color &amp; attributes', dataKwWrap(['COLOR', 'DSPATR'], html), false);
+    return accordionWrapHtml(ownerKey + '::colorattr', 'Color &amp; attributes', dataKwWrap(['COLOR', 'DSPATR'], html), false, openState);
   }
 
   function wireColorAttrStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
@@ -1099,7 +1114,7 @@
    *  collapse independently of Check message identifier/Edit code-word-
    *  mask below - same "collapsed by default" treatment Error messages/
    *  Keying options already got. */
-  function validityCheckSectionHtml(keywords, ownerKey, expandedSet) {
+  function validityCheckSectionHtml(keywords, ownerKey, expandedSet, openState) {
     var html = '<div class="hint-small">RANGE low high &middot; COMP op value &middot; VALUES v1 v2 ...</div>';
     html += '<div style="margin-top:4px;">' + validityCheckInstancesHtml(keywords, ownerKey + '-vc', expandedSet) + '</div>';
 
@@ -1112,12 +1127,12 @@
     // mechanism of its own (unlike EDTCDE/EDTWRD/EDTMSK below, still
     // single-instance and still behind the "Apply" button).
     html += '<div style="margin-top:6px;">' + checkInstancesHtml(keywords, ownerKey + '-validity', expandedSet, VALIDITY_CHECK_CODES, '+ Add CHECK instance') + '</div>';
-    return accordionWrapHtml('Validity check', html, false);
+    return accordionWrapHtml(ownerKey + '::validity-check', 'Validity check', html, false, openState);
   }
 
   /** Bug fix - CHKMSGID split into its own collapsible accordion (see
    *  validityCheckSectionHtml's own doc comment above for why). */
-  function checkMsgIdSectionHtml(keywords, ownerKey) {
+  function checkMsgIdSectionHtml(keywords, ownerKey, openState) {
     // CHKMSGID - overrides the system-supplied error message a validity
     // check issues. Real SDA's own "Define Validity Check Keywords"
     // screen reaches this on a SECOND page (its "More..." key), but it's
@@ -1135,13 +1150,13 @@
       '<input type="text" id="' + ownerKey + '-cm-msgdata" placeholder="Message data field (optional)" value="' + escapeHtml(cm.msgDataField) + '" />' +
       '</div><div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed.</div>' +
       '<button class="secondary ' + ownerKey + '-cm-apply" style="width:100%;margin-top:8px;">Apply CHKMSGID</button>';
-    return accordionWrapHtml('Check message identifier', html, false);
+    return accordionWrapHtml(ownerKey + '::check-msgid', 'Check message identifier', html, false, openState);
   }
 
   /** Bug fix - EDTCDE/EDTWRD/EDTMSK split into its own collapsible
    *  accordion (see validityCheckSectionHtml's own doc comment above for
    *  why). */
-  function editKeywordSectionHtml(keywords, ownerKey) {
+  function editKeywordSectionHtml(keywords, ownerKey, openState) {
     var ec = DspfWriter.getEditKeyword(keywords);
     var html = '<div class="two-col">' +
       '<select id="' + ownerKey + '-ec-kind">' +
@@ -1152,20 +1167,20 @@
       '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
       '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>' +
       '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply edit code/word/mask</button>';
-    return accordionWrapHtml('Edit code / word / mask', html, false);
+    return accordionWrapHtml(ownerKey + '::edit-keyword', 'Edit code / word / mask', html, false, openState);
   }
 
-  function validityAndEditHtml(keywords, ownerKey, options, expandedSet) {
+  function validityAndEditHtml(keywords, ownerKey, options, expandedSet, openState) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
 
     var html = '';
     if (includeValidity) {
-      html += validityCheckSectionHtml(keywords, ownerKey, expandedSet);
-      html += checkMsgIdSectionHtml(keywords, ownerKey);
+      html += validityCheckSectionHtml(keywords, ownerKey, expandedSet, openState);
+      html += checkMsgIdSectionHtml(keywords, ownerKey, openState);
     }
     if (includeEditKeyword) {
-      html += editKeywordSectionHtml(keywords, ownerKey);
+      html += editKeywordSectionHtml(keywords, ownerKey, openState);
     }
     return html;
   }
