@@ -558,6 +558,22 @@ const htmlTemplate = `<!DOCTYPE html>
   const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded, shared with the DSPF designer's own convention
   const expandedOptionConditioning = new Set(); // numberValues whose "Conditioning" panel is expanded - survives renderOptions() rebuilding all rows
   const expandedOptionStyle = new Set(); // numberValues whose "Style (keywords)" panel is expanded - Task M1, same survives-rerender convention as expandedOptionConditioning above
+  // Bug fix (L66, DSPF designer's own buildWebviewTemplate.js) -
+  // WebviewClientHelpers.colorAttrStatesHtml() wraps its own output in a
+  // collapsible <details class="props-accordion"> (see that function's own
+  // doc comment); without an openState to remember what the person had
+  // open, it re-collapses on every re-render exactly like the DSPF
+  // designer's own accordions did before L66 - renderOptions() rebuilds
+  // every option row (and this "Style" panel's own colorAttrStatesHtml
+  // call) on every commit, same as that designer's props panel does. Same
+  // fix here: a persistent per-accordion Map plus one delegated capturing
+  // 'toggle' listener, wired once below.
+  const accordionOpenState = new Map();
+  document.addEventListener('toggle', (e) => {
+    const details = e.target;
+    if (!details || typeof details.matches !== 'function' || !details.matches('details.props-accordion[data-accordion-key]')) return;
+    accordionOpenState.set(details.getAttribute('data-accordion-key'), details.open);
+  }, true);
 
   // Task M8 - session-only, same "toggling here never writes back to the
   // isda.* settings" relationship the DSPF designer's own copy of this
@@ -1268,7 +1284,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const styleBody = row.querySelector('.option-style-body');
       if (styleExpanded && styleField) {
         styleBody.innerHTML =
-          WebviewClientHelpers.colorAttrStatesHtml(styleField.keywords, 'opt' + numLabel, expandedKeywordConditioning) +
+          WebviewClientHelpers.colorAttrStatesHtml(styleField.keywords, 'opt' + numLabel, expandedKeywordConditioning, accordionOpenState) +
           '<div class="section-label" style="margin-top:8px;">Other keywords</div>' +
           WebviewClientHelpers.keywordEditorHtml(styleField.keywords, 'opt' + numLabel, expandedKeywordConditioning);
         WebviewClientHelpers.wireColorAttrStatesEditor(styleField.keywords, (newKeywords) => updateOptionKeywords(opt.recordName, opt.numberValue, newKeywords), 'opt' + numLabel, expandedKeywordConditioning, renderOptions);

@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-08 — Bug fix (L67): same accordion fix, extended to the Menu Designer
+
+- **0.10.59** — L66 (below) fixed the DSPF designer's own accordions collapsing on every edit; the Menu Designer (`buildMenuWebviewTemplate.js`, a separate webview file) has its own per-option "Style" panel that also calls `colorAttrStatesHtml()`, so it had the identical inner-accordion bug, just not yet fixed for this second webview. Same fix: its own `accordionOpenState` Map and delegated `toggle` listener, declared alongside its existing `expandedOptionConditioning`/`expandedOptionStyle` Sets. New regression test (`menuAccordionOpenStatePersistence.test.js`) proves it: expand Style, add a color/attribute state, open its accordion, edit that state's own color, confirm the accordion stays open. Full suite: 43/43 files, zero failures.
+
 ## 2026-09-08 — Bug fix (L66): accordions no longer collapse on every edit
 
 - **0.10.58** — Every props-panel accordion (Color & attributes, Error messages, Keying options, Advanced/raw keywords, and more) snapped back CLOSED on the very next re-render, since the panel fully regenerates on every commit and there was no memory of what the person had open. Reported concretely as: open Color & attributes, pick a color from its own dropdown, and the accordion holding that very control collapses immediately. Fixed system-wide (not just the L64 accordions) with a persistent `accordionOpenState` Map keyed per-accordion, a `data-accordion-key` attribute on every accordion, and a single delegated `toggle` listener that keeps the map in sync regardless of which file generated the markup. New regression test (`accordionOpenStatePersistence.test.js`) drives the real client script end-to-end to prove an accordion survives the re-render its own edit triggers. Full suite: 42/42 files, zero failures.
