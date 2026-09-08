@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-08 — Bug fix (L68): New UI's placement hint and Add Record wizard were invisible
+
+- **0.10.60** — Task P5i (already shipped) hides `<aside>` entirely under the New UI, but two aside-only widgets were never migrated out when that happened: `#placementHint` ("Click anywhere on the screen preview to place it there...") and `#newRecordForm` (the "+ Add record" name/type wizard). Clicking +Field/+Constant/+Add record via the toolbox fab still worked functionally (placement mode armed, the form's `hidden` class came off), but neither was actually visible — display:none on the aside ancestor hides its whole subtree, no matter what class the child itself has. Fixed with two targeted changes, no duplicate markup: the placement message now also drives `#mainHint` (the canvas status line, already visible in both UI styles), and `#newRecordForm` is physically reparented into the toolbox popover while open under modern, moving back to its aside home the moment it's closed. Classic UI is completely unaffected either way. Full suite: 44/44 files, zero failures.
+
 ## 2026-09-08 — Bug fix (L67): same accordion fix, extended to the Menu Designer
 
 - **0.10.59** — L66 (below) fixed the DSPF designer's own accordions collapsing on every edit; the Menu Designer (`buildMenuWebviewTemplate.js`, a separate webview file) has its own per-option "Style" panel that also calls `colorAttrStatesHtml()`, so it had the identical inner-accordion bug, just not yet fixed for this second webview. Same fix: its own `accordionOpenState` Map and delegated `toggle` listener, declared alongside its existing `expandedOptionConditioning`/`expandedOptionStyle` Sets. New regression test (`menuAccordionOpenStatePersistence.test.js`) proves it: expand Style, add a color/attribute state, open its accordion, edit that state's own color, confirm the accordion stays open. Full suite: 43/43 files, zero failures.

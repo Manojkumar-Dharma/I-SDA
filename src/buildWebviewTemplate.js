@@ -1255,6 +1255,26 @@ const htmlTemplate = `<!DOCTYPE html>
   const fkeyLegendEl = document.getElementById('fkeyLegend');
   const newRecordToggleBtn = document.getElementById('newRecordToggleBtn');
   const newRecordForm = document.getElementById('newRecordForm');
+
+  // Task L68: #newRecordForm only ever existed inline in the aside, which
+  // P5i now hides entirely (display:none) under modern UI - so the fab's
+  // "+ Add record" proxy (see wireProxy's own history below) toggled a form
+  // nobody could actually see or fill in under the New UI, even though the
+  // toggle/create logic itself worked fine. Rather than duplicating this
+  // form's ~10 fields into a second synced copy (the P5b-h pattern used for
+  // simpler controls), this is the SAME single DOM node, physically
+  // reparented into the toolbox popover (#toolboxFabMenu) while open under
+  // modern, and moved back home into the aside the moment it's closed -
+  // see restoreNewRecordFormHome() below and the fabAddRecordBtn wiring in
+  // the P1 toolbox IIFE. Captured once, up front, before anything ever
+  // moves it.
+  const newRecordFormHomeParent = newRecordForm.parentNode;
+  const newRecordFormHomeNextSibling = newRecordForm.nextSibling;
+  function restoreNewRecordFormHome() {
+    if (newRecordForm.parentNode !== newRecordFormHomeParent) {
+      newRecordFormHomeParent.insertBefore(newRecordForm, newRecordFormHomeNextSibling);
+    }
+  }
   const newRecordName = document.getElementById('newRecordName');
   const newRecordBtn = document.getElementById('newRecordBtn');
   const newRecordError = document.getElementById('newRecordError');
@@ -1298,6 +1318,11 @@ const htmlTemplate = `<!DOCTYPE html>
       newRecordSflmsgQueueName.value = 'PGMQ';
       newRecordType.value = 'RECORD';
       rebuildNewRecordDepOptions();
+      // Task L68: closing the wizard (Cancel, or a successful Create - see
+      // newRecordBtn's own handler) is the one place this always happens
+      // from, regardless of how it was opened, so it's the right single
+      // spot to move the form back home if the fab had reparented it.
+      restoreNewRecordFormHome();
     }
   }
   newRecordToggleBtn.addEventListener('click', () => setAddRecordMode(!addRecordMode));
@@ -2308,8 +2333,31 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     wireProxy('fabPlaceFieldBtn', 'placeFieldBtn');
     wireProxy('fabPlaceConstantBtn', 'placeConstantBtn');
-    wireProxy('fabAddRecordBtn', 'newRecordToggleBtn', 'newRecordForm');
     wireProxy('fabAddFromDbBtn', 'addFromDbBtn');
+
+    // Task L68: "+ Add record" deliberately does NOT use the generic
+    // wireProxy above - that helper only ever scrolled the aside's own
+    // copy of #newRecordForm into view, which does nothing once modern UI
+    // hides the whole aside outright (see restoreNewRecordFormHome's own
+    // doc comment on newRecordForm above). Under modern, this instead
+    // physically moves the real #newRecordForm node into THIS popover
+    // (#menu) before toggling it open, so the name/type wizard actually
+    // renders where the person just clicked, and leaves the popover open
+    // afterward (unlike every other item here, which closes it) since the
+    // whole point is to keep the freshly-revealed form visible and usable.
+    // Classic UI never reaches this branch (aside is always visible there
+    // already), so its existing behavior - toggling the form open inline
+    // in the aside - is completely unchanged.
+    const fabAddRecordBtn = document.getElementById('fabAddRecordBtn');
+    if (fabAddRecordBtn && newRecordToggleBtn) {
+      fabAddRecordBtn.addEventListener('click', () => {
+        if (document.body.dataset.uiStyle === 'modern' && newRecordForm.parentNode !== menu) {
+          menu.appendChild(newRecordForm);
+        }
+        newRecordToggleBtn.click();
+        setOpen(addRecordMode); // stay open while the wizard is up; close like every other item once it's cancelled/created
+      });
+    }
 
     // Task P3 - "Window" is the first fab item with no aside-panel original
     // to proxy (see this IIFE's own doc comment on P1's "duplicate an
@@ -3119,6 +3167,18 @@ const htmlTemplate = `<!DOCTYPE html>
     const primaryScreenEl = screenOutput.querySelector('.dspf-screen');
     if (placementMode) {
       primaryScreenEl.classList.add('placing');
+      // Task L68: #placementHint (the "Click anywhere..." message) only
+      // ever lived in the aside, which P5i now hides entirely under modern
+      // UI - so arming placement mode from the toolbox fab (+Field,
+      // +Constant, Window, or the DB-fields picker) armed it silently,
+      // with no on-screen indication of what to do next. #mainHint already
+      // sits right above the canvas in BOTH UI styles (see
+      // renderFullOverlay's own identical pattern above for full-overlay
+      // mode), so it's reused here instead of duplicating a second hint
+      // element - this single change fixes the message for modern AND
+      // restates it more prominently, right at the canvas, for classic.
+      mainHint.classList.add('hint-readonly');
+      mainHint.textContent = 'Click anywhere on the screen preview to place it there (Esc to cancel).';
     }
 
     // Task L10: maps a field's sourceLine to its rendered canvas element,

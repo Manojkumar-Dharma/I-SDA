@@ -13,6 +13,12 @@
  *   - +Field/+Constant mirror the aside originals' 'active' state
  *   - +Fields from database file mirrors the aside original's
  *     connection-gated 'hidden' state
+ *   - Task L68: +Field/+Constant/Window/DBFIELDS placement mode also drives
+ *     #mainHint's own click-to-place text (visible in both UI styles,
+ *     unlike the aside-only #placementHint - see setPlacementMode's own
+ *     comment), and +Add record physically relocates the real
+ *     #newRecordForm node into the toolbox popover under modern (not a
+ *     duplicate), moving it back home to the aside once closed
  * Run with: node src/test/toolboxFab.test.js
  */
 const { JSDOM } = require('jsdom');
@@ -100,8 +106,20 @@ setTimeout(() => {
       fabFieldBtn.dispatchEvent(new Event('click', { bubbles: true }));
       check('proxy-click activated the ASIDE button (single source of truth)', asideFieldBtn.classList.contains('active'));
       check('the popover closed itself after the click', !fab.classList.contains('open'));
+      // Task L68: #placementHint (the aside's own "Click anywhere..."
+      // message) is invisible under modern once P5i hides the whole aside,
+      // so arming placement mode from the fab now ALSO drives #mainHint
+      // (visible in both UI styles) - see setPlacementMode's own updated
+      // comment in buildWebviewTemplate.js. Checking mainHint's specific
+      // placement text (not just that it happens to contain the word
+      // "field", which the UNCHANGED default hint text also does, making
+      // that assertion pass even before this fix existed) is what actually
+      // proves the hint is live, not just present.
       const hint = doc.getElementById('mainHint');
-      check('placement mode is genuinely live (the real click-to-place hint text changed), not just a class toggle', /field/i.test(hint.textContent));
+      check(
+        'placement mode is genuinely live - mainHint (visible in BOTH UI styles, unlike the aside-only placementHint) now carries the click-to-place message',
+        /click anywhere on the screen preview/i.test(hint.textContent) && hint.classList.contains('hint-readonly')
+      );
 
       // The fab item's own 'active' mirror is driven by a MutationObserver
       // watching the aside button's class attribute - that callback fires
@@ -116,6 +134,7 @@ setTimeout(() => {
         asideFieldBtn.dispatchEvent(new Event('click', { bubbles: true }));
         setTimeout(() => {
           check('placement mode cancels cleanly', !asideFieldBtn.classList.contains('active') && !fabFieldBtn.classList.contains('active'));
+          check('mainHint reverts to its default text once placement mode is cancelled, not left stuck on the click-to-place message', !hint.classList.contains('hint-readonly') && !/click anywhere/i.test(hint.textContent));
           runConstantScenario();
         }, 0);
       }, 0);
@@ -145,12 +164,24 @@ setTimeout(() => {
       toggle.dispatchEvent(new Event('click', { bubbles: true }));
       const fabAddRecordBtn = doc.getElementById('fabAddRecordBtn');
       const form = doc.getElementById('newRecordForm');
+      const menuEl = doc.getElementById('toolboxFabMenu');
+      const asideFormHomeParent = form.parentNode; // captured before anything ever moves it
       check('the form starts hidden', form.classList.contains('hidden'));
+      check('the form starts in its aside home, not the toolbox popover', !menuEl.contains(form));
       fabAddRecordBtn.dispatchEvent(new Event('click', { bubbles: true }));
       check('proxy-click reveals the SAME #newRecordForm the aside has always had (not a second, duplicated form)', !form.classList.contains('hidden'));
       check('exactly one #newRecordForm exists in the document (no duplicate markup)', doc.querySelectorAll('#newRecordForm').length === 1);
+      // Task L68: under modern, the aside (and everything only ever
+      // reachable inside it, like this form) computes to display:none -
+      // so revealing the form has to mean more than just clearing its own
+      // 'hidden' class; it also has to be physically moved somewhere that
+      // isn't a descendant of the hidden aside, or it's still invisible.
+      check('under modern UI, the SAME form node is physically moved into the toolbox popover, where it is actually visible', menuEl.contains(form));
+      check("the form's own #newRecordForm CSS applies wherever it lives - it computes to a real visible display, not swallowed by aside's display:none", dom.window.getComputedStyle(form).display !== 'none');
+      check('unlike every other fab item, the popover stays OPEN after +Add record so the freshly-revealed form is actually usable', fab.classList.contains('open'));
       // close it back out via the aside original, same as clicking +Add record again would
       doc.getElementById('newRecordToggleBtn').dispatchEvent(new Event('click', { bubbles: true }));
+      check('closing the wizard moves the form back home into the aside, so switching to classic UI would still find it there', form.parentNode === asideFormHomeParent && !menuEl.contains(form));
     }
 
     console.log('\n+Fields from database file mirrors the aside original\'s connection-gated visibility');
