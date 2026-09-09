@@ -5526,6 +5526,11 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
       WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
+      // Task L73: the Message Record panel's SFLMSGKEY/SFLPGMQ rename +
+      // 276-byte-field inputs commit FIELD-level updates, not record
+      // keywords - reuses the same commitEdit() every other field's Basic
+      // tab Name input already goes through.
+      WebviewClientHelpers.wireSflMsgFieldRefs(rec, (field, updates) => commitFieldUpdateKeepingSelection(field, updates));
     }
     if (hasWindow) {
       WebviewClientHelpers.wireWindowPanels(rwPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
@@ -6061,6 +6066,20 @@ const htmlTemplate = `<!DOCTYPE html>
         setSingleSelection(stillThere ? stillThere.sourceLine : null);
       }
     );
+  }
+
+  // Task L73: SFLMSGKEY/SFLPGMQ rename + the queue field's 276-byte
+  // toggle both live on the Message Record panel (a RECORD-level tab),
+  // but they commit updates to a hidden FIELD - reusing commitEdit above
+  // as-is would select that hidden field afterward (its own "stillThere"
+  // re-selection logic, there so editing a field from ITS OWN Basic tab
+  // keeps that same field selected), which switches the whole properties
+  // panel over to the field's Basic/Position/Attributes/Keywords tabs and
+  // knocks the person out of the SFLMSG tab they were just on. This
+  // variant skips the reselect entirely - selection (and therefore
+  // whichever record-level tab was open) is left exactly as it was.
+  function commitFieldUpdateKeepingSelection(field, updates) {
+    commitSourceChange((lines) => DspfWriter.applyFieldUpdate(field, lines, updates));
   }
 
   function commitRecordEdit(recordName, updates) {

@@ -4134,23 +4134,69 @@ function runSflMsgPickerScenario() {
     console.log('  Message Record: line number pre-filled from SFLMSGRCD(24), and shows which fields carry SFLMSGKEY/SFLPGMQ');
     const rcdInput = doc.getElementById('sm-sflmsgrcd');
     check('SFLMSGRCD line pre-filled with 24', rcdInput && rcdInput.value === '24');
-    const statusDivs = Array.from(doc.querySelectorAll('#propsBody .status')).map((d) => d.textContent);
-    check('shows MSGKEY as the message ID field', statusDivs.some((t) => t.includes('MSGKEY')));
-    check('shows PGMQ (276-byte) as the program message queue field', statusDivs.some((t) => t.includes('PGMQ') && t.includes('276-byte')));
+    let msgkeyNameInput = doc.getElementById('sm-msgkey-name');
+    let pgmqNameInput = doc.getElementById('sm-pgmq-name');
+    let pgmq276Checkbox = doc.getElementById('sm-pgmq-276');
+    check('Message ID field input pre-filled with MSGKEY', msgkeyNameInput && msgkeyNameInput.value === 'MSGKEY');
+    check('Program message queue field input pre-filled with PGMQ', pgmqNameInput && pgmqNameInput.value === 'PGMQ');
+    check('Generate a 276 byte field checkbox starts checked (PGMQ carries SFLPGMQ(276))', pgmq276Checkbox && pgmq276Checkbox.checked);
+
+    console.log('  Message Record (Task L73): renaming to an already-taken name is rejected with an inline error, no edit posted');
+    const msgkeyErrorEl = doc.getElementById('sm-msgkey-error');
+    msgkeyNameInput.value = 'PGMQ';
+    msgkeyNameInput.dispatchEvent(new Event('change', { bubbles: true }));
+    check('no edit posted for a colliding name', !posted.some((m) => m.type === 'applyEdit'));
+    check('inline error shown for the colliding name', msgkeyErrorEl && /already exists/i.test(msgkeyErrorEl.textContent));
+
+    console.log('  Message Record (Task L73): renaming the Message ID field commits a plain field rename, other keywords untouched');
+    msgkeyNameInput.value = 'MSGKEY2';
+    msgkeyNameInput.dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted for the rename', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('MSGKEY2 now carries SFLMSGKEY', reparsed.fields.some((f) => f.name === 'MSGKEY2' && f.keywords.some((k) => k.name === 'SFLMSGKEY')));
+    check('old MSGKEY name is gone', !reparsed.fields.some((f) => f.name === 'MSGKEY'));
+    check('PGMQ field untouched by the rename', reparsed.fields.some((f) => f.name === 'PGMQ' && f.keywords.some((k) => k.name === 'SFLPGMQ')));
+    posted.length = 0;
+
+    // Task L73 test note: the rename above rebuilds propsBody's DOM (the
+    // field's own multi-line layout also collapses onto one line as part
+    // of the same commit - see serializeFieldEntry's own "first
+    // unconditioned keyword rides the content line" rule, unrelated to
+    // this task), so every element captured before it is now a detached
+    // node - re-fetch before dispatching the next event, same as any
+    // other test in this suite would need to after a structural edit.
+    pgmqNameInput = doc.getElementById('sm-pgmq-name');
+    pgmq276Checkbox = doc.getElementById('sm-pgmq-276');
+
+    console.log('  Message Record (Task L73): unchecking "Generate a 276 byte field" rewrites SFLPGMQ back to bare (no parameter)');
+    pgmq276Checkbox.checked = false;
+    pgmq276Checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted for the 276-byte toggle', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    const pgmqField = reparsed.fields.find((f) => f.name === 'PGMQ');
+    check('PGMQ now carries a bare SFLPGMQ (no 276)', pgmqField && pgmqField.keywords.some((k) => k.name === 'SFLPGMQ' && k.parameters.trim() === ''));
+    check('PLAIN record (elsewhere in the file) survives untouched', DspfParser.parseDspf(applyEdit.text).records.some((r) => r.name === 'PLAIN'));
+    posted.length = 0;
+
+    // Re-fetch once more before the pre-existing tests below reuse
+    // rcdInput for further edits (same reasoning as above).
+    const rcdInputAfter = doc.getElementById('sm-sflmsgrcd');
 
     console.log('  Message Record: editing the line number commits SFLMSGRCD, other keywords untouched');
-    rcdInput.value = '15';
-    rcdInput.dispatchEvent(new Event('change', { bubbles: true }));
-    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    rcdInputAfter.value = '15';
+    rcdInputAfter.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('an edit was posted', !!applyEdit);
-    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
     check('SFLMSGRCD updated to 15', reparsed.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === '15');
     check('SFL keyword still present, untouched', reparsed.keywords.some((k) => k.name === 'SFL'));
     posted.length = 0;
 
     console.log('  Message Record: a field name is accepted too (not just a 1-27 line number)');
-    rcdInput.value = 'LINEFLD';
-    rcdInput.dispatchEvent(new Event('change', { bubbles: true }));
+    rcdInputAfter.value = 'LINEFLD';
+    rcdInputAfter.dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
     check('SFLMSGRCD accepts a field name', reparsed.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === 'LINEFLD');
@@ -4195,6 +4241,37 @@ function runSflMsgPickerScenario() {
     check('SETOF(30) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '30'));
     check('SETOF(31) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '31'));
     check('CHANGE(40) written - previously a documented gap, now verified and supported', reparsed.keywords.some((k) => k.name === 'CHANGE' && k.parameters.trim() === '40'));
+
+    console.log('  Message Record (Task L73): a record with SFLMSGRCD but no synthesized hidden fields yet falls back gracefully - no inputs, no crash');
+    const bareSrc =
+      [
+        buildLine({ seq: '00010', nameType: 'R', name: 'BARESFLM', func: 'SFL' }),
+        buildLine({ seq: '00020', func: 'SFLMSGRCD(5)' }),
+        buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
+      ].join('\n') + '\n';
+    const bareHtml = getWebviewHtml('vscode-webview://fake', 'testnonce17', bareSrc, 'BARESFLM.DSPF').replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const barePosted = [];
+    const bareDom = new JSDOM(bareHtml, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => barePosted.push(m) });
+      },
+    });
+    setTimeout(() => {
+      const bareDoc = bareDom.window.document;
+      const bareSflMsgTabBtn = Array.from(bareDoc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLMSG');
+      check('SFLMSG tab still renders for a record with SFLMSGRCD but no hidden fields yet', !!bareSflMsgTabBtn);
+      bareSflMsgTabBtn.dispatchEvent(new bareDom.window.Event('click', { bubbles: true }));
+      check('no Message ID field input rendered (nothing to rename yet)', !bareDoc.getElementById('sm-msgkey-name'));
+      check('no Program message queue field input rendered (nothing to rename yet)', !bareDoc.getElementById('sm-pgmq-name'));
+      const bareStatusDivs = Array.from(bareDoc.querySelectorAll('#propsBody .status')).map((d) => d.textContent);
+      check('both show the "add via the Hidden tab" fallback message', bareStatusDivs.filter((t) => t.includes('none yet')).length === 2);
+    }, 0);
 
     runSflPickerScenario();
   }, 0);

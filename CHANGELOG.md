@@ -10,7 +10,11 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
-## 2026-09-09 — Feature (L72): SFLEND(*SCRBAR) vertical scroll bar + SFLEND(*MORE) "More.../Bottom" line in the subfile preview
+## 2026-09-10 — Bug fix (L73): SFLMSGKEY/SFLPGMQ fields were read-only in the Message Record panel
+
+- **0.10.63** — The "Define Message Record" panel's Message ID field (SFLMSGKEY) and Program message queue field (SFLPGMQ) were read-only status text pointing the person at the Hidden fields tab to rename either one — real SDA's own screen shows both as directly editable Name inputs, plus a "Generate a 276 byte field" checkbox next to the queue field. Both are now editable in place (validated against the same duplicate-name/valid-DDS-name checks the Hidden tab's own add-field form already uses), and the checkbox round-trips `SFLPGMQ`'s bare-vs-`(276)` state. A record with `SFLMSGRCD` but no synthesized hidden fields yet falls back to the original status text rather than a broken input. Along the way, fixed a real selection-switching bug the new feature's own test caught: committing a field-level edit from a RECORD-level tab (via the existing `commitEdit`) reselects the edited field afterward, which knocks the person out of the SFLMSG tab and into that field's own Basic tab — new `commitFieldUpdateKeepingSelection` leaves selection untouched instead. Full suite (47 files) re-verified, zero failures.
+
+
 
 - **0.10.62** — The SFLCTL-side subfile preview now visually reserves what real SDA reserves for `SFLEND`: `*SCRBAR` draws a narrow scroll-bar strip (up arrow / track+thumb / down arrow) across the subfile's own last 3 columns, and `*MORE` reserves one extra "More.../Bottom" line right below the last rendered row - both purely as protected reference visuals, matching the real system's own layout rules (a 3-line-minimum scroll bar, and SFLPAG effectively becoming SFLPAG+1 lines tall on screen). Row-fitting now accounts for `*MORE`'s extra line BEFORE capping SFLPAG, so the reserved line comes out of the existing budget instead of spilling past the bottom of the screen/window. Along the way, fixed a pre-existing **L68/L69 ordering bug** in `LIMITATIONS-PLAN.md` (L68's row had landed after L71 instead of before L69). Full suite: 43/43 files, zero failures.
 

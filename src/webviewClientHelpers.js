@@ -3173,11 +3173,34 @@
     var keyField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLMSGKEY'; }); });
     var queueField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLPGMQ'; }); });
     var queueKw = queueField && queueField.keywords.find(function (k) { return k.name === 'SFLPGMQ'; });
+    // Task L73: these two used to be read-only status text pointing the
+    // person at the Hidden fields tab to rename either field - real SDA's
+    // own "Define Message Record" screen shows both as directly editable
+    // Name inputs right here, plus a Y=Yes "Generate a 276 byte field"
+    // flag next to the queue field. Renaming a hidden field is safe with
+    // a plain DspfWriter.applyFieldUpdate({name}) - unlike a RECORD rename
+    // (see renameRecordReferences), nothing else in this codebase's three
+    // RECORD_REFERENCE_LOCATORS references a hidden field by name, so no
+    // reference-rewrite pass is needed here. See wireSflMsgFieldRefs below
+    // for the commit/validation half of this.
     mr += '<div class="section-label">Message ID field (SFLMSGKEY)</div>';
-    mr += '<div class="status">' + (keyField ? escapeHtml(keyField.name) : '(none yet - add via the Hidden tab)') + '</div>';
+    if (keyField) {
+      mr += '<input type="text" id="sm-msgkey-name" value="' + escapeHtml(keyField.name) + '" style="width:100%;" />';
+      mr += '<div class="rename-error" id="sm-msgkey-error"></div>';
+    } else {
+      mr += '<div class="status">(none yet - add via the Hidden tab)</div>';
+    }
     mr += '<div class="section-label">Program message queue field (SFLPGMQ)</div>';
-    mr += '<div class="status">' + (queueField ? escapeHtml(queueField.name) + ((queueKw && (queueKw.parameters || '').trim() === '276') ? ' (276-byte)' : '') : '(none yet - add via the Hidden tab)') + '</div>';
-    mr += '<div class="hint-small">Rename or edit either field via the Hidden fields tab.</div>';
+    if (queueField) {
+      mr += '<input type="text" id="sm-pgmq-name" value="' + escapeHtml(queueField.name) + '" style="width:100%;" />';
+      mr += '<div class="rename-error" id="sm-pgmq-error"></div>';
+      var is276 = !!(queueKw && (queueKw.parameters || '').trim() === '276');
+      mr += '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
+        '<input type="checkbox" id="sm-pgmq-276" ' + (is276 ? 'checked' : '') + ' /> Generate a 276 byte field</label>';
+    } else {
+      mr += '<div class="status">(none yet - add via the Hidden tab)</div>';
+    }
+    mr += '<div class="hint-small">Renaming either field here updates it in place. Add a missing field, or edit its length/type, via the Hidden fields tab.</div>';
     panels.messageRecord = mr;
 
     // --- General ---
@@ -3655,6 +3678,58 @@
     wireChgInpDftFlag(getKeywords, onChange, 'sm-chginpdft', expandedSet, rerender);
 
     wireIndicatorTextRows('sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
+  }
+
+  /** Wires the Message Record panel's Task L73 additions - renaming the
+   *  SFLMSGKEY/SFLPGMQ hidden fields in place, and the queue field's
+   *  "Generate a 276 byte field" checkbox. Separate from wireSflMsgPanels
+   *  above because these two rows commit FIELD-level updates (a rename,
+   *  or a change to the queue field's own SFLPGMQ parameter), not the
+   *  SFLMSG record's own keywords array - `commitFieldUpdate(field,
+   *  updates)` is the caller's `DspfWriter.applyFieldUpdate` commit path
+   *  (see buildWebviewTemplate.js's own commitEdit), the same one the
+   *  Basic tab's Name input already uses for every other field. */
+  function wireSflMsgFieldRefs(rec, commitFieldUpdate) {
+    var keyField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLMSGKEY'; }); });
+    var queueField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLPGMQ'; }); });
+
+    function wireRename(inputId, errorId, field) {
+      var input = document.getElementById(inputId);
+      if (!input || !field) return;
+      input.addEventListener('change', function () {
+        var errorEl = document.getElementById(errorId);
+        if (errorEl) errorEl.textContent = '';
+        var newName = (input.value || '').trim().toUpperCase();
+        if (!newName) {
+          if (errorEl) errorEl.textContent = 'Enter a name.';
+          input.value = field.name;
+          return;
+        }
+        if (newName === field.name) return;
+        if (!isValidDdsName(newName)) {
+          if (errorEl) errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).';
+          input.value = field.name;
+          return;
+        }
+        if ((rec.fields || []).some(function (f) { return f !== field && f.name === newName; })) {
+          if (errorEl) errorEl.textContent = 'A field named "' + newName + '" already exists in this record.';
+          input.value = field.name;
+          return;
+        }
+        commitFieldUpdate(field, { name: newName });
+      });
+    }
+
+    wireRename('sm-msgkey-name', 'sm-msgkey-error', keyField);
+    wireRename('sm-pgmq-name', 'sm-pgmq-error', queueField);
+
+    var queue276 = document.getElementById('sm-pgmq-276');
+    if (queue276 && queueField) {
+      queue276.addEventListener('change', function () {
+        var newKeywords = DspfWriter.setFileFlagKeyword(queueField.keywords, 'SFLPGMQ', true, queue276.checked ? '276' : '');
+        commitFieldUpdate(queueField, { keywords: newKeywords });
+      });
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -4247,6 +4322,7 @@
     isUsrDfnRecord: isUsrDfnRecord,
     sflMsgPanelsHtml: sflMsgPanelsHtml,
     wireSflMsgPanels: wireSflMsgPanels,
+    wireSflMsgFieldRefs: wireSflMsgFieldRefs,
     windowBorderPanelHtml: windowBorderPanelHtml,
     wireWindowBorderPanel: wireWindowBorderPanel,
     isWindowRecord: isWindowRecord,
