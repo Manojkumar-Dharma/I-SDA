@@ -1337,7 +1337,7 @@ function runCrossRecordOptionScopingScenario() {
 }
 
 function runFileNamePositionScenario() {
-  console.log('\nTask L28: the open file\'s own name in the left panel moved up, right under the "Menu Design" heading, instead of buried down near the File attributes/Compile button');
+  console.log('\nBug fix - the redundant file name label above the IBM i badge is gone from the left panel (it duplicated the tab title); "Menu Design" now leads straight into the badge');
   const menuSrc =
     [
       "     A          R MAINMENU",
@@ -1358,20 +1358,73 @@ function runFileNamePositionScenario() {
 
   setTimeout(() => {
     const doc = dom.window.document;
-    const fileStatus = doc.getElementById('fileStatus');
-    check('the file name is shown', fileStatus && /REORDERED\.MNUDDS/.test(fileStatus.textContent));
+    check('bug fix: the #fileStatus filename label is gone - removed, not just hidden', !doc.getElementById('fileStatus'));
 
     const panelBody = doc.querySelector('aside .panel-body') || doc.querySelector('aside');
     const children = Array.from(panelBody.children);
     const h2Idx = children.findIndex((el) => el.tagName === 'H2');
-    const fileStatusIdx = children.indexOf(fileStatus);
     const badgeIdx = children.findIndex((el) => el.id === 'codeForIBadge');
     check('the "Menu Design" heading is present', h2Idx !== -1 && /Menu Design/i.test(children[h2Idx].textContent));
-    check('the file name sits directly after the "Menu Design" h2 (nothing else in between)', fileStatusIdx === h2Idx + 1);
-    check('the Code for IBM i badge comes right after the file name', badgeIdx === fileStatusIdx + 1);
+    check('bug fix: the Code for IBM i badge now comes directly after the "Menu Design" h2 (nothing in between)', badgeIdx === h2Idx + 1);
 
-    runCodeForIBadgeHideScenario();
+    runCommandSourceLinkScenario();
   }, 100);
+}
+
+function runCommandSourceLinkScenario() {
+  console.log('\nBug fix (direct request) - the MNUCMD source name above Compile Menu is now clickable and posts openCommandSource; extension.ts (see extension.test.js) resolves and opens the actual companion member');
+  const menuSrc =
+    [
+      "     A          R MAINMENU",
+      "     A                                  1  2'MAIN MENU'",
+    ].join('\n') + '\n';
+
+  function withStatus(status, cb) {
+    const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce25', menuSrc, '', 'CLICKME.MNUDDS', 'CLICKMEQQ.MNUCMD', status).replace(
+      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+      ''
+    );
+    const posted = [];
+    const dom = new JSDOM(html, {
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(window) {
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      },
+    });
+    setTimeout(() => cb(dom, posted), 0);
+  }
+
+  withStatus('loaded', (dom, posted) => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const cmdStatus = doc.getElementById('cmdStatus');
+    check('setup: shows the MNUCMD source name', /CLICKMEQQ\.MNUCMD/.test(cmdStatus.textContent));
+    check('bug fix: is styled/marked as clickable when a companion location exists (status=loaded)', cmdStatus.classList.contains('cmd-status-link'));
+    cmdStatus.dispatchEvent(new Event('click', { bubbles: true }));
+    check('bug fix: clicking it posts openCommandSource', posted.some((m) => m.type === 'openCommandSource'));
+
+    withStatus('missing', (dom2, posted2) => {
+      const doc2 = dom2.window.document;
+      const { Event: Event2 } = dom2.window;
+      const cmdStatus2 = doc2.getElementById('cmdStatus');
+      check('also clickable when the companion does not exist YET (status=missing, will be created on first edit)', cmdStatus2.classList.contains('cmd-status-link'));
+      cmdStatus2.dispatchEvent(new Event2('click', { bubbles: true }));
+      check('...and clicking it posts openCommandSource too', posted2.some((m) => m.type === 'openCommandSource'));
+
+      withStatus('unsupported', (dom3, posted3) => {
+        const doc3 = dom3.window.document;
+        const { Event: Event3 } = dom3.window;
+        const cmdStatus3 = doc3.getElementById('cmdStatus');
+        check('NOT clickable when there is no companion location at all (status=unsupported)', !cmdStatus3.classList.contains('cmd-status-link'));
+        cmdStatus3.dispatchEvent(new Event3('click', { bubbles: true }));
+        check('...clicking it does nothing (no openCommandSource posted)', !posted3.some((m) => m.type === 'openCommandSource'));
+
+        runCodeForIBadgeHideScenario();
+      });
+    });
+  });
 }
 
 // Bug-fix follow-up (screenshot report - I-SDA's L14 "Add fields from

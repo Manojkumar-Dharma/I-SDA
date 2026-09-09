@@ -7,15 +7,18 @@
  * P5b's own toolbarSaveCompile.test.js already covers for Save/Compile.
  *
  * Bug fix - #toolbarFileStatus (the toolbar's own copy of the display file
- * name, shown just before the IBM i connection badge) has been REMOVED
- * outright, not just left alone: it duplicated the aside's own #fileStatus
- * for no reason (the two badges above it already make clear which file/
- * connection state you're looking at), and it's what was actually creating
- * the "filename" clutter in front of the IBM i badge people were asking to
- * have removed. This file used to also assert #toolbarFileStatus's
- * existence/content; that coverage is gone along with the element - the
- * negative assertion below (asserting the element no longer exists) is the
- * replacement regression check, so it can't silently come back.
+ * name, shown just before the IBM i connection badge) was removed outright
+ * back at L62; the aside's OWN #fileStatus (the left panel's copy, above
+ * the badge there) has now been removed too - it duplicated the editor
+ * tab's own filename for no benefit. Neither element exists anywhere in
+ * this document any more; both negative assertions below are the
+ * regression check for that, so it can't silently come back.
+ *
+ * Bug fix - .codefori-badge's own margin-bottom (meant for its original
+ * vertical stacking in the aside) was visibly misaligning the toolbar
+ * badge against #toolbarSaveBtn sitting right next to it in that flex row;
+ * #propsPinnedToolbar .codefori-badge { margin-bottom: 0; } fixes that,
+ * scoped to just the toolbar copy so the aside's own spacing is untouched.
  * Run with: node src/test/toolbarFileStatusBadge.test.js
  */
 const { JSDOM } = require('jsdom');
@@ -59,15 +62,22 @@ setTimeout(() => {
   const { MessageEvent } = dom.window;
 
   const toolbarBadge = doc.getElementById('toolbarCodeForIBadge');
-  const asideFileStatus = doc.getElementById('fileStatus');
   const asideBadge = doc.getElementById('codeForIBadge');
+  const toolbarSaveBtn = doc.getElementById('toolbarSaveBtn');
 
-  console.log('setup: the toolbar badge exists inside #propsPinnedToolbar; the aside originals are untouched; the toolbar\'s own filename label is gone');
+  console.log('setup: the toolbar badge exists inside #propsPinnedToolbar; neither of the two filename labels exist anywhere any more');
   check('#toolbarCodeForIBadge exists', !!toolbarBadge);
   check('#toolbarCodeForIBadge lives inside #propsPinnedToolbar', doc.getElementById('propsPinnedToolbar').contains(toolbarBadge));
-  check('the aside\'s own file status label is still present, untouched', !!asideFileStatus);
   check('the aside\'s own badge is still present, untouched', !!asideBadge);
   check('bug fix: #toolbarFileStatus no longer exists - removed, not just hidden', !doc.getElementById('toolbarFileStatus'));
+  check('bug fix: the aside\'s own #fileStatus no longer exists either - removed, not just hidden', !doc.getElementById('fileStatus'));
+
+  console.log('\nbug fix: the toolbar badge no longer has an unbalanced bottom margin misaligning it against the Save button beside it');
+  const toolbarBadgeMarginBottom = dom.window.getComputedStyle(toolbarBadge).marginBottom;
+  check('#toolbarCodeForIBadge computes to margin-bottom: 0px', toolbarBadgeMarginBottom === '0px');
+  const asideBadgeMarginBottom = dom.window.getComputedStyle(asideBadge).marginBottom;
+  check('...while the aside\'s own badge keeps its original margin-bottom: 10px, untouched', asideBadgeMarginBottom === '10px');
+  check('setup: the Save button sits right there for the alignment fix to actually matter', !!toolbarSaveBtn);
 
   console.log('\nconnection state applies to BOTH the aside badge and its toolbar counterpart from one codeForIStatus message');
   check('both badges start in the unknown/checking state', toolbarBadge.classList.contains('unknown') && asideBadge.classList.contains('unknown'));

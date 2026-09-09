@@ -93,7 +93,7 @@ const vscodeMock = {
     showInputBox: () => Promise.resolve(undefined),
     showQuickPick: () => Promise.resolve(undefined),
     showWorkspaceFolderPick: () => Promise.resolve(undefined),
-    showTextDocument: () => Promise.resolve(undefined),
+    showTextDocument: (docOrUri, options) => { vscodeMock.__lastShowTextDocument = docOrUri; vscodeMock.__lastShowTextDocumentOptions = options; return Promise.resolve(undefined); },
     withProgress: (options, task) => task({ report: () => {} }, { isCancellationRequested: false }),
     registerCustomEditorProvider: (viewType, provider, options) => {
       registeredCustomEditorProviders[viewType] = { viewType, provider, options };

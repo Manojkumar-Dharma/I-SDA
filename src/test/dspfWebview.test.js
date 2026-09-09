@@ -3102,7 +3102,7 @@ function runFieldSearchScenario() {
 }
 
 function runFileNamePositionScenario() {
-  console.log('\nTask L28: the open file\'s own name in the left panel moved up, right under the "Screen Design" heading, instead of buried down near the File attributes/Compile buttons');
+  console.log('\nBug fix - both the redundant file name label AND the "File" section-label above the IBM i badge are gone from the left panel (the filename duplicated the tab title; the "File" crumb in the properties panel - see crumb-file - already covers what this label\'s click used to do); "Screen Design" now leads straight into the badge');
   const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', dspfSource, 'REORDERED.DSPF').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
     ''
@@ -3118,23 +3118,18 @@ function runFileNamePositionScenario() {
 
   setTimeout(() => {
     const doc = dom.window.document;
-    const fileStatus = doc.getElementById('fileStatus');
-    check('the file name is shown', fileStatus && /REORDERED\.DSPF/.test(fileStatus.textContent));
+    check('bug fix: the #fileStatus filename label is gone - removed, not just hidden', !doc.getElementById('fileStatus'));
+    check('bug fix: the #fileSectionLabel "File" label is gone too - removed, not just hidden', !doc.getElementById('fileSectionLabel'));
 
     const panelBody = doc.getElementById('leftPanelBody');
     const children = Array.from(panelBody.children);
     const h2Idx = children.findIndex((el) => el.tagName === 'H2');
-    const fileLabel = doc.getElementById('fileSectionLabel');
-    const fileLabelIdx = children.indexOf(fileLabel);
-    const fileStatusIdx = children.indexOf(fileStatus);
     const badgeIdx = children.findIndex((el) => el.id === 'codeForIBadge');
     const compileBtnIdx = children.findIndex((el) => el.id === 'compileDspfBtn');
     check('the "Screen Design" heading is present', h2Idx !== -1 && /Screen Design/i.test(children[h2Idx].textContent));
-    check('Task L37: a bold "File" label sits directly after the "Screen Design" h2 (nothing else in between)', fileLabelIdx === h2Idx + 1);
-    check('Task L37: the "File" label is bold', /font-weight\s*:\s*(700|bold)/i.test(fileLabel.getAttribute('style') || ''));
-    check('the file name sits directly after the "File" label', fileStatusIdx === fileLabelIdx + 1);
-    check('the Code for IBM i badge comes right after the file name', badgeIdx === fileStatusIdx + 1);
-    check('Task L37: the standalone "File attributes" button is gone (redundant with the "File" crumb in the properties panel)', !doc.getElementById('fileAttrsBtn'));
+    check('bug fix: the Code for IBM i badge now sits directly after the "Screen Design" h2 (nothing else in between)', badgeIdx === h2Idx + 1);
+    check('Task L37: the standalone "File attributes" button is still gone (redundant with the "File" crumb in the properties panel)', !doc.getElementById('fileAttrsBtn'));
+    check('the "File" crumb in the properties panel (crumb-file) is still the way to reach file-level attributes', !!doc.getElementById('crumb-file'));
     check('the Compile Display File button is still present', compileBtnIdx !== -1);
 
     runDefaultWindowBorderScenario();

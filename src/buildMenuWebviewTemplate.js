@@ -111,6 +111,8 @@ const htmlTemplate = `<!DOCTYPE html>
     background: #0a0f0c; padding: 0 6px; font-size: 11px; color: var(--ink-dim);
   }
   .status { color: var(--ink-dim); font-size: 11px; }
+  .cmd-status-link { cursor: pointer; text-decoration: underline dotted; }
+  .cmd-status-link:hover { color: var(--chrome-accent); }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
   /* Task L18 - "IBM i: Connected/Not connected/Not installed" badge, ported
      verbatim (styling and reasoning) from the DSPF designer's own
@@ -349,7 +351,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · MNUDDS</h1>
   <h2>Menu Design</h2>
-  <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile Menu (CRTMNU) needs a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="section-label">Record</div>
@@ -368,8 +369,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="add-option-error" id="newRecordError"></div>
   <div class="file-attrs-toggle" id="fileAttrsToggle">File attributes &#x25be;</div>
   <div class="file-attrs-body hidden" id="fileAttrsBody"></div>
-  <div class="section-label" style="margin-top:20px;">File</div>
-  <div class="status" id="cmdStatus" style="margin-top:6px;"></div>
+  <div class="status" id="cmdStatus" style="margin-top:20px;"></div>
   <button class="compile-btn" id="compileBtn" style="margin-top:20px;">Compile Menu (CRTMNU)</button>
   <div class="status" style="margin-top:6px;">Runs CRTDSPF, rebuilds the message file, then CRTMNU on your connected IBM i. Requires Code for i.</div>
   <details style="margin-top:20px;border:1px solid var(--panel-border);border-radius:3px;">
@@ -1749,10 +1749,27 @@ const htmlTemplate = `<!DOCTYPE html>
     saveDocBtn.textContent = isDirty ? '\u{1F4BE} Save (unsaved changes)' : '\u{1F4BE} Save';
   }
 
+  // Bug fix (direct request) - the MNUCMD source name shown here was
+  // read-only text; clicking it now opens that companion source member,
+  // resolved by extension.ts's getMenuCommandMemberUri() from THIS
+  // document's own uri - same source file/library as the open MNUDDS
+  // member (or the local sibling-file convention for a file:/streamfile:
+  // document - see that function's own doc comment), never something
+  // separately configured. Only wired as clickable for 'loaded'/'missing'
+  // (both have a real - or soon-to-exist - companion location);
+  // 'unsupported' has none, so it stays plain, unclickable text.
   if (cmdStatusEl) {
     if (commandStatus === 'loaded') cmdStatusEl.textContent = 'Commands: ' + commandFileName;
     else if (commandStatus === 'missing') cmdStatusEl.textContent = 'Commands: ' + commandFileName + ' (will be created on first edit)';
     else cmdStatusEl.textContent = 'Commands: unsupported for this document type - open a local .mnudds file or an IBM i member (Code for i) to edit options';
+
+    if (commandStatus === 'loaded' || commandStatus === 'missing') {
+      cmdStatusEl.classList.add('cmd-status-link');
+      cmdStatusEl.title = 'Open ' + commandFileName;
+      cmdStatusEl.addEventListener('click', () => {
+        vscode.postMessage({ type: 'openCommandSource' });
+      });
+    }
   }
 
   recordSelect.addEventListener('change', renderAll);

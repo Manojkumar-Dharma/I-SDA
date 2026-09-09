@@ -630,6 +630,48 @@ async function run() {
     vscodeMock.__clearMockConfig();
   }
 
+  console.log('\nBug fix (direct request) - clicking the MNUCMD source name above the Compile Menu button opens that companion source, resolved from THIS document\'s own library/source file via getMenuCommandMemberUri() - never anything separately configured');
+  {
+    const menuProviderEntry = vscodeMock.__registeredCustomEditorProviders['dspfDesigner.menuEditor'];
+    const mnuSrc = "     A          R MENU\n     A            10 20'1. Display current library'\n";
+    const mnuUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MODMENU.MNUDDS');
+    const expectedCommandUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MODMENUQQ.MNUCMD');
+    vscodeMock.__setMockFile(expectedCommandUri, '0001 DSPLIBL\n');
+    const mnuDoc = vscodeMock.__mockDocument(mnuSrc, mnuUri);
+    let cmdMessageHandler = null;
+    const cmdPanel = {
+      webview: {
+        cspSource: 'x', options: null,
+        set html(v) {}, get html() { return ''; },
+        onDidReceiveMessage: (h) => { cmdMessageHandler = h; return { dispose: () => {} }; },
+        postMessage: () => {},
+      },
+      onDidDispose: () => {},
+    };
+    await menuProviderEntry.provider.resolveCustomTextEditor(mnuDoc, cmdPanel, {});
+
+    console.log('  the companion member exists: opens it directly, resolved to the SAME library/source file as the open MNUDDS member, just the MNUCMD member name swapped in');
+    vscodeMock.workspace.fs.stat = () => Promise.resolve({});
+    vscodeMock.__lastShowTextDocument = undefined;
+    vscodeMock.__lastInformation = undefined;
+    vscodeMock.__lastWarning = undefined;
+    await cmdMessageHandler({ type: 'openCommandSource' });
+    check('opens a document (showTextDocument called)', !!vscodeMock.__lastShowTextDocument);
+    check('...resolved to the correct library/source file/member (MODMENUQQ.MNUCMD, same library+source file as MODMENU.MNUDDS)', vscodeMock.__lastShowTextDocument && vscodeMock.__lastShowTextDocument.toString() === expectedCommandUri.toString());
+    check('opened not in preview mode (stays open on further clicks elsewhere)', !!vscodeMock.__lastShowTextDocumentOptions && vscodeMock.__lastShowTextDocumentOptions.preview === false);
+    check('no "doesn\'t exist yet" info message when it DOES exist', !vscodeMock.__lastInformation);
+
+    console.log('  the companion member does not exist yet: tells the person instead of trying (and failing) to open it');
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+    vscodeMock.__lastShowTextDocument = undefined;
+    vscodeMock.__lastInformation = undefined;
+    await cmdMessageHandler({ type: 'openCommandSource' });
+    check('does NOT call showTextDocument for a member that does not exist', !vscodeMock.__lastShowTextDocument);
+    check('tells the person it will be created on first edit instead', !!vscodeMock.__lastInformation && /doesn't exist yet/i.test(vscodeMock.__lastInformation));
+
+    vscodeMock.workspace.fs.stat = () => Promise.reject(new Error('not found'));
+  }
+
   console.log('\necho-suppression (the core anti-infinite-loop mechanism)');
   const posted2 = [];
   fakeWebviewPanel.webview.postMessage = (m) => posted2.push(m);

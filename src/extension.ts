@@ -1452,6 +1452,34 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       } else if (msg.type === 'compileMenu') {
         await compileMenu(document.uri);
         await sendCodeForIStatus();
+      } else if (msg.type === 'openCommandSource') {
+        // Bug fix (direct request) - opens the MNUCMD companion source
+        // shown just above the Compile Menu button. commandUri is already
+        // resolved (see its own declaration above) by
+        // getMenuCommandMemberUri(document.uri) - the SAME source
+        // file/library as this open MNUDDS member drives where this
+        // opens, never anything separately configured.
+        if (!commandUri) {
+          vscode.window.showWarningMessage('iSDA: no command source location available for this document.');
+        } else {
+          let exists = true;
+          try {
+            await vscode.workspace.fs.stat(commandUri);
+          } catch {
+            exists = false;
+          }
+          if (!exists) {
+            vscode.window.showInformationMessage(
+              `iSDA: ${commandUri.path.split('/').pop()} doesn't exist yet - it's created automatically the first time you edit an option's command.`
+            );
+          } else {
+            try {
+              await vscode.window.showTextDocument(commandUri, { preview: false });
+            } catch (err) {
+              vscode.window.showErrorMessage(`iSDA: failed to open ${commandUri.path}: ${err}`);
+            }
+          }
+        }
       } else if (msg.type === 'saveDocument') {
         const openCommandDocForSave = commandUri ? vscode.workspace.textDocuments.find((d) => d.uri.toString() === commandUri!.toString()) : undefined;
         await handleSaveDocument(document, openCommandDocForSave);

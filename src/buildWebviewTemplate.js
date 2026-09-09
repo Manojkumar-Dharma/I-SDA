@@ -595,6 +595,16 @@ const htmlTemplate = `<!DOCTYPE html>
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 8px 4px; margin-bottom: 8px; border-bottom: 1px solid var(--panel-border);
   }
+  /* Bug fix - .codefori-badge's own margin-bottom: 10px (below) exists for
+     its ORIGINAL use stacked vertically in the aside, directly under the
+     "File" section label. Reused as-is inside this toolbar's flex row,
+     that unbalanced bottom margin shifts align-items: center's centering
+     of the badge's margin box relative to #toolbarSaveBtn (no such
+     margin) right next to it, so the two visibly don't line up even
+     though both are "centered" on the same row. Zeroed out here, scoped
+     to just the toolbar's own copy so the aside's original stacking is
+     untouched. */
+  #propsPinnedToolbar .codefori-badge { margin-bottom: 0; }
   /* Task P5f - the aside's own h1 ("IBM i · DDS")/h2 ("Screen Design")
      branding fold into this ONE line rather than a separate top bar, per
      this task's own row - "IBM i · DDS" itself is dropped as purely
@@ -841,8 +851,6 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="panel-body" id="leftPanelBody">
   <h1>IBM i · DDS</h1>
   <h2>Screen Design</h2>
-  <div class="section-label" id="fileSectionLabel" style="font-weight:700;margin-top:0;">File</div>
-  <div class="status" id="fileStatus">${FILENAME_TOKEN}</div>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="field-row">
@@ -1367,24 +1375,6 @@ const htmlTemplate = `<!DOCTYPE html>
     applyPanelCollapse();
   });
   applyPanelCollapse();
-
-  // Task L37: the standalone "File attributes" button was removed - opening
-  // the file-level keyword panel is already one click away via the "File"
-  // crumb at the top of the properties panel (see renderBreadcrumb's
-  // crumb-file wiring below). The "File" section-label up here in the left
-  // panel now does the same thing, so there's still a quick way in from
-  // this side without a redundant second button.
-  const fileSectionLabel = document.getElementById('fileSectionLabel');
-  if (fileSectionLabel) {
-    fileSectionLabel.style.cursor = 'pointer';
-    fileSectionLabel.title = 'Open file-level attributes';
-    fileSectionLabel.addEventListener('click', () => {
-      showFileProps = true;
-      clearSelection();
-      selectedHelpSourceLine = null;
-      renderProps(recordSelect.value);
-    });
-  }
 
   // Task L8 - "Compile Display File (CRTDSPF)" - mirrors the Menu designer's
   // own "Compile Menu (CRTMNU)" button/message pair (buildMenuWebviewTemplate.js's
