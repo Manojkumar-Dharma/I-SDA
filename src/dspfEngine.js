@@ -922,6 +922,16 @@
    * declared SFLPAG far larger than the screen (e.g. SFLPAG driven by
    * SFLSIZ-style "virtually unlimited" values) previously rendered straight
    * past the bottom of the screen instead of stopping at it.
+   *
+   * Also resolves SFLEND's two independent design-time visuals off the
+   * SFLCTL record's own (currently-active) SFLEND keyword - see the
+   * `hasScrbar`/`hasMoreText` computation below for the exact grammar:
+   *  - `scrollbar` (SFLEND(*SCRBAR)): the geometry of a reference vertical
+   *    scroll-bar strip reserving the subfile's own last 3 columns.
+   *  - `moreLine` (SFLEND(*MORE), either as SFLEND's first or second
+   *    parameter): the geometry of the reserved "More.../Bottom" line -
+   *    ALSO consumed one row earlier, by `sflPag`'s own computation, since
+   *    that line takes up SFLPAG+1 total lines on screen.
    */
   function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines, activeSizeName) {
     var sflCtlKw = record.keywords.find(function (k) { return k.name === 'SFLCTL'; });
@@ -936,6 +946,23 @@
       var n = parseInt(pagKw.parameters.trim(), 10);
       if (!Number.isNaN(n)) declaredSflPag = n;
     }
+
+    // SFLEND(*MORE | *SCRBAR [*PLUS|*MORE|*SCRBAR]): *SCRBAR (first
+    // parameter) reserves the subfile's own rightmost 3 columns for a
+    // graphical scroll bar (real 5250 restriction - see IBM's SFLEND doc:
+    // "the last 3 columns of the lines that the subfile is using is
+    // reserved"); *MORE, whether as the first parameter or as *SCRBAR's
+    // second (non-graphical fallback) parameter, reserves ONE EXTRA LINE
+    // below the subfile rows for the "More..."/"Bottom" text ("the
+    // subfile takes up one more line on the screen"). Only the currently
+    // ACTIVE instance counts - same conditionsSatisfied() gate every other
+    // conditioned keyword here goes through.
+    var sflEndKw = record.keywords.find(function (k) {
+      return k.name === 'SFLEND' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
+    });
+    var sflEndParams = sflEndKw ? sflEndKw.parameters.toUpperCase() : '';
+    var hasScrbar = /\*SCRBAR/.test(sflEndParams);
+    var hasMoreText = /\*MORE/.test(sflEndParams);
 
     // Only fields that actually occupy a VISIBLE row position count toward
     // row height - hidden/program-to-system fields (usage H/P, matching the
@@ -954,17 +981,68 @@
     var firstFieldLine = sflLines.length > 0 ? Math.min.apply(null, sflLines) : 1;
     var rowHeight = sflLines.length > 0 ? Math.max.apply(null, sflLines) - firstFieldLine + 1 : 1;
 
+    // *MORE reserves one extra line below the subfile rows for the
+    // "More.../Bottom" text, so that line must come OUT of the working
+    // area's row budget before deciding how many rows fit - otherwise the
+    // more-line would render past the bottom of the screen/window instead
+    // of the subfile itself giving up one row for it (matching the real
+    // system, which refuses to even compile a subfile that doesn't have
+    // room for it).
     var sflPag = declaredSflPag;
     if (totalLines != null) {
-      sflPag = Math.min(declaredSflPag, maxRowsWithinWorkArea(lineOffset + firstFieldLine, rowHeight, totalLines));
+      var rowBudgetLines = hasMoreText ? totalLines - 1 : totalLines;
+      sflPag = Math.min(declaredSflPag, maxRowsWithinWorkArea(lineOffset + firstFieldLine, rowHeight, rowBudgetLines));
     }
 
     var fields = [];
+    var firstRowFields = null;
     for (var row = 0; row < sflPag; row++) {
       var rowOffset = lineOffset + row * rowHeight;
-      fields = fields.concat(resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-edit-row-' + row, activeSizeName, dspfFile));
+      var rowFields = resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-edit-row-' + row, activeSizeName, dspfFile);
+      if (row === 0) firstRowFields = rowFields;
+      fields = fields.concat(rowFields);
     }
-    return { sflRecordName: sflRecord.name, pageRows: sflPag, declaredPageRows: declaredSflPag, fields: fields };
+
+    // Vertical scroll bar (SFLEND(*SCRBAR)): a narrow, non-interactive
+    // reference strip along the subfile's own right edge, spanning every
+    // rendered subfile row - see resolveScreen's caller for how this gets
+    // drawn. Requires at least one visible row/column to anchor against,
+    // and (per the real restriction) at least 3 lines of subfile to
+    // meaningfully hold an up-arrow/track/down-arrow.
+    var scrollbar = null;
+    if (hasScrbar && firstRowFields && firstRowFields.length > 0) {
+      var sbRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
+      var sbHeight = sflPag * rowHeight;
+      scrollbar = {
+        line: lineOffset + firstFieldLine,
+        col: Math.max(1, sbRightCol - 2),
+        height: Math.max(sbHeight, 1),
+        undersized: sbHeight < 3, // real SDA requires >=3 lines for a usable scroll bar
+      };
+    }
+
+    // "More.../Bottom" line (SFLEND(*MORE)): one extra, protected line
+    // immediately below the last rendered subfile row, right-justified
+    // within the subfile's own column width (per IBM's SFLEND doc).
+    var moreLine = null;
+    if (hasMoreText && firstRowFields && firstRowFields.length > 0) {
+      var mlLeftCol = Math.min.apply(null, firstRowFields.map(function (f) { return f.column; }));
+      var mlRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
+      moreLine = {
+        line: lineOffset + firstFieldLine + sflPag * rowHeight,
+        col: mlLeftCol,
+        width: Math.max(mlRightCol - mlLeftCol + 1, 1),
+      };
+    }
+
+    return {
+      sflRecordName: sflRecord.name,
+      pageRows: sflPag,
+      declaredPageRows: declaredSflPag,
+      fields: fields,
+      scrollbar: scrollbar,
+      moreLine: moreLine,
+    };
   }
 
   /**
@@ -1684,6 +1762,37 @@
     if (screen.subfilePreview) {
       var sfp = screen.subfilePreview;
       subfilePreviewHtml = sfp.fields.map(renderFieldDiv).join('\n') + '\n';
+      // SFLEND(*SCRBAR): a narrow reference strip along the subfile's own
+      // right edge (up arrow / track+thumb / down arrow), matching real
+      // SDA's design-time rendering of the reserved scroll-bar columns.
+      if (sfp.scrollbar) {
+        var sb = sfp.scrollbar;
+        subfilePreviewHtml +=
+          '<div class="dspf-subfile-scrollbar" style="grid-row:' +
+          sb.line +
+          ' / span ' +
+          sb.height +
+          ';grid-column:' +
+          sb.col +
+          ' / span 3;" title="SFLEND(*SCRBAR) - reserves the subfile\'s last 3 columns for a graphical scroll bar">' +
+          '<div class="dspf-scrollbar-arrow dspf-scrollbar-arrow-up">\u25B2</div>' +
+          '<div class="dspf-scrollbar-track"><div class="dspf-scrollbar-thumb"></div></div>' +
+          '<div class="dspf-scrollbar-arrow dspf-scrollbar-arrow-down">\u25BC</div>' +
+          '</div>\n';
+      }
+      // SFLEND(*MORE): the "More.../Bottom" indicator line reserved right
+      // below the last rendered subfile row.
+      if (sfp.moreLine) {
+        var ml = sfp.moreLine;
+        subfilePreviewHtml +=
+          '<div class="dspf-subfile-more-line" style="grid-row:' +
+          ml.line +
+          ';grid-column:' +
+          ml.col +
+          ' / span ' +
+          ml.width +
+          ';" title="SFLEND(*MORE) - shows More... / Bottom below the subfile">More...</div>\n';
+      }
     }
 
     var pulldownHtml = '';

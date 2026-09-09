@@ -265,6 +265,32 @@ const htmlTemplate = `<!DOCTYPE html>
     white-space: pre; color: var(--warn); background: rgba(255,138,92,0.1);
     pointer-events: none; z-index: 1; overflow: hidden;
   }
+  /* SFLEND(*SCRBAR) - a design-time-only reference strip along the
+   * subfile's own reserved right-edge columns; matches the other
+   * protected/reference layers (dashed-ish, muted) rather than a real
+   * editable field. Never wired for click/drag - see resolveSubfilePreview's
+   * own doc comment on why this is display-only. */
+  .dspf-subfile-scrollbar {
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    background: rgba(var(--accent-rgb),0.08); border-left: 1px dashed rgba(var(--accent-rgb),0.4);
+    color: var(--chrome-accent); pointer-events: none; z-index: 1; overflow: hidden; font-size: 11px;
+  }
+  .dspf-scrollbar-arrow { line-height: 1; flex: 0 0 auto; opacity: 0.85; }
+  .dspf-scrollbar-track {
+    flex: 1 1 auto; width: 60%; margin: 2px 0; background: rgba(var(--accent-rgb),0.15);
+    border-radius: 2px; display: flex; align-items: flex-start; min-height: 0;
+  }
+  .dspf-scrollbar-thumb {
+    width: 100%; height: 35%; min-height: 4px; background: rgba(var(--accent-rgb),0.55); border-radius: 2px;
+  }
+  /* SFLEND(*MORE) - the reserved "More.../Bottom" line right below the
+   * last rendered subfile row, right-justified within the subfile's own
+   * column width (see IBM's SFLEND doc). Design-time-only, like the
+   * scroll-bar strip above - not an editable field. */
+  .dspf-subfile-more-line {
+    white-space: pre; text-align: right; color: var(--chrome-accent); opacity: 0.85;
+    font-style: italic; pointer-events: none; z-index: 1; overflow: hidden;
+  }
   .dspf-field.dspf-widget-button { background: transparent; z-index: 1; }
   .dspf-widget-button {
     width: 100%; height: 100%; background: #14261c; color: var(--chrome-accent);
@@ -3140,8 +3166,11 @@ const htmlTemplate = `<!DOCTYPE html>
         ? 'Previewing ' + screen.previewRowCount + ' of ' + screen.declaredPreviewRowCount + ' SFLPAG rows (capped to fit the ' + screen.lines + '-line screen). Drag any field to move the whole row - they all come from the same template.'
         : 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
     } else if (screen.subfilePreview) {
+      let sflEndNote = '';
+      if (screen.subfilePreview.scrollbar) sflEndNote += ' A scroll bar (SFLEND(*SCRBAR)) reserves its own last 3 columns.';
+      if (screen.subfilePreview.moreLine) sflEndNote += ' A "More.../Bottom" line (SFLEND(*MORE)) is reserved just below it.';
       mainHint.textContent = 'Showing ' + screen.subfilePreview.pageRows + ' subfile rows from ' + screen.subfilePreview.sflRecordName +
-        '. Drag any field here to move the whole row template - edits apply to ' + screen.subfilePreview.sflRecordName + ', not this control record.';
+        '. Drag any field here to move the whole row template - edits apply to ' + screen.subfilePreview.sflRecordName + ', not this control record.' + sflEndNote;
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     updateRuler(screen);

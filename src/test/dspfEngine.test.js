@@ -1179,6 +1179,154 @@ console.log('\nTask L49: field usage (I/O/B) and data-type (char/num) CSS classe
   });
 }
 
+console.log('SFLEND(*SCRBAR): reserves a vertical scroll-bar strip along the subfile\'s own right edge');
+{
+  // ROWNAME occupies columns 2-21 (length 20) on line 3 - the scroll bar
+  // should land on the row's own last 3 columns: 19-21.
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', name: 'ROWNAME', length: '20', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTLR', func: 'SFLCTL(SFLREC)' }),
+    buildLine({ seq: '00201', func: 'SFLSIZ(0005)' }),
+    buildLine({ seq: '00202', func: 'SFLPAG(0005)' }),
+    buildLine({ seq: '00203', func: 'SFLDSP' }),
+    buildLine({ seq: '00204', func: 'SFLDSPCTL' }),
+    buildLine({ seq: '00205', func: 'SFLEND(*SCRBAR)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTLR', new Set());
+  const sb = screen.subfilePreview.scrollbar;
+
+  check('scroll bar geometry is present', !!sb);
+  check('scroll bar starts on the subfile\'s own first line (3)', sb.line === 3);
+  check('scroll bar spans the full rendered SFLPAG height (5 rows x 1 line)', sb.height === 5);
+  check('scroll bar occupies the row\'s own last 3 columns (19-21)', sb.col === 19);
+  check('no *MORE parameter -> moreLine is not resolved', screen.subfilePreview.moreLine === null);
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('rendered HTML includes the scroll-bar strip', html.includes('dspf-subfile-scrollbar'));
+  check('scroll-bar strip is positioned via the same grid coordinates', /dspf-subfile-scrollbar" style="grid-row:3 \/ span 5;grid-column:19 \/ span 3;/.test(html));
+  check('scroll-bar strip renders an up arrow, track/thumb, and down arrow', html.includes('dspf-scrollbar-arrow-up') && html.includes('dspf-scrollbar-track') && html.includes('dspf-scrollbar-thumb') && html.includes('dspf-scrollbar-arrow-down'));
+}
+
+console.log('SFLEND(*MORE): reserves one extra "More.../Bottom" line below the last subfile row');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', name: 'ROWNAME', length: '20', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTLR', func: 'SFLCTL(SFLREC)' }),
+    buildLine({ seq: '00201', func: 'SFLSIZ(0020)' }),
+    buildLine({ seq: '00202', func: 'SFLPAG(0020)' }),
+    buildLine({ seq: '00203', func: 'SFLDSP' }),
+    buildLine({ seq: '00204', func: 'SFLDSPCTL' }),
+    buildLine({ seq: '00205', func: 'SFLEND(*MORE)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTLR', new Set());
+  const sfp = screen.subfilePreview;
+
+  check('declared SFLPAG(20) still fits (with the +1 line reserved) and renders unclamped', sfp.pageRows === 20);
+  check('More.../Bottom line sits immediately below the last rendered row (3 + 20 = 23)', sfp.moreLine && sfp.moreLine.line === 23);
+  check('More.../Bottom line starts at the subfile\'s own left column (2)', sfp.moreLine.col === 2);
+  check('More.../Bottom line spans the subfile\'s own column width (20)', sfp.moreLine.width === 20);
+  check('no *SCRBAR parameter -> scrollbar is not resolved', sfp.scrollbar === null);
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('rendered HTML includes the More.../Bottom line', html.includes('dspf-subfile-more-line') && html.includes('More...'));
+  check('More.../Bottom line is positioned via the same grid coordinates', /dspf-subfile-more-line" style="grid-row:23;grid-column:2 \/ span 20;/.test(html));
+}
+
+console.log('SFLEND(*MORE): the reserved extra line comes OUT of the row-fitting budget, not tacked on past the bottom of the screen');
+{
+  // Same 24-line screen / line-3-start / SFLPAG(9999) setup as the existing
+  // "capped to the display working area" scenario above (22 rows fit with
+  // no SFLEND at all) - with *MORE added, one of those rows must instead
+  // become the reserved More/Bottom line, so only 21 SFLPAG rows fit and
+  // the More line lands exactly on the screen's last line (24), not past it.
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', name: 'ROWNAME', length: '20', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTLR', func: 'SFLCTL(SFLREC)' }),
+    buildLine({ seq: '00201', func: 'SFLSIZ(9999)' }),
+    buildLine({ seq: '00202', func: 'SFLPAG(9999)' }),
+    buildLine({ seq: '00203', func: 'SFLDSP' }),
+    buildLine({ seq: '00204', func: 'SFLDSPCTL' }),
+    buildLine({ seq: '00205', func: 'SFLEND(*MORE)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTLR', new Set());
+  const sfp = screen.subfilePreview;
+
+  check('one fewer row fits than without *MORE (21 vs the plain 22)', sfp.pageRows === 21);
+  check('the More/Bottom line lands exactly on the screen\'s last line (24), never past it', sfp.moreLine.line === 24);
+}
+
+console.log('SFLEND(*SCRBAR *MORE): both visuals resolve together from the combined parameter list');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', name: 'ROWNAME', length: '20', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTLR', func: 'SFLCTL(SFLREC)' }),
+    buildLine({ seq: '00201', func: 'SFLSIZ(0010)' }),
+    buildLine({ seq: '00202', func: 'SFLPAG(0010)' }),
+    buildLine({ seq: '00203', func: 'SFLDSP' }),
+    buildLine({ seq: '00204', func: 'SFLDSPCTL' }),
+    buildLine({ seq: '00205', func: 'SFLEND(*SCRBAR *MORE)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTLR', new Set());
+  const sfp = screen.subfilePreview;
+
+  check('scroll bar resolved alongside *MORE\'s second parameter', !!sfp.scrollbar);
+  check('More/Bottom line also resolved', !!sfp.moreLine);
+  check('scroll bar height matches the (already *MORE-reduced) row count', sfp.scrollbar.height === sfp.pageRows);
+}
+
+console.log('SFLEND(*SCRBAR): flagged undersized when fewer than 3 lines of subfile actually render');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', name: 'ROWNAME', length: '20', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTLR', func: 'SFLCTL(SFLREC)' }),
+    buildLine({ seq: '00201', func: 'SFLSIZ(0002)' }),
+    buildLine({ seq: '00202', func: 'SFLPAG(0002)' }),
+    buildLine({ seq: '00203', func: 'SFLDSP' }),
+    buildLine({ seq: '00204', func: 'SFLDSPCTL' }),
+    buildLine({ seq: '00205', func: 'SFLEND(*SCRBAR)' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTLR', new Set());
+  check('a 2-row subfile still resolves scroll bar geometry', !!screen.subfilePreview.scrollbar);
+  check('...but is flagged undersized (real SDA requires >= 3 lines)', screen.subfilePreview.scrollbar.undersized === true);
+}
+
+console.log('SFLEND blank / *PLUS-only (no *SCRBAR, no *MORE): neither visual is resolved, matching pre-existing behavior');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
+    buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
+    buildLine({ seq: '00101', name: 'ROWNAME', length: '20', dataType: 'A', usage: 'O', line: '3', col: '2' }),
+    buildLine({ seq: '00200', nameType: 'R', name: 'SFLCTLR', func: 'SFLCTL(SFLREC)' }),
+    buildLine({ seq: '00201', func: 'SFLSIZ(0005)' }),
+    buildLine({ seq: '00202', func: 'SFLPAG(0005)' }),
+    buildLine({ seq: '00203', func: 'SFLDSP' }),
+    buildLine({ seq: '00204', func: 'SFLDSPCTL' }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const screen = DspfEngine.resolveScreen(model, 'SFLCTLR', new Set());
+  check('no SFLEND at all -> scrollbar is null', screen.subfilePreview.scrollbar === null);
+  check('no SFLEND at all -> moreLine is null', screen.subfilePreview.moreLine === null);
+  check('row count is completely unaffected (still the declared 5)', screen.subfilePreview.pageRows === 5);
+
+  const html = DspfEngine.renderScreenHtml(screen);
+  check('rendered HTML has neither new element', !html.includes('dspf-subfile-scrollbar') && !html.includes('dspf-subfile-more-line'));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);
 
