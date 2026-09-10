@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-10 — Feature (S36-2): confirmed `USRDSPMGT` file-level flag row (no new code needed)
+
+- **0.10.68** — Checked whether the generic file-keyword flag mechanism already covered `USRDSPMGT` before building anything new, per this task's own instruction - it did: `fileKeywordsPanelsHtml`/`wireFileKeywordsPanels` already render/wire a `USRDSPMGT` row ("Manage display in S/36 mode") through the same `getFileFlagKeyword`/`setFileFlagKeyword` path every other bare flag keyword uses. Added dedicated confirming test coverage (set/read/unset round-trip + a real-DDS reparse assertion) in `fileKeywordsPicker.test.js` so S36-3's upcoming rule engine has a locked-in guarantee of this state to key off. Full suite: zero failures.
+
 ## 2026-09-10 — Feature (S36-1): `.dspf36` now opens in the DSPF designer
 
 - **0.10.67** — Registered `.dspf36` (DDS tagged for the System/36 Environment) as a recognized extension for the existing DSPF designer, mirroring every `.dspf38` registration point exactly: `package.json`'s custom-editor selector, the `editor/title` preview command's `when` clause, and `extension.ts`'s `DDS_LANGUAGE_SELECTOR` CodeLens glob. No new UI - DSPF36 is the same DDS grammar as DSPF38, just opens in the identical existing designer. First of the S36-series tasks (System/36 Environment / `USRDSPMGT` support); S36-2 through S36-6 remain not started.

@@ -38,6 +38,29 @@ console.log('getFileFlagKeyword / setFileFlagKeyword - simple boolean keyword, n
   check('keywords array empty again', kw.length === 0);
 }
 
+console.log('\nS36-2: USRDSPMGT - already covered by the generic flag-keyword mechanism, confirmed rather than rebuilt');
+{
+  // USRDSPMGT is a bare, parameterless flag exactly like INDARA above - the
+  // General panel's existing 'fk-usrdspmgt' row (fileKeywordsPanelsHtml/
+  // wireFileKeywordsPanels in webviewClientHelpers.js, labeled "Manage
+  // display in S/36 mode") already renders and wires it through
+  // getFileFlagKeyword/setFileFlagKeyword with no keyword-specific code of
+  // its own - confirmed here rather than duplicated, per this task's own
+  // "check before building anything new" instruction. S36-3's rule engine
+  // reads this same present/absent state to decide whether the 6
+  // S36E-restricted keywords' constraints are active.
+  let kw = [];
+  check('absent by default', DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT').present === false);
+
+  kw = DspfWriter.setFileFlagKeyword(kw, 'USRDSPMGT', true);
+  check('present after set', DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT').present === true);
+  check('exactly one keyword added, no parameters', kw.length === 1 && kw[0].name === 'USRDSPMGT' && kw[0].parameters === '');
+
+  kw = DspfWriter.setFileFlagKeyword(kw, 'USRDSPMGT', false);
+  check('removed after unset', DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT').present === false);
+  check('keywords array empty again', kw.length === 0);
+}
+
 console.log('\ngetFileFlagKeyword / setFileFlagKeyword - keyword with free-text parameters');
 {
   let kw = DspfWriter.setFileFlagKeyword([], 'CHGINPDFT', true, 'UL');
@@ -181,6 +204,7 @@ console.log('\napplyFileKeywordsUpdate() - a batch of F1 picker keywords round-t
 
   let kw = model.fileKeywords;
   kw = DspfWriter.setFileFlagKeyword(kw, 'INDARA', true);
+  kw = DspfWriter.setFileFlagKeyword(kw, 'USRDSPMGT', true); // S36-2
   kw = DspfWriter.setFileFlagKeyword(kw, 'CHECK', true, null, 'AB');
   kw = DspfWriter.setFileRefKeyword(kw, 'MYLIB', 'CUSTMAST');
   kw = DspfWriter.setFileQuotedText(kw, 'HLPTITLE', "Order entry - it's live");
@@ -191,6 +215,7 @@ console.log('\napplyFileKeywordsUpdate() - a batch of F1 picker keywords round-t
   const reparsed = DspfParser.parseDspf(newLines.join('\n'));
 
   check('INDARA reads back present after reparse', DspfWriter.getFileFlagKeyword(reparsed.fileKeywords, 'INDARA').present === true);
+  check('USRDSPMGT reads back present after reparse (S36-2)', DspfWriter.getFileFlagKeyword(reparsed.fileKeywords, 'USRDSPMGT').present === true);
   check('CHECK(AB) reads back present after reparse', DspfWriter.getFileFlagKeyword(reparsed.fileKeywords, 'CHECK', 'AB').present === true);
   const refState = DspfWriter.getFileRefKeyword(reparsed.fileKeywords);
   check('REF reads back after reparse', refState.library === 'MYLIB' && refState.record === 'CUSTMAST');
