@@ -4124,6 +4124,155 @@
     return newLines.slice(0, prefix).concat(outMid, newLines.slice(newLines.length - suffix));
   }
 
+  // ---------------------------------------------------------------------
+  // S36-3: System/36 environment (S36E) keyword restriction rule set.
+  //
+  // Scope: this task is the RULE TABLE only - a data-driven description of
+  // what each of the 6 named keywords (ALTNAME, CHANGE, HELP/HLPRTN, MSGID,
+  // PRINT(*PGM), RETKEY/RETCMDKEY) is restricted to when the file also has
+  // USRDSPMGT (S36-2's already-confirmed file flag). Wiring these as UI
+  // hard blocks is S36-4, not this task.
+  //
+  // Every entry below was checked against IBM's current DDS Reference for
+  // display files before being encoded (per this task's own "verify each
+  // against IBM's current DDS reference before encoding - don't guess"
+  // instruction) rather than assumed from general S36E knowledge. Three of
+  // the six keywords could NOT be verified against IBM's own "System/36
+  // environment considerations for display files" appendix text itself -
+  // every reachable mirror of that specific appendix page for ALTNAME,
+  // MSGID, and RETKEY/RETCMDKEY only surfaced each keyword's generic
+  // (non-S36E) definition plus a "see System/36 environment
+  // considerations..." cross-reference, not the target text itself. Rather
+  // than guess a plausible-sounding constraint for those three, each is
+  // recorded here with `verified: false` and no `rule`/`severity` - S36-4
+  // should treat these as explicit open items (see LIMITATIONS-PLAN.md
+  // S36-3) rather than silently having no effect for an unexplained reason.
+  //
+  // The three verified entries (CHANGE, HELP, PRINT) share one real
+  // mechanism confirmed on IBM's current "Keyword considerations for
+  // display files used in the System/36 environment" page: S36E
+  // applications do not support response indicators on these keywords, so
+  // specifying one in a USRDSPMGT file is flagged at file-creation time.
+  // HELP is the one exception called out by name on that same page - CHANGE
+  // and PRINT's response indicator only produces a WARNING, but HELP's
+  // produces an ERROR, and IBM's own S36E-specific HELP/HLPRTN sub-page
+  // explains why: in a USRDSPMGT file, a HELP response indicator alone
+  // does not return control to the program at all - HLPRTN must be
+  // specified for that. PRINT(*PGM) is covered by the same response-
+  // indicator rule as PRINT's numeric form because IBM's own PRINT keyword
+  // description states `*PGM` and a response indicator are the same
+  // mechanism ("the only difference between these two forms is the
+  // response indicator; all other processing is the same") - so a file
+  // using PRINT(*PGM) under USRDSPMGT hits the identical warning a
+  // response-indicator form of PRINT would.
+  var S36E_KEYWORD_RESTRICTIONS = {
+    ALTNAME: {
+      keyword: 'ALTNAME',
+      verified: false,
+      severity: null,
+      rule: null,
+      notes: "IBM's ALTNAME keyword page points to \"System/36 environment considerations for display files\" for how to specify ALTNAME in an S36E file, but that appendix section's own text could not be retrieved for verification. No constraint is encoded or enforced."
+    },
+    CHANGE: {
+      keyword: 'CHANGE',
+      verified: true,
+      severity: 'warning',
+      appliesTo: 'response-indicator',
+      rule: 'Specifying a response indicator on CHANGE in a file that also contains USRDSPMGT produces a warning at file-creation time - S36E applications do not support response indicators on this keyword.',
+      source: "IBM i DDS Reference for display files, \"Keyword considerations for display files used in the System/36 environment\""
+    },
+    HELP: {
+      keyword: 'HELP',
+      verified: true,
+      severity: 'error',
+      appliesTo: 'response-indicator',
+      rule: 'Specifying a response indicator on HELP in a file that also contains USRDSPMGT is an error, not just a warning - unlike CHANGE/PRINT. A HELP response indicator alone will not return control to the application program in a USRDSPMGT file; HLPRTN must also be specified to return control.',
+      source: "IBM i DDS Reference for display files, \"Keyword considerations for display files used in the System/36 environment\" (response-indicator keyword list, HELP called out as the ERROR exception) and the HELP/HLPRTN System/36 environment sub-page"
+    },
+    HLPRTN: {
+      keyword: 'HLPRTN',
+      verified: true,
+      severity: null,
+      appliesTo: null,
+      rule: 'HLPRTN is not itself restricted by USRDSPMGT - it is the keyword that must be present to satisfy HELP\'s own S36E restriction above (returning control to the program when Help is pressed in a USRDSPMGT file).',
+      source: 'IBM i DDS Reference for display files, HELP/HLPRTN System/36 environment sub-page'
+    },
+    MSGID: {
+      keyword: 'MSGID',
+      verified: false,
+      severity: null,
+      rule: null,
+      notes: "IBM's MSGID keyword page points to \"System/36 environment considerations for display files\" for how to specify MSGID in an S36E file, but that appendix section's own text could not be retrieved for verification. No constraint is encoded or enforced."
+    },
+    PRINT: {
+      keyword: 'PRINT',
+      verified: true,
+      severity: 'warning',
+      appliesTo: 'response-indicator',
+      rule: "Specifying a response indicator on PRINT - including the PRINT(*PGM) form, which IBM's own PRINT keyword description documents as functionally the response-indicator form of PRINT (\"the only difference between these two forms is the response indicator; all other processing is the same\") - in a file that also contains USRDSPMGT produces a warning at file-creation time.",
+      source: "IBM i DDS Reference for display files, \"Keyword considerations for display files used in the System/36 environment\" plus the PRINT keyword page's own *PGM/response-indicator equivalence statement"
+    },
+    RETKEY: {
+      keyword: 'RETKEY',
+      verified: false,
+      severity: null,
+      rule: null,
+      notes: "Only RETKEY/RETCMDKEY's general (non-S36E) \"Considerations for specifying RETKEY and RETCMDKEY\" rules could be verified (requires INDARA, not valid with SFL/USRDFN, incompatible with ALTHELP/ALTPAGEUP/ALTPAGEDWN - none of which are S36E-specific). The dedicated System/36 environment sub-page for these two keywords could not be retrieved beyond its own generic keyword description. No S36E-specific constraint is encoded or enforced."
+    },
+    RETCMDKEY: {
+      keyword: 'RETCMDKEY',
+      verified: false,
+      severity: null,
+      rule: null,
+      notes: "See RETKEY above - RETKEY and RETCMDKEY share one System/36 environment sub-page in IBM's DDS reference and the same open-item status."
+    }
+  };
+
+  /** Returns the S36-3 rule-table entry for one of the 6 (well, 7 counting
+   *  HLPRTN as CHANGE/HELP/PRINT's own paired keyword) S36E-restricted
+   *  keywords, or `null` for any other keyword name. Callers (S36-4's UI
+   *  wiring) should check `.verified` before treating `.severity`/`.rule`
+   *  as authoritative - an unverified entry has both as `null` on purpose,
+   *  see the block comment above. */
+  function getS36ERestriction(keywordName) {
+    return S36E_KEYWORD_RESTRICTIONS[String(keywordName || '').toUpperCase()] || null;
+  }
+
+  /** Convenience read of whether USRDSPMGT is present at the file level -
+   *  the single condition every S36-3 rule above is gated on. Thin wrapper
+   *  over S36-2's already-confirmed getFileFlagKeyword mechanism so callers
+   *  don't need to know USRDSPMGT is "just" a bare flag keyword. */
+  function isUsrdspmgtActive(fileKeywords) {
+    return getFileFlagKeyword(fileKeywords, 'USRDSPMGT').present;
+  }
+
+  /** Evaluates one `appliesTo: 'response-indicator'` rule (currently
+   *  CHANGE, HELP, and PRINT) against a candidate response-indicator
+   *  parameter string for that keyword, but ONLY when USRDSPMGT is active
+   *  on the given file-level keywords AND the rule is `verified`.
+   *  `responseIndicatorText` is whatever raw text the caller was about to
+   *  write as that keyword's response-indicator parameter (e.g. CHANGE's
+   *  own `resp` from getRecordIndicatorInstances, or PRINT's own
+   *  getFileFlagKeyword(...).parameters) - a blank/whitespace-only value
+   *  never violates (PRINT with no parameters, or PRINT(*PGM) passed
+   *  through PRINT's OWN literal '*PGM' text rather than this parameter,
+   *  are the two ways to specify PRINT with no numeric response indicator;
+   *  see the PRINT keyword panel's own *PGM handling for that literal
+   *  case - this function only judges the numeric-response-indicator
+   *  shape all three keywords share).
+   *  Returns `{ severity, message }` on a violation, or `null` when there
+   *  is nothing to flag (USRDSPMGT off, unknown/unverified/non-response-
+   *  indicator keyword, or a blank response indicator). Pure data lookup -
+   *  does not mutate or reject anything; S36-4 decides what a UI does with
+   *  this result. */
+  function checkS36EResponseIndicatorViolation(fileKeywords, keywordName, responseIndicatorText) {
+    if (!isUsrdspmgtActive(fileKeywords)) return null;
+    var restriction = getS36ERestriction(keywordName);
+    if (!restriction || !restriction.verified || restriction.appliesTo !== 'response-indicator') return null;
+    if (!(responseIndicatorText || '').trim()) return null;
+    return { severity: restriction.severity, message: restriction.rule };
+  }
+
   return {
     isEditable: isEditable,
     getFieldLineRange: getFieldLineRange,
@@ -4257,5 +4406,8 @@
     formatSflMsgIdParams: formatSflMsgIdParams,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
     serializeDisplaySizes: serializeDisplaySizes,
+    getS36ERestriction: getS36ERestriction,
+    isUsrdspmgtActive: isUsrdspmgtActive,
+    checkS36EResponseIndicatorViolation: checkS36EResponseIndicatorViolation,
   };
 });
