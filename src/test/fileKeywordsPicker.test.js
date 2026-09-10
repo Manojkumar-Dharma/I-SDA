@@ -189,6 +189,23 @@ console.log('\ngetDisplaySizesList / setDisplaySizesList - DSPSIZ full replace')
     threw = true;
   }
   check('rejects more than two sizes (DDS limit)', threw);
+
+  // Bug fix: DSPSIZ's OTHER valid form is bare condition names with no
+  // lines/cols at all - DSPSIZ(*DSw [*DSx]) - which *DS3/*DS4 always
+  // resolve to a fixed 24x80/27x132 respectively. getDisplaySizesList
+  // previously only reached this via a raw DSPSIZ keyword's parameters
+  // text (it never round-trips through setDisplaySizesList, which always
+  // writes explicit lines/cols), so exercise it directly.
+  const bareBoth = DspfWriter.getDisplaySizesList([{ name: 'DSPSIZ', parameters: '*DS3 *DS4' }]);
+  check('bare "*DS3 *DS4" resolves to two sizes, not one', bareBoth.length === 2);
+  check('bare *DS3 resolves to 24x80', bareBoth[0].name === '*DS3' && bareBoth[0].lines === 24 && bareBoth[0].columns === 80);
+  check('bare *DS4 resolves to 27x132', bareBoth[1].name === '*DS4' && bareBoth[1].lines === 27 && bareBoth[1].columns === 132);
+
+  const bareReversed = DspfWriter.getDisplaySizesList([{ name: 'DSPSIZ', parameters: '*DS4 *DS3' }]);
+  check('bare "*DS4 *DS3" preserves declaration order (DS4 primary)', bareReversed.length === 2 && bareReversed[0].name === '*DS4' && bareReversed[1].name === '*DS3');
+
+  const bareSingle = DspfWriter.getDisplaySizesList([{ name: 'DSPSIZ', parameters: '*DS3' }]);
+  check('bare single "*DS3" resolves to one 24x80 size', bareSingle.length === 1 && bareSingle[0].name === '*DS3' && bareSingle[0].lines === 24 && bareSingle[0].columns === 80);
 }
 
 console.log('\napplyFileKeywordsUpdate() - a batch of F1 picker keywords round-trips through serialize + re-parse');

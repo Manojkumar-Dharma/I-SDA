@@ -69,6 +69,76 @@ console.log('DSPSIZ: dual size (24x80 and 27x132 in the same file)');
   check('resolveMultiScreen also respects sizeIndex', multi.lines === 27 && multi.columns === 132);
 }
 
+console.log('DSPSIZ: bare *DS3 only (DDS\'s other valid form, DSPSIZ(*DSw) - no lines/cols given at all)');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(*DS3)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const sizes = DspfEngine.availableScreenSizes(model);
+  check('reports exactly one declared size', sizes.length === 1);
+  check('bare *DS3 resolves to the fixed 24x80 size, with its name preserved', sizes[0].lines === 24 && sizes[0].columns === 80 && sizes[0].name === '*DS3');
+
+  const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('resolveScreen resolves to 24x80', screen.lines === 24 && screen.columns === 80);
+}
+
+console.log('DSPSIZ: bare *DS4 only (previously the one case this handled, still correct after the fix)');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(*DS4)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const sizes = DspfEngine.availableScreenSizes(model);
+  check('reports exactly one declared size', sizes.length === 1);
+  check('bare *DS4 resolves to the fixed 27x132 size, with its name preserved', sizes[0].lines === 27 && sizes[0].columns === 132 && sizes[0].name === '*DS4');
+}
+
+console.log('DSPSIZ: bare *DS3 *DS4 together, no lines/cols at all (the exact reported bug)');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(*DS3 *DS4)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const sizes = DspfEngine.availableScreenSizes(model);
+  check('reports BOTH declared sizes (previously collapsed to just one)', sizes.length === 2);
+  check('first (primary/default) size is *DS3 -> 24x80', sizes[0].lines === 24 && sizes[0].columns === 80 && sizes[0].name === '*DS3');
+  check('second size is *DS4 -> 27x132', sizes[1].lines === 27 && sizes[1].columns === 132 && sizes[1].name === '*DS4');
+
+  const defaultScreen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('no sizeIndex -> defaults to the primary declared size (24x80)', defaultScreen.lines === 24 && defaultScreen.columns === 80);
+
+  const largeScreen = DspfEngine.resolveScreen(model, 'SCR1', new Set(), null, false, 1);
+  check('sizeIndex 1 -> the secondary declared size (27x132)', largeScreen.lines === 27 && largeScreen.columns === 132);
+}
+
+console.log('DSPSIZ: bare *DS4 *DS3 (reverse order - *DS4 is primary/default here)');
+{
+  const src = [
+    buildLine({ seq: '00010', func: 'DSPSIZ(*DS4 *DS3)' }),
+    buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
+    buildLine({ seq: '00030', line: '1', col: '2', func: "'Hello'" }),
+  ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+
+  const sizes = DspfEngine.availableScreenSizes(model);
+  check('reports both declared sizes', sizes.length === 2);
+  check('order is preserved - *DS4 first here since it was written first', sizes[0].name === '*DS4' && sizes[0].lines === 27 && sizes[0].columns === 132);
+  check('*DS3 second', sizes[1].name === '*DS3' && sizes[1].lines === 24 && sizes[1].columns === 80);
+
+  const defaultScreen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
+  check('primary/default here is *DS4 (27x132), since it was declared first', defaultScreen.lines === 27 && defaultScreen.columns === 132);
+}
+
 console.log('SFLPAG: capped to the display working area (not left to overflow past the bottom of the screen)');
 {
   // 24-line screen; the subfile detail record's field sits at (record-relative)

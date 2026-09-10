@@ -73,8 +73,22 @@
   // engine, matching the previous single-size behavior exactly.
   // ---------------------------------------------------------------------
 
-  /** Walks the raw DSPSIZ parameter text and pulls out every "lines cols
-   *  [*qualifier]" triple it finds, in declaration order. */
+  // DDS's own DSPSIZ grammar (see DDS Reference) is actually TWO distinct
+  // forms, not one: `DSPSIZ(lines cols [*qualifier] [lines cols
+  // [*qualifier]])` (explicit sizes, the form parseScreenSizes originally
+  // handled), OR `DSPSIZ(*DSw [*DSx])` - up to two of the IBM-supplied
+  // condition names *DS3/*DS4 given BARE, with no lines/cols at all, in
+  // EITHER order ("DSPSIZ(*DS3 *DS4)" and "DSPSIZ(*DS4 *DS3)" are both
+  // valid and distinct only in which size is primary/default). *DS3 always
+  // means a fixed 24x80 and *DS4 always means a fixed 27x132 - those two
+  // sizes are the only ones the bare-name form can ever mean.
+  var KNOWN_DISPLAY_SIZE_NAMES = { '*DS3': { lines: 24, columns: 80 }, '*DS4': { lines: 27, columns: 132 } };
+
+  /** Walks the raw DSPSIZ parameter text and pulls out every declared size,
+   *  in declaration order - either an explicit "lines cols [*qualifier]"
+   *  triple, or (DDS's other valid DSPSIZ form) a bare *DS3/*DS4 condition
+   *  name with no lines/cols given, whose size is then the fixed one that
+   *  name always implies. */
   function parseScreenSizes(paramText) {
     var tokens = paramText.trim().split(/\s+/).filter(Boolean);
     var sizes = [];
@@ -92,6 +106,10 @@
           i += 2;
         }
         sizes.push({ lines: parseInt(t1, 10), columns: parseInt(t2, 10), name: name });
+      } else if (KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()]) {
+        var known = KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()];
+        sizes.push({ lines: known.lines, columns: known.columns, name: t1 });
+        i++;
       } else {
         i++;
       }
@@ -115,10 +133,11 @@
 
     var sizes = parseScreenSizes(dspsiz.parameters);
     if (sizes.length === 0) {
-      // No numeric pair at all - e.g. a bare "*DS4" referencing a system
-      // default size by name only. *DS4 is the one well-known case worth a
-      // fallback for; anything else falls through to the 24x80 default.
-      sizes = [/\*DS4/.test(dspsiz.parameters) ? { lines: 27, columns: 132, name: '*DS4' } : fallback];
+      // Genuinely unparseable (e.g. a user-defined condition name other
+      // than *DS3/*DS4, or malformed parameters) - fall back to the 24x80
+      // default. Bare *DS3/*DS4 (with or without a companion size) is now
+      // handled directly by parseScreenSizes above, so it never reaches here.
+      sizes = [fallback];
     }
 
     var idx = (typeof sizeIndex === 'number' && sizeIndex >= 0 && sizeIndex < sizes.length) ? sizeIndex : 0;

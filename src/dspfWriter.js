@@ -3025,12 +3025,15 @@
   // writer-side action that changes how many sizes exist.
   // ---------------------------------------------------------------------
 
-  /** Same "lines cols [*qualifier]" triple-parsing as
-   *  DspfEngine.screenSizeFromFileKeywords's own parseScreenSizes -
-   *  duplicated (not required-in) rather than shared via require(), since
-   *  this file is dropped into the webview as a plain <script> with no
-   *  bundler (see file header) and can't assume a module loader is
-   *  present there. Keep the two in sync if DSPSIZ's grammar ever changes. */
+  /** Same "lines cols [*qualifier]" triple-parsing, AND the same bare
+   *  "*DS3"/"*DS4" (no lines/cols at all - DDS's other valid DSPSIZ form,
+   *  `DSPSIZ(*DSw [*DSx])`) handling, as DspfEngine.screenSizeFromFileKeywords's
+   *  own parseScreenSizes - duplicated (not required-in) rather than shared
+   *  via require(), since this file is dropped into the webview as a plain
+   *  <script> with no bundler (see file header) and can't assume a module
+   *  loader is present there. Keep the two in sync if DSPSIZ's grammar ever
+   *  changes. */
+  var KNOWN_DISPLAY_SIZE_NAMES = { '*DS3': { lines: 24, columns: 80 }, '*DS4': { lines: 27, columns: 132 } };
   function parseDisplaySizeTriples(paramText) {
     var tokens = (paramText || '').trim().split(/\s+/).filter(Boolean);
     var sizes = [];
@@ -3048,6 +3051,10 @@
           i += 2;
         }
         sizes.push({ lines: parseInt(t1, 10), columns: parseInt(t2, 10), name: name });
+      } else if (KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()]) {
+        var known = KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()];
+        sizes.push({ lines: known.lines, columns: known.columns, name: t1 });
+        i++;
       } else {
         i++;
       }
