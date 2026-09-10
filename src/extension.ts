@@ -68,7 +68,7 @@ const WebviewClientHelpers: {
 // A MNUDDS member is *also* plain DDS (see isLikelyMenuFile), so it's matched
 // by 'dds.dspf' too when the IBMi Languages extension is present.
 const DDS_LANGUAGE_SELECTOR: vscode.DocumentSelector = [
-  { scheme: 'file', pattern: '**/*.{dspf,DSPF,dspf38,mnudds,MNUDDS}' },
+  { scheme: 'file', pattern: '**/*.{dspf,DSPF,dspf38,dspf36,mnudds,MNUDDS}' },
   { language: 'dds.dspf' },
   { scheme: 'member' },
   { scheme: 'streamfile' },

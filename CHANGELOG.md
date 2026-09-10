@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-10 — Feature (S36-1): `.dspf36` now opens in the DSPF designer
+
+- **0.10.67** — Registered `.dspf36` (DDS tagged for the System/36 Environment) as a recognized extension for the existing DSPF designer, mirroring every `.dspf38` registration point exactly: `package.json`'s custom-editor selector, the `editor/title` preview command's `when` clause, and `extension.ts`'s `DDS_LANGUAGE_SELECTOR` CodeLens glob. No new UI - DSPF36 is the same DDS grammar as DSPF38, just opens in the identical existing designer. First of the S36-series tasks (System/36 Environment / `USRDSPMGT` support); S36-2 through S36-6 remain not started.
+
 ## 2026-09-10 — Feature (L77): RTNCSRLOC now exposes its full *RECNAME / *WINDOW-*MOUSE parameter shapes
 
 - **0.10.66** — RTNCSRLOC's picker row used to be a bare 2-field pair labeled "Row field name"/"Column field name" - both the shape AND the labels were wrong. Confirmed against IBM's own DDS reference that RTNCSRLOC actually has 2 independent formats that can coexist as 2 separate keyword instances on one record: `[*RECNAME] &cursor-record &cursor-field [&cursor-position]` and `{*WINDOW|*MOUSE} &cursor-row &cursor-column [&cursor-row2 [&cursor-column2]]`. New `getRtncsrlocRecNameFields`/`setRtncsrlocRecNameFields` and `getRtncsrlocWindowMouseFields`/`setRtncsrlocWindowMouseFields` in `dspfWriter.js` model each independently; `recordKeywordsPanelsHtml` now renders 2 separate sections (a `*RECNAME` checkbox + 3 Name inputs, and an Enabled checkbox + `*WINDOW`/`*MOUSE` selector + 2 row/column pairs) in place of the old single mislabeled row. Full suite: 43/43 files, zero failures.
