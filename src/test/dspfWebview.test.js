@@ -4713,6 +4713,8 @@ function runSflCtlPickerScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'DTLCTL', func: 'SFLCTL(DTL)' }),
       buildLine({ seq: '00040', func: 'SFLSIZ(20)' }),
       buildLine({ seq: '00050', func: 'SFLPAG(10)' }),
+      buildLine({ seq: '00055', name: 'PGMQ', dataType: 'A', length: '10', usage: 'H' }),
+      buildLine({ seq: '00056', func: 'SFLPGMQ(276)' }),
       buildLine({ seq: '00060', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00070', name: 'FLD2', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
@@ -4762,6 +4764,36 @@ function runSflCtlPickerScenario() {
     check('an edit was posted', !!applyEdit);
     let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
     check('SFLCTL updated to DTL2', reparsed.keywords.find((k) => k.name === 'SFLCTL').parameters.trim() === 'DTL2');
+    posted.length = 0;
+
+    console.log('  General (Task L74): Program message queue field (SFLPGMQ) row - field-level keyword even on SFLCTL, pre-filled from whichever field carries it');
+    let pgmqNameInput = doc.getElementById(p + '-sflpgmq-name');
+    let pgmq276Checkbox = doc.getElementById(p + '-sflpgmq-276');
+    check('Program message queue field input pre-filled with PGMQ', pgmqNameInput && pgmqNameInput.value === 'PGMQ');
+    check('Generate a 276 byte field checkbox starts checked (PGMQ carries SFLPGMQ(276))', pgmq276Checkbox && pgmq276Checkbox.checked);
+
+    console.log('  General (Task L74): renaming the queue field commits a plain field rename, record keywords untouched');
+    pgmqNameInput.value = 'PGMQ2';
+    pgmqNameInput.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted for the rename', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    check('PGMQ2 now carries SFLPGMQ', reparsed.fields.some((f) => f.name === 'PGMQ2' && f.keywords.some((k) => k.name === 'SFLPGMQ')));
+    check('old PGMQ name is gone', !reparsed.fields.some((f) => f.name === 'PGMQ'));
+    check("DTLCTL's own SFLCTL keyword is untouched by the field-level rename", reparsed.keywords.find((k) => k.name === 'SFLCTL').parameters.trim() === 'DTL2');
+    posted.length = 0;
+
+    // Same "re-fetch after a structural edit" note L73's own test carries -
+    // the rename above rebuilds propsBody's DOM.
+    pgmq276Checkbox = doc.getElementById(p + '-sflpgmq-276');
+    console.log('  General (Task L74): unchecking "Generate a 276 byte field" rewrites SFLPGMQ back to bare (no parameter)');
+    pgmq276Checkbox.checked = false;
+    pgmq276Checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted for the 276-byte toggle', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
+    const pgmq2Field = reparsed.fields.find((f) => f.name === 'PGMQ2');
+    check('PGMQ2 now carries a bare SFLPGMQ (no 276)', pgmq2Field && pgmq2Field.keywords.some((k) => k.name === 'SFLPGMQ' && k.parameters.trim() === ''));
     posted.length = 0;
 
     console.log('  General: reused R3 Subfile Keywords (SFLNXTCHG etc.) and SFLCTL-own flags commit independently');

@@ -3181,6 +3181,84 @@
   }
 
   /**
+   * Task L74 - shared "Program message queue field (SFLPGMQ)" mini-panel,
+   * extracted out of Task L73's Message Record work once L74 confirmed
+   * (against IBM's own DDS reference - "you use this field-level keyword
+   * on the second (and last) field in the subfile record format... In
+   * addition, SFLPGMQ can be specified on the subfile-control record
+   * format when SFLINZ is specified") that SFLPGMQ is a FIELD-level
+   * keyword in BOTH places, never the record-level "keyword whose own
+   * parameter names a field" shape SFLCSRRRN/SFLMODE use - so this is
+   * genuinely the same lookup/render/commit shape in both the SFLMSG tab
+   * and the SFLCTL tab, not two similar-looking but structurally
+   * different features. `idPrefix` namespaces the row's 3 element ids
+   * (name input, its error slot, the 276-byte checkbox) so both tabs can
+   * render this panel without colliding.
+   */
+  function sflPgmqFieldHtml(rec, idPrefix) {
+    var queueField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLPGMQ'; }); });
+    var queueKw = queueField && queueField.keywords.find(function (k) { return k.name === 'SFLPGMQ'; });
+    var html = '<div class="section-label">Program message queue field (SFLPGMQ)</div>';
+    if (queueField) {
+      html += '<input type="text" id="' + idPrefix + '-name" value="' + escapeHtml(queueField.name) + '" style="width:100%;" />';
+      html += '<div class="rename-error" id="' + idPrefix + '-error"></div>';
+      var is276 = !!(queueKw && (queueKw.parameters || '').trim() === '276');
+      html += '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
+        '<input type="checkbox" id="' + idPrefix + '-276" ' + (is276 ? 'checked' : '') + ' /> Generate a 276 byte field</label>';
+    } else {
+      html += '<div class="status">(none yet - add via the Hidden tab)</div>';
+    }
+    return html;
+  }
+
+  /** Wires sflPgmqFieldHtml()'s rename input + 276-byte checkbox -
+   *  `commitFieldUpdate(field, updates)` is the same field-level commit
+   *  path wireSflMsgFieldRefs already takes (see its own doc comment).
+   *  The rename validation (non-blank, valid DDS name, not already used
+   *  by another field in the record) is the same 3 checks the Hidden
+   *  tab's own add-field form and wireSflMsgFieldRefs's `wireRename`
+   *  already apply, duplicated here in this shared function's own scope
+   *  rather than importing wireSflMsgFieldRefs's closure. */
+  function wireSflPgmqField(rec, idPrefix, commitFieldUpdate) {
+    var queueField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLPGMQ'; }); });
+    if (!queueField) return;
+
+    var nameInput = document.getElementById(idPrefix + '-name');
+    if (nameInput) {
+      nameInput.addEventListener('change', function () {
+        var errorEl = document.getElementById(idPrefix + '-error');
+        if (errorEl) errorEl.textContent = '';
+        var newName = (nameInput.value || '').trim().toUpperCase();
+        if (!newName) {
+          if (errorEl) errorEl.textContent = 'Enter a name.';
+          nameInput.value = queueField.name;
+          return;
+        }
+        if (newName === queueField.name) return;
+        if (!isValidDdsName(newName)) {
+          if (errorEl) errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).';
+          nameInput.value = queueField.name;
+          return;
+        }
+        if ((rec.fields || []).some(function (f) { return f !== queueField && f.name === newName; })) {
+          if (errorEl) errorEl.textContent = 'A field named "' + newName + '" already exists in this record.';
+          nameInput.value = queueField.name;
+          return;
+        }
+        commitFieldUpdate(queueField, { name: newName });
+      });
+    }
+
+    var queue276 = document.getElementById(idPrefix + '-276');
+    if (queue276) {
+      queue276.addEventListener('change', function () {
+        var newKeywords = DspfWriter.setFileFlagKeyword(queueField.keywords, 'SFLPGMQ', true, queue276.checked ? '276' : '');
+        commitFieldUpdate(queueField, { keywords: newKeywords });
+      });
+    }
+  }
+
+  /**
    * Builds the 3 SFLMSG sub-panels' inner HTML at once - { messageRecord,
    * general, indicator } - for the record properties panel's SFLMSG tab
    * (see isSflMsgRecord above for when that tab appears). Takes the whole
@@ -3203,15 +3281,12 @@
     mr += '<div class="hint-small">Real SDA also offers a "Roll keyword" here - its DDS argument shape wasn\u2019t confidently verified, so use the raw Keywords editor below if you need it.</div>';
 
     var keyField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLMSGKEY'; }); });
-    var queueField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLPGMQ'; }); });
-    var queueKw = queueField && queueField.keywords.find(function (k) { return k.name === 'SFLPGMQ'; });
-    // Task L73: these two used to be read-only status text pointing the
-    // person at the Hidden fields tab to rename either field - real SDA's
-    // own "Define Message Record" screen shows both as directly editable
-    // Name inputs right here, plus a Y=Yes "Generate a 276 byte field"
-    // flag next to the queue field. Renaming a hidden field is safe with
-    // a plain DspfWriter.applyFieldUpdate({name}) - unlike a RECORD rename
-    // (see renameRecordReferences), nothing else in this codebase's three
+    // Task L73: this used to be read-only status text pointing the person
+    // at the Hidden fields tab to rename the field - real SDA's own
+    // "Define Message Record" screen shows it as a directly editable Name
+    // input right here. Renaming a hidden field is safe with a plain
+    // DspfWriter.applyFieldUpdate({name}) - unlike a RECORD rename (see
+    // renameRecordReferences), nothing else in this codebase's three
     // RECORD_REFERENCE_LOCATORS references a hidden field by name, so no
     // reference-rewrite pass is needed here. See wireSflMsgFieldRefs below
     // for the commit/validation half of this.
@@ -3222,16 +3297,10 @@
     } else {
       mr += '<div class="status">(none yet - add via the Hidden tab)</div>';
     }
-    mr += '<div class="section-label">Program message queue field (SFLPGMQ)</div>';
-    if (queueField) {
-      mr += '<input type="text" id="sm-pgmq-name" value="' + escapeHtml(queueField.name) + '" style="width:100%;" />';
-      mr += '<div class="rename-error" id="sm-pgmq-error"></div>';
-      var is276 = !!(queueKw && (queueKw.parameters || '').trim() === '276');
-      mr += '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
-        '<input type="checkbox" id="sm-pgmq-276" ' + (is276 ? 'checked' : '') + ' /> Generate a 276 byte field</label>';
-    } else {
-      mr += '<div class="status">(none yet - add via the Hidden tab)</div>';
-    }
+    // Task L74: the Program message queue field row itself is now the
+    // shared sflPgmqFieldHtml (see its own comment) - SFLCTL's own tab
+    // renders the exact same row for its own copy of this field.
+    mr += sflPgmqFieldHtml(rec, 'sm-pgmq');
     mr += '<div class="hint-small">Renaming either field here updates it in place. Add a missing field, or edit its length/type, via the Hidden fields tab.</div>';
     panels.messageRecord = mr;
 
@@ -3750,7 +3819,6 @@
    *  Basic tab's Name input already uses for every other field. */
   function wireSflMsgFieldRefs(rec, commitFieldUpdate) {
     var keyField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLMSGKEY'; }); });
-    var queueField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLPGMQ'; }); });
 
     function wireRename(inputId, errorId, field) {
       var input = document.getElementById(inputId);
@@ -3780,15 +3848,9 @@
     }
 
     wireRename('sm-msgkey-name', 'sm-msgkey-error', keyField);
-    wireRename('sm-pgmq-name', 'sm-pgmq-error', queueField);
-
-    var queue276 = document.getElementById('sm-pgmq-276');
-    if (queue276 && queueField) {
-      queue276.addEventListener('change', function () {
-        var newKeywords = DspfWriter.setFileFlagKeyword(queueField.keywords, 'SFLPGMQ', true, queue276.checked ? '276' : '');
-        commitFieldUpdate(queueField, { keywords: newKeywords });
-      });
-    }
+    // Task L74: the queue field's rename + 276-byte checkbox are now the
+    // shared wireSflPgmqField (see its own comment above sflPgmqFieldHtml).
+    wireSflPgmqField(rec, 'sm-pgmq', commitFieldUpdate);
   }
 
   // -----------------------------------------------------------------------
@@ -4030,8 +4092,17 @@
    * properties panel's SFLCTL tab (see isSflCtlRecord above for when that
    * tab appears). `idPrefix` namespaces every element id.
    */
-  function sflCtlPanelsHtml(keywords, idPrefix, expandedSet) {
-    var kw = keywords || [];
+  /**
+   * Builds the 4 SFLCTL sub-panels' inner HTML at once - { general,
+   * indicator, displayLayout, subfileMessages } - for the record
+   * properties panel's SFLCTL tab (see isSflCtlRecord above for when that
+   * tab appears). Takes the whole `rec` (not just rec.keywords), since
+   * Task L74's SFLPGMQ row needs `rec.fields` the same way sflMsgPanelsHtml
+   * already does (see sflPgmqFieldHtml's own comment for why). `idPrefix`
+   * namespaces every element id.
+   */
+  function sflCtlPanelsHtml(rec, idPrefix, expandedSet) {
+    var kw = rec.keywords || [];
     var p = idPrefix;
     var panels = {};
 
@@ -4043,6 +4114,16 @@
     g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', fSflcsrrrn.present, fSflcsrrrn.parameters, 'field name', fSflcsrrrn.conditions, expandedSet);
     var fSflmode = DspfWriter.getFileFlagKeyword(kw, 'SFLMODE');
     g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', fSflmode.present, fSflmode.parameters, 'field name', fSflmode.conditions, expandedSet);
+    // Task L74: SFLPGMQ is documented by IBM as a FIELD-level keyword even
+    // when it's coded on the SFLCTL record ("SFLPGMQ can be specified on
+    // the subfile-control record format when SFLINZ is specified...it can
+    // be anywhere within the record specification") - NOT a record-level
+    // keyword naming a field the way SFLCSRRRN/SFLMODE above are, despite
+    // sitting right alongside them on real SDA's own screen. So this reuses
+    // the exact same sflPgmqFieldHtml/wireSflPgmqField pair Task L73 built
+    // for SFLMSG's identical field-level SFLPGMQ, rather than a third
+    // flagRowHtml row that would write it as a bogus record-level keyword.
+    g += sflPgmqFieldHtml(rec, p + '-sflpgmq');
     g += '<div class="section-label">Subfile display state</div>';
     var fSfldsp = DspfWriter.getFileFlagKeyword(kw, 'SFLDSP');
     g += flagRowHtml(p + '-sfldsp', 'Display subfile records (SFLDSP)', fSfldsp.present, undefined, undefined, fSfldsp.conditions, expandedSet);
@@ -4385,6 +4466,8 @@
     sflMsgPanelsHtml: sflMsgPanelsHtml,
     wireSflMsgPanels: wireSflMsgPanels,
     wireSflMsgFieldRefs: wireSflMsgFieldRefs,
+    sflPgmqFieldHtml: sflPgmqFieldHtml,
+    wireSflPgmqField: wireSflPgmqField,
     windowBorderPanelHtml: windowBorderPanelHtml,
     wireWindowBorderPanel: wireWindowBorderPanel,
     isWindowRecord: isWindowRecord,

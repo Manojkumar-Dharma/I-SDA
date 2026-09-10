@@ -5402,7 +5402,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isSflCtl = WebviewClientHelpers.isSflCtlRecord(rec);
     let sflCtlPanels = null;
     if (isSflCtl) {
-      sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec.keywords, sflCtlPrefix, expandedKeywordConditioning);
+      sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec, sflCtlPrefix, expandedKeywordConditioning);
     }
 
     // --- MNUBAR tab: only for menu-bar records (Task R13) - single
@@ -5551,6 +5551,10 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (isSflCtl) {
       WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
+      // Task L74: SFLPGMQ is field-level even on SFLCTL (see
+      // sflPgmqFieldHtml's own comment) - wired the same way L73 wired it
+      // for SFLMSG, a field-level commit rather than a record-keywords one.
+      WebviewClientHelpers.wireSflPgmqField(rec, sflCtlPrefix + '-sflpgmq', (field, updates) => commitFieldUpdateKeepingSelection(field, updates));
     }
     if (isMnuBar) {
       WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
