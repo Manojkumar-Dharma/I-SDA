@@ -9,8 +9,12 @@
  * see fileKeywordsPicker.test.js for that coverage) - this file covers
  * the two shapes that are new for R1: getUnlockKeyword/setUnlockKeyword
  * (UNLOCK's *ERASE/*MDTOFF sub-flags) and getFileTwoFieldKeyword/
- * setFileTwoFieldKeyword (CSRLOC/RTNCSRLOC/HLPSEQ's "a b" parameter
- * shape), plus an end-to-end round-trip through applyRecordUpdate +
+ * setFileTwoFieldKeyword (CSRLOC/HLPSEQ's "a b" parameter shape - RTNCSRLOC
+ * used to share this shape too, under an incorrect "row/col" labeling;
+ * Task L77 gave it its own dedicated getRtncsrlocRecNameFields/
+ * getRtncsrlocWindowMouseFields pair once real DDS turned out to need 2
+ * independent, richer shapes - see that pair's own coverage below),
+ * plus an end-to-end round-trip through applyRecordUpdate +
  * re-parse exercising a representative mix from all 8 categories.
  * Pure Node, no vscode/jsdom needed.
  * Run with: node src/test/recordKeywordsPicker.test.js
@@ -52,7 +56,7 @@ console.log('getUnlockKeyword / setUnlockKeyword - UNLOCK present/absent plus *E
   check('removed entirely when present=false', DspfWriter.getUnlockKeyword(kw).present === false && kw.length === 0);
 }
 
-console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - "keyword(a b)" shape (CSRLOC/RTNCSRLOC/HLPSEQ)');
+console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - "keyword(a b)" shape (CSRLOC/HLPSEQ)');
 {
   let kw = [];
   check('both blank by default', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC')) === JSON.stringify({ a: '', b: '' }));
@@ -72,10 +76,10 @@ console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - "keyword(a b)" 
 
   // A second, independent two-field keyword on the same array doesn't collide.
   kw = DspfWriter.setFileTwoFieldKeyword(kw, 'HLPSEQ', 'GRP1', '5');
-  kw = DspfWriter.setFileTwoFieldKeyword(kw, 'RTNCSRLOC', 'RFLD', 'CFLD');
-  check('HLPSEQ and RTNCSRLOC coexist independently', kw.length === 2);
+  kw = DspfWriter.setFileTwoFieldKeyword(kw, 'CSRLOC', 'RFLD', 'CFLD');
+  check('HLPSEQ and CSRLOC coexist independently', kw.length === 2);
   check('HLPSEQ reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ')) === JSON.stringify({ a: 'GRP1', b: '5' }));
-  check('RTNCSRLOC reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'RTNCSRLOC')) === JSON.stringify({ a: 'RFLD', b: 'CFLD' }));
+  check('CSRLOC reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC')) === JSON.stringify({ a: 'RFLD', b: 'CFLD' }));
 }
 
 console.log('\ngetMnubardspFields / setMnubardspFields - Task L76, MNUBARDSP\'s 3-name "keyword(a b c)" shape');
@@ -114,6 +118,64 @@ console.log('\ngetMnubardspFields / setMnubardspFields - Task L76, MNUBARDSP\'s 
 
   kw = DspfWriter.setMnubardspFields(kw, false, '', '', '');
   check('removed entirely when present=false', kw.filter((k) => k.name === 'MNUBARDSP').length === 0);
+}
+
+console.log('\ngetRtncsrlocRecNameFields / setRtncsrlocRecNameFields - Task L77, RTNCSRLOC\'s "[*RECNAME] a b [c]" variant');
+{
+  let kw = [];
+  check('absent by default', JSON.stringify(DspfWriter.getRtncsrlocRecNameFields(kw)) === JSON.stringify({ present: false, cursorRecord: '', cursorField: '', cursorPosition: '' }));
+
+  kw = DspfWriter.setRtncsrlocRecNameFields(kw, true, 'CSRREC', 'CSRFLD', 'CSRPOS');
+  check('*RECNAME is always written explicitly', kw[0].parameters === '*RECNAME CSRREC CSRFLD CSRPOS');
+  let state = DspfWriter.getRtncsrlocRecNameFields(kw);
+  check('present reads back true', state.present === true);
+  check('cursorRecord round-trips', state.cursorRecord === 'CSRREC');
+  check('cursorField round-trips', state.cursorField === 'CSRFLD');
+  check('cursorPosition round-trips', state.cursorPosition === 'CSRPOS');
+
+  kw = DspfWriter.setRtncsrlocRecNameFields(kw, true, 'CSRREC', 'CSRFLD', '');
+  check('blank trailing cursorPosition drops just that token', kw[0].parameters === '*RECNAME CSRREC CSRFLD');
+
+  // Backward compatibility: a legacy bare instance with no *RECNAME
+  // literal at all (e.g. written by this exact codebase before L77) is
+  // still recognized as the record/field variant on read.
+  const legacy = [{ name: 'RTNCSRLOC', parameters: 'OLDREC OLDFLD', conditions: [], raw: '', sourceLines: [] }];
+  check('a legacy bare (no *RECNAME literal) instance still reads as this variant', JSON.stringify(DspfWriter.getRtncsrlocRecNameFields(legacy)) === JSON.stringify({ present: true, cursorRecord: 'OLDREC', cursorField: 'OLDFLD', cursorPosition: '' }));
+
+  kw = DspfWriter.setRtncsrlocRecNameFields(kw, false, '', '', '');
+  check('removed entirely when present=false', kw.filter((k) => k.name === 'RTNCSRLOC').length === 0);
+}
+
+console.log('\ngetRtncsrlocWindowMouseFields / setRtncsrlocWindowMouseFields - Task L77, RTNCSRLOC\'s "{*WINDOW|*MOUSE} a b [c [d]]" variant');
+{
+  let kw = [];
+  check('absent by default, type defaults to WINDOW', JSON.stringify(DspfWriter.getRtncsrlocWindowMouseFields(kw)) === JSON.stringify({ present: false, type: 'WINDOW', cursorRow: '', cursorColumn: '', cursorRow2: '', cursorColumn2: '' }));
+
+  kw = DspfWriter.setRtncsrlocWindowMouseFields(kw, true, 'WINDOW', 'ROW1', 'COL1', 'ROW2', 'COL2');
+  check('parameters are "*WINDOW a b c d"', kw[0].parameters === '*WINDOW ROW1 COL1 ROW2 COL2');
+  let state = DspfWriter.getRtncsrlocWindowMouseFields(kw);
+  check('type round-trips WINDOW', state.type === 'WINDOW');
+  check('cursorRow/cursorColumn/cursorRow2/cursorColumn2 round-trip', state.cursorRow === 'ROW1' && state.cursorColumn === 'COL1' && state.cursorRow2 === 'ROW2' && state.cursorColumn2 === 'COL2');
+
+  kw = DspfWriter.setRtncsrlocWindowMouseFields(kw, true, 'MOUSE', 'ROW1', 'COL1', '', '');
+  check('switching type to MOUSE writes *MOUSE', kw[0].parameters === '*MOUSE ROW1 COL1');
+  check('type reads back MOUSE', DspfWriter.getRtncsrlocWindowMouseFields(kw).type === 'MOUSE');
+
+  // cursorColumn2 only makes sense once cursorRow2 is set - a column2
+  // with no row2 is dropped entirely (real DDS's own nesting).
+  kw = DspfWriter.setRtncsrlocWindowMouseFields(kw, true, 'WINDOW', 'ROW1', 'COL1', '', 'COL2');
+  check('cursorColumn2 without cursorRow2 is dropped', kw[0].parameters === '*WINDOW ROW1 COL1');
+
+  // Coexists independently with the *RECNAME variant (2 separate keyword
+  // instances, same as real DDS allows - see findRtncsrlocInstance's own
+  // comment in dspfWriter.js).
+  kw = DspfWriter.setRtncsrlocRecNameFields(kw, true, 'CSRREC', 'CSRFLD', '');
+  check('*RECNAME and *WINDOW instances coexist', kw.filter((k) => k.name === 'RTNCSRLOC').length === 2);
+  check('*WINDOW instance untouched by the *RECNAME write', DspfWriter.getRtncsrlocWindowMouseFields(kw).cursorRow === 'ROW1');
+  check('*RECNAME instance untouched either', DspfWriter.getRtncsrlocRecNameFields(kw).cursorRecord === 'CSRREC');
+
+  kw = DspfWriter.setRtncsrlocWindowMouseFields(kw, false, 'WINDOW', '', '', '', '');
+  check('removed entirely when present=false, *RECNAME instance survives', kw.length === 1 && kw[0].parameters.startsWith('*RECNAME'));
 }
 
 console.log('\nR1 keywords reuse F1\'s generic getFileFlagKeyword/setFileFlagKeyword correctly at record level');
@@ -197,6 +259,31 @@ console.log('\nMNUBARDSP\'s 3-field form (Task L76) round-trips through serializ
   check('menuBarRecord reads back after reparse', fields.menuBarRecord === 'MENUBAR');
   check('choiceField reads back after reparse', fields.choiceField === 'MNUCHC');
   check('pullDownField reads back after reparse', fields.pullDownField === 'PULL');
+}
+
+console.log('\nRTNCSRLOC\'s two independent variants (Task L77) both round-trip through serialize + re-parse, coexisting on one record');
+{
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80)',
+      '     A          R APPSCR',
+      "     A                                  1  2'Hello'",
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const rec = model.records[0];
+
+  let kw = DspfWriter.setRtncsrlocRecNameFields(rec.keywords, true, 'CSRREC', 'CSRFLD', 'CSRPOS');
+  kw = DspfWriter.setRtncsrlocWindowMouseFields(kw, true, 'MOUSE', 'ROW1', 'COL1', 'ROW2', 'COL2');
+  const newLines = DspfWriter.applyRecordUpdate(rec, lines, { keywords: kw });
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const reRec = reparsed.records[0];
+
+  check('exactly 2 RTNCSRLOC instances survive reparse', reRec.keywords.filter((k) => k.name === 'RTNCSRLOC').length === 2);
+  const recNameState = DspfWriter.getRtncsrlocRecNameFields(reRec.keywords);
+  check('*RECNAME variant reads back after reparse', recNameState.present === true && recNameState.cursorRecord === 'CSRREC' && recNameState.cursorField === 'CSRFLD' && recNameState.cursorPosition === 'CSRPOS');
+  const wmState = DspfWriter.getRtncsrlocWindowMouseFields(reRec.keywords);
+  check('*MOUSE variant reads back after reparse', wmState.present === true && wmState.type === 'MOUSE' && wmState.cursorRow === 'ROW1' && wmState.cursorColumn === 'COL1' && wmState.cursorRow2 === 'ROW2' && wmState.cursorColumn2 === 'COL2');
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

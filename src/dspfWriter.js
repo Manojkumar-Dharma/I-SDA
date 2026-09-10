@@ -2079,9 +2079,13 @@
   // shape as the file-level ones). Only two keyword shapes below are new:
   // UNLOCK's *ERASE/*MDTOFF sub-flags (multiple option VALUES inside one
   // keyword's parameter list, not separate keyword instances) and a small
-  // generic two-field pair for CSRLOC/RTNCSRLOC/HLPSEQ (space-separated
-  // "a b" parameters - same shape as PRTFILE's "name library" but reused
+  // generic two-field pair for CSRLOC/HLPSEQ (space-separated "a b"
+  // parameters - same shape as PRTFILE's "name library" but reused
   // generically rather than triplicating getFilePrtFileKeyword's body).
+  // (RTNCSRLOC used to share this pair too, under an incorrect "row/col"
+  // labeling - Task L77 gave it its own dedicated getRtncsrlocRecNameFields/
+  // getRtncsrlocWindowMouseFields pair once real DDS turned out to need 2
+  // independent, richer parameter shapes; see that pair's own comment.)
   // ---------------------------------------------------------------------
 
   /** UNLOCK - present/absent plus its two independent option VALUES
@@ -2113,8 +2117,8 @@
   }
 
   /** Generic "keyword(a b)" reader - two whitespace-separated tokens, both
-   *  optional individually (CSRLOC's row/col, RTNCSRLOC's row-field/
-   *  col-field, HLPSEQ's help-group-name/sequence-number). */
+   *  optional individually (CSRLOC's row/col, HLPSEQ's help-group-name/
+   *  sequence-number). */
   function getFileTwoFieldKeyword(keywords, name) {
     var k = (keywords || []).find(function (kw) { return kw.name === name; });
     if (!k) return { a: '', b: '' };
@@ -2178,6 +2182,117 @@
       while (parts.length && !parts[parts.length - 1]) parts.pop();
       var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
       next = next.concat([{ name: 'MNUBARDSP', parameters: parts.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  // Task L77 - RTNCSRLOC's real DDS shape (confirmed against IBM's own DDS
+  // reference, "RTNCSRLOC (Return Cursor Location) keyword for display
+  // files") is NOT the plain 2-field row/col pair CSRLOC has - that
+  // labeling on the old picker row was itself a bug this task's own
+  // investigation caught. RTNCSRLOC actually has two INDEPENDENT formats,
+  // and real DDS allows BOTH to be specified at once as two SEPARATE
+  // RTNCSRLOC keyword instances on the same record (confirmed via two
+  // independent real-world DDS examples using exactly this pattern, e.g.
+  // `RTNCSRLOC(*RECNAME &REC &FLD)` alongside a separate
+  // `RTNCSRLOC(*WINDOW &ROW1 &COL1 &ROW2 &COL2)` on the same record) -
+  // not a single keyword whose shape varies, and not arbitrarily
+  // repeatable either (only these 2 meaningful variants exist):
+  //
+  //   RTNCSRLOC([*RECNAME] &cursor-record &cursor-field [&cursor-position])
+  //   RTNCSRLOC({*WINDOW | *MOUSE} &cursor-row &cursor-column
+  //             [&cursor-row2 [&cursor-column2]])
+  //
+  // The `*RECNAME` literal is technically optional (a bare
+  // `RTNCSRLOC(REC FLD)` with no leading literal is still the record/field
+  // variant), but this project's own convention is to always write the
+  // explicit value rather than lean on a default (see L1's own DDS
+  // serialization notes) - so the setter below always writes `*RECNAME`
+  // explicitly, while the getter still recognizes a legacy bare instance
+  // with no literal (e.g. one written by this exact codebase before this
+  // task) for backward-compatible reading. The two variants are told apart
+  // by their first token: `*WINDOW`/`*MOUSE` means the row/column variant,
+  // anything else (including a bare field name) means the record/field
+  // variant - findRtncsrlocInstance below is that shared lookup.
+  function findRtncsrlocInstance(keywords, wantWindowMouse) {
+    return (keywords || []).find(function (k) {
+      if (k.name !== 'RTNCSRLOC') return false;
+      var first = ((k.parameters || '').trim().split(/\s+/)[0] || '').toUpperCase();
+      var isWm = first === '*WINDOW' || first === '*MOUSE';
+      return wantWindowMouse ? isWm : !isWm;
+    });
+  }
+
+  /** Reads RTNCSRLOC's `[*RECNAME] &cursor-record &cursor-field
+   *  [&cursor-position]` variant - the instance (if any) whose first
+   *  parameter token is NOT `*WINDOW`/`*MOUSE`. `cursor-record`/
+   *  `cursor-field` are both required together in real DDS,
+   *  `cursor-position` is optional; all 3 are read positionally, same
+   *  "each slot independently optional for reading" convention as
+   *  getFileTwoFieldKeyword/getMnubardspFields. */
+  function getRtncsrlocRecNameFields(keywords) {
+    var k = findRtncsrlocInstance(keywords, false);
+    if (!k) return { present: false, cursorRecord: '', cursorField: '', cursorPosition: '' };
+    var parts = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    if (parts[0] && parts[0].toUpperCase() === '*RECNAME') parts = parts.slice(1);
+    return { present: true, cursorRecord: parts[0] || '', cursorField: parts[1] || '', cursorPosition: parts[2] || '' };
+  }
+
+  /** Returns a NEW keywords array with the `*RECNAME` RTNCSRLOC variant
+   *  set from `present` plus its 3 positional name fields - removed
+   *  entirely when `present` is false. Always writes the `*RECNAME`
+   *  literal explicitly (see this section's own comment for why). Any
+   *  OTHER RTNCSRLOC instance (the `*WINDOW`/`*MOUSE` variant - see
+   *  setRtncsrlocWindowMouseFields below) is left completely untouched,
+   *  since real DDS allows both to coexist independently on one record. */
+  function setRtncsrlocRecNameFields(keywords, present, cursorRecord, cursorField, cursorPosition) {
+    var existing = findRtncsrlocInstance(keywords, false);
+    var next = (keywords || []).filter(function (k) { return k !== existing; });
+    if (present) {
+      var tail = [(cursorField || '').trim(), (cursorPosition || '').trim()];
+      while (tail.length && !tail[tail.length - 1]) tail.pop();
+      var parts = ['*RECNAME', (cursorRecord || '').trim()].concat(tail);
+      next = next.concat([{ name: 'RTNCSRLOC', parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** Reads RTNCSRLOC's `{*WINDOW | *MOUSE} &cursor-row &cursor-column
+   *  [&cursor-row2 [&cursor-column2]]` variant - the instance (if any)
+   *  whose first parameter token IS `*WINDOW` or `*MOUSE`. `type` comes
+   *  back as the literal without its leading `*` (`'WINDOW'`/`'MOUSE'`,
+   *  defaulting to `'WINDOW'` when absent so a fresh/never-set picker has
+   *  a sensible dropdown default). `cursor-row`/`cursor-column` are both
+   *  required together in real DDS; `cursor-row2` is optional, and
+   *  `cursor-column2` only makes sense once `cursor-row2` is set (real
+   *  DDS's own `[&cursor-row2 [&cursor-column2]]` nesting). */
+  function getRtncsrlocWindowMouseFields(keywords) {
+    var k = findRtncsrlocInstance(keywords, true);
+    if (!k) return { present: false, type: 'WINDOW', cursorRow: '', cursorColumn: '', cursorRow2: '', cursorColumn2: '' };
+    var parts = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var type = (parts[0] || '').toUpperCase().replace('*', '') || 'WINDOW';
+    var rest = parts.slice(1);
+    return { present: true, type: type, cursorRow: rest[0] || '', cursorColumn: rest[1] || '', cursorRow2: rest[2] || '', cursorColumn2: rest[3] || '' };
+  }
+
+  /** Returns a NEW keywords array with the `*WINDOW`/`*MOUSE` RTNCSRLOC
+   *  variant set from `present`, `type` (`'WINDOW'` or `'MOUSE'`), and its
+   *  4 positional name fields - removed entirely when `present` is false.
+   *  `cursorColumn2` is dropped whenever `cursorRow2` is blank (real DDS's
+   *  own nesting - a column-2 with no row-2 isn't a representable
+   *  parameter position). Any OTHER RTNCSRLOC instance (the `*RECNAME`
+   *  variant) is left untouched, same independence as the setter above. */
+  function setRtncsrlocWindowMouseFields(keywords, present, type, cursorRow, cursorColumn, cursorRow2, cursorColumn2) {
+    var existing = findRtncsrlocInstance(keywords, true);
+    var next = (keywords || []).filter(function (k) { return k !== existing; });
+    if (present) {
+      var lit = String(type || 'WINDOW').toUpperCase() === 'MOUSE' ? '*MOUSE' : '*WINDOW';
+      var row2 = (cursorRow2 || '').trim();
+      var col2 = row2 ? (cursorColumn2 || '').trim() : '';
+      var tail = [row2, col2];
+      while (tail.length && !tail[tail.length - 1]) tail.pop();
+      var parts = [lit, (cursorRow || '').trim(), (cursorColumn || '').trim()].concat(tail);
+      next = next.concat([{ name: 'RTNCSRLOC', parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
     }
     return next;
   }
@@ -4119,6 +4234,10 @@
     setFileTwoFieldKeyword: setFileTwoFieldKeyword,
     getMnubardspFields: getMnubardspFields,
     setMnubardspFields: setMnubardspFields,
+    getRtncsrlocRecNameFields: getRtncsrlocRecNameFields,
+    setRtncsrlocRecNameFields: setRtncsrlocRecNameFields,
+    getRtncsrlocWindowMouseFields: getRtncsrlocWindowMouseFields,
+    setRtncsrlocWindowMouseFields: setRtncsrlocWindowMouseFields,
     getIndicatorTextRows: getIndicatorTextRows,
     setIndicatorTextRows: setIndicatorTextRows,
     getRepeatableKeywordInstances: getRepeatableKeywordInstances,

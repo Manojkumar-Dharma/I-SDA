@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-10 — Feature (L77): RTNCSRLOC now exposes its full *RECNAME / *WINDOW-*MOUSE parameter shapes
+
+- **0.10.66** — RTNCSRLOC's picker row used to be a bare 2-field pair labeled "Row field name"/"Column field name" - both the shape AND the labels were wrong. Confirmed against IBM's own DDS reference that RTNCSRLOC actually has 2 independent formats that can coexist as 2 separate keyword instances on one record: `[*RECNAME] &cursor-record &cursor-field [&cursor-position]` and `{*WINDOW|*MOUSE} &cursor-row &cursor-column [&cursor-row2 [&cursor-column2]]`. New `getRtncsrlocRecNameFields`/`setRtncsrlocRecNameFields` and `getRtncsrlocWindowMouseFields`/`setRtncsrlocWindowMouseFields` in `dspfWriter.js` model each independently; `recordKeywordsPanelsHtml` now renders 2 separate sections (a `*RECNAME` checkbox + 3 Name inputs, and an Enabled checkbox + `*WINDOW`/`*MOUSE` selector + 2 row/column pairs) in place of the old single mislabeled row. Full suite: 43/43 files, zero failures.
+
 ## 2026-09-10 — Feature (L74): SFLCTL's General panel gained a Program message queue field (SFLPGMQ) control
 
 - **0.10.65** — SFLCTL's General panel had no control for `SFLPGMQ` at all, even though real SDA's "Subfile control record" screen shows it right alongside `SFLCTL`/`SFLCSRRRN`/`SFLMODE`. Turned out `SFLPGMQ` is a field-level keyword in both places it's legal (per IBM's own DDS reference), not a record-level keyword naming a field the way `SFLCSRRRN`/`SFLMODE` are - so this is exactly L73's SFLMSG-side fix a second time. Extracted L73's rename-input + 276-byte-checkbox markup/wiring out of `sflMsgPanelsHtml`/`wireSflMsgFieldRefs` into shared `sflPgmqFieldHtml`/`wireSflPgmqField`, and `sflCtlPanelsHtml`'s General panel now renders the same row for whichever field carries `SFLPGMQ` on the SFLCTL record. `sflCtlPanelsHtml`'s signature changed from `(keywords, ...)` to `(rec, ...)` to reach `rec.fields`. Full suite: 43/43 files, zero failures.

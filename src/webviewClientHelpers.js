@@ -2955,10 +2955,45 @@
         '</div>';
     }
     g += entFldAtrHtml(kw, p + '-entfldatr');
-    var rtncsrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'RTNCSRLOC');
-    g += '<div class="section-label">Return cursor location (RTNCSRLOC)</div>';
-    g += '<div class="two-col"><input type="text" id="' + p + '-rtncsrloc-row" placeholder="Row field name" value="' + escapeHtml(rtncsrloc.a) + '" />' +
-      '<input type="text" id="' + p + '-rtncsrloc-col" placeholder="Column field name" value="' + escapeHtml(rtncsrloc.b) + '" /></div>';
+    // Bug fix + feature (Task L77): the old row here used
+    // DspfWriter.getFileTwoFieldKeyword (CSRLOC's own plain row/col pair
+    // shape) and labeled the two boxes "Row field name"/"Column field
+    // name" - but per IBM's own DDS reference, RTNCSRLOC's bare 2-field
+    // form is actually the *RECNAME variant's first 2 names (record,
+    // field), never row/col at all; that mislabeling was itself part of
+    // this task's own bug. RTNCSRLOC really has 2 independent parameter
+    // shapes that can BOTH be specified at once as 2 separate keyword
+    // instances on the same record (see findRtncsrlocInstance's own
+    // comment in dspfWriter.js for the confirming DDS citations), so this
+    // is now 2 independent rows rather than one.
+    var rtncsrlocRec = DspfWriter.getRtncsrlocRecNameFields(kw);
+    g += '<div class="section-label">Return cursor location - record/field (RTNCSRLOC *RECNAME)</div>';
+    g += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
+      '<input type="checkbox" id="' + p + '-rtncsrloc-rn-on" ' + (rtncsrlocRec.present ? 'checked' : '') + ' /> *RECNAME</label>';
+    g += '<div class="three-col" style="margin-top:4px;">' +
+      '<input type="text" id="' + p + '-rtncsrloc-rn-rec" placeholder="Cursor record field (name)" value="' + escapeHtml(rtncsrlocRec.cursorRecord) + '" />' +
+      '<input type="text" id="' + p + '-rtncsrloc-rn-fld" placeholder="Cursor field field (name)" value="' + escapeHtml(rtncsrlocRec.cursorField) + '" />' +
+      '<input type="text" id="' + p + '-rtncsrloc-rn-pos" placeholder="Cursor position field (name, optional)" value="' + escapeHtml(rtncsrlocRec.cursorPosition) + '" />' +
+      '</div>';
+
+    var rtncsrlocWm = DspfWriter.getRtncsrlocWindowMouseFields(kw);
+    g += '<div class="section-label" style="margin-top:10px;">Return cursor location - position (RTNCSRLOC *WINDOW/*MOUSE)</div>';
+    g += '<div style="display:flex;align-items:center;gap:10px;">';
+    g += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
+      '<input type="checkbox" id="' + p + '-rtncsrloc-wm-on" ' + (rtncsrlocWm.present ? 'checked' : '') + ' /> Enabled</label>';
+    g += '<select id="' + p + '-rtncsrloc-wm-type">' +
+      '<option value="WINDOW"' + (rtncsrlocWm.type === 'WINDOW' ? ' selected' : '') + '>*WINDOW</option>' +
+      '<option value="MOUSE"' + (rtncsrlocWm.type === 'MOUSE' ? ' selected' : '') + '>*MOUSE</option>' +
+      '</select>';
+    g += '</div>';
+    g += '<div class="two-col" style="margin-top:4px;">' +
+      '<input type="text" id="' + p + '-rtncsrloc-wm-row1" placeholder="Cursor row 1 field (name)" value="' + escapeHtml(rtncsrlocWm.cursorRow) + '" />' +
+      '<input type="text" id="' + p + '-rtncsrloc-wm-col1" placeholder="Cursor column 1 field (name)" value="' + escapeHtml(rtncsrlocWm.cursorColumn) + '" />' +
+      '</div>';
+    g += '<div class="two-col" style="margin-top:4px;">' +
+      '<input type="text" id="' + p + '-rtncsrloc-wm-row2" placeholder="Cursor row 2 field (name, optional)" value="' + escapeHtml(rtncsrlocWm.cursorRow2) + '" />' +
+      '<input type="text" id="' + p + '-rtncsrloc-wm-col2" placeholder="Cursor column 2 field (name, optional - needs row 2)" value="' + escapeHtml(rtncsrlocWm.cursorColumn2) + '" />' +
+      '</div>';
     // Bug fix (L22 keyword-inventory audit): TEXT (record-level) - see
     // the file-level TEXT row's own comment above for the full rationale.
     g += '<div class="section-label">Record text (TEXT)</div>';
@@ -3389,7 +3424,42 @@
       }, expandedSet, rerender);
     })();
     wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr');
-    wireTwoField(p + '-rtncsrloc-row', p + '-rtncsrloc-col', 'RTNCSRLOC');
+    // Task L77 - hand-wired (like MNUBARDSP above) since RTNCSRLOC's two
+    // independent variants each need their own "present" checkbox + name
+    // fields, not a single wireTwoField pair. The two IIFEs are
+    // independent commits - editing one variant's fields never touches
+    // the other's keyword instance (see setRtncsrlocRecNameFields/
+    // setRtncsrlocWindowMouseFields's own "left untouched" comments).
+    (function wireRtncsrlocRecName() {
+      var onEl = document.getElementById(p + '-rtncsrloc-rn-on');
+      var recEl = document.getElementById(p + '-rtncsrloc-rn-rec');
+      var fldEl = document.getElementById(p + '-rtncsrloc-rn-fld');
+      var posEl = document.getElementById(p + '-rtncsrloc-rn-pos');
+      function commit() {
+        onChange(DspfWriter.setRtncsrlocRecNameFields(getKeywords(), onEl.checked, recEl ? recEl.value : '', fldEl ? fldEl.value : '', posEl ? posEl.value : ''));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+      if (recEl) recEl.addEventListener('change', commit);
+      if (fldEl) fldEl.addEventListener('change', commit);
+      if (posEl) posEl.addEventListener('change', commit);
+    })();
+    (function wireRtncsrlocWindowMouse() {
+      var onEl = document.getElementById(p + '-rtncsrloc-wm-on');
+      var typeEl = document.getElementById(p + '-rtncsrloc-wm-type');
+      var row1El = document.getElementById(p + '-rtncsrloc-wm-row1');
+      var col1El = document.getElementById(p + '-rtncsrloc-wm-col1');
+      var row2El = document.getElementById(p + '-rtncsrloc-wm-row2');
+      var col2El = document.getElementById(p + '-rtncsrloc-wm-col2');
+      function commit() {
+        onChange(DspfWriter.setRtncsrlocWindowMouseFields(getKeywords(), onEl.checked, typeEl ? typeEl.value : 'WINDOW', row1El ? row1El.value : '', col1El ? col1El.value : '', row2El ? row2El.value : '', col2El ? col2El.value : ''));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+      if (typeEl) typeEl.addEventListener('change', commit);
+      if (row1El) row1El.addEventListener('change', commit);
+      if (col1El) col1El.addEventListener('change', commit);
+      if (row2El) row2El.addEventListener('change', commit);
+      if (col2El) col2El.addEventListener('change', commit);
+    })();
     var pText = document.getElementById(p + '-text');
     if (pText) pText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', pText.value)); });
     var pAltname = document.getElementById(p + '-altname');
