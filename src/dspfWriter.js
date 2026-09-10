@@ -2134,6 +2134,54 @@
     return next;
   }
 
+  // Task L76 - MNUBARDSP's own 3-name parameter shape, `keyword(a b c)`,
+  // one slot wider than getFileTwoFieldKeyword above but otherwise the
+  // same "positional, each slot independently optional for reading,
+  // trailing blanks dropped for writing" convention - plus `conditions`
+  // preserve-when-omitted support (getFileTwoFieldKeyword/
+  // setFileTwoFieldKeyword above don't carry conditions at all; MNUBARDSP
+  // needs it since real DDS allows response-indicator conditioning on
+  // this keyword and the picker already exposed a Conditioning toggle for
+  // it before this task). Real DDS actually gives MNUBARDSP TWO different
+  // formats depending on where it's coded (see IBM's own DDS reference):
+  // on a record that does NOT carry MNUBAR itself, `MNUBARDSP(menu-bar-
+  // record &choice-field [&pulldown-input-field])` - 2 required names +
+  // 1 optional trailing one, which is what this pair models; on a record
+  // that DOES carry MNUBAR, it's `MNUBARDSP[(&pulldown-input-field)]` -
+  // a single optional name, which is NOT this pair's job and keeps going
+  // through the existing generic getFileFlagKeyword/setFileFlagKeyword
+  // single-parameter shape (recordKeywordsPanelsHtml picks between the
+  // two based on whether the record's own keywords include MNUBAR - see
+  // its own comment for why a positional 3-slot reader can't safely cover
+  // both formats: leaving the first two slots blank so only the third is
+  // set would read back into slot one instead, once trim()+split()
+  // collapses the leading blanks away). */
+  function getMnubardspFields(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'MNUBARDSP'; });
+    if (!k) return { menuBarRecord: '', choiceField: '', pullDownField: '' };
+    var parts = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    return { menuBarRecord: parts[0] || '', choiceField: parts[1] || '', pullDownField: parts[2] || '' };
+  }
+
+  /** Returns a NEW keywords array with MNUBARDSP set from `present` plus
+   *  its 3 positional name fields - removed entirely when `present` is
+   *  false. Trailing blank fields are dropped from the written parameter
+   *  string (so a blank `pullDownField` writes just "a b", not "a b ").
+   *  `conditions` (optional) follows setFileFlagKeyword's own "omitted
+   *  preserves whatever conditioning already existed, pass an explicit
+   *  array (including []) to actually change it" contract. */
+  function setMnubardspFields(keywords, present, menuBarRecord, choiceField, pullDownField, conditions) {
+    var existing = (keywords || []).find(function (kw) { return kw.name === 'MNUBARDSP'; });
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'MNUBARDSP'; });
+    if (present) {
+      var parts = [(menuBarRecord || '').trim(), (choiceField || '').trim(), (pullDownField || '').trim()];
+      while (parts.length && !parts[parts.length - 1]) parts.pop();
+      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: 'MNUBARDSP', parameters: parts.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
   /** Reads every instance of any keyword in `names` (e.g. `['INDTXT',
    *  'SETOF', 'CHANGE']`) as a repeatable row list - real DDS allows
    *  MULTIPLE `SETOF`/`CHANGE`/`INDTXT` keywords on one record (a
@@ -4069,6 +4117,8 @@
     setUnlockKeyword: setUnlockKeyword,
     getFileTwoFieldKeyword: getFileTwoFieldKeyword,
     setFileTwoFieldKeyword: setFileTwoFieldKeyword,
+    getMnubardspFields: getMnubardspFields,
+    setMnubardspFields: setMnubardspFields,
     getIndicatorTextRows: getIndicatorTextRows,
     setIndicatorTextRows: setIndicatorTextRows,
     getRepeatableKeywordInstances: getRepeatableKeywordInstances,

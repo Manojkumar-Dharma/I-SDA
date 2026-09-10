@@ -2920,8 +2920,40 @@
     var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
     g += flagRowHtml(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, fRetcmdkey.conditions, expandedSet);
     g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
+    // Bug fix (Task L76 - real SDA's "Define Menu-Bar Display Keywords"
+    // screenshot, docs/sda-reference/screens/record-level/menu-bar-record-
+    // mnubar/menu-bar-display-keywords/image151.png): MNUBARDSP used to be
+    // one flat free-text "parameters (optional)" box, forcing the person
+    // to hand-type its 1-3 space-separated names in the right order with
+    // no structured input. Real DDS actually gives MNUBARDSP two different
+    // parameter shapes depending on whether the record itself carries
+    // MNUBAR (see getMnubardspFields's own comment in dspfWriter.js for
+    // the full citation): on a MNUBAR record it's a single optional
+    // "Pull-down input field" name (still just the existing generic
+    // getFileFlagKeyword/setFileFlagKeyword single-parameter shape - that
+    // was already correct for this case, so it's untouched here beyond a
+    // clearer placeholder); on any OTHER record it's 2 required + 1
+    // optional trailing name (Menu-bar record / Choice field / Pull-down
+    // input field), which now gets its own 3-input row via the new
+    // getMnubardspFields/setMnubardspFields pair (a 3-field sibling of
+    // getFileTwoFieldKeyword/setFileTwoFieldKeyword, see dspfWriter.js).
+    // The checkbox + Conditioning toggle stay exactly as they were
+    // (flagRowHtml already modeled MNUBARDSP's own indicator conditioning
+    // correctly - that part of the row was never the bug, only the flat
+    // parameters box was).
     var mnubardsp = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP');
-    g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, mnubardsp.parameters, 'parameters (optional)', mnubardsp.conditions, expandedSet);
+    var isMnuBarRecForDsp = kw.some(function (k) { return k.name === 'MNUBAR'; });
+    g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, undefined, undefined, mnubardsp.conditions, expandedSet);
+    if (isMnuBarRecForDsp) {
+      g += '<input type="text" id="' + p + '-mnubardsp-pull" placeholder="Pull-down input field (name, optional)" value="' + escapeHtml(mnubardsp.parameters) + '" style="width:100%;margin:-4px 0 6px;" />';
+    } else {
+      var mnubardspFields = DspfWriter.getMnubardspFields(kw);
+      g += '<div class="three-col" style="margin:-4px 0 6px;">' +
+        '<input type="text" id="' + p + '-mnubardsp-rec" placeholder="Menu-bar record (name)" value="' + escapeHtml(mnubardspFields.menuBarRecord) + '" />' +
+        '<input type="text" id="' + p + '-mnubardsp-chc" placeholder="Choice field (name)" value="' + escapeHtml(mnubardspFields.choiceField) + '" />' +
+        '<input type="text" id="' + p + '-mnubardsp-pull" placeholder="Pull-down input field (name, optional)" value="' + escapeHtml(mnubardspFields.pullDownField) + '" />' +
+        '</div>';
+    }
     g += entFldAtrHtml(kw, p + '-entfldatr');
     var rtncsrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'RTNCSRLOC');
     g += '<div class="section-label">Return cursor location (RTNCSRLOC)</div>';
@@ -3259,7 +3291,34 @@
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
-    simple(p + '-mnubardsp', 'MNUBARDSP', true);
+    // Task L76 - hand-wired (like MNUBARSW/MNUCNL in wireMenuBarKeysPanel)
+    // rather than through the generic wireFlagRow/simple() helpers above,
+    // since MNUBARDSP now has two mutually-exclusive input shapes (1 field
+    // on a MNUBAR record, 3 on any other record - see recordKeywordsPanelsHtml's
+    // own comment) that neither wireFlagRow's single-param-box contract
+    // nor simple()'s 3-arg apply() signature can express.
+    (function wireMnubardsp() {
+      var onEl = document.getElementById(p + '-mnubardsp-on');
+      var pullEl = document.getElementById(p + '-mnubardsp-pull');
+      var recEl = document.getElementById(p + '-mnubardsp-rec');
+      var chcEl = document.getElementById(p + '-mnubardsp-chc');
+      function apply(keywords, conditions) {
+        var present = onEl.checked;
+        var isMnuBarRec = (keywords || []).some(function (k) { return k.name === 'MNUBAR'; });
+        if (isMnuBarRec) {
+          return DspfWriter.setFileFlagKeyword(keywords, 'MNUBARDSP', present, pullEl ? pullEl.value : '', undefined, conditions);
+        }
+        return DspfWriter.setMnubardspFields(keywords, present, recEl ? recEl.value : '', chcEl ? chcEl.value : '', pullEl ? pullEl.value : '', conditions);
+      }
+      function commit() { onChange(apply(getKeywords(), undefined)); }
+      if (onEl) onEl.addEventListener('change', commit);
+      if (pullEl) pullEl.addEventListener('change', commit);
+      if (recEl) recEl.addEventListener('change', commit);
+      if (chcEl) chcEl.addEventListener('change', commit);
+      wireFlagRowConditioning(p + '-mnubardsp', DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUBARDSP').conditions, function (newConditions) {
+        onChange(apply(getKeywords(), newConditions));
+      }, expandedSet, rerender);
+    })();
     wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr');
     wireTwoField(p + '-rtncsrloc-row', p + '-rtncsrloc-col', 'RTNCSRLOC');
     var pText = document.getElementById(p + '-text');
@@ -4177,14 +4236,17 @@
   // PICKER-SCREENS-PLAN.md). Menu-Bar Display Keywords (MNUBARDSP) is
   // deliberately NOT rebuilt here - it's already on Task R1's base Record
   // Keywords -> General tab (present for every record type including
-  // MNUBAR, via the existing flag+free-text-parameters row), and real
-  // SDA's own "Select Menu-Bar Record Keywords" menu (_menu/image148.png)
-  // only lists General + Select record keywords anyway - the dedicated
-  // "Define Menu-Bar Display Keywords" sub-screen is reached FROM
-  // MNUBARDSP's own "Select parameters" flag, not a separate top-level
-  // category, so R1's existing free-text parameters box already reaches
-  // it (its one sub-field, "Pull-down input field" - a field name - fits
-  // there directly). MNUBARSW/MNUCNL reuse menuBarKeysPanelHtml/
+  // MNUBAR), and real SDA's own "Select Menu-Bar Record Keywords" menu
+  // (_menu/image148.png) only lists General + Select record keywords
+  // anyway - the dedicated "Define Menu-Bar Display Keywords" sub-screen
+  // is reached FROM MNUBARDSP's own "Select parameters" flag, not a
+  // separate top-level category, so R1's row already reaches it. (Task
+  // L76 later gave that R1 row its own structured inputs - a single
+  // "Pull-down input field" name on a MNUBAR record same as before, 3
+  // Name inputs on any other record - rather than the one flat free-text
+  // box this comment originally described; see recordKeywordsPanelsHtml's
+  // own comment for the two-format rationale.) MNUBARSW/MNUCNL reuse
+  // menuBarKeysPanelHtml/
   // wireMenuBarKeysPanel above as-is (confirmed identical to the
   // file-level Menu-bar screen, just scoped to the record's own
   // keywords).

@@ -105,6 +105,14 @@ const htmlTemplate = `<!DOCTYPE html>
   .toolbar-field-row label { white-space: nowrap; }
   .field-row label { display: block; font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  /* Task L76 - MNUBARDSP's 3 Name inputs (Menu-bar record/Choice field/
+     Pull-down input field) need a 3-wide row; .two-col's fixed 2-column
+     grid would wrap a 3rd child onto its own new row instead, so this is
+     a flex variant (same shape as buildMenuWebviewTemplate.js's own
+     .two-col) that stretches evenly across however many children it's
+     given. */
+  .three-col { display: flex; gap: 8px; }
+  .three-col > * { flex: 1; min-width: 0; }
   .choice-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   /* min-width:0 removes the default flex min-width floor so a genuinely
    * flexible field (style="flex:1" - the sibling CHOICE keyword editor's

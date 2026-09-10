@@ -78,6 +78,44 @@ console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - "keyword(a b)" 
   check('RTNCSRLOC reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'RTNCSRLOC')) === JSON.stringify({ a: 'RFLD', b: 'CFLD' }));
 }
 
+console.log('\ngetMnubardspFields / setMnubardspFields - Task L76, MNUBARDSP\'s 3-name "keyword(a b c)" shape');
+{
+  let kw = [];
+  check('all blank by default', JSON.stringify(DspfWriter.getMnubardspFields(kw)) === JSON.stringify({ menuBarRecord: '', choiceField: '', pullDownField: '' }));
+
+  kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR', 'MNUCHC', 'PULL');
+  check('parameters are "a b c"', kw[0].parameters === 'MENUBAR MNUCHC PULL');
+  check('present reads back true', DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').present === true);
+  let state = DspfWriter.getMnubardspFields(kw);
+  check('menuBarRecord round-trips', state.menuBarRecord === 'MENUBAR');
+  check('choiceField round-trips', state.choiceField === 'MNUCHC');
+  check('pullDownField round-trips', state.pullDownField === 'PULL');
+
+  // Trailing pullDownField blank drops just that one token (2-required +
+  // 1-optional-trailing shape, per IBM's own MNUBARDSP(menu-bar-record
+  // &choice-field [&pulldown-input-field]) format).
+  kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR', 'MNUCHC', '');
+  check('blank trailing field drops just that token', kw[0].parameters === 'MENUBAR MNUCHC');
+  check('pullDownField reads back empty', DspfWriter.getMnubardspFields(kw).pullDownField === '');
+
+  // Conditions default-preserve (omitted) vs explicit-clear contract,
+  // same as setFileFlagKeyword's own.
+  kw = DspfWriter.setFileFlagKeyword(kw, 'MNUBARDSP', true, undefined, undefined, [{ relation: 'AND', indicators: [{ number: '30', not: false }] }]);
+  check('conditions attached via setFileFlagKeyword survive an omitted-conditions MNUBARDSP field edit', function () {
+    const before = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').conditions;
+    kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR2', 'MNUCHC2', 'PULL2');
+    const after = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').conditions;
+    return before.length === 1 && JSON.stringify(after) === JSON.stringify(before);
+  }());
+  check('an explicit [] clears conditions', function () {
+    kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR2', 'MNUCHC2', 'PULL2', []);
+    return DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').conditions.length === 0;
+  }());
+
+  kw = DspfWriter.setMnubardspFields(kw, false, '', '', '');
+  check('removed entirely when present=false', kw.filter((k) => k.name === 'MNUBARDSP').length === 0);
+}
+
 console.log('\nR1 keywords reuse F1\'s generic getFileFlagKeyword/setFileFlagKeyword correctly at record level');
 {
   let kw = [];
@@ -135,6 +173,30 @@ console.log('\napplyRecordUpdate() - a batch of R1 picker keywords (one per cate
   check('PRTFILE reads back after reparse', prt.name === 'RPTFILE' && prt.library === 'MYLIB');
   check('the file-level DSPSIZ is untouched by the record-keyword edit', DspfWriter.getDisplaySizesList(reparsed.fileKeywords).length === 1);
   check('the record\'s own field is untouched', reRec.fields.length === 1 && reRec.fields[0].nameType === 'CONSTANT');
+}
+
+console.log('\nMNUBARDSP\'s 3-field form (Task L76) round-trips through serialize + re-parse');
+{
+  const src =
+    [
+      '     A                                      DSPSIZ(24 80)',
+      '     A          R APPSCR',
+      "     A                                  1  2'Hello'",
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const rec = model.records[0];
+
+  let kw = DspfWriter.setMnubardspFields(rec.keywords, true, 'MENUBAR', 'MNUCHC', 'PULL');
+  const newLines = DspfWriter.applyRecordUpdate(rec, lines, { keywords: kw });
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const reRec = reparsed.records[0];
+
+  check('MNUBARDSP present after reparse', DspfWriter.getFileFlagKeyword(reRec.keywords, 'MNUBARDSP').present === true);
+  const fields = DspfWriter.getMnubardspFields(reRec.keywords);
+  check('menuBarRecord reads back after reparse', fields.menuBarRecord === 'MENUBAR');
+  check('choiceField reads back after reparse', fields.choiceField === 'MNUCHC');
+  check('pullDownField reads back after reparse', fields.pullDownField === 'PULL');
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
