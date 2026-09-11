@@ -1079,7 +1079,7 @@
     ));
   }
 
-  function wireRecordIndicatorInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
+  function wireRecordIndicatorInstances(keywords, onChange, ownerKey, expandedSet, rerender, getFileKeywords) {
     var instances = DspfWriter.getRecordIndicatorInstances(keywords);
     wireRepeatableConditionedInstances(
       ownerKey + '-rep',
@@ -1087,10 +1087,36 @@
       function (next) { onChange(DspfWriter.setRecordIndicatorInstances(keywords, next)); },
       function wirePayload(instIdPrefix, inst, updatePayload) {
         var kindEl = document.querySelector('.' + instIdPrefix + '-kind');
-        if (kindEl) kindEl.addEventListener('change', function () { updatePayload({ kind: kindEl.value }); });
         var respEl = document.querySelector('.' + instIdPrefix + '-resp');
-        if (respEl) respEl.addEventListener('change', function () { updatePayload({ resp: respEl.value }); });
         var textEl = document.querySelector('.' + instIdPrefix + '-text');
+        // Task S36-4: HELP and CHANGE's response indicator ('resp' here) is
+        // a verified S36E rule (see checkS36EResponseIndicatorViolation's
+        // own comment) - hard-blocked (direct user request: reject, not
+        // warn) regardless of which field triggered the change: switching
+        // `kind` TO Help/Change while a resp is already typed, or editing
+        // `resp` while `kind` is already Help/Change, both run through this
+        // same check using whatever's CURRENTLY on screen for the other
+        // field. `getFileKeywords` (optional - only Task L5d's record-level
+        // panel and Task R3's SFLCTL panel pass it, both of which have a
+        // file to check USRDSPMGT against) is skipped gracefully when
+        // absent, same "no-op without the file context" pattern this file
+        // uses elsewhere.
+        function guardedUpdate(partial) {
+          var nextKind = partial.kind !== undefined ? partial.kind : (kindEl ? kindEl.value : inst.kind);
+          var nextResp = partial.resp !== undefined ? partial.resp : (respEl ? respEl.value : inst.resp);
+          if (getFileKeywords && (nextKind === 'HELP' || nextKind === 'CHANGE')) {
+            var violation = DspfWriter.checkS36EResponseIndicatorViolation(getFileKeywords(), nextKind, nextResp);
+            if (violation) {
+              window.alert(violation.message);
+              if (kindEl) kindEl.value = inst.kind;
+              if (respEl) respEl.value = inst.resp;
+              return;
+            }
+          }
+          updatePayload(partial);
+        }
+        if (kindEl) kindEl.addEventListener('change', function () { guardedUpdate({ kind: kindEl.value }); });
+        if (respEl) respEl.addEventListener('change', function () { guardedUpdate({ resp: respEl.value }); });
         if (textEl) textEl.addEventListener('change', function () { updatePayload({ text: textEl.value }); });
       },
       expandedSet,
@@ -2750,18 +2776,78 @@
    *  commit in the same render already made) and `onChange` receives the
    *  new array to commit, same contract as every other dedicated picker
    *  here. */
-  function wireFileKeywordsPanels(getKeywords, onChange, expandedSet, rerender) {
+  function wireFileKeywordsPanels(getKeywords, onChange, expandedSet, rerender, getModel) {
     function simple(id, name, placeholderIsParams, altNames) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions, altNames);
       }, DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).conditions, expandedSet, rerender);
+    }
+    // Task S36-4 - hard-blocks S36-3's verified rules in this keyword's own
+    // panel (direct user request: reject, not warn). Hand-rolled rather
+    // than reusing wireFlagRow (its own commit() always calls
+    // onChange(apply(...)), even when apply "blocks" by returning the
+    // keywords array unchanged - that still round-trips through
+    // commitFileEdit and posts an edit, just a no-op one; skipping
+    // onChange entirely is the only way to make a block actually free of
+    // side effects) - window.alert(...) plus reverting the input to its
+    // last good value, same "alert on invalid, don't commit" idiom this
+    // file already uses for DSPSIZ's own try/catch above. Only meaningful
+    // for keywords S36E_KEYWORD_RESTRICTIONS marks
+    // `appliesTo: 'response-indicator'` (currently HELP and PRINT at file
+    // level - CHANGE has no file-level row at all, see
+    // wireRecordIndicatorInstances' own S36-4 guard).
+    function guardedSimple(id, name) {
+      var onEl = document.getElementById(id + '-on');
+      var paramsEl = document.getElementById(id + '-params');
+      function commit() {
+        var present = onEl.checked;
+        var params = paramsEl ? paramsEl.value : '';
+        var violation = present ? DspfWriter.checkS36EResponseIndicatorViolation(getKeywords(), name, params) : null;
+        if (violation) {
+          window.alert(violation.message);
+          var prev = DspfWriter.getFileFlagKeyword(getKeywords(), name);
+          onEl.checked = prev.present;
+          if (paramsEl) paramsEl.value = prev.parameters;
+          return;
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, params));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+      if (paramsEl) paramsEl.addEventListener('change', commit);
+      wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
+      }, expandedSet, rerender);
     }
     // General
     simple('fk-invite', 'INVITE');
     simple('fk-alwgph', 'ALWGPH');
     simple('fk-msgalarm', 'MSGALARM');
     simple('fk-indara', 'INDARA');
-    simple('fk-usrdspmgt', 'USRDSPMGT');
+    // Task S36-4: turning USRDSPMGT ON is blocked (not just warned) when a
+    // keyword value ALREADY set elsewhere in the file would violate a
+    // verified S36E rule once USRDSPMGT is active - the symmetric half of
+    // this task's own direct user request. Hand-wired rather than
+    // `simple()`/`guardedSimple()` since it needs the WHOLE model (every
+    // record), not just the file's own keywords - see
+    // DspfWriter.findS36EConflictInModel's own doc comment.
+    (function wireUsrdspmgt() {
+      var onEl = document.getElementById('fk-usrdspmgt-on');
+      if (!onEl) return;
+      onEl.addEventListener('change', function () {
+        if (onEl.checked && getModel) {
+          var conflict = DspfWriter.findS36EConflictInModel(getModel());
+          if (conflict) {
+            window.alert('Cannot turn on "Manage display in S/36 mode" (USRDSPMGT) - ' + conflict.location + '\u2019s ' + conflict.keyword + ' keyword already conflicts with its S36E rule:\n\n' + conflict.message);
+            onEl.checked = false;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'USRDSPMGT', onEl.checked));
+      });
+      wireFlagRowConditioning('fk-usrdspmgt', DspfWriter.getFileFlagKeyword(getKeywords(), 'USRDSPMGT').conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'USRDSPMGT', onEl.checked, undefined, undefined, newConditions));
+      }, expandedSet, rerender);
+    })();
     wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
     wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RLTB').conditions, expandedSet, rerender);
     wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
@@ -2785,12 +2871,15 @@
       ['fk-home', 'HOME'],
       ['fk-pagedown', 'PAGEDOWN', ['ROLLUP']],
       ['fk-pageup', 'PAGEUP', ['ROLLDOWN']],
-      ['fk-help', 'HELP'],
       ['fk-hlprtn', 'HLPRTN'],
       ['fk-vldcmdkey', 'VLDCMDKEY'],
     ].forEach(function (row) {
       simple(row[0], row[1], true, row[2]);
     });
+    // Task S36-4: HELP's response indicator is a verified S36E rule (see
+    // guardedSimple's own comment) - split out of the forEach above so
+    // this one row alone gets the hard-block treatment.
+    guardedSimple('fk-help', 'HELP');
     var indtxtOn = document.getElementById('fk-indtxt-on');
     var indtxtInd = document.getElementById('fk-indtxt-ind');
     var indtxtText = document.getElementById('fk-indtxt-text');
@@ -2806,7 +2895,11 @@
     wireFlagRowConditioning('fk-indtxt', DspfWriter.getFileFlagKeyword(getKeywords(), 'INDTXT').conditions, commitIndtxt, expandedSet, rerender);
 
     // Print
-    simple('fk-print', 'PRINT', true);
+    // Task S36-4: PRINT's response indicator (including the literal
+    // '*PGM' text, per IBM's own documented equivalence - see
+    // checkS36EResponseIndicatorViolation's own comment) is a verified
+    // S36E rule.
+    guardedSimple('fk-print', 'PRINT');
     var prtName = document.getElementById('fk-prtfile-name');
     var prtLib = document.getElementById('fk-prtfile-library');
     function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
@@ -3372,7 +3465,7 @@
    *  `getKeywords`/`onChange` follow the same "current array, new array"
    *  contract as wireFileKeywordsPanels. `idPrefix` must match what was
    *  passed to recordKeywordsPanelsHtml(). */
-  function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+  function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
     var p = idPrefix;
     function simple(id, name, hasParams) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
@@ -3466,7 +3559,7 @@
     if (pAltname) pAltname.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'ALTNAME', pAltname.value)); });
 
     // Indicator / screen-control (Task L5d)
-    wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender);
+    wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender, getFileKeywords);
 
     // Application help - Task L5d-ii moved this to each HELP entry's own
     // properties (see wireApplicationHelpFields below); nothing to wire
@@ -3522,7 +3615,32 @@
     simple(p + '-erase', 'ERASE');
 
     // Print
-    simple(p + '-print', 'PRINT', true);
+    // Task S36-4: PRINT's response indicator (including the literal
+    // '*PGM' text) is a verified S36E rule, hard-blocked here the same
+    // hand-rolled (not wireFlagRow) way as the file-level PRINT row (see
+    // wireFileKeywordsPanels' own guardedSimple comment for why).
+    (function wireRecordPrint() {
+      var onEl = document.getElementById(p + '-print-on');
+      var paramsEl = document.getElementById(p + '-print-params');
+      function commit() {
+        var present = onEl.checked;
+        var params = paramsEl ? paramsEl.value : '';
+        var violation = present ? DspfWriter.checkS36EResponseIndicatorViolation(getFileKeywords ? getFileKeywords() : [], 'PRINT', params) : null;
+        if (violation) {
+          window.alert(violation.message);
+          var prev = DspfWriter.getFileFlagKeyword(getKeywords(), 'PRINT');
+          onEl.checked = prev.present;
+          if (paramsEl) paramsEl.value = prev.parameters;
+          return;
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', present, params));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+      if (paramsEl) paramsEl.addEventListener('change', commit);
+      wireFlagRowConditioning(p + '-print', DspfWriter.getFileFlagKeyword(getKeywords(), 'PRINT').conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
+      }, expandedSet, rerender);
+    })();
     var prtName = document.getElementById(p + '-prtfile-name');
     var prtLib = document.getElementById(p + '-prtfile-library');
     function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
@@ -4285,7 +4403,7 @@
   /** Wires every row across all 4 sflCtlPanelsHtml() panels. Same
    *  `getKeywords`/`onChange` contract every other dedicated picker here
    *  uses. */
-  function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+  function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
     var p = idPrefix;
 
     // General
@@ -4310,7 +4428,7 @@
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
 
     // Indicator (Task L5d)
-    wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender);
+    wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender, getFileKeywords);
 
     // Display Layout
     var layoutApply = document.getElementById(p + '-layout-apply');

@@ -126,5 +126,51 @@ console.log('\ncheckS36EResponseIndicatorViolation - unverified keywords (ALTNAM
   check('unknown keyword name', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'NOTAKEYWORD', 'anything') === null);
 }
 
+console.log('\ns36ERuleViolationMessage (Task S36-4) - the USRDSPMGT-independent half of checkS36EResponseIndicatorViolation');
+{
+  check('CHANGE with a response indicator violates regardless of USRDSPMGT', DspfWriter.s36ERuleViolationMessage('CHANGE', '30') !== null);
+  check('a blank response indicator never violates', DspfWriter.s36ERuleViolationMessage('CHANGE', '') === null);
+  check('an unverified keyword never violates', DspfWriter.s36ERuleViolationMessage('ALTNAME', 'anything') === null);
+  check('message text matches the rule table entry', DspfWriter.s36ERuleViolationMessage('HELP', '30') === DspfWriter.getS36ERestriction('HELP').rule);
+}
+
+console.log('\nfindS36EConflictInModel (Task S36-4) - the symmetric block: scans the WHOLE model for an existing value that would conflict if USRDSPMGT were turned on');
+{
+  check('a clean model (nothing set) has no conflict', DspfWriter.findS36EConflictInModel({ fileKeywords: [], records: [] }) === null);
+
+  // File-level HELP with a response indicator conflicts.
+  var fileKeywords = DspfWriter.setFileFlagKeyword([], 'HELP', true, '30');
+  var conflict = DspfWriter.findS36EConflictInModel({ fileKeywords: fileKeywords, records: [] });
+  check('file-level HELP is found', conflict && conflict.keyword === 'HELP' && conflict.location === 'File-level keywords');
+
+  // File-level PRINT(*PGM) also conflicts (same equivalence as the direct test above).
+  var filePrintPgm = DspfWriter.setFileFlagKeyword([], 'PRINT', true, '*PGM');
+  var printConflict = DspfWriter.findS36EConflictInModel({ fileKeywords: filePrintPgm, records: [] });
+  check('file-level PRINT(*PGM) is found', printConflict && printConflict.keyword === 'PRINT');
+
+  // A record's own PRINT flag conflicts too, independent of file-level keywords.
+  var recWithPrint = { name: 'REC1', keywords: DspfWriter.setFileFlagKeyword([], 'PRINT', true, '40') };
+  var recPrintConflict = DspfWriter.findS36EConflictInModel({ fileKeywords: [], records: [recWithPrint] });
+  check('record-level PRINT is found, location names the record', recPrintConflict && recPrintConflict.keyword === 'PRINT' && recPrintConflict.location === 'Record REC1');
+
+  // A record's own HELP/CHANGE indicator instance conflicts too.
+  var recWithChange = { name: 'REC2', keywords: DspfWriter.setRecordIndicatorInstances([], [{ kind: 'CHANGE', conditions: [], resp: '50', text: '' }]) };
+  var recChangeConflict = DspfWriter.findS36EConflictInModel({ fileKeywords: [], records: [recWithChange] });
+  check('record-level CHANGE indicator instance is found, location names the record', recChangeConflict && recChangeConflict.keyword === 'CHANGE' && recChangeConflict.location === 'Record REC2');
+
+  // A CLEAR/SETOF/etc. instance (not HELP/CHANGE) never conflicts, even with a response indicator.
+  var recWithClear = { name: 'REC3', keywords: DspfWriter.setRecordIndicatorInstances([], [{ kind: 'CLEAR', conditions: [], resp: '60', text: '' }]) };
+  check('a non-restricted kind (CLEAR) never conflicts', DspfWriter.findS36EConflictInModel({ fileKeywords: [], records: [recWithClear] }) === null);
+
+  // ALTNAME/MSGID/RETKEY/RETCMDKEY are unverified - never scanned/flagged.
+  var fileWithAltname = DspfWriter.setFileQuotedText([], 'ALTNAME', 'SOMENAME');
+  check('unverified keywords are never flagged by the whole-model scan', DspfWriter.findS36EConflictInModel({ fileKeywords: fileWithAltname, records: [] }) === null);
+
+  // First conflict found wins - file-level HELP checked before any record.
+  var fileWithHelp = DspfWriter.setFileFlagKeyword([], 'HELP', true, '30');
+  var multiConflict = DspfWriter.findS36EConflictInModel({ fileKeywords: fileWithHelp, records: [recWithPrint] });
+  check('file-level conflict is reported before scanning records', multiConflict.location === 'File-level keywords');
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

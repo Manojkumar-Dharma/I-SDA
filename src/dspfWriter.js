@@ -4246,6 +4246,22 @@
     return getFileFlagKeyword(fileKeywords, 'USRDSPMGT').present;
   }
 
+  /** Task S36-4 - the USRDSPMGT-independent half of
+   *  checkS36EResponseIndicatorViolation below: does `responseIndicatorText`
+   *  violate `keywordName`'s S36E rule, regardless of whether USRDSPMGT is
+   *  currently on? Split out so the "would this conflict if USRDSPMGT were
+   *  turned on" scan (findS36EConflictInModel below - the symmetric block
+   *  this task's own direct user request asked for) can reuse the exact
+   *  same per-keyword rule logic checkS36EResponseIndicatorViolation uses
+   *  for the ordinary "USRDSPMGT already on" case, rather than duplicating
+   *  it under a second gate condition. */
+  function s36ERuleViolationMessage(keywordName, responseIndicatorText) {
+    var restriction = getS36ERestriction(keywordName);
+    if (!restriction || !restriction.verified || restriction.appliesTo !== 'response-indicator') return null;
+    if (!(responseIndicatorText || '').trim()) return null;
+    return restriction.rule;
+  }
+
   /** Evaluates one `appliesTo: 'response-indicator'` rule (currently
    *  CHANGE, HELP, and PRINT) against a candidate response-indicator
    *  parameter string for that keyword, but ONLY when USRDSPMGT is active
@@ -4254,23 +4270,63 @@
    *  write as that keyword's response-indicator parameter (e.g. CHANGE's
    *  own `resp` from getRecordIndicatorInstances, or PRINT's own
    *  getFileFlagKeyword(...).parameters) - a blank/whitespace-only value
-   *  never violates (PRINT with no parameters, or PRINT(*PGM) passed
-   *  through PRINT's OWN literal '*PGM' text rather than this parameter,
-   *  are the two ways to specify PRINT with no numeric response indicator;
-   *  see the PRINT keyword panel's own *PGM handling for that literal
-   *  case - this function only judges the numeric-response-indicator
-   *  shape all three keywords share).
+   *  never violates (PRINT with no parameters, or PRINT(*PGM) passed as
+   *  the literal text '*PGM' through this SAME parameter box, both work
+   *  correctly here: '*PGM' is non-blank, so it's caught by the same
+   *  check a numeric response indicator would be, matching IBM's own
+   *  documented *PGM/response-indicator equivalence - see this rule's own
+   *  `source` note in S36E_KEYWORD_RESTRICTIONS above).
    *  Returns `{ severity, message }` on a violation, or `null` when there
    *  is nothing to flag (USRDSPMGT off, unknown/unverified/non-response-
    *  indicator keyword, or a blank response indicator). Pure data lookup -
-   *  does not mutate or reject anything; S36-4 decides what a UI does with
-   *  this result. */
+   *  does not mutate or reject anything; S36-4's UI wiring decides what a
+   *  UI does with this result (a hard block, per that task's own direct
+   *  user request - see recordKeywordsPanelsHtml/wireFileKeywordsPanels'
+   *  own S36-4 comments for where). */
   function checkS36EResponseIndicatorViolation(fileKeywords, keywordName, responseIndicatorText) {
     if (!isUsrdspmgtActive(fileKeywords)) return null;
-    var restriction = getS36ERestriction(keywordName);
-    if (!restriction || !restriction.verified || restriction.appliesTo !== 'response-indicator') return null;
-    if (!(responseIndicatorText || '').trim()) return null;
-    return { severity: restriction.severity, message: restriction.rule };
+    var message = s36ERuleViolationMessage(keywordName, responseIndicatorText);
+    return message ? { severity: getS36ERestriction(keywordName).severity, message: message } : null;
+  }
+
+  /** Task S36-4's symmetric block: scans the WHOLE model (file-level HELP/
+   *  PRINT, every record's own PRINT flag, and every record's HELP/CHANGE
+   *  indicator instances via getRecordIndicatorInstances) for any value
+   *  ALREADY SET that would violate a verified S36E rule if USRDSPMGT were
+   *  turned on right now - used to hard-block enabling USRDSPMGT while an
+   *  incompatible keyword value already exists elsewhere in the file, per
+   *  this task's own direct user request. Only the 3 VERIFIED rules
+   *  (CHANGE/HELP/PRINT) are scanned - ALTNAME/MSGID/RETKEY/RETCMDKEY have
+   *  no rule to check against (`rule: null` - see S36E_KEYWORD_RESTRICTIONS'
+   *  own comment) so scanning them would either always pass (uninformative)
+   *  or require guessing a constraint this project deliberately declined to
+   *  guess in S36-3. Returns `{ keyword, location, message }` for the FIRST
+   *  conflict found (good enough for a single alert - not collecting every
+   *  conflict in the file), or `null` when nothing would conflict. `model`
+   *  is the parsed DSPF model shape ({ fileKeywords, records }) already
+   *  used throughout this codebase's webview layer. */
+  function findS36EConflictInModel(model) {
+    var fileKeywords = (model && model.fileKeywords) || [];
+    var helpMsg = s36ERuleViolationMessage('HELP', getFileFlagKeyword(fileKeywords, 'HELP').parameters);
+    if (helpMsg) return { keyword: 'HELP', location: 'File-level keywords', message: helpMsg };
+    var printMsg = s36ERuleViolationMessage('PRINT', getFileFlagKeyword(fileKeywords, 'PRINT').parameters);
+    if (printMsg) return { keyword: 'PRINT', location: 'File-level keywords', message: printMsg };
+
+    var records = (model && model.records) || [];
+    for (var i = 0; i < records.length; i++) {
+      var rec = records[i];
+      var recPrintMsg = s36ERuleViolationMessage('PRINT', getFileFlagKeyword(rec.keywords, 'PRINT').parameters);
+      if (recPrintMsg) return { keyword: 'PRINT', location: 'Record ' + rec.name, message: recPrintMsg };
+
+      var instances = getRecordIndicatorInstances(rec.keywords);
+      for (var j = 0; j < instances.length; j++) {
+        var inst = instances[j];
+        if (inst.kind !== 'HELP' && inst.kind !== 'CHANGE') continue;
+        var instMsg = s36ERuleViolationMessage(inst.kind, inst.resp);
+        if (instMsg) return { keyword: inst.kind, location: 'Record ' + rec.name, message: instMsg };
+      }
+    }
+    return null;
   }
 
   return {
@@ -4408,6 +4464,8 @@
     serializeDisplaySizes: serializeDisplaySizes,
     getS36ERestriction: getS36ERestriction,
     isUsrdspmgtActive: isUsrdspmgtActive,
+    s36ERuleViolationMessage: s36ERuleViolationMessage,
     checkS36EResponseIndicatorViolation: checkS36EResponseIndicatorViolation,
+    findS36EConflictInModel: findS36EConflictInModel,
   };
 });
