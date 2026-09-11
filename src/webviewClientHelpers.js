@@ -1346,18 +1346,16 @@
     );
   }
 
-  /** Task L5 - "Define Message ID" (MSGID) as Task L1's repeatable,
-   *  independently-conditioned instances - see
-   *  DspfWriter.getMessageIdInstances/setMessageIdInstances's own doc
-   *  comment for why the argument text itself stays opaque (unchanged
-   *  from the older single-instance getMessageId/setMessageId) while this
-   *  adds the repeatable/independently-conditioned dimension. Uses the
-   *  staging-row pattern (like colorAttrStatesHtml above) rather than
-   *  L1b's non-blank-placeholder-default: MSGID's argument is raw keyword
-   *  text with no single always-valid non-empty placeholder to seed (unlike
-   *  ERRMSG's literal-text case, where "New message" is itself valid DDS),
-   *  so a permanently-visible "new instance" text box that's only read
-   *  (and only appended) when non-blank fits better here. */
+  /** L79 - "Define Message ID" (MSGID) as Task L1's repeatable,
+   *  independently-conditioned instances (see DspfWriter.
+   *  getMessageIdInstances/setMessageIdInstances's own doc comment for
+   *  the repeatable/conditioning dimension) with MSGID's own parameters
+   *  now broken out into the same structured prompts real SDA's "Define
+   *  Message ID" screen shows (screens/field-level/character/message-id/
+   *  image171.png): Message prefix, Message identifier (&field name),
+   *  Message file, Library - see DspfWriter.parseMsgIdParams/
+   *  formatMsgIdParams's own doc comment for MSGID's exact grammar and
+   *  why a rarer combined-field form still falls back to raw text. */
   function messageIdInstancesHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getMessageIdInstances(keywords);
     var html = '<div class="section-label">Message ID (MSGID)</div>';
@@ -1365,18 +1363,36 @@
       instances,
       ownerKey + '-msgid',
       function renderPayload(inst, instIdPrefix) {
-        var payload = '<input type="text" class="' + instIdPrefix + '-text" placeholder="e.g. USR &amp;FLDNAME MSGF1 MYLIB, or *NONE" style="width:100%;" value="' + escapeHtml(inst.parameters || '') + '" />';
-        payload += '<div class="hint-small">[msg-prefix] &amp;field-name, or [msgid-prefix] msg-id message-file [library]</div>';
-        return payload;
+        return msgIdPayloadHtml(inst.parameters, instIdPrefix);
       },
       expandedSet,
       '+ Add message ID',
       function renderStaging(stagingIdPrefix) {
-        var staging = '<input type="text" class="' + stagingIdPrefix + '-text" placeholder="e.g. USR &amp;FLDNAME MSGF1 MYLIB, or *NONE" style="width:100%;" value="" />';
-        staging += '<div class="hint-small">[msg-prefix] &amp;field-name, or [msgid-prefix] msg-id message-file [library]</div>';
-        return staging;
+        return msgIdPayloadHtml('', stagingIdPrefix);
       }
     );
+    return html;
+  }
+
+  /** Renders one MSGID instance's payload - the structured Message
+   *  prefix/identifier/file/Library prompts for the common form, or (see
+   *  DspfWriter.parseMsgIdParams's own doc comment) a raw-text fallback
+   *  for the rarer combined-&field form this can't safely decompose. */
+  function msgIdPayloadHtml(parameters, idPrefix) {
+    var parsed = DspfWriter.parseMsgIdParams(parameters);
+    if (!parsed.structured) {
+      return (
+        '<div class="hint-small">This MSGID uses a form (e.g. more than one &amp;field reference) too varied to edit as separate fields - edit its raw text below.</div>' +
+        '<input type="text" class="' + idPrefix + '-text" style="width:100%;" value="' + escapeHtml(parameters || '') + '" />'
+      );
+    }
+    var html = '<label class="attr-check"><input type="checkbox" class="' + idPrefix + '-none" ' + (parsed.none ? 'checked' : '') + '/>*NONE (no message text)</label>';
+    html += '<div class="' + idPrefix + '-fields" style="margin-top:6px;' + (parsed.none ? 'display:none;' : '') + '">';
+    html += '<div class="two-col"><div class="field-row"><label>Message prefix</label><input type="text" class="' + idPrefix + '-prefix" value="' + escapeHtml(parsed.prefix) + '" /></div>';
+    html += '<div class="field-row"><label>Message identifier (&amp;field name)</label><input type="text" class="' + idPrefix + '-fieldname" value="' + escapeHtml(parsed.fieldName) + '" placeholder="FLDNAME" /></div></div>';
+    html += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" class="' + idPrefix + '-msgfile" value="' + escapeHtml(parsed.msgFile) + '" /></div>';
+    html += '<div class="field-row"><label>Library</label><input type="text" class="' + idPrefix + '-library" value="' + escapeHtml(parsed.library) + '" placeholder="*LIBL" /></div></div>';
+    html += '</div>';
     return html;
   }
 
@@ -1387,18 +1403,63 @@
       instances,
       function (next) { onChange(DspfWriter.setMessageIdInstances(keywords, next)); },
       function wirePayload(instIdPrefix, inst, updatePayload) {
-        var textEl = document.querySelector('.' + instIdPrefix + '-text');
-        if (textEl) textEl.addEventListener('change', function () { updatePayload({ parameters: textEl.value }); });
+        wireMsgIdPayload(instIdPrefix, updatePayload);
       },
       expandedSet,
       rerender,
       function readNewInstance(stagingIdPrefix) {
-        var textEl = document.querySelector('.' + stagingIdPrefix + '-text');
-        var parameters = textEl ? textEl.value.trim() : '';
+        var parameters = readMsgIdPayload(stagingIdPrefix);
         if (!parameters) return null; // nothing to add
         return { conditions: [], parameters: parameters };
       }
     );
+  }
+
+  /** Reads the CURRENT values out of one MSGID payload's structured
+   *  fields (or its raw-text fallback input, whichever is present in the
+   *  DOM for this instance - see msgIdPayloadHtml). */
+  function readMsgIdStructuredState(idPrefix) {
+    var noneEl = document.querySelector('.' + idPrefix + '-none');
+    var prefixEl = document.querySelector('.' + idPrefix + '-prefix');
+    var fieldNameEl = document.querySelector('.' + idPrefix + '-fieldname');
+    var msgFileEl = document.querySelector('.' + idPrefix + '-msgfile');
+    var libraryEl = document.querySelector('.' + idPrefix + '-library');
+    return {
+      none: !!(noneEl && noneEl.checked),
+      prefix: prefixEl ? prefixEl.value : '',
+      fieldName: fieldNameEl ? fieldNameEl.value.trim().toUpperCase() : '',
+      msgFile: msgFileEl ? msgFileEl.value.trim().toUpperCase() : '',
+      library: libraryEl ? libraryEl.value.trim().toUpperCase() : '',
+    };
+  }
+
+  function readMsgIdPayload(idPrefix) {
+    var rawEl = document.querySelector('.' + idPrefix + '-text');
+    if (rawEl) return rawEl.value.trim();
+    return DspfWriter.formatMsgIdParams(readMsgIdStructuredState(idPrefix)).trim();
+  }
+
+  function wireMsgIdPayload(idPrefix, updatePayload) {
+    var rawEl = document.querySelector('.' + idPrefix + '-text');
+    if (rawEl) {
+      rawEl.addEventListener('change', function () { updatePayload({ parameters: rawEl.value }); });
+      return;
+    }
+    var noneEl = document.querySelector('.' + idPrefix + '-none');
+    var fieldsEl = document.querySelector('.' + idPrefix + '-fields');
+    function commit() {
+      updatePayload({ parameters: DspfWriter.formatMsgIdParams(readMsgIdStructuredState(idPrefix)) });
+    }
+    if (noneEl) {
+      noneEl.addEventListener('change', function () {
+        if (fieldsEl) fieldsEl.style.display = noneEl.checked ? 'none' : '';
+        commit();
+      });
+    }
+    ['-prefix', '-fieldname', '-msgfile', '-library'].forEach(function (suffix) {
+      var el = document.querySelector('.' + idPrefix + suffix);
+      if (el) el.addEventListener('change', commit);
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -1610,17 +1671,24 @@
   function keyingOptionsHtml(keywords, ownerKey, expandedSet, dataType) {
     var html = '<div class="section-label">Keying options</div>';
     html += checkInstancesHtml(keywords, ownerKey + '-keying', expandedSet, KEYING_OPTION_CODES, '+ Add CHECK instance');
-    // Task D3 - Keyboard shift attribute (KEYBRD), numeric-only real DDS
-    // keyword shown on the same "Select Keying Options" screen. Modeled as
-    // a plain present/absent + one-letter-parameter keyword via
-    // DspfWriter.getFileFlagKeyword/setFileFlagKeyword (generic over any
-    // keywords array), same as several of Task R1's record-level keywords -
-    // no dedicated getX/setX pair needed for a single-letter parameter.
-    // Deliberately NOT converted to a repeatable instance alongside CHECK
-    // above (Task L1d) - real DDS could in principle vary KEYBRD by
-    // indicator too, but it's a single always-on-screen attribute rather
-    // than several message/condition pairs, so this is a scoping choice,
-    // not an oversight; see Known limitations in the README.
+    // Task D3 - "Keyboard shift attribute", the other prompt real SDA's
+    // "Select Keying Options" screen shows alongside CHECK's codes.
+    //
+    // Bug fix (L79): this was previously written out as a made-up
+    // "KEYBRD" keyword via DspfWriter.getFileFlagKeyword/setFileFlagKeyword
+    // - but KEYBRD is not a real DDS keyword at all. Per the DDS
+    // Reference's own "Data type/keyboard shift for display files
+    // (position 35)" entry, the keyboard shift attribute IS the field's
+    // data-type column itself (position 35) - the exact same column the
+    // Basic tab's "Data type" dropdown already edits (field.dataType,
+    // written via DspfWriter.applyFieldUpdate's `dataType` update, not a
+    // keyword). Real SDA shows this prompt on the Keying Options screen
+    // too purely for convenience (it's a common thing to set alongside
+    // CHECK), so this selector is kept here, but now wired to the SAME
+    // field.dataType that dropdown already owns, instead of ever writing
+    // a keyword - selecting a value here and reopening the Basic tab now
+    // shows the identical value there, and vice versa, since there's only
+    // ever the one underlying column.
     //
     // Bug fix (found during the L20/L21/L22 keyword-inventory audit): the
     // CHARACTER field value list here previously read ['S','N','Y','I','D']
@@ -1647,23 +1715,23 @@
     // nothing already-set becomes unselectable) rather than guessing wrong
     // in the narrower direction.
     var isNumericField = dataType === 'S' || dataType === 'Y' || dataType === 'B' || dataType === 'P' || dataType === 'L' || dataType === 'T' || dataType === 'Z' || dataType === 'F';
-    var keybrdValues = isNumericField ? ['', 'S', 'N', 'Y', 'I', 'D'] : ['', 'N', 'A', 'X', 'W', 'I', 'D', 'M', 'J', 'O', 'E', 'G'];
-    var keybrd = DspfWriter.getFileFlagKeyword(keywords, 'KEYBRD');
-    html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute (KEYBRD)</div>';
-    html += '<select class="' + ownerKey + '-keybrd">' +
-      keybrdValues.map(function (v) {
-        return '<option value="' + v + '"' + (keybrd.parameters === v ? ' selected' : '') + '>' + (v || '(none)') + '</option>';
+    var shiftValues = isNumericField ? ['', 'S', 'N', 'Y', 'I', 'D'] : ['', 'N', 'A', 'X', 'W', 'I', 'D', 'M', 'J', 'O', 'E', 'G'];
+    html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute</div>';
+    html += '<div class="hint-small">Not a keyword - this is the field\u2019s own data type (position 35), the same value the Basic tab\u2019s Data type dropdown edits.</div>';
+    html += '<select class="' + ownerKey + '-keyboard-shift">' +
+      shiftValues.map(function (v) {
+        return '<option value="' + v + '"' + ((dataType || '') === v ? ' selected' : '') + '>' + (v || '(none)') + '</option>';
       }).join('') +
       '</select>';
     return html;
   }
 
-  function wireKeyingOptionsEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+  function wireKeyingOptionsEditor(keywords, onChange, ownerKey, expandedSet, rerender, onDataTypeChange) {
     wireCheckInstancesEditor(keywords, onChange, ownerKey + '-keying', expandedSet, rerender, KEYING_OPTION_CODES);
-    var keybrdEl = document.querySelector('.' + ownerKey + '-keybrd');
-    if (keybrdEl) {
-      keybrdEl.addEventListener('change', function () {
-        onChange(DspfWriter.setFileFlagKeyword(keywords, 'KEYBRD', !!keybrdEl.value, keybrdEl.value));
+    var shiftEl = document.querySelector('.' + ownerKey + '-keyboard-shift');
+    if (shiftEl && onDataTypeChange) {
+      shiftEl.addEventListener('change', function () {
+        onDataTypeChange(shiftEl.value || null);
       });
     }
   }
@@ -1819,17 +1887,18 @@
     });
   }
 
-  /** "Define Database Reference" overrides - DLTCHK/DLTEDT, alongside
-   *  (not replacing) the existing Resolve Referenced Field button which
-   *  owns REFFLD/REF itself. Each its own flagRowHtml() row - real SDA's
-   *  own "Define Database Reference" screen (screens/field-level/
-   *  character/database-reference/image170.png) shows DLTCHK/DLTEDT as
-   *  single Y=Yes flags with no repeatable-instance list, same reasoning
-   *  as Input keywords above - one occurrence's own indicator expression
-   *  already covers every combination real DDS allows. Uses
-   *  DspfWriter.getFileFlagKeyword/setFileFlagKeyword directly (generic
-   *  over any keywords array), superseding getReferenceOverrides/
-   *  setReferenceOverrides (kept for backward compatibility). */
+  /** "Define Database Reference" overrides - DLTCHK/DLTEDT. Kept as its
+   *  own function (used internally by databaseReferenceHtml below, and
+   *  exported for backward compatibility with any existing caller still
+   *  on the DLTCHK/DLTEDT-only shape) - real SDA's own "Define Database
+   *  Reference" screen (screens/field-level/character/database-reference/
+   *  image170.png) shows DLTCHK/DLTEDT as single Y=Yes flags with no
+   *  repeatable-instance list, same reasoning as Input keywords above -
+   *  one occurrence's own indicator expression already covers every
+   *  combination real DDS allows. Uses DspfWriter.getFileFlagKeyword/
+   *  setFileFlagKeyword directly (generic over any keywords array),
+   *  superseding getReferenceOverrides/setReferenceOverrides (kept for
+   *  backward compatibility). */
   function referenceOverridesHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label" style="margin-top:10px;">Ignore previously specified</div>';
     [
@@ -1857,6 +1926,103 @@
         rerender
       );
     });
+  }
+
+  /** L79 - "Define Database Reference", now covering REFFLD itself (see
+   *  DspfWriter.getReffldState/applyReffldState's own doc comments for
+   *  REFFLD's exact grammar), alongside (not replacing) DLTCHK/DLTEDT
+   *  (referenceOverridesHtml above, unchanged).
+   *
+   *  Bug fix: this panel previously showed ONLY DLTCHK/DLTEDT - REFFLD
+   *  itself was reachable solely via the "Resolve Referenced Field"
+   *  button, which (a) only works on a field that's ALREADY flagged as a
+   *  reference and (b) needs a live Code for i connection just to fill
+   *  anything in. Real SDA's own screen (screens/field-level/character/
+   *  database-reference/image170.png) lets you type REFFLD's field name/
+   *  database file/library/record directly with no live connection at
+   *  all - and that screen is ALSO the only place SDA lets you turn a
+   *  field INTO a reference field (position 29 'R') to begin with;
+   *  "Resolve Referenced Field" can only ever refresh one that already
+   *  is. Takes the whole `field` (not just field.keywords), since
+   *  `isReference` lives on the field itself, not as a keyword.
+   *
+   *  Real SDA's own "Override existing field definition" (New field
+   *  length/New decimal positions/New keyboard shift) is deliberately
+   *  NOT duplicated here - those three are the field's own length/
+   *  decimal-positions/data-type columns (positions 25-34/35), already
+   *  editable for every field (reference or not) via the Basic tab's
+   *  Length/Decimals/Data type inputs. There's no separate field-level
+   *  keyword for "override the referenced field's length" - real SDA
+   *  writes the override directly into the SAME columns other DDS tools
+   *  read as this field's own length/type/decimals, exactly what the
+   *  Basic tab already does. */
+  function databaseReferenceHtml(field, ownerKey, expandedSet) {
+    var state = DspfWriter.getReffldState(field);
+    var html = '<div class="section-label">Reference field (REFFLD)</div>';
+    html += '<label class="attr-check"><input type="checkbox" id="' + ownerKey + '-reffld-on" ' + (state.isReference ? 'checked' : '') + '/>This field\u2019s length/type/decimals come from a referenced database field (position 29 \u2018R\u2019)</label>';
+    html += '<div id="' + ownerKey + '-reffld-fields" style="margin-top:6px;' + (state.isReference ? '' : 'display:none;') + '">';
+    html += '<label class="attr-check"><input type="checkbox" id="' + ownerKey + '-reffld-src" ' + (state.useSrc ? 'checked' : '') + '/>Reference current DDS source (*SRC)</label>';
+    html += '<div class="two-col" style="margin-top:6px;"><div class="field-row"><label>Field (if different)</label><input type="text" id="' + ownerKey + '-reffld-fieldname" value="' + escapeHtml(state.fieldName) + '" placeholder="' + escapeHtml(field.name || '') + '" /></div>';
+    html += '<div class="field-row"><label>Record</label><input type="text" id="' + ownerKey + '-reffld-record" value="' + escapeHtml(state.recordFormat) + '" /></div></div>';
+    html += '<div class="two-col" id="' + ownerKey + '-reffld-filelib" style="' + (state.useSrc ? 'display:none;' : '') + '"><div class="field-row"><label>Database file</label><input type="text" id="' + ownerKey + '-reffld-file" value="' + escapeHtml(state.file) + '" /></div>';
+    html += '<div class="field-row"><label>Library</label><input type="text" id="' + ownerKey + '-reffld-library" value="' + escapeHtml(state.library) + '" placeholder="*LIBL" /></div></div>';
+    html += '<div class="hint-small">Field name is required whenever any of these is filled in (defaults to this field\u2019s own name if left blank) - or leave everything here blank, with just the checkbox above on, for a bare \u2018same-named field\u2019 reference.</div>';
+    html += '</div>';
+    html += referenceOverridesHtml(field.keywords, ownerKey, expandedSet);
+    return html;
+  }
+
+  /** `onFieldChange(updates)` receives a partial field update (e.g.
+   *  `{ isReference, keywords }`) suitable for DspfWriter.applyFieldUpdate/
+   *  the webview's own commitEdit wrapper around it - NOT just a keywords
+   *  array, since toggling "Reference field" needs to touch
+   *  field.isReference too. DLTCHK/DLTEDT's own edits (via
+   *  wireReferenceOverridesEditor, unchanged) are wrapped to the same
+   *  callback as a keywords-only update. */
+  function wireDatabaseReferenceEditor(field, onFieldChange, ownerKey, expandedSet, rerender) {
+    var onEl = document.getElementById(ownerKey + '-reffld-on');
+    var fieldsEl = document.getElementById(ownerKey + '-reffld-fields');
+    var srcEl = document.getElementById(ownerKey + '-reffld-src');
+    var fileLibEl = document.getElementById(ownerKey + '-reffld-filelib');
+    var fieldNameEl = document.getElementById(ownerKey + '-reffld-fieldname');
+    var recordEl = document.getElementById(ownerKey + '-reffld-record');
+    var fileEl = document.getElementById(ownerKey + '-reffld-file');
+    var libraryEl = document.getElementById(ownerKey + '-reffld-library');
+
+    function readState() {
+      return {
+        isReference: !!(onEl && onEl.checked),
+        useSrc: !!(srcEl && srcEl.checked),
+        fieldName: fieldNameEl ? fieldNameEl.value.trim().toUpperCase() : '',
+        recordFormat: recordEl ? recordEl.value.trim().toUpperCase() : '',
+        file: fileEl ? fileEl.value.trim().toUpperCase() : '',
+        library: libraryEl ? libraryEl.value.trim().toUpperCase() : '',
+      };
+    }
+
+    function commit() {
+      var state = readState();
+      var newKeywords = DspfWriter.applyReffldState(field.keywords, field.name, state);
+      onFieldChange({ isReference: state.isReference, keywords: newKeywords });
+    }
+
+    if (onEl) {
+      onEl.addEventListener('change', function () {
+        if (fieldsEl) fieldsEl.style.display = onEl.checked ? '' : 'none';
+        commit();
+      });
+    }
+    if (srcEl) {
+      srcEl.addEventListener('change', function () {
+        if (fileLibEl) fileLibEl.style.display = srcEl.checked ? 'none' : '';
+        commit();
+      });
+    }
+    [fieldNameEl, recordEl, fileEl, libraryEl].forEach(function (el) {
+      if (el) el.addEventListener('change', commit);
+    });
+
+    wireReferenceOverridesEditor(field.keywords, function (newKeywords) { onFieldChange({ keywords: newKeywords }); }, ownerKey, expandedSet, rerender);
   }
 
   // -----------------------------------------------------------------------
@@ -4635,6 +4801,8 @@
     wireGeneralFieldKeywordsEditor: wireGeneralFieldKeywordsEditor,
     referenceOverridesHtml: referenceOverridesHtml,
     wireReferenceOverridesEditor: wireReferenceOverridesEditor,
+    databaseReferenceHtml: databaseReferenceHtml,
+    wireDatabaseReferenceEditor: wireDatabaseReferenceEditor,
     messageIdInstancesHtml: messageIdInstancesHtml,
     wireMessageIdInstancesEditor: wireMessageIdInstancesEditor,
     subfileFieldKeywordsHtml: subfileFieldKeywordsHtml,

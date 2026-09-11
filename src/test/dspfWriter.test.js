@@ -1678,5 +1678,83 @@ console.log('\n  a simpler 1-old/1-new in-place edit is unaffected by the two-pa
   check('new line carries the tag', nonBlank[2].indexOf('Goodbye') >= 0 && nonBlank[2].indexOf('Tag') >= 0);
 }
 
+console.log('\nL79 - DspfWriter.parseReffldParams()/formatReffldParams() - REFFLD\u2019s own [record-format/]field-name [*SRC | [library/]file] grammar');
+{
+  check('bare field name only', JSON.stringify(DspfWriter.parseReffldParams('CUSTNAME')) === JSON.stringify({ present: true, recordFormat: '', fieldName: 'CUSTNAME', useSrc: false, library: '', file: '' }));
+  check('field name + *SRC', JSON.stringify(DspfWriter.parseReffldParams('CUSTNAME *SRC')) === JSON.stringify({ present: true, recordFormat: '', fieldName: 'CUSTNAME', useSrc: true, library: '', file: '' }));
+  check('field name + library/file', JSON.stringify(DspfWriter.parseReffldParams('CUSTNAME MYLIB/CUSTMST')) === JSON.stringify({ present: true, recordFormat: '', fieldName: 'CUSTNAME', useSrc: false, library: 'MYLIB', file: 'CUSTMST' }));
+  check('field name + file only (no library)', JSON.stringify(DspfWriter.parseReffldParams('CUSTNAME CUSTMST')) === JSON.stringify({ present: true, recordFormat: '', fieldName: 'CUSTNAME', useSrc: false, library: '', file: 'CUSTMST' }));
+  check('record-format/field name', JSON.stringify(DspfWriter.parseReffldParams('CUSTREC/CUSTNAME MYLIB/CUSTMST')) === JSON.stringify({ present: true, recordFormat: 'CUSTREC', fieldName: 'CUSTNAME', useSrc: false, library: 'MYLIB', file: 'CUSTMST' }));
+  check('blank text -> not present', DspfWriter.parseReffldParams('').present === false);
+
+  check('formatReffldParams round-trips field+*SRC', DspfWriter.formatReffldParams({ fieldName: 'CUSTNAME', useSrc: true }) === 'CUSTNAME *SRC');
+  check('formatReffldParams round-trips field+library/file', DspfWriter.formatReffldParams({ fieldName: 'CUSTNAME', library: 'MYLIB', file: 'CUSTMST' }) === 'CUSTNAME MYLIB/CUSTMST');
+  check('formatReffldParams round-trips record-format/field', DspfWriter.formatReffldParams({ recordFormat: 'CUSTREC', fieldName: 'CUSTNAME' }) === 'CUSTREC/CUSTNAME');
+  check('formatReffldParams with just a field name (no *SRC, no file)', DspfWriter.formatReffldParams({ fieldName: 'CUSTNAME' }) === 'CUSTNAME');
+  check('formatReffldParams with a blank field name writes nothing (REFFLD always needs a field name)', DspfWriter.formatReffldParams({ fieldName: '', useSrc: true }) === '');
+}
+
+console.log('\nL79 - DspfWriter.getReffldState()/applyReffldState() - the \u201cDefine Database Reference\u201d panel\u2019s full state, combining field.isReference with REFFLD');
+{
+  const src = [buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }), buildLine({ seq: '00020', name: 'DESC', ref: 'R', func: 'REFFLD(D1_DESC MYLIB/CUSTMST)' })].join('\n') + '\n';
+  const field = DspfParser.parseDspf(src).records[0].fields[0];
+  const state = DspfWriter.getReffldState(field);
+  check('getReffldState reads isReference off the FIELD (not a keyword)', state.isReference === true);
+  check('getReffldState reads REFFLD\u2019s own parsed parameters', state.fieldName === 'D1_DESC' && state.library === 'MYLIB' && state.file === 'CUSTMST' && state.useSrc === false);
+
+  const noRefState = DspfWriter.getReffldState({ isReference: false, keywords: [] });
+  check('getReffldState on a non-reference field with no REFFLD reports isReference false and blank parts', noRefState.isReference === false && !noRefState.fieldName && !noRefState.file);
+
+  const droppedKeywords = DspfWriter.applyReffldState([{ name: 'REFFLD', parameters: 'D1_DESC MYLIB/CUSTMST', conditions: [] }], 'D1_DESC', { isReference: false });
+  check('applyReffldState with isReference off always drops REFFLD - meaningless without position 29 \u2018R\u2019', !droppedKeywords.some((k) => k.name === 'REFFLD'));
+
+  const bareRefKeywords = DspfWriter.applyReffldState([], 'D1_DESC', { isReference: true });
+  check('applyReffldState with isReference on but every REFFLD part blank writes NO REFFLD keyword - bare \u2018R\u2019 alone is valid DDS (same-named field)', !bareRefKeywords.some((k) => k.name === 'REFFLD'));
+
+  const fullRefKeywords = DspfWriter.applyReffldState([], 'D1_DESC', { isReference: true, useSrc: false, library: 'MYLIB', file: 'CUSTMST', fieldName: '', recordFormat: '' });
+  const reffldKw = fullRefKeywords.find((k) => k.name === 'REFFLD');
+  check('applyReffldState defaults REFFLD\u2019s field name to the field\u2019s OWN name when left blank but other parts are filled in (REFFLD\u2019s field name is always required)', !!reffldKw && reffldKw.parameters === 'D1_DESC MYLIB/CUSTMST');
+}
+
+console.log('\nL79 - DspfWriter.applyFieldUpdate() now accepts an isReference update (position 29 \u2018R\u2019), the missing piece needed to turn a field INTO a reference field from the UI');
+{
+  const src = [buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }), buildLine({ seq: '00020', name: 'DESC', length: '30' })].join('\n') + '\n';
+  const oldLines = src.split(/\r\n|\r|\n/);
+  const field = DspfParser.parseDspf(src).records[0].fields[0];
+  check('starts out NOT a reference field', field.isReference === false);
+  const newLines = DspfWriter.applyFieldUpdate(field, oldLines, { isReference: true, keywords: [{ name: 'REFFLD', parameters: 'DESC MYLIB/CUSTMST', conditions: [] }] });
+  const reparsed = DspfParser.parseDspf(newLines.join('\n') + '\n');
+  const updated = reparsed.records[0].fields[0];
+  check('position 29 is now \u2018R\u2019', updated.isReference === true);
+  check('REFFLD round-trips through re-parsing', updated.keywords.some((k) => k.name === 'REFFLD' && k.parameters.trim() === 'DESC MYLIB/CUSTMST'));
+}
+
+console.log('\nL79 - DspfWriter.parseMsgIdParams()/formatMsgIdParams() - MSGID\u2019s [msg-prefix]&field-name [library/]message-file grammar (or *NONE)');
+{
+  const withPrefix = DspfWriter.parseMsgIdParams('USR&AMOUNT MYLIB/MSGF1');
+  check('parses a prefix + &field + library/file', withPrefix.structured && withPrefix.prefix === 'USR' && withPrefix.fieldName === 'AMOUNT' && withPrefix.library === 'MYLIB' && withPrefix.msgFile === 'MSGF1');
+
+  const noPrefix = DspfWriter.parseMsgIdParams('&AMOUNT MSGF1');
+  check('parses a bare &field (no prefix) + file only (no library)', noPrefix.structured && noPrefix.prefix === '' && noPrefix.fieldName === 'AMOUNT' && noPrefix.library === '' && noPrefix.msgFile === 'MSGF1');
+
+  const none = DspfWriter.parseMsgIdParams('*NONE');
+  check('*NONE parses as its own special case, not structured field/file parts', none.structured && none.none === true);
+
+  const blank = DspfWriter.parseMsgIdParams('');
+  check('blank parses as structured-but-empty (ready for a fresh staging row), not the *NONE/raw case', blank.structured && !blank.none && !blank.fieldName);
+
+  const combined = DspfWriter.parseMsgIdParams('LIB1/&FLD1&FLD2/FILE1');
+  check('a combined multi-&field form is reported unstructured (raw-text fallback), not silently mangled', combined.structured === false && combined.raw === 'LIB1/&FLD1&FLD2/FILE1');
+
+  const tooManyTokens = DspfWriter.parseMsgIdParams('&AMOUNT MYLIB/MSGF1 EXTRA');
+  check('more than 2 tokens is also reported unstructured', tooManyTokens.structured === false);
+
+  check('formatMsgIdParams round-trips prefix+field+library/file', DspfWriter.formatMsgIdParams({ prefix: 'USR', fieldName: 'AMOUNT', library: 'MYLIB', msgFile: 'MSGF1' }) === 'USR&AMOUNT MYLIB/MSGF1');
+  check('formatMsgIdParams round-trips bare field+file (no prefix, no library)', DspfWriter.formatMsgIdParams({ fieldName: 'AMOUNT', msgFile: 'MSGF1' }) === '&AMOUNT MSGF1');
+  check('formatMsgIdParams writes *NONE when none is set (ignoring any other fields)', DspfWriter.formatMsgIdParams({ none: true, fieldName: 'AMOUNT', msgFile: 'MSGF1' }) === '*NONE');
+  check('formatMsgIdParams with a blank field name writes nothing (both field name and message file are required)', DspfWriter.formatMsgIdParams({ fieldName: '', msgFile: 'MSGF1' }) === '');
+  check('formatMsgIdParams with a blank message file writes nothing', DspfWriter.formatMsgIdParams({ fieldName: 'AMOUNT', msgFile: '' }) === '');
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

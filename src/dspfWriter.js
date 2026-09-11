@@ -1158,9 +1158,8 @@
   // (shared by SDA's "Keying options" and part of "Validity check"
   // screens), input handling (DUP/BLANKS/CHANGE/CHGINPDFT), general
   // keywords (ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/PUTRETAIN/OVRDTA/OVRATR/
-  // CHRID/IGCALTTYP/NOCCSID), database-reference overrides (DLTCHK/
-  // DLTEDT - REFFLD/REF itself is handled by the existing Resolve
-  // Referenced Field feature, not duplicated here), and MSGID. Verified
+  // CHRID/IGCALTTYP/NOCCSID), database-reference (REFFLD itself - see
+  // L79 below - plus its DLTCHK/DLTEDT override flags), and MSGID. Verified
   // against IBM's own DDS keyword reference, not guessed - each is a real,
   // distinct field-level keyword (DFT is input-only, DFTVAL is output/
   // both; CHECK takes a code list distinct from RANGE/COMP/VALUES and can
@@ -1313,12 +1312,124 @@
     return next;
   }
 
+  // ---------------------------------------------------------------------
+  // L79 - REFFLD (Referenced Field) itself, as a directly-editable
+  // "Define Database Reference" panel (previously only reachable via the
+  // "Resolve Referenced Field" action, which needs the field to ALREADY
+  // be a reference and a live Code for i connection - real SDA lets you
+  // type REFFLD's own parameters with neither). Grammar, confirmed
+  // against the DDS Reference's own REFFLD entry for display files:
+  //   REFFLD([record-format-name/]referenced-field-name
+  //          [{*SRC | [library-name/]database-file-name}])
+  // - the field name is required whenever REFFLD is written at all (even
+  // if it matches the field being defined); record-format-name is only
+  // needed when the referenced file has more than one format; *SRC means
+  // "look in this same DDS source" and is mutually exclusive with an
+  // explicit [library/]file. Position 29 ('R', field.isReference - NOT a
+  // keyword) is required for REFFLD to mean anything, but is also valid
+  // completely alone ("same-named field", falling back to the file-level
+  // REF keyword or *SRC by default) - so REFFLD itself is only written
+  // once at least one of its own parts is actually filled in.
+  // ---------------------------------------------------------------------
+
+  /** Parses REFFLD's raw parameter text into its structured parts. Doesn't
+   *  validate that `fieldName` is non-blank when `present` - callers (see
+   *  formatReffldParams) decide what an "empty" REFFLD means for their
+   *  purposes. */
+  function parseReffldParams(paramText) {
+    var trimmed = (paramText || '').trim();
+    if (!trimmed) return { present: false, recordFormat: '', fieldName: '', useSrc: false, library: '', file: '' };
+    var tokens = trimmed.split(/\s+/).filter(Boolean);
+    var first = tokens[0];
+    var slash1 = first.indexOf('/');
+    var recordFormat = slash1 >= 0 ? first.slice(0, slash1) : '';
+    var fieldName = slash1 >= 0 ? first.slice(slash1 + 1) : first;
+    var useSrc = false;
+    var library = '';
+    var file = '';
+    if (tokens[1]) {
+      if (tokens[1].toUpperCase() === '*SRC') {
+        useSrc = true;
+      } else {
+        var slash2 = tokens[1].indexOf('/');
+        library = slash2 >= 0 ? tokens[1].slice(0, slash2) : '';
+        file = slash2 >= 0 ? tokens[1].slice(slash2 + 1) : tokens[1];
+      }
+    }
+    return { present: true, recordFormat: recordFormat, fieldName: fieldName, useSrc: useSrc, library: library, file: file };
+  }
+
+  /** Inverse of parseReffldParams - returns '' (write no REFFLD keyword
+   *  at all) when `fieldName` is blank, since REFFLD's field-name
+   *  parameter is always required the moment REFFLD is written. */
+  function formatReffldParams(state) {
+    var s = state || {};
+    var fieldName = (s.fieldName || '').trim();
+    if (!fieldName) return '';
+    var recordFormat = (s.recordFormat || '').trim();
+    var first = recordFormat ? recordFormat + '/' + fieldName : fieldName;
+    var second = '';
+    if (s.useSrc) {
+      second = '*SRC';
+    } else {
+      var file = (s.file || '').trim();
+      if (file) {
+        var library = (s.library || '').trim();
+        second = library ? library + '/' + file : file;
+      }
+    }
+    return second ? first + ' ' + second : first;
+  }
+
+  /** Reads the full "Define Database Reference" panel state for `field`:
+   *  whether it's a reference field at all (position 29 'R' -
+   *  `field.isReference`, not a keyword - so this takes the FIELD, not
+   *  just its keywords) plus REFFLD's own structured parameters when
+   *  present. */
+  function getReffldState(field) {
+    var reffld = ((field && field.keywords) || []).find(function (k) { return k.name === 'REFFLD'; });
+    var parsed = parseReffldParams(reffld ? reffld.parameters : '');
+    return {
+      isReference: !!(field && field.isReference),
+      recordFormat: parsed.recordFormat,
+      fieldName: parsed.fieldName,
+      useSrc: parsed.useSrc,
+      library: parsed.library,
+      file: parsed.file,
+    };
+  }
+
+  /** Inverse of getReffldState for the keywords half only - `isReference`
+   *  itself is a field-level property, not a keyword, so the caller (the
+   *  webview) applies it directly via DspfWriter.applyFieldUpdate's own
+   *  `isReference` update alongside whatever this returns. Returns a NEW
+   *  keywords array: `state.isReference` false always drops REFFLD (it's
+   *  meaningless without position 29 'R'); true only writes REFFLD when
+   *  at least one of record-format/field-name/*SRC/file/library was
+   *  actually filled in (bare 'R' with nothing else is valid DDS on its
+   *  own - see this section's own header comment) - and when it does,
+   *  defaults the field-name part to `currentFieldName` (this field's own
+   *  name) rather than leaving REFFLD's always-required field name blank. */
+  function applyReffldState(keywords, currentFieldName, state) {
+    var s = state || {};
+    var next = (keywords || []).filter(function (k) { return k.name !== 'REFFLD'; });
+    if (s.isReference) {
+      var hasAnyPart = !!((s.recordFormat || '').trim() || (s.fieldName || '').trim() || s.useSrc || (s.file || '').trim() || (s.library || '').trim());
+      if (hasAnyPart) {
+        var fieldName = (s.fieldName || '').trim() || currentFieldName || '';
+        var params = formatReffldParams({ recordFormat: s.recordFormat, fieldName: fieldName, useSrc: s.useSrc, library: s.library, file: s.file });
+        if (params) next = next.concat([{ name: 'REFFLD', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+      }
+    }
+    return next;
+  }
+
   /** Reads the field's database-reference OVERRIDE flags - DLTCHK (ignore
    *  the referenced field's own validity-check keywords) and DLTEDT
-   *  (ignore its edit keywords) - only meaningful alongside REFFLD/REF,
-   *  which the existing Resolve Referenced Field feature already manages
-   *  (see DspfEngine.resolveReferenceTarget / extension.ts's
-   *  fetchReferencedFieldAttributes) - not duplicated here. */
+   *  (ignore its edit keywords) - only meaningful alongside REFFLD/REF
+   *  (see getReffldState/applyReffldState above, and the "Resolve
+   *  Referenced Field" feature for populating length/type/decimals from a
+   *  live system) - not duplicated here. */
   function getReferenceOverrides(keywords) {
     var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
     return { dltchk: has('DLTCHK'), dltedt: has('DLTEDT') };
@@ -1335,6 +1446,69 @@
     if (s.dltchk && !next.some(function (k) { return k.name === 'DLTCHK'; })) next = next.concat([{ name: 'DLTCHK', parameters: '', conditions: [], raw: '', sourceLines: [] }]);
     if (s.dltedt && !next.some(function (k) { return k.name === 'DLTEDT'; })) next = next.concat([{ name: 'DLTEDT', parameters: '', conditions: [], raw: '', sourceLines: [] }]);
     return next;
+  }
+
+  // ---------------------------------------------------------------------
+  // L79 - MSGID's own structured parameters, as directly-editable prompts
+  // (previously a single opaque free-text box with just a hint string -
+  // real SDA's own "Define Message ID" screen (screens/field-level/
+  // character/message-id/image171.png) shows Message prefix / Message
+  // identifier / Message file / Library as four separate prompts).
+  // Grammar, confirmed against the DDS Reference's own MSGID entry:
+  //   MSGID(message-identifier [library-name/]message-file)
+  //   or MSGID(*NONE)
+  // where message-identifier is [msg-prefix]&field-name (an optional
+  // literal prefix immediately followed by an ampersand and the name of
+  // the field that supplies the actual message ID/message number at
+  // runtime). The DDS Reference also documents a rarer form combining
+  // MULTIPLE &field references and literal constants within the same
+  // message-identifier (for splitting the id's own bytes across more than
+  // one field) - too structurally varied to safely decompose into fixed
+  // prompts (same "flag it, don't guess" posture the KEYBRD audit already
+  // took elsewhere in this file), so parseMsgIdParams reports
+  // `structured:false` for anything outside the common single-field form
+  // and the caller falls back to raw-text editing for those.
+  // ---------------------------------------------------------------------
+
+  /** Parses MSGID's raw parameter text into its structured parts, or
+   *  reports `structured:false` (with `raw` set to the original text
+   *  unchanged) when it's `*NONE`, blank, or a form parseMsgIdParams
+   *  doesn't recognize - see this section's own header comment for why
+   *  some valid MSGID text can't be decomposed. */
+  function parseMsgIdParams(paramText) {
+    var trimmed = (paramText || '').trim();
+    if (!trimmed) return { structured: true, none: false, prefix: '', fieldName: '', library: '', msgFile: '', raw: trimmed };
+    if (trimmed.toUpperCase() === '*NONE') return { structured: true, none: true, prefix: '', fieldName: '', library: '', msgFile: '', raw: trimmed };
+    var tokens = trimmed.split(/\s+/).filter(Boolean);
+    if (tokens.length !== 2) return { structured: false, none: false, prefix: '', fieldName: '', library: '', msgFile: '', raw: trimmed };
+    var idToken = tokens[0];
+    var ampIdx = idToken.indexOf('&');
+    if (ampIdx < 0) return { structured: false, none: false, prefix: '', fieldName: '', library: '', msgFile: '', raw: trimmed };
+    var prefix = idToken.slice(0, ampIdx);
+    var fieldName = idToken.slice(ampIdx + 1);
+    if (!fieldName) return { structured: false, none: false, prefix: '', fieldName: '', library: '', msgFile: '', raw: trimmed };
+    var fileToken = tokens[1];
+    var slash = fileToken.indexOf('/');
+    var library = slash >= 0 ? fileToken.slice(0, slash) : '';
+    var msgFile = slash >= 0 ? fileToken.slice(slash + 1) : fileToken;
+    if (!msgFile) return { structured: false, none: false, prefix: '', fieldName: '', library: '', msgFile: '', raw: trimmed };
+    return { structured: true, none: false, prefix: prefix, fieldName: fieldName, library: library, msgFile: msgFile, raw: trimmed };
+  }
+
+  /** Inverse of parseMsgIdParams - returns '' (write no MSGID keyword at
+   *  all) when `fieldName` or `msgFile` is blank, since both are always
+   *  required for the structured form (mirrors CHKMSGID's own
+   *  both-or-neither rule elsewhere in this file). */
+  function formatMsgIdParams(state) {
+    var s = state || {};
+    if (s.none) return '*NONE';
+    var fieldName = (s.fieldName || '').trim();
+    var msgFile = (s.msgFile || '').trim();
+    if (!fieldName || !msgFile) return '';
+    var idToken = (s.prefix || '').trim() + '&' + fieldName;
+    var library = (s.library || '').trim();
+    var fileToken = library ? library + '/' + msgFile : msgFile;
+    return idToken + ' ' + fileToken;
   }
 
   /** Reads the field's MSGID keyword (message-identifier-sourced field
@@ -2884,9 +3058,10 @@
 
   /**
    * Applies `updates` (a partial field object - any of name/length/dataType/decimalPositions/
-   * usage/location{line,column}/keywords) to a copy of `field`, regenerates its source lines,
-   * and splices them into `sourceLines` (array of original line strings, 1 per array index
-   * with index 0 = line 1). Returns the new array of source lines; does not mutate the input.
+   * usage/isReference/location{line,column}/keywords) to a copy of `field`, regenerates its
+   * source lines, and splices them into `sourceLines` (array of original line strings, 1 per
+   * array index with index 0 = line 1). Returns the new array of source lines; does not mutate
+   * the input.
    */
   function applyFieldUpdate(field, sourceLines, updates) {
     var updated = JSON.parse(JSON.stringify(field));
@@ -2901,6 +3076,7 @@
       updated.decimalPositionsRaw = updates.decimalPositions == null ? null : String(updates.decimalPositions);
     }
     if (updates.usage !== undefined) updated.usage = updates.usage;
+    if (updates.isReference !== undefined) updated.isReference = !!updates.isReference;
     if (updates.line !== undefined) updated.location.line = updates.line;
     if (updates.column !== undefined) {
       updated.location.column = updates.column;
@@ -4400,8 +4576,14 @@
     setGeneralFieldKeywords: setGeneralFieldKeywords,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
+    parseReffldParams: parseReffldParams,
+    formatReffldParams: formatReffldParams,
+    getReffldState: getReffldState,
+    applyReffldState: applyReffldState,
     getMessageId: getMessageId,
     setMessageId: setMessageId,
+    parseMsgIdParams: parseMsgIdParams,
+    formatMsgIdParams: formatMsgIdParams,
     getMessageIdInstances: getMessageIdInstances,
     setMessageIdInstances: setMessageIdInstances,
     getMenubarChoices: getMenubarChoices,

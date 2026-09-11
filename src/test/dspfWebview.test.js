@@ -2103,28 +2103,37 @@ function runFieldPropertyHelpersScenario() {
     let refEdit = posted.find((m) => m.type === 'applyEdit');
     check('checking DLTCHK commits it immediately', refEdit && refEdit.text.includes('DLTCHK'));
 
-    console.log('  Message ID (MSGID) on a named field - Task L5: repeatable, independently-conditioned instances');
+    console.log('  Message ID (MSGID) on a named field - Task L5/L79: repeatable, independently-conditioned instances, now with structured prompts (message prefix/identifier/file/library) instead of one opaque text box');
     posted.length = 0;
     const amountEl8 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl8.dispatchEvent(new Event('click', { bubbles: true }));
     const msgidPrefix = fieldKey + '-msgid';
-    const msgidStagingInput = doc.querySelector('.' + msgidPrefix + '-new-text');
-    check('setup: the MSGID staging input is present', !!msgidStagingInput);
-    msgidStagingInput.value = 'USR &AMOUNT MSGF1 MYLIB';
+    const msgidNewPrefix = msgidPrefix + '-new';
+    const msgidPrefixEl = doc.querySelector('.' + msgidNewPrefix + '-prefix');
+    const msgidFieldNameEl = doc.querySelector('.' + msgidNewPrefix + '-fieldname');
+    const msgidFileEl = doc.querySelector('.' + msgidNewPrefix + '-msgfile');
+    const msgidLibraryEl = doc.querySelector('.' + msgidNewPrefix + '-library');
+    check('setup: the MSGID staging prompts (prefix/identifier/file/library) are present', !!msgidPrefixEl && !!msgidFieldNameEl && !!msgidFileEl && !!msgidLibraryEl);
+    msgidPrefixEl.value = 'USR';
+    msgidFieldNameEl.value = 'AMOUNT';
+    msgidFileEl.value = 'MSGF1';
+    msgidLibraryEl.value = 'MYLIB';
     const msgidAddBtn = doc.querySelector('.repeat-inst-add[data-prefix="' + msgidPrefix + '"]');
     check('setup: the + Add message ID button is present', !!msgidAddBtn);
     msgidAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
     let msgidEdit = posted.find((m) => m.type === 'applyEdit');
     const msgidFields = DspfParser.parseDspf(msgidEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
-    check('posts MSGID with the entered argument text', msgidFields.find((k) => k.name === 'MSGID') && msgidFields.find((k) => k.name === 'MSGID').parameters === 'USR &AMOUNT MSGF1 MYLIB');
+    check('posts MSGID assembled from the structured prompts (prefix&amp;field library/file)', msgidFields.find((k) => k.name === 'MSGID') && msgidFields.find((k) => k.name === 'MSGID').parameters === 'USR&AMOUNT MYLIB/MSGF1');
 
     posted.length = 0;
-    const msgidStagingInput2 = doc.querySelector('.' + msgidPrefix + '-new-text');
-    msgidStagingInput2.value = '*NONE';
+    const msgidNoneEl = doc.querySelector('.' + msgidNewPrefix + '-none');
+    check('setup: the *NONE checkbox is present for the next staging row', !!msgidNoneEl);
+    msgidNoneEl.checked = true;
+    msgidNoneEl.dispatchEvent(new Event('change', { bubbles: true }));
     doc.querySelector('.repeat-inst-add[data-prefix="' + msgidPrefix + '"]').dispatchEvent(new Event('click', { bubbles: true }));
     let msgidEdit2 = posted.find((m) => m.type === 'applyEdit');
     const msgidFields2 = DspfParser.parseDspf(msgidEdit2.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.filter((k) => k.name === 'MSGID');
-    check('a second, independently-conditioned MSGID instance coexists with the first', msgidFields2.length === 2 && msgidFields2[0].parameters === 'USR &AMOUNT MSGF1 MYLIB' && msgidFields2[1].parameters === '*NONE');
+    check('a second, independently-conditioned MSGID instance coexists with the first', msgidFields2.length === 2 && msgidFields2[0].parameters === 'USR&AMOUNT MYLIB/MSGF1' && msgidFields2[1].parameters === '*NONE');
 
     runFieldKeywordVisibilityScenario();
   }, 0);
@@ -5018,9 +5027,9 @@ function runNumericFieldPickerScenario() {
     const hiddenEcKind = Array.from(doc.querySelectorAll('select')).find((s) => s.id.endsWith('-ec-kind'));
     check('no Edit code/word/mask select for a Hidden field', !hiddenEcKind);
 
-    console.log('  QTY (Usage H, Hidden, numeric): Keying options panel offers the Keyboard shift attribute (KEYBRD)');
-    const keybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keybrd') >= 0);
-    check('KEYBRD select present for a Hidden field (Keying options is Hidden/Input/Both)', !!keybrdSelect);
+    console.log('  QTY (Usage H, Hidden, numeric): Keying options panel offers the Keyboard shift attribute selector');
+    const keybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keyboard-shift') >= 0);
+    check('Keyboard shift attribute select present for a Hidden field (Keying options is Hidden/Input/Both)', !!keybrdSelect);
     // Bug fix (Task A2 - SDA screenshot keyword-inventory audit follow-up):
     // QTY is a NUMERIC field (dataType 'S'), so per real SDA's own numeric
     // "Select Keying Options" screen (screens/field-level/numeric/keying-
@@ -5031,22 +5040,29 @@ function runNumericFieldPickerScenario() {
     // this same assertion wrongly expected before this fix (when one
     // unconditional list was used for every field regardless of type).
     const keybrdValues = Array.from(keybrdSelect.options).map((o) => o.value).filter(Boolean);
-    check('KEYBRD (numeric field) offers exactly D/I/N/S/Y (real SDA\u2019s own numeric screen), not the character-only list', keybrdValues.sort().join(',') === 'D,I,N,S,Y');
+    check('Keyboard shift (numeric field) offers exactly D/I/N/S/Y (real SDA\u2019s own numeric screen), not the character-only list', keybrdValues.sort().join(',') === 'D,I,N,S,Y');
+    // Bug fix (L79): this selector previously wrote a made-up "KEYBRD"
+    // keyword - not a real DDS keyword at all (see DspfWriter's own L79
+    // section header comment). Real SDA's "keyboard shift attribute" IS
+    // the field's own data-type column (position 35) - the exact same
+    // field.dataType the Basic tab's "Data type" dropdown already edits -
+    // so changing it here must now update dataType directly, writing NO
+    // keyword whatsoever.
     keybrdSelect.value = 'N';
     keybrdSelect.dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
-    check('an edit was posted for KEYBRD', !!applyEdit);
+    check('an edit was posted for the data type change', !!applyEdit);
     reparsed = DspfParser.parseDspf(applyEdit.text);
     const qtyField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'QTY');
-    check('KEYBRD written with value N', qtyField.keywords.some((k) => k.name === 'KEYBRD' && k.parameters.trim() === 'N'));
+    check('the field\u2019s own data type (position 35) is now N - NOT a KEYBRD keyword', qtyField.dataType === 'N' && !qtyField.keywords.some((k) => k.name === 'KEYBRD'));
     posted.length = 0;
 
     console.log('  DESCR (Usage B, character): Keying options panel offers the character-only Keyboard shift attribute list');
     check('DESCR is selectable on the canvas', selectFieldByName('DESCR'));
-    const charKeybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keybrd') >= 0);
-    check('KEYBRD select present for a character field too', !!charKeybrdSelect);
+    const charKeybrdSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.className && s.className.indexOf('-keyboard-shift') >= 0);
+    check('Keyboard shift attribute select present for a character field too', !!charKeybrdSelect);
     const charKeybrdValues = Array.from(charKeybrdSelect.options).map((o) => o.value).filter(Boolean);
-    check('KEYBRD (character field) offers exactly A/D/E/G/I/J/M/N/O/W/X (real SDA\u2019s own character screen), not the numeric-only list', charKeybrdValues.sort().join(',') === 'A,D,E,G,I,J,M,N,O,W,X');
+    check('Keyboard shift (character field) offers exactly A/D/E/G/I/J/M/N/O/W/X (real SDA\u2019s own character screen), not the numeric-only list', charKeybrdValues.sort().join(',') === 'A,D,E,G,I,J,M,N,O,W,X');
     posted.length = 0;
 
     console.log('  RECNBR (in an SFLCTL record): Subfile keywords panel is present, SFLRCDNBR/SFLROLVAL commit');
