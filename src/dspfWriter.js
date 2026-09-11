@@ -2241,6 +2241,56 @@
     return next;
   }
 
+  // Task L79 (Message Record picker gap): SFLMSGRCD's own DSPSIZ
+  // conditioning was reported missing from the record's "Message Record"
+  // panel - real SDA's own "Define Message Record" screen shows a
+  // "Display size conditioning" row directly under the line-number input
+  // for exactly this reason. Confirmed via IBM's current DDS Reference:
+  // "Display size condition names can be specified for SFLMSGRCD and are
+  // required if the line number for the first message displayed is to
+  // change, based on display size." - the SAME shape MSGLOC already uses
+  // above (a primary/unconditioned value plus, since DSPSIZ allows at most
+  // two sizes, one more value conditioned by the second size's own name),
+  // reusing that exact (primary, bySizeName) modeling rather than
+  // inventing a new one. Record-level (not file-level like MSGLOC), but
+  // these getters are already generic over any `keywords` array.
+  function getSflMsgRcdLines(keywords) {
+    var result = { primary: '', bySizeName: {} };
+    (keywords || []).filter(function (kw) { return kw.name === 'SFLMSGRCD'; }).forEach(function (kw) {
+      var value = (kw.parameters || '').trim();
+      var sizeGroup = (kw.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
+      if (sizeGroup) {
+        result.bySizeName[sizeGroup.displaySizeCondition.name] = value;
+      } else {
+        result.primary = value;
+      }
+    });
+    return result;
+  }
+
+  /** Returns a NEW keywords array with every existing SFLMSGRCD removed and
+   *  replaced by: one unconditioned SFLMSGRCD for `primary` (if non-blank),
+   *  plus one SFLMSGRCD per non-blank entry in `bySizeName`, each
+   *  conditioned by that size's own display-size condition name - same
+   *  shape as setFileMsgLocLines above. */
+  function setSflMsgRcdLines(keywords, primary, bySizeName) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'SFLMSGRCD'; });
+    var p = (primary == null ? '' : String(primary)).trim();
+    if (p) next = next.concat([{ name: 'SFLMSGRCD', parameters: p, conditions: [], raw: '', sourceLines: [] }]);
+    Object.keys(bySizeName || {}).forEach(function (sizeName) {
+      var v = (bySizeName[sizeName] == null ? '' : String(bySizeName[sizeName])).trim();
+      if (!v) return;
+      next = next.concat([{
+        name: 'SFLMSGRCD',
+        parameters: v,
+        conditions: [{ relation: 'AND', indicators: [], displaySizeCondition: { name: sizeName, not: false }, sourceLines: [] }],
+        raw: '',
+        sourceLines: [],
+      }]);
+    });
+    return next;
+  }
+
   // ---------------------------------------------------------------------
   // Task R1 - Base Record Keywords picker (General, Indicator, Application
   // Help, Help, Output, Input, Overlay, Print - see docs/sda-reference/
@@ -4649,5 +4699,7 @@
     s36ERuleViolationMessage: s36ERuleViolationMessage,
     checkS36EResponseIndicatorViolation: checkS36EResponseIndicatorViolation,
     findS36EConflictInModel: findS36EConflictInModel,
+    getSflMsgRcdLines: getSflMsgRcdLines,
+    setSflMsgRcdLines: setSflMsgRcdLines,
   };
 });

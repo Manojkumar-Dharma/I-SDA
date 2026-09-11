@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-11 — Feature (L80, direct user request): SFLMSGRCD's DSPSIZ conditioning
+
+- **0.10.75** — The Message Record panel's SFLMSGRCD row had no "Display size conditioning" input, unlike real SDA's own screen. Confirmed against IBM's current DDS Reference: SFLMSGRCD's line number can be conditioned by a DSPSIZ condition name, required if it needs to change between display sizes. New `getSflMsgRcdLines`/`setSflMsgRcdLines` in `dspfWriter.js` mirror `MSGLOC`'s existing `{primary, bySizeName}` shape exactly (Task L22) rather than inventing a new one. `sflMsgPanelsHtml`/`wireSflMsgPanels` now show/wire a second input for the file's second display size, when one exists. New test coverage in `dspfWebview.test.js`. Investigated but left untouched (out of scope for this request): the same row's existing "or a field name" claim, which IBM's docs don't actually support for SFLMSGRCD - flagged for a future look. Also fixed in passing: L77/L78 had drifted out of strict numeric order in `LIMITATIONS-PLAN.md` from an earlier session - reordered, no content changed. Task numbered L80, not L79 - L79 was claimed by a different fix (Database Reference/Message ID/Keying Options) that landed upstream while this was in progress; see this session's own note in `LIMITATIONS-PLAN.md`. Full suite (post-rebase, including that L79 and S36-3 through S36-6): 46/46 files, zero failures.
+
 ## 2026-09-11 — Bug fix (L79): three field-level keyword pickers had real gaps against real SDA — Database Reference, Message ID, and Keying Options' Keyboard shift attribute
 
 - **0.10.74** — Three separate bugs found from a direct screenshot comparison against real SDA:

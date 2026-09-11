@@ -3564,14 +3564,31 @@
    * rather than record-level state of their own; renaming/reassigning
    * them happens via the Hidden fields tab, not duplicated here.
    */
-  function sflMsgPanelsHtml(rec, expandedSet) {
+  function sflMsgPanelsHtml(rec, expandedSet, fileKeywords) {
     var kw = rec.keywords || [];
     var panels = {};
 
     // --- Message Record ---
-    var rcd = DspfWriter.getFileFlagKeyword(kw, 'SFLMSGRCD');
+    // Line for first message (SFLMSGRCD): a primary/unconditioned value,
+    // plus - since DDS DSPSIZ allows at most two sizes - one more value
+    // conditioned by the second size's own name, when the file actually
+    // has a second display size defined. Same (primary, bySizeName) shape
+    // and same "reuse the file's own DSPSIZ order" UI pattern the file-level
+    // Display Sizes picker's own MSGLOC row already uses (see
+    // getSflMsgRcdLines/setSflMsgRcdLines's own doc comment in
+    // dspfWriter.js for the DDS Reference citation this is built from).
+    var rcdLines = DspfWriter.getSflMsgRcdLines(kw);
+    var sizeList = DspfWriter.getDisplaySizesList(fileKeywords || []);
+    var secondarySize = sizeList.length > 1 ? sizeList[1] : null;
     var mr = '<div class="section-label">Line for first message, or a field name (SFLMSGRCD)</div>';
-    mr += '<input type="text" id="sm-sflmsgrcd" placeholder="1-27, or a field name" value="' + escapeHtml(rcd.parameters) + '" style="width:100%;" />';
+    mr += '<input type="text" id="sm-sflmsgrcd" placeholder="1-27, or a field name" value="' + escapeHtml(rcdLines.primary) + '" style="width:100%;" />';
+    if (secondarySize) {
+      mr += '<div class="section-label" style="margin-top:6px;">Display size conditioning (' + escapeHtml(secondarySize.name) + ')</div>';
+      mr += '<input type="text" id="sm-sflmsgrcd-ds2" placeholder="1-27, or a field name, for ' + escapeHtml(secondarySize.name) + '" value="' + escapeHtml(rcdLines.bySizeName[secondarySize.name] || '') + '" style="width:100%;" />';
+      mr += '<div class="hint-small">Required if the line number changes between the file\u2019s two display sizes - the primary value above applies to "' + escapeHtml(sizeList[0].name) + '".</div>';
+    } else {
+      mr += '<div class="hint-small">Add a second display size (file-level Display Sizes picker) to condition this by DSPSIZ.</div>';
+    }
     mr += '<div class="hint-small">Real SDA also offers a "Roll keyword" here - its DDS argument shape wasn\u2019t confidently verified, so use the raw Keywords editor below if you need it.</div>';
 
     var keyField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLMSGKEY'; }); });
@@ -4136,19 +4153,30 @@
    *  "getKeywords is a function so a commit from one row sees any change
    *  a previous commit in the same render already made" contract as
    *  wireFileKeywordsPanels above. */
-  function wireSflMsgPanels(getKeywords, onChange, expandedSet, rerender) {
+  function wireSflMsgPanels(getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
     function simple(id, name, placeholderIsParams) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions);
       }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
 
+    // SFLMSGRCD: primary value plus, when the file has a second display
+    // size, that size's own conditioned value (id 'sm-sflmsgrcd-ds2' - only
+    // rendered by sflMsgPanelsHtml when applicable). Both commit through
+    // setSflMsgRcdLines together so neither input's change silently drops
+    // the other's already-saved value. See getSflMsgRcdLines/
+    // setSflMsgRcdLines's own doc comment in dspfWriter.js.
     var rcd = document.getElementById('sm-sflmsgrcd');
+    var rcdDs2 = document.getElementById('sm-sflmsgrcd-ds2');
     if (rcd) {
-      rcd.addEventListener('change', function () {
-        var v = (rcd.value || '').trim();
-        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLMSGRCD', !!v, v));
-      });
+      var commitRcd = function () {
+        var sizeList = DspfWriter.getDisplaySizesList((getFileKeywords ? getFileKeywords() : []) || []);
+        var bySizeName = {};
+        if (sizeList.length > 1 && rcdDs2) bySizeName[sizeList[1].name] = rcdDs2.value || '';
+        onChange(DspfWriter.setSflMsgRcdLines(getKeywords(), rcd.value || '', bySizeName));
+      };
+      rcd.addEventListener('change', commitRcd);
+      if (rcdDs2) rcdDs2.addEventListener('change', commitRcd);
     }
 
     simple('sm-sflnxtchg', 'SFLNXTCHG');

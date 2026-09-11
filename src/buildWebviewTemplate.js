@@ -5358,7 +5358,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isSflMsg = WebviewClientHelpers.isSflMsgRecord(rec);
     let sflMsgPanels = null;
     if (isSflMsg) {
-      sflMsgPanels = WebviewClientHelpers.sflMsgPanelsHtml(rec, expandedKeywordConditioning);
+      sflMsgPanels = WebviewClientHelpers.sflMsgPanelsHtml(rec, expandedKeywordConditioning, model.fileKeywords);
     }
 
     // --- Window tab: only for records carrying WINDOW (Task R7) - Window
@@ -5533,7 +5533,7 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
-      WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
+      WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
       // Task L73: the Message Record panel's SFLMSGKEY/SFLPGMQ rename +
       // 276-byte-field inputs commit FIELD-level updates, not record
       // keywords - reuses the same commitEdit() every other field's Basic
