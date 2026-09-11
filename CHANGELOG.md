@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-11 — Docs (S36-6): `.dspf36` README mention + S36E-conditional keyword-index notes
+
+- **0.10.73** — Docs-only task, no code/tests changed. `README.md`'s file-open mention extended from `.dspf`/`.dspf38` to `.dspf`/`.dspf38`/`.dspf36`. `docs/sda-reference/keyword-index/build_index.py`/`build_lookup_and_md.py` gained an optional `s36e` note, applied to all 13 legitimate occurrences of the 7 keywords `USRDSPMGT` restricts plus `USRDSPMGT` itself (`CHANGE` record-level/`HELP`/`HLPRTN`/`PRINT` verified per S36-3/S36-4; `ALTNAME`/`MSGID`/`RETKEY`/`RETCMDKEY` marked as S36-3's open items rather than guessed) — deliberately excluding the distinct field-level `CHANGE` keyword S36-3 never verified. Regenerated `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json`, including a new "S36E-conditional keywords" section and column. While verifying, found 2 failing checks in `compileDspf.test.js` on a freshly-pulled `main` — traced to a stale `dist/extension.js` from not re-running `npm run compile` after fast-forwarding past S36-4/S36-5; recompiling fixed it, no actual bug/source change involved.
+
 ## 2026-09-11 — Fix (S36-5): `.dspf36`/DSPF36 members now compile with `CRTS36DSPF`, not `CRTDSPF`
 
 - **0.10.72** — Corrected a prior finding: real `DSPF36` source is System/36 SFGR text, not DDS, and `CRTDSPF` can't read it - IBM's own `CRTS36DSPF` is the right command (`DSPFILE(...)` instead of `FILE(...)`, same `SRCFILE`/`SRCMBR`/`REPLACE(*YES)` shape). `compileDspf()` now branches on the member's real extension: `DSPF36` uses `CRTS36DSPF`, everything else (including `.dspf38`, this project's actual DDS-with-`USRDSPMGT` convention) is unaffected and still uses `CRTDSPF`. New coverage in `compileDspf.test.js` for both branches plus the case-insensitive match. Still no live IBM i connection available to empirically confirm against a real system.

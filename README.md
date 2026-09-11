@@ -241,7 +241,7 @@ npm run compile   # regenerates src/webviewTemplate.ts, src/menuWebviewTemplate.
 
 Then open this folder in VS Code and press **F5** to launch an Extension
 Development Host. Either:
-- Open an existing `.dspf`/`.dspf38` file (local, or a remote IBM i source
+- Open an existing `.dspf`/`.dspf38`/`.dspf36` file (local, or a remote IBM i source
   member/streamfile via [Code for i](https://marketplace.visualstudio.com/items?itemName=HalcyonTechLtd.code-for-ibmi))
   containing DDS display-file source, and run **"iSDA: Open Screen Design
   Preview"** from the command palette or click the preview icon in the

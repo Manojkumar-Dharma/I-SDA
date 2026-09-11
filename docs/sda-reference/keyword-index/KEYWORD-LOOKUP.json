@@ -2,7 +2,7 @@
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
     "uniqueKeywords": 159,
-    "generated": "2026-09-05"
+    "generated": "2026-09-11"
   },
   "keywords": {
     "*AUTOENT": [
@@ -199,7 +199,8 @@
           "PDNSFLCTL",
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
-        ]
+        ],
+        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "ALTPAGEDWN": [
@@ -348,7 +349,8 @@
           "WINDOW",
           "PULLDOWN",
           "MNUBAR"
-        ]
+        ],
+        "s36e": "S36E-conditional (record-level CHANGE only): a response indicator here triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
       },
       {
         "level": "record",
@@ -360,7 +362,8 @@
         "sharedWith": [
           "WNDSFL",
           "PULDWNSFL"
-        ]
+        ],
+        "s36e": "S36E-conditional (record-level CHANGE only): a response indicator here triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
       },
       {
         "level": "field",
@@ -900,7 +903,8 @@
         "parameters": "10-99",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
-        "sharedWith": []
+        "sharedWith": [],
+        "s36e": "S36E-conditional: a response indicator here triggers an ERROR (not just a warning) when USRDSPMGT is present - HLPRTN must also be specified to return control to the program. Verified, S36-3/S36-4."
       },
       {
         "level": "record",
@@ -915,7 +919,8 @@
           "WINDOW",
           "PULLDOWN",
           "MNUBAR"
-        ]
+        ],
+        "s36e": "S36E-conditional: a response indicator here triggers an ERROR (not just a warning) when USRDSPMGT is present - HLPRTN must also be specified to return control to the program. Verified, S36-3/S36-4."
       }
     ],
     "HLPARA": [
@@ -1035,7 +1040,8 @@
         "parameters": "10-99",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
-        "sharedWith": []
+        "sharedWith": [],
+        "s36e": "S36E-conditional: required alongside HELP to return control to the application program when USRDSPMGT is present. Verified, S36-3/S36-4."
       },
       {
         "level": "record",
@@ -1050,7 +1056,8 @@
           "WINDOW",
           "PULLDOWN",
           "MNUBAR"
-        ]
+        ],
+        "s36e": "S36E-conditional: required alongside HELP to return control to the application program when USRDSPMGT is present. Verified, S36-3/S36-4."
       }
     ],
     "HLPSCHIDX": [
@@ -1534,7 +1541,8 @@
         "parameters": "prefix, identifier [& field/msgid/msgnbr], file, library, indicators",
         "repeatable": false,
         "screenshotDir": "screens/field-level/character/message-id",
-        "sharedWith": []
+        "sharedWith": [],
+        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "MSGLOC": [
@@ -1692,7 +1700,8 @@
         "parameters": "response indicator (optional, if program handles it)",
         "repeatable": false,
         "screenshotDir": "screens/file-level/03-print-keywords",
-        "sharedWith": []
+        "sharedWith": [],
+        "s36e": "S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
       },
       {
         "level": "record",
@@ -1701,7 +1710,8 @@
         "parameters": "response indicator (optional)",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/print",
-        "sharedWith": []
+        "sharedWith": [],
+        "s36e": "S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
       }
     ],
     "PROTECT": [
@@ -1828,7 +1838,8 @@
           "PDNSFLCTL",
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
-        ]
+        ],
+        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "RETKEY": [
@@ -1849,7 +1860,8 @@
           "PDNSFLCTL",
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
-        ]
+        ],
+        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "RETLCKSTS": [
@@ -2327,7 +2339,8 @@
         "parameters": "",
         "repeatable": false,
         "screenshotDir": "screens/file-level/01-general-keywords",
-        "sharedWith": []
+        "sharedWith": [],
+        "s36e": "S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT (verified) and ALTNAME/MSGID/RETKEY/RETCMDKEY (open item, not yet verified) - see S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "USRRSTDSP": [
