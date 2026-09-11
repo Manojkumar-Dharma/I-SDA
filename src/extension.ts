@@ -465,6 +465,17 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
  * MNUDDS-specific steps (no record-format-name-matching requirement to
  * pre-validate - that's a CRTMNU-only constraint - and no message-file
  * rebuild/CRTMNU afterward, since a plain DSPF member has neither).
+ *
+ * Task S36-5 - A member whose actual IBM i source type is `DSPF36` (real
+ * System/36 SFGR screen-format-generator source, NOT DDS - a different
+ * thing from this project's `.dspf36` naming convention discussed in the
+ * S36-series plan) cannot be compiled with `CRTDSPF` at all; IBM's own
+ * `CRTS36DSPF` (Create System/36 Display File) is the command that reads
+ * SFGR source, not `CRTDSPF`. `parsed.extension` (from the `member:` URI
+ * Code for i already exposes, which reflects the member's real IBM i
+ * source-type attribute) tells the two apart, so this branches on it:
+ * `DSPF36` uses `CRTS36DSPF DSPFILE(...)`, everything else keeps the
+ * original `CRTDSPF FILE(...)` call unchanged.
  */
 async function compileDspf(uri: vscode.Uri, webview?: vscode.Webview): Promise<void> {
   // Bug fix - Compile FAILURES previously only ever reached a VS Code
@@ -545,8 +556,19 @@ async function compileDspf(uri: vscode.Uri, webview?: vscode.Webview): Promise<v
   }
 
   await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `iSDA: Compiling display file ${library}/${objectName}` }, async (progress) => {
-    progress.report({ message: 'Creating display file (CRTDSPF)...' });
-    const step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
+    // S36-5: DSPF36 is real System/36 SFGR source - CRTS36DSPF is the
+    // command that reads it (CRTDSPF only understands DDS and would fail
+    // against SFGR text). Everything else (DSPF, DSPF38, or any other
+    // extension) keeps using CRTDSPF exactly as before.
+    const isS36SfgrSource = parsed.extension.toUpperCase() === 'DSPF36';
+    let step: { ok: boolean; message: string };
+    if (isS36SfgrSource) {
+      progress.report({ message: 'Creating System/36 display file (CRTS36DSPF)...' });
+      step = await run(`CRTS36DSPF DSPFILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTS36DSPF');
+    } else {
+      progress.report({ message: 'Creating display file (CRTDSPF)...' });
+      step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
+    }
     if (!step.ok) {
       vscode.window.showErrorMessage('iSDA: ' + step.message);
       reportFailure('iSDA: ' + step.message);

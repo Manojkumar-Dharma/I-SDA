@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-11 — Fix (S36-5): `.dspf36`/DSPF36 members now compile with `CRTS36DSPF`, not `CRTDSPF`
+
+- **0.10.72** — Corrected a prior finding: real `DSPF36` source is System/36 SFGR text, not DDS, and `CRTDSPF` can't read it - IBM's own `CRTS36DSPF` is the right command (`DSPFILE(...)` instead of `FILE(...)`, same `SRCFILE`/`SRCMBR`/`REPLACE(*YES)` shape). `compileDspf()` now branches on the member's real extension: `DSPF36` uses `CRTS36DSPF`, everything else (including `.dspf38`, this project's actual DDS-with-`USRDSPMGT` convention) is unaffected and still uses `CRTDSPF`. New coverage in `compileDspf.test.js` for both branches plus the case-insensitive match. Still no live IBM i connection available to empirically confirm against a real system.
+
 ## 2026-09-11 — Feature (S36-4): S36E keyword restrictions are now hard-blocked in the UI
 
 - **0.10.71** — S36-3 built the rule table; this task wires it as actual hard blocks (not a warning banner), scoped to the 3 verified rules (`CHANGE`/`HELP`/`PRINT` - `ALTNAME`/`MSGID`/`RETKEY`/`RETCMDKEY` remain open items with no rule to enforce). New `s36ERuleViolationMessage`/`findS36EConflictInModel` in `dspfWriter.js` (the latter scans the whole model for an existing conflicting value before letting `USRDSPMGT` turn on). File-level HELP/PRINT and record-level PRINT reject a violating response indicator with `window.alert(...)` and revert the input; `USRDSPMGT`'s own checkbox is blocked from turning on while a conflict already exists elsewhere in the file; the record-level Indicator panel's HELP/CHANGE rows get the same treatment regardless of whether `kind` or the response-indicator field was edited. New `s36eUiHardBlocks.test.js` runs the real generated webview script in jsdom to prove each block actually fires (and doesn't fire when it shouldn't). Full suite: 46 test files, zero failures.

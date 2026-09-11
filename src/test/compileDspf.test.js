@@ -88,6 +88,68 @@ async function run() {
     vscodeMock.__setOpenTextDocuments([]);
   }
 
+  console.log('\nS36-5: a real DSPF36 member (System/36 SFGR source) uses CRTS36DSPF, not CRTDSPF');
+  {
+    const uri = new vscodeMock.Uri('member', '/MYLIB/QS36SRC/MYSCREEN.DSPF36');
+    vscodeMock.__clearMockFiles();
+    vscodeMock.__setMockFile(uri, 'irrelevant for this test - SFGR source, not DDS, is never parsed by compileDspf()');
+
+    const calls = [];
+    vscodeMock.__setRunCommandHandler((args) => { calls.push(args.command); return { code: 0, stdout: '', stderr: '' }; });
+    vscodeMock.__lastInformation = undefined;
+    vscodeMock.__lastError = undefined;
+
+    const compileDspf = freshContext();
+    await compileDspf(uri);
+
+    check('runs exactly 1 CL command (CRTS36DSPF only)', calls.length === 1);
+    check(
+      'CRTS36DSPF uses DSPFILE (not FILE) plus the same SRCFILE/SRCMBR/REPLACE(*YES) shape',
+      calls[0] === 'CRTS36DSPF DSPFILE(MYLIB/MYSCREEN) SRCFILE(MYLIB/QS36SRC) SRCMBR(MYSCREEN) REPLACE(*YES)'
+    );
+    check('shows a success message mentioning the compiled object', /MYLIB\/MYSCREEN/.test(vscodeMock.__lastInformation || ''));
+    check('no error shown', !vscodeMock.__lastError);
+  }
+
+  console.log('\nS36-5: extension match is case-insensitive (lowercase .dspf36, as this project\'s own convention writes it)');
+  {
+    const uri = new vscodeMock.Uri('member', '/MYLIB/QS36SRC/MYSCREEN.dspf36');
+    vscodeMock.__clearMockFiles();
+    vscodeMock.__setMockFile(uri, 'irrelevant for this test');
+
+    const calls = [];
+    vscodeMock.__setRunCommandHandler((args) => { calls.push(args.command); return { code: 0, stdout: '', stderr: '' }; });
+    vscodeMock.__lastError = undefined;
+
+    const compileDspf = freshContext();
+    await compileDspf(uri);
+
+    check('still routes to CRTS36DSPF for a lowercase .dspf36 extension', calls.length === 1 && calls[0].startsWith('CRTS36DSPF'));
+  }
+
+  console.log('\nS36-5: a .dspf38 member (real DDS, per the S36-series plan) still uses CRTDSPF, unaffected by the DSPF36 branch');
+  {
+    const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYSCREEN.DSPF38');
+    const dspfSource =
+      [
+        "     A                                      DSPSIZ(24 80 *DS3)",
+        "     A                                      USRDSPMGT",
+        "     A          R MYSCREEN",
+        "     A                                  1  2'HELLO'",
+      ].join('\n') + '\n';
+    vscodeMock.__clearMockFiles();
+    vscodeMock.__setMockFile(uri, dspfSource);
+
+    const calls = [];
+    vscodeMock.__setRunCommandHandler((args) => { calls.push(args.command); return { code: 0, stdout: '', stderr: '' }; });
+    vscodeMock.__lastError = undefined;
+
+    const compileDspf = freshContext();
+    await compileDspf(uri);
+
+    check('DSPF38 (DDS w/ USRDSPMGT) still compiles via CRTDSPF, not CRTS36DSPF', calls.length === 1 && calls[0] === 'CRTDSPF FILE(MYLIB/MYSCREEN) SRCFILE(MYLIB/QDDSSRC) SRCMBR(MYSCREEN) REPLACE(*YES)');
+  }
+
   console.log('\nCode for i installed but NOT YET ACTIVE this session (bug fix - previously failed with a confusing "command not found" error even though Code for i is installed and works fine once active)');
   {
     const uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYSCREEN.DSPF');
