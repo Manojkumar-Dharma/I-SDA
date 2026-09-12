@@ -1356,6 +1356,21 @@ console.log('\nDspfWriter.dftOutputRequirementNote() (Task L83) - advisory-only 
   check('a blank/undefined usage is treated as exempt (not O/B)', DspfWriter.dftOutputRequirementNote('', [], []) === null && DspfWriter.dftOutputRequirementNote(undefined, [], []) === null);
 }
 
+console.log('\nDspfWriter.sflNxtchgSflMsgRcdConflictReason() (Task I-11) - SFLNXTCHG vs SFLMSGRCD, the one explicit prohibition in an otherwise-implied "for message subfiles / for all other subfiles" split');
+{
+  check('no conflict on a clean subfile record with neither keyword', DspfWriter.sflNxtchgSflMsgRcdConflictReason('SFLNXTCHG', []) === null);
+
+  const withSflMsgRcd = [{ name: 'SFLMSGRCD', parameters: '24', conditions: [], raw: '', sourceLines: [] }];
+  const reason = DspfWriter.sflNxtchgSflMsgRcdConflictReason('SFLNXTCHG', withSflMsgRcd) || '';
+  check('SFLNXTCHG blocked when SFLMSGRCD is already present', /SFLMSGRCD/.test(reason));
+
+  const withSflNxtchg = [{ name: 'SFLNXTCHG', parameters: '', conditions: [], raw: '', sourceLines: [] }];
+  const symmetricReason = DspfWriter.sflNxtchgSflMsgRcdConflictReason('SFLMSGRCD', withSflNxtchg) || '';
+  check('symmetric: SFLMSGRCD blocked when SFLNXTCHG is already present', /SFLNXTCHG/.test(symmetricReason));
+
+  check('an unrelated keyword (e.g. LOGOUT) never triggers a conflict', DspfWriter.sflNxtchgSflMsgRcdConflictReason('SFLNXTCHG', [{ name: 'LOGOUT', parameters: '', conditions: [], raw: '', sourceLines: [] }]) === null);
+}
+
 console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');
 {
   const none = DspfWriter.getReferenceOverrides([]);

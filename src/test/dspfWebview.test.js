@@ -4324,6 +4324,21 @@ function runSflMsgPickerScenario() {
 
     console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL)/CHGINPDFT all start unchecked, toggling one commits just that keyword');
     check('SFLNXTCHG starts unchecked', !doc.getElementById('sm-sflnxtchg-on').checked);
+
+    console.log('  Task I-11: SFLNXTCHG is hard-blocked from being turned on here - the DDS Reference states outright "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword", and this record always carries SFLMSGRCD (that\'s what put it on the SFLMSG tab in the first place)');
+    {
+      const originalAlert = dom.window.alert;
+      let alertMessage = null;
+      dom.window.alert = (msg) => { alertMessage = msg; };
+      const sflnxtchgOn = doc.getElementById('sm-sflnxtchg-on');
+      sflnxtchgOn.checked = true;
+      sflnxtchgOn.dispatchEvent(new Event('change', { bubbles: true }));
+      check('blocked with an alert naming SFLMSGRCD', /SFLMSGRCD/.test(alertMessage || ''));
+      check('the checkbox is reverted back off', sflnxtchgOn.checked === false);
+      check('no applyEdit was posted for the blocked attempt', !posted.some((m) => m.type === 'applyEdit'));
+      dom.window.alert = originalAlert;
+    }
+
     const keepBox = doc.getElementById('sm-keep-on');
     keepBox.checked = true;
     keepBox.dispatchEvent(new Event('change', { bubbles: true }));

@@ -13,6 +13,29 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`docs/sda-reference/keywordFixes.md`](docs/sda-reference/keywordFixes.md)
 (keyword-compliance audit against IBM's own DDS reference, `I-` series).
 
+## 2026-09-12 — Feature (I-11, keywordFixes.md): SFLMSG record-level keyword audit; SFLNXTCHG vs SFLMSGRCD hard-blocked
+
+- **0.10.84** — Confirmed via the real SDA screenshots
+  (`docs/sda-reference/screens/record-level/subfile-message-sflmsg/`) that
+  SFLMSG's General/Indicator screens match I-9's own SFL keyword set
+  verbatim (not I-7's), and that the Message Record category
+  (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`) is already correctly implemented
+  from L73/L74/L80/L84 - no code change needed for either. New finding:
+  the DDS Reference documents `SFLNXTCHG` as belonging to a keyword set
+  mutually exclusive with `SFLMSGRCD` on the same subfile record, stating
+  outright "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword" -
+  `sflMsgPanelsHtml`'s General tab (which only ever renders for a record
+  that already carries `SFLMSGRCD`) let a user check `SFLNXTCHG` on with
+  no guard. New `DspfWriter.sflNxtchgSflMsgRcdConflictReason` (same shape
+  as L81's `dftGroupConflictReason`), wired into `sm-sflnxtchg` with the
+  same alert+revert idiom - turning it off is never blocked, only the
+  on-transition. The remaining ~9 keywords IBM's reference only *implies*
+  (not individually restates) conflict with `SFLMSGRCD` are flagged as an
+  open question for a future task rather than guessed at. New unit tests
+  in `dspfWriter.test.js` and a new block in `dspfWebview.test.js`'s
+  existing SFLMSG picker test, confirmed (via `git stash`) to fail against
+  the pre-fix code. Full suite: 3325/3325 assertions, zero failures.
+
 ## 2026-09-12 — Fix (I-2, keywordFixes.md): PRTFILE was never a real DDS keyword
 
 - **0.10.83** — `PRTFILE` doesn't exist as a DDS keyword; IBM's DDS

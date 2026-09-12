@@ -385,7 +385,59 @@ split it out into its own task at that point rather than guessing now.
 | **I-8** | `USRDFN` | Deliberately narrow — per `isUsrDfnRecord`'s own doc comment in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords" menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`) offers only General/Help/Print, 3 of R1's 8 (down from an original 4 before Task L5d-ii correctly moved Application help off the record-level set entirely, for every record type). This task's job is to verify that narrowed set against IBM's own DDS Reference specifically for USRDFN records — does the DDS Reference actually restrict any of General/Help/Print's own keywords further on a USRDFN record specifically (e.g. a keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`), not just re-confirm the menu screenshot. This is the clearest "applicable/not applicable" case in the whole record-level series. | I-7 | not started |
 | **I-9** | `SFL` (subfile detail record) | Standalone — doesn't reuse I-7's set. Subfile - General (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile - Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/`SFLROLVAL` — field-level, conditioned on the record being `SFL`/`SFLCTL`, per Task D3). | I-1 (method) | in progress |
 | **I-10** | `SFLCTL` (subfile control record) | Reuses I-7's full 8 (R1) plus its own: Subfile Control - General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`), Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages (`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record keyword sharing a name with — but structurally distinct from — field-level `MSGID`; don't conflate the two when checking parameters. | I-7, I-9 | not started |
-| **I-11** | `SFLMSG` (message subfile detail record) | Standalone — per Task R5's own finding, doesn't reuse I-7's set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its own General/Indicator categories (need to confirm from `docs/sda-reference/screens/record-level/subfile-message-sflmsg/` whether these are truly independent of I-7's General/Indicator or a subset — R5's own note calls it standalone but the exact keyword list for SFLMSG's own General/Indicator screens isn't broken out separately in `KEYWORD-INDEX.json` from `I-7`'s, worth confirming which keywords actually apply here as part of this task rather than assuming reuse). | I-1 (method) | in progress |
+| **I-11** | `SFLMSG` (message subfile detail record) | Standalone — per Task R5's own finding, doesn't reuse I-7's set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its own General/Indicator categories (need to confirm from `docs/sda-reference/screens/record-level/subfile-message-sflmsg/` whether these are truly independent of I-7's General/Indicator or a subset — R5's own note calls it standalone but the exact keyword list for SFLMSG's own General/Indicator screens isn't broken out separately in `KEYWORD-INDEX.json` from `I-7`'s, worth confirming which keywords actually apply here as part of this task rather than assuming reuse). | I-1 (method) | done |
+
+**Findings:**
+
+- **General/Indicator categories** — confirmed via the real SDA screenshots
+  (`docs/sda-reference/screens/record-level/subfile-message-sflmsg/general/`
+  and `.../indicator/`): SFLMSG's own "Select General Keywords" screen
+  offers `SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK(AB)`/`CHECK(RL)`/
+  `CHGINPDFT`, and "Define Indicator Keywords" offers `INDTXT`/`SETOF`/
+  `CHANGE` — this is I-9's own SFL keyword set, verbatim, not a subset and
+  not I-7's set. `sflMsgPanelsHtml`/`wireSflMsgPanels` (Task R5) already
+  duplicate this set correctly (they're a separate code path from I-9's
+  `sflKeywordsPanelsHtml`, gated by `isSflMsgRecord`/`isSflRecord` being
+  mutually exclusive) — no code change needed for the screen offering
+  itself.
+- **Message Record category** (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`) —
+  confirmed already correct from earlier tasks: field auto-generation and
+  ordering (L74), the `SFLMSGKEY`-then-`SFLPGMQ` field order the DDS
+  Reference requires, and `SFLMSGRCD`'s own line-number/DSPSIZ-conditioning
+  shape (L80, corrected by L84). No code change needed here either.
+- **New finding, fixed this task**: the DDS Reference documents `SFLNXTCHG`
+  and the rest of the "for all other subfiles" keyword group (`CHANGE`,
+  `CHECK(AB)`/`CHECK(RL)`, `CHGINPDFT`, `INDTXT`, `KEEP`, `LOGINP`,
+  `LOGOUT`, `SETOF`/`SETOFF`) as belonging to a keyword set that's
+  mutually exclusive with `SFLMSGRCD`'s own "for message subfiles" set on
+  the same subfile record format, and states outright under `SFLNXTCHG`'s
+  own notes: "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword."
+  `sflMsgPanelsHtml`'s own General tab (which only ever renders for a
+  record that already carries `SFLMSGRCD`, by `isSflMsgRecord`'s own
+  definition) let a user check `SFLNXTCHG` on with no guard, which would
+  produce invalid DDS. Real SDA itself doesn't block this either (relies
+  on `CRTDSPF`'s own compile error), but per this project's own
+  established precedent (L81, S36-4) of hard-blocking documented DDS
+  compile errors even where real SDA lets them through, added
+  `DspfWriter.sflNxtchgSflMsgRcdConflictReason` (same shape as L81's own
+  `dftGroupConflictReason`) and wired it into `sm-sflnxtchg`'s checkbox
+  with the same alert+revert idiom. Turning `SFLNXTCHG` off is never
+  blocked, only the on-transition.
+- **Open question, NOT acted on this task**: the remaining ~9 keywords in
+  the "for all other subfiles" list are only *implied* to conflict with
+  `SFLMSGRCD` by IBM's "for X / for all other Y" category framing — none
+  of them individually restate the prohibition the way `SFLNXTCHG`'s own
+  page does. Rather than guess whether all 9 are equally hard compile
+  errors (vs. e.g. merely pointless/no-effect on a message subfile),
+  flagged here for a future task to verify against `CRTDSPF` or a more
+  authoritative source, the same way I-4/I-6 were left open rather than
+  guessed at.
+
+Regression coverage: `dspfWriter.test.js` (unit tests for
+`sflNxtchgSflMsgRcdConflictReason`) and `dspfWebview.test.js`'s existing
+SFLMSG picker test gained a new block confirming the guard fires with an
+alert naming `SFLMSGRCD`, reverts the checkbox, and posts no edit -
+confirmed (via `git stash`) to fail against the pre-fix code.
 | **I-12** | `WINDOW` | Reuses I-7's full 8 plus its own: Window Parameters (`WINDOW` itself — size/roll/position), Border Parameters/Color/Attributes/Characters (`WDWBORDER`, shared verbatim with file-level's own `WDWBORDER` per F1's note — confirm that sharing is still accurate rather than assuming). Window Title has its own existing dedicated panel, not part of this task's scope (already built, not part of the audit unless a gap is found). | I-7 | not started |
 | **I-13** | `PULLDOWN` | Reuses I-7's full 8 plus its own: Pull-Down - General (`PULLDOWN`/`WDWBORDER` — no window-parameters screen, per R10's own note that pull-downs don't have `WINDOW`'s size/roll options). | I-7, I-12 (shares the border set) | not started |
 | **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. | I-7 | not started |

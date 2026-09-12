@@ -4601,7 +4601,33 @@
       }
     }
 
-    simple('sm-sflnxtchg', 'SFLNXTCHG');
+    // Task I-11: SFLNXTCHG is hard-blocked from being turned ON here -
+    // this panel only ever renders for a record where SFLMSGRCD is
+    // already present (isSflMsgRecord's own definition), and the DDS
+    // Reference states outright "You cannot specify SFLNXTCHG with the
+    // SFLMSGRCD keyword." Same alert+revert idiom as L81's own
+    // DFT_GROUP_KEYS guard - turning it OFF (if it somehow got set some
+    // other way, e.g. hand-edited DDS) is never blocked, only the
+    // on-transition.
+    (function () {
+      var onEl = document.getElementById('sm-sflnxtchg-on');
+      var commit = function () {
+        var present = onEl.checked;
+        if (present) {
+          var reason = DspfWriter.sflNxtchgSflMsgRcdConflictReason('SFLNXTCHG', getKeywords());
+          if (reason) {
+            window.alert(reason);
+            onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').present;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLNXTCHG', present, ''));
+      };
+      if (onEl) onEl.addEventListener('change', commit);
+      wireFlagRowConditioning('sm-sflnxtchg', DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLNXTCHG', onEl.checked, '', undefined, newConditions));
+      }, expandedSet, rerender);
+    })();
     simple('sm-logout', 'LOGOUT');
     simple('sm-loginp', 'LOGINP');
     simple('sm-keep', 'KEEP');

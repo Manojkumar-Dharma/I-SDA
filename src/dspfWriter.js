@@ -1313,6 +1313,36 @@
     return 'DFT on an output-capable field also requires ' + missing.join(' and ') + ' (per the DDS Reference).';
   }
 
+  /** Task I-11 - SFLNXTCHG vs SFLMSGRCD, both record-level keywords on the
+   *  subfile (SFL) detail record format. The DDS Reference documents these
+   *  as two DIFFERENT keyword sets for the same record format - "for
+   *  message subfiles: SFLMSGRCD/SFLMSGKEY/SFLPGMQ" vs "for all other
+   *  subfiles (at the record level): CHANGE/CHECK(AB)/CHECK(RL)/
+   *  CHGINPDFT/INDTXT/KEEP/LOGINP/LOGOUT/SETOF/SETOFF/SFLNXTCHG" - and
+   *  separately states outright, under SFLNXTCHG's own note: "You cannot
+   *  specify SFLNXTCHG with the SFLMSGRCD keyword." That's the one
+   *  explicit, unambiguous prohibition in this pair of lists (the rest are
+   *  only implied by the "for X / for all other Y" framing, not each
+   *  individually restated the way SFLNXTCHG is), so only SFLNXTCHG is
+   *  hard-blocked here - see keywordFixes.md's I-11 section for why the
+   *  remaining ~10 keywords in the "for all other subfiles" list are
+   *  flagged as an open question for a follow-up task instead of guessed
+   *  at here. Real SDA's own "Select General Keywords" screen for a
+   *  message-subfile record still offers SFLNXTCHG unconditionally (this
+   *  audit's own screenshot evidence) - it relies on CRTDSPF's own compile
+   *  error rather than blocking data entry - but this project's own
+   *  established precedent (L81, S36-4) is to hard-block real DDS compile
+   *  errors the reference explicitly documents, even where real SDA lets
+   *  them through. Returns a reason string if turning SFLNXTCHG on (or
+   *  SFLMSGRCD on, checked from the other side) would violate the rule, or
+   *  null if fine. */
+  function sflNxtchgSflMsgRcdConflictReason(keywordName, recordKeywords) {
+    var other = keywordName === 'SFLNXTCHG' ? 'SFLMSGRCD' : 'SFLNXTCHG';
+    var hasOther = (recordKeywords || []).some(function (k) { return k.name === other; });
+    if (!hasOther) return null;
+    return keywordName + ' cannot be specified together with ' + other + ' on the same subfile record (per the DDS Reference).';
+  }
+
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
    *  come back as their raw (already-quoted-if-needed) parameter string for
@@ -4776,6 +4806,7 @@
     setGeneralFieldKeywords: setGeneralFieldKeywords,
     dftGroupConflictReason: dftGroupConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
+    sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,
