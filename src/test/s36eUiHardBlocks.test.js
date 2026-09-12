@@ -75,7 +75,7 @@ setTimeout(() => {
   {
     // Re-query: the USRDSPMGT commit above re-rendered File Properties.
     const helpOn = doc.getElementById('fk-help-on');
-    const helpParams = doc.getElementById('fk-help-params');
+    const helpParams = doc.getElementById('fk-help-ind');
     check('setup: HELP row is present', !!helpOn && !!helpParams);
 
     helpOn.checked = true;
@@ -133,7 +133,7 @@ setTimeout(() => {
     posted.length = 0;
 
     const helpOn = doc.getElementById('fk-help-on');
-    const helpParams = doc.getElementById('fk-help-params');
+    const helpParams = doc.getElementById('fk-help-ind');
     helpOn.checked = true;
     helpParams.value = '30';
     helpParams.dispatchEvent(new Event('change', { bubbles: true }));

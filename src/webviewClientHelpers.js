@@ -2938,27 +2938,43 @@
 
   /**
    * Builds the Menu-Bar switch/cancel key sub-panel's inner HTML -
-   * MNUBARSW (switch key: indicator + CA key) and MNUCNL (cancel key:
-   * indicator + CA key + response-indicator) - shared between the
-   * file-level picker (Task F1) and the record-level MNUBAR picker (Task
-   * R13, screens/record-level/menu-bar-record-mnubar/general - the same
-   * two keywords repeated on a MNUBAR record's own General screen),
-   * rather than the two duplicating this block. `idPrefix` namespaces
-   * every element id, same reasoning windowBorderPanelHtml above takes an
+   * MNUBARSW (switch key: CA key only) and MNUCNL (cancel key: CA key +
+   * optional response-indicator) - shared between the file-level picker
+   * (Task F1) and the record-level MNUBAR picker (Task R13,
+   * screens/record-level/menu-bar-record-mnubar/general - the same two
+   * keywords repeated on a MNUBAR record's own General screen), rather
+   * than the two duplicating this block. `idPrefix` namespaces every
+   * element id, same reasoning windowBorderPanelHtml above takes an
    * idPrefix.
+   *
+   * Task I-4 (keyword parameter/sub-parameter completeness audit): this
+   * used to also render a leading "indicator" input for both keywords and
+   * write it as the FIRST token inside the parens (`MNUBARSW(50 CA03)`,
+   * `MNUCNL(51 CA04 90)`). Confirmed against IBM's own DDS Reference that
+   * this was invalid DDS, not just an incomplete picker - the documented
+   * formats are `MNUBARSW[(CAnn)]` (ONE optional parameter, the CA key
+   * only) and `MNUCNL[(CAnn [response-indicator])]` (CA key, then an
+   * OPTIONAL response indicator - never a leading indicator token at
+   * all). The option/conditioning indicator that DOES apply to these
+   * keywords is a completely different mechanism - positions 7-16,
+   * already correctly modeled by `conditions`/`wireFlagRowConditioning`
+   * below, the same as every other conditionable keyword in this file -
+   * so the stray "indicator" field was a duplicate, WRONG modeling of
+   * that same concept, silently corrupting the keyword's own real
+   * parameter list. Removed entirely; no legacy-format read-compat is
+   * needed since a file carrying the old 2-/3-token form was already
+   * invalid DDS that would never have compiled.
    */
   function menuBarKeysPanelHtml(keywords, idPrefix, expandedSet) {
     var mnubarsw = DspfWriter.getFileFlagKeyword(keywords, 'MNUBARSW');
     var mnubarswParts = (mnubarsw.parameters || '').trim().split(/\s+/);
     var mb = flagRowHtml(idPrefix + '-mnubarsw', 'Menu-bar switch key (MNUBARSW)', mnubarsw.present, undefined, undefined, mnubarsw.conditions, expandedSet);
-    mb += '<div class="two-col"><input type="text" id="' + idPrefix + '-mnubarsw-ind" placeholder="indicator" value="' + escapeHtml(mnubarswParts[0] || '') + '" />' +
-      '<input type="text" id="' + idPrefix + '-mnubarsw-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnubarswParts[1] || '') + '" /></div>';
+    mb += '<input type="text" id="' + idPrefix + '-mnubarsw-cakey" placeholder="CA key 01-24 (default CA10)" value="' + escapeHtml(mnubarswParts[0] || '') + '" style="width:100%;" />';
     var mnucnl = DspfWriter.getFileFlagKeyword(keywords, 'MNUCNL');
     var mnucnlParts = (mnucnl.parameters || '').trim().split(/\s+/);
     mb += flagRowHtml(idPrefix + '-mnucnl', 'Menu-cancel key (MNUCNL)', mnucnl.present, undefined, undefined, mnucnl.conditions, expandedSet);
-    mb += '<div class="two-col"><input type="text" id="' + idPrefix + '-mnucnl-ind" placeholder="indicator" value="' + escapeHtml(mnucnlParts[0] || '') + '" />' +
-      '<input type="text" id="' + idPrefix + '-mnucnl-cakey" placeholder="CA key 01-24" value="' + escapeHtml(mnucnlParts[1] || '') + '" /></div>';
-    mb += '<input type="text" id="' + idPrefix + '-mnucnl-resp" placeholder="response indicator 01-99" value="' + escapeHtml(mnucnlParts[2] || '') + '" style="width:100%;margin-top:4px;" />';
+    mb += '<div class="two-col"><input type="text" id="' + idPrefix + '-mnucnl-cakey" placeholder="CA key 01-24 (default CA12)" value="' + escapeHtml(mnucnlParts[0] || '') + '" />' +
+      '<input type="text" id="' + idPrefix + '-mnucnl-resp" placeholder="response indicator (opt)" value="' + escapeHtml(mnucnlParts[1] || '') + '" /></div>';
     return mb;
   }
 
@@ -2966,27 +2982,23 @@
    *  `onChange` contract every other dedicated picker here uses. */
   function wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     var mnubarswOn = document.getElementById(idPrefix + '-mnubarsw-on');
-    var mnubarswInd = document.getElementById(idPrefix + '-mnubarsw-ind');
     var mnubarswCakey = document.getElementById(idPrefix + '-mnubarsw-cakey');
     function commitMnubarsw(conditions) {
-      var params = [mnubarswInd.value, mnubarswCakey.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
+      var params = (mnubarswCakey.value || '').trim();
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUBARSW', mnubarswOn.checked, params, undefined, conditions));
     }
     if (mnubarswOn) mnubarswOn.addEventListener('change', function () { commitMnubarsw(); });
-    if (mnubarswInd) mnubarswInd.addEventListener('change', function () { commitMnubarsw(); });
     if (mnubarswCakey) mnubarswCakey.addEventListener('change', function () { commitMnubarsw(); });
     wireFlagRowConditioning(idPrefix + '-mnubarsw', DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUBARSW').conditions, commitMnubarsw, expandedSet, rerender);
 
     var mnucnlOn = document.getElementById(idPrefix + '-mnucnl-on');
-    var mnucnlInd = document.getElementById(idPrefix + '-mnucnl-ind');
     var mnucnlCakey = document.getElementById(idPrefix + '-mnucnl-cakey');
     var mnucnlResp = document.getElementById(idPrefix + '-mnucnl-resp');
     function commitMnucnl(conditions) {
-      var params = [mnucnlInd.value, mnucnlCakey.value, mnucnlResp.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
+      var params = [mnucnlCakey.value, mnucnlResp.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUCNL', mnucnlOn.checked, params, undefined, conditions));
     }
     if (mnucnlOn) mnucnlOn.addEventListener('change', function () { commitMnucnl(); });
-    if (mnucnlInd) mnucnlInd.addEventListener('change', function () { commitMnucnl(); });
     if (mnucnlCakey) mnucnlCakey.addEventListener('change', function () { commitMnucnl(); });
     if (mnucnlResp) mnucnlResp.addEventListener('change', function () { commitMnucnl(); });
     wireFlagRowConditioning(idPrefix + '-mnucnl', DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUCNL').conditions, commitMnucnl, expandedSet, rerender);
@@ -3046,8 +3058,13 @@
     var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
     g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, undefined, undefined);
     g += '<div class="section-label">Reference database file (REF)</div>';
-    g += '<div class="two-col"><input type="text" id="fk-ref-library" placeholder="Library" value="' + escapeHtml(refState.library) + '" />' +
-      '<input type="text" id="fk-ref-record" placeholder="Record/File name" value="' + escapeHtml(refState.record) + '" /></div>';
+    g += '<div class="two-col"><input type="text" id="fk-ref-library" placeholder="Library (opt)" value="' + escapeHtml(refState.library) + '" />' +
+      '<input type="text" id="fk-ref-record" placeholder="Database file name" value="' + escapeHtml(refState.record) + '" /></div>';
+    // Task I-4: REF's own third, optional sub-parameter - which record
+    // format to use when the referenced file has more than one - used to
+    // have no field of its own at all (only reachable by typing an extra
+    // space-separated token into the "record" box above, unlabeled).
+    g += '<input type="text" id="fk-ref-format" placeholder="Record format name (opt, if file has several)" value="' + escapeHtml(refState.recordFormat) + '" style="width:100%;margin-top:4px;" />';
     g += '<div class="section-label">Record to pass unformatted data (PASSRCD)</div>';
     g += '<input type="text" id="fk-passrcd" placeholder="Record name" value="' + escapeHtml(DspfWriter.getFileFlagKeyword(kw, 'PASSRCD').parameters) + '" style="width:100%;" />';
     // Task I-6 (keyword compliance audit): file-level TEXT was REMOVED
@@ -3101,9 +3118,29 @@
       // keeps its Conditioning toggle.
       ['fk-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99', undefined, true],
     ].forEach(function (row) {
+      // Task I-4: all seven of these keywords are documented as
+      // `KEYWORD[(response-indicator ['text'])]` - the same optional
+      // descriptive-text shape INDTXT gets its own dedicated field for
+      // right below - but this loop used to render only a single free-
+      // text "indicator" box with no way to reach the 'text' at all.
+      // Split the same way INDTXT is (indicator + optional quoted text),
+      // reusing the identical parsing regex.
       var state = DspfWriter.getFileFlagKeyword(kw, row[1], undefined, row[4]);
+      // Task I-3: some rows (VLDCMDKEY) don't allow option-indicator
+      // conditioning at all - row[5] marks those so Conditioning is
+      // omitted for just that row.
       var noConditioning = row[5];
-      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')', noConditioning ? undefined : state.conditions, noConditioning ? undefined : expandedSet);
+      // Task I-4: all seven of these keywords are documented as
+      // `KEYWORD[(response-indicator ['text'])]` - the same optional
+      // descriptive-text shape INDTXT gets its own dedicated field for
+      // right below - but this loop used to render only a single free-
+      // text "indicator" box with no way to reach the 'text' at all.
+      // Split the same way INDTXT is (indicator + optional quoted text),
+      // reusing the identical parsing regex.
+      var parts = /^(\S*)\s*(?:'((?:[^']|'')*)')?/.exec((state.parameters || '').trim()) || [];
+      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, undefined, undefined, noConditioning ? undefined : state.conditions, noConditioning ? undefined : expandedSet);
+      ind += '<div class="two-col"><input type="text" id="' + row[0] + '-ind" placeholder="indicator (' + row[3] + ')" value="' + escapeHtml(parts[1] || '') + '" />' +
+        '<input type="text" id="' + row[0] + '-text" placeholder="text (opt)" value="' + escapeHtml((parts[2] || '').replace(/''/g, "'")) + '" /></div>';
     });
     // Task I-3: INDTXT - "Option indicators are not valid for this keyword."
     var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
@@ -3141,11 +3178,25 @@
     panels.print = print;
 
     // --- Help ---
+    // Task I-4: HLPPNLGRP/HLPSCHIDX used to be single free-text boxes
+    // whose placeholder hints gave the parameter order BACKWARDS relative
+    // to IBM's documented `help-module-name [library-name/]panel-group-
+    // name` and `[library-name/]search-index-object` shapes. Split into
+    // their own labeled Module/Library/Panel-group and Library/Search-
+    // index fields (see getFileHlpPnlGrpKeyword/getFileHlpSchIdxKeyword's
+    // own comments), matching REF's own library/record/format split above.
     var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
-    var help = flagRowHtml('fk-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name', hlppnlgrp.conditions, expandedSet);
+    var hlppnlgrpState = DspfWriter.getFileHlpPnlGrpKeyword(kw);
+    var help = flagRowHtml('fk-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, undefined, undefined, hlppnlgrp.conditions, expandedSet);
+    help += '<input type="text" id="fk-hlppnlgrp-module" placeholder="Help module name" value="' + escapeHtml(hlppnlgrpState.moduleName) + '" style="width:100%;" />';
+    help += '<div class="two-col" style="margin-top:4px;"><input type="text" id="fk-hlppnlgrp-library" placeholder="Library (opt)" value="' + escapeHtml(hlppnlgrpState.library) + '" />' +
+      '<input type="text" id="fk-hlppnlgrp-panelgroup" placeholder="Panel group name" value="' + escapeHtml(hlppnlgrpState.panelGroup) + '" /></div>';
     // Task I-3: HLPSCHIDX - "Option indicators are not valid for this keyword."
     var hlpschidx = DspfWriter.getFileFlagKeyword(kw, 'HLPSCHIDX');
-    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, hlpschidx.parameters, 'search-index-object library', undefined, undefined);
+    var hlpschidxState = DspfWriter.getFileHlpSchIdxKeyword(kw);
+    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, undefined, undefined, undefined, undefined);
+    help += '<div class="two-col"><input type="text" id="fk-hlpschidx-library" placeholder="Library (opt)" value="' + escapeHtml(hlpschidxState.library) + '" />' +
+      '<input type="text" id="fk-hlpschidx-searchindex" placeholder="Search index object" value="' + escapeHtml(hlpschidxState.searchIndex) + '" /></div>';
     // Task I-3: HLPFULL - "Option indicators are not valid for this keyword."
     var fHlpfull = DspfWriter.getFileFlagKeyword(kw, 'HLPFULL');
     help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, undefined, undefined);
@@ -3334,9 +3385,11 @@
     simple('fk-errsfl', 'ERRSFL', false, undefined, true);
     var refLib = document.getElementById('fk-ref-library');
     var refRec = document.getElementById('fk-ref-record');
-    function commitRef() { onChange(DspfWriter.setFileRefKeyword(getKeywords(), refLib.value, refRec.value)); }
+    var refFormat = document.getElementById('fk-ref-format');
+    function commitRef() { onChange(DspfWriter.setFileRefKeyword(getKeywords(), refLib.value, refRec.value, refFormat.value)); }
     if (refLib) refLib.addEventListener('change', commitRef);
     if (refRec) refRec.addEventListener('change', commitRef);
+    if (refFormat) refFormat.addEventListener('change', commitRef);
     var passrcd = document.getElementById('fk-passrcd');
     if (passrcd) passrcd.addEventListener('change', function () { onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!passrcd.value.trim(), passrcd.value.trim())); });
     // Task I-6: file-level TEXT wiring removed - see fileKeywordsPanelsHtml's
@@ -3347,6 +3400,48 @@
     simple('fk-wrdwrap', 'WRDWRAP');
 
     // Indicator / screen-control
+    // Task I-4: these rows moved from a single "-params" free-text box
+    // (what `simple`/`guardedSimple` above wire) to dedicated "-ind"/
+    // "-text" fields exposing the documented optional 'text' sub-
+    // parameter (see fileKeywordsPanelsHtml's own comment) - custom
+    // commit functions here build the combined `indicator ['text']`
+    // parameter string instead.
+    function commitIndicatorTextRow(id, name, altNames, guarded, noConditioning) {
+      var onEl = document.getElementById(id + '-on');
+      var indEl = document.getElementById(id + '-ind');
+      var textEl = document.getElementById(id + '-text');
+      function buildParams() {
+        var indVal = (indEl.value || '').trim();
+        var textVal = (textEl.value || '').trim();
+        return indVal + (textVal ? " '" + textVal.replace(/'/g, "''") + "'" : '');
+      }
+      function commit(conditions) {
+        var present = onEl.checked;
+        var indVal = (indEl.value || '').trim();
+        if (guarded && present) {
+          var violation = DspfWriter.checkS36EResponseIndicatorViolation(getKeywords(), name, indVal);
+          if (violation) {
+            window.alert(violation.message);
+            var prev = DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames);
+            onEl.checked = prev.present;
+            var prevParts = /^(\S*)\s*(?:'((?:[^']|'')*)')?/.exec((prev.parameters || '').trim()) || [];
+            indEl.value = prevParts[1] || '';
+            textEl.value = (prevParts[2] || '').replace(/''/g, "'");
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, buildParams(), undefined, conditions, altNames));
+      }
+      if (onEl) onEl.addEventListener('change', function () { commit(); });
+      if (indEl) indEl.addEventListener('change', function () { commit(); });
+      if (textEl) textEl.addEventListener('change', function () { commit(); });
+      // Task I-3: VLDCMDKEY (`noConditioning`) doesn't allow option-
+      // indicator conditioning at all - skip wiring the toggle entirely,
+      // same as `simple`'s own noConditioning branch above.
+      if (!noConditioning) {
+        wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).conditions, commit, expandedSet, rerender);
+      }
+    }
     [
       ['fk-clear', 'CLEAR'],
       ['fk-home', 'HOME'],
@@ -3357,12 +3452,13 @@
       // keyword" - `noConditioning` (5th simple() arg) below.
       ['fk-vldcmdkey', 'VLDCMDKEY', undefined, true],
     ].forEach(function (row) {
-      simple(row[0], row[1], true, row[2], row[3]);
+      commitIndicatorTextRow(row[0], row[1], row[2], undefined, row[3]);
     });
     // Task S36-4: HELP's response indicator is a verified S36E rule (see
-    // guardedSimple's own comment) - split out of the forEach above so
-    // this one row alone gets the hard-block treatment.
-    guardedSimple('fk-help', 'HELP');
+    // guardedSimple's own comment, still used elsewhere) - split out of
+    // the forEach above so this one row alone gets the hard-block
+    // treatment.
+    commitIndicatorTextRow('fk-help', 'HELP', undefined, true);
     var indtxtOn = document.getElementById('fk-indtxt-on');
     var indtxtInd = document.getElementById('fk-indtxt-ind');
     var indtxtText = document.getElementById('fk-indtxt-text');
@@ -3432,8 +3528,46 @@
     simple('fk-openprt', 'OPENPRT', false, undefined, true);
 
     // Help
-    simple('fk-hlppnlgrp', 'HLPPNLGRP', true);
-    simple('fk-hlpschidx', 'HLPSCHIDX', true, undefined, true);
+    // Task I-4: HLPPNLGRP/HLPSCHIDX moved from simple()'s single free-text
+    // box to their own Module/Library/Panel-group and Library/Search-
+    // index fields (see fileKeywordsPanelsHtml's own comment) - the
+    // checkbox still independently controls presence, same as INDTXT/
+    // MNUBARSW/MNUCNL above, so the entered values aren't lost by
+    // unchecking then rechecking.
+    var hlppnlgrpOn = document.getElementById('fk-hlppnlgrp-on');
+    var hlppnlgrpModule = document.getElementById('fk-hlppnlgrp-module');
+    var hlppnlgrpLibrary = document.getElementById('fk-hlppnlgrp-library');
+    var hlppnlgrpPanelgroup = document.getElementById('fk-hlppnlgrp-panelgroup');
+    function commitHlppnlgrp(conditions) {
+      var mod = (hlppnlgrpModule.value || '').trim();
+      var lib = (hlppnlgrpLibrary.value || '').trim();
+      var pg = (hlppnlgrpPanelgroup.value || '').trim();
+      var params = mod + (pg ? ' ' + (lib ? lib + '/' + pg : pg) : '');
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPPNLGRP', hlppnlgrpOn.checked, params, undefined, conditions));
+    }
+    if (hlppnlgrpOn) hlppnlgrpOn.addEventListener('change', function () { commitHlppnlgrp(); });
+    if (hlppnlgrpModule) hlppnlgrpModule.addEventListener('change', function () { commitHlppnlgrp(); });
+    if (hlppnlgrpLibrary) hlppnlgrpLibrary.addEventListener('change', function () { commitHlppnlgrp(); });
+    if (hlppnlgrpPanelgroup) hlppnlgrpPanelgroup.addEventListener('change', function () { commitHlppnlgrp(); });
+    wireFlagRowConditioning('fk-hlppnlgrp', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').conditions, commitHlppnlgrp, expandedSet, rerender);
+
+    // Task I-3: HLPSCHIDX - "Option indicators are not valid for this
+    // keyword" - no wireFlagRowConditioning call below (matches
+    // fileKeywordsPanelsHtml's own undefined/undefined render for this
+    // row's Conditioning toggle).
+    var hlpschidxOn = document.getElementById('fk-hlpschidx-on');
+    var hlpschidxLibrary = document.getElementById('fk-hlpschidx-library');
+    var hlpschidxSearchindex = document.getElementById('fk-hlpschidx-searchindex');
+    function commitHlpschidx() {
+      var lib = (hlpschidxLibrary.value || '').trim();
+      var si = (hlpschidxSearchindex.value || '').trim();
+      var params = lib && si ? lib + '/' + si : si;
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPSCHIDX', hlpschidxOn.checked, params));
+    }
+    if (hlpschidxOn) hlpschidxOn.addEventListener('change', commitHlpschidx);
+    if (hlpschidxLibrary) hlpschidxLibrary.addEventListener('change', commitHlpschidx);
+    if (hlpschidxSearchindex) hlpschidxSearchindex.addEventListener('change', commitHlpschidx);
+    // Task I-3: HLPFULL - "Option indicators are not valid for this keyword."
     simple('fk-hlpfull', 'HLPFULL', false, undefined, true);
     var hlptitle = document.getElementById('fk-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });

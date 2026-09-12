@@ -5435,25 +5435,28 @@ function runMnuBarPickerScenario() {
     check('MNUBAR params start blank', doc.getElementById(p + '-mnubar-params').value === '');
 
     console.log('  General: MNUBARSW and MNUCNL (reused from the file-level component) commit independently of MNUBAR itself');
+    // Task I-4: confirmed against IBM's own DDS Reference that
+    // MNUBARSW[(CAnn)] takes only ONE optional parameter (the CA key) and
+    // MNUCNL[(CAnn [response-indicator])] takes the CA key plus an
+    // OPTIONAL response indicator - neither has a leading "indicator"
+    // parameter (that was invalid DDS the old picker used to write).
     doc.getElementById(p + '-mnubarsw-on').checked = true;
-    doc.getElementById(p + '-mnubarsw-ind').value = '50';
     doc.getElementById(p + '-mnubarsw-cakey').value = 'CA03';
     doc.getElementById(p + '-mnubarsw-cakey').dispatchEvent(new Event('change', { bubbles: true }));
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('an edit was posted', !!applyEdit);
     let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
-    check('MNUBARSW written with indicator + CA key', reparsed.keywords.find((k) => k.name === 'MNUBARSW').parameters.trim() === '50 CA03');
+    check('MNUBARSW written with just the CA key', reparsed.keywords.find((k) => k.name === 'MNUBARSW').parameters.trim() === 'CA03');
     check('MNUBAR keyword itself is untouched', reparsed.keywords.some((k) => k.name === 'MNUBAR'));
     posted.length = 0;
 
     doc.getElementById(p + '-mnucnl-on').checked = true;
-    doc.getElementById(p + '-mnucnl-ind').value = '51';
     doc.getElementById(p + '-mnucnl-cakey').value = 'CA04';
     doc.getElementById(p + '-mnucnl-resp').value = '90';
     doc.getElementById(p + '-mnucnl-resp').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'BAR1');
-    check('MNUCNL written with indicator + CA key + response indicator', reparsed.keywords.find((k) => k.name === 'MNUCNL').parameters.trim() === '51 CA04 90');
+    check('MNUCNL written with CA key + response indicator', reparsed.keywords.find((k) => k.name === 'MNUCNL').parameters.trim() === 'CA04 90');
     check('MNUBARSW from the previous step is still there (independent commits)', reparsed.keywords.some((k) => k.name === 'MNUBARSW'));
     posted.length = 0;
 

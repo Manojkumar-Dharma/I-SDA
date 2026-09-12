@@ -206,18 +206,82 @@ exist — a toggle removed/added only in a code comment isn't a fix.
 
 ## I-4 — Parameter/sub-parameter completeness audit across all 39
 
-Only `IGCCNV` was spot-checked in I-1 (confirmed correct: both
-required parameters — `CFnn` key and prompt-line-number — are reachable
-via `fk-igccnv-key`/`fk-igccnv-line`). The remaining 38 keywords need the
-same check: does the UI expose every documented parameter/sub-parameter,
-or only a subset? `WDWBORDER`'s `*COLOR`/`*DSPATR`/`*CHAR` sub-groups are
-a likely candidate for a closer look given their structural complexity
-(already flagged once in `dspfWriter.js`'s own comments as "the one
-keyword in this set with real internal structure").
+Full audit completed across all 39 file-level keywords, comparing IBM's
+documented parameter syntax (`DDS_Keyword_V7r6.txt`) against iSDA's
+`dspfWriter.js`/`webviewClientHelpers.js` implementation.
+
+**Confirmed correct, no changes needed:** `INVITE`, `ALWGPH`,
+`MSGALARM`, `INDARA`, `USRDSPMGT`, `DSPRL` (no-parameter flags); `CHECK`
+(file-level `AB`/`RLTB`/`RL` — matches documented file-level scope);
+`CHGINPDFT` (all 9 documented codes `HI`/`RI`/`CS`/`BL`/`UL`/`LC`/`ME`/
+`MF`/`FE` present); `TEXT`, `INDTXT`, `PASSRCD`, `DSPSIZ` (including its
+user-defined display-size condition names — any `*`-prefixed token is
+accepted, not just `*DS3`/`*DS4`), `MSGLOC`, `IGCCNV` (I-1's own finding,
+reconfirmed), `WDWBORDER` (`*COLOR` 7 values, `*DSPATR` all 6 documented
+codes `BL`/`CS`/`HI`/`ND`/`RI`/`UL`, `*CHAR` 8-char string — all present),
+`ALTHELP`, `ALTPAGEUP`/`ALTPAGEDWN` (single optional `CAnn`/`CFnn`,
+reachable), `CAnn`/`CFnn` (response-indicator + optional `'text'` both
+present, separate from the — correctly separate — option-indicator
+conditioning mechanism), `HLPFULL`, `HLPTITLE` (single quoted-text
+parameter).
+
+**Confirmed gaps, fixed as part of this task:**
+
+1. **`MNUBARSW`/`MNUCNL` — invalid DDS being generated (not just an
+   incompleteness gap).** IBM's documented formats are `MNUBARSW[(CAnn)]`
+   (ONE optional parameter) and `MNUCNL[(CAnn [response-indicator])]`
+   (CA key, then an OPTIONAL response indicator) — neither has a leading
+   "indicator" parameter. The old `menuBarKeysPanelHtml`/
+   `wireMenuBarKeysPanel` wrote a bogus extra token as the FIRST
+   parameter (`MNUBARSW(50 CA03)`, `MNUCNL(51 CA04 90)`), confusing the
+   option/conditioning indicator (a completely separate mechanism, already
+   correctly modeled via `conditions`/`wireFlagRowConditioning`) with the
+   keyword's own real parameter list. This would have failed to compile.
+   Fixed: removed the stray indicator field from both keywords; `MNUBARSW`
+   now writes just the CA key, `MNUCNL` writes CA key + optional response
+   indicator. No legacy-format read-compat needed — a file carrying the
+   old form was already invalid DDS that would never have compiled.
+2. **`REF`** — documented format is `[library-name/]database-file-name
+   [record-format-name]` (three logical parts), but the picker only
+   exposed two fields ("Library" + "Record/File name"), leaving the
+   optional record-format-name reachable only by accident (typing an
+   extra space-separated token into the "record" box happened to
+   serialize correctly, but had no label or field of its own). Fixed:
+   added `getFileRefKeyword`/`setFileRefKeyword`'s own `recordFormat`
+   sub-field and a third labeled input (`fk-ref-format`).
+3. **`HLPPNLGRP`/`HLPSCHIDX`** — both used a single free-text box whose
+   placeholder hint gave the parameter order BACKWARDS relative to the
+   documented `help-module-name [library-name/]panel-group-name` and
+   `[library-name/]search-index-object` shapes (`"panel-group-name
+   library module-name"` and `"search-index-object library"`), which
+   risked producing invalid DDS if someone typed it in the hinted order.
+   Fixed: added `getFileHlpPnlGrpKeyword`/`setFileHlpPnlGrpKeyword` and
+   `getFileHlpSchIdxKeyword`/`setFileHlpSchIdxKeyword`, and split each
+   into its own labeled Module-name/Library/Panel-group-name and
+   Library/Search-index-object fields (mirroring `REF`'s split above).
+4. **`CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`VLDCMDKEY`** —
+   all documented as `KEYWORD[(response-indicator ['text'])]`, the exact
+   same optional-descriptive-text shape `INDTXT` gets its own two-field
+   split for right next to them in the same panel — but these seven only
+   ever exposed a single "indicator" box, with no way to reach the
+   `'text'` sub-parameter at all. Fixed: same indicator+text split as
+   `INDTXT`, reusing its parsing regex; the S36-4 hard-block on `HELP`'s
+   response indicator (`checkS36EResponseIndicatorViolation`) was
+   preserved by validating against just the indicator sub-field.
+
+**Resolved by a parallel task, not duplicated here:** `PRINT`'s `*PGM`
+special value was technically reachable when this audit started (a user
+could type the literal text into the free-text response-indicator box
+and it would serialize correctly) but wasn't surfaced as its own explicit
+option. This sat inside the same file-level PRINT panel I-2 was already
+reworking (merging `PRTFILE` into `PRINT`'s own printer-file parameter
+form) — I-2 landed upstream (v0.10.83) with `*PGM` as an explicit
+"Print file (name or *PGM)" input while this task was still in progress,
+so no separate fix was needed here.
 
 | Task | Description | Depends on | Status |
 |------|-------------|------------|--------|
-| **I-4** | Parameter/sub-parameter completeness audit across all 39 file-level keywords (only `IGCCNV` confirmed so far — correct). | I-1 | not started |
+| **I-4** | Parameter/sub-parameter completeness audit across all 39 file-level keywords. Confirmed one invalid-DDS bug (`MNUBARSW`/`MNUCNL`) and three real completeness/mislabeling gaps (`REF`, `HLPPNLGRP`/`HLPSCHIDX`, and the `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`VLDCMDKEY` missing `'text'` sub-parameter); all fixed. `PRINT`'s `*PGM` option resolved separately by I-2. | I-1 | done |
 
 ---
 

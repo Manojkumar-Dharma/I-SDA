@@ -114,6 +114,87 @@ console.log('\ngetFileRefKeyword / setFileRefKeyword - REF(library/record)');
   check('blank record removes REF entirely', kw.length === 0);
 }
 
+console.log('\ngetFileRefKeyword / setFileRefKeyword - the record-format-name sub-parameter (Task I-4)');
+{
+  // IBM's documented format is [library-name/]database-file-name
+  // [record-format-name] - a third, optional, space-separated part used
+  // when the referenced file has more than one record format.
+  let kw = DspfWriter.setFileRefKeyword([], 'MYLIB', 'CUSTMAST', 'CUSTREC2');
+  check('parameters formatted as library/record recordFormat', kw[0].parameters === 'MYLIB/CUSTMAST CUSTREC2');
+  let state = DspfWriter.getFileRefKeyword(kw);
+  check('round-trips library', state.library === 'MYLIB');
+  check('round-trips record', state.record === 'CUSTMAST');
+  check('round-trips recordFormat', state.recordFormat === 'CUSTREC2');
+
+  kw = DspfWriter.setFileRefKeyword([], '', 'CUSTMAST', 'CUSTREC2');
+  check('no library qualifier, recordFormat still written', kw[0].parameters === 'CUSTMAST CUSTREC2');
+  state = DspfWriter.getFileRefKeyword(kw);
+  check('recordFormat round-trips with no library', state.recordFormat === 'CUSTREC2');
+
+  kw = DspfWriter.setFileRefKeyword([], 'MYLIB', 'CUSTMAST');
+  check('omitting recordFormat writes exactly as before (2-arg callers unaffected)', kw[0].parameters === 'MYLIB/CUSTMAST');
+  check('recordFormat reads back blank when not set', DspfWriter.getFileRefKeyword(kw).recordFormat === '');
+}
+
+console.log('\ngetFileHlpPnlGrpKeyword / setFileHlpPnlGrpKeyword - HLPPNLGRP(module [library/]panelgroup), Task I-4');
+{
+  // Confirmed order per IBM's DDS Reference: help-module-name comes
+  // FIRST, then the (optionally library-qualified) panel-group-name -
+  // the old picker's placeholder hint had this backwards.
+  let kw = DspfWriter.setFileHlpPnlGrpKeyword([], 'GENERAL', 'LIBA', 'PANEL1');
+  check('parameters formatted as module library/panelgroup', kw[0].parameters === 'GENERAL LIBA/PANEL1');
+  let state = DspfWriter.getFileHlpPnlGrpKeyword(kw);
+  check('round-trips moduleName', state.moduleName === 'GENERAL');
+  check('round-trips library', state.library === 'LIBA');
+  check('round-trips panelGroup', state.panelGroup === 'PANEL1');
+
+  kw = DspfWriter.setFileHlpPnlGrpKeyword([], 'GENERAL', '', 'PANEL1');
+  check('no library qualifier when library blank', kw[0].parameters === 'GENERAL PANEL1');
+  state = DspfWriter.getFileHlpPnlGrpKeyword(kw);
+  check('library reads back empty', state.library === '');
+  check('panelGroup still reads back', state.panelGroup === 'PANEL1');
+
+  kw = DspfWriter.setFileHlpPnlGrpKeyword([], 'GENERAL', 'LIBA', '');
+  check('blank panelGroup drops the keyword entirely (both moduleName and panelGroup are required)', kw.length === 0);
+  kw = DspfWriter.setFileHlpPnlGrpKeyword([], '', 'LIBA', 'PANEL1');
+  check('blank moduleName drops the keyword entirely', kw.length === 0);
+}
+
+console.log('\ngetFileHlpSchIdxKeyword / setFileHlpSchIdxKeyword - HLPSCHIDX([library/]searchindex), Task I-4');
+{
+  let kw = DspfWriter.setFileHlpSchIdxKeyword([], 'LIBA', 'SEARCH1');
+  check('parameters formatted as library/searchindex', kw[0].parameters === 'LIBA/SEARCH1');
+  let state = DspfWriter.getFileHlpSchIdxKeyword(kw);
+  check('round-trips library', state.library === 'LIBA');
+  check('round-trips searchIndex', state.searchIndex === 'SEARCH1');
+
+  kw = DspfWriter.setFileHlpSchIdxKeyword([], '', 'SEARCH1');
+  check('no library qualifier when library blank', kw[0].parameters === 'SEARCH1');
+  state = DspfWriter.getFileHlpSchIdxKeyword(kw);
+  check('library reads back empty', state.library === '');
+  check('searchIndex still reads back', state.searchIndex === 'SEARCH1');
+
+  kw = DspfWriter.setFileHlpSchIdxKeyword([], 'LIBA', '');
+  check('blank searchIndex removes HLPSCHIDX entirely', kw.length === 0);
+}
+
+console.log('\nMNUBARSW/MNUCNL via setFileFlagKeyword - confirming the fixed (valid DDS) shapes, Task I-4');
+{
+  // Confirmed against IBM's DDS Reference: MNUBARSW[(CAnn)] takes only
+  // ONE optional parameter; MNUCNL[(CAnn [response-indicator])] takes the
+  // CA key plus an OPTIONAL response indicator. Neither has a leading
+  // "indicator" parameter - a previous version of the picker wrote one,
+  // producing invalid DDS (see keywordFixes.md's I-4 writeup).
+  let kw = DspfWriter.setFileFlagKeyword([], 'MNUBARSW', true, 'CA10');
+  check('MNUBARSW writes just the CA key', kw.find((k) => k.name === 'MNUBARSW').parameters === 'CA10');
+
+  kw = DspfWriter.setFileFlagKeyword([], 'MNUCNL', true, 'CA12 90');
+  check('MNUCNL writes CA key + response indicator', kw.find((k) => k.name === 'MNUCNL').parameters === 'CA12 90');
+
+  kw = DspfWriter.setFileFlagKeyword([], 'MNUCNL', true, 'CA12');
+  check('MNUCNL writes just the CA key when no response indicator is given', kw.find((k) => k.name === 'MNUCNL').parameters === 'CA12');
+}
+
 console.log('\ngetFilePrintFileForm - PRINT(*PGM) / PRINT([library/]printer-file-name), I-2 fix');
 {
   // I-2 (keywordFixes.md): PRTFILE is not a real DDS keyword - the

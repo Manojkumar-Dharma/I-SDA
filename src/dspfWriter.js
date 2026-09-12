@@ -2165,24 +2165,121 @@
     return next;
   }
 
-  /** REF (Reference database file) - reads its Library/Record sub-fields
-   *  out of the `library/record` parameter form. */
+  /** REF (Reference database file) - reads its Library/Record/
+   *  record-format-name sub-fields out of the documented
+   *  `[library-name/]database-file-name [record-format-name]` parameter
+   *  form.
+   *
+   *  Task I-4 (keyword parameter/sub-parameter completeness audit):
+   *  confirmed against IBM's own DDS Reference that REF's format has a
+   *  THIRD, optional, space-separated `record-format-name` sub-parameter
+   *  (used when the referenced file has more than one record format) -
+   *  this used to only split on `/` and treat everything else as one
+   *  opaque `record` string, so the record-format-name was reachable only
+   *  by accident (typing "FILE1 RECORD2" into the "record" box happened
+   *  to serialize correctly) and was never its own labeled field. */
   function getFileRefKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'REF'; });
-    if (!k) return { library: '', record: '' };
-    var parts = (k.parameters || '').trim().split('/');
-    return parts.length > 1 ? { library: parts[0].trim(), record: parts.slice(1).join('/').trim() } : { library: '', record: parts[0].trim() };
+    if (!k) return { library: '', record: '', recordFormat: '' };
+    var raw = (k.parameters || '').trim();
+    var slashIdx = raw.indexOf('/');
+    var library = '';
+    var rest = raw;
+    if (slashIdx !== -1) {
+      library = raw.slice(0, slashIdx).trim();
+      rest = raw.slice(slashIdx + 1).trim();
+    }
+    var restTokens = rest.split(/\s+/).filter(Boolean);
+    return { library: library, record: restTokens[0] || '', recordFormat: restTokens.slice(1).join(' ') };
   }
 
-  /** Returns a NEW keywords array with REF set from `library`/`record`
-   *  (REF(library/record), or REF(record) with no library qualifier), or
-   *  removed entirely if `record` is blank. */
-  function setFileRefKeyword(keywords, library, record) {
+  /** Returns a NEW keywords array with REF set from `library`/`record`/
+   *  `recordFormat` (REF([library/]record [recordFormat]), or REF(record)
+   *  with no library qualifier and/or no record-format-name), or removed
+   *  entirely if `record` is blank. `recordFormat` is optional - existing
+   *  2-argument callers keep writing exactly the same output as before. */
+  function setFileRefKeyword(keywords, library, record, recordFormat) {
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'REF'; });
     var rec = (record || '').trim();
     if (rec) {
       var lib = (library || '').trim();
-      next = next.concat([{ name: 'REF', parameters: lib ? lib + '/' + rec : rec, conditions: [], raw: '', sourceLines: [] }]);
+      var rf = (recordFormat || '').trim();
+      var base = lib ? lib + '/' + rec : rec;
+      next = next.concat([{ name: 'REF', parameters: rf ? base + ' ' + rf : base, conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** HLPPNLGRP (file level only - see the H-spec-level usage's own,
+   *  separate free-text handling in applicationHelpFieldsHtml, which this
+   *  does not touch) - reads its Module name/Library/Panel group
+   *  sub-fields out of the documented
+   *  `help-module-name [library-name/]panel-group-name` parameter form.
+   *
+   *  Task I-4 (keyword parameter/sub-parameter completeness audit):
+   *  confirmed against IBM's own DDS Reference that BOTH the module name
+   *  and the panel group name are required (only the library qualifier on
+   *  the panel group name is optional) - the file-level picker used to
+   *  expose this as one free-text box whose own placeholder hint read
+   *  "panel-group-name library module-name", the WRONG order relative to
+   *  the documented `help-module-name [library-name/]panel-group-name`
+   *  shape, which risked writing invalid DDS if someone typed it in the
+   *  order the hint suggested. */
+  function getFileHlpPnlGrpKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'HLPPNLGRP'; });
+    if (!k) return { moduleName: '', library: '', panelGroup: '' };
+    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var moduleName = tokens[0] || '';
+    var rest = tokens.slice(1).join(' ');
+    var slashIdx = rest.indexOf('/');
+    if (slashIdx !== -1) {
+      return { moduleName: moduleName, library: rest.slice(0, slashIdx).trim(), panelGroup: rest.slice(slashIdx + 1).trim() };
+    }
+    return { moduleName: moduleName, library: '', panelGroup: rest };
+  }
+
+  /** Returns a NEW keywords array with HLPPNLGRP set from `moduleName`/
+   *  `library`/`panelGroup` (both moduleName and panelGroup are required
+   *  per the DDS Reference - a keyword with only one of them supplied
+   *  isn't valid DDS, so it's dropped entirely rather than written
+   *  half-formed), or removed if either is blank. */
+  function setFileHlpPnlGrpKeyword(keywords, moduleName, library, panelGroup) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'HLPPNLGRP'; });
+    var mod = (moduleName || '').trim();
+    var pg = (panelGroup || '').trim();
+    if (mod && pg) {
+      var lib = (library || '').trim();
+      next = next.concat([{ name: 'HLPPNLGRP', parameters: mod + ' ' + (lib ? lib + '/' + pg : pg), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** HLPSCHIDX - reads its Library/search-index-object sub-fields out of
+   *  the documented `[library-name/]search-index-object` parameter form.
+   *
+   *  Task I-4: same "backwards placeholder hint" bug as HLPPNLGRP above -
+   *  the old free-text box's hint read "search-index-object library"
+   *  instead of the documented library-first, slash-joined order. */
+  function getFileHlpSchIdxKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'HLPSCHIDX'; });
+    if (!k) return { library: '', searchIndex: '' };
+    var raw = (k.parameters || '').trim();
+    var slashIdx = raw.indexOf('/');
+    if (slashIdx !== -1) {
+      return { library: raw.slice(0, slashIdx).trim(), searchIndex: raw.slice(slashIdx + 1).trim() };
+    }
+    return { library: '', searchIndex: raw };
+  }
+
+  /** Returns a NEW keywords array with HLPSCHIDX set from `library`/
+   *  `searchIndex` (HLPSCHIDX([library/]searchIndex)), or removed
+   *  entirely if `searchIndex` is blank. */
+  function setFileHlpSchIdxKeyword(keywords, library, searchIndex) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'HLPSCHIDX'; });
+    var si = (searchIndex || '').trim();
+    if (si) {
+      var lib = (library || '').trim();
+      next = next.concat([{ name: 'HLPSCHIDX', parameters: lib ? lib + '/' + si : si, conditions: [], raw: '', sourceLines: [] }]);
     }
     return next;
   }
@@ -4844,6 +4941,10 @@
     getFileRefKeyword: getFileRefKeyword,
     setFileRefKeyword: setFileRefKeyword,
     getFilePrintFileForm: getFilePrintFileForm,
+    getFileHlpPnlGrpKeyword: getFileHlpPnlGrpKeyword,
+    setFileHlpPnlGrpKeyword: setFileHlpPnlGrpKeyword,
+    getFileHlpSchIdxKeyword: getFileHlpSchIdxKeyword,
+    setFileHlpSchIdxKeyword: setFileHlpSchIdxKeyword,
     getWdwBorder: getWdwBorder,
     setWdwBorder: setWdwBorder,
     getWindowParamsKeyword: getWindowParamsKeyword,

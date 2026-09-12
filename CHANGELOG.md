@@ -13,6 +13,7 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`docs/sda-reference/keywordFixes.md`](docs/sda-reference/keywordFixes.md)
 (keyword-compliance audit against IBM's own DDS reference, `I-` series).
 
+- **0.10.87** — I-4: file-level keyword parameter/sub-parameter completeness audit — fixed invalid DDS in `MNUBARSW`/`MNUCNL` (bogus leading indicator parameter), added `REF`'s missing `record-format-name`, corrected backwards-order `HLPPNLGRP`/`HLPSCHIDX` field hints, and added the missing `'text'` sub-parameter to `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`VLDCMDKEY`.
 - **0.10.86** — I-9: SFL panel's `LOGINP`/`KEEP`/`CHECK`(AB,RL) lost their Conditioning toggle (IBM: not eligible); `SFLNXTCHG`/`LOGOUT` confirmed correctly keep it.
 - **0.10.85** — I-6: file-level `TEXT` removed — IBM documents it as record-/field-level only; record-level `TEXT` unaffected.
 - **0.10.84** — I-11: `SFLNXTCHG` now hard-blocked from turning on while `SFLMSGRCD` is present — IBM documents the two as mutually exclusive.
