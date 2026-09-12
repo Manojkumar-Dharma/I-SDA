@@ -167,7 +167,7 @@ commit to one approach yet.
 
 | Task | Description | Depends on | Status |
 |------|-------------|------------|--------|
-| **I-3** | Full conditioning-eligibility audit across all 39 file-level keywords (4 confirmed violations so far: `INDARA`/`DSPRL`/`ERRSFL`/`HLPFULL` wrongly offer conditioning). Fix by removing conditioning UI where IBM disallows it and confirming it's present where allowed. | I-1 | not started |
+| **I-3** | Full conditioning-eligibility audit across all 39 file-level keywords (4 confirmed violations so far: `INDARA`/`DSPRL`/`ERRSFL`/`HLPFULL` wrongly offer conditioning). Fix by removing conditioning UI where IBM disallows it and confirming it's present where allowed. | I-1 | in progress |
 
 ---
 
