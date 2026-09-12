@@ -335,11 +335,70 @@ panel.
 
 ---
 
+## Record-level audit (I-7 through I-16) — same 4-dimension method, per record type
+
+I-1 through I-6 covered file-level keywords as one flat set of 39. Record
+level doesn't work that way: which keywords are even *applicable* depends
+on which record type you're on, and iSDA already models that via its own
+`isXRecord`/panel-gating functions (`isUsrDfnRecord`, `isSflRecord`,
+`isSflCtlRecord`, `isSflMsgRecord`, `isWindowRecord`, `isPulldownRecord`,
+plus `MNUBAR`'s own gate) rather than one undifferentiated keyword list.
+So this extension of the audit is split **one task per record type**,
+each asking the same four questions I-1 asked (usage/constraints,
+conditioning, parameters/sub-parameters, missing keywords) but scoped to
+what real SDA's own screens — and IBM's own DDS Reference — say is
+actually valid for *that* record type specifically, which is exactly the
+"applicable/not applicable" question raised alongside this request.
+
+**Ground truth for scope, not for correctness** — `PICKER-SCREENS-PLAN.md`
+(R1–R13) and `docs/sda-reference/keyword-index/KEYWORD-INDEX.json`'s
+`record` level already document which keyword *categories* iSDA exposes
+per record type, condensed into each task row below. That tells you
+*where to look*, not that what's there is already correct — the whole
+point of I-1's method (read each keyword's own opening statement in the
+DDS Reference, don't infer from a category label or another keyword's
+mention of it) applies here exactly as it did at file level. Known
+already-stale example: `KEYWORD-INDEX.json`'s record-level Print category
+still lists `PRTFILE` as its own keyword — that's the exact I-2 bug,
+the index just hasn't been regenerated since the fix. Regenerating it
+(`docs/sda-reference/keyword-index/build_index.py` /
+`build_lookup_and_md.py`) is fair game for whichever task gets to Print,
+but isn't itself the point of that task.
+
+**Record types NOT getting their own task** — `PICKER-SCREENS-PLAN.md`'s
+own R6/R8/R9/R11/R12 already established, with dedicated tests, that
+`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, and `PDNSFLCTL` are not
+distinct DDS record types at all: each is just an ordinary `SFLCTL` or
+`SFL` record that also happens to carry `WINDOW` or `PULLDOWN`, with the
+two component panels working independently and zero cross-contamination.
+That finding was about *keyword coverage* (does the right panel appear);
+it hasn't been re-checked from *this* audit's angle (does combining two
+record shapes change any keyword's usage/conditioning/parameter rules
+IBM documents only for the single-shape case). I-15 below covers that
+recheck as one task rather than five, since it's a narrower question than
+a full per-type audit — if it turns up a real combination-specific rule,
+split it out into its own task at that point rather than guessing now.
+
+| Task | Record type(s) | Scope (current panels/keywords, from KEYWORD-INDEX.json + PICKER-SCREENS-PLAN.md) | Depends on | Status |
+|------|------|-------|------------|--------|
+| **I-7** | `RECORD` (base) | R1's full 8 categories, all in scope for this type: General (`INZRCD`/`KEEP`/`ASSUME`/`ALWROL`/`RETKEY`/`RETCMDKEY`/`CHGINPDFT`/`MNUBARDSP`/`ENTFLDATR`/`RTNCSRLOC`/`TEXT`/`ALTNAME`), Indicator (`CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT`), Application help (`HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA`), Help (`HLPCLR`/`HLPSEQ`/`HLPCMDKEY`/`HLPTITLE`), Output (`BLINK`/`ALARM`/`MSGALARM`/`LOCK`/`LOGOUT`/`INVITE`/`ALWGPH`/`FRCDTA`/`DSPMOD`/`CSRLOC`/`SLNO`/`CLRL`), Input (`LOGINP`/`UNLOCK`/`GETRETAIN`/`RETLCKSTS`/`CHECK`/`RTNDTA`), Overlay (`OVERLAY`/`PUTRETAIN`/`PROTECT`/`PUTOVR`/`OVRDTA`/`OVRATR`/`INZINP`/`MDTOFF`/`ERASEINP`/`ERASE`), Print (`PRINT` — `PRTFILE` is I-2's fix, not a separate keyword). ~63 keywords total — by far the largest task here since every other record type either reuses this set (in full or narrowed) or is standalone. | I-1 (method) | not started |
+| **I-8** | `USRDFN` | Deliberately narrow — per `isUsrDfnRecord`'s own doc comment in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords" menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`) offers only General/Help/Print, 3 of R1's 8 (down from an original 4 before Task L5d-ii correctly moved Application help off the record-level set entirely, for every record type). This task's job is to verify that narrowed set against IBM's own DDS Reference specifically for USRDFN records — does the DDS Reference actually restrict any of General/Help/Print's own keywords further on a USRDFN record specifically (e.g. a keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`), not just re-confirm the menu screenshot. This is the clearest "applicable/not applicable" case in the whole record-level series. | I-7 | not started |
+| **I-9** | `SFL` (subfile detail record) | Standalone — doesn't reuse I-7's set. Subfile - General (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile - Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/`SFLROLVAL` — field-level, conditioned on the record being `SFL`/`SFLCTL`, per Task D3). | I-1 (method) | not started |
+| **I-10** | `SFLCTL` (subfile control record) | Reuses I-7's full 8 (R1) plus its own: Subfile Control - General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`), Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages (`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record keyword sharing a name with — but structurally distinct from — field-level `MSGID`; don't conflate the two when checking parameters. | I-7, I-9 | not started |
+| **I-11** | `SFLMSG` (message subfile detail record) | Standalone — per Task R5's own finding, doesn't reuse I-7's set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its own General/Indicator categories (need to confirm from `docs/sda-reference/screens/record-level/subfile-message-sflmsg/` whether these are truly independent of I-7's General/Indicator or a subset — R5's own note calls it standalone but the exact keyword list for SFLMSG's own General/Indicator screens isn't broken out separately in `KEYWORD-INDEX.json` from `I-7`'s, worth confirming which keywords actually apply here as part of this task rather than assuming reuse). | I-1 (method) | not started |
+| **I-12** | `WINDOW` | Reuses I-7's full 8 plus its own: Window Parameters (`WINDOW` itself — size/roll/position), Border Parameters/Color/Attributes/Characters (`WDWBORDER`, shared verbatim with file-level's own `WDWBORDER` per F1's note — confirm that sharing is still accurate rather than assuming). Window Title has its own existing dedicated panel, not part of this task's scope (already built, not part of the audit unless a gap is found). | I-7 | not started |
+| **I-13** | `PULLDOWN` | Reuses I-7's full 8 plus its own: Pull-Down - General (`PULLDOWN`/`WDWBORDER` — no window-parameters screen, per R10's own note that pull-downs don't have `WINDOW`'s size/roll options). | I-7, I-12 (shares the border set) | not started |
+| **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. | I-7 | not started |
+| **I-15** | Combination record types: `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL` | Not a full per-type audit (see "Record types NOT getting their own task" above) — recheck R6/R8/R9/R11/R12's "no cross-contamination" finding specifically from THIS audit's angle: does IBM's DDS Reference document any usage/conditioning/parameter rule that only applies when two keywords are combined on the same record (e.g. a restriction on `SFL` that's stated differently when `WINDOW` is also present)? If nothing turns up, close as "confirmed independent, no combination-specific rules" the same way R6/R8/R9/R11/R12 closed with "zero new code needed." If something does turn up, split it into its own task rather than silently patching it here. | I-9, I-10, I-11, I-12, I-13 | not started |
+| **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | Housekeeping, not an audit task itself — once I-7 through I-15 land real fixes, regenerate the keyword-index files (`build_index.py`/`build_lookup_and_md.py`) so they stop reflecting stale pre-fix state (the `PRTFILE` example above is one instance; there may be others by the time this is picked up). Do this LAST, after the others are done, not incrementally per task — regenerating after every single fix just churns the index files repeatedly for no benefit. | I-7 through I-15 | not started |
+
+---
+
 ## On the horizon
 
-- Record-level and field-level keyword audits, same 4-dimension method,
-  as their own follow-up series once I-2 through I-6 are closed.
+- Field-level keyword audit, same 4-dimension method, as its own
+  follow-up series once the record-level tasks above are closed.
 - `flagRowHtml`'s conditioning-eligibility mechanism (I-3) may be
-  generally useful beyond file-level once record-/field-level audits
-  start — worth designing with that reuse in mind rather than a
-  file-level-only lookup table.
+  generally useful for the record-level tasks above too — reuse it
+  rather than inventing a second mechanism, if it fits the record-level
+  panel code's shape as-is.
