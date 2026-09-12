@@ -2160,6 +2160,46 @@ function runFieldPropertyHelpersScenario() {
     check('turning DFT on for a floating-point field is blocked with an alert mentioning floating-point', /floating-point/i.test(alertMessage || ''));
     check('the blocked DFT checkbox on the floating-point field is reverted back off', fltDftOn.checked === false);
     check('no applyEdit was posted for the floating-point block either', !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  Task L82: EDTCDE/EDTWRD are blocked from the OTHER side of the same relationship - PLAINFLD already carries DFT (set above), so selecting EDTCDE there is blocked too');
+    posted.length = 0;
+    alertMessage = null;
+    const plainfldEl2 = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'PLAINFLD');
+    plainfldEl2.dispatchEvent(new Event('click', { bubbles: true }));
+    const ecKindEl = doc.getElementById(plainFieldKey + '-ec-kind');
+    const ecParamsEl = doc.getElementById(plainFieldKey + '-ec-params');
+    check('setup: the edit-code/word/mask kind selector is present for PLAINFLD', !!ecKindEl);
+    ecKindEl.value = 'EDTCDE';
+    ecParamsEl.value = 'J';
+    doc.querySelector('.' + plainFieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    check('selecting EDTCDE while DFT is already present is blocked with an alert naming DFT', /DFT/.test(alertMessage || ''));
+    check('the blocked kind selector is reverted back to its previous value (none)', ecKindEl.value === '');
+    check('no applyEdit was posted for the blocked EDTCDE attempt', !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('    switching to EDTMSK instead (not part of the DFT/DFTVAL conflict group) is NOT blocked');
+    posted.length = 0;
+    alertMessage = null;
+    ecKindEl.value = 'EDTMSK';
+    ecParamsEl.value = "'(999) 999-9999'";
+    doc.querySelector('.' + plainFieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let edtmskEdit = posted.find((m) => m.type === 'applyEdit');
+    check('EDTMSK commits normally even with DFT present (EDTMSK is not in the conflict group)', edtmskEdit && edtmskEdit.text.includes("EDTMSK('(999) 999-9999')"));
+    check('no alert was raised for the EDTMSK commit', alertMessage === null);
+
+    console.log('  Task L83: DFT on an output-capable (usage B) field without OVRDTA/PUTOVR shows an advisory hint, not a block - PLAINFLD is usage B and already carries DFT with neither OVRDTA nor record-level PUTOVR set');
+    const generalKeywordsBody = doc.getElementById('propsBody').textContent;
+    check('the advisory note naming both missing pieces is visible somewhere in the panel', /PUTOVR \(record level\)/.test(generalKeywordsBody) && /OVRDTA \(field level\)/.test(generalKeywordsBody));
+
+    console.log('    turning OVRDTA on for PLAINFLD narrows the advisory down to just the still-missing record-level PUTOVR');
+    posted.length = 0;
+    const ovrdtaOn = doc.getElementById(plainFieldKey + '-gen-ovrdta-on');
+    check('setup: the OVRDTA checkbox is present', !!ovrdtaOn);
+    ovrdtaOn.checked = true;
+    ovrdtaOn.dispatchEvent(new Event('change', { bubbles: true }));
+    const narrowedBody = doc.getElementById('propsBody').textContent;
+    check('OVRDTA is no longer named as missing', !/OVRDTA \(field level\)/.test(narrowedBody));
+    check('PUTOVR (record level) is still named, since it was never set', /PUTOVR \(record level\)/.test(narrowedBody));
+
     dom.window.alert = originalAlert;
 
     console.log('  Database reference (DLTCHK/DLTEDT) on a named field - Task L5: each its own flagRowHtml row with per-keyword conditioning');

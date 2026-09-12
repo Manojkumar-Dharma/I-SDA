@@ -1285,6 +1285,34 @@
     return null;
   }
 
+  /** L83 - DFT's own DDS Reference page also documents, separately from
+   *  the DFTVAL/EDTCDE/EDTWRD mutual-exclusion rule L81 already enforces:
+   *  "For output-only and input/output fields, you must also specify
+   *  PUTOVR at the record level and OVRDTA at the field level with the
+   *  DFT keyword." This spans two different keywords at two different
+   *  levels (record + field), so it's surfaced as an ADVISORY note next
+   *  to the DFT row rather than a hard block like L81's own rule - unlike
+   *  DFT/DFTVAL/EDTCDE/EDTWRD (all on the SAME field, all editable from
+   *  panels this same commit already has open), blocking here would mean
+   *  reaching into and silently requiring a change to a totally different
+   *  keyword on a totally different object (the RECORD) from the one
+   *  being edited, which felt like more surprise than help for a single
+   *  checkbox click. Returns a reminder naming whichever of the two is
+   *  currently missing, or null if the field's own usage doesn't require
+   *  them (I/H/P are exempt - only O/output and B/both need this) or both
+   *  are already present. */
+  function dftOutputRequirementNote(usage, fieldKeywords, recordKeywords) {
+    var u = (usage || '').toUpperCase();
+    if (u !== 'O' && u !== 'B') return null;
+    var hasOvrdta = (fieldKeywords || []).some(function (k) { return k.name === 'OVRDTA'; });
+    var hasPutovr = (recordKeywords || []).some(function (k) { return k.name === 'PUTOVR'; });
+    var missing = [];
+    if (!hasPutovr) missing.push('PUTOVR (record level)');
+    if (!hasOvrdta) missing.push('OVRDTA (field level)');
+    if (!missing.length) return null;
+    return 'DFT on an output-capable field also requires ' + missing.join(' and ') + ' (per the DDS Reference).';
+  }
+
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
    *  come back as their raw (already-quoted-if-needed) parameter string for
@@ -4659,6 +4687,7 @@
     getGeneralFieldKeywords: getGeneralFieldKeywords,
     setGeneralFieldKeywords: setGeneralFieldKeywords,
     dftGroupConflictReason: dftGroupConflictReason,
+    dftOutputRequirementNote: dftOutputRequirementNote,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,

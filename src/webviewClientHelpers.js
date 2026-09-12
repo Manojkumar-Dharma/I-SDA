@@ -1211,7 +1211,7 @@
     return html;
   }
 
-  function wireValidityAndEdit(keywords, onChange, ownerKey, options, expandedSet, rerender) {
+  function wireValidityAndEdit(keywords, onChange, ownerKey, options, expandedSet, rerender, dataType) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
     if (includeValidity) {
@@ -1238,6 +1238,24 @@
       // so only the edit code/word/mask fields remain here.
       var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
       var ecParams = document.getElementById(ownerKey + '-ec-params').value;
+      // L82 - symmetric side of L81's DFT/DFTVAL guard: EDTCDE/EDTWRD
+      // (but NOT EDTMSK, which the DDS Reference never lists in this
+      // conflict) are blocked from being selected here while the field
+      // already carries DFT or DFTVAL, using the exact same
+      // DspfWriter.dftGroupConflictReason L81 already established -
+      // just called from this panel's own side of the relationship now.
+      // Switching to EDTMSK, switching back to '(none)', or re-applying
+      // an unchanged kind is never blocked.
+      if (ecKind === 'EDTCDE' || ecKind === 'EDTWRD') {
+        var reason = DspfWriter.dftGroupConflictReason(ecKind, keywords, dataType);
+        if (reason) {
+          window.alert(reason);
+          var prevEc = DspfWriter.getEditKeyword(keywords);
+          document.getElementById(ownerKey + '-ec-kind').value = prevEc.kind;
+          document.getElementById(ownerKey + '-ec-params').value = prevEc.parameters;
+          return;
+        }
+      }
       onChange(DspfWriter.setEditKeyword(keywords, ecKind, ecParams));
     });
   }
@@ -1867,13 +1885,19 @@
   // text/boolean) rows ever needed before.
   var DFT_GROUP_KEYS = { dft: 'DFT', dftval: 'DFTVAL' };
 
-  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType) {
+  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3];
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, kw.conditions, expandedSet);
+      if (key === 'dft' && kw.present) {
+        // L83 - advisory only (see DspfWriter.dftOutputRequirementNote's
+        // own doc comment for why this isn't a hard block like L81's).
+        var note = DspfWriter.dftOutputRequirementNote(usage, keywords, recordKeywords);
+        if (note) html += '<div class="hint-small">' + escapeHtml(note) + '</div>';
+      }
     });
     return html;
   }

@@ -1332,6 +1332,30 @@ console.log('\nDspfWriter.dftGroupConflictReason() (Task L81) - DFT/DFTVAL vs ED
   check('an unrelated keyword (e.g. ALIAS) never triggers a conflict', DspfWriter.dftGroupConflictReason('DFT', [{ name: 'ALIAS', parameters: 'X', conditions: [], raw: '', sourceLines: [] }], 'A') === null);
 }
 
+console.log('\nDspfWriter.dftOutputRequirementNote() (Task L83) - advisory-only PUTOVR/OVRDTA reminder for DFT on output-capable fields');
+{
+  const putovr = [{ name: 'PUTOVR', parameters: '', conditions: [], raw: '', sourceLines: [] }];
+  const ovrdta = [{ name: 'OVRDTA', parameters: '', conditions: [], raw: '', sourceLines: [] }];
+
+  check('input-only (I) fields never get the note, even with nothing set', DspfWriter.dftOutputRequirementNote('I', [], []) === null);
+  check('hidden (H) fields never get the note', DspfWriter.dftOutputRequirementNote('H', [], []) === null);
+  check('program-to-system (P) fields never get the note', DspfWriter.dftOutputRequirementNote('P', [], []) === null);
+  check('usage is case-insensitive (lowercase i is still exempt)', DspfWriter.dftOutputRequirementNote('i', [], []) === null);
+
+  const bothMissing = DspfWriter.dftOutputRequirementNote('O', [], []) || '';
+  check('output (O) field with neither PUTOVR nor OVRDTA names both', /PUTOVR/.test(bothMissing) && /OVRDTA/.test(bothMissing));
+
+  const onlyOvrdtaMissing = DspfWriter.dftOutputRequirementNote('B', [], putovr) || '';
+  check('both (B) field with PUTOVR present but OVRDTA missing names only OVRDTA', /OVRDTA/.test(onlyOvrdtaMissing) && !/PUTOVR/.test(onlyOvrdtaMissing));
+
+  const onlyPutovrMissing = DspfWriter.dftOutputRequirementNote('O', ovrdta, []) || '';
+  check('output (O) field with OVRDTA present but PUTOVR missing names only PUTOVR', /PUTOVR/.test(onlyPutovrMissing) && !/OVRDTA/.test(onlyPutovrMissing));
+
+  check('both present on an output-capable field: no note at all', DspfWriter.dftOutputRequirementNote('O', ovrdta, putovr) === null);
+  check('both present on a both-capable (B) field: no note either', DspfWriter.dftOutputRequirementNote('B', ovrdta, putovr) === null);
+  check('a blank/undefined usage is treated as exempt (not O/B)', DspfWriter.dftOutputRequirementNote('', [], []) === null && DspfWriter.dftOutputRequirementNote(undefined, [], []) === null);
+}
+
 console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');
 {
   const none = DspfWriter.getReferenceOverrides([]);
