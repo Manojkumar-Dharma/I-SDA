@@ -13,6 +13,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`docs/sda-reference/keywordFixes.md`](docs/sda-reference/keywordFixes.md)
 (keyword-compliance audit against IBM's own DDS reference, `I-` series).
 
+## 2026-09-12 — Bug fix (I-6): file-level TEXT is not a real DDS keyword - removed
+
+- **0.10.85** — Resolved as "confirmed bug, removed" rather than "confirmed correct" (the other outcome the task allowed): IBM's DDS Reference consistently across every edition checked (v5r4 through the local v7r6 PDF) and every real-world example found documents `TEXT` as record-/field-level only, never file-level. Task L22 had added file-level `TEXT` based on an incomplete reading. Removed from `fileKeywordsPanelsHtml`/`wireFileKeywordsPanels`; record-level `TEXT` is correct and unaffected. `docs/sda-reference/keyword-index/` regenerated (200→199 entries). While in the same file, also refreshed S36-3's now-stale keyword-index notes for `ALTNAME`/`MSGID`/`RETKEY`/`RETCMDKEY` (previously "open item", now "verified, general rule") and `PRINT`'s note to match S36-3's `PRINT(*PGM)` correction. Rebased onto a parallel push that also independently claimed I-6 (bare claim marker only, no fix landed there) plus I-2/I-3/I-11 - re-versioned past their 0.10.84. Full suite: 47 test files, zero failures.
+
 ## 2026-09-12 — Feature (I-11, keywordFixes.md): SFLMSG record-level keyword audit; SFLNXTCHG vs SFLMSGRCD hard-blocked
 
 - **0.10.84** — Confirmed via the real SDA screenshots

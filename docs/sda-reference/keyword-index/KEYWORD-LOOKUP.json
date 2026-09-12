@@ -1,8 +1,8 @@
 {
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
-    "uniqueKeywords": 163,
-    "generated": "2026-09-11"
+    "uniqueKeywords": 159,
+    "generated": "2026-09-12"
   },
   "keywords": {
     "*AUTOENT": [
@@ -200,7 +200,7 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ],
-        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+        "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): 1-8 chars, no leading '*', must be unique among all record/alternate names, not allowed on SFL. See S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "ALTPAGEDWN": [
@@ -1032,17 +1032,6 @@
         "sharedWith": []
       }
     ],
-    "HLPRCD": [
-      {
-        "level": "file",
-        "category": "Help",
-        "description": "Help record to display when no active H-spec's HLPARA covers the cursor location (Task I-5)",
-        "parameters": "record-format-name [[library-name/]file-name]",
-        "repeatable": false,
-        "screenshotDir": "screens/file-level/04-help-keywords",
-        "sharedWith": []
-      }
-    ],
     "HLPRTN": [
       {
         "level": "file",
@@ -1524,17 +1513,6 @@
         "sharedWith": []
       }
     ],
-    "MOUBTN": [
-      {
-        "level": "file",
-        "category": "Indicator",
-        "description": "Associates a mouse-button/pointer event with a Command key or EVENT-ID (Task I-5)",
-        "parameters": "EVENT [TRAILING-EVENT] {Command key|EVENT-ID} [*QUEUE|*NOQUEUE]",
-        "repeatable": true,
-        "screenshotDir": "screens/file-level/02-indicator-keywords",
-        "sharedWith": []
-      }
-    ],
     "MSGALARM": [
       {
         "level": "file",
@@ -1564,7 +1542,7 @@
         "repeatable": false,
         "screenshotDir": "screens/field-level/character/message-id",
         "sharedWith": [],
-        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+        "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): full MSGID(msg-id [lib/]msg-file)/MSGID(*NONE) syntax, including &field and special-value forms. See S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "MSGLOC": [
@@ -1723,7 +1701,7 @@
         "repeatable": false,
         "screenshotDir": "screens/file-level/03-print-keywords",
         "sharedWith": [],
-        "s36e": "S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
+        "s36e": "S36E-conditional: a NUMERIC response indicator triggers a WARNING when USRDSPMGT is present. PRINT(*PGM) is explicitly excluded - IBM's own PRINT(*PGM) S36E sub-page documents it as a valid, expected combination with a purely runtime, compiler-dependent behavior, not a warning. Verified, S36-3/S36-4."
       },
       {
         "level": "record",
@@ -1733,7 +1711,7 @@
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/print",
         "sharedWith": [],
-        "s36e": "S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
+        "s36e": "S36E-conditional: a NUMERIC response indicator triggers a WARNING when USRDSPMGT is present. PRINT(*PGM) is explicitly excluded - IBM's own PRINT(*PGM) S36E sub-page documents it as a valid, expected combination with a purely runtime, compiler-dependent behavior, not a warning. Verified, S36-3/S36-4."
       }
     ],
     "PROTECT": [
@@ -1861,7 +1839,7 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ],
-        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+        "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): same general rules as RETKEY, plus RETCMDKEY's own CAnn/CFnn mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "RETKEY": [
@@ -1883,7 +1861,7 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ],
-        "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+        "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): needs INDARA, ignored on first output op, not on SFL/USRDFN, incompatible with ALTHELP/ALTPAGEUP/ALTPAGEDWN, plus RETKEY's own mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "RETLCKSTS": [
@@ -2314,15 +2292,6 @@
     ],
     "TEXT": [
       {
-        "level": "file",
-        "category": "General",
-        "description": "Documentation text - no compiled/runtime effect",
-        "parameters": "'quoted text'",
-        "repeatable": false,
-        "screenshotDir": "screens/file-level/01-general-keywords",
-        "sharedWith": []
-      },
-      {
         "level": "record",
         "category": "General",
         "description": "Documentation text - no compiled/runtime effect",
@@ -2362,7 +2331,7 @@
         "repeatable": false,
         "screenshotDir": "screens/file-level/01-general-keywords",
         "sharedWith": [],
-        "s36e": "S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT (verified) and ALTNAME/MSGID/RETKEY/RETCMDKEY (open item, not yet verified) - see S36-3 in LIMITATIONS-PLAN.md."
+        "s36e": "S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT - the only 3 (4 counting HLPRTN) actually gated by USRDSPMGT. ALTNAME/MSGID/RETKEY/RETCMDKEY are verified but NOT USRDSPMGT-conditional - they're general rules IBM documents alongside the S36E material. See S36-3 in LIMITATIONS-PLAN.md."
       }
     ],
     "USRRSTDSP": [
@@ -2373,17 +2342,6 @@
         "parameters": "indicators (optional)",
         "repeatable": false,
         "screenshotDir": "screens/record-level/window-subfile-control-wndsfctl/general",
-        "sharedWith": []
-      }
-    ],
-    "VALNUM": [
-      {
-        "level": "file",
-        "category": "General",
-        "description": "Enhanced numeric error checking (Task I-5). Option indicators not valid.",
-        "parameters": "",
-        "repeatable": false,
-        "screenshotDir": "screens/file-level/01-general-keywords",
         "sharedWith": []
       }
     ],
@@ -2472,17 +2430,6 @@
           "WNDSFCTL",
           "PULLDOWN"
         ]
-      }
-    ],
-    "WRDWRAP": [
-      {
-        "level": "file",
-        "category": "General",
-        "description": "Word wrap for continued-entry fields (Task I-5). Option indicators not valid.",
-        "parameters": "",
-        "repeatable": false,
-        "screenshotDir": "screens/file-level/01-general-keywords",
-        "sharedWith": []
       }
     ]
   }

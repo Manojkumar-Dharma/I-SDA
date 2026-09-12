@@ -43,12 +43,15 @@ def kw(name, desc, params="", repeatable=False, s36e=None):
 # every occurrence stays in sync. Full detail/citations live in S36-3's own
 # rule table (src/dspfWriter.js's S36E_KEYWORD_RESTRICTIONS) and
 # LIMITATIONS-PLAN.md's S36-3 row - this is a pointer, not a restatement.
-S36E_USRDSPMGT = "S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT (verified) and ALTNAME/MSGID/RETKEY/RETCMDKEY (open item, not yet verified) - see S36-3 in LIMITATIONS-PLAN.md."
+S36E_USRDSPMGT = "S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT - the only 3 (4 counting HLPRTN) actually gated by USRDSPMGT. ALTNAME/MSGID/RETKEY/RETCMDKEY are verified but NOT USRDSPMGT-conditional - they're general rules IBM documents alongside the S36E material. See S36-3 in LIMITATIONS-PLAN.md."
 S36E_CHANGE_RECORD = "S36E-conditional (record-level CHANGE only): a response indicator here triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
 S36E_HELP = "S36E-conditional: a response indicator here triggers an ERROR (not just a warning) when USRDSPMGT is present - HLPRTN must also be specified to return control to the program. Verified, S36-3/S36-4."
 S36E_HLPRTN = "S36E-conditional: required alongside HELP to return control to the application program when USRDSPMGT is present. Verified, S36-3/S36-4."
-S36E_PRINT = "S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
-S36E_OPEN_ITEM = "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+S36E_PRINT = "S36E-conditional: a NUMERIC response indicator triggers a WARNING when USRDSPMGT is present. PRINT(*PGM) is explicitly excluded - IBM's own PRINT(*PGM) S36E sub-page documents it as a valid, expected combination with a purely runtime, compiler-dependent behavior, not a warning. Verified, S36-3/S36-4."
+S36E_ALTNAME_GENERAL = "S36E-adjacent but NOT USRDSPMGT-conditional (verified): 1-8 chars, no leading '*', must be unique among all record/alternate names, not allowed on SFL. See S36-3 in LIMITATIONS-PLAN.md."
+S36E_MSGID_GENERAL = "S36E-adjacent but NOT USRDSPMGT-conditional (verified): full MSGID(msg-id [lib/]msg-file)/MSGID(*NONE) syntax, including &field and special-value forms. See S36-3 in LIMITATIONS-PLAN.md."
+S36E_RETKEY_GENERAL = "S36E-adjacent but NOT USRDSPMGT-conditional (verified): needs INDARA, ignored on first output op, not on SFL/USRDFN, incompatible with ALTHELP/ALTPAGEUP/ALTPAGEDWN, plus RETKEY's own mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md."
+S36E_RETCMDKEY_GENERAL = "S36E-adjacent but NOT USRDSPMGT-conditional (verified): same general rules as RETKEY, plus RETCMDKEY's own CAnn/CFnn mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md."
 
 # ============================== FILE LEVEL ==============================
 file_lvl = lvl("file", "File-level keywords - apply to the whole DSPF, set on the file's own top-level keyword list. One picker: 'Select File Keywords' (Task F1, 9 categories).")
@@ -66,7 +69,6 @@ cat(file_lvl, "General", "File-wide behavior flags plus REF/PASSRCD/TEXT.", [
     kw("ERRSFL", "Write error messages to a message subfile"),
     kw("REF", "Reference database file for field attributes", "library / record"),
     kw("PASSRCD", "Record to pass unformatted data to/from", "record name"),
-    kw("TEXT", "Documentation text - no compiled/runtime effect", "'quoted text'"),
 ], screenshotDir="screens/file-level/01-general-keywords")
 
 cat(file_lvl, "Indicator", "Screen-control indicator keywords (CA/CF command keys have their own separate Command Keys panel).", [
@@ -130,14 +132,14 @@ cat(rec_lvl, "General", "Record-wide behavior flags plus command-keys entry poin
     kw("KEEP", "Keep record on display when file closes"),
     kw("ASSUME", "Assume record is already on display"),
     kw("ALWROL", "Allow rolling of lines"),
-    kw("RETKEY", "Retain CLEAR/HELP/HOME/ROLL keys", s36e=S36E_OPEN_ITEM),
-    kw("RETCMDKEY", "Retain CFnn/CAnn command keys", s36e=S36E_OPEN_ITEM),
+    kw("RETKEY", "Retain CLEAR/HELP/HOME/ROLL keys", s36e=S36E_RETKEY_GENERAL),
+    kw("RETCMDKEY", "Retain CFnn/CAnn command keys", s36e=S36E_RETCMDKEY_GENERAL),
     kw("CHGINPDFT", "Change input field defaults", "attribute codes"),
     kw("MNUBARDSP", "Menu-bar display", "parameters (optional)"),
     kw("ENTFLDATR", "Default attribute for entry fields in this record"),
     kw("RTNCSRLOC", "Return cursor location to these hidden fields", "row field, column field"),
     kw("TEXT", "Documentation text - no compiled/runtime effect", "'quoted text'"),
-    kw("ALTNAME", "Alternative record name for program-described-file I/O", "'alternative-name'", s36e=S36E_OPEN_ITEM),
+    kw("ALTNAME", "Alternative record name for program-described-file I/O", "'alternative-name'", s36e=S36E_ALTNAME_GENERAL),
 ], sharedWith=["RECORD", "SFLCTL", "SFLMSGCTL", "WINDOW", "WNDSFCTL", "PULLDOWN", "PDNSFLCTL", "MNUBAR", "USRDFN (4-of-8 subset)"], screenshotDir="screens/record-level/base-record-keywords/general")
 
 cat(rec_lvl, "Indicator", "Repeatable, independently-conditioned screen-control indicator instances (CA/CF command keys have their own panel).", [
@@ -350,7 +352,7 @@ cat(fld_lvl, "Error Messages", "ERRMSG/ERRMSGID repeatable, independently-condit
 ], screenshotDir="screens/field-level/character/error-messages")
 
 cat(fld_lvl, "Message ID", "MSGID keyword (distinct from ERRMSGID - system-message-driven, not error-specific).", [
-    kw("MSGID", "Message ID, optionally combined with a field/message-ID/message-number", "prefix, identifier [& field/msgid/msgnbr], file, library, indicators", s36e=S36E_OPEN_ITEM),
+    kw("MSGID", "Message ID, optionally combined with a field/message-ID/message-number", "prefix, identifier [& field/msgid/msgnbr], file, library, indicators", s36e=S36E_MSGID_GENERAL),
 ], screenshotDir="screens/field-level/character/message-id")
 
 cat(fld_lvl, "Editing Keywords (numeric only)", "Numeric-field output editing.", [

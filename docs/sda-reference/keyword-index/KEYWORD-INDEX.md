@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-11 · 204 keyword entries across 47 categories · 163 unique keyword names.
+Generated 2026-09-12 · 199 keyword entries across 47 categories · 159 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -85,7 +85,6 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `HLPFULL` | file → Help |
 | `HLPID` | field → Constant field additions |
 | `HLPPNLGRP` | file → Help; record → Application help |
-| `HLPRCD` | file → Help |
 | `HLPRTN` ⚠️ | file → Indicator; record → Indicator |
 | `HLPSCHIDX` | file → Help |
 | `HLPSEQ` | record → Help |
@@ -111,7 +110,6 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `MNUBARSEP` | field → Menu-bar choice - Separator |
 | `MNUBARSW` | file → Menu-bar; record → Menu-Bar record - General |
 | `MNUCNL` | file → Menu-bar; record → Menu-Bar record - General |
-| `MOUBTN` | file → Indicator |
 | `MSGALARM` | file → General; record → Output |
 | `MSGID` ⚠️ | field → Message ID |
 | `MSGLOC` | file → Display Sizes |
@@ -165,34 +163,32 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `SFLSIZ` | record → Subfile Control - Display Layout |
 | `SLNO` | record → Output |
 | `SNGCHCFLD` | field → Menu-bar choice - Choice Selection Type |
-| `TEXT` | file → General; record → General |
+| `TEXT` | record → General |
 | `UNLOCK` | record → Input |
 | `USRDSPMGT` ⚠️ | file → General |
 | `USRRSTDSP` | record → Window control (WNDSFCTL general screen) |
-| `VALNUM` | file → General |
 | `VALUES` | field → Validity Check |
 | `VLDCMDKEY` | file → Indicator; record → Indicator |
 | `WDWBORDER` | file → Window Border; record → Border Parameters / Border Color / Border Display Attributes / Border Characters; record → Pull-Down - General |
 | `WINDOW` | record → Window Parameters |
-| `WRDWRAP` | file → General |
 
 ---
 
 ## S36E-conditional keywords (S36-6)
 
-The 7 keywords `USRDSPMGT` restricts, plus `USRDSPMGT` itself (marked ⚠️ above and in the tables below). Full rule detail/citations live in Task S36-3's own rule table (`src/dspfWriter.js`'s `S36E_KEYWORD_RESTRICTIONS`) and its LIMITATIONS-PLAN.md row - this table is a pointer, not a restatement. 3 of the 7 restricted keywords (`CHANGE` record-level, `HELP`/`HLPRTN`, `PRINT`) are verified and wired as hard UI blocks (S36-3/S36-4); the other 4 (`ALTNAME`, `MSGID`, `RETKEY`, `RETCMDKEY`) are documented S36E-conditional per IBM's DDS reference but the exact constraint could not be verified against IBM's own System/36 environment appendix text, and remain an open item.
+The 7 keywords `USRDSPMGT` restricts, plus `USRDSPMGT` itself (marked ⚠️ above and in the tables below). Full rule detail/citations live in Task S36-3's own rule table (`src/dspfWriter.js`'s `S36E_KEYWORD_RESTRICTIONS`) and its LIMITATIONS-PLAN.md row - this table is a pointer, not a restatement. All 7 are now verified (Task S36-3 update, using the official IBM PDF at `docs/sda-reference/source/DDS_Keyword_V7r6.pdf`), but only 3 (`CHANGE` record-level, `HELP`/`HLPRTN`, `PRINT`) are actually gated by `USRDSPMGT` and wired as hard UI blocks (S36-3/S36-4); the other 4 (`ALTNAME`, `MSGID`, `RETKEY`, `RETCMDKEY`) turned out to be general rules IBM documents alongside the S36E material, not conditioned on `USRDSPMGT` at all.
 
 | Keyword | Status | Note |
 |---|---|---|
-| `ALTNAME` | open item | S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md. |
-| `CHANGE` | verified | S36E-conditional (record-level CHANGE only): a response indicator here triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4. |
-| `HELP` | verified | S36E-conditional: a response indicator here triggers an ERROR (not just a warning) when USRDSPMGT is present - HLPRTN must also be specified to return control to the program. Verified, S36-3/S36-4. |
-| `HLPRTN` | verified | S36E-conditional: required alongside HELP to return control to the application program when USRDSPMGT is present. Verified, S36-3/S36-4. |
-| `MSGID` | open item | S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md. |
-| `PRINT` | verified | S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4. |
-| `RETCMDKEY` | open item | S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md. |
-| `RETKEY` | open item | S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md. |
-| `USRDSPMGT` | gate | S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT (verified) and ALTNAME/MSGID/RETKEY/RETCMDKEY (open item, not yet verified) - see S36-3 in LIMITATIONS-PLAN.md. |
+| `ALTNAME` | verified, general rule | S36E-adjacent but NOT USRDSPMGT-conditional (verified): 1-8 chars, no leading '*', must be unique among all record/alternate names, not allowed on SFL. See S36-3 in LIMITATIONS-PLAN.md. |
+| `CHANGE` | verified, gated | S36E-conditional (record-level CHANGE only): a response indicator here triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4. |
+| `HELP` | verified, gated | S36E-conditional: a response indicator here triggers an ERROR (not just a warning) when USRDSPMGT is present - HLPRTN must also be specified to return control to the program. Verified, S36-3/S36-4. |
+| `HLPRTN` | verified, gated | S36E-conditional: required alongside HELP to return control to the application program when USRDSPMGT is present. Verified, S36-3/S36-4. |
+| `MSGID` | verified, general rule | S36E-adjacent but NOT USRDSPMGT-conditional (verified): full MSGID(msg-id [lib/]msg-file)/MSGID(*NONE) syntax, including &field and special-value forms. See S36-3 in LIMITATIONS-PLAN.md. |
+| `PRINT` | verified, gated | S36E-conditional: a NUMERIC response indicator triggers a WARNING when USRDSPMGT is present. PRINT(*PGM) is explicitly excluded - IBM's own PRINT(*PGM) S36E sub-page documents it as a valid, expected combination with a purely runtime, compiler-dependent behavior, not a warning. Verified, S36-3/S36-4. |
+| `RETCMDKEY` | verified, general rule | S36E-adjacent but NOT USRDSPMGT-conditional (verified): same general rules as RETKEY, plus RETCMDKEY's own CAnn/CFnn mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md. |
+| `RETKEY` | verified, general rule | S36E-adjacent but NOT USRDSPMGT-conditional (verified): needs INDARA, ignored on first output op, not on SFL/USRDFN, incompatible with ALTHELP/ALTPAGEUP/ALTPAGEDWN, plus RETKEY's own mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md. |
+| `USRDSPMGT` | gate | S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT - the only 3 (4 counting HLPRTN) actually gated by USRDSPMGT. ALTNAME/MSGID/RETKEY/RETCMDKEY are verified but NOT USRDSPMGT-conditional - they're general rules IBM documents alongside the S36E material. See S36-3 in LIMITATIONS-PLAN.md. |
 
 ---
 
@@ -222,9 +218,6 @@ File-wide behavior flags plus REF/PASSRCD/TEXT.
 | `ERRSFL` | Write error messages to a message subfile |  |  |  |
 | `REF` | Reference database file for field attributes | library / record |  |  |
 | `PASSRCD` | Record to pass unformatted data to/from | record name |  |  |
-| `TEXT` | Documentation text - no compiled/runtime effect | 'quoted text' |  |  |
-| `VALNUM` | Enhanced numeric error checking (Task I-5). Option indicators not valid. |  |  |  |
-| `WRDWRAP` | Word wrap for continued-entry fields (Task I-5). Option indicators not valid. |  |  |  |
 
 ### Indicator
 
@@ -242,7 +235,6 @@ Screen-control indicator keywords (CA/CF command keys have their own separate Co
 | `HLPRTN` | Indicator for Help return | 10-99 |  | ⚠️ |
 | `VLDCMDKEY` | Indicator for an invalid command key | 10-99 |  |  |
 | `INDTXT` | Descriptive text for an indicator | indicator 'text' | yes |  |
-| `MOUBTN` | Associates a mouse-button/pointer event with a Command key or EVENT-ID (Task I-5) | EVENT [TRAILING-EVENT] {Command key\|EVENT-ID} [*QUEUE\|*NOQUEUE] | yes |  |
 
 ### Print
 
@@ -268,7 +260,6 @@ File-wide online help behavior.
 | `HLPSCHIDX` | Enable a search index for help | search-index-object library |  |  |
 | `HLPFULL` | Full-screen help text |  |  |  |
 | `HLPTITLE` | Help title text | 'quoted text' |  |  |
-| `HLPRCD` | Help record to display when no active H-spec's HLPARA covers the cursor location (Task I-5) | record-format-name [[library-name/]file-name] |  |  |
 
 ### Display Sizes
 

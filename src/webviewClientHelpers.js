@@ -3050,12 +3050,21 @@
       '<input type="text" id="fk-ref-record" placeholder="Record/File name" value="' + escapeHtml(refState.record) + '" /></div>';
     g += '<div class="section-label">Record to pass unformatted data (PASSRCD)</div>';
     g += '<input type="text" id="fk-passrcd" placeholder="Record name" value="' + escapeHtml(DspfWriter.getFileFlagKeyword(kw, 'PASSRCD').parameters) + '" style="width:100%;" />';
-    // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
-    // a pure documentation keyword (no compiled/runtime effect at all,
-    // per IBM's own DDS Reference), same quoted-string shape as HLPTITLE,
-    // so it reuses getFileQuotedText/setFileQuotedText directly.
-    g += '<div class="section-label">File text (TEXT)</div>';
-    g += '<input type="text" id="fk-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
+    // Task I-6 (keyword compliance audit): file-level TEXT was REMOVED
+    // here - Task L22 added it believing it was a confirmed-missing
+    // keyword, but IBM's DDS Reference explicitly documents TEXT as
+    // "this record- or field-level keyword" ("valid for any record
+    // format or field, except a SFLMSGKEY or SFLPGMQ field") with no
+    // file-level form mentioned at all - confirmed consistently across
+    // every IBM edition checked (v5r4 through the local v7r6 PDF) and
+    // every real-world DDS example found; nowhere documents or
+    // demonstrates a file-level TEXT keyword. No live IBM i connection
+    // was available to directly test CRTDSPF (the task's own preferred
+    // verification method), so this is the "authoritative alternate
+    // source" the task allows instead - the same evidentiary bar S36-5
+    // used for CRTS36DSPF vs CRTDSPF. Record-level TEXT (recordKeywordsPanelsHtml,
+    // further down) is correct and unaffected - only the file-level row
+    // is removed.
     // Task I-5: VALNUM/WRDWRAP were confirmed-missing file-level keywords -
     // both are plain no-parameter flags and IBM's reference explicitly
     // states "Option indicators are not valid for this keyword" for each,
@@ -3330,8 +3339,10 @@
     if (refRec) refRec.addEventListener('change', commitRef);
     var passrcd = document.getElementById('fk-passrcd');
     if (passrcd) passrcd.addEventListener('change', function () { onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!passrcd.value.trim(), passrcd.value.trim())); });
-    var fkText = document.getElementById('fk-text');
-    if (fkText) fkText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', fkText.value)); });
+    // Task I-6: file-level TEXT wiring removed - see fileKeywordsPanelsHtml's
+    // own I-6 comment for the full finding. getFileQuotedText/
+    // setFileQuotedText themselves are untouched (still used by other
+    // legitimate file-level quoted-text keywords).
     simple('fk-valnum', 'VALNUM');
     simple('fk-wrdwrap', 'WRDWRAP');
 

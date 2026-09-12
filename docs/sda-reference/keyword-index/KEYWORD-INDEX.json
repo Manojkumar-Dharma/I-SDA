@@ -2,7 +2,7 @@
   "meta": {
     "title": "iSDA Keyword Index",
     "purpose": "Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.",
-    "generated": "2026-09-11",
+    "generated": "2026-09-12",
     "source_repo": "github.com/Manojkumar-Dharma/I-SDA",
     "notes": [
       "Extracted directly from src/webviewClientHelpers.js and src/dspfWriter.js (ground truth), cross-checked against docs/sda-reference/screens/* (real SDA reference screenshots) during the A1/A2 audit.",
@@ -13,7 +13,7 @@
       "Task S36-6: an optional 's36e' field marks the 7 keywords USRDSPMGT restricts (plus USRDSPMGT itself) - see the dedicated 'S36E-conditional keywords' section in KEYWORD-INDEX.md for the full list and Task S36-3's own rule table (src/dspfWriter.js's S36E_KEYWORD_RESTRICTIONS) for citations. Field-level CHANGE (Input Keywords category) is a distinct keyword from record-level CHANGE and is deliberately NOT marked - S36-3 verified only the record-level CHANGE keyword."
     ],
     "totalCategories": 47,
-    "totalKeywordEntries": 204
+    "totalKeywordEntries": 199
   },
   "levels": [
     {
@@ -55,7 +55,7 @@
               "description": "Manage display in S/36 mode",
               "parameters": "",
               "repeatable": false,
-              "s36e": "S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT (verified) and ALTNAME/MSGID/RETKEY/RETCMDKEY (open item, not yet verified) - see S36-3 in LIMITATIONS-PLAN.md."
+              "s36e": "S36E gating keyword. When present, restricts CHANGE/HELP/HLPRTN/PRINT - the only 3 (4 counting HLPRTN) actually gated by USRDSPMGT. ALTNAME/MSGID/RETKEY/RETCMDKEY are verified but NOT USRDSPMGT-conditional - they're general rules IBM documents alongside the S36E material. See S36-3 in LIMITATIONS-PLAN.md."
             },
             {
               "keyword": "CHECK",
@@ -97,24 +97,6 @@
               "keyword": "PASSRCD",
               "description": "Record to pass unformatted data to/from",
               "parameters": "record name",
-              "repeatable": false
-            },
-            {
-              "keyword": "TEXT",
-              "description": "Documentation text - no compiled/runtime effect",
-              "parameters": "'quoted text'",
-              "repeatable": false
-            },
-            {
-              "keyword": "VALNUM",
-              "description": "Enhanced numeric error checking (Task I-5). Option indicators not valid.",
-              "parameters": "",
-              "repeatable": false
-            },
-            {
-              "keyword": "WRDWRAP",
-              "description": "Word wrap for continued-entry fields (Task I-5). Option indicators not valid.",
-              "parameters": "",
               "repeatable": false
             }
           ]
@@ -174,12 +156,6 @@
               "description": "Descriptive text for an indicator",
               "parameters": "indicator 'text'",
               "repeatable": true
-            },
-            {
-              "keyword": "MOUBTN",
-              "description": "Associates a mouse-button/pointer event with a Command key or EVENT-ID (Task I-5)",
-              "parameters": "EVENT [TRAILING-EVENT] {Command key|EVENT-ID} [*QUEUE|*NOQUEUE]",
-              "repeatable": true
             }
           ]
         },
@@ -194,7 +170,7 @@
               "description": "Enable the Print key",
               "parameters": "response indicator (optional, if program handles it)",
               "repeatable": false,
-              "s36e": "S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
+              "s36e": "S36E-conditional: a NUMERIC response indicator triggers a WARNING when USRDSPMGT is present. PRINT(*PGM) is explicitly excluded - IBM's own PRINT(*PGM) S36E sub-page documents it as a valid, expected combination with a purely runtime, compiler-dependent behavior, not a warning. Verified, S36-3/S36-4."
             },
             {
               "keyword": "PRTFILE",
@@ -238,12 +214,6 @@
               "keyword": "HLPTITLE",
               "description": "Help title text",
               "parameters": "'quoted text'",
-              "repeatable": false
-            },
-            {
-              "keyword": "HLPRCD",
-              "description": "Help record to display when no active H-spec's HLPARA covers the cursor location (Task I-5)",
-              "parameters": "record-format-name [[library-name/]file-name]",
               "repeatable": false
             }
           ]
@@ -421,14 +391,14 @@
               "description": "Retain CLEAR/HELP/HOME/ROLL keys",
               "parameters": "",
               "repeatable": false,
-              "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+              "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): needs INDARA, ignored on first output op, not on SFL/USRDFN, incompatible with ALTHELP/ALTPAGEUP/ALTPAGEDWN, plus RETKEY's own mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md."
             },
             {
               "keyword": "RETCMDKEY",
               "description": "Retain CFnn/CAnn command keys",
               "parameters": "",
               "repeatable": false,
-              "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+              "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): same general rules as RETKEY, plus RETCMDKEY's own CAnn/CFnn mutual-exclusion rules. See S36-3 in LIMITATIONS-PLAN.md."
             },
             {
               "keyword": "CHGINPDFT",
@@ -465,7 +435,7 @@
               "description": "Alternative record name for program-described-file I/O",
               "parameters": "'alternative-name'",
               "repeatable": false,
-              "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+              "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): 1-8 chars, no leading '*', must be unique among all record/alternate names, not allowed on SFL. See S36-3 in LIMITATIONS-PLAN.md."
             }
           ]
         },
@@ -819,7 +789,7 @@
               "description": "Enable the Print key",
               "parameters": "response indicator (optional)",
               "repeatable": false,
-              "s36e": "S36E-conditional: a response indicator (or the *PGM form, documented by IBM as the same mechanism) triggers a WARNING when USRDSPMGT is present. Verified, S36-3/S36-4."
+              "s36e": "S36E-conditional: a NUMERIC response indicator triggers a WARNING when USRDSPMGT is present. PRINT(*PGM) is explicitly excluded - IBM's own PRINT(*PGM) S36E sub-page documents it as a valid, expected combination with a purely runtime, compiler-dependent behavior, not a warning. Verified, S36-3/S36-4."
             },
             {
               "keyword": "PRTFILE",
@@ -1474,7 +1444,7 @@
               "description": "Message ID, optionally combined with a field/message-ID/message-number",
               "parameters": "prefix, identifier [& field/msgid/msgnbr], file, library, indicators",
               "repeatable": false,
-              "s36e": "S36E-conditional per IBM's DDS reference (USRDSPMGT gates this keyword), but the exact constraint could not be verified against IBM's own System/36 environment appendix text - open item, see S36-3 in LIMITATIONS-PLAN.md."
+              "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): full MSGID(msg-id [lib/]msg-file)/MSGID(*NONE) syntax, including &field and special-value forms. See S36-3 in LIMITATIONS-PLAN.md."
             }
           ]
         },

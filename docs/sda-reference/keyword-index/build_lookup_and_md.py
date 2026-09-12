@@ -62,20 +62,20 @@ lines.append("---")
 lines.append("")
 lines.append("## S36E-conditional keywords (S36-6)")
 lines.append("")
-lines.append("The 7 keywords `USRDSPMGT` restricts, plus `USRDSPMGT` itself (marked ⚠️ above and in the tables below). Full rule detail/citations live in Task S36-3's own rule table (`src/dspfWriter.js`'s `S36E_KEYWORD_RESTRICTIONS`) and its LIMITATIONS-PLAN.md row - this table is a pointer, not a restatement. 3 of the 7 restricted keywords (`CHANGE` record-level, `HELP`/`HLPRTN`, `PRINT`) are verified and wired as hard UI blocks (S36-3/S36-4); the other 4 (`ALTNAME`, `MSGID`, `RETKEY`, `RETCMDKEY`) are documented S36E-conditional per IBM's DDS reference but the exact constraint could not be verified against IBM's own System/36 environment appendix text, and remain an open item.")
+lines.append("The 7 keywords `USRDSPMGT` restricts, plus `USRDSPMGT` itself (marked ⚠️ above and in the tables below). Full rule detail/citations live in Task S36-3's own rule table (`src/dspfWriter.js`'s `S36E_KEYWORD_RESTRICTIONS`) and its LIMITATIONS-PLAN.md row - this table is a pointer, not a restatement. All 7 are now verified (Task S36-3 update, using the official IBM PDF at `docs/sda-reference/source/DDS_Keyword_V7r6.pdf`), but only 3 (`CHANGE` record-level, `HELP`/`HLPRTN`, `PRINT`) are actually gated by `USRDSPMGT` and wired as hard UI blocks (S36-3/S36-4); the other 4 (`ALTNAME`, `MSGID`, `RETKEY`, `RETCMDKEY`) turned out to be general rules IBM documents alongside the S36E material, not conditioned on `USRDSPMGT` at all.")
 lines.append("")
 lines.append("| Keyword | Status | Note |")
 lines.append("|---|---|---|")
 s36e_status = {
     "USRDSPMGT": "gate",
-    "CHANGE": "verified",
-    "HELP": "verified",
-    "HLPRTN": "verified",
-    "PRINT": "verified",
-    "ALTNAME": "open item",
-    "MSGID": "open item",
-    "RETKEY": "open item",
-    "RETCMDKEY": "open item",
+    "CHANGE": "verified, gated",
+    "HELP": "verified, gated",
+    "HLPRTN": "verified, gated",
+    "PRINT": "verified, gated",
+    "ALTNAME": "verified, general rule",
+    "MSGID": "verified, general rule",
+    "RETKEY": "verified, general rule",
+    "RETCMDKEY": "verified, general rule",
 }
 s36e_seen = set()
 for name, entries in lookup_sorted.items():
@@ -83,7 +83,7 @@ for name, entries in lookup_sorted.items():
         note = e.get("s36e")
         if note and name not in s36e_seen:
             s36e_seen.add(name)
-            status = s36e_status.get(name, "verified" if "open item" not in note.lower() else "open item")
+            status = s36e_status.get(name, "verified")
             lines.append(f"| `{name}` | {status} | {esc(note)} |")
 lines.append("")
 lines.append("---")

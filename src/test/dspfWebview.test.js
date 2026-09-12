@@ -3013,21 +3013,16 @@ function runL22FollowUpFixesScenario() {
     const entKw = entEdit && DspfParser.parseDspf(entEdit.text).fileKeywords.find((k) => k.name === 'ENTFLDATR');
     check('posts ENTFLDATR with (*COLOR BLU) and (*DSPATR HI UL), matching the real DDS shape ENTFLDATR((*COLOR BLU) (*DSPATR HI UL))', entKw && /\(\*COLOR BLU\)/.test(entKw.parameters) && /\(\*DSPATR HI UL\)/.test(entKw.parameters));
 
-    console.log('  File level: TEXT (documentation-only, reuses getFileQuotedText/setFileQuotedText)');
+    console.log('  File level: TEXT was REMOVED (Task I-6) - not a real DDS file-level keyword; record-level TEXT (below) is correct and unaffected');
     posted.length = 0;
-    const fkText = doc.getElementById('fk-text');
-    check('the File-level TEXT input is present', !!fkText);
-    fkText.value = 'File documentation';
-    fkText.dispatchEvent(new Event('change', { bubbles: true }));
-    let textEdit = posted.filter((m) => m.type === 'applyEdit').pop();
-    check('posts TEXT at file level', textEdit && DspfParser.parseDspf(textEdit.text).fileKeywords.some((k) => k.name === 'TEXT' && k.parameters === "'File documentation'"));
+    check('the File-level TEXT input no longer exists', !doc.getElementById('fk-text'));
 
-    console.log('  Record level: TEXT is also present (separate input, separate id prefix)');
+    console.log('  Record level: TEXT is present (separate input, separate id prefix)');
     posted.length = 0;
     const recordSelect = doc.getElementById('recordSelect');
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    const recTextInputs = Array.from(doc.querySelectorAll('input[id$="-text"]')).filter((el) => el.id !== 'fk-text' && el.id !== 'fieldSearchInput');
-    check('a record-level TEXT input is present, distinct from the file-level one', recTextInputs.length > 0);
+    const recTextInputs = Array.from(doc.querySelectorAll('input[id$="-text"]')).filter((el) => el.id !== 'fieldSearchInput');
+    check('a record-level TEXT input is present', recTextInputs.length > 0);
     recTextInputs[0].value = 'Record documentation';
     recTextInputs[0].dispatchEvent(new Event('change', { bubbles: true }));
     let recTextEdit = posted.filter((m) => m.type === 'applyEdit').pop();

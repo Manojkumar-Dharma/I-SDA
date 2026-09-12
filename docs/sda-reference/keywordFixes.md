@@ -308,30 +308,46 @@ the UI rows existing).
 
 ## I-6 — Resolve the `TEXT` file-level question
 
-IBM's reference describes `TEXT` as "this **record- or field-level**
-keyword" ("valid for any record format or field, except a `SFLMSGKEY` or
-`SFLPGMQ` field") — it does not mention file-level at all in this V7R6
-text. iSDA currently exposes file-level `TEXT` in the General category
-(`docs/sda-reference/keyword-index/KEYWORD-INDEX.json`'s file/General
-category). This is a genuine open question, not a confirmed bug in
-either direction: file-level `TEXT` (a one-line file description/
-comment) is common real-world DDS practice and may simply be
-under-documented in this particular reference version/edition, the same
-kind of gap S36-3 hit with `ALTNAME`/`MSGID`/`RETKEY`/`RETCMDKEY` (marked
-`verified: false` rather than guessed either way).
+**Finding: file-level TEXT is NOT valid DDS - removed from iSDA.** No live
+IBM i connection was available to directly test `CRTDSPF` (the task's own
+preferred method), so this used the task's alternate bar instead:
+authoritative-source cross-checking. IBM's DDS Reference consistently
+across every edition checked (v5r4, v6r1, v7r2, v7r3, and the local
+v7r6 PDF) documents `TEXT` as "this **record- or field-level** keyword"
+("valid for any record format or field, except a `SFLMSGKEY` or
+`SFLPGMQ` field") - file-level is never mentioned. Every real-world DDS
+example found (IBM's own physical-file example, community references,
+production coding-standards documents listing typical file-level
+keywords) shows `TEXT` only at record or field level; none demonstrates
+or documents a file-level form. Given this consistency across multiple
+independent editions and sources (not just one under-documented edition,
+which was the working hypothesis going in), this reads as a genuine
+usage/constraint bug rather than a documentation gap in a single
+reference version - the opposite conclusion from S36-2's `USRDSPMGT`
+case and the `ALTNAME`/`MSGID`/`RETKEY`/`RETCMDKEY` case S36-3 hit,
+where the keyword was real but under-documented in the specific mirror
+being read.
 
-**Before touching iSDA's implementation:** check whether a real
-`CRTDSPF` accepts a file-level `TEXT` keyword (same verification
-approach S36-5 used for `CRTS36DSPF` vs `CRTDSPF`) — if it compiles
-cleanly, this is a documentation gap in the reference doc and iSDA's
-existing file-level `TEXT` is correct as-is (close this task as
-"confirmed correct, no change" the way S36-2 did for `USRDSPMGT`). If it
-does not compile, file-level `TEXT` needs removing from iSDA's General
-panel.
+Removed file-level `TEXT` from `fileKeywordsPanelsHtml`/
+`wireFileKeywordsPanels` (`src/webviewClientHelpers.js`) - Task L22 had
+added it based on an incomplete reading. `getFileQuotedText`/
+`setFileQuotedText` themselves are untouched (still used by other
+legitimate file-level quoted-text keywords). Record-level `TEXT`
+(`recordKeywordsPanelsHtml`) is correct and unaffected - it was never in
+question. `docs/sda-reference/keyword-index/`'s file-level General
+category entry for `TEXT` removed and regenerated (200→199 keyword
+entries; the 159 unique-keyword count is unchanged since `TEXT` still
+exists at record level). `dspfWebview.test.js` updated: the file-level
+TEXT assertions replaced with a check that `fk-text` no longer exists;
+the record-level TEXT check is unchanged. While in this same file for a
+directly related reason, also refreshed S36-3's now-stale keyword-index
+notes for `ALTNAME`/`MSGID`/`RETKEY`/`RETCMDKEY` (previously "open
+item", now "verified, general rule" per S36-3's own recent update) and
+corrected `PRINT`'s note to match S36-3's `PRINT(*PGM)` correction.
 
 | Task | Description | Depends on | Status |
 |------|-------------|------------|--------|
-| **I-6** | Verify whether file-level `TEXT` is valid DDS (real `CRTDSPF` test, or an authoritative alternate source) — reference doc only documents record-/field-level. Close as "confirmed correct" or remove from iSDA depending on the outcome. | I-1 | in progress |
+| **I-6** | Verify whether file-level `TEXT` is valid DDS (real `CRTDSPF` test, or an authoritative alternate source) — reference doc only documents record-/field-level. Close as "confirmed correct" or remove from iSDA depending on the outcome. | I-1 | done - removed (0.10.85) |
 
 ---
 
