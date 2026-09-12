@@ -1027,6 +1027,125 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task I-5 - MOUBTN (Mouse Buttons), one of the 5 confirmed-missing
+  // file-level keywords from docs/sda-reference/keywordFixes.md. Format
+  // per IBM's DDS reference: MOUBTN(EVENT [TRAILING-EVENT]
+  // {Command key | EVENT-ID} [*QUEUE | *NOQUEUE]). Built on the same
+  // generic repeatable-instance primitive (getRepeatableKeywordInstances/
+  // setRepeatableKeywordInstances, repeatableConditionedInstancesHtml/
+  // wireRepeatableConditionedInstances) validityCheckInstancesHtml above
+  // uses for RANGE/COMP/VALUES - MOUBTN can legitimately repeat (one
+  // instance per pointer event) and each instance conditions independently,
+  // same shape.
+  // -----------------------------------------------------------------------
+
+  var MOUBTN_EVENTS = ['*ULP', '*ULR', '*ULD', '*UMP', '*UMR', '*UMD', '*URP', '*URR', '*URD',
+    '*SLP', '*SLR', '*SLD', '*SMP', '*SMR', '*SMD', '*SRP', '*SRR', '*SRD'];
+
+  /** Splits one MOUBTN instance's raw `parameters` text into its 4 logical
+   *  pieces. TRAILING-EVENT is optional and, when present, is itself one of
+   *  MOUBTN_EVENTS' own `*xxx` values, so token count alone (3 vs 2, after
+   *  any trailing QUEUE flag is peeled off) distinguishes "two-event" from
+   *  "single-event" instances without needing to inspect the token shape. */
+  function parseMoubtnParams(text) {
+    var tokens = (text || '').trim().split(/\s+/).filter(Boolean);
+    var queue = '';
+    if (tokens.length && /^\*(NO)?QUEUE$/i.test(tokens[tokens.length - 1])) {
+      queue = tokens.pop().toUpperCase();
+    }
+    var event = tokens[0] || '';
+    var trailing = '', key = '';
+    if (tokens.length === 3) { trailing = tokens[1].toUpperCase(); key = tokens[2]; }
+    else if (tokens.length === 2) { key = tokens[1]; }
+    return { event: event.toUpperCase(), trailing: trailing, key: key, queue: queue };
+  }
+
+  /** Inverse of parseMoubtnParams - returns '' (meaning "drop this
+   *  instance, nothing meaningful to write") when EVENT or the Command
+   *  key/EVENT-ID is blank, since both are required by IBM's own format. */
+  function composeMoubtnParams(f) {
+    var event = (f.event || '').trim().toUpperCase();
+    var key = (f.key || '').trim().toUpperCase();
+    if (!event || !key) return '';
+    var parts = [event];
+    var trailing = (f.trailing || '').trim().toUpperCase();
+    if (trailing) parts.push(trailing);
+    parts.push(key);
+    var queue = (f.queue || '').trim().toUpperCase();
+    if (queue) parts.push(queue);
+    return parts.join(' ');
+  }
+
+  function moubtnInstanceRowHtml(inst, p) {
+    var f = parseMoubtnParams(inst.parameters);
+    function eventOptions(selected, allowNone) {
+      var html = allowNone ? '<option value=""' + (selected === '' ? ' selected' : '') + '>(single event)</option>' : '';
+      html += MOUBTN_EVENTS.map(function (e) {
+        return '<option value="' + e + '"' + (selected === e ? ' selected' : '') + '>' + e + '</option>';
+      }).join('');
+      return html;
+    }
+    var html = '<div style="margin-bottom:4px;">';
+    html += '<div class="two-col">';
+    html += '<select class="' + p + '-event">' + eventOptions(f.event, false) + '</select>';
+    html += '<select class="' + p + '-trailing">' + eventOptions(f.trailing, true) + '</select>';
+    html += '</div>';
+    html += '<div class="two-col" style="margin-top:4px;">';
+    html += '<input type="text" class="' + p + '-key" placeholder="Command key or EVENT-ID (CFnn/CAnn/ROLLUP/ROLLDOWN/HELP/HOME/PRINT/CLEAR/ENTER/E00-E15)" value="' + escapeHtml(f.key) + '" />';
+    html += '<select class="' + p + '-queue">' +
+      '<option value=""' + (f.queue === '' ? ' selected' : '') + '>(default *NOQUEUE)</option>' +
+      '<option value="*QUEUE"' + (f.queue === '*QUEUE' ? ' selected' : '') + '>*QUEUE</option>' +
+      '<option value="*NOQUEUE"' + (f.queue === '*NOQUEUE' ? ' selected' : '') + '>*NOQUEUE</option>' +
+      '</select>';
+    html += '</div></div>';
+    return html;
+  }
+
+  /** MOUBTN panel (Task I-5), file-level. */
+  function moubtnPanelHtml(keywords, ownerKey, expandedSet) {
+    var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['MOUBTN']);
+    return dataKwWrap(['MOUBTN'], repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-moubtn-rep',
+      function renderPayload(inst, instIdPrefix) { return moubtnInstanceRowHtml(inst, instIdPrefix); },
+      expandedSet,
+      '+ Add mouse button event'
+    ));
+  }
+
+  function wireMoubtnPanel(getKeywords, onChange, ownerKey, expandedSet, rerender) {
+    var instances = DspfWriter.getRepeatableKeywordInstances(getKeywords(), ['MOUBTN']);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-moubtn-rep',
+      instances,
+      function (next) { onChange(DspfWriter.setRepeatableKeywordInstances(getKeywords(), ['MOUBTN'], next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var eventEl = document.querySelector('.' + instIdPrefix + '-event');
+        var trailingEl = document.querySelector('.' + instIdPrefix + '-trailing');
+        var keyEl = document.querySelector('.' + instIdPrefix + '-key');
+        var queueEl = document.querySelector('.' + instIdPrefix + '-queue');
+        function commit() {
+          var f = { event: eventEl.value, trailing: trailingEl.value, key: keyEl.value, queue: queueEl.value };
+          updatePayload({ name: 'MOUBTN', parameters: composeMoubtnParams(f) });
+        }
+        if (eventEl) eventEl.addEventListener('change', commit);
+        if (trailingEl) trailingEl.addEventListener('change', commit);
+        if (keyEl) keyEl.addEventListener('change', commit);
+        if (queueEl) queueEl.addEventListener('change', commit);
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        // Non-blank placeholder (Task L1b's own makeDefaultInstance
+        // reasoning: this component commits on every change immediately,
+        // so a genuinely blank MOUBTN() would be invalid DDS and vanish
+        // again on the very next re-render before the user can fill it in).
+        return { name: 'MOUBTN', conditions: [], parameters: '*ULP CF01' };
+      }
+    );
+  }
+
+  // -----------------------------------------------------------------------
   // Task L5d (piece i) - the base record's own "Define Indicator Keywords"
   // screen (CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/CHANGE/
   // INDTXT) as Task L1's repeatable, independently-conditioned instances -
@@ -2889,6 +3008,18 @@
     // so it reuses getFileQuotedText/setFileQuotedText directly.
     g += '<div class="section-label">File text (TEXT)</div>';
     g += '<input type="text" id="fk-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
+    // Task I-5: VALNUM/WRDWRAP were confirmed-missing file-level keywords -
+    // both are plain no-parameter flags and IBM's reference explicitly
+    // states "Option indicators are not valid for this keyword" for each,
+    // so `conditions` is passed as `undefined` here (not fValnum.conditions/
+    // fWrdwrap.conditions) - flagRowHtml only renders the Conditioning
+    // toggle when its `conditions` argument is defined, so this simply
+    // never offers it, matching IBM's rule from the start rather than
+    // relying on I-3's still-in-progress systemic eligibility fix.
+    var fValnum = DspfWriter.getFileFlagKeyword(kw, 'VALNUM');
+    g += flagRowHtml('fk-valnum', 'Enhanced numeric error checking (VALNUM)', fValnum.present, undefined, undefined, undefined, expandedSet);
+    var fWrdwrap = DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP');
+    g += flagRowHtml('fk-wrdwrap', 'Word wrap for continued-entry fields (WRDWRAP)', fWrdwrap.present, undefined, undefined, undefined, expandedSet);
     panels.general = g;
 
     // Indicator / screen-control keywords
@@ -2917,6 +3048,16 @@
     ind += flagRowHtml('fk-indtxt', 'Indicator text (INDTXT)', indtxt.present, undefined, undefined, indtxt.conditions, expandedSet);
     ind += '<div class="two-col"><input type="text" id="fk-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
       '<input type="text" id="fk-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
+    // Task I-5: MOUBTN was a confirmed-missing file-level keyword -
+    // associates a pointer-device (mouse) event with a Command key or
+    // EVENT-ID. Real DDS allows several MOUBTN instances per file (one per
+    // event), each independently conditioned, so this reuses the generic
+    // repeatable-instance primitive (DspfWriter.getRepeatableKeywordInstances/
+    // setRepeatableKeywordInstances) the same way validityCheckInstancesHtml
+    // above reuses it for RANGE/COMP/VALUES - no dedicated MOUBTN get/set
+    // pair needed in dspfWriter.js.
+    ind += '<div class="section-label">Mouse buttons (MOUBTN)</div>';
+    ind += moubtnPanelHtml(kw, 'fk', expandedSet);
     panels.indicatorKeywords = ind;
 
     // --- Print ---
@@ -2939,6 +3080,25 @@
     help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, fHlpfull.conditions, expandedSet);
     help += '<div class="section-label">Help title (HLPTITLE)</div>';
     help += '<input type="text" id="fk-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
+    // Task I-5: HLPRCD was a confirmed-missing file-level keyword (IBM's
+    // reference documents it as file-level or help-specification-level -
+    // record specified here displays when no active H-specification's
+    // HLPARA covers the cursor location). Parsed/composed the same
+    // checkbox-plus-hand-split-parameters way menuBarKeysPanelHtml already
+    // does for MNUBARSW/MNUCNL just above in this same file, rather than
+    // adding a dedicated dspfWriter.js getter/setter - HLPRCD is a single-
+    // instance keyword whose only structure is "record-format-name
+    // [[library/]file-name]", the same shape REF already reuses generic
+    // setFileFlagKeyword for. Option indicators are valid for this keyword.
+    var hlprcd = DspfWriter.getFileFlagKeyword(kw, 'HLPRCD');
+    var hlprcdParts = (hlprcd.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var hlprcdSecond = (hlprcdParts[1] || '').split('/');
+    var hlprcdLibrary = hlprcdSecond.length > 1 ? hlprcdSecond[0] : '';
+    var hlprcdFile = hlprcdSecond.length > 1 ? hlprcdSecond.slice(1).join('/') : (hlprcdSecond[0] || '');
+    help += flagRowHtml('fk-hlprcd', 'Help record (HLPRCD)', hlprcd.present, undefined, undefined, hlprcd.conditions, expandedSet);
+    help += '<div class="two-col"><input type="text" id="fk-hlprcd-record" placeholder="Record format name" value="' + escapeHtml(hlprcdParts[0] || '') + '" />' +
+      '<input type="text" id="fk-hlprcd-library" placeholder="Library (optional)" value="' + escapeHtml(hlprcdLibrary) + '" /></div>';
+    help += '<input type="text" id="fk-hlprcd-file" placeholder="File name (optional, defaults to this file)" value="' + escapeHtml(hlprcdFile) + '" style="width:100%;margin-top:4px;" />';
     panels.help = help;
 
     // --- Display sizes (DSPSIZ) ---
@@ -3094,6 +3254,8 @@
     if (passrcd) passrcd.addEventListener('change', function () { onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!passrcd.value.trim(), passrcd.value.trim())); });
     var fkText = document.getElementById('fk-text');
     if (fkText) fkText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', fkText.value)); });
+    simple('fk-valnum', 'VALNUM');
+    simple('fk-wrdwrap', 'WRDWRAP');
 
     // Indicator / screen-control
     [
@@ -3123,6 +3285,7 @@
     if (indtxtInd) indtxtInd.addEventListener('change', function () { commitIndtxt(); });
     if (indtxtText) indtxtText.addEventListener('change', function () { commitIndtxt(); });
     wireFlagRowConditioning('fk-indtxt', DspfWriter.getFileFlagKeyword(getKeywords(), 'INDTXT').conditions, commitIndtxt, expandedSet, rerender);
+    wireMoubtnPanel(getKeywords, onChange, 'fk', expandedSet, rerender);
 
     // Print
     // Task S36-4: PRINT's response indicator (including the literal
@@ -3143,6 +3306,28 @@
     simple('fk-hlpfull', 'HLPFULL');
     var hlptitle = document.getElementById('fk-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
+    // Task I-5: HLPRCD - same "-on" checkbox drives presence regardless of
+    // whether the sub-fields have anything typed yet" contract INDTXT's
+    // own commitIndtxt above already follows, so a user can type the
+    // record name first and tick the box after (or vice versa) without
+    // either write silently reverting the other's edit.
+    var hlprcdOn = document.getElementById('fk-hlprcd-on');
+    var hlprcdRecord = document.getElementById('fk-hlprcd-record');
+    var hlprcdLibraryEl = document.getElementById('fk-hlprcd-library');
+    var hlprcdFileEl = document.getElementById('fk-hlprcd-file');
+    function commitHlprcd(conditions) {
+      var record = (hlprcdRecord.value || '').trim();
+      var library = (hlprcdLibraryEl.value || '').trim();
+      var file = (hlprcdFileEl.value || '').trim();
+      var second = file ? (library ? library + '/' + file : file) : '';
+      var params = second ? record + ' ' + second : record;
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPRCD', hlprcdOn.checked, params, undefined, conditions));
+    }
+    if (hlprcdOn) hlprcdOn.addEventListener('change', function () { commitHlprcd(); });
+    if (hlprcdRecord) hlprcdRecord.addEventListener('change', function () { commitHlprcd(); });
+    if (hlprcdLibraryEl) hlprcdLibraryEl.addEventListener('change', function () { commitHlprcd(); });
+    if (hlprcdFileEl) hlprcdFileEl.addEventListener('change', function () { commitHlprcd(); });
+    wireFlagRowConditioning('fk-hlprcd', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').conditions, commitHlprcd, expandedSet, rerender);
 
     // Display sizes
     var dspsizApply = document.getElementById('fk-dspsiz-apply');

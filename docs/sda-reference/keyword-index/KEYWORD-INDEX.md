@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-11 · 200 keyword entries across 47 categories · 159 unique keyword names.
+Generated 2026-09-11 · 204 keyword entries across 47 categories · 163 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -85,6 +85,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `HLPFULL` | file → Help |
 | `HLPID` | field → Constant field additions |
 | `HLPPNLGRP` | file → Help; record → Application help |
+| `HLPRCD` | file → Help |
 | `HLPRTN` ⚠️ | file → Indicator; record → Indicator |
 | `HLPSCHIDX` | file → Help |
 | `HLPSEQ` | record → Help |
@@ -110,6 +111,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `MNUBARSEP` | field → Menu-bar choice - Separator |
 | `MNUBARSW` | file → Menu-bar; record → Menu-Bar record - General |
 | `MNUCNL` | file → Menu-bar; record → Menu-Bar record - General |
+| `MOUBTN` | file → Indicator |
 | `MSGALARM` | file → General; record → Output |
 | `MSGID` ⚠️ | field → Message ID |
 | `MSGLOC` | file → Display Sizes |
@@ -167,10 +169,12 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `UNLOCK` | record → Input |
 | `USRDSPMGT` ⚠️ | file → General |
 | `USRRSTDSP` | record → Window control (WNDSFCTL general screen) |
+| `VALNUM` | file → General |
 | `VALUES` | field → Validity Check |
 | `VLDCMDKEY` | file → Indicator; record → Indicator |
 | `WDWBORDER` | file → Window Border; record → Border Parameters / Border Color / Border Display Attributes / Border Characters; record → Pull-Down - General |
 | `WINDOW` | record → Window Parameters |
+| `WRDWRAP` | file → General |
 
 ---
 
@@ -219,6 +223,8 @@ File-wide behavior flags plus REF/PASSRCD/TEXT.
 | `REF` | Reference database file for field attributes | library / record |  |  |
 | `PASSRCD` | Record to pass unformatted data to/from | record name |  |  |
 | `TEXT` | Documentation text - no compiled/runtime effect | 'quoted text' |  |  |
+| `VALNUM` | Enhanced numeric error checking (Task I-5). Option indicators not valid. |  |  |  |
+| `WRDWRAP` | Word wrap for continued-entry fields (Task I-5). Option indicators not valid. |  |  |  |
 
 ### Indicator
 
@@ -236,6 +242,7 @@ Screen-control indicator keywords (CA/CF command keys have their own separate Co
 | `HLPRTN` | Indicator for Help return | 10-99 |  | ⚠️ |
 | `VLDCMDKEY` | Indicator for an invalid command key | 10-99 |  |  |
 | `INDTXT` | Descriptive text for an indicator | indicator 'text' | yes |  |
+| `MOUBTN` | Associates a mouse-button/pointer event with a Command key or EVENT-ID (Task I-5) | EVENT [TRAILING-EVENT] {Command key\|EVENT-ID} [*QUEUE\|*NOQUEUE] | yes |  |
 
 ### Print
 
@@ -261,6 +268,7 @@ File-wide online help behavior.
 | `HLPSCHIDX` | Enable a search index for help | search-index-object library |  |  |
 | `HLPFULL` | Full-screen help text |  |  |  |
 | `HLPTITLE` | Help title text | 'quoted text' |  |  |
+| `HLPRCD` | Help record to display when no active H-spec's HLPARA covers the cursor location (Task I-5) | record-format-name [[library-name/]file-name] |  |  |
 
 ### Display Sizes
 

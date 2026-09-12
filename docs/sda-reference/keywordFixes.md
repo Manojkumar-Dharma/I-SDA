@@ -221,7 +221,55 @@ attention from the other four.
 
 | Task | Description | Depends on | Status |
 |------|-------------|------------|--------|
-| **I-5** | Add 5 confirmed-missing file-level keywords: `HLPRCD`, `MOUBTN`, `ROLLUP`/`ROLLDOWN` (with its `PAGEDOWN`/`PAGEUP` mutual-exclusion rule), `VALNUM`, `WRDWRAP`. | I-1 | not started |
+| **I-5** | Add 5 confirmed-missing file-level keywords: `HLPRCD`, `MOUBTN`, `ROLLUP`/`ROLLDOWN` (with its `PAGEDOWN`/`PAGEUP` mutual-exclusion rule), `VALNUM`, `WRDWRAP`. | I-1 | done |
+
+**Findings (research pass against `docs/sda-reference/source/DDS_Keyword_V7r6.txt`):**
+
+- **`ROLLUP`/`ROLLDOWN`** — already correctly implemented, no code change
+  needed. `getFileFlagKeyword`/`setFileFlagKeyword`'s `altNames` parameter
+  (added for Task L22) already treats a `ROLLUP` instance as `PAGEDOWN`'s
+  own state and `ROLLDOWN` as `PAGEUP`'s own state (see
+  `webviewClientHelpers.js`'s `fk-pagedown`/`fk-pageup` rows). Since both
+  spellings share one underlying flag, the mutual-exclusion rule is
+  satisfied structurally — there is no code path that can ever produce
+  both a `ROLLUP` and a `PAGEDOWN` instance on the same file at once.
+  Confirmed by `fileKeywordsPicker.test.js`'s existing altNames tests
+  (unchanged by this task).
+- **`VALNUM`**, **`WRDWRAP`** — plain no-parameter flags. IBM's reference
+  states option indicators are **not valid** for either, so both are
+  rendered via `flagRowHtml` with `conditions` passed as `undefined`
+  (rather than the keyword's own `.conditions`), which is what actually
+  suppresses the Conditioning toggle — not a new eligibility list, just
+  not asking for one. Added to the General panel next to the other plain
+  flags (`fk-valnum`, `fk-wrdwrap`), wired through the existing generic
+  `simple()` helper.
+- **`HLPRCD`** — `HLPRCD(record-format-name [[library-name/]file-name])`,
+  option indicators ARE valid. No dedicated dspfWriter.js getter/setter —
+  reuses `getFileFlagKeyword`/`setFileFlagKeyword` with the parameters
+  string hand-composed client-side (`record`, then `library/file` joined
+  with `/`, the whole second token space-joined after the record), the
+  same "generic primitive + client-side parse/compose" choice
+  `MNUBARSW`/`MNUCNL` already made. Added to the Help panel
+  (`fk-hlprcd-on` checkbox + `fk-hlprcd-record`/`-library`/`-file` text
+  inputs).
+- **`MOUBTN`** — `MOUBTN(EVENT [TRAILING-EVENT] {Command key|EVENT-ID}
+  [*QUEUE|*NOQUEUE])`, option indicators ARE valid, and the keyword is
+  genuinely repeatable (multiple independently-conditioned instances per
+  file, one per pointer event). Reuses the generic
+  `getRepeatableKeywordInstances`/`setRepeatableKeywordInstances`
+  primitive (same one RANGE/COMP/VALUES uses) plus
+  `repeatableConditionedInstancesHtml`/`wireRepeatableConditionedInstances`
+  for the add/edit/remove UI, with EVENT and TRAILING-EVENT as `<select>`
+  dropdowns (18 valid `*xx` values), a free-text Command-key/EVENT-ID
+  input, and a QUEUE `<select>`. Added to the Indicator tab, below
+  `INDTXT`.
+
+Regression coverage: `fileKeywordsPicker.test.js` (dspfWriter.js-level
+parameter shapes) and the new `i5FileLevelKeywords.test.js` (jsdom,
+exercises the actual rendered File Properties rows — this is the file
+that actually fails against the pre-fix code, since the dspfWriter.js
+primitives reused here were already generic enough to pass even without
+the UI rows existing).
 
 ---
 

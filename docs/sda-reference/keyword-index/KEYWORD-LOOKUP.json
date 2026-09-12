@@ -1,7 +1,7 @@
 {
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
-    "uniqueKeywords": 159,
+    "uniqueKeywords": 163,
     "generated": "2026-09-11"
   },
   "keywords": {
@@ -1032,6 +1032,17 @@
         "sharedWith": []
       }
     ],
+    "HLPRCD": [
+      {
+        "level": "file",
+        "category": "Help",
+        "description": "Help record to display when no active H-spec's HLPARA covers the cursor location (Task I-5)",
+        "parameters": "record-format-name [[library-name/]file-name]",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/04-help-keywords",
+        "sharedWith": []
+      }
+    ],
     "HLPRTN": [
       {
         "level": "file",
@@ -1510,6 +1521,17 @@
         "parameters": "indicators, CA key 01-24, response-indicator 01-99",
         "repeatable": false,
         "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
+        "sharedWith": []
+      }
+    ],
+    "MOUBTN": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Associates a mouse-button/pointer event with a Command key or EVENT-ID (Task I-5)",
+        "parameters": "EVENT [TRAILING-EVENT] {Command key|EVENT-ID} [*QUEUE|*NOQUEUE]",
+        "repeatable": true,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": []
       }
     ],
@@ -2354,6 +2376,17 @@
         "sharedWith": []
       }
     ],
+    "VALNUM": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Enhanced numeric error checking (Task I-5). Option indicators not valid.",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      }
+    ],
     "VALUES": [
       {
         "level": "field",
@@ -2439,6 +2472,17 @@
           "WNDSFCTL",
           "PULLDOWN"
         ]
+      }
+    ],
+    "WRDWRAP": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Word wrap for continued-entry fields (Task I-5). Option indicators not valid.",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
       }
     ]
   }

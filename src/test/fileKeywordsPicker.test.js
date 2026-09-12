@@ -298,5 +298,93 @@ console.log('\ngetFileFlagKeyword/setFileFlagKeyword - a real PAGEDOWN instance 
   check('removed as before', kw.length === 0);
 }
 
+// ===========================================================================
+// Task I-5 - 5 confirmed-missing file-level keywords from
+// docs/sda-reference/keywordFixes.md. ROLLUP/ROLLDOWN (already covered by
+// the altNames tests above) turned out to already be correctly implemented
+// - no change needed there. The remaining 4 (HLPRCD, MOUBTN, VALNUM,
+// WRDWRAP) are new. HLPRCD and MOUBTN have no dedicated dspfWriter.js
+// get/set of their own (same "reuse the generic primitive, parse/compose
+// client-side" choice MNUBARSW/MNUCNL and RANGE/COMP/VALUES already made),
+// so these tests exercise them through the same generic functions
+// webviewClientHelpers.js's new fk-valnum/fk-wrdwrap/fk-hlprcd*/MOUBTN rows
+// actually call.
+// ===========================================================================
+
+console.log('\nTask I-5: VALNUM - plain no-parameter flag, option indicators not valid (no conditions passed by the caller)');
+{
+  let kw = [];
+  check('absent by default', DspfWriter.getFileFlagKeyword(kw, 'VALNUM').present === false);
+  kw = DspfWriter.setFileFlagKeyword(kw, 'VALNUM', true);
+  check('present after set', DspfWriter.getFileFlagKeyword(kw, 'VALNUM').present === true);
+  check('exactly one keyword, no parameters', kw.length === 1 && kw[0].name === 'VALNUM' && kw[0].parameters === '');
+  kw = DspfWriter.setFileFlagKeyword(kw, 'VALNUM', false);
+  check('removed after unset', DspfWriter.getFileFlagKeyword(kw, 'VALNUM').present === false);
+}
+
+console.log('\nTask I-5: WRDWRAP - plain no-parameter flag, option indicators not valid (no conditions passed by the caller)');
+{
+  let kw = [];
+  check('absent by default', DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP').present === false);
+  kw = DspfWriter.setFileFlagKeyword(kw, 'WRDWRAP', true);
+  check('present after set', DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP').present === true);
+  check('exactly one keyword, no parameters', kw.length === 1 && kw[0].name === 'WRDWRAP' && kw[0].parameters === '');
+  kw = DspfWriter.setFileFlagKeyword(kw, 'WRDWRAP', false);
+  check('removed after unset', DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP').present === false);
+}
+
+console.log('\nTask I-5: HLPRCD - "record-format-name [[library/]file-name]" composed the same space-then-slash way webviewClientHelpers.js\'s commitHlprcd does');
+{
+  let kw = [];
+  check('absent by default', DspfWriter.getFileFlagKeyword(kw, 'HLPRCD').present === false);
+
+  // record only, no library/file
+  kw = DspfWriter.setFileFlagKeyword(kw, 'HLPRCD', true, 'HELPFMT');
+  check('record-only parameters', DspfWriter.getFileFlagKeyword(kw, 'HLPRCD').parameters === 'HELPFMT');
+
+  // record + file, no library
+  kw = DspfWriter.setFileFlagKeyword(kw, 'HLPRCD', true, 'HELPFMT MYFILE');
+  check('record + file, no library', DspfWriter.getFileFlagKeyword(kw, 'HLPRCD').parameters === 'HELPFMT MYFILE');
+
+  // record + library/file
+  kw = DspfWriter.setFileFlagKeyword(kw, 'HLPRCD', true, 'HELPFMT MYLIB/MYFILE');
+  check('record + library/file', DspfWriter.getFileFlagKeyword(kw, 'HLPRCD').parameters === 'HELPFMT MYLIB/MYFILE');
+
+  // conditioning is valid for HLPRCD - confirm conditions round-trip
+  kw = DspfWriter.setFileFlagKeyword(kw, 'HLPRCD', true, 'HELPFMT', undefined, [{ negate: false, indicator: '30' }]);
+  check('conditions carried through', DspfWriter.getFileFlagKeyword(kw, 'HLPRCD').conditions.length === 1);
+
+  kw = DspfWriter.setFileFlagKeyword(kw, 'HLPRCD', false, '');
+  check('removed after unset', DspfWriter.getFileFlagKeyword(kw, 'HLPRCD').present === false);
+}
+
+console.log('\nTask I-5: MOUBTN - repeatable, EVENT [TRAILING-EVENT] {key|EVENT-ID} [*QUEUE|*NOQUEUE], via the generic repeatable-instance primitive (parse/compose itself lives client-side in webviewClientHelpers.js)');
+{
+  let kw = [];
+  check('no instances by default', DspfWriter.getRepeatableKeywordInstances(kw, ['MOUBTN']).length === 0);
+
+  kw = DspfWriter.setRepeatableKeywordInstances(kw, ['MOUBTN'], [
+    { name: 'MOUBTN', parameters: '*ULP CF01', conditions: [] },
+  ]);
+  let instances = DspfWriter.getRepeatableKeywordInstances(kw, ['MOUBTN']);
+  check('single-event instance written', instances.length === 1 && instances[0].parameters === '*ULP CF01');
+
+  kw = DspfWriter.setRepeatableKeywordInstances(kw, ['MOUBTN'], [
+    { name: 'MOUBTN', parameters: '*ULP CF01', conditions: [] },
+    { name: 'MOUBTN', parameters: '*ULP *UMP ROLLUP *QUEUE', conditions: [{ negate: false, indicator: '40' }] },
+  ]);
+  instances = DspfWriter.getRepeatableKeywordInstances(kw, ['MOUBTN']);
+  check('two independent MOUBTN instances coexist', instances.length === 2);
+  check('second instance keeps its trailing-event/key/queue parameters intact', instances[1].parameters === '*ULP *UMP ROLLUP *QUEUE');
+  check('second instance keeps its own conditioning, independent of the first', instances[1].conditions.length === 1 && instances[0].conditions.length === 0);
+
+  kw = DspfWriter.setRepeatableKeywordInstances(kw, ['MOUBTN'], [instances[1]]);
+  instances = DspfWriter.getRepeatableKeywordInstances(kw, ['MOUBTN']);
+  check('removing one instance leaves only the other, not both dropped', instances.length === 1 && instances[0].parameters === '*ULP *UMP ROLLUP *QUEUE');
+
+  kw = DspfWriter.setRepeatableKeywordInstances(kw, ['MOUBTN'], []);
+  check('removing the last instance leaves no MOUBTN keyword at all', DspfWriter.getRepeatableKeywordInstances(kw, ['MOUBTN']).length === 0 && !kw.some((k) => k.name === 'MOUBTN'));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

@@ -13,7 +13,7 @@
       "Task S36-6: an optional 's36e' field marks the 7 keywords USRDSPMGT restricts (plus USRDSPMGT itself) - see the dedicated 'S36E-conditional keywords' section in KEYWORD-INDEX.md for the full list and Task S36-3's own rule table (src/dspfWriter.js's S36E_KEYWORD_RESTRICTIONS) for citations. Field-level CHANGE (Input Keywords category) is a distinct keyword from record-level CHANGE and is deliberately NOT marked - S36-3 verified only the record-level CHANGE keyword."
     ],
     "totalCategories": 47,
-    "totalKeywordEntries": 200
+    "totalKeywordEntries": 204
   },
   "levels": [
     {
@@ -104,6 +104,18 @@
               "description": "Documentation text - no compiled/runtime effect",
               "parameters": "'quoted text'",
               "repeatable": false
+            },
+            {
+              "keyword": "VALNUM",
+              "description": "Enhanced numeric error checking (Task I-5). Option indicators not valid.",
+              "parameters": "",
+              "repeatable": false
+            },
+            {
+              "keyword": "WRDWRAP",
+              "description": "Word wrap for continued-entry fields (Task I-5). Option indicators not valid.",
+              "parameters": "",
+              "repeatable": false
             }
           ]
         },
@@ -161,6 +173,12 @@
               "keyword": "INDTXT",
               "description": "Descriptive text for an indicator",
               "parameters": "indicator 'text'",
+              "repeatable": true
+            },
+            {
+              "keyword": "MOUBTN",
+              "description": "Associates a mouse-button/pointer event with a Command key or EVENT-ID (Task I-5)",
+              "parameters": "EVENT [TRAILING-EVENT] {Command key|EVENT-ID} [*QUEUE|*NOQUEUE]",
               "repeatable": true
             }
           ]
@@ -220,6 +238,12 @@
               "keyword": "HLPTITLE",
               "description": "Help title text",
               "parameters": "'quoted text'",
+              "repeatable": false
+            },
+            {
+              "keyword": "HLPRCD",
+              "description": "Help record to display when no active H-spec's HLPARA covers the cursor location (Task I-5)",
+              "parameters": "record-format-name [[library-name/]file-name]",
               "repeatable": false
             }
           ]
