@@ -3684,13 +3684,13 @@
     // --- General ---
     var g = '';
     var fInzrcd = DspfWriter.getFileFlagKeyword(kw, 'INZRCD');
-    g += flagRowHtml(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, fInzrcd.conditions, expandedSet);
+    g += flagRowHtml(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
     g += flagRowHtml(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
     var fAssume = DspfWriter.getFileFlagKeyword(kw, 'ASSUME');
-    g += flagRowHtml(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, fAssume.conditions, expandedSet);
+    g += flagRowHtml(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fAlwrol = DspfWriter.getFileFlagKeyword(kw, 'ALWROL');
-    g += flagRowHtml(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, fAlwrol.conditions, expandedSet);
+    g += flagRowHtml(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fRetkey = DspfWriter.getFileFlagKeyword(kw, 'RETKEY');
     g += flagRowHtml(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, fRetkey.conditions, expandedSet);
     var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
@@ -3833,7 +3833,7 @@
     help += '<div class="two-col"><input type="text" id="' + p + '-hlpseq-group" placeholder="Help group name" value="' + escapeHtml(hlpseq.a) + '" />' +
       '<input type="text" id="' + p + '-hlpseq-num" placeholder="Sequence number 0-99" value="' + escapeHtml(hlpseq.b) + '" /></div>';
     var fHlpcmdkey = DspfWriter.getFileFlagKeyword(kw, 'HLPCMDKEY');
-    help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, fHlpcmdkey.conditions, expandedSet);
+    help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     help += '<div class="section-label">Define help title (HLPTITLE)</div>';
     help += '<input type="text" id="' + p + '-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
     panels.help = help;
@@ -3862,29 +3862,29 @@
     out += '<div class="two-col"><input type="text" id="' + p + '-csrloc-row" placeholder="Row field name" value="' + escapeHtml(csrloc.a) + '" />' +
       '<input type="text" id="' + p + '-csrloc-col" placeholder="Column field name" value="' + escapeHtml(csrloc.b) + '" /></div>';
     var slno = DspfWriter.getFileFlagKeyword(kw, 'SLNO');
-    out += flagRowHtml(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', slno.conditions, expandedSet);
+    out += flagRowHtml(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', undefined, undefined); // I-7: option indicators not valid
     var clrl = DspfWriter.getFileFlagKeyword(kw, 'CLRL');
-    out += flagRowHtml(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...', clrl.conditions, expandedSet);
+    out += flagRowHtml(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...', undefined, undefined); // I-7: option indicators not valid
     panels.output = out;
 
     // --- Input ---
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
-    var inp = flagRowHtml(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    var inp = flagRowHtml(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var unlock = DspfWriter.getUnlockKeyword(kw);
-    inp += flagRowHtml(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, unlock.conditions, expandedSet);
+    inp += flagRowHtml(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     inp += '<div style="display:flex;gap:14px;margin-bottom:10px;">' +
       '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-erase" ' + (unlock.erase ? 'checked' : '') + '/>Erase input capable fields (*ERASE)</label>' +
       '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-mdtoff" ' + (unlock.mdtoff ? 'checked' : '') + '/>Reset all modified data tags (*MDTOFF)</label></div>';
     var fGetretain = DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN');
-    inp += flagRowHtml(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, fGetretain.conditions, expandedSet);
+    inp += flagRowHtml(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var retlcksts = DspfWriter.getFileFlagKeyword(kw, 'RETLCKSTS');
     inp += flagRowHtml(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, retlcksts.parameters, 'indicators (optional)', retlcksts.conditions, expandedSet);
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    inp += flagRowHtml(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    inp += flagRowHtml(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    inp += flagRowHtml(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
+    inp += flagRowHtml(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
     var fRtndta = DspfWriter.getFileFlagKeyword(kw, 'RTNDTA');
-    inp += flagRowHtml(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, fRtndta.conditions, expandedSet);
+    inp += flagRowHtml(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     panels.input = inp;
 
     // --- Overlay ---
@@ -4185,10 +4185,15 @@
    *  passed to recordKeywordsPanelsHtml(). */
   function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
     var p = idPrefix;
-    function simple(id, name, hasParams) {
+    // Task I-7: several keywords below pass noConditioning=true - IBM's
+    // own DDS Reference states "Option indicators are not valid for this
+    // keyword" for each (INZRCD/ASSUME/ALWROL/HLPCMDKEY/SLNO/CLRL/
+    // LOGINP/GETRETAIN/RTNDTA), same pattern I-3 already established at
+    // file level for CHGINPDFT/OPENPRT/etc.
+    function simple(id, name, hasParams, noConditioning) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
-      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
+      }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
     function wireTwoField(elIdA, elIdB, name) {
       var elA = document.getElementById(elIdA);
@@ -4199,10 +4204,10 @@
     }
 
     // General
-    simple(p + '-inzrcd', 'INZRCD');
+    simple(p + '-inzrcd', 'INZRCD', false, true);
     simple(p + '-keep', 'KEEP');
-    simple(p + '-assume', 'ASSUME');
-    simple(p + '-alwrol', 'ALWROL');
+    simple(p + '-assume', 'ASSUME', false, true);
+    simple(p + '-alwrol', 'ALWROL', false, true);
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
@@ -4286,7 +4291,7 @@
     // Help
     simple(p + '-hlpclr', 'HLPCLR');
     wireTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
-    simple(p + '-hlpcmdkey', 'HLPCMDKEY');
+    simple(p + '-hlpcmdkey', 'HLPCMDKEY', false, true);
     var hlptitle = document.getElementById(p + '-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
 
@@ -4301,11 +4306,11 @@
     simple(p + '-frcdta', 'FRCDTA');
     simple(p + '-dspmod', 'DSPMOD', true);
     wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC');
-    simple(p + '-slno', 'SLNO', true);
-    simple(p + '-clrl', 'CLRL', true);
+    simple(p + '-slno', 'SLNO', true, true);
+    simple(p + '-clrl', 'CLRL', true, true);
 
     // Input
-    simple(p + '-loginp', 'LOGINP');
+    simple(p + '-loginp', 'LOGINP', false, true);
     var unlockOn = document.getElementById(p + '-unlock-on');
     var unlockErase = document.getElementById(p + '-unlock-erase');
     var unlockMdtoff = document.getElementById(p + '-unlock-mdtoff');
@@ -4313,12 +4318,18 @@
     if (unlockOn) unlockOn.addEventListener('change', function () { commitUnlock(); });
     if (unlockErase) unlockErase.addEventListener('change', function () { commitUnlock(); });
     if (unlockMdtoff) unlockMdtoff.addEventListener('change', function () { commitUnlock(); });
-    wireFlagRowConditioning(p + '-unlock', DspfWriter.getUnlockKeyword(getKeywords()).conditions, commitUnlock, expandedSet, rerender);
-    simple(p + '-getretain', 'GETRETAIN');
+    // Task I-7: UNLOCK - "Option indicators are not valid for this
+    // keyword" - no Conditioning toggle wired (was previously wired here,
+    // a bug).
+    simple(p + '-getretain', 'GETRETAIN', false, true);
     simple(p + '-retlcksts', 'RETLCKSTS', true);
-    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
-    simple(p + '-rtndta', 'RTNDTA');
+    // Task I-7: CHECK's AB/RL sub-flags - "Option indicators are valid
+    // only for CHECK(ER) and CHECK(ME)" per IBM's own DDS Reference,
+    // neither of which iSDA implements (same finding I-3 already made for
+    // file-level CHECK) - no Conditioning toggle for these two rows.
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
+    simple(p + '-rtndta', 'RTNDTA', false, true);
 
     // Overlay
     simple(p + '-overlay', 'OVERLAY');

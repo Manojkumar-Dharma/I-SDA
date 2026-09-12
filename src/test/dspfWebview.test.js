@@ -6050,32 +6050,39 @@ function runPdnSflCtlPickerScenario() {
     console.log('\nBase Record Keywords (Task R1) General tab: flag-row keywords now show and preserve their own indicator conditioning (same fix as the SFLCTL panel above), instead of it being invisible/silently dropped');
     posted.length = 0;
     const rkP = 'rk-PSFCTL';
-    doc.getElementById(rkP + '-inzrcd-on').checked = true;
-    doc.getElementById(rkP + '-inzrcd-on').dispatchEvent(new Event('change', { bubbles: true }));
+    // Task I-7: switched this scenario's example keyword from INZRCD to
+    // BLINK - IBM's own DDS Reference states "Option indicators are not
+    // valid for this keyword" for INZRCD (confirmed, see keywordFixes.md),
+    // so it no longer has a Conditioning toggle at all; BLINK is
+    // confirmed valid and is a plain flagRowHtml row in the same General/
+    // Output set, so it exercises the same "conditioning isn't silently
+    // dropped" mechanism this scenario actually tests.
+    doc.getElementById(rkP + '-blink-on').checked = true;
+    doc.getElementById(rkP + '-blink-on').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check('INZRCD was added', reparsed.keywords.some((k) => k.name === 'INZRCD'));
+    check('BLINK was added', reparsed.keywords.some((k) => k.name === 'BLINK'));
     posted.length = 0;
-    check('INZRCD starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-inzrcd"]').textContent));
-    doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-inzrcd"]').dispatchEvent(new Event('click', { bubbles: true }));
-    doc.querySelector('.cond-add-group[data-prefix="' + rkP + '-inzrcd-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
-    check('clicking + OR condition on INZRCD does not write yet (pending, not committed)', posted.length === 0);
+    check('BLINK starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-blink"]').textContent));
+    doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-blink"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + rkP + '-blink-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    check('clicking + OR condition on BLINK does not write yet (pending, not committed)', posted.length === 0);
     doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num').value = '40';
-    doc.querySelector('.cond-ind-add[data-prefix="' + rkP + '-inzrcd-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-ind-add[data-prefix="' + rkP + '-blink-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    const inzrcdKw = reparsed.keywords.find((k) => k.name === 'INZRCD');
-    check('INZRCD is now conditioned on indicator 40', inzrcdKw.conditions.length === 1 && inzrcdKw.conditions[0].indicators[0].number === '40');
+    const blinkKw = reparsed.keywords.find((k) => k.name === 'BLINK');
+    check('BLINK is now conditioned on indicator 40', blinkKw.conditions.length === 1 && blinkKw.conditions[0].indicators[0].number === '40');
     posted.length = 0;
 
-    check('re-rendering shows the Conditioning(1) summary on the INZRCD row, not hidden', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-inzrcd"]').textContent));
-    check("INZRCD's committed indicator 40 is genuinely displayed as a chip, not just accepted", doc.querySelector('.cond-group[data-group="0"] .keyword-chip').textContent.trim().startsWith('40'));
+    check('re-rendering shows the Conditioning(1) summary on the BLINK row, not hidden', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-blink"]').textContent));
+    check("BLINK's committed indicator 40 is genuinely displayed as a chip, not just accepted", doc.querySelector('.cond-group[data-group="0"] .keyword-chip').textContent.trim().startsWith('40'));
 
     doc.getElementById(rkP + '-keep-on').checked = true;
     doc.getElementById(rkP + '-keep-on').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check("toggling an unrelated flag (KEEP) on the same General tab does not wipe INZRCD's indicator 40 conditioning", reparsed.keywords.find((k) => k.name === 'INZRCD').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'INZRCD').conditions[0].indicators[0].number === '40');
+    check("toggling an unrelated flag (KEEP) on the same General tab does not wipe BLINK's indicator 40 conditioning", reparsed.keywords.find((k) => k.name === 'BLINK').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'BLINK').conditions[0].indicators[0].number === '40');
     check('KEEP itself was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
     posted.length = 0;
 
