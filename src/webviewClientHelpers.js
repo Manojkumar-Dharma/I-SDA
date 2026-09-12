@@ -4627,7 +4627,6 @@
     var dl = '<div class="field-row"><label>Records in subfile (SFLSIZ)</label><input type="text" id="' + p + '-sflsiz" placeholder="number, or a field name" value="' + escapeHtml(layout.sflsiz) + '" /></div>';
     dl += '<div class="field-row"><label>Records per display (SFLPAG)</label><input type="text" id="' + p + '-sflpag" placeholder="number, or a field name" value="' + escapeHtml(layout.sflpag) + '" /></div>';
     dl += '<div class="field-row"><label>Spaces between records (SFLLIN)</label><input type="text" id="' + p + '-sfllin" placeholder="0 or 1" value="' + escapeHtml(layout.sfllin) + '" /></div>';
-    dl += '<button class="secondary" id="' + p + '-layout-apply" style="width:100%;margin-top:8px;">Apply display layout</button>';
     panels.displayLayout = dl;
 
     // --- Subfile Messages (Task L1c - repeatable, independently
@@ -4688,17 +4687,34 @@
     // Indicator (Task L5d)
     wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender, getFileKeywords);
 
-    // Display Layout
-    var layoutApply = document.getElementById(p + '-layout-apply');
-    if (layoutApply) {
-      layoutApply.addEventListener('click', function () {
-        var state = {
-          sflsiz: document.getElementById(p + '-sflsiz').value,
-          sflpag: document.getElementById(p + '-sflpag').value,
-          sfllin: document.getElementById(p + '-sfllin').value,
-        };
-        onChange(DspfWriter.setSflDisplayLayout(getKeywords(), state));
-      });
+    // Display Layout (Task L75 - was the one row in this whole panel that
+    // needed a separate "Apply" button instead of committing immediately
+    // like every other keyword row here; that inconsistency was flagged
+    // as a possible cause of the suspected accordion-collapse regression
+    // (SFLSIZ/SFLPAG/SFLLIN's own Apply click sits inside the accordion,
+    // a different commit path than every sibling row's plain 'change'
+    // listener) - removed rather than investigated further, since a
+    // single shared commit path across the whole panel is simpler and
+    // more consistent regardless of whether it was the actual cause.
+    // setSflDisplayLayout rewrites all 3 keywords together (see its own
+    // doc comment - none of the three carry independent Conditioning
+    // here), so each input's own 'change' commits ALL THREE current
+    // values, not just the one that changed - editing SFLPAG must not
+    // silently drop an already-set SFLSIZ/SFLLIN.
+    var sflsizEl = document.getElementById(p + '-sflsiz');
+    var sflpagEl = document.getElementById(p + '-sflpag');
+    var sfllinEl = document.getElementById(p + '-sfllin');
+    if (sflsizEl && sflpagEl && sfllinEl) {
+      var commitLayout = function () {
+        onChange(DspfWriter.setSflDisplayLayout(getKeywords(), {
+          sflsiz: sflsizEl.value,
+          sflpag: sflpagEl.value,
+          sfllin: sfllinEl.value,
+        }));
+      };
+      sflsizEl.addEventListener('change', commitLayout);
+      sflpagEl.addEventListener('change', commitLayout);
+      sfllinEl.addEventListener('change', commitLayout);
     }
 
     // Subfile Messages (Task L1c)

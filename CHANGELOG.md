@@ -10,6 +10,10 @@ commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
 [`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
 
+## 2026-09-11 — Fix (L75, direct user request): SFLCTL Display Layout row no longer needs a separate Apply button
+
+- **0.10.78** — The Display Layout panel's SFLSIZ/SFLPAG/SFLLIN row was the one row in the whole SFLCTL properties tab that committed via a separate "Apply display layout" button instead of the plain immediate `change`-event commit every sibling row already uses - flagged as investigation candidate (2) in L75's own original note (an accordion-collapse regression that was never actually reproduced). Removed the button; `wireSflCtlPanels` now attaches a `change` listener to each of the 3 inputs, each committing all 3 current values together via the same shared function (unchanged behavior - `setSflDisplayLayout` has always rewritten all three keywords as a set), so editing one field never drops an already-set sibling. Updated the existing `dspfWebview.test.js` coverage to dispatch `change` instead of clicking the now-removed button, plus a check confirming it's gone. The other two investigation candidates from L75's original note remain unconfirmed - this closes the one concretely-identified inconsistency, per direct instruction. Full suite: 49/49 files, zero failures.
+
 ## 2026-09-11 — Feature/hardening (L82, L83 - direct user request, follow-ups to L81): the two gaps L81 itself flagged as out-of-scope
 
 - **0.10.77** — Two follow-ups to L81's own DFT/DFTVAL hardening, both picked up on direct request:

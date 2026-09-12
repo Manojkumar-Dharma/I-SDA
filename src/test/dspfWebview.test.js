@@ -5084,14 +5084,15 @@ function runSflCtlPickerScenario() {
     check('a second CLEAR(10) instance was added alongside it', !!reparsed.keywords.find((k) => k.name === 'CLEAR' && k.parameters.trim() === '10'));
     posted.length = 0;
 
-    console.log('  Display Layout: SFLSIZ(20)/SFLPAG(10) pre-filled from source, editing commits all three keywords together');
+    console.log('  Display Layout (Task L75 - Apply button removed, commits immediately per input like every other row in this panel): SFLSIZ(20)/SFLPAG(10) pre-filled from source, editing any one field commits all three keywords together');
     check('SFLSIZ pre-filled', doc.getElementById(p + '-sflsiz').value === '20');
     check('SFLPAG pre-filled', doc.getElementById(p + '-sflpag').value === '10');
     check('SFLLIN starts blank', doc.getElementById(p + '-sfllin').value === '');
+    check('the Apply button is gone - this row commits per-field now', !doc.getElementById(p + '-layout-apply'));
     doc.getElementById(p + '-sflsiz').value = 'SIZEFLD';
     doc.getElementById(p + '-sflpag').value = '5';
     doc.getElementById(p + '-sfllin').value = '1';
-    doc.getElementById(p + '-layout-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById(p + '-sfllin').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
     check('SFLSIZ accepts a field name', reparsed.keywords.find((k) => k.name === 'SFLSIZ').parameters.trim() === 'SIZEFLD');
