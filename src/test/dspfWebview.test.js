@@ -4253,7 +4253,7 @@ function runSflMsgPickerScenario() {
     console.log('  Message Record: line number pre-filled from SFLMSGRCD(24), and shows which fields carry SFLMSGKEY/SFLPGMQ');
     const rcdInput = doc.getElementById('sm-sflmsgrcd');
     check('SFLMSGRCD line pre-filled with 24', rcdInput && rcdInput.value === '24');
-    check('no DSPSIZ-conditioning input rendered (file has only one display size)', !doc.getElementById('sm-sflmsgrcd-ds2'));
+    check('no DSPSIZ-conditioning input rendered (file has only one display size)', !doc.getElementById('sm-sflmsgrcd-ds0') && !doc.getElementById('sm-sflmsgrcd-ds1'));
     let msgkeyNameInput = doc.getElementById('sm-msgkey-name');
     let pgmqNameInput = doc.getElementById('sm-pgmq-name');
     let pgmq276Checkbox = doc.getElementById('sm-pgmq-276');
@@ -4404,7 +4404,7 @@ function runSflMsgPickerScenario() {
  *  getSflMsgRcdLines/setSflMsgRcdLines's own doc comment in dspfWriter.js
  *  for the DDS Reference citation this is built from. */
 function runSflMsgRcdDspsizConditioningScenario() {
-  console.log('\nSFLMSGRCD DSPSIZ conditioning: "Display size conditioning" row, only shown when the file has a second display size');
+  console.log('\nSFLMSGRCD DSPSIZ conditioning: "Display size conditioning" row(s), only shown when the file has a second display size');
   const src =
     [
       buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
@@ -4440,15 +4440,17 @@ function runSflMsgRcdDspsizConditioningScenario() {
     check('SFLMSG tab button rendered', !!sflMsgTabBtn);
     sflMsgTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
 
-    console.log('  primary pre-filled from the unconditioned SFLMSGRCD(23), conditioned input pre-filled from the *DS4-conditioned SFLMSGRCD(26)');
+    console.log('  primary pre-filled from the unconditioned SFLMSGRCD(23); *DS3 (ds0) input pre-filled blank (no *DS3-conditioned entry exists); *DS4 (ds1) input pre-filled from the *DS4-conditioned SFLMSGRCD(26)');
     const rcdInput = doc.getElementById('sm-sflmsgrcd');
-    const rcdDs2Input = doc.getElementById('sm-sflmsgrcd-ds2');
+    const ds0Input = doc.getElementById('sm-sflmsgrcd-ds0');
+    const ds1Input = doc.getElementById('sm-sflmsgrcd-ds1');
     check('primary input present, pre-filled with 23', rcdInput && rcdInput.value === '23');
-    check('*DS4-conditioning input present, pre-filled with 26', rcdDs2Input && rcdDs2Input.value === '26');
+    check('*DS3 (ds0) input present, pre-filled blank', ds0Input && ds0Input.value === '');
+    check('*DS4 (ds1) input present, pre-filled with 26', ds1Input && ds1Input.value === '26');
 
-    console.log('  editing the conditioned (*DS4) value commits it without disturbing the primary value');
-    rcdDs2Input.value = '25';
-    rcdDs2Input.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('  editing the *DS4-conditioned value commits it without disturbing the primary value');
+    ds1Input.value = '25';
+    ds1Input.dispatchEvent(new Event('change', { bubbles: true }));
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('an edit was posted', !!applyEdit);
     let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS2');
@@ -4460,7 +4462,7 @@ function runSflMsgRcdDspsizConditioningScenario() {
     check('*DS4-conditioned SFLMSGRCD updated to 25', ds4Kw && ds4Kw.parameters.trim() === '25');
     posted.length = 0;
 
-    console.log('  editing the primary value commits it without disturbing the conditioned value');
+    console.log('  editing the primary value commits it without disturbing the *DS4-conditioned value');
     const rcdInputAfter = doc.getElementById('sm-sflmsgrcd');
     rcdInputAfter.value = '20';
     rcdInputAfter.dispatchEvent(new Event('change', { bubbles: true }));
@@ -4472,17 +4474,105 @@ function runSflMsgRcdDspsizConditioningScenario() {
     check('*DS4-conditioned value (25, from the previous edit) still intact', rcdKws.some((k) => (k.conditions || []).some((g) => g.displaySizeCondition && g.displaySizeCondition.name === '*DS4') && k.parameters.trim() === '25'));
     posted.length = 0;
 
-    console.log('  clearing the conditioned value drops just that SFLMSGRCD instance, leaving the unconditioned one alone');
-    const rcdDs2InputAfter = doc.getElementById('sm-sflmsgrcd-ds2');
-    rcdDs2InputAfter.value = '';
-    rcdDs2InputAfter.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('  clearing the *DS4-conditioned value drops just that SFLMSGRCD instance, leaving the unconditioned one alone');
+    const ds1InputAfter = doc.getElementById('sm-sflmsgrcd-ds1');
+    ds1InputAfter.value = '';
+    ds1InputAfter.dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS2');
     rcdKws = reparsed.keywords.filter((k) => k.name === 'SFLMSGRCD');
     check('exactly 1 SFLMSGRCD keyword instance left (the unconditioned one)', rcdKws.length === 1 && !(rcdKws[0].conditions || []).some((g) => g.displaySizeCondition));
     check('remaining instance is the primary 20', rcdKws[0].parameters.trim() === '20');
   }, 0);
+
+  runSflMsgRcdBothSizesConditionedScenario();
 }
+
+/** Bug fix (reported directly against a screenshot of real generated DDS):
+ *  when BOTH display sizes have their own explicitly-conditioned
+ *  SFLMSGRCD - a fully valid, real shape (real SDA itself can produce
+ *  `*DS3 SFLMSGRCD(24)` / `*DS4 SFLMSGRCD(26)` with NO unconditioned entry
+ *  at all) - the old UI only ever exposed ONE conditioned input (for the
+ *  file's *second* size), silently treating the *first* size's own
+ *  conditioned value as if it belonged in the "unconditioned primary" box.
+ *  Editing either input then either dropped the first size's entry outright
+ *  or resurrected it as a bogus unconditioned SFLMSGRCD alongside the
+ *  second size's own conditioned one. This scenario is exactly that
+ *  reported shape - no unconditioned primary at all, both sizes
+ *  conditioned - verifying both are visible and independently editable
+ *  without data loss. */
+function runSflMsgRcdBothSizesConditionedScenario() {
+  console.log('\nSFLMSGRCD DSPSIZ conditioning: BOTH display sizes explicitly conditioned (no unconditioned entry) - the reported bug shape');
+  const src =
+    [
+      buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3 27 132 *DS4)' }),
+      buildLine({ seq: '00020', nameType: 'R', name: 'MSGSFL', func: 'SFL' }),
+      buildLine({ seq: '00025', func: "TEXT('MESSAGE SUBFILE')" }),
+      buildLine({ seq: '00030', sizeCondition: '*DS3', func: 'SFLMSGRCD(24)' }),
+      buildLine({ seq: '00040', sizeCondition: '*DS4', func: 'SFLMSGRCD(26)' }),
+      buildLine({ seq: '00050', name: 'MSGKEY', dataType: 'A', length: '10', usage: 'H' }),
+      buildLine({ seq: '00060', func: 'SFLMSGKEY' }),
+      buildLine({ seq: '00070', name: 'PROGRAMQ', dataType: 'A', length: '10', usage: 'H' }),
+      buildLine({ seq: '00080', func: 'SFLPGMQ' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'MSGSFL.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const recordSelect = doc.getElementById('recordSelect');
+    recordSelect.value = 'MSGSFL';
+    recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    const sflMsgTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.textContent.trim() === 'SFLMSG');
+    sflMsgTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    console.log('  both *DS3 and *DS4 pre-filled correctly; primary (unconditioned) blank - NOT silently holding *DS3\\u2019s value');
+    const rcdInput = doc.getElementById('sm-sflmsgrcd');
+    const ds0Input = doc.getElementById('sm-sflmsgrcd-ds0');
+    const ds1Input = doc.getElementById('sm-sflmsgrcd-ds1');
+    check('primary input blank', rcdInput && rcdInput.value === '');
+    check('*DS3 (ds0) input pre-filled with 24', ds0Input && ds0Input.value === '24');
+    check('*DS4 (ds1) input pre-filled with 26', ds1Input && ds1Input.value === '26');
+
+    console.log('  editing *DS4 alone leaves *DS3 exactly as-is (no data loss, no bogus unconditioned entry created)');
+    ds1Input.value = '27';
+    ds1Input.dispatchEvent(new Event('change', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'MSGSFL');
+    let rcdKws = reparsed.keywords.filter((k) => k.name === 'SFLMSGRCD');
+    check('exactly 2 SFLMSGRCD keyword instances (still both conditioned, no unconditioned one appeared)', rcdKws.length === 2 && rcdKws.every((k) => (k.conditions || []).some((g) => g.displaySizeCondition)));
+    const ds3Kw = rcdKws.find((k) => (k.conditions || []).some((g) => g.displaySizeCondition && g.displaySizeCondition.name === '*DS3'));
+    const ds4Kw = rcdKws.find((k) => (k.conditions || []).some((g) => g.displaySizeCondition && g.displaySizeCondition.name === '*DS4'));
+    check('*DS3-conditioned SFLMSGRCD still 24, untouched', ds3Kw && ds3Kw.parameters.trim() === '24');
+    check('*DS4-conditioned SFLMSGRCD updated to 27', ds4Kw && ds4Kw.parameters.trim() === '27');
+    posted.length = 0;
+
+    console.log('  editing *DS3 next leaves the now-updated *DS4 value exactly as-is');
+    const ds0InputAfter = doc.getElementById('sm-sflmsgrcd-ds0');
+    ds0InputAfter.value = '23';
+    ds0InputAfter.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'MSGSFL');
+    rcdKws = reparsed.keywords.filter((k) => k.name === 'SFLMSGRCD');
+    check('still exactly 2 SFLMSGRCD instances, both conditioned', rcdKws.length === 2 && rcdKws.every((k) => (k.conditions || []).some((g) => g.displaySizeCondition)));
+    check('*DS3-conditioned SFLMSGRCD updated to 23', rcdKws.some((k) => (k.conditions || []).some((g) => g.displaySizeCondition && g.displaySizeCondition.name === '*DS3') && k.parameters.trim() === '23'));
+    check('*DS4-conditioned SFLMSGRCD (27, from the previous edit) still intact', rcdKws.some((k) => (k.conditions || []).some((g) => g.displaySizeCondition && g.displaySizeCondition.name === '*DS4') && k.parameters.trim() === '27'));
+  }, 0);
+}
+
 
 function runSflPickerScenario() {
   console.log('\nSFL picker (Task R3): General / Indicator tab, only on plain subfile records (not SFLMSG)');

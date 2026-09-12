@@ -3667,18 +3667,20 @@
   // and the same INDTXT single-instance encoding the file-level Indicator
   // panel already uses.
   //
-  // Two controls from the real "Define Message Record" screen are
-  // deliberately NOT wired here: "Display size conditioning" (SFLMSGRCD's
-  // parameter already accepts a plain field name as an alternative to a
-  // 1-27 line number, which the single sm-sflmsgrcd text box already
-  // covers - DDS doesn't document a SEPARATE conditioning slot beyond
-  // that) and "Roll keyword" (its real DDS argument shape wasn't
-  // confidently verified against IBM's own reference). Real SDA's
-  // "Define Indicator Keywords" screen's CHANGE keyword is left out for
-  // the same reason - only INDTXT and SETOF's shapes were confirmed.
-  // Both gaps route through the raw Keywords editor accordion that sits
+  // One control from the real "Define Message Record" screen is
+  // deliberately NOT wired here: "Roll keyword" (its real DDS argument
+  // shape wasn't confidently verified against IBM's own reference). Real
+  // SDA's "Define Indicator Keywords" screen's CHANGE keyword is left out
+  // for the same reason - only INDTXT and SETOF's shapes were confirmed.
+  // Both route through the raw Keywords editor accordion that sits
   // alongside this panel, same fallback every other uncertain-shape
-  // keyword in this codebase uses.
+  // keyword in this codebase uses. "Display size conditioning" (SFLMSGRCD's
+  // own DSPSIZ conditioning, further down in sflMsgPanelsHtml/
+  // wireSflMsgPanels) IS wired - see getSflMsgRcdLines/setSflMsgRcdLines's
+  // own doc comment in dspfWriter.js for the DDS Reference citation and
+  // this task's own bug-fix history (an earlier version only tracked one
+  // of the file's two possible display sizes and silently lost the other's
+  // conditioned value on edit).
   // ---------------------------------------------------------------------
 
   /** Whether `rec` is a message-subfile (SFLMSG) record - defined by
@@ -3818,23 +3820,36 @@
     var panels = {};
 
     // --- Message Record ---
-    // Line for first message (SFLMSGRCD): a primary/unconditioned value,
-    // plus - since DDS DSPSIZ allows at most two sizes - one more value
-    // conditioned by the second size's own name, when the file actually
-    // has a second display size defined. Same (primary, bySizeName) shape
-    // and same "reuse the file's own DSPSIZ order" UI pattern the file-level
-    // Display Sizes picker's own MSGLOC row already uses (see
-    // getSflMsgRcdLines/setSflMsgRcdLines's own doc comment in
-    // dspfWriter.js for the DDS Reference citation this is built from).
+    // Line for first message (SFLMSGRCD): an unconditioned "primary" value,
+    // PLUS - since DDS DSPSIZ allows at most two sizes - one more input per
+    // declared size, each independently conditioned by that size's own
+    // name. Bug fix: this used to only ever expose ONE conditioned input
+    // (for the file's *second* declared size), silently treating the
+    // *first* size as if it were always the unconditioned "primary" value.
+    // Real DDS - and real SDA's own generated output - can condition BOTH
+    // sizes explicitly with NO unconditioned entry at all (e.g. `*DS3
+    // SFLMSGRCD(24)` / `*DS4 SFLMSGRCD(26)`, reported directly against a
+    // screenshot of exactly that). With the old single-conditioned-input
+    // UI, the first size's own conditioned value was invisible (hidden
+    // behind the blank "primary" box) and got silently DESTROYED the
+    // moment either input was edited - either dropped outright, or
+    // resurrected as a bogus unconditioned SFLMSGRCD that duplicates/
+    // conflicts with the second size's own conditioned one. Now renders
+    // (and wireSflMsgPanels commits) one input per size in `sizeList`,
+    // independently of the always-present unconditioned primary input -
+    // see getSflMsgRcdLines/setSflMsgRcdLines's own doc comment in
+    // dspfWriter.js, whose `{primary, bySizeName}` shape already supported
+    // this correctly; only this UI layer had the bug.
     var rcdLines = DspfWriter.getSflMsgRcdLines(kw);
     var sizeList = DspfWriter.getDisplaySizesList(fileKeywords || []);
-    var secondarySize = sizeList.length > 1 ? sizeList[1] : null;
     var mr = '<div class="section-label">Line for first message, or a field name (SFLMSGRCD)</div>';
     mr += '<input type="text" id="sm-sflmsgrcd" placeholder="1-27, or a field name" value="' + escapeHtml(rcdLines.primary) + '" style="width:100%;" />';
-    if (secondarySize) {
-      mr += '<div class="section-label" style="margin-top:6px;">Display size conditioning (' + escapeHtml(secondarySize.name) + ')</div>';
-      mr += '<input type="text" id="sm-sflmsgrcd-ds2" placeholder="1-27, or a field name, for ' + escapeHtml(secondarySize.name) + '" value="' + escapeHtml(rcdLines.bySizeName[secondarySize.name] || '') + '" style="width:100%;" />';
-      mr += '<div class="hint-small">Required if the line number changes between the file\u2019s two display sizes - the primary value above applies to "' + escapeHtml(sizeList[0].name) + '".</div>';
+    if (sizeList.length > 1) {
+      sizeList.forEach(function (size, idx) {
+        mr += '<div class="section-label" style="margin-top:6px;">Display size conditioning (' + escapeHtml(size.name) + ')</div>';
+        mr += '<input type="text" id="sm-sflmsgrcd-ds' + idx + '" placeholder="1-27, or a field name, for ' + escapeHtml(size.name) + '" value="' + escapeHtml(rcdLines.bySizeName[size.name] || '') + '" style="width:100%;" />';
+      });
+      mr += '<div class="hint-small">Required if the line number changes between the file\u2019s two display sizes - leave a size\u2019s own input blank to fall back to the unconditioned value above for that size.</div>';
     } else {
       mr += '<div class="hint-small">Add a second display size (file-level Display Sizes picker) to condition this by DSPSIZ.</div>';
     }
@@ -4409,23 +4424,37 @@
       }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
 
-    // SFLMSGRCD: primary value plus, when the file has a second display
-    // size, that size's own conditioned value (id 'sm-sflmsgrcd-ds2' - only
-    // rendered by sflMsgPanelsHtml when applicable). Both commit through
-    // setSflMsgRcdLines together so neither input's change silently drops
-    // the other's already-saved value. See getSflMsgRcdLines/
-    // setSflMsgRcdLines's own doc comment in dspfWriter.js.
+    // SFLMSGRCD: an unconditioned primary value, plus one input per
+    // declared display size (ids 'sm-sflmsgrcd-ds0'/'-ds1' - only rendered
+    // by sflMsgPanelsHtml when the file has 2+ sizes). All commit together
+    // through setSflMsgRcdLines so editing any ONE input never silently
+    // drops another's already-saved value - this used to only track the
+    // *second* size's own conditioned value, silently destroying the
+    // first size's conditioned entry (reported directly against a
+    // screenshot of a real `*DS3 SFLMSGRCD(24)` / `*DS4 SFLMSGRCD(26)`
+    // file). See getSflMsgRcdLines/setSflMsgRcdLines's own doc comment in
+    // dspfWriter.js.
     var rcd = document.getElementById('sm-sflmsgrcd');
-    var rcdDs2 = document.getElementById('sm-sflmsgrcd-ds2');
     if (rcd) {
       var commitRcd = function () {
         var sizeList = DspfWriter.getDisplaySizesList((getFileKeywords ? getFileKeywords() : []) || []);
         var bySizeName = {};
-        if (sizeList.length > 1 && rcdDs2) bySizeName[sizeList[1].name] = rcdDs2.value || '';
+        if (sizeList.length > 1) {
+          sizeList.forEach(function (size, idx) {
+            var sizeInput = document.getElementById('sm-sflmsgrcd-ds' + idx);
+            if (sizeInput) bySizeName[size.name] = sizeInput.value || '';
+          });
+        }
         onChange(DspfWriter.setSflMsgRcdLines(getKeywords(), rcd.value || '', bySizeName));
       };
       rcd.addEventListener('change', commitRcd);
-      if (rcdDs2) rcdDs2.addEventListener('change', commitRcd);
+      var sizeListForWiring = DspfWriter.getDisplaySizesList((getFileKeywords ? getFileKeywords() : []) || []);
+      if (sizeListForWiring.length > 1) {
+        sizeListForWiring.forEach(function (size, idx) {
+          var sizeInput = document.getElementById('sm-sflmsgrcd-ds' + idx);
+          if (sizeInput) sizeInput.addEventListener('change', commitRcd);
+        });
+      }
     }
 
     simple('sm-sflnxtchg', 'SFLNXTCHG');
