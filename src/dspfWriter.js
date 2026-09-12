@@ -4424,95 +4424,126 @@
   // Every entry below was checked against IBM's current DDS Reference for
   // display files before being encoded (per this task's own "verify each
   // against IBM's current DDS reference before encoding - don't guess"
-  // instruction) rather than assumed from general S36E knowledge. Three of
-  // the six keywords could NOT be verified against IBM's own "System/36
-  // environment considerations for display files" appendix text itself -
-  // every reachable mirror of that specific appendix page for ALTNAME,
-  // MSGID, and RETKEY/RETCMDKEY only surfaced each keyword's generic
-  // (non-S36E) definition plus a "see System/36 environment
-  // considerations..." cross-reference, not the target text itself. Rather
-  // than guess a plausible-sounding constraint for those three, each is
-  // recorded here with `verified: false` and no `rule`/`severity` - S36-4
-  // should treat these as explicit open items (see LIMITATIONS-PLAN.md
-  // S36-3) rather than silently having no effect for an unexplained reason.
+  // instruction) rather than assumed from general S36E knowledge.
   //
-  // The three verified entries (CHANGE, HELP, PRINT) share one real
-  // mechanism confirmed on IBM's current "Keyword considerations for
-  // display files used in the System/36 environment" page: S36E
-  // applications do not support response indicators on these keywords, so
-  // specifying one in a USRDSPMGT file is flagged at file-creation time.
-  // HELP is the one exception called out by name on that same page - CHANGE
-  // and PRINT's response indicator only produces a WARNING, but HELP's
-  // produces an ERROR, and IBM's own S36E-specific HELP/HLPRTN sub-page
-  // explains why: in a USRDSPMGT file, a HELP response indicator alone
-  // does not return control to the program at all - HLPRTN must be
-  // specified for that. PRINT(*PGM) is covered by the same response-
-  // indicator rule as PRINT's numeric form because IBM's own PRINT keyword
-  // description states `*PGM` and a response indicator are the same
-  // mechanism ("the only difference between these two forms is the
-  // response indicator; all other processing is the same") - so a file
-  // using PRINT(*PGM) under USRDSPMGT hits the identical warning a
-  // response-indicator form of PRINT would.
+  // Update: all six are now verified, using the official IBM i "DDS for
+  // Display Files" reference PDF the person supplied directly
+  // (docs/sda-reference/source/DDS_Keyword_V7r6.pdf) - the same appendix
+  // web searches and archived-mirror fetches repeatedly failed to surface
+  // in full during S36-3's original research. Reading that appendix
+  // directly revealed something the original research missed: of the six,
+  // only CHANGE, HELP/HLPRTN, and PRINT are actually GATED BY USRDSPMGT
+  // (their behavior changes specifically because USRDSPMGT is present).
+  // ALTNAME, MSGID, and RETKEY/RETCMDKEY appear in that same appendix
+  // chapter simply because they're commonly used together with S36E
+  // migrated/program-described files, but IBM's own text never qualifies
+  // their rules with "in a file containing USRDSPMGT" the way it explicitly
+  // does for the other three - their rules apply unconditionally. Each
+  // entry's new `gatedByUsrdspmgt` field records this distinction; S36-4's
+  // existing hard-block wiring already only ever checked `appliesTo ===
+  // 'response-indicator'` (true for exactly CHANGE/HELP/PRINT), so this
+  // correction needed no change to that wiring itself - only to what this
+  // table records as true.
+  //
+  // The three USRDSPMGT-gated entries (CHANGE, HELP, PRINT) share one real
+  // mechanism confirmed on IBM's "Keyword considerations for display files
+  // used in the System/36 environment" page: S36E applications do not
+  // support response indicators on these keywords, so specifying one in a
+  // USRDSPMGT file is flagged at file-creation time. HELP is the one
+  // exception called out by name on that same page - CHANGE and PRINT's
+  // response indicator only produces a WARNING, but HELP's produces an
+  // ERROR, and IBM's own S36E-specific HELP/HLPRTN sub-page explains why:
+  // in a USRDSPMGT file, a HELP response indicator alone does not return
+  // control to the program at all - HLPRTN must be specified for that.
+  //
+  // Correction: PRINT(*PGM) is its OWN documented case, not - as this
+  // table previously (incorrectly) inferred from a separate, general PRINT
+  // keyword page's "the only difference between these two forms is the
+  // response indicator" statement - simply the response-indicator warning
+  // in disguise. IBM's dedicated "PRINT(*PGM) keyword" S36E sub-page says
+  // nothing about a warning at all: PRINT(*PGM) is a fully valid, EXPECTED
+  // combination with USRDSPMGT: how the Print key behaves at runtime
+  // depends on which compiler wrote the reading program (an S36-compatible
+  // RPG II/COBOL compiler only interrupts the program if it's coded to
+  // handle the Print-key exception; an IBM i RPG III/IV/COBOL compiler
+  // always interrupts it). That's a behavioral note for the person writing
+  // the program, not a DDS-level restriction - so checkS36EResponseIndicatorViolation
+  // below now explicitly excludes the literal '*PGM' value from PRINT's
+  // response-indicator check (a genuine NUMERIC response indicator on
+  // PRINT still warns, exactly as before).
   var S36E_KEYWORD_RESTRICTIONS = {
     ALTNAME: {
       keyword: 'ALTNAME',
-      verified: false,
+      verified: true,
+      gatedByUsrdspmgt: false,
       severity: null,
-      rule: null,
-      notes: "IBM's ALTNAME keyword page points to \"System/36 environment considerations for display files\" for how to specify ALTNAME in an S36E file, but that appendix section's own text could not be retrieved for verification. No constraint is encoded or enforced."
+      appliesTo: null,
+      rule: "ALTNAME's own general rules (NOT conditioned on USRDSPMGT): the alternative name must be 1-8 characters, its first character must not be '*', it must be different from every other record name and alternate name in the file (duplicates raise an error), and ALTNAME is not allowed on subfile records (SFL). Option indicators are not valid for this keyword.",
+      source: "IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), \"ALTNAME (Alternative Record Name) keyword\" - listed under \"System/36 environment considerations for display files\" but not itself qualified by USRDSPMGT"
     },
     CHANGE: {
       keyword: 'CHANGE',
       verified: true,
+      gatedByUsrdspmgt: true,
       severity: 'warning',
       appliesTo: 'response-indicator',
       rule: 'Specifying a response indicator on CHANGE in a file that also contains USRDSPMGT produces a warning at file-creation time - S36E applications do not support response indicators on this keyword.',
-      source: "IBM i DDS Reference for display files, \"Keyword considerations for display files used in the System/36 environment\""
+      source: "IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), \"Keyword considerations for display files used in the System/36 environment\""
     },
     HELP: {
       keyword: 'HELP',
       verified: true,
+      gatedByUsrdspmgt: true,
       severity: 'error',
       appliesTo: 'response-indicator',
       rule: 'Specifying a response indicator on HELP in a file that also contains USRDSPMGT is an error, not just a warning - unlike CHANGE/PRINT. A HELP response indicator alone will not return control to the application program in a USRDSPMGT file; HLPRTN must also be specified to return control.',
-      source: "IBM i DDS Reference for display files, \"Keyword considerations for display files used in the System/36 environment\" (response-indicator keyword list, HELP called out as the ERROR exception) and the HELP/HLPRTN System/36 environment sub-page"
+      source: "IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), \"Keyword considerations for display files used in the System/36 environment\" (response-indicator keyword list, HELP called out as the ERROR exception) and the \"HELP and HLPRTN keyword\" System/36 environment sub-page"
     },
     HLPRTN: {
       keyword: 'HLPRTN',
       verified: true,
+      gatedByUsrdspmgt: true,
       severity: null,
       appliesTo: null,
       rule: 'HLPRTN is not itself restricted by USRDSPMGT - it is the keyword that must be present to satisfy HELP\'s own S36E restriction above (returning control to the program when Help is pressed in a USRDSPMGT file).',
-      source: 'IBM i DDS Reference for display files, HELP/HLPRTN System/36 environment sub-page'
+      source: 'IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), "HELP and HLPRTN keyword" System/36 environment sub-page'
     },
     MSGID: {
       keyword: 'MSGID',
-      verified: false,
+      verified: true,
+      gatedByUsrdspmgt: false,
       severity: null,
-      rule: null,
-      notes: "IBM's MSGID keyword page points to \"System/36 environment considerations for display files\" for how to specify MSGID in an S36E file, but that appendix section's own text could not be retrieved for verification. No constraint is encoded or enforced."
+      appliesTo: null,
+      rule: "MSGID's own general syntax (NOT conditioned on USRDSPMGT): MSGID(message-identifier [library-name/]message-file) or MSGID(*NONE). message-file may be a 2-character &field (must be in the same record, usage H/P/B/O only, and restricted to the special values U1/U2/P1/P2/M1/M2 - any other value defaults to U1; no library allowed with this form), or one of the special values *USR1/*USR2/*PGM1/*PGM2/*SYS1/*SYS2 (library not allowed, defaults to *LIBL).",
+      source: "IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), \"MSGID keyword\" (including Table 15's special-value mapping) - listed under \"System/36 environment considerations for display files\" but not itself qualified by USRDSPMGT"
     },
     PRINT: {
       keyword: 'PRINT',
       verified: true,
+      gatedByUsrdspmgt: true,
       severity: 'warning',
       appliesTo: 'response-indicator',
-      rule: "Specifying a response indicator on PRINT - including the PRINT(*PGM) form, which IBM's own PRINT keyword description documents as functionally the response-indicator form of PRINT (\"the only difference between these two forms is the response indicator; all other processing is the same\") - in a file that also contains USRDSPMGT produces a warning at file-creation time.",
-      source: "IBM i DDS Reference for display files, \"Keyword considerations for display files used in the System/36 environment\" plus the PRINT keyword page's own *PGM/response-indicator equivalence statement"
+      rule: 'Specifying a NUMERIC response indicator on PRINT in a file that also contains USRDSPMGT produces a warning at file-creation time - S36E applications do not support response indicators on this keyword. This does NOT apply to PRINT(*PGM) - see pgmSpecialValueNote below; a literal \'*PGM\' is a distinct, valid special value, not a response indicator.',
+      pgmSpecialValueNote: "PRINT(*PGM) is a fully valid, expected combination with USRDSPMGT (no warning) - IBM's own S36E sub-page documents it as a runtime behavioral note instead: how the Print key is handled depends on which compiler wrote the reading program. An S36-compatible compiler (RPG II or COBOL) only interrupts the program if it's coded to handle the Print-key exception (otherwise the screen image is printed); an IBM i compiler (RPG III, RPG IV, or COBOL) always interrupts the program (acting as if Enter was pressed if the program doesn't handle the exception).",
+      source: "IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), \"Keyword considerations for display files used in the System/36 environment\" (response-indicator keyword list) plus the dedicated \"PRINT(*PGM) keyword\" System/36 environment sub-page"
     },
     RETKEY: {
       keyword: 'RETKEY',
-      verified: false,
+      verified: true,
+      gatedByUsrdspmgt: false,
       severity: null,
-      rule: null,
-      notes: "Only RETKEY/RETCMDKEY's general (non-S36E) \"Considerations for specifying RETKEY and RETCMDKEY\" rules could be verified (requires INDARA, not valid with SFL/USRDFN, incompatible with ALTHELP/ALTPAGEUP/ALTPAGEDWN - none of which are S36E-specific). The dedicated System/36 environment sub-page for these two keywords could not be retrieved beyond its own generic keyword description. No S36E-specific constraint is encoded or enforced."
+      appliesTo: null,
+      rule: "RETKEY/RETCMDKEY's own general rules (NOT conditioned on USRDSPMGT): the file must specify INDARA; both keywords are ignored on the first output operation after the file is opened (the retain function only applies between record formats in the same file); neither is allowed on a subfile format (SFL) or a user-defined record (USRDFN); neither can be specified in a file that also contains ALTHELP, ALTPAGEUP, or ALTPAGEDWN. RETKEY specifically retains CLEAR/HELP/HLPRTN/HOME/PAGEDOWN/PAGEUP/PRINT/ROLLDOWN/ROLLUP; it cannot be combined with CLEAR/HELP/HOME/PAGEUP/PAGEDOWN/ROLLDOWN/ROLLUP on the file level or this record, and PRINT is not allowed on the same record as RETKEY (though HLPRTN and PRINT ARE allowed at the file level alongside RETKEY).",
+      source: "IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), \"RETKEY (Retain Function Keys) and RETCMDKEY (Retain Command Keys) keywords\" and \"Considerations for specifying RETKEY and RETCMDKEY keywords\" - listed under \"System/36 environment considerations for display files\" but not itself qualified by USRDSPMGT"
     },
     RETCMDKEY: {
       keyword: 'RETCMDKEY',
-      verified: false,
+      verified: true,
+      gatedByUsrdspmgt: false,
       severity: null,
-      rule: null,
-      notes: "See RETKEY above - RETKEY and RETCMDKEY share one System/36 environment sub-page in IBM's DDS reference and the same open-item status."
+      appliesTo: null,
+      rule: "See RETKEY's own rule for the shared general considerations (INDARA, ignored on first output op, not on SFL/USRDFN, incompatible with ALTHELP/ALTPAGEUP/ALTPAGEDWN). RETCMDKEY specifically retains CAnn/CFnn keys; it cannot be combined with CAnn or CFnn on the file level or this record, and none of CAnn/CFnn/SFLDROP/SFLENTER/SFLFOLD are allowed on the record being defined.",
+      source: "IBM i DDS Reference for display files (docs/sda-reference/source/DDS_Keyword_V7r6.pdf), \"RETKEY (Retain Function Keys) and RETCMDKEY (Retain Command Keys) keywords\" and \"Considerations for specifying RETKEY and RETCMDKEY keywords\" - listed under \"System/36 environment considerations for display files\" but not itself qualified by USRDSPMGT"
     }
   };
 
@@ -4542,11 +4573,25 @@
    *  this task's own direct user request asked for) can reuse the exact
    *  same per-keyword rule logic checkS36EResponseIndicatorViolation uses
    *  for the ordinary "USRDSPMGT already on" case, rather than duplicating
-   *  it under a second gate condition. */
+   *  it under a second gate condition.
+   *
+   *  Correction (verified against IBM's own dedicated "PRINT(*PGM)
+   *  keyword" S36E sub-page, not just the general PRINT keyword page's
+   *  own *PGM/response-indicator equivalence statement this used to lean
+   *  on): the literal text '*PGM' on PRINT is EXCLUDED from this check.
+   *  PRINT(*PGM) is a fully valid, documented, EXPECTED combination with
+   *  USRDSPMGT - IBM's own text describes a runtime behavioral difference
+   *  based on which compiler wrote the reading program, not a DDS-level
+   *  warning (see PRINT's own `pgmSpecialValueNote` in
+   *  S36E_KEYWORD_RESTRICTIONS above). A genuine NUMERIC response
+   *  indicator on PRINT still warns exactly as before - only the special
+   *  value '*PGM' itself is carved out. */
   function s36ERuleViolationMessage(keywordName, responseIndicatorText) {
     var restriction = getS36ERestriction(keywordName);
     if (!restriction || !restriction.verified || restriction.appliesTo !== 'response-indicator') return null;
-    if (!(responseIndicatorText || '').trim()) return null;
+    var text = (responseIndicatorText || '').trim();
+    if (!text) return null;
+    if (String(keywordName).toUpperCase() === 'PRINT' && text.toUpperCase() === '*PGM') return null;
     return restriction.rule;
   }
 
@@ -4558,12 +4603,10 @@
    *  write as that keyword's response-indicator parameter (e.g. CHANGE's
    *  own `resp` from getRecordIndicatorInstances, or PRINT's own
    *  getFileFlagKeyword(...).parameters) - a blank/whitespace-only value
-   *  never violates (PRINT with no parameters, or PRINT(*PGM) passed as
-   *  the literal text '*PGM' through this SAME parameter box, both work
-   *  correctly here: '*PGM' is non-blank, so it's caught by the same
-   *  check a numeric response indicator would be, matching IBM's own
-   *  documented *PGM/response-indicator equivalence - see this rule's own
-   *  `source` note in S36E_KEYWORD_RESTRICTIONS above).
+   *  never violates, and neither does the literal text '*PGM' on PRINT
+   *  specifically (see s36ERuleViolationMessage's own doc comment above
+   *  for why - it's a valid special value, not a response indicator, so
+   *  it's carved out there rather than duplicating the exclusion here).
    *  Returns `{ severity, message }` on a violation, or `null` when there
    *  is nothing to flag (USRDSPMGT off, unknown/unverified/non-response-
    *  indicator keyword, or a blank response indicator). Pure data lookup -

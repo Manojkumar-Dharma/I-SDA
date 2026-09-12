@@ -3,9 +3,18 @@
  *
  * Direct unit coverage for Task S36-3's S36E restriction rule table in
  * dspfWriter.js (getS36ERestriction, isUsrdspmgtActive,
- * checkS36EResponseIndicatorViolation). Pure Node, no vscode/jsdom needed -
- * this is a plain data lookup plus one small evaluator function, the same
+ * checkS36EResponseIndicatorViolation, s36ERuleViolationMessage,
+ * findS36EConflictInModel). Pure Node, no vscode/jsdom needed - this is a
+ * plain data lookup plus a couple of small evaluator functions, the same
  * shape as the existing keyword pickers.
+ *
+ * Update: all 6 keywords are now verified (previously ALTNAME/MSGID/
+ * RETKEY/RETCMDKEY were open items) using the official IBM i "DDS for
+ * Display Files" reference PDF the person supplied directly
+ * (docs/sda-reference/source/DDS_Keyword_V7r6.pdf). That research also
+ * corrected an earlier PRINT(*PGM) inference - see dspfWriter.js's own
+ * S36E_KEYWORD_RESTRICTIONS comment for the full citation trail.
+ *
  * Run with: node src/test/s36eRestrictions.test.js
  */
 const path = require('path');
@@ -21,10 +30,13 @@ function check(label, condition) {
   }
 }
 
-console.log('getS36ERestriction - all 6 named keywords (7 counting HLPRTN) have a table entry');
+console.log('getS36ERestriction - all 6 named keywords (7 counting HLPRTN) have a table entry, and all are now verified');
 {
   ['ALTNAME', 'CHANGE', 'HELP', 'HLPRTN', 'MSGID', 'PRINT', 'RETKEY', 'RETCMDKEY'].forEach(function (kw) {
-    check(kw + ' has an entry', DspfWriter.getS36ERestriction(kw) !== null);
+    var entry = DspfWriter.getS36ERestriction(kw);
+    check(kw + ' has an entry', entry !== null);
+    check(kw + ' is verified', entry && entry.verified === true);
+    check(kw + ' has a non-empty rule string', entry && typeof entry.rule === 'string' && entry.rule.length > 0);
   });
   check('unrelated keyword has no entry', DspfWriter.getS36ERestriction('INDARA') === null);
   check('unknown/garbage keyword has no entry', DspfWriter.getS36ERestriction('NOTAKEYWORD') === null);
@@ -32,39 +44,36 @@ console.log('getS36ERestriction - all 6 named keywords (7 counting HLPRTN) have 
   check('blank/undefined keyword name does not throw', DspfWriter.getS36ERestriction() === null && DspfWriter.getS36ERestriction('') === null);
 }
 
-console.log('\ngetS36ERestriction - the 3 verified entries (CHANGE, HELP, PRINT) carry a real severity + rule');
+console.log('\ngetS36ERestriction - 3 of the 6 are actually GATED by USRDSPMGT (CHANGE/HELP/PRINT); the other 3 are general rules that apply unconditionally');
 {
-  var change = DspfWriter.getS36ERestriction('CHANGE');
-  check('CHANGE is verified', change.verified === true);
-  check('CHANGE severity is warning (not error)', change.severity === 'warning');
-  check('CHANGE applies to the response-indicator shape', change.appliesTo === 'response-indicator');
-  check('CHANGE has a non-empty rule string', typeof change.rule === 'string' && change.rule.length > 0);
-
-  var help = DspfWriter.getS36ERestriction('HELP');
-  check('HELP is verified', help.verified === true);
-  check('HELP severity is error (the documented exception vs. CHANGE/PRINT warning)', help.severity === 'error');
-  check('HELP applies to the response-indicator shape', help.appliesTo === 'response-indicator');
-  check('HELP has a non-empty rule string', typeof help.rule === 'string' && help.rule.length > 0);
-
-  var print = DspfWriter.getS36ERestriction('PRINT');
-  check('PRINT is verified', print.verified === true);
-  check('PRINT severity is warning (not error)', print.severity === 'warning');
-  check('PRINT applies to the response-indicator shape', print.appliesTo === 'response-indicator');
-  check('PRINT has a non-empty rule string', typeof print.rule === 'string' && print.rule.length > 0);
-
-  var hlprtn = DspfWriter.getS36ERestriction('HLPRTN');
-  check('HLPRTN entry exists but carries no severity of its own (it satisfies HELP\'s restriction, isn\'t restricted itself)', hlprtn.verified === true && hlprtn.severity === null);
-}
-
-console.log('\ngetS36ERestriction - the 3 unverified entries (ALTNAME, MSGID, RETKEY/RETCMDKEY) are explicit open items, not silently-empty guesses');
-{
+  ['CHANGE', 'HELP', 'PRINT', 'HLPRTN'].forEach(function (kw) {
+    check(kw + ' is gatedByUsrdspmgt', DspfWriter.getS36ERestriction(kw).gatedByUsrdspmgt === true);
+  });
   ['ALTNAME', 'MSGID', 'RETKEY', 'RETCMDKEY'].forEach(function (kw) {
     var entry = DspfWriter.getS36ERestriction(kw);
-    check(kw + ' is marked NOT verified', entry.verified === false);
-    check(kw + ' has no severity encoded', entry.severity === null);
-    check(kw + ' has no rule encoded (no guessed constraint)', entry.rule === null);
-    check(kw + ' documents WHY it is unverified rather than being silently blank', typeof entry.notes === 'string' && entry.notes.length > 0);
+    check(kw + ' is NOT gatedByUsrdspmgt (general rule, not USRDSPMGT-specific)', entry.gatedByUsrdspmgt === false);
+    check(kw + ' has no severity (not a USRDSPMGT violation)', entry.severity === null);
+    check(kw + ' does not use the response-indicator shape', entry.appliesTo === null);
   });
+}
+
+console.log('\ngetS36ERestriction - the 3 USRDSPMGT-gated, response-indicator-shaped entries (CHANGE, HELP, PRINT) carry a real severity + rule');
+{
+  var change = DspfWriter.getS36ERestriction('CHANGE');
+  check('CHANGE severity is warning (not error)', change.severity === 'warning');
+  check('CHANGE applies to the response-indicator shape', change.appliesTo === 'response-indicator');
+
+  var help = DspfWriter.getS36ERestriction('HELP');
+  check('HELP severity is error (the documented exception vs. CHANGE/PRINT warning)', help.severity === 'error');
+  check('HELP applies to the response-indicator shape', help.appliesTo === 'response-indicator');
+
+  var print = DspfWriter.getS36ERestriction('PRINT');
+  check('PRINT severity is warning (not error)', print.severity === 'warning');
+  check('PRINT applies to the response-indicator shape', print.appliesTo === 'response-indicator');
+  check('PRINT has a pgmSpecialValueNote documenting *PGM is NOT a violation', typeof print.pgmSpecialValueNote === 'string' && print.pgmSpecialValueNote.length > 0);
+
+  var hlprtn = DspfWriter.getS36ERestriction('HLPRTN');
+  check('HLPRTN entry exists but carries no severity of its own (it satisfies HELP\'s restriction, isn\'t restricted itself)', hlprtn.severity === null);
 }
 
 console.log('\nisUsrdspmgtActive - thin wrapper over the already-confirmed (S36-2) USRDSPMGT flag keyword');
@@ -107,22 +116,26 @@ console.log('\ncheckS36EResponseIndicatorViolation - HELP\'s violation is specif
 
   var printViolation = DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'PRINT', '02');
   check('PRINT violation severity is warning', printViolation.severity === 'warning');
-
-  // PRINT(*PGM) is documented as functionally the response-indicator form
-  // of PRINT (IBM's own PRINT keyword page), so the *PGM literal itself
-  // must trip the same rule as a numeric response indicator would.
-  var printPgmViolation = DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'PRINT', '*PGM');
-  check('PRINT(*PGM) violation severity is warning, same as PRINT\'s numeric response-indicator form', printPgmViolation.severity === 'warning');
 }
 
-console.log('\ncheckS36EResponseIndicatorViolation - unverified keywords (ALTNAME/MSGID/RETKEY/RETCMDKEY) never produce a violation, even with USRDSPMGT on');
+console.log('\ncheckS36EResponseIndicatorViolation - CORRECTION: PRINT(*PGM) does NOT violate - it\'s a valid, documented special value, not a response indicator (verified against IBM\'s own dedicated PRINT(*PGM) S36E sub-page, superseding an earlier, incorrect inference)');
+{
+  var kwOn = DspfWriter.setFileFlagKeyword([], 'USRDSPMGT', true);
+  check('PRINT(*PGM) - no violation', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'PRINT', '*PGM') === null);
+  check('PRINT(*pgm) lowercase - still no violation (case-insensitive)', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'PRINT', '*pgm') === null);
+  check('PRINT(*Pgm) with surrounding whitespace - still no violation', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'PRINT', '  *Pgm  ') === null);
+  check('a genuine numeric response indicator on PRINT still violates', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'PRINT', '30') !== null);
+  check('*PGM on a DIFFERENT keyword (CHANGE) is not exempted - still violates', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'CHANGE', '*PGM') !== null);
+}
+
+console.log('\ncheckS36EResponseIndicatorViolation - the 3 non-gated keywords (ALTNAME/MSGID/RETKEY/RETCMDKEY) never produce a response-indicator violation, even with USRDSPMGT on (they\'re verified now, but their rules aren\'t response-indicator-shaped or USRDSPMGT-conditional at all)');
 {
   var kwOn = DspfWriter.setFileFlagKeyword([], 'USRDSPMGT', true);
   check('ALTNAME', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'ALTNAME', 'anything') === null);
   check('MSGID', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'MSGID', 'anything') === null);
   check('RETKEY', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'RETKEY', 'anything') === null);
   check('RETCMDKEY', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'RETCMDKEY', 'anything') === null);
-  check('HLPRTN (verified, but not a response-indicator-shaped rule)', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'HLPRTN', 'anything') === null);
+  check('HLPRTN (verified, gated, but not a response-indicator-shaped rule)', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'HLPRTN', 'anything') === null);
   check('unknown keyword name', DspfWriter.checkS36EResponseIndicatorViolation(kwOn, 'NOTAKEYWORD', 'anything') === null);
 }
 
@@ -130,7 +143,8 @@ console.log('\ns36ERuleViolationMessage (Task S36-4) - the USRDSPMGT-independent
 {
   check('CHANGE with a response indicator violates regardless of USRDSPMGT', DspfWriter.s36ERuleViolationMessage('CHANGE', '30') !== null);
   check('a blank response indicator never violates', DspfWriter.s36ERuleViolationMessage('CHANGE', '') === null);
-  check('an unverified keyword never violates', DspfWriter.s36ERuleViolationMessage('ALTNAME', 'anything') === null);
+  check('a non-gated keyword (ALTNAME) never violates via this response-indicator check', DspfWriter.s36ERuleViolationMessage('ALTNAME', 'anything') === null);
+  check('PRINT(*PGM) never violates via this check either', DspfWriter.s36ERuleViolationMessage('PRINT', '*PGM') === null);
   check('message text matches the rule table entry', DspfWriter.s36ERuleViolationMessage('HELP', '30') === DspfWriter.getS36ERestriction('HELP').rule);
 }
 
@@ -143,10 +157,9 @@ console.log('\nfindS36EConflictInModel (Task S36-4) - the symmetric block: scans
   var conflict = DspfWriter.findS36EConflictInModel({ fileKeywords: fileKeywords, records: [] });
   check('file-level HELP is found', conflict && conflict.keyword === 'HELP' && conflict.location === 'File-level keywords');
 
-  // File-level PRINT(*PGM) also conflicts (same equivalence as the direct test above).
+  // File-level PRINT(*PGM) does NOT conflict (corrected - see the direct test above).
   var filePrintPgm = DspfWriter.setFileFlagKeyword([], 'PRINT', true, '*PGM');
-  var printConflict = DspfWriter.findS36EConflictInModel({ fileKeywords: filePrintPgm, records: [] });
-  check('file-level PRINT(*PGM) is found', printConflict && printConflict.keyword === 'PRINT');
+  check('file-level PRINT(*PGM) is NOT found (valid special value, not a violation)', DspfWriter.findS36EConflictInModel({ fileKeywords: filePrintPgm, records: [] }) === null);
 
   // A record's own PRINT flag conflicts too, independent of file-level keywords.
   var recWithPrint = { name: 'REC1', keywords: DspfWriter.setFileFlagKeyword([], 'PRINT', true, '40') };
@@ -162,9 +175,9 @@ console.log('\nfindS36EConflictInModel (Task S36-4) - the symmetric block: scans
   var recWithClear = { name: 'REC3', keywords: DspfWriter.setRecordIndicatorInstances([], [{ kind: 'CLEAR', conditions: [], resp: '60', text: '' }]) };
   check('a non-restricted kind (CLEAR) never conflicts', DspfWriter.findS36EConflictInModel({ fileKeywords: [], records: [recWithClear] }) === null);
 
-  // ALTNAME/MSGID/RETKEY/RETCMDKEY are unverified - never scanned/flagged.
+  // ALTNAME/MSGID/RETKEY/RETCMDKEY are verified but not USRDSPMGT-gated - never scanned/flagged by this USRDSPMGT-specific scan.
   var fileWithAltname = DspfWriter.setFileQuotedText([], 'ALTNAME', 'SOMENAME');
-  check('unverified keywords are never flagged by the whole-model scan', DspfWriter.findS36EConflictInModel({ fileKeywords: fileWithAltname, records: [] }) === null);
+  check('non-gated keywords are never flagged by the whole-model scan', DspfWriter.findS36EConflictInModel({ fileKeywords: fileWithAltname, records: [] }) === null);
 
   // First conflict found wins - file-level HELP checked before any record.
   var fileWithHelp = DspfWriter.setFileFlagKeyword([], 'HELP', true, '30');

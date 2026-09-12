@@ -88,7 +88,7 @@ setTimeout(() => {
     alerts.length = 0;
   }
 
-  console.log('\nfile-level PRINT: the *PGM literal is blocked the same way a numeric response indicator would be');
+  console.log('\nfile-level PRINT: CORRECTED - the *PGM literal is NOT blocked (valid special value, not a response indicator); a genuine numeric response indicator still is');
   {
     const printOn = doc.getElementById('fk-print-on');
     const printParams = doc.getElementById('fk-print-params');
@@ -98,10 +98,23 @@ setTimeout(() => {
     printParams.value = '*PGM';
     printParams.dispatchEvent(new Event('change', { bubbles: true }));
 
-    check('an alert was raised naming PRINT', alerts.length === 1 && /PRINT/.test(alerts[0]));
-    check('the params input was reverted', printParams.value === '');
-    check('nothing was posted', posted.length === 0);
+    check('no alert was raised for *PGM', alerts.length === 0);
+    check('the params input kept *PGM', printParams.value === '*PGM');
+    const pgmEdit = posted[posted.length - 1];
+    check('the edit committed normally', pgmEdit && pgmEdit.type === 'applyEdit' && /PRINT\(\*PGM\)/.test(pgmEdit.text));
+    posted.length = 0;
+
+    printParams.value = '31';
+    printParams.dispatchEvent(new Event('change', { bubbles: true }));
+    check('an alert IS raised for a genuine numeric response indicator', alerts.length === 1 && /PRINT/.test(alerts[0]));
+    check('the params input was reverted to *PGM (the last successful commit)', printParams.value === '*PGM');
+    check('nothing was posted for the blocked attempt', posted.length === 0);
     alerts.length = 0;
+
+    // Clean up PRINT so later scenarios in this file start from a clean slate.
+    printOn.checked = false;
+    printOn.dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
   }
 
   console.log('\nfile-level HELP with USRDSPMGT off is NOT blocked (the rule only applies while USRDSPMGT is active)');
