@@ -4202,12 +4202,60 @@
       if (elA) elA.addEventListener('change', commit);
       if (elB) elB.addEventListener('change', commit);
     }
+    // Task I-8: ALWROL/ASSUME/HLPCMDKEY are each individually documented
+    // by the DDS Reference as incompatible with a USRDFN record - see
+    // DspfWriter.usrdfnConflictReason's own doc comment for the citations.
+    // Same alert+revert idiom as I-11's SFLNXTCHG guard; plain simple()/
+    // wireFlagRow has no hook to intercept the on-transition, so these are
+    // hand-wired here instead.
+    function wireUsrdfnGuardedFlag(id, name) {
+      var onEl = document.getElementById(id + '-on');
+      function commit() {
+        var present = onEl.checked;
+        if (present) {
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords());
+          if (reason) {
+            window.alert(reason);
+            onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, ''));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+    }
+    // Task I-8: HLPSEQ's own guard - same rule, but HLPSEQ has no on/off
+    // checkbox of its own (getFileTwoFieldKeyword/setFileTwoFieldKeyword's
+    // "present" is implied by either text box being non-blank, per their
+    // own doc comments), so the on-transition here is "either box just
+    // became non-blank" rather than a checkbox flipping true.
+    function wireUsrdfnGuardedTwoField(elIdA, elIdB, name) {
+      var elA = document.getElementById(elIdA);
+      var elB = document.getElementById(elIdB);
+      function commit() {
+        var aVal = elA ? elA.value : '';
+        var bVal = elB ? elB.value : '';
+        if ((aVal || '').trim() || (bVal || '').trim()) {
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords());
+          if (reason) {
+            window.alert(reason);
+            var existing = DspfWriter.getFileTwoFieldKeyword(getKeywords(), name);
+            if (elA) elA.value = existing.a;
+            if (elB) elB.value = existing.b;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileTwoFieldKeyword(getKeywords(), name, aVal, bVal));
+      }
+      if (elA) elA.addEventListener('change', commit);
+      if (elB) elB.addEventListener('change', commit);
+    }
 
     // General
     simple(p + '-inzrcd', 'INZRCD', false, true);
     simple(p + '-keep', 'KEEP');
-    simple(p + '-assume', 'ASSUME', false, true);
-    simple(p + '-alwrol', 'ALWROL', false, true);
+    wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME');
+    wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL');
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
@@ -4290,8 +4338,8 @@
 
     // Help
     simple(p + '-hlpclr', 'HLPCLR');
-    wireTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
-    simple(p + '-hlpcmdkey', 'HLPCMDKEY', false, true);
+    wireUsrdfnGuardedTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
+    wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY');
     var hlptitle = document.getElementById(p + '-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
 

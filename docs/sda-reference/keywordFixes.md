@@ -462,10 +462,72 @@ split it out into its own task at that point rather than guessing now.
 | Task | Record type(s) | Scope (current panels/keywords, from KEYWORD-INDEX.json + PICKER-SCREENS-PLAN.md) | Depends on | Status |
 |------|------|-------|------------|--------|
 | **I-7** | `RECORD` (base) | R1's full 8 categories, all in scope for this type: General (`INZRCD`/`KEEP`/`ASSUME`/`ALWROL`/`RETKEY`/`RETCMDKEY`/`CHGINPDFT`/`MNUBARDSP`/`ENTFLDATR`/`RTNCSRLOC`/`TEXT`/`ALTNAME`), Indicator (`CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT`), ~~Application help (`HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA`)~~ *(confirmed during I-7: not actually record-level; Task L5d-ii already moved these to help-specification level, off this tab entirely — the category label above was stale)*, Help (`HLPCLR`/`HLPSEQ`/`HLPCMDKEY`/`HLPTITLE`), Output (`BLINK`/`ALARM`/`MSGALARM`/`LOCK`/`LOGOUT`/`INVITE`/`ALWGPH`/`FRCDTA`/`DSPMOD`/`CSRLOC`/`SLNO`/`CLRL`), Input (`LOGINP`/`UNLOCK`/`GETRETAIN`/`RETLCKSTS`/`CHECK`/`RTNDTA`), Overlay (`OVERLAY`/`PUTRETAIN`/`PROTECT`/`PUTOVR`/`OVRDTA`/`OVRATR`/`INZINP`/`MDTOFF`/`ERASEINP`/`ERASE`), Print (`PRINT` — `PRTFILE` is I-2's fix, not a separate keyword). ~63 keywords total. **Fixed (0.10.88):** Conditioning toggle removed from `INZRCD`/`ASSUME`/`ALWROL`/`HLPCMDKEY`/`SLNO`/`CLRL`/`LOGINP`/`UNLOCK`/`GETRETAIN`/`RTNDTA`/`CHECK`(AB,RL) — IBM: not eligible. Confirmed already-correct: `MNUBARDSP`/`PUTOVR`/`MSGALARM`/`HLPCLR`/`ALTNAME`/`ENTFLDATR`/`CHGINPDFT`/`TEXT`/`RTNCSRLOC` + all Output/Overlay/Print rows. **Flagged, not fixed this task:** `CSRLOC` and record-level `HLPTITLE` are missing conditioning IBM says should be there (would require extending the shared `getFileTwoFieldKeyword`/`getFileQuotedText` primitives — bigger change, deferred); the repeatable Indicator-instance model (`CLEAR`/`HOME`/`VLDCMDKEY`/`SETOF`/`CHANGE`/etc.) uses one uniform conditioning mechanism for all kinds even though IBM says conditioning isn't valid for `VLDCMDKEY`/`SETOF`/`CHANGE` specifically (would need the shared component made kind-aware); `RETKEY`/`RETCMDKEY`/`KEEP` have no explicit option-indicator statement anywhere in the reference doc, left as-is rather than guessing. | I-1 (method) | done (0.10.88) |
-| **I-8** | `USRDFN` | Deliberately narrow — per `isUsrDfnRecord`'s own doc comment in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords" menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`) offers only General/Help/Print, 3 of R1's 8 (down from an original 4 before Task L5d-ii correctly moved Application help off the record-level set entirely, for every record type). This task's job is to verify that narrowed set against IBM's own DDS Reference specifically for USRDFN records — does the DDS Reference actually restrict any of General/Help/Print's own keywords further on a USRDFN record specifically (e.g. a keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`), not just re-confirm the menu screenshot. This is the clearest "applicable/not applicable" case in the whole record-level series. | I-7 | not started |
+| **I-8** | `USRDFN` | Deliberately narrow — per `isUsrDfnRecord`'s own doc comment in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords" menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`) offers only General/Help/Print, 3 of R1's 8 (down from an original 4 before Task L5d-ii correctly moved Application help off the record-level set entirely, for every record type). This task's job is to verify that narrowed set against IBM's own DDS Reference specifically for USRDFN records — does the DDS Reference actually restrict any of General/Help/Print's own keywords further on a USRDFN record specifically (e.g. a keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`), not just re-confirm the menu screenshot. This is the clearest "applicable/not applicable" case in the whole record-level series. **Fixed (0.10.89):** four keywords found individually documented by the DDS Reference as incompatible with a USRDFN record — see Findings below. Everything else in General/Help/Print checked out already correct. | I-7 | done (0.10.89) |
 | **I-9** | `SFL` (subfile detail record) | Standalone — doesn't reuse I-7's set. Subfile - General (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile - Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/`SFLROLVAL` — field-level, conditioned on the record being `SFL`/`SFLCTL`, per Task D3). | I-1 (method) | done |
 | **I-10** | `SFLCTL` (subfile control record) | Reuses I-7's full 8 (R1) plus its own: Subfile Control - General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`), Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages (`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record keyword sharing a name with — but structurally distinct from — field-level `MSGID`; don't conflate the two when checking parameters. | I-7, I-9 | not started |
 | **I-11** | `SFLMSG` (message subfile detail record) | Standalone — per Task R5's own finding, doesn't reuse I-7's set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its own General/Indicator categories (need to confirm from `docs/sda-reference/screens/record-level/subfile-message-sflmsg/` whether these are truly independent of I-7's General/Indicator or a subset — R5's own note calls it standalone but the exact keyword list for SFLMSG's own General/Indicator screens isn't broken out separately in `KEYWORD-INDEX.json` from `I-7`'s, worth confirming which keywords actually apply here as part of this task rather than assuming reuse). | I-1 (method) | done |
+
+**I-8 findings:**
+
+Checked every keyword in USRDFN's own narrowed General/Help/Print subset
+against its own DDS Reference section, the same per-keyword method I-1/I-7
+used (read the keyword's own opening statement and any "cannot be
+specified with"/"not valid for" note, don't infer from a category label).
+
+- **Confirmed already correct, no code change** — `INZRCD`, `KEEP`,
+  `RETKEY`, `RETCMDKEY`, `CHGINPDFT`, `MNUBARDSP`, `ENTFLDATR`,
+  `RTNCSRLOC`, `TEXT`, `ALTNAME`, `HLPTITLE`, `PRINT` have no USRDFN-
+  specific statement anywhere in their own DDS Reference sections.
+  `HLPCLR` is confirmed correct rather than merely absent of a
+  prohibition: its own DDS Reference example literally shows
+  `R RECORD1 USRDFN` immediately followed by `HLPCLR` on the next line.
+- **Fixed this task — four keywords the DDS Reference documents as
+  individually incompatible with a USRDFN record:**
+  - `ALWROL` — "The ALWROL keyword cannot be specified with any of the
+    following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN"
+  - `ASSUME` — "This keyword cannot be specified with any of the
+    following keywords: ALWROL, CLRL, SFL, SLNO, USRDFN, USRDSPMGT"
+  - `HLPSEQ` — "You cannot specify HLPSEQ on subfile (SFL keyword) or
+    user-defined (USRDFN keyword) record formats."
+  - `HLPCMDKEY` — "You cannot specify HLPCMDKEY on subfile (SFL keyword),
+    subfile control (SFLCTL keyword), or user-defined (USRDFN keyword)
+    record formats."
+
+  Unlike I-11's SFLNXTCHG/SFLMSGRCD pair (two keywords either one of
+  which can be independently toggled on the same record), USRDFN is the
+  record-type identifier itself (`isUsrDfnRecord`'s own doc comment) —
+  the "+ Add record" wizard writes it once at creation and nothing in
+  this UI ever removes it — so the fix is a one-directional hard block:
+  `DspfWriter.usrdfnConflictReason(keywordName, recordKeywords)` (new,
+  same shape as L81's `dftGroupConflictReason`/I-11's
+  `sflNxtchgSflMsgRcdConflictReason`) checks whether USRDFN is already on
+  the record and, if so, refuses the on-transition for any of the four.
+  Wired via the same alert+revert idiom as I-11: `wireUsrdfnGuardedFlag`
+  (ALWROL/ASSUME/HLPCMDKEY, replacing their plain `simple()` calls) and
+  `wireUsrdfnGuardedTwoField` (HLPSEQ, which has no on/off checkbox of
+  its own — presence is either of its two text boxes being non-blank,
+  per `getFileTwoFieldKeyword`'s own contract) in
+  `webviewClientHelpers.js`. Turning any of the four OFF is never
+  blocked, only the on-transition (covers hand-edited DDS that already
+  has one of them set on a USRDFN record before iSDA opened it). Real
+  SDA's own screen doesn't block this either (relies on `CRTDSPF`'s own
+  compile error) — this is the same "hard-block a documented compile
+  error even where real SDA lets it through" precedent as L81/S36-4/I-11.
+- **Not re-litigated this task** — `CHECK(RL)`/`CHECK(RLTB)` vs USRDFN,
+  and `WINDOW` vs USRDFN, are both real DDS Reference statements too, but
+  neither keyword is reachable from USRDFN's own General/Help/Print
+  subset (`CHECK` lives on the Input tab, which USRDFN's narrowed tab set
+  doesn't expose at all; `WINDOW` is driven by the Basic tab's own
+  `hasWindow` check, a different code path entirely) — out of this
+  task's scope, not an oversight.
+
+Regression coverage: `src/test/i8UsrdfnConflictAudit.test.js` (new) -
+confirms all four keywords are blocked with an alert naming USRDFN and
+revert with no edit posted on a USRDFN record, an unrelated keyword
+(RETKEY) still commits normally on the same record, and all four still
+work exactly as before (no alert, edit posted) on an ordinary
+non-USRDFN record - confirmed (via `git stash`) to fail (12 of its 36
+assertions) against the pre-fix code.
 
 **Findings:**
 

@@ -1343,6 +1343,46 @@
     return keywordName + ' cannot be specified together with ' + other + ' on the same subfile record (per the DDS Reference).';
   }
 
+  /** Task I-8 - USRDFN record-level keyword audit. Checking every keyword
+   *  in USRDFN's own narrowed General/Help/Print subset (see
+   *  isUsrDfnRecord's own doc comment in webviewClientHelpers.js) against
+   *  the DDS Reference's own text turned up four - and only four -
+   *  keywords individually documented as incompatible with a user-defined
+   *  (USRDFN keyword) record format:
+   *  - ALWROL: "The ALWROL keyword cannot be specified with any of the
+   *    following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN"
+   *  - ASSUME: "This keyword cannot be specified with any of the following
+   *    keywords: ALWROL, CLRL, SFL, SLNO, USRDFN, USRDSPMGT"
+   *  - HLPSEQ: "You cannot specify HLPSEQ on subfile (SFL keyword) or
+   *    user-defined (USRDFN keyword) record formats."
+   *  - HLPCMDKEY: "You cannot specify HLPCMDKEY on subfile (SFL keyword),
+   *    subfile control (SFLCTL keyword), or user-defined (USRDFN keyword)
+   *    record formats."
+   *  Every other keyword in the same three panels (INZRCD, KEEP, RETKEY,
+   *  RETCMDKEY, CHGINPDFT, MNUBARDSP, ENTFLDATR, RTNCSRLOC, TEXT, ALTNAME,
+   *  HLPCLR, HLPTITLE, PRINT) was checked the same way and has no such
+   *  statement anywhere in its own DDS Reference section - left alone
+   *  rather than guessed at, same as I-4/I-6/I-11's own open questions.
+   *  HLPCLR is confirmed correct rather than just absent of a prohibition:
+   *  its own DDS Reference example literally shows `R RECORD1 USRDFN`
+   *  immediately followed by `HLPCLR` on the next line.
+   *  Unlike I-11's SFLNXTCHG/SFLMSGRCD pair (two keywords either one of
+   *  which can be independently toggled on the same record), USRDFN is
+   *  the record-type identifier itself (see isUsrDfnRecord's own doc
+   *  comment) - the "+ Add record" wizard writes it once at creation and
+   *  nothing in this UI ever removes it, so this is a one-directional
+   *  check: is USRDFN already on this record's keywords right now.
+   *  Returns a reason string if turning `keywordName` on would violate
+   *  the rule, or null if fine. Same alert+revert idiom as L81/I-11 -
+   *  turning any of these four OFF is never blocked, only the
+   *  on-transition (covers the edge case of hand-edited DDS that already
+   *  has one of them set on a USRDFN record before iSDA opened it). */
+  function usrdfnConflictReason(keywordName, recordKeywords) {
+    var hasUsrdfn = (recordKeywords || []).some(function (k) { return k.name === 'USRDFN'; });
+    if (!hasUsrdfn) return null;
+    return keywordName + ' cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference).';
+  }
+
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
    *  come back as their raw (already-quoted-if-needed) parameter string for
@@ -4904,6 +4944,7 @@
     dftGroupConflictReason: dftGroupConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
+    usrdfnConflictReason: usrdfnConflictReason,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,
