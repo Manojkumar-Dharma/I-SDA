@@ -5380,7 +5380,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isPulldown = WebviewClientHelpers.isPulldownRecord(rec);
     let pulldownPanels = null;
     if (isPulldown) {
-      pulldownPanels = WebviewClientHelpers.pulldownPanelsHtml(rec.keywords, rpdPrefix);
+      pulldownPanels = WebviewClientHelpers.pulldownPanelsHtml(rec.keywords, rpdPrefix, expandedKeywordConditioning);
     }
 
     // --- SFL tab: only for plain subfile records (Task R3) - not shown
@@ -5544,7 +5544,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireWindowPanels(rwPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (isPulldown) {
-      WebviewClientHelpers.wirePulldownPanels(rpdPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }));
+      WebviewClientHelpers.wirePulldownPanels(rpdPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (isSfl) {
       WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));

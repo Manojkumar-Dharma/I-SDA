@@ -2606,7 +2606,14 @@
   // (*COLOR)/(*DSPATR) keyword (WDWBORDER, CHCAVAIL/CHCUNAVAIL/CHCSLT) -
   // rather than the full 11-value DSPATR_ATTRS list, since none of those
   // precedents ever offer PC/MDT/PR/OID/SP as a *DSPATR sub-value either.
-  function entFldAtrHtml(keywords, ownerKey) {
+  // Task I-3: ENTFLDATR is documented by IBM as "Option indicators are
+  // valid for this keyword" - a reverse gap (unlike I-3's other findings,
+  // this keyword needed a Conditioning toggle ADDED, since entFldAtrHtml's
+  // custom Apply-button shape never had one at all). Reuses flagRowHtml's
+  // own toggle markup/id convention (`ownerKey + '-cond'` etc.) so
+  // wireFlagRowConditioning can wire it unchanged, the same as every
+  // flagRowHtml-based row already does.
+  function entFldAtrHtml(keywords, ownerKey, expandedSet) {
     var current = DspfWriter.getChoiceColorState(keywords, 'ENTFLDATR');
     var enabled = !!current.color || current.attrs.length > 0;
     var html = '<div class="section-label">Entry field attribute (ENTFLDATR)</div>';
@@ -2618,11 +2625,17 @@
       var checked = current.attrs.indexOf(a) >= 0;
       return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
     }).join('') + '</div>';
+    var condSummary = current.conditions.length > 0 ? ' (' + current.conditions.length + ')' : '';
+    var isExpanded = !!(expandedSet && expandedSet.has(ownerKey + ':cond'));
+    html += '<span class="kw-cond-toggle" data-flag-id="' + ownerKey + '" style="margin-top:4px;">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+    if (isExpanded) {
+      html += '<div class="kw-cond-body">' + conditionsEditorHtml(current.conditions, ownerKey + '-cond', expandedSet) + '</div>';
+    }
     html += '<button class="secondary ' + ownerKey + '-apply" style="width:100%;margin-top:8px;">Apply entry field attribute</button>';
     return html;
   }
 
-  function wireEntFldAtrEditor(getKeywords, onChange, ownerKey) {
+  function wireEntFldAtrEditor(getKeywords, onChange, ownerKey, expandedSet, rerender) {
     var applyBtn = document.querySelector('.' + ownerKey + '-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
@@ -2631,6 +2644,10 @@
       var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-attr:checked')).map(function (el) { return el.value; }) : [];
       onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', color, attrs));
     });
+    wireFlagRowConditioning(ownerKey, DspfWriter.getChoiceColorState(getKeywords(), 'ENTFLDATR').conditions, function (newConditions) {
+      var current = DspfWriter.getChoiceColorState(getKeywords(), 'ENTFLDATR');
+      onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', current.color, current.attrs, newConditions));
+    }, expandedSet, rerender);
   }
 
 
@@ -2787,7 +2804,9 @@
   function chgInpDftFlagHtml(keywords, id, label, expandedSet) {
     var kw = DspfWriter.getFileFlagKeyword(keywords, 'CHGINPDFT');
     var codes = (kw.parameters || '').trim().length ? kw.parameters.trim().split(/\s+/) : [];
-    var html = flagRowHtml(id, label, kw.present, undefined, undefined, kw.conditions, expandedSet);
+    // Task I-3: CHGINPDFT - "Option indicators are not valid for this
+    // keyword" per IBM's own DDS Reference - no Conditioning toggle.
+    var html = flagRowHtml(id, label, kw.present, undefined, undefined, undefined, undefined);
     html += '<input type="hidden" id="' + id + '-params" value="' + escapeHtml(kw.parameters || '') + '" />';
     html += '<div class="attr-checks" style="margin:2px 0 10px 22px;">';
     CHGINPDFT_CODES.forEach(function (code) {
@@ -2812,14 +2831,17 @@
    *  been committed on this same render - callers with only a captured
    *  array in scope just wrap it as `function () { return keywords; }`. */
   function wireChgInpDftFlag(getKeywords, onChange, id, expandedSet, rerender) {
+    // Task I-3: CHGINPDFT - "Option indicators are not valid for this
+    // keyword" - no Conditioning toggle wired (matches
+    // chgInpDftFlagHtml's own conditions:undefined for this row).
     wireFlagRow(
       id,
       getKeywords,
       onChange,
       function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, 'CHGINPDFT', present, params, undefined, conditions); },
-      DspfWriter.getFileFlagKeyword(getKeywords(), 'CHGINPDFT').conditions,
-      expandedSet,
-      rerender
+      undefined,
+      undefined,
+      undefined
     );
     document.querySelectorAll('.' + id + '-code').forEach(function (el) {
       el.addEventListener('change', function () {
@@ -2859,7 +2881,7 @@
    * reasoning R1's recordKeywordsPanelsHtml takes an idPrefix for the
    * same purpose.
    */
-  function windowBorderPanelHtml(keywords, idPrefix) {
+  function windowBorderPanelHtml(keywords, idPrefix, expandedSet) {
     var wb = DspfWriter.getWdwBorder(keywords);
     var wbEnabled = { color: !!wb.color, attrs: wb.attrs.length > 0, chars: wb.chars.some(function (c) { return c; }) };
     var win = '<div class="section-label">Color</div>';
@@ -2876,6 +2898,16 @@
     BORDER_POSITIONS.forEach(function (p) {
       win += '<div class="field-row" style="margin-bottom:6px;"><label>' + escapeHtml(p.label) + '</label><input type="text" maxlength="1" id="' + idPrefix + '-char-' + p.key + '" value="' + escapeHtml(wb.chars[p.key] || '') + '" style="width:40px;" /></div>';
     });
+    // Task I-3: WDWBORDER is documented by IBM as "Option indicators are
+    // valid for this keyword" - a reverse gap (this panel never had a
+    // Conditioning toggle at all). Same flagRowHtml-compatible markup as
+    // entFldAtrHtml's own addition above.
+    var condSummary = wb.conditions.length > 0 ? ' (' + wb.conditions.length + ')' : '';
+    var isExpanded = !!(expandedSet && expandedSet.has(idPrefix + ':cond'));
+    win += '<span class="kw-cond-toggle" data-flag-id="' + idPrefix + '" style="margin-top:4px;">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+    if (isExpanded) {
+      win += '<div class="kw-cond-body">' + conditionsEditorHtml(wb.conditions, idPrefix + '-cond', expandedSet) + '</div>';
+    }
     win += '<button class="secondary" id="' + idPrefix + '-apply" style="width:100%;margin-top:8px;">Apply window border</button>';
     return dataKwWrap(['WDWBORDER'], win);
   }
@@ -2883,10 +2915,10 @@
   /** Wires a windowBorderPanelHtml()-produced panel. Same `getKeywords`
    *  function / `onChange` callback contract every other dedicated picker
    *  here uses. */
-  function wireWindowBorderPanel(idPrefix, getKeywords, onChange) {
+  function wireWindowBorderPanel(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     var wdwApply = document.getElementById(idPrefix + '-apply');
     if (!wdwApply) return;
-    wdwApply.addEventListener('click', function () {
+    function apply(conditions) {
       var attrs = Array.prototype.slice.call(document.querySelectorAll('.' + idPrefix + '-attr:checked')).map(function (el) { return el.value; });
       var chars = BORDER_POSITIONS.map(function (p) { return (document.getElementById(idPrefix + '-char-' + p.key).value || '').slice(0, 1); });
       var state = {
@@ -2897,8 +2929,10 @@
         charsEnabled: document.getElementById(idPrefix + '-chars-on').checked,
         chars: chars,
       };
-      onChange(DspfWriter.setWdwBorder(getKeywords(), state));
-    });
+      onChange(DspfWriter.setWdwBorder(getKeywords(), state, conditions));
+    }
+    wdwApply.addEventListener('click', function () { apply(undefined); });
+    wireFlagRowConditioning(idPrefix, DspfWriter.getWdwBorder(getKeywords()).conditions, apply, expandedSet, rerender);
   }
 
   /**
@@ -2979,24 +3013,37 @@
     g += flagRowHtml('fk-alwgph', 'Allow graphics', fAlwgph.present, undefined, undefined, fAlwgph.conditions, expandedSet);
     var fMsgalarm = DspfWriter.getFileFlagKeyword(kw, 'MSGALARM');
     g += flagRowHtml('fk-msgalarm', 'Sound alarm on messages', fMsgalarm.present, undefined, undefined, fMsgalarm.conditions, expandedSet);
+    // Task I-3: INDARA - IBM's DDS Reference states "Option indicators are
+    // not valid for this keyword" - no Conditioning toggle offered (see
+    // keywordFixes.md's I-3 section for the full per-keyword audit this
+    // and every other conditions-omitted row below is based on).
     var fIndara = DspfWriter.getFileFlagKeyword(kw, 'INDARA');
-    g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', fIndara.present, undefined, undefined, fIndara.conditions, expandedSet);
+    g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', fIndara.present, undefined, undefined, undefined, undefined);
+    // Task I-3: USRDSPMGT - "Option indicators are not valid for this keyword."
     var fUsrdspmgt = DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT');
-    g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, fUsrdspmgt.conditions, expandedSet);
+    g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, undefined, undefined);
+    // Task I-3: CHECK - IBM's own summary line ("Option indicators are valid
+    // only for CHECK(ER) and CHECK(ME)") plus each individual code's own
+    // restated line confirm AB/MF/RL/RLTB are all NOT eligible - only ER and
+    // ME are, and iSDA doesn't currently implement either of those two codes
+    // at all (only AB/RLTB/RL), so none of the 3 rows below should offer
+    // conditioning.
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    g += flagRowHtml('fk-check-ab', 'Allow blanks', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    g += flagRowHtml('fk-check-ab', 'Allow blanks', fCheckAb.present, undefined, undefined, undefined, undefined);
     var fCheckRltb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RLTB');
-    g += flagRowHtml('fk-check-rltb', 'Move cursor right-left, top-bottom', fCheckRltb.present, undefined, undefined, fCheckRltb.conditions, expandedSet);
+    g += flagRowHtml('fk-check-rltb', 'Move cursor right-left, top-bottom', fCheckRltb.present, undefined, undefined, undefined, undefined);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    g += flagRowHtml('fk-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
+    g += flagRowHtml('fk-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined);
+    // Task I-3: DSPRL - "Option indicators are not valid for this keyword."
     var fDsprl = DspfWriter.getFileFlagKeyword(kw, 'DSPRL');
-    g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', fDsprl.present, undefined, undefined, fDsprl.conditions, expandedSet);
+    g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', fDsprl.present, undefined, undefined, undefined, undefined);
     // Bug fix: dedicated sub-flag checkboxes for CHGINPDFT (see
     // chgInpDftFlagHtml's own comment) instead of a bare free-text box.
     g += chgInpDftFlagHtml(kw, 'fk-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
-    g += entFldAtrHtml(kw, 'fk-entfldatr');
+    g += entFldAtrHtml(kw, 'fk-entfldatr', expandedSet);
+    // Task I-3: ERRSFL - "Option indicators are not valid for this keyword."
     var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
-    g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, fErrsfl.conditions, expandedSet);
+    g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, undefined, undefined);
     g += '<div class="section-label">Reference database file (REF)</div>';
     g += '<div class="two-col"><input type="text" id="fk-ref-library" placeholder="Library" value="' + escapeHtml(refState.library) + '" />' +
       '<input type="text" id="fk-ref-record" placeholder="Record/File name" value="' + escapeHtml(refState.record) + '" /></div>';
@@ -3038,14 +3085,20 @@
       ['fk-pageup', 'PAGEUP', 'Page up / Roll down', '10-99', ['ROLLDOWN']],
       ['fk-help', 'HELP', 'Help', '10-99'],
       ['fk-hlprtn', 'HLPRTN', 'Help return', '10-99'],
-      ['fk-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99'],
+      // Task I-3: VLDCMDKEY - "Option indicators are not valid for this
+      // keyword" - marked below so the forEach can skip passing conditions
+      // for this one row while every other row here (all confirmed valid)
+      // keeps its Conditioning toggle.
+      ['fk-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99', undefined, true],
     ].forEach(function (row) {
       var state = DspfWriter.getFileFlagKeyword(kw, row[1], undefined, row[4]);
-      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')', state.conditions, expandedSet);
+      var noConditioning = row[5];
+      ind += flagRowHtml(row[0], row[2] + ' (' + row[1] + ')', state.present, state.parameters, 'indicator (' + row[3] + ')', noConditioning ? undefined : state.conditions, noConditioning ? undefined : expandedSet);
     });
+    // Task I-3: INDTXT - "Option indicators are not valid for this keyword."
     var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
     var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
-    ind += flagRowHtml('fk-indtxt', 'Indicator text (INDTXT)', indtxt.present, undefined, undefined, indtxt.conditions, expandedSet);
+    ind += flagRowHtml('fk-indtxt', 'Indicator text (INDTXT)', indtxt.present, undefined, undefined, undefined, undefined);
     ind += '<div class="two-col"><input type="text" id="fk-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
       '<input type="text" id="fk-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
     // Task I-5: MOUBTN was a confirmed-missing file-level keyword -
@@ -3067,17 +3120,20 @@
     print += '<div class="section-label">System handles print (PRTFILE)</div>';
     print += '<div class="two-col"><input type="text" id="fk-prtfile-name" placeholder="Print file" value="' + escapeHtml(prtFile.name) + '" />' +
       '<input type="text" id="fk-prtfile-library" placeholder="Library" value="' + escapeHtml(prtFile.library) + '" /></div>';
+    // Task I-3: OPENPRT - "Option indicators are not valid for this keyword."
     var fOpenprt = DspfWriter.getFileFlagKeyword(kw, 'OPENPRT');
-    print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', fOpenprt.present, undefined, undefined, fOpenprt.conditions, expandedSet);
+    print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', fOpenprt.present, undefined, undefined, undefined, undefined);
     panels.print = print;
 
     // --- Help ---
     var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
     var help = flagRowHtml('fk-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, hlppnlgrp.parameters, 'panel-group-name library module-name', hlppnlgrp.conditions, expandedSet);
+    // Task I-3: HLPSCHIDX - "Option indicators are not valid for this keyword."
     var hlpschidx = DspfWriter.getFileFlagKeyword(kw, 'HLPSCHIDX');
-    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, hlpschidx.parameters, 'search-index-object library', hlpschidx.conditions, expandedSet);
+    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, hlpschidx.parameters, 'search-index-object library', undefined, undefined);
+    // Task I-3: HLPFULL - "Option indicators are not valid for this keyword."
     var fHlpfull = DspfWriter.getFileFlagKeyword(kw, 'HLPFULL');
-    help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, fHlpfull.conditions, expandedSet);
+    help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, undefined, undefined);
     help += '<div class="section-label">Help title (HLPTITLE)</div>';
     help += '<input type="text" id="fk-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
     // Task I-5: HLPRCD was a confirmed-missing file-level keyword (IBM's
@@ -3135,24 +3191,31 @@
     panels.displaySizes = ds;
 
     // --- DBCS conversion ---
+    // Task I-3: IGCCNV - "Option indicators are not allowed with this
+    // keyword" (IBM phrases this one as "not allowed" rather than the usual
+    // "not valid", but it's the same rule).
     var igccnv = DspfWriter.getFileFlagKeyword(kw, 'IGCCNV');
     var igcParts = (igccnv.parameters || '').trim().split(/\s+/);
-    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present, undefined, undefined, igccnv.conditions, expandedSet);
+    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present, undefined, undefined, undefined, undefined);
     dbcs += '<div class="two-col"><input type="text" id="fk-igccnv-key" placeholder="CF01-CF24" value="' + escapeHtml(igcParts[0] || '') + '" />' +
       '<input type="text" id="fk-igccnv-line" placeholder="line 1-24" value="' + escapeHtml(igcParts[1] || '') + '" /></div>';
     panels.dbcsConversion = dbcs;
 
     // --- Alternate keywords ---
+    // Task I-3: ALTHELP - "Option indicators are not valid for this
+    // keyword." ALTPAGEDWN/ALTPAGEUP share one section in IBM's reference
+    // and its own line reads "Option indicators are not valid for these
+    // keywords" (plural, covering both).
     var althelp = DspfWriter.getFileFlagKeyword(kw, 'ALTHELP');
-    var alt = flagRowHtml('fk-althelp', 'Alternative help (ALTHELP)', althelp.present, althelp.parameters, 'alternative key, CA01-CA24', althelp.conditions, expandedSet);
+    var alt = flagRowHtml('fk-althelp', 'Alternative help (ALTHELP)', althelp.present, althelp.parameters, 'alternative key, CA01-CA24', undefined, undefined);
     var altpageup = DspfWriter.getFileFlagKeyword(kw, 'ALTPAGEUP');
-    alt += flagRowHtml('fk-altpageup', 'Alternative page up (ALTPAGEUP)', altpageup.present, altpageup.parameters, 'alternative key, CF01-CF24', altpageup.conditions, expandedSet);
+    alt += flagRowHtml('fk-altpageup', 'Alternative page up (ALTPAGEUP)', altpageup.present, altpageup.parameters, 'alternative key, CF01-CF24', undefined, undefined);
     var altpagedwn = DspfWriter.getFileFlagKeyword(kw, 'ALTPAGEDWN');
-    alt += flagRowHtml('fk-altpagedwn', 'Alternative page down (ALTPAGEDWN)', altpagedwn.present, altpagedwn.parameters, 'alternative key, CF01-CF24', altpagedwn.conditions, expandedSet);
+    alt += flagRowHtml('fk-altpagedwn', 'Alternative page down (ALTPAGEDWN)', altpagedwn.present, altpagedwn.parameters, 'alternative key, CF01-CF24', undefined, undefined);
     panels.alternate = alt;
 
     // --- Window Border (WDWBORDER) ---
-    panels.windowBorder = windowBorderPanelHtml(kw, 'fk-wdw');
+    panels.windowBorder = windowBorderPanelHtml(kw, 'fk-wdw', expandedSet);
 
     // --- Menu-bar keywords ---
     panels.menuBar = menuBarKeysPanelHtml(kw, 'fk', expandedSet);
@@ -3167,10 +3230,16 @@
    *  new array to commit, same contract as every other dedicated picker
    *  here. */
   function wireFileKeywordsPanels(getKeywords, onChange, expandedSet, rerender, getModel) {
-    function simple(id, name, placeholderIsParams, altNames) {
+    // Task I-3: `noConditioning` (5th arg) opts a keyword whose row still
+    // uses the generic flagRowHtml/wireFlagRow shape out of the Conditioning
+    // toggle entirely, for keywords IBM's DDS Reference documents as
+    // "Option indicators are not valid for this keyword" - matching
+    // fileKeywordsPanelsHtml's own conditions:undefined for the same row
+    // (see keywordFixes.md's I-3 section for the full per-keyword audit).
+    function simple(id, name, placeholderIsParams, altNames, noConditioning) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions, altNames);
-      }, DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).conditions, expandedSet, rerender);
+      }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
     // Task S36-4 - hard-blocks S36-3's verified rules in this keyword's own
     // panel (direct user request: reject, not warn). Hand-rolled rather
@@ -3212,7 +3281,7 @@
     simple('fk-invite', 'INVITE');
     simple('fk-alwgph', 'ALWGPH');
     simple('fk-msgalarm', 'MSGALARM');
-    simple('fk-indara', 'INDARA');
+    simple('fk-indara', 'INDARA', false, undefined, true);
     // Task S36-4: turning USRDSPMGT ON is blocked (not just warned) when a
     // keyword value ALREADY set elsewhere in the file would violate a
     // verified S36E rule once USRDSPMGT is active - the symmetric half of
@@ -3234,17 +3303,20 @@
         }
         onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'USRDSPMGT', onEl.checked));
       });
-      wireFlagRowConditioning('fk-usrdspmgt', DspfWriter.getFileFlagKeyword(getKeywords(), 'USRDSPMGT').conditions, function (newConditions) {
-        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'USRDSPMGT', onEl.checked, undefined, undefined, newConditions));
-      }, expandedSet, rerender);
+      // Task I-3: USRDSPMGT - "Option indicators are not valid for this
+      // keyword" - no Conditioning toggle wired (matches
+      // fileKeywordsPanelsHtml's conditions:undefined for this row).
     })();
-    wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
-    wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RLTB').conditions, expandedSet, rerender);
-    wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
-    simple('fk-dsprl', 'DSPRL');
+    // Task I-3: CHECK - option indicators are documented as valid only for
+    // CHECK(ER)/CHECK(ME), neither of which iSDA implements yet (only
+    // AB/RLTB/RL) - none of these 3 rows should offer conditioning.
+    wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
+    wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB', conditions); }, undefined, undefined, undefined);
+    wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
+    simple('fk-dsprl', 'DSPRL', false, undefined, true);
     wireChgInpDftFlag(getKeywords, onChange, 'fk-chginpdft', expandedSet, rerender);
-    wireEntFldAtrEditor(getKeywords, onChange, 'fk-entfldatr');
-    simple('fk-errsfl', 'ERRSFL');
+    wireEntFldAtrEditor(getKeywords, onChange, 'fk-entfldatr', expandedSet, rerender);
+    simple('fk-errsfl', 'ERRSFL', false, undefined, true);
     var refLib = document.getElementById('fk-ref-library');
     var refRec = document.getElementById('fk-ref-record');
     function commitRef() { onChange(DspfWriter.setFileRefKeyword(getKeywords(), refLib.value, refRec.value)); }
@@ -3264,9 +3336,11 @@
       ['fk-pagedown', 'PAGEDOWN', ['ROLLUP']],
       ['fk-pageup', 'PAGEUP', ['ROLLDOWN']],
       ['fk-hlprtn', 'HLPRTN'],
-      ['fk-vldcmdkey', 'VLDCMDKEY'],
+      // Task I-3: VLDCMDKEY - "Option indicators are not valid for this
+      // keyword" - `noConditioning` (5th simple() arg) below.
+      ['fk-vldcmdkey', 'VLDCMDKEY', undefined, true],
     ].forEach(function (row) {
-      simple(row[0], row[1], true, row[2]);
+      simple(row[0], row[1], true, row[2], row[3]);
     });
     // Task S36-4: HELP's response indicator is a verified S36E rule (see
     // guardedSimple's own comment) - split out of the forEach above so
@@ -3284,7 +3358,8 @@
     if (indtxtOn) indtxtOn.addEventListener('change', function () { commitIndtxt(); });
     if (indtxtInd) indtxtInd.addEventListener('change', function () { commitIndtxt(); });
     if (indtxtText) indtxtText.addEventListener('change', function () { commitIndtxt(); });
-    wireFlagRowConditioning('fk-indtxt', DspfWriter.getFileFlagKeyword(getKeywords(), 'INDTXT').conditions, commitIndtxt, expandedSet, rerender);
+    // Task I-3: INDTXT - "Option indicators are not valid for this keyword"
+    // - no Conditioning toggle wired.
     wireMoubtnPanel(getKeywords, onChange, 'fk', expandedSet, rerender);
 
     // Print
@@ -3298,12 +3373,12 @@
     function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
     if (prtName) prtName.addEventListener('change', commitPrtFile);
     if (prtLib) prtLib.addEventListener('change', commitPrtFile);
-    simple('fk-openprt', 'OPENPRT');
+    simple('fk-openprt', 'OPENPRT', false, undefined, true);
 
     // Help
     simple('fk-hlppnlgrp', 'HLPPNLGRP', true);
-    simple('fk-hlpschidx', 'HLPSCHIDX', true);
-    simple('fk-hlpfull', 'HLPFULL');
+    simple('fk-hlpschidx', 'HLPSCHIDX', true, undefined, true);
+    simple('fk-hlpfull', 'HLPFULL', false, undefined, true);
     var hlptitle = document.getElementById('fk-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
     // Task I-5: HLPRCD - same "-on" checkbox drives presence regardless of
@@ -3372,15 +3447,18 @@
     if (igccnvOn) igccnvOn.addEventListener('change', function () { commitIgccnv(); });
     if (igccnvKey) igccnvKey.addEventListener('change', function () { commitIgccnv(); });
     if (igccnvLine) igccnvLine.addEventListener('change', function () { commitIgccnv(); });
-    wireFlagRowConditioning('fk-igccnv', DspfWriter.getFileFlagKeyword(getKeywords(), 'IGCCNV').conditions, commitIgccnv, expandedSet, rerender);
+    // Task I-3: IGCCNV - "Option indicators are not allowed with this
+    // keyword" - no Conditioning toggle wired.
 
     // Alternate keywords
-    simple('fk-althelp', 'ALTHELP', true);
-    simple('fk-altpageup', 'ALTPAGEUP', true);
-    simple('fk-altpagedwn', 'ALTPAGEDWN', true);
+    // Task I-3: ALTHELP - "not valid"; ALTPAGEDWN/ALTPAGEUP's shared
+    // section - "Option indicators are not valid for these keywords."
+    simple('fk-althelp', 'ALTHELP', true, undefined, true);
+    simple('fk-altpageup', 'ALTPAGEUP', true, undefined, true);
+    simple('fk-altpagedwn', 'ALTPAGEDWN', true, undefined, true);
 
     // Window Border
-    wireWindowBorderPanel('fk-wdw', getKeywords, onChange);
+    wireWindowBorderPanel('fk-wdw', getKeywords, onChange, expandedSet, rerender);
 
     // Menu-bar
     wireMenuBarKeysPanel('fk', getKeywords, onChange, expandedSet, rerender);
@@ -3462,7 +3540,7 @@
         '<input type="text" id="' + p + '-mnubardsp-pull" placeholder="Pull-down input field (name, optional)" value="' + escapeHtml(mnubardspFields.pullDownField) + '" />' +
         '</div>';
     }
-    g += entFldAtrHtml(kw, p + '-entfldatr');
+    g += entFldAtrHtml(kw, p + '-entfldatr', expandedSet);
     // Bug fix + feature (Task L77): the old row here used
     // DspfWriter.getFileTwoFieldKeyword (CSRLOC's own plain row/col pair
     // shape) and labeled the two boxes "Row field name"/"Column field
@@ -3963,7 +4041,7 @@
         onChange(apply(getKeywords(), newConditions));
       }, expandedSet, rerender);
     })();
-    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr');
+    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender);
     // Task L77 - hand-wired (like MNUBARDSP above) since RTNCSRLOC's two
     // independent variants each need their own "present" checkbox + name
     // fields, not a single wireTwoField pair. The two IIFEs are
@@ -4598,7 +4676,7 @@
     panels.windowParameters = wp;
 
     // --- Border Parameters (shared with F1's file-level Window Border) ---
-    panels.borderParameters = windowBorderPanelHtml(keywords, idPrefix + '-wdw');
+    panels.borderParameters = windowBorderPanelHtml(keywords, idPrefix + '-wdw', expandedSet);
 
     return panels;
   }
@@ -4662,7 +4740,7 @@
     );
 
     // Border Parameters
-    wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);
+    wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange, expandedSet, rerender);
   }
 
   // -----------------------------------------------------------------------
@@ -4690,7 +4768,7 @@
    * (see isPulldownRecord above for when that tab appears). `idPrefix`
    * namespaces every element id, same reasoning windowPanelsHtml takes.
    */
-  function pulldownPanelsHtml(keywords, idPrefix) {
+  function pulldownPanelsHtml(keywords, idPrefix, expandedSet) {
     var panels = {};
 
     // --- General (PULLDOWN's own *SLTIND/*RSTCSR sub-flags) ---
@@ -4702,14 +4780,14 @@
     panels.general = g;
 
     // --- Border Parameters (shared with F1/R7's Window Border) ---
-    panels.borderParameters = windowBorderPanelHtml(keywords, idPrefix + '-wdw');
+    panels.borderParameters = windowBorderPanelHtml(keywords, idPrefix + '-wdw', expandedSet);
 
     return panels;
   }
 
   /** Wires both pulldownPanelsHtml() panels. Same `getKeywords`/`onChange`
    *  contract every other dedicated picker here uses. */
-  function wirePulldownPanels(idPrefix, getKeywords, onChange) {
+  function wirePulldownPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     function commitGeneral() {
       var on = document.getElementById(idPrefix + '-on');
       var sltind = document.getElementById(idPrefix + '-sltind');
@@ -4724,7 +4802,7 @@
     if (rstcsr) rstcsr.addEventListener('change', commitGeneral);
 
     // Border Parameters
-    wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange);
+    wireWindowBorderPanel(idPrefix + '-wdw', getKeywords, onChange, expandedSet, rerender);
   }
 
   // -----------------------------------------------------------------------

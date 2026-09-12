@@ -1920,7 +1920,7 @@
    *  one of CHOICE_COLOR_STATE_KEYWORDS. */
   function getChoiceColorState(keywords, keywordName) {
     var k = (keywords || []).find(function (kw) { return kw.name === keywordName; });
-    var result = { color: '', attrs: [] };
+    var result = { color: '', attrs: [], conditions: k ? (k.conditions || []) : [] };
     if (!k) return result;
     var text = k.parameters || '';
     var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
@@ -1933,13 +1933,22 @@
   /** Returns a NEW keywords array with `keywordName` (one of
    *  CHOICE_COLOR_STATE_KEYWORDS) built from `color`/`attrs`, removed
    *  entirely if both are empty - same shape as setColorAttr but for a
-   *  caller-chosen keyword name instead of the fixed COLOR/DSPATR pair. */
-  function setChoiceColorState(keywords, keywordName, color, attrs) {
+   *  caller-chosen keyword name instead of the fixed COLOR/DSPATR pair.
+   *  `conditions` (optional, Task I-3: ENTFLDATR is documented by IBM as
+   *  eligible for option-indicator conditioning - "not valid" was true for
+   *  every OTHER keyword sharing this state shape, not this one) - when
+   *  OMITTED, any existing conditioning is preserved, same convention as
+   *  setFileFlagKeyword's own `conditions` parameter. */
+  function setChoiceColorState(keywords, keywordName, color, attrs, conditions) {
+    var existing = (keywords || []).find(function (kw) { return kw.name === keywordName; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== keywordName; });
     var groups = [];
     if (color) groups.push('(*COLOR ' + color + ')');
     if (attrs && attrs.length) groups.push('(*DSPATR ' + attrs.join(' ') + ')');
-    if (groups.length) next = next.concat([{ name: keywordName, parameters: groups.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    if (groups.length) {
+      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: keywordName, parameters: groups.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
+    }
     return next;
   }
 
@@ -2181,7 +2190,7 @@
    */
   function getWdwBorder(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'WDWBORDER'; });
-    var result = { color: '', attrs: [], chars: ['', '', '', '', '', '', '', ''] };
+    var result = { color: '', attrs: [], chars: ['', '', '', '', '', '', '', ''], conditions: k ? (k.conditions || []) : [] };
     if (!k) return result;
     var text = k.parameters || '';
     var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
@@ -2208,8 +2217,13 @@
 
   /** Returns a NEW keywords array with WDWBORDER built from `state` -
    *  `{ colorEnabled, color, attrsEnabled, attrs, charsEnabled, chars }` -
-   *  removed entirely if none of the three groups are enabled. */
-  function setWdwBorder(keywords, state) {
+   *  removed entirely if none of the three groups are enabled.
+   *  `conditions` (optional, Task I-3: WDWBORDER is documented by IBM as
+   *  eligible for option-indicator conditioning) - when OMITTED, any
+   *  existing conditioning is preserved, same convention as
+   *  setFileFlagKeyword's own `conditions` parameter. */
+  function setWdwBorder(keywords, state, conditions) {
+    var existing = (keywords || []).find(function (kw) { return kw.name === 'WDWBORDER'; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'WDWBORDER'; });
     var groups = [];
     if (state.colorEnabled && state.color) groups.push('(*COLOR ' + state.color + ')');
@@ -2220,7 +2234,8 @@
       groups.push('(*CHAR ' + chars.map(function (c) { return "'" + (c || ' ') + "'"; }).join(' ') + ')');
     }
     if (groups.length) {
-      next = next.concat([{ name: 'WDWBORDER', parameters: groups.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: 'WDWBORDER', parameters: groups.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
     }
     return next;
   }

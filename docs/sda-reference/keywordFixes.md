@@ -133,41 +133,63 @@ already-correct mechanism before touching it.
 
 ---
 
-## I-3 — Conditioning (option indicator) audit across all 39 file-level keywords
+## I-3 — Conditioning (option indicator) audit across all 39 file-level keywords — DONE (v0.10.82)
 
-**Findings so far (spot-check, not exhaustive):** IBM's reference states
-"Option indicators are **not** valid for this keyword" for, among
-others, `INDARA`, `DSPRL`, `ERRSFL`, and `HLPFULL` — yet iSDA's file-level
-General/Help panels wire up a conditioning UI for all four anyway
-(`flagRowHtml(...fIndara.conditions...)`, same pattern for `DSPRL`/
-`ERRSFL`, and `HLPFULL`'s row in the Help panel), via the same generic
-`flagRowHtml`/`wireFlagRowConditioning` mechanism used for keywords that
-legitimately *do* allow conditioning (e.g. `ALWGPH`, `CLEAR`, `PRINT`).
-Since the mechanism is shared and generic, this isn't 4 one-off bugs —
-it's a systemic gap: nothing currently checks a keyword's own
-conditioning eligibility before offering the input.
+**Full audit results.** Built a canonical eligibility table from each
+keyword's own "Option indicators are/are not valid for this keyword" line
+in `docs/sda-reference/source/DDS_Keyword_V7r6.txt`, then diffed it against
+every `flagRowHtml`/`wireFlagRow`/hand-wired call site in
+`fileKeywordsPanelsHtml`/`wireFileKeywordsPanels`.
 
-**Not yet checked** (remaining ~35 of the 39): `USRDSPMGT`, `HLPSCHIDX`,
-`MSGLOC`, `DSPSIZ`, `REF`, `PASSRCD` are also documented "not valid" per
-I-1's dataset and use the same conditioning-capable panel row helpers —
-need the same confirmation `INDARA`/`DSPRL`/`ERRSFL`/`HLPFULL` already
-got. Every other file-level keyword needs the reverse check too (keywords
-where IBM says conditioning **is** valid, confirming iSDA actually offers
-it and isn't silently dropping that capability).
+**Confirmed violations (offered conditioning, IBM says not valid)** — the
+Conditioning toggle was removed from all of these (each row now passes
+`undefined` for `conditions`/`expandedSet` instead of the keyword's own
+`.conditions`, or — for `simple()`-based rows — a new `noConditioning`
+5th argument added for this purpose):
+- Already known from I-1's spot-check: `INDARA`, `DSPRL`, `ERRSFL`, `HLPFULL`
+- Newly confirmed by this task: `USRDSPMGT`, `CHGINPDFT`, `VLDCMDKEY`,
+  `INDTXT`, `OPENPRT`, `HLPSCHIDX`, `IGCCNV`, `ALTHELP`, `ALTPAGEUP`,
+  `ALTPAGEDWN`
+- `CHECK`: IBM's own line reads "Option indicators are valid only for
+  CHECK(ER) and CHECK(ME)" (confirmed by each individual code's own
+  restated line — `AB`/`MF` explicitly say "not valid", `ME` explicitly
+  says "valid"). iSDA only implements `AB`/`RLTB`/`RL` (not `ER`/`ME` at
+  all), so all three currently-implemented sub-flag rows (`fk-check-ab`,
+  `fk-check-rltb`, `fk-check-rl`) had conditioning removed.
 
-**Fix approach:** rather than hand-auditing each row, consider adding a
-lookup table (same shape as S36-3's `S36E_KEYWORD_RESTRICTIONS`) mapping
-each file-level keyword name to its documented conditioning eligibility,
-then either (a) have `flagRowHtml` consult it directly and only render
-the conditioning input when eligible, or (b) treat it as a per-keyword
-manual fix if a shared lookup turns out to fight the existing panel
-code's structure. Decide the mechanism as part of this task, not before
-it — I-1 didn't investigate `flagRowHtml`'s internals deeply enough to
-commit to one approach yet.
+**Reverse gaps (IBM says valid, iSDA offered no conditioning UI at all)**
+— these needed a toggle *added*, not removed, since their panels
+(`entFldAtrHtml`/`windowBorderPanelHtml`) predate `flagRowHtml` and use a
+custom "Apply" button shape instead:
+- `ENTFLDATR` — added a `flagRowHtml`-shaped Conditioning toggle to
+  `entFldAtrHtml`/`wireEntFldAtrEditor`, reusing the shared
+  `wireFlagRowConditioning` wiring. Also fixed `getChoiceColorState`/
+  `setChoiceColorState` in `dspfWriter.js`, which previously hard-coded
+  `conditions: []` on every write (the same class of silent-data-loss bug
+  `setFileFlagKeyword`'s own doc comment describes) — `conditions` is now
+  an optional parameter that preserves existing conditioning when omitted.
+- `WDWBORDER` — same treatment for `windowBorderPanelHtml`/
+  `wireWindowBorderPanel` and `getWdwBorder`/`setWdwBorder`. This panel is
+  shared across 4 call sites (file-level, record-level `WINDOW`, `PULLDOWN`)
+  so `expandedSet`/`rerender` had to be threaded through
+  `pulldownPanelsHtml`/`wirePulldownPanels`'s own signatures (previously
+  didn't take them at all) and both `buildWebviewTemplate.js` call sites.
+
+**Confirmed already-compliant (no changes needed):** `INVITE`, `ALWGPH`,
+`MSGALARM`, `CLEAR`, `HOME`, `PAGEDOWN`, `PAGEUP`, `HELP`, `HLPRTN`,
+`PRINT`, `HLPPNLGRP`, `MNUBARSW`, `MNUCNL`, `CA01-CA24`/`CF01-CF24` (all
+correctly offer conditioning) — plus `REF`, `PASSRCD`, `TEXT`, `HLPTITLE`,
+`DSPSIZ`, `MSGLOC` (all correctly offer *no* conditioning UI, matching
+IBM's "not valid").
+
+**Test coverage:** `src/test/i3ConditioningAudit.test.js` renders the real
+generated webview in jsdom and asserts, for every keyword this task
+touched, that `.kw-cond-toggle[data-flag-id="..."]` either does or doesn't
+exist — a toggle removed/added only in a code comment isn't a fix.
 
 | Task | Description | Depends on | Status |
 |------|-------------|------------|--------|
-| **I-3** | Full conditioning-eligibility audit across all 39 file-level keywords (4 confirmed violations so far: `INDARA`/`DSPRL`/`ERRSFL`/`HLPFULL` wrongly offer conditioning). Fix by removing conditioning UI where IBM disallows it and confirming it's present where allowed. | I-1 | in progress |
+| **I-3** | Full conditioning-eligibility audit across all 39 file-level keywords. 13 keywords (15 rows counting CHECK's 3 sub-flags) had conditioning removed; `ENTFLDATR`/`WDWBORDER` had it added (reverse gap). | I-1 | done |
 
 ---
 
