@@ -4,7 +4,7 @@
  * Direct unit coverage for Task F1's file-level keyword picker primitives
  * in dspfWriter.js (getFileFlagKeyword/setFileFlagKeyword, getFileQuotedText/
  * setFileQuotedText, getFileRefKeyword/setFileRefKeyword,
- * getFilePrtFileKeyword/setFilePrtFileKeyword, getWdwBorder/setWdwBorder,
+ * getFilePrintFileForm (I-2 fix, see keywordFixes.md), getWdwBorder/setWdwBorder,
  * getDisplaySizesList/setDisplaySizesList). Pure Node, no vscode/jsdom
  * needed - these are all plain keywords[] -> keywords[] transforms, the
  * same shape as the existing Color & attributes / Validity check pickers.
@@ -114,16 +114,34 @@ console.log('\ngetFileRefKeyword / setFileRefKeyword - REF(library/record)');
   check('blank record removes REF entirely', kw.length === 0);
 }
 
-console.log('\ngetFilePrtFileKeyword / setFilePrtFileKeyword - PRTFILE(name library)');
+console.log('\ngetFilePrintFileForm - PRINT(*PGM) / PRINT([library/]printer-file-name), I-2 fix');
 {
-  let kw = DspfWriter.setFilePrtFileKeyword([], 'QSYSPRT', 'QGPL');
-  check('parameters are "name library"', kw[0].parameters === 'QSYSPRT QGPL');
-  const state = DspfWriter.getFilePrtFileKeyword(kw);
-  check('round-trips name', state.name === 'QSYSPRT');
+  // I-2 (keywordFixes.md): PRTFILE is not a real DDS keyword - the
+  // printer-file name is PRINT's own third parameter form. These write
+  // through the existing generic setFileFlagKeyword('PRINT', ...), same
+  // as the response-indicator/blank forms, and getFilePrintFileForm reads
+  // the *PGM/[library/]printer-file-name sub-forms back out.
+  let kw = DspfWriter.setFileFlagKeyword([], 'PRINT', true, 'QGPL/QSYSPRT');
+  check('parameters formatted as library/name (DDS REF-style, not space-joined)', kw[0].parameters === 'QGPL/QSYSPRT');
+  let state = DspfWriter.getFilePrintFileForm(kw);
+  check('round-trips print file name', state.printFile === 'QSYSPRT');
   check('round-trips library', state.library === 'QGPL');
+  check('not read as *PGM', state.isPgm === false);
 
-  kw = DspfWriter.setFilePrtFileKeyword([], 'QSYSPRT', '');
-  check('no library token when library blank', kw[0].parameters === 'QSYSPRT');
+  kw = DspfWriter.setFileFlagKeyword([], 'PRINT', true, 'QSYSPRT');
+  state = DspfWriter.getFilePrintFileForm(kw);
+  check('no library qualifier when library blank', state.printFile === 'QSYSPRT' && state.library === '');
+
+  kw = DspfWriter.setFileFlagKeyword([], 'PRINT', true, '*PGM');
+  state = DspfWriter.getFilePrintFileForm(kw);
+  check('*PGM read back as isPgm, not as a literal print file name', state.isPgm === true && state.printFile === '');
+
+  kw = DspfWriter.setFileFlagKeyword([], 'PRINT', true, '53');
+  state = DspfWriter.getFilePrintFileForm(kw);
+  check('a response-indicator PRINT is not misread as a print-file form', state.printFile === '' && state.isPgm === false);
+
+  state = DspfWriter.getFilePrintFileForm([]);
+  check('absent PRINT keyword reads back as all-blank', state.printFile === '' && state.library === '' && state.isPgm === false);
 }
 
 console.log('\ngetWdwBorder / setWdwBorder - WDWBORDER color/attrs/chars sub-groups');

@@ -4,7 +4,7 @@
  * Direct unit coverage for Task R1's base record keywords picker
  * primitives in dspfWriter.js. Most of R1 reuses Task F1's generic
  * getFileFlagKeyword/setFileFlagKeyword/getFileQuotedText/
- * setFileQuotedText/getFilePrtFileKeyword/setFilePrtFileKeyword as-is
+ * setFileQuotedText/getFilePrintFileForm as-is
  * (those are generic over any keywords array, not file-level-specific -
  * see fileKeywordsPicker.test.js for that coverage) - this file covers
  * the two shapes that are new for R1: getUnlockKeyword/setUnlockKeyword
@@ -190,8 +190,10 @@ console.log('\nR1 keywords reuse F1\'s generic getFileFlagKeyword/setFileFlagKey
   check('MDTOFF free-text param (*UNPR)', DspfWriter.getFileFlagKeyword(kw, 'MDTOFF').parameters === '*UNPR');
   check('PRINT response-indicator param', DspfWriter.getFileFlagKeyword(kw, 'PRINT').parameters === '53');
 
-  const prt = DspfWriter.getFilePrtFileKeyword(DspfWriter.setFilePrtFileKeyword(kw, 'RPTFILE', 'MYLIB'));
-  check('PRTFILE (shared with F1) works unchanged at record level', prt.name === 'RPTFILE' && prt.library === 'MYLIB');
+  // I-2 (keywordFixes.md): PRINT's print-file form (shared with F1) -
+  // no separate PRTFILE keyword, see getFilePrintFileForm's own comment.
+  const prt = DspfWriter.getFilePrintFileForm(DspfWriter.setFileFlagKeyword(kw, 'PRINT', true, 'MYLIB/RPTFILE'));
+  check('PRINT print-file form (shared with F1) works unchanged at record level', prt.printFile === 'RPTFILE' && prt.library === 'MYLIB');
 
   const title = DspfWriter.getFileQuotedText(DspfWriter.setFileQuotedText(kw, 'HLPTITLE', "Order entry - it's live"), 'HLPTITLE');
   check('HLPTITLE (shared with F1) works unchanged at record level', title === "Order entry - it's live");
@@ -217,7 +219,7 @@ console.log('\napplyRecordUpdate() - a batch of R1 picker keywords (one per cate
   kw = DspfWriter.setFileFlagKeyword(kw, 'BLINK', true);                         // Output
   kw = DspfWriter.setUnlockKeyword(kw, true, true, false);                       // Input
   kw = DspfWriter.setFileFlagKeyword(kw, 'OVERLAY', true);                       // Overlay
-  kw = DspfWriter.setFilePrtFileKeyword(kw, 'RPTFILE', 'MYLIB');                 // Print
+  kw = DspfWriter.setFileFlagKeyword(kw, 'PRINT', true, 'MYLIB/RPTFILE');        // Print (I-2: PRINT's own print-file form)
 
   const newLines = DspfWriter.applyRecordUpdate(rec, lines, { keywords: kw });
   const reparsed = DspfParser.parseDspf(newLines.join('\n'));
@@ -231,8 +233,8 @@ console.log('\napplyRecordUpdate() - a batch of R1 picker keywords (one per cate
   const unlock = DspfWriter.getUnlockKeyword(reRec.keywords);
   check('UNLOCK(*ERASE) reads back after reparse', unlock.present === true && unlock.erase === true && unlock.mdtoff === false);
   check('OVERLAY reads back present after reparse', DspfWriter.getFileFlagKeyword(reRec.keywords, 'OVERLAY').present === true);
-  const prt = DspfWriter.getFilePrtFileKeyword(reRec.keywords);
-  check('PRTFILE reads back after reparse', prt.name === 'RPTFILE' && prt.library === 'MYLIB');
+  const prt = DspfWriter.getFilePrintFileForm(reRec.keywords);
+  check('PRINT print-file form reads back after reparse (I-2)', prt.printFile === 'RPTFILE' && prt.library === 'MYLIB');
   check('the file-level DSPSIZ is untouched by the record-keyword edit', DspfWriter.getDisplaySizesList(reparsed.fileKeywords).length === 1);
   check('the record\'s own field is untouched', reRec.fields.length === 1 && reRec.fields[0].nameType === 'CONSTANT');
 }

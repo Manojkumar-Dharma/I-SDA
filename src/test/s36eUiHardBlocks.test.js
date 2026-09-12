@@ -90,16 +90,22 @@ setTimeout(() => {
 
   console.log('\nfile-level PRINT: CORRECTED - the *PGM literal is NOT blocked (valid special value, not a response indicator); a genuine numeric response indicator still is');
   {
+    // I-2 (keywordFixes.md): the "system handles print" *PGM/print-file
+    // case now lives in its own field (fk-print-file), separate from the
+    // response-indicator field (fk-print-params) - matching real SDA's
+    // own "Define Print Keywords" screen, which has a dedicated "Print
+    // file (Name, *PGM)" field distinct from "Response indicator".
     const printOn = doc.getElementById('fk-print-on');
     const printParams = doc.getElementById('fk-print-params');
-    check('setup: PRINT row is present', !!printOn && !!printParams);
+    const printFile = doc.getElementById('fk-print-file');
+    check('setup: PRINT row is present', !!printOn && !!printParams && !!printFile);
 
     printOn.checked = true;
-    printParams.value = '*PGM';
-    printParams.dispatchEvent(new Event('change', { bubbles: true }));
+    printFile.value = '*PGM';
+    printFile.dispatchEvent(new Event('change', { bubbles: true }));
 
     check('no alert was raised for *PGM', alerts.length === 0);
-    check('the params input kept *PGM', printParams.value === '*PGM');
+    check('the print-file input kept *PGM', printFile.value === '*PGM');
     const pgmEdit = posted[posted.length - 1];
     check('the edit committed normally', pgmEdit && pgmEdit.type === 'applyEdit' && /PRINT\(\*PGM\)/.test(pgmEdit.text));
     posted.length = 0;
@@ -107,7 +113,8 @@ setTimeout(() => {
     printParams.value = '31';
     printParams.dispatchEvent(new Event('change', { bubbles: true }));
     check('an alert IS raised for a genuine numeric response indicator', alerts.length === 1 && /PRINT/.test(alerts[0]));
-    check('the params input was reverted to *PGM (the last successful commit)', printParams.value === '*PGM');
+    check('the response-indicator input was reverted (it was blank before)', printParams.value === '');
+    check('the print-file input still reflects the last successful commit (*PGM)', printFile.value === '*PGM');
     check('nothing was posted for the blocked attempt', posted.length === 0);
     alerts.length = 0;
 

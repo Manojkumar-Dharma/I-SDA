@@ -2678,8 +2678,9 @@
   //
   // A small `flagRowHtml`/`readFlagRow` pair backs most rows (checkbox +
   // optional single text input); the handful of keywords with real
-  // multi-field structure (REF, PRTFILE, WDWBORDER, Display sizes) get
-  // their own markup below instead of being forced through that shape.
+  // multi-field structure (REF, PRINT's print-file form, WDWBORDER,
+  // Display sizes) get their own markup below instead of being forced
+  // through that shape.
   // -----------------------------------------------------------------------
 
   /** One "label ... [ ] Y=Yes (+ optional param box)" row. `paramsPlaceholder`
@@ -3114,12 +3115,17 @@
     panels.indicatorKeywords = ind;
 
     // --- Print ---
+    // Task I-2 (keywordFixes.md): "System handles print" writes PRINT's
+    // own *PGM/[library/]printer-file-name parameter form, not a separate
+    // PRTFILE keyword (never real DDS - see getFilePrintFileForm's own
+    // comment in dspfWriter.js). Matches real SDA's "Define Print
+    // Keywords" screen, whose "Print file" field also accepts *PGM.
     var filePrint = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
+    var filePrintFileForm = DspfWriter.getFilePrintFileForm(kw);
     var print = flagRowHtml('fk-print', 'Enable Print key (PRINT)', filePrint.present, filePrint.parameters, 'response indicator (if program handles it)', filePrint.conditions, expandedSet);
-    var prtFile = DspfWriter.getFilePrtFileKeyword(kw);
-    print += '<div class="section-label">System handles print (PRTFILE)</div>';
-    print += '<div class="two-col"><input type="text" id="fk-prtfile-name" placeholder="Print file" value="' + escapeHtml(prtFile.name) + '" />' +
-      '<input type="text" id="fk-prtfile-library" placeholder="Library" value="' + escapeHtml(prtFile.library) + '" /></div>';
+    print += '<div class="section-label">System handles print</div>';
+    print += '<div class="two-col"><input type="text" id="fk-print-file" placeholder="Print file (name or *PGM)" value="' + escapeHtml(filePrintFileForm.isPgm ? '*PGM' : filePrintFileForm.printFile) + '" />' +
+      '<input type="text" id="fk-print-library" placeholder="Library" value="' + escapeHtml(filePrintFileForm.library) + '" /></div>';
     // Task I-3: OPENPRT - "Option indicators are not valid for this keyword."
     var fOpenprt = DspfWriter.getFileFlagKeyword(kw, 'OPENPRT');
     print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', fOpenprt.present, undefined, undefined, undefined, undefined);
@@ -3363,16 +3369,55 @@
     wireMoubtnPanel(getKeywords, onChange, 'fk', expandedSet, rerender);
 
     // Print
-    // Task S36-4: PRINT's response indicator (including the literal
-    // '*PGM' text, per IBM's own documented equivalence - see
-    // checkS36EResponseIndicatorViolation's own comment) is a verified
-    // S36E rule.
-    guardedSimple('fk-print', 'PRINT');
-    var prtName = document.getElementById('fk-prtfile-name');
-    var prtLib = document.getElementById('fk-prtfile-library');
-    function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
-    if (prtName) prtName.addEventListener('change', commitPrtFile);
-    if (prtLib) prtLib.addEventListener('change', commitPrtFile);
+    // Task I-2 (keywordFixes.md): PRINT's "System handles print" fields
+    // (Print file / Library) write PRINT's OWN *PGM/[library/]printer-
+    // file-name parameter form, mutually exclusive with the response-
+    // indicator field above (same as real SDA's screen) - both commit
+    // through the one guarded path below so S36-4's verified rule (a
+    // response indicator on PRINT is restricted under USRDSPMGT - *PGM
+    // is its own carved-out special value per S36-3's correction, not a
+    // response indicator, so it is never blocked here either) keeps
+    // covering both forms via the one shared check function.
+    (function wireFilePrint() {
+      var onEl = document.getElementById('fk-print-on');
+      var paramsEl = document.getElementById('fk-print-params');
+      var fileEl = document.getElementById('fk-print-file');
+      var libEl = document.getElementById('fk-print-library');
+      function assembleParams() {
+        var respInd = (paramsEl ? paramsEl.value : '').trim();
+        if (respInd) return respInd;
+        var printFile = (fileEl ? fileEl.value : '').trim();
+        if (/^\*PGM$/i.test(printFile)) return '*PGM';
+        if (printFile) {
+          var lib = (libEl ? libEl.value : '').trim();
+          return lib ? lib + '/' + printFile : printFile;
+        }
+        return '';
+      }
+      function commit() {
+        var present = onEl.checked;
+        var params = assembleParams();
+        var violation = present ? DspfWriter.checkS36EResponseIndicatorViolation(getKeywords(), 'PRINT', params) : null;
+        if (violation) {
+          window.alert(violation.message);
+          var prev = DspfWriter.getFileFlagKeyword(getKeywords(), 'PRINT');
+          var prevForm = DspfWriter.getFilePrintFileForm(getKeywords());
+          onEl.checked = prev.present;
+          if (paramsEl) paramsEl.value = /^\d/.test(prev.parameters || '') ? prev.parameters : '';
+          if (fileEl) fileEl.value = prevForm.isPgm ? '*PGM' : prevForm.printFile;
+          if (libEl) libEl.value = prevForm.library;
+          return;
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', present, params));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+      if (paramsEl) paramsEl.addEventListener('change', commit);
+      if (fileEl) fileEl.addEventListener('change', commit);
+      if (libEl) libEl.addEventListener('change', commit);
+      wireFlagRowConditioning('fk-print', DspfWriter.getFileFlagKeyword(getKeywords(), 'PRINT').conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', onEl.checked, assembleParams(), undefined, newConditions));
+      }, expandedSet, rerender);
+    })();
     simple('fk-openprt', 'OPENPRT', false, undefined, true);
 
     // Help
@@ -3470,7 +3515,7 @@
   // screens/record-level/base-record-keywords/ and PICKER-SCREENS-PLAN.md).
   // Reuses flagRowHtml/wireFlagRow and DspfWriter.getFileFlagKeyword/
   // setFileFlagKeyword etc. from Task F1 above - those are generic over any
-  // `keywords` array, not file-level-specific, so a record's PRINT/PRTFILE/
+  // `keywords` array, not file-level-specific, so a record's PRINT/
   // HLPTITLE take the exact same shape as the file-level ones. Only the ids
   // differ (rk- prefix instead of fk-) so a record's panel and the file
   // panel can coexist without id collisions if both are ever rendered at
@@ -3721,12 +3766,15 @@
     panels.overlay = ov;
 
     // --- Print ---
+    // Task I-2 (keywordFixes.md): see file-level Print's own comment -
+    // "System handles print" writes PRINT's own parameter form, not a
+    // separate (non-existent) PRTFILE keyword.
     var print = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
+    var printFileForm = DspfWriter.getFilePrintFileForm(kw);
     var pr = flagRowHtml(p + '-print', 'Enable Print key (PRINT)', print.present, print.parameters, 'response indicator (if program handles it)', print.conditions, expandedSet);
-    var prtFile = DspfWriter.getFilePrtFileKeyword(kw);
-    pr += '<div class="section-label">System handles print (PRTFILE)</div>';
-    pr += '<div class="two-col"><input type="text" id="' + p + '-prtfile-name" placeholder="Print file" value="' + escapeHtml(prtFile.name) + '" />' +
-      '<input type="text" id="' + p + '-prtfile-library" placeholder="Library" value="' + escapeHtml(prtFile.library) + '" /></div>';
+    pr += '<div class="section-label">System handles print</div>';
+    pr += '<div class="two-col"><input type="text" id="' + p + '-print-file" placeholder="Print file (name or *PGM)" value="' + escapeHtml(printFileForm.isPgm ? '*PGM' : printFileForm.printFile) + '" />' +
+      '<input type="text" id="' + p + '-print-library" placeholder="Library" value="' + escapeHtml(printFileForm.library) + '" /></div>';
     panels.print = pr;
 
     return panels;
@@ -4144,33 +4192,51 @@
     // '*PGM' text) is a verified S36E rule, hard-blocked here the same
     // hand-rolled (not wireFlagRow) way as the file-level PRINT row (see
     // wireFileKeywordsPanels' own guardedSimple comment for why).
+    // Task I-2 (keywordFixes.md): "Print file"/"Library" write PRINT's
+    // own *PGM/[library/]printer-file-name parameter form (mutually
+    // exclusive with the response indicator field), not a separate
+    // (non-existent) PRTFILE keyword - see the file-level wireFilePrint
+    // this mirrors for the full rationale.
     (function wireRecordPrint() {
       var onEl = document.getElementById(p + '-print-on');
       var paramsEl = document.getElementById(p + '-print-params');
+      var fileEl = document.getElementById(p + '-print-file');
+      var libEl = document.getElementById(p + '-print-library');
+      function assembleParams() {
+        var respInd = (paramsEl ? paramsEl.value : '').trim();
+        if (respInd) return respInd;
+        var printFile = (fileEl ? fileEl.value : '').trim();
+        if (/^\*PGM$/i.test(printFile)) return '*PGM';
+        if (printFile) {
+          var lib = (libEl ? libEl.value : '').trim();
+          return lib ? lib + '/' + printFile : printFile;
+        }
+        return '';
+      }
       function commit() {
         var present = onEl.checked;
-        var params = paramsEl ? paramsEl.value : '';
+        var params = assembleParams();
         var violation = present ? DspfWriter.checkS36EResponseIndicatorViolation(getFileKeywords ? getFileKeywords() : [], 'PRINT', params) : null;
         if (violation) {
           window.alert(violation.message);
           var prev = DspfWriter.getFileFlagKeyword(getKeywords(), 'PRINT');
+          var prevForm = DspfWriter.getFilePrintFileForm(getKeywords());
           onEl.checked = prev.present;
-          if (paramsEl) paramsEl.value = prev.parameters;
+          if (paramsEl) paramsEl.value = /^\d/.test(prev.parameters || '') ? prev.parameters : '';
+          if (fileEl) fileEl.value = prevForm.isPgm ? '*PGM' : prevForm.printFile;
+          if (libEl) libEl.value = prevForm.library;
           return;
         }
         onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', present, params));
       }
       if (onEl) onEl.addEventListener('change', commit);
       if (paramsEl) paramsEl.addEventListener('change', commit);
+      if (fileEl) fileEl.addEventListener('change', commit);
+      if (libEl) libEl.addEventListener('change', commit);
       wireFlagRowConditioning(p + '-print', DspfWriter.getFileFlagKeyword(getKeywords(), 'PRINT').conditions, function (newConditions) {
-        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', onEl.checked, assembleParams(), undefined, newConditions));
       }, expandedSet, rerender);
     })();
-    var prtName = document.getElementById(p + '-prtfile-name');
-    var prtLib = document.getElementById(p + '-prtfile-library');
-    function commitPrtFile() { onChange(DspfWriter.setFilePrtFileKeyword(getKeywords(), prtName.value, prtLib.value)); }
-    if (prtName) prtName.addEventListener('change', commitPrtFile);
-    if (prtLib) prtLib.addEventListener('change', commitPrtFile);
   }
 
   /**

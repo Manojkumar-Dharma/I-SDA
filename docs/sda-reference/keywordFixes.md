@@ -109,27 +109,38 @@ IDs). This is invalid DDS syntax — a real `CRTDSPF` compile against
 source containing a `PRTFILE(...)` keyword entry would fail, since the
 compiler has no such keyword.
 
-**Fix required:** the "specific printer file" case is really just
-`PRINT([library-name/]printer-file-name)` — one of `PRINT`'s three
-parameter forms, alongside the response-indicator form and `*PGM`. The
-UI's existing three-way choice (no param / response-indicator / specific
-printer file) already matches IBM's documented three forms conceptually
-— it's just writing the wrong keyword name and wrong parameter order/
-separator for the third case. Needs `getFilePrtFileKeyword`/
-`setFilePrtFileKeyword` merged into `PRINT`'s own get/set (library/record
-order matching `REF`'s existing `library/record` convention, `/`-joined,
-not space-joined), and the UI's separate "PRTFILE" row folded into the
-`PRINT` panel's own printer-file option. Existing tests referencing
-`PRTFILE` as a keyword name (`fileKeywordsPicker.test.js`,
-`recordKeywordsPicker.test.js`) will need updating to assert against
-`PRINT`'s own parameter instead — note `recordKeywordsPicker.test.js`
-has a **record-level** `PRTFILE` usage too (shared panel), confirm
-whether the same fix applies there or whether that's a separate,
-already-correct mechanism before touching it.
+**Fixed (v0.10.83).** Removed `getFilePrtFileKeyword`/
+`setFilePrtFileKeyword` entirely (no valid replacement needed — the
+"specific printer file" and `*PGM` cases are just `PRINT`'s own
+parameter). Added a read-only `getFilePrintFileForm(keywords)` that
+parses the `*PGM`/`[library/]printer-file-name` sub-form back out of
+`PRINT`'s own parameter string, used only to populate the UI's "System
+handles print" inputs on render — no separate setter needed, since both
+the file-level and record-level Print panels now assemble `PRINT`'s one
+final parameter themselves (response indicator, `*PGM`, or
+`library/file` — mutually exclusive, matching real SDA's own "Define
+Print Keywords" screen layout, confirmed via
+`docs/sda-reference/screens/file-level/03-print-keywords/image6.png`)
+and commit it through the existing generic `setFileFlagKeyword('PRINT',
+...)` call. Confirmed the record-level `PRTFILE` usage (shared R1 panel)
+had the identical bug and was fixed by the same change, not a separate
+mechanism. This also means S36-4's existing hard-block guard
+(`checkS36EResponseIndicatorViolation`) now correctly evaluates the
+`*PGM`/print-file forms too, not just the response-indicator one, with
+no duplicate check logic needed. Updated `fileKeywordsPicker.test.js` and
+`recordKeywordsPicker.test.js`'s `PRTFILE` test blocks to exercise
+`getFilePrintFileForm` against `PRINT`'s real parameter forms instead.
+Landed after a rebase onto a parallel I-3/I-5 push (v0.10.82) —
+I-3 had already fixed `OPENPRT`'s own conditioning right next to this
+change (combined cleanly, no logic conflict), and a parallel S36-3
+correction had added a `PRINT(*PGM)` scenario to `s36eUiHardBlocks.test.js`
+against the *old* single-field UI; updated it to use the new split
+fields (`fk-print-file` for `*PGM`, `fk-print-params` for a numeric
+response indicator). Full suite: 47/47 files, zero failures.
 
 | Task | Description | Depends on | Status |
 |------|-------------|------------|--------|
-| **I-2** | Fold the mislabeled `PRTFILE` keyword into `PRINT`'s own third parameter form (`PRINT([library/]printer-file-name)`), fixing both the invalid generated DDS syntax and the wrong parameter order/separator. Covers file-level; check record-level's shared `PRTFILE` usage for the same bug before deciding if it's in scope here or a separate task. | I-1 | in progress |
+| **I-2** | Fold the mislabeled `PRTFILE` keyword into `PRINT`'s own third parameter form (`PRINT([library/]printer-file-name)`), fixing both the invalid generated DDS syntax and the wrong parameter order/separator. Covers file-level; check record-level's shared `PRTFILE` usage for the same bug before deciding if it's in scope here or a separate task. | I-1 | done (0.10.83) |
 
 ---
 

@@ -2157,24 +2157,54 @@
     return next;
   }
 
-  /** PRTFILE (System handles print: print file/library) - same
-   *  library/name shape as REF, kept separate since the keyword and its
-   *  meaning are unrelated. */
-  function getFilePrtFileKeyword(keywords) {
-    var k = (keywords || []).find(function (kw) { return kw.name === 'PRTFILE'; });
-    if (!k) return { name: '', library: '' };
-    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
-    return { name: tokens[0] || '', library: tokens[1] || '' };
-  }
-
-  function setFilePrtFileKeyword(keywords, name, library) {
-    var next = (keywords || []).filter(function (kw) { return kw.name !== 'PRTFILE'; });
-    var nm = (name || '').trim();
-    if (nm) {
-      var lib = (library || '').trim();
-      next = next.concat([{ name: 'PRTFILE', parameters: lib ? nm + ' ' + lib : nm, conditions: [], raw: '', sourceLines: [] }]);
+  /**
+   * Task I-2 (keywordFixes.md) - bug fix: there is no standalone PRTFILE
+   * keyword in real DDS. IBM's DDS Reference documents the printer-file
+   * name as PRINT's OWN third parameter form -
+   * `PRINT[(response-indicator ['text']) | (*PGM) |
+   * ([library-name/]printer-file-name)]` - and PRTFILE only exists as an
+   * unrelated CRTDEVDSP/CHGDEVDSP COMMAND parameter (a device-level
+   * fallback PRINT's own keyword text references, never written into DDS
+   * source). Real SDA's own "Define Print Keywords" screen confirms
+   * this: its "System handles print: Print file (Name, *PGM) / Library"
+   * fields write directly into PRINT, with no PRTFILE label anywhere on
+   * the screen. A previous version of this code wrote a bogus, separate
+   * `PRTFILE(name library)` keyword for this case - not real DDS syntax,
+   * and would fail CRTDSPF.
+   *
+   * PRINT's blank and response-indicator forms are already handled
+   * generically via getFileFlagKeyword/setFileFlagKeyword (used for the
+   * "Program handles print" response-indicator input, including S36-4's
+   * hard-block wiring) - this is a READ-ONLY helper for PRINT's other two
+   * forms (`*PGM` and `[library/]printer-file-name`), used only to
+   * populate the "System handles print" input boxes on render. There is
+   * no separate setter: the UI assembles PRINT's one final parameter
+   * string itself (response-indicator text OR *PGM OR library/file -
+   * whichever section is filled in, mutually exclusive same as real
+   * SDA's screen) and commits it through the existing generic
+   * setFileFlagKeyword('PRINT', ...) call, so the S36E response-indicator
+   * check already wired to that keyword keeps covering *PGM too (per
+   * S36-3's documented response-indicator/*PGM equivalence) without any
+   * duplicate check logic here.
+   */
+  function getFilePrintFileForm(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'PRINT'; });
+    var result = { isPgm: false, printFile: '', library: '' };
+    if (!k) return result;
+    var params = (k.parameters || '').trim();
+    if (!params || /^\d{1,2}\b/.test(params)) return result; // blank, or the response-indicator form - not this sub-form
+    if (/^\*PGM$/i.test(params)) {
+      result.isPgm = true;
+      return result;
     }
-    return next;
+    var parts = params.split('/');
+    if (parts.length > 1) {
+      result.library = parts[0].trim();
+      result.printFile = parts.slice(1).join('/').trim();
+    } else {
+      result.printFile = params;
+    }
+    return result;
   }
 
   /**
@@ -2373,16 +2403,16 @@
   // Help, Help, Output, Input, Overlay, Print - see docs/sda-reference/
   // screens/record-level/base-record-keywords/ and PICKER-SCREENS-PLAN.md).
   // The F1 primitives above (getFileFlagKeyword/setFileFlagKeyword,
-  // getFileQuotedText/setFileQuotedText, getFilePrtFileKeyword/
-  // setFilePrtFileKeyword) are already generic over any `keywords` array -
-  // not file-level-specific despite the name - so R1 reuses them as-is for
-  // most of its ~30 keywords (a record's PRINT/PRTFILE take the exact same
-  // shape as the file-level ones). Only two keyword shapes below are new:
-  // UNLOCK's *ERASE/*MDTOFF sub-flags (multiple option VALUES inside one
-  // keyword's parameter list, not separate keyword instances) and a small
-  // generic two-field pair for CSRLOC/HLPSEQ (space-separated "a b"
-  // parameters - same shape as PRTFILE's "name library" but reused
-  // generically rather than triplicating getFilePrtFileKeyword's body).
+  // getFileQuotedText/setFileQuotedText) are already generic over any
+  // `keywords` array - not file-level-specific despite the name - so R1
+  // reuses them as-is for most of its ~30 keywords (a record's PRINT
+  // takes the exact same shape as the file-level one - see I-2 in
+  // keywordFixes.md for why there's no separate "PRTFILE" keyword to
+  // reuse here; that was never real DDS). Only two keyword shapes below
+  // are new: UNLOCK's *ERASE/*MDTOFF sub-flags (multiple option VALUES
+  // inside one keyword's parameter list, not separate keyword instances)
+  // and a small generic two-field pair for CSRLOC/HLPSEQ (space-separated
+  // "a b" parameters).
   // (RTNCSRLOC used to share this pair too, under an incorrect "row/col"
   // labeling - Task L77 gave it its own dedicated getRtncsrlocRecNameFields/
   // getRtncsrlocWindowMouseFields pair once real DDS turned out to need 2
@@ -4053,7 +4083,7 @@
    * edited via the raw Keywords editor instead). Removes WINDOW entirely
    * if the mode's required fields aren't all filled in, same
    * "incomplete input just means not-present-yet, not a thrown error"
-   * stance setFilePrtFileKeyword/setFileRefKeyword already take (unlike
+   * stance setFileRefKeyword already takes (unlike
    * the throw-on-bad-input drag/resize setWindowGeometry above, which is
    * reacting to a mouse gesture on an EXISTING geometry rather than a
    * form a person is still filling in).
@@ -4782,8 +4812,7 @@
     unquoteDdsLiteral: unquoteDdsLiteral,
     getFileRefKeyword: getFileRefKeyword,
     setFileRefKeyword: setFileRefKeyword,
-    getFilePrtFileKeyword: getFilePrtFileKeyword,
-    setFilePrtFileKeyword: setFilePrtFileKeyword,
+    getFilePrintFileForm: getFilePrintFileForm,
     getWdwBorder: getWdwBorder,
     setWdwBorder: setWdwBorder,
     getWindowParamsKeyword: getWindowParamsKeyword,

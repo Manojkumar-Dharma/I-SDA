@@ -8,7 +8,41 @@ and why. For full implementation detail, rationale, and test-file
 references on any entry, see `git log` (each version has a matching
 commit) or `git show <tag/commit>`. Feature-level detail belongs in
 [`README.md`](README.md); open/tracked work belongs in
-[`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md).
+[`docs/sda-reference/LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md)
+(DSPF36/S36E and general DSPF/Menu designer gaps) or
+[`docs/sda-reference/keywordFixes.md`](docs/sda-reference/keywordFixes.md)
+(keyword-compliance audit against IBM's own DDS reference, `I-` series).
+
+## 2026-09-12 — Fix (I-2, keywordFixes.md): PRTFILE was never a real DDS keyword
+
+- **0.10.83** — `PRTFILE` doesn't exist as a DDS keyword; IBM's DDS
+  Reference documents the printer-file name as `PRINT`'s own third
+  parameter form (`PRINT([library-name/]printer-file-name)`, alongside
+  the response-indicator and `*PGM` forms) — `PRTFILE` is only an
+  unrelated `CRTDEVDSP`/`CHGDEVDSP` *command* parameter, confirmed
+  against both the reference text and real SDA's own "Define Print
+  Keywords" screen (no `PRTFILE` label anywhere on it; its "Print file"/
+  "Library" fields write straight into `PRINT`). A previous version of
+  `dspfWriter.js` wrote a bogus, non-compiling `PRTFILE(name library)`
+  keyword for the "system handles print" case, at both file and record
+  level. Removed `getFilePrtFileKeyword`/`setFilePrtFileKeyword`; added a
+  read-only `getFilePrintFileForm` that parses the `*PGM`/print-file
+  sub-form back out of `PRINT`'s own parameter for the UI to render, with
+  both the file-level and record-level Print panels now assembling
+  `PRINT`'s one final parameter (response indicator, `*PGM`, or
+  `library/file` — mutually exclusive, matching real SDA's screen
+  layout) and committing it through the existing generic
+  `setFileFlagKeyword('PRINT', ...)` call. This also means S36-4's
+  existing hard-block guard now correctly covers the `*PGM`/print-file
+  forms too, not just the response-indicator one, with no duplicate
+  check logic needed. Rebased onto a parallel I-3/I-5 push (v0.10.82)
+  that landed mid-task — I-3 had already fixed `OPENPRT`'s own
+  conditioning right next to this change, combined cleanly. Also updated
+  `s36eUiHardBlocks.test.js`'s existing `PRINT(*PGM)` scenario (added by
+  the parallel S36-3 correction) to use the new split fields
+  (`fk-print-file` for `*PGM`, `fk-print-params` for a numeric response
+  indicator) instead of typing `*PGM` into the response-indicator field,
+  matching the new UI layout. Full suite: 47/47 files, zero failures.
 
 ## 2026-09-12 — Fix (I-3): full conditioning-eligibility audit across all 39 file-level keywords
 
