@@ -1681,6 +1681,8 @@ function runFieldPropertyHelpersScenario() {
       '     A          R SCR1',
       "     A                                  1  2'A short label'",
       '     A            AMOUNT         7Y 2B  5  5',
+      '     A            FLTFLD         9F 0B  6  5',
+      '     A            PLAINFLD      10A  B  7  5',
     ].join('\n') + '\n';
   const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'PROPHELP.DSPF').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
@@ -2091,6 +2093,74 @@ function runFieldPropertyHelpersScenario() {
     const cntfldFields = cntfldEdit && DspfParser.parseDspf(cntfldEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
     check('posts CNTFLD with the entered characters-per-line value', cntfldFields && cntfldFields.some((k) => k.name === 'CNTFLD' && k.parameters === '40'));
     check('the earlier ALIAS/PUTRETAIN commits survive this separate CNTFLD commit', cntfldFields && cntfldFields.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE') && cntfldFields.some((k) => k.name === 'PUTRETAIN'));
+
+    console.log('  Task L81: DFT/DFTVAL hard-blocked from creating DDS-invalid combinations (mutual exclusion + floating-point), per the DDS Reference');
+    posted.length = 0;
+    const originalAlert = dom.window.alert;
+    let alertMessage = null;
+    dom.window.alert = (msg) => { alertMessage = msg; };
+
+    console.log('    bonus cross-panel check: AMOUNT already carries EDTCDE from the earlier Validity/Edit step above, so DFT is correctly blocked here even though this test never touched EDTCDE itself');
+    const dftOnAmount = doc.getElementById(fieldKey + '-gen-dft-on');
+    const dftParamsAmount = doc.getElementById(fieldKey + '-gen-dft-params');
+    check('setup: the DFT checkbox is present on AMOUNT', !!dftOnAmount);
+    dftParamsAmount.value = "'0'";
+    dftOnAmount.checked = true;
+    dftOnAmount.dispatchEvent(new Event('change', { bubbles: true }));
+    check('DFT is blocked on AMOUNT with an alert naming its pre-existing EDTCDE', /EDTCDE/.test(alertMessage || ''));
+    check('the blocked DFT checkbox on AMOUNT is reverted back off', dftOnAmount.checked === false);
+    check('no applyEdit was posted for that blocked attempt', !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('    a clean field (PLAINFLD, no conflicting keywords) can turn DFT on with no issue');
+    posted.length = 0;
+    alertMessage = null;
+    const plainfldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'PLAINFLD');
+    check('setup: the PLAINFLD field is present', !!plainfldEl);
+    plainfldEl.dispatchEvent(new Event('click', { bubbles: true }));
+    const plainFieldKey = 'field-' + plainfldEl.getAttribute('data-source-line');
+    const dftOn = doc.getElementById(plainFieldKey + '-gen-dft-on');
+    const dftParams = doc.getElementById(plainFieldKey + '-gen-dft-params');
+    const dftvalOn = doc.getElementById(plainFieldKey + '-gen-dftval-on');
+    const dftvalParams = doc.getElementById(plainFieldKey + '-gen-dftval-params');
+    check('setup: the DFT checkbox is present on PLAINFLD', !!dftOn);
+    check('setup: the DFTVAL checkbox is present on PLAINFLD', !!dftvalOn);
+
+    dftParams.value = "'N/A'";
+    dftOn.checked = true;
+    dftOn.dispatchEvent(new Event('change', { bubbles: true }));
+    let dftEdit = posted.find((m) => m.type === 'applyEdit');
+    check('DFT alone (no conflict) commits normally on a clean field', dftEdit && DspfParser.parseDspf(dftEdit.text).records[0].fields.find((f) => f.name === 'PLAINFLD').keywords.some((k) => k.name === 'DFT' && k.parameters === "'N/A'"));
+    check('no alert was raised for that clean commit', alertMessage === null);
+
+    console.log('    turning DFTVAL on for that SAME field, now that DFT is already present, is blocked (mutual exclusion)');
+    posted.length = 0;
+    alertMessage = null;
+    const dftvalOn2 = doc.getElementById(plainFieldKey + '-gen-dftval-on');
+    const dftvalParams2 = doc.getElementById(plainFieldKey + '-gen-dftval-params');
+    dftvalParams2.value = "'X'";
+    dftvalOn2.checked = true;
+    dftvalOn2.dispatchEvent(new Event('change', { bubbles: true }));
+    check('turning DFTVAL on while DFT is already present is blocked with an alert naming DFT', /DFT/.test(alertMessage || ''));
+    check('the blocked DFTVAL checkbox is reverted back off', dftvalOn2.checked === false);
+    check('no applyEdit was posted for the blocked attempt', !posted.some((m) => m.type === 'applyEdit'));
+
+    console.log('  Task L81: DFT is likewise blocked outright on a floating-point field (dataType F), independent of any other keyword');
+    posted.length = 0;
+    alertMessage = null;
+    const fltfldEl = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'FLTFLD');
+    check('setup: the FLTFLD (floating-point) field is present', !!fltfldEl);
+    fltfldEl.dispatchEvent(new Event('click', { bubbles: true }));
+    const fltFieldKey = 'field-' + fltfldEl.getAttribute('data-source-line');
+    const fltDftOn = doc.getElementById(fltFieldKey + '-gen-dft-on');
+    const fltDftParams = doc.getElementById(fltFieldKey + '-gen-dft-params');
+    check('setup: the DFT checkbox is present on the floating-point field too', !!fltDftOn);
+    fltDftParams.value = "'0'";
+    fltDftOn.checked = true;
+    fltDftOn.dispatchEvent(new Event('change', { bubbles: true }));
+    check('turning DFT on for a floating-point field is blocked with an alert mentioning floating-point', /floating-point/i.test(alertMessage || ''));
+    check('the blocked DFT checkbox on the floating-point field is reverted back off', fltDftOn.checked === false);
+    check('no applyEdit was posted for the floating-point block either', !posted.some((m) => m.type === 'applyEdit'));
+    dom.window.alert = originalAlert;
 
     console.log('  Database reference (DLTCHK/DLTEDT) on a named field - Task L5: each its own flagRowHtml row with per-keyword conditioning');
     posted.length = 0;

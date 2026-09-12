@@ -1860,7 +1860,14 @@
     ['noccsid', 'NOCCSID', 'No coded character set id', false],
   ];
 
-  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet) {
+  // L81 - DFT/DFTVAL are the only two rows here subject to DDS's own
+  // documented mutual-exclusion/floating-point restriction (see
+  // DspfWriter.dftGroupConflictReason's own doc comment) - both need the
+  // field's dataType, which none of this panel's other (purely
+  // text/boolean) rows ever needed before.
+  var DFT_GROUP_KEYS = { dft: 'DFT', dftval: 'DFTVAL' };
+
+  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3];
@@ -1871,10 +1878,43 @@
     return html;
   }
 
-  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType) {
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1];
       var id = ownerKey + '-gen-' + key;
+      if (DFT_GROUP_KEYS[key]) {
+        // L81 - guarded wiring (alert + revert, same idiom S36-4's own
+        // guardedSimple established), instead of the generic wireFlagRow:
+        // turning DFT/DFTVAL ON is blocked when the field is a
+        // floating-point field or already carries one of the other
+        // conflicting keywords (DspfWriter.dftGroupConflictReason).
+        // Turning it OFF, editing its own text, or editing an ALREADY-on
+        // one's Conditioning is never blocked - only the on-transition
+        // can create a NEW conflict.
+        var onEl = document.getElementById(id + '-on');
+        var paramsEl = document.getElementById(id + '-params');
+        var commit = function () {
+          var present = onEl.checked;
+          var params = paramsEl ? paramsEl.value : '';
+          if (present) {
+            var reason = DspfWriter.dftGroupConflictReason(name, keywords, dataType);
+            if (reason) {
+              window.alert(reason);
+              var prev = DspfWriter.getFileFlagKeyword(keywords, name);
+              onEl.checked = prev.present;
+              if (paramsEl) paramsEl.value = prev.parameters;
+              return;
+            }
+          }
+          onChange(DspfWriter.setFileFlagKeyword(keywords, name, present, params));
+        };
+        if (onEl) onEl.addEventListener('change', commit);
+        if (paramsEl) paramsEl.addEventListener('change', commit);
+        wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(keywords, name).conditions, function (newConditions) {
+          onChange(DspfWriter.setFileFlagKeyword(keywords, name, onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
+        }, expandedSet, rerender);
+        return;
+      }
       wireFlagRow(
         id,
         function () { return keywords; },

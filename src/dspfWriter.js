@@ -1251,6 +1251,40 @@
     return next;
   }
 
+  /** L81 - DFT/DFTVAL validity check, confirmed against IBM's own DDS
+   *  Reference for BOTH keywords (each documents the identical rule from
+   *  its own side):
+   *  - DFT: "The DFTVAL, EDTCDE, and EDTWRD keywords cannot be specified
+   *    with the DFT keyword... The DFT keyword is not valid on floating
+   *    point fields."
+   *  - DFTVAL: "You cannot specify the DFTVAL keyword on the same field
+   *    with a DFT, EDTCDE (Edit Code), or EDTWRD (Edit Word) keyword, or
+   *    on a floating-point field."
+   *  Both are real DDS compile-time errors, not stylistic preferences, so
+   *  `keywordName` (whichever of 'DFT'/'DFTVAL' is about to be turned ON)
+   *  is checked against the field's own `dataType` (position 35 - 'F' is
+   *  floating point) and its current `keywords` array for the other three
+   *  conflicting keyword names. Returns a human-readable reason string if
+   *  turning `keywordName` on right now would violate the rule, or null
+   *  if it's fine. EDTCDE/EDTWRD's own panel (`editKeywordSectionHtml`)
+   *  is a separate, later-loaded picker and is NOT symmetrically guarded
+   *  here - out of this task's scope, which is DFT itself; the DFT/DFTVAL
+   *  side of the relationship is what this function enforces. */
+  var DFT_DFTVAL_CONFLICT_GROUP = ['DFT', 'DFTVAL', 'EDTCDE', 'EDTWRD'];
+  function dftGroupConflictReason(keywordName, keywords, dataType) {
+    if ((dataType || '').toUpperCase() === 'F') {
+      return keywordName + ' is not valid on floating-point fields (per the DDS Reference).';
+    }
+    var others = DFT_DFTVAL_CONFLICT_GROUP.filter(function (n) { return n !== keywordName; });
+    var present = (keywords || [])
+      .filter(function (k) { return others.indexOf(k.name) >= 0; })
+      .map(function (k) { return k.name; });
+    if (present.length) {
+      return keywordName + ' cannot be specified together with ' + present.join('/') + ' on the same field (per the DDS Reference).';
+    }
+    return null;
+  }
+
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
    *  come back as their raw (already-quoted-if-needed) parameter string for
@@ -4624,6 +4658,7 @@
     setInputKeywords: setInputKeywords,
     getGeneralFieldKeywords: getGeneralFieldKeywords,
     setGeneralFieldKeywords: setGeneralFieldKeywords,
+    dftGroupConflictReason: dftGroupConflictReason,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,

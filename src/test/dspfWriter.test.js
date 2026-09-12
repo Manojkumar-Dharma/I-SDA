@@ -1292,6 +1292,46 @@ console.log('\nDspfWriter.getGeneralFieldKeywords()/setGeneralFieldKeywords() - 
   check('blank/false state clears everything this pair manages', !cleared.some((k) => ['ALIAS', 'DFT', 'FLDCSRPRG', 'HLPID', 'PUTRETAIN', 'CHRID'].includes(k.name)));
 }
 
+console.log('\nDspfWriter.dftGroupConflictReason() (Task L81) - DFT/DFTVAL vs EDTCDE/EDTWRD/floating-point, confirmed against the DDS Reference');
+{
+  check('no conflict on a clean character field turning DFT on', DspfWriter.dftGroupConflictReason('DFT', [], 'A') === null);
+  check('no conflict on a clean field with no dataType at all', DspfWriter.dftGroupConflictReason('DFT', [], '') === null);
+
+  check(
+    'DFT blocked on a floating-point field (dataType F)',
+    /floating-point/i.test(DspfWriter.dftGroupConflictReason('DFT', [], 'F') || '')
+  );
+  check(
+    'DFTVAL is equally blocked on a floating-point field (DFTVAL\u2019s own DDS Reference page states the identical restriction)',
+    /floating-point/i.test(DspfWriter.dftGroupConflictReason('DFTVAL', [], 'F') || '')
+  );
+  check('floating-point check is case-insensitive on dataType', /floating-point/i.test(DspfWriter.dftGroupConflictReason('DFT', [], 'f') || ''));
+
+  const withDftval = [{ name: 'DFTVAL', parameters: "'X'", conditions: [], raw: '', sourceLines: [] }];
+  const dftVsDftval = DspfWriter.dftGroupConflictReason('DFT', withDftval, 'A');
+  check('DFT blocked when DFTVAL is already present', /DFTVAL/.test(dftVsDftval || ''));
+
+  const withDft = [{ name: 'DFT', parameters: "'X'", conditions: [], raw: '', sourceLines: [] }];
+  const dftvalVsDft = DspfWriter.dftGroupConflictReason('DFTVAL', withDft, 'A');
+  check('symmetric: DFTVAL blocked when DFT is already present', /DFT/.test(dftvalVsDft || ''));
+
+  const withEdtcde = [{ name: 'EDTCDE', parameters: '1', conditions: [], raw: '', sourceLines: [] }];
+  check('DFT blocked when EDTCDE is already present', /EDTCDE/.test(DspfWriter.dftGroupConflictReason('DFT', withEdtcde, 'A') || ''));
+
+  const withEdtwrd = [{ name: 'EDTWRD', parameters: "'  0.  '", conditions: [], raw: '', sourceLines: [] }];
+  check('DFTVAL blocked when EDTWRD is already present', /EDTWRD/.test(DspfWriter.dftGroupConflictReason('DFTVAL', withEdtwrd, 'A') || ''));
+
+  const withBoth = [
+    { name: 'EDTCDE', parameters: '1', conditions: [], raw: '', sourceLines: [] },
+    { name: 'EDTWRD', parameters: "'  0.  '", conditions: [], raw: '', sourceLines: [] },
+  ];
+  const bothReason = DspfWriter.dftGroupConflictReason('DFT', withBoth, 'A') || '';
+  check('multiple conflicts are all named in the reason', /EDTCDE/.test(bothReason) && /EDTWRD/.test(bothReason));
+
+  check('a field\u2019s own already-present DFT never conflicts with itself', DspfWriter.dftGroupConflictReason('DFT', withDft, 'A') === null);
+  check('an unrelated keyword (e.g. ALIAS) never triggers a conflict', DspfWriter.dftGroupConflictReason('DFT', [{ name: 'ALIAS', parameters: 'X', conditions: [], raw: '', sourceLines: [] }], 'A') === null);
+}
+
 console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');
 {
   const none = DspfWriter.getReferenceOverrides([]);
