@@ -4535,14 +4535,20 @@
     g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
     g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    // Task I-9: LOGINP - "Option indicators are not valid for this keyword."
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
-    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined);
+    // Task I-9: KEEP - "Option and response indicators are not valid for
+    // this keyword."
     var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
+    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, undefined, undefined);
+    // Task I-9: CHECK - same rule as I-3's file-level finding ("Option
+    // indicators are valid only for CHECK(ER) and CHECK(ME)") - AB/RL
+    // aren't either of those, so neither offers conditioning here either.
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
+    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined);
     g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
@@ -4554,17 +4560,22 @@
   /** Wires every row across both sflKeywordsPanelsHtml() panels. */
   function wireSflKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
     var p = idPrefix;
-    function simple(id, name, hasParams) {
+    function simple(id, name, hasParams, noConditioning) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
-      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
+      }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
     simple(p + '-sflnxtchg', 'SFLNXTCHG');
     simple(p + '-logout', 'LOGOUT');
-    simple(p + '-loginp', 'LOGINP');
-    simple(p + '-keep', 'KEEP');
-    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
+    // Task I-9: LOGINP - "Option indicators are not valid for this keyword."
+    simple(p + '-loginp', 'LOGINP', false, true);
+    // Task I-9: KEEP - "Option and response indicators are not valid for
+    // this keyword."
+    simple(p + '-keep', 'KEEP', false, true);
+    // Task I-9: CHECK(AB)/CHECK(RL) - not eligible (see sflKeywordsPanelsHtml's
+    // own comment - same rule I-3 already established for file-level CHECK).
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'AB', conditions); }, undefined, undefined, undefined);
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'RL', conditions); }, undefined, undefined, undefined);
     wireIndicatorTextRows(p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
   }
 

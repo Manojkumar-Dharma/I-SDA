@@ -399,7 +399,7 @@ split it out into its own task at that point rather than guessing now.
 |------|------|-------|------------|--------|
 | **I-7** | `RECORD` (base) | R1's full 8 categories, all in scope for this type: General (`INZRCD`/`KEEP`/`ASSUME`/`ALWROL`/`RETKEY`/`RETCMDKEY`/`CHGINPDFT`/`MNUBARDSP`/`ENTFLDATR`/`RTNCSRLOC`/`TEXT`/`ALTNAME`), Indicator (`CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT`), Application help (`HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA`), Help (`HLPCLR`/`HLPSEQ`/`HLPCMDKEY`/`HLPTITLE`), Output (`BLINK`/`ALARM`/`MSGALARM`/`LOCK`/`LOGOUT`/`INVITE`/`ALWGPH`/`FRCDTA`/`DSPMOD`/`CSRLOC`/`SLNO`/`CLRL`), Input (`LOGINP`/`UNLOCK`/`GETRETAIN`/`RETLCKSTS`/`CHECK`/`RTNDTA`), Overlay (`OVERLAY`/`PUTRETAIN`/`PROTECT`/`PUTOVR`/`OVRDTA`/`OVRATR`/`INZINP`/`MDTOFF`/`ERASEINP`/`ERASE`), Print (`PRINT` — `PRTFILE` is I-2's fix, not a separate keyword). ~63 keywords total — by far the largest task here since every other record type either reuses this set (in full or narrowed) or is standalone. | I-1 (method) | in progress |
 | **I-8** | `USRDFN` | Deliberately narrow — per `isUsrDfnRecord`'s own doc comment in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords" menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`) offers only General/Help/Print, 3 of R1's 8 (down from an original 4 before Task L5d-ii correctly moved Application help off the record-level set entirely, for every record type). This task's job is to verify that narrowed set against IBM's own DDS Reference specifically for USRDFN records — does the DDS Reference actually restrict any of General/Help/Print's own keywords further on a USRDFN record specifically (e.g. a keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`), not just re-confirm the menu screenshot. This is the clearest "applicable/not applicable" case in the whole record-level series. | I-7 | not started |
-| **I-9** | `SFL` (subfile detail record) | Standalone — doesn't reuse I-7's set. Subfile - General (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile - Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/`SFLROLVAL` — field-level, conditioned on the record being `SFL`/`SFLCTL`, per Task D3). | I-1 (method) | in progress |
+| **I-9** | `SFL` (subfile detail record) | Standalone — doesn't reuse I-7's set. Subfile - General (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile - Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/`SFLROLVAL` — field-level, conditioned on the record being `SFL`/`SFLCTL`, per Task D3). | I-1 (method) | done |
 | **I-10** | `SFLCTL` (subfile control record) | Reuses I-7's full 8 (R1) plus its own: Subfile Control - General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`), Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages (`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record keyword sharing a name with — but structurally distinct from — field-level `MSGID`; don't conflate the two when checking parameters. | I-7, I-9 | not started |
 | **I-11** | `SFLMSG` (message subfile detail record) | Standalone — per Task R5's own finding, doesn't reuse I-7's set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its own General/Indicator categories (need to confirm from `docs/sda-reference/screens/record-level/subfile-message-sflmsg/` whether these are truly independent of I-7's General/Indicator or a subset — R5's own note calls it standalone but the exact keyword list for SFLMSG's own General/Indicator screens isn't broken out separately in `KEYWORD-INDEX.json` from `I-7`'s, worth confirming which keywords actually apply here as part of this task rather than assuming reuse). | I-1 (method) | done |
 
@@ -459,6 +459,56 @@ confirmed (via `git stash`) to fail against the pre-fix code.
 | **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. | I-7 | not started |
 | **I-15** | Combination record types: `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL` | Not a full per-type audit (see "Record types NOT getting their own task" above) — recheck R6/R8/R9/R11/R12's "no cross-contamination" finding specifically from THIS audit's angle: does IBM's DDS Reference document any usage/conditioning/parameter rule that only applies when two keywords are combined on the same record (e.g. a restriction on `SFL` that's stated differently when `WINDOW` is also present)? If nothing turns up, close as "confirmed independent, no combination-specific rules" the same way R6/R8/R9/R11/R12 closed with "zero new code needed." If something does turn up, split it into its own task rather than silently patching it here. | I-9, I-10, I-11, I-12, I-13 | not started |
 | **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | Housekeeping, not an audit task itself — once I-7 through I-15 land real fixes, regenerate the keyword-index files (`build_index.py`/`build_lookup_and_md.py`) so they stop reflecting stale pre-fix state (the `PRTFILE` example above is one instance; there may be others by the time this is picked up). Do this LAST, after the others are done, not incrementally per task — regenerating after every single fix just churns the index files repeatedly for no benefit. | I-7 through I-15 | not started |
+
+### I-9 findings (done, v0.10.86)
+
+Audited all 9 keywords `sflKeywordsPanelsHtml`/`wireSflKeywordsPanels` (the
+SFL-specific tab) exposes, same method as I-3: read each keyword's own
+"Option indicators are/are not valid for this keyword" line in
+`DDS_Keyword_V7r6.txt`, diff against what the panel currently offers.
+
+**Confirmed violations (offered conditioning, IBM says not valid)** — toggle
+removed from all of these:
+- `LOGINP` — "Option indicators are not valid for this keyword."
+- `KEEP` — "Option **and response** indicators are not valid for this
+  keyword" (a slightly different phrasing than the usual "option
+  indicators" line — worth grepping for both forms in future record-level
+  tasks).
+- `CHECK(AB)`/`CHECK(RL)` — same rule I-3 already established at file
+  level ("Option indicators are valid only for CHECK(ER) and CHECK(ME)");
+  iSDA's SFL panel implements the same `AB`/`RL` sub-codes as file-level,
+  neither of which is `ER`/`ME`.
+
+**Confirmed already-compliant:**
+- `SFLNXTCHG` — "Option indicators are valid for this keyword" — correctly
+  offers conditioning.
+- `LOGOUT` — "Option indicators are valid for this keyword" — correctly
+  offers conditioning.
+- `INDTXT`/`SETOF`/`CHANGE` — all three documented "not valid", and
+  `indicatorTextRowsHtml`'s repeatable-row shape (one required response
+  indicator per row, no separate AND/OR conditions layer) never offered a
+  conditioning toggle to begin with — compliant by construction.
+- `SFLRCDNBR`/`SFLROLVAL` (field-level, `subfileFieldKeywordsHtml`) — both
+  documented "not valid"; the panel is a plain select/checkbox with no
+  conditioning toggle at all — compliant.
+- `CHGINPDFT` is deliberately NOT shown on this panel at all (already
+  covered on the base Record Keywords → General tab, per this panel's own
+  existing comment) — out of scope for this task, not re-verified here.
+
+**Observation (not fixed, out of scope):** `KEEP` is independently
+rendered — each with its own live `flagRowHtml` row reading/writing the
+SAME underlying keyword — on at least 4 different record-type panels
+(base `recordKeywordsPanelsHtml`, this SFL panel, the SFLMSG panel, and
+the WINDOW/PULLDOWN panel), unlike `CHGINPDFT` which an earlier task (R3)
+deliberately de-duplicated down to the base tab only. This isn't a
+data-correctness bug (all panels operate on the same record's `keywords`
+array, so they stay in sync), just a UI redundancy — flagging for I-7's
+own task or a future cleanup pass rather than fixing here, since I-9's
+scope is conditioning/usage/parameters, not tab layout.
+
+**Test coverage:** `src/test/i9SflConditioningAudit.test.js` renders the
+real generated webview in jsdom and asserts the toggle's presence/absence
+for every keyword this task touched.
 
 ---
 
