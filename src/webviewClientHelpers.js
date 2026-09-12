@@ -5154,11 +5154,11 @@
     // --- General (SFLCTL's own keywords + R3's Subfile Keywords, reused) ---
     var g = '<div class="section-label">Subfile control</div>';
     var fSflctl = DspfWriter.getFileFlagKeyword(kw, 'SFLCTL');
-    g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', fSflctl.present, fSflctl.parameters, 'subfile record name', fSflctl.conditions, expandedSet);
+    g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', fSflctl.present, fSflctl.parameters, 'subfile record name', undefined, undefined); // I-10: option indicators not valid
     var fSflcsrrrn = DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN');
-    g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', fSflcsrrrn.present, fSflcsrrrn.parameters, 'field name', fSflcsrrrn.conditions, expandedSet);
+    g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', fSflcsrrrn.present, fSflcsrrrn.parameters, 'field name', fSflcsrrrn.conditions, expandedSet); // I-10: no explicit option-indicator statement found either way in the DDS Reference - left as-is rather than guessing, same as I-7's RETKEY/RETCMDKEY/KEEP precedent
     var fSflmode = DspfWriter.getFileFlagKeyword(kw, 'SFLMODE');
-    g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', fSflmode.present, fSflmode.parameters, 'field name', fSflmode.conditions, expandedSet);
+    g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', fSflmode.present, fSflmode.parameters, 'field name', undefined, undefined); // I-10: option indicators not valid
     // Task L74: SFLPGMQ is documented by IBM as a FIELD-level keyword even
     // when it's coded on the SFLCTL record ("SFLPGMQ can be specified on
     // the subfile-control record format when SFLINZ is specified...it can
@@ -5181,7 +5181,7 @@
     var fSflclr = DspfWriter.getFileFlagKeyword(kw, 'SFLCLR');
     g += flagRowHtml(p + '-sflclr', 'Clear subfile records (SFLCLR)', fSflclr.present, undefined, undefined, fSflclr.conditions, expandedSet);
     var fSflrna = DspfWriter.getFileFlagKeyword(kw, 'SFLRNA');
-    g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', fSflrna.present, undefined, undefined, fSflrna.conditions, expandedSet);
+    g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', fSflrna.present, undefined, undefined, undefined, undefined); // I-10: option indicators not valid
     var fSflend = DspfWriter.getFileFlagKeyword(kw, 'SFLEND');
     g += flagRowHtml(p + '-sflend', 'Indicate more records (SFLEND)', fSflend.present, fSflend.parameters, '*MORE, *SCRBAR, or blank', fSflend.conditions, expandedSet);
     g += '<div class="section-label">Subfile behavior</div>';
@@ -5190,20 +5190,20 @@
     var fSflfold = DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD');
     g += flagRowHtml(p + '-sflfold', 'Subfile initially folded (SFLFOLD)', fSflfold.present, fSflfold.parameters, 'CFnn or CAnn', fSflfold.conditions, expandedSet);
     var fSflenter = DspfWriter.getFileFlagKeyword(kw, 'SFLENTER');
-    g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', fSflenter.present, fSflenter.parameters, 'CFnn or CAnn', fSflenter.conditions, expandedSet);
+    g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', fSflenter.present, fSflenter.parameters, 'CFnn or CAnn', undefined, undefined); // I-10: option indicators not valid
     g += '<div class="section-label">Subfile Keywords (shared with plain SFL records)</div>';
     var fSflnxtchg = DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG');
     g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
     g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
-    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
     var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
+    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
+    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
     g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
@@ -5263,25 +5263,34 @@
     var p = idPrefix;
 
     // General
-    wireFlagRow(p + '-sflctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCTL', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCTL').conditions, expandedSet, rerender);
+    // I-10: SFLCTL - "Option indicators are not valid for this keyword."
+    wireFlagRow(p + '-sflctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCTL', present, params, undefined, conditions); }, undefined, undefined, undefined);
+    // I-10: SFLCSRRRN - no explicit option-indicator statement found either way in the DDS Reference; left as-is rather than guessing (I-7's RETKEY/RETCMDKEY/KEEP precedent).
     wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCSRRRN').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLMODE').conditions, expandedSet, rerender);
+    // I-10: SFLMODE - "Option indicators are not valid for this keyword."
+    wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params, undefined, conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-sfldsp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDSP').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sfldspctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSPCTL', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDSPCTL').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sflinz', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLINZ', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLINZ').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sfldlt', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDLT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDLT').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sflclr', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCLR', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCLR').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-sflrna', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLRNA', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLRNA').conditions, expandedSet, rerender);
+    // I-10: SFLRNA - "Option indicators are not valid for this keyword."
+    wireFlagRow(p + '-sflrna', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLRNA', present, '', undefined, conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-sflend', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLEND', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLEND').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sfldrop', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDROP', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDROP').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sflfold', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLFOLD', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLFOLD').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLENTER').conditions, expandedSet, rerender);
+    // I-10: SFLENTER - "Option indicators are not valid for this keyword."
+    wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params, undefined, conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-sflnxtchg', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLNXTCHG', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, expandedSet, rerender);
     wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGOUT').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-loginp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGINP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGINP').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-keep', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'KEEP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'KEEP').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
-    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
+    // I-10: LOGINP/KEEP/CHECK(AB,RL) - propagates I-9's own finding (not
+    // eligible for option indicators) to this SFLCTL panel's own copy of
+    // these shared keywords, which never got the fix when I-9 landed it on
+    // the plain SFL panel's copy.
+    wireFlagRow(p + '-loginp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGINP', present, '', undefined, conditions); }, undefined, undefined, undefined);
+    wireFlagRow(p + '-keep', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'KEEP', present, '', undefined, conditions); }, undefined, undefined, undefined);
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
 
     // Indicator (Task L5d)
     wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender, getFileKeywords);

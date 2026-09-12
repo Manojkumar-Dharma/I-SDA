@@ -464,7 +464,7 @@ split it out into its own task at that point rather than guessing now.
 | **I-7** | `RECORD` (base) | R1's full 8 categories, all in scope for this type: General (`INZRCD`/`KEEP`/`ASSUME`/`ALWROL`/`RETKEY`/`RETCMDKEY`/`CHGINPDFT`/`MNUBARDSP`/`ENTFLDATR`/`RTNCSRLOC`/`TEXT`/`ALTNAME`), Indicator (`CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT`), ~~Application help (`HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA`)~~ *(confirmed during I-7: not actually record-level; Task L5d-ii already moved these to help-specification level, off this tab entirely — the category label above was stale)*, Help (`HLPCLR`/`HLPSEQ`/`HLPCMDKEY`/`HLPTITLE`), Output (`BLINK`/`ALARM`/`MSGALARM`/`LOCK`/`LOGOUT`/`INVITE`/`ALWGPH`/`FRCDTA`/`DSPMOD`/`CSRLOC`/`SLNO`/`CLRL`), Input (`LOGINP`/`UNLOCK`/`GETRETAIN`/`RETLCKSTS`/`CHECK`/`RTNDTA`), Overlay (`OVERLAY`/`PUTRETAIN`/`PROTECT`/`PUTOVR`/`OVRDTA`/`OVRATR`/`INZINP`/`MDTOFF`/`ERASEINP`/`ERASE`), Print (`PRINT` — `PRTFILE` is I-2's fix, not a separate keyword). ~63 keywords total. **Fixed (0.10.88):** Conditioning toggle removed from `INZRCD`/`ASSUME`/`ALWROL`/`HLPCMDKEY`/`SLNO`/`CLRL`/`LOGINP`/`UNLOCK`/`GETRETAIN`/`RTNDTA`/`CHECK`(AB,RL) — IBM: not eligible. Confirmed already-correct: `MNUBARDSP`/`PUTOVR`/`MSGALARM`/`HLPCLR`/`ALTNAME`/`ENTFLDATR`/`CHGINPDFT`/`TEXT`/`RTNCSRLOC` + all Output/Overlay/Print rows. **Flagged, not fixed this task:** `CSRLOC` and record-level `HLPTITLE` are missing conditioning IBM says should be there (would require extending the shared `getFileTwoFieldKeyword`/`getFileQuotedText` primitives — bigger change, deferred); the repeatable Indicator-instance model (`CLEAR`/`HOME`/`VLDCMDKEY`/`SETOF`/`CHANGE`/etc.) uses one uniform conditioning mechanism for all kinds even though IBM says conditioning isn't valid for `VLDCMDKEY`/`SETOF`/`CHANGE` specifically (would need the shared component made kind-aware); `RETKEY`/`RETCMDKEY`/`KEEP` have no explicit option-indicator statement anywhere in the reference doc, left as-is rather than guessing. | I-1 (method) | done (0.10.88) |
 | **I-8** | `USRDFN` | Deliberately narrow — per `isUsrDfnRecord`'s own doc comment in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords" menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`) offers only General/Help/Print, 3 of R1's 8 (down from an original 4 before Task L5d-ii correctly moved Application help off the record-level set entirely, for every record type). This task's job is to verify that narrowed set against IBM's own DDS Reference specifically for USRDFN records — does the DDS Reference actually restrict any of General/Help/Print's own keywords further on a USRDFN record specifically (e.g. a keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`), not just re-confirm the menu screenshot. This is the clearest "applicable/not applicable" case in the whole record-level series. **Fixed (0.10.89):** four keywords found individually documented by the DDS Reference as incompatible with a USRDFN record — see Findings below. Everything else in General/Help/Print checked out already correct. | I-7 | done (0.10.89) |
 | **I-9** | `SFL` (subfile detail record) | Standalone — doesn't reuse I-7's set. Subfile - General (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile - Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/`SFLROLVAL` — field-level, conditioned on the record being `SFL`/`SFLCTL`, per Task D3). | I-1 (method) | done |
-| **I-10** | `SFLCTL` (subfile control record) | Reuses I-7's full 8 (R1) plus its own: Subfile Control - General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`), Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages (`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record keyword sharing a name with — but structurally distinct from — field-level `MSGID`; don't conflate the two when checking parameters. | I-7, I-9 | not started |
+| **I-10** | `SFLCTL` (subfile control record) | Reuses I-7's full 8 (R1) plus its own: Subfile Control - General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`), Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages (`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record keyword sharing a name with — but structurally distinct from — field-level `MSGID`; don't conflate the two when checking parameters. **Fixed (0.10.90):** four keywords found individually documented by the DDS Reference as having option indicators "not valid" for this keyword despite the Conditioning toggle wrongly being shown — `SFLCTL`, `SFLMODE`, `SFLENTER`, `SFLRNA` — see Findings below. Separately, `LOGINP`/`KEEP`/`CHECK`(AB,RL) — the "shared with plain SFL records" keywords I-9 already fixed on the plain SFL panel — turned out to still show the Conditioning toggle on THIS panel's own separate copy of the same keywords; that fix was never propagated here, now done. `SFLCSRRRN` has no explicit option-indicator statement anywhere in the reference doc, left as-is rather than guessing (same posture I-7 took for `RETKEY`/`RETCMDKEY`/`KEEP`). Everything else in General/Indicator/Subfile Messages confirmed already correct. **Flagged, not fixed this task:** `SFLSIZ`/`SFLPAG`/`SFLLIN` are individually documented as NOT eligible for option indicators but instead conditioned by *display size condition names* (`*DSx`) — a genuinely different conditioning mechanism than every other row on this panel uses, and one this codebase already deliberately defers for this exact trio (confirmed pre-existing in task A1's own note: "SFLSIZ/SFLPAG/SFLLIN multi-instance conditioning ... turned out to be pre-existing, deliberately-documented deferrals, not oversights"). Reaffirmed rather than re-opened, since fixing it would mean rebuilding the whole Display Layout panel's single-instance `getSflDisplayLayout`/`setSflDisplayLayout` model into a per-DSPSIZ one (the same shape L80/L84 built for `SFLMSGRCD`), a bigger change than this task's own audit scope. | I-7, I-9 | done (0.10.90) |
 | **I-11** | `SFLMSG` (message subfile detail record) | Standalone — per Task R5's own finding, doesn't reuse I-7's set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its own General/Indicator categories (need to confirm from `docs/sda-reference/screens/record-level/subfile-message-sflmsg/` whether these are truly independent of I-7's General/Indicator or a subset — R5's own note calls it standalone but the exact keyword list for SFLMSG's own General/Indicator screens isn't broken out separately in `KEYWORD-INDEX.json` from `I-7`'s, worth confirming which keywords actually apply here as part of this task rather than assuming reuse). | I-1 (method) | done |
 
 **I-8 findings:**
@@ -635,6 +635,77 @@ scope is conditioning/usage/parameters, not tab layout.
 **Test coverage:** `src/test/i9SflConditioningAudit.test.js` renders the
 real generated webview in jsdom and asserts the toggle's presence/absence
 for every keyword this task touched.
+
+---
+
+### I-10 findings (done, v0.10.90)
+
+Audited every keyword `sflCtlPanelsHtml`/`wireSflCtlPanels` (the SFLCTL
+tab) exposes, same method as I-7/I-9: read each keyword's own "Option
+indicators are/are not valid for this keyword" line in
+`DDS_Keyword_V7r6.txt`, diff against what the panel currently offers.
+
+**Confirmed violations (offered conditioning, IBM says not valid)** —
+toggle removed from all of these:
+- `SFLCTL` — "Option indicators are not valid for this keyword."
+- `SFLMODE` — "Option indicators are not valid for this keyword."
+- `SFLENTER` — "Option indicators are not valid for this keyword."
+- `SFLRNA` — "Option indicators are not valid for this keyword."
+
+**Propagated from I-9 (same underlying keyword, different panel copy)** —
+I-9 already established these are not eligible and fixed them on the
+plain SFL panel, but this SFLCTL panel's own separate `flagRowHtml`/
+`wireFlagRow` call sites for the exact same "Subfile Keywords (shared
+with plain SFL records)" section never got the fix — genuinely two
+different pieces of markup/wiring reading and writing the same
+underlying keyword, so fixing one didn't fix the other:
+- `LOGINP` — "Option indicators are not valid for this keyword."
+- `KEEP` — "Option **and response** indicators are not valid for this
+  keyword."
+- `CHECK(AB)`/`CHECK(RL)` — same rule I-3/I-9 already established
+  ("Option indicators are valid only for CHECK(ER) and CHECK(ME)").
+
+**Confirmed already-compliant:**
+- `SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR` — all individually
+  documented "Option indicators are valid for this keyword" (`SFLCLR`/
+  `SFLDLT` go further and say an option indicator is *required*) —
+  correctly offer conditioning.
+- `SFLEND` — "An option indicator must be specified for this keyword" —
+  correctly offers (and requires) conditioning.
+- `SFLDROP`/`SFLFOLD` — both "Option indicators are valid for this
+  keyword" — correctly offer conditioning.
+- `SFLNXTCHG`/`LOGOUT` — both already confirmed valid by I-9, reused
+  verbatim here — correctly offer conditioning.
+- `SFLMSG`/`SFLMSGID` (control-record level, via the repeatable-instance
+  L1c component) — "Option indicators are valid for these keywords" —
+  correctly offer per-instance conditioning.
+
+**Left as-is (ambiguous, not fixed):** `SFLCSRRRN` has no explicit
+option-indicator statement anywhere in the reference doc — same posture
+I-7 already took for `RETKEY`/`RETCMDKEY`/`KEEP` (left alone rather than
+guessing which way an unstated case should go).
+
+**Flagged, not fixed this task:** `SFLSIZ`/`SFLPAG`/`SFLLIN` are each
+individually documented as "Option indicators are not valid... Display
+size condition names are valid" (`SFLPAG`/`SFLSIZ` add "and are required
+if [the value] changes depending on the size of the display"). That's a
+genuinely different conditioning mechanism (`*DSx` display-size names,
+not option indicators) than every other row on this panel — and one this
+codebase already deliberately defers for this exact trio, confirmed
+pre-existing rather than newly discovered: task A1's own note already
+lists "SFLSIZ/SFLPAG/SFLLIN multi-instance conditioning" among the
+"pre-existing, deliberately-documented deferrals, not oversights" found
+during the record-level screenshot audit. Reaffirmed here rather than
+re-opened — fixing it would mean rebuilding the Display Layout panel's
+current single-instance `getSflDisplayLayout`/`setSflDisplayLayout` model
+into a per-`DSPSIZ`-size one (the same `{primary, bySizeName}` shape L80/
+L84 already built for `SFLMSGRCD`), a bigger change than this task's own
+audit scope covers.
+
+**Test coverage:** `src/test/i10SflctlConditioningAudit.test.js` renders
+the real generated webview in jsdom and asserts the toggle's presence/
+absence for every keyword this task touched, plus a commit-still-works
+regression check for a newly-ineligible row (`SFLRNA`).
 
 ---
 
