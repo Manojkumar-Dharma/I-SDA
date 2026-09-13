@@ -4738,6 +4738,139 @@
   }
 
   // ---------------------------------------------------------------------
+  // Task I-26 - SFLSNGCHC/SFLMLTCHC (Subfile Single/Multiple Choice
+  // Selection List) - record-level SFLCTL keywords turning a subfile into
+  // a scrollable choice list instead of an ordinary paging subfile.
+  // Neither documents option indicators as valid. Both share the same
+  // *NORSTCSR/*RSTCSR and *NOSLTIND/*SLTIND bracket groups (SLTIND's own
+  // default is always *NOSLTIND regardless of context; RSTCSR's own
+  // default flips to *RSTCSR specifically "if the SFL[SNGCHC|MLTCHC]
+  // subfile control record is defined in a pulldown" - see
+  // isPulldownRecord in webviewClientHelpers.js, which is what "defined
+  // in a pulldown" means in DDS terms: the SFLCTL record itself also
+  // carries PULLDOWN). SFLSNGCHC additionally has a 3-way *NOAUTOSLT/
+  // *AUTOSLT/*AUTOSLTENH group whose default likewise flips to *AUTOSLT
+  // in a pulldown (SFLMLTCHC has no AUTOSLT group at all). SFLMLTCHC
+  // additionally takes an optional &number-selected field-name parameter
+  // (must name a hidden 4,0 signed-numeric field per its own DDS
+  // Reference text - left as free text here, same fallback the rest of
+  // this codebase uses for a keyword parameter this project doesn't yet
+  // validate the field's own shape for).
+  //
+  // Each RSTCSR/AUTOSLT tri/4-state getter/setter uses '' to mean
+  // "not written - context default applies" (distinct from explicitly
+  // writing *NORSTCSR/*NOAUTOSLT, which IS one of the writable choices
+  // per the DDS Reference's own bracket groups) so a user working inside
+  // a pulldown can still explicitly force the non-pulldown default, or
+  // vice versa, rather than only ever getting the "on" variant the way
+  // PULLDOWN's own simpler SLTIND/RSTCSR sub-flags above do.
+  // ---------------------------------------------------------------------
+
+  /** Reads SFLSNGCHC's own state - `{ present, rstcsr, sltind, autoslt }` -
+   *  where `rstcsr` is '' | 'RSTCSR' | 'NORSTCSR' and `autoslt` is
+   *  '' | 'AUTOSLT' | 'NOAUTOSLT' | 'AUTOSLTENH' (see this section's own
+   *  top comment for why '' isn't the same as the explicit NO* value). */
+  function getSflSngChcKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'SFLSNGCHC'; });
+    if (!k) return { present: false, rstcsr: '', sltind: false, autoslt: '' };
+    var text = (k.parameters || '').toUpperCase();
+    var rstcsr = /\*RSTCSR\b/.test(text) ? 'RSTCSR' : (/\*NORSTCSR\b/.test(text) ? 'NORSTCSR' : '');
+    var autoslt = /\*AUTOSLTENH\b/.test(text) ? 'AUTOSLTENH' : (/\*AUTOSLT\b/.test(text) ? 'AUTOSLT' : (/\*NOAUTOSLT\b/.test(text) ? 'NOAUTOSLT' : ''));
+    return { present: true, rstcsr: rstcsr, sltind: /\*SLTIND\b/.test(text), autoslt: autoslt };
+  }
+
+  /** Returns a NEW keywords array with SFLSNGCHC set from `present`/
+   *  `rstcsr`/`sltind`/`autoslt` - removed entirely when `present` is
+   *  false. `rstcsr`/`autoslt` of '' write nothing for that group
+   *  (context default applies); any other value writes that literal
+   *  *value token. */
+  function setSflSngChcKeyword(keywords, present, rstcsr, sltind, autoslt) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'SFLSNGCHC'; });
+    if (present) {
+      var vals = [];
+      if (rstcsr) vals.push('*' + rstcsr);
+      if (sltind) vals.push('*SLTIND');
+      if (autoslt) vals.push('*' + autoslt);
+      next = next.concat([{ name: 'SFLSNGCHC', parameters: vals.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** Reads SFLMLTCHC's own state - `{ present, numberSelectedField,
+   *  rstcsr, sltind }` - `rstcsr` is '' | 'RSTCSR' | 'NORSTCSR', same
+   *  convention as getSflSngChcKeyword above. No autoslt group - SFLMLTCHC
+   *  doesn't have one. */
+  function getSflMltChcKeyword(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'SFLMLTCHC'; });
+    if (!k) return { present: false, numberSelectedField: '', rstcsr: '', sltind: false };
+    var text = k.parameters || '';
+    var upper = text.toUpperCase();
+    var rstcsr = /\*RSTCSR\b/.test(upper) ? 'RSTCSR' : (/\*NORSTCSR\b/.test(upper) ? 'NORSTCSR' : '');
+    var fieldM = /&([A-Za-z0-9_#@$]+)/.exec(text);
+    return { present: true, numberSelectedField: fieldM ? fieldM[1] : '', rstcsr: rstcsr, sltind: /\*SLTIND\b/.test(upper) };
+  }
+
+  /** Returns a NEW keywords array with SFLMLTCHC set from `present`/
+   *  `numberSelectedField`/`rstcsr`/`sltind` - removed entirely when
+   *  `present` is false. `numberSelectedField` (blank to omit) is written
+   *  as the keyword's own leading &field-name parameter, per its "must
+   *  name a hidden field with a length of 4, data type of Y, and zero
+   *  decimal positions" DDS Reference text (this project doesn't validate
+   *  the named field's own shape yet - same free-text fallback the rest
+   *  of this codebase takes for parameters it doesn't validate). */
+  function setSflMltChcKeyword(keywords, present, numberSelectedField, rstcsr, sltind) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'SFLMLTCHC'; });
+    if (present) {
+      var vals = [];
+      if ((numberSelectedField || '').trim()) vals.push('&' + numberSelectedField.trim());
+      if (rstcsr) vals.push('*' + rstcsr);
+      if (sltind) vals.push('*SLTIND');
+      next = next.concat([{ name: 'SFLMLTCHC', parameters: vals.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    }
+    return next;
+  }
+
+  /** Whether turning `name` (one of 'SFLSNGCHC'/'SFLMLTCHC') ON on this
+   *  record would conflict with something already there. Per both
+   *  keywords' own DDS Reference text, neither can share a record with
+   *  SFLDROP, SFLFOLD, or the OTHER of the pair - same
+   *  alertAndRevert-bidirectional idiom I-8/I-11/I-13's own conflict
+   *  checkers use, but this project doesn't yet also guard the reverse
+   *  direction (turning SFLDROP/SFLFOLD on while SFLSNGCHC/SFLMLTCHC is
+   *  already present) - left for a follow-up, same convention Task R3's
+   *  own CHGINPDFT/etc. partial guards took where only one direction was
+   *  built first. Returns a reason string, or '' if there's no conflict. */
+  function sflChoiceListConflictReason(name, keywords) {
+    var other = name === 'SFLSNGCHC' ? 'SFLMLTCHC' : 'SFLSNGCHC';
+    var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
+    if (present(other)) return name + ' cannot be specified on the same record as ' + other + ' (mutually exclusive per the DDS Reference).';
+    if (present('SFLDROP')) return name + ' cannot be specified on the same record as SFLDROP (mutually exclusive per the DDS Reference).';
+    if (present('SFLFOLD')) return name + ' cannot be specified on the same record as SFLFOLD (mutually exclusive per the DDS Reference).';
+    return '';
+  }
+
+  /** Whether turning SFLSCROLL ON on this field would conflict with
+   *  something already there. Per SFLSCROLL's own DDS Reference text,
+   *  "You cannot specify the SFLROLVAL, the SFLSCROLL and the SFLRCDNBR
+   *  keywords for the same field" (all 3 mutually exclusive on ONE
+   *  field), and "Only one SFLSCROLL keyword is allowed in the subfile
+   *  control record" (unique across every field in the whole record, not
+   *  just this one) - `siblingFieldsKeywords` is every OTHER field's own
+   *  keywords array in the same record, needed only for that
+   *  record-wide uniqueness check. Returns a reason string, or '' if
+   *  there's no conflict. */
+  function sflScrollFieldConflictReason(fieldKeywords, siblingFieldsKeywords) {
+    var present = function (n) { return (fieldKeywords || []).some(function (kw) { return kw.name === n; }); };
+    if (present('SFLROLVAL')) return 'SFLSCROLL cannot be specified on the same field as SFLROLVAL (mutually exclusive per the DDS Reference).';
+    if (present('SFLRCDNBR')) return 'SFLSCROLL cannot be specified on the same field as SFLRCDNBR (mutually exclusive per the DDS Reference).';
+    var alreadyElsewhere = (siblingFieldsKeywords || []).some(function (fk) {
+      return (fk || []).some(function (kw) { return kw.name === 'SFLSCROLL'; });
+    });
+    if (alreadyElsewhere) return 'Only one SFLSCROLL keyword is allowed in the subfile control record - another field already has it.';
+    return '';
+  }
+
+  // ---------------------------------------------------------------------
   // Task R4 - SFLCTL-specific picker (Subfile Control menu: General/
   // Display Layout/Subfile Messages - see docs/sda-reference/screens/
   // record-level/subfile-control-sflctl/ and PICKER-SCREENS-PLAN.md).
@@ -5461,6 +5594,12 @@
     setWindowParamsKeyword: setWindowParamsKeyword,
     getPulldownKeyword: getPulldownKeyword,
     setPulldownKeyword: setPulldownKeyword,
+    getSflSngChcKeyword: getSflSngChcKeyword,
+    setSflSngChcKeyword: setSflSngChcKeyword,
+    getSflMltChcKeyword: getSflMltChcKeyword,
+    setSflMltChcKeyword: setSflMltChcKeyword,
+    sflChoiceListConflictReason: sflChoiceListConflictReason,
+    sflScrollFieldConflictReason: sflScrollFieldConflictReason,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,
     getFileMsgLocLines: getFileMsgLocLines,

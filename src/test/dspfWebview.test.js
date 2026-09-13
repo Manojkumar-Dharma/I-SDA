@@ -5400,6 +5400,15 @@ function runNumericFieldPickerScenario() {
     recnbrField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'RECNBR');
     check('SFLROLVAL written', recnbrField.keywords.some((k) => k.name === 'SFLROLVAL'));
     check('SFLRCDNBR from the previous step is still there (independent commits)', recnbrField.keywords.some((k) => k.name === 'SFLRCDNBR'));
+
+    console.log('  Task I-26: SFLSCROLL is blocked (alert + revert) on this same field - it already carries SFLROLVAL/SFLRCDNBR');
+    const sflscrollEl = doc.getElementById(sflrolvalOwnerKey + '-sflscroll');
+    check('SFLSCROLL checkbox present', !!sflscrollEl);
+    sflscrollEl.checked = true;
+    sflscrollEl.dispatchEvent(new Event('change', { bubbles: true }));
+    check('SFLSCROLL reverted back to unchecked (mutually exclusive with SFLROLVAL/SFLRCDNBR on the same field)', sflscrollEl.checked === false);
+    posted.length = 0;
+
     runMnuBarPickerScenario();
   }, 0);
 }

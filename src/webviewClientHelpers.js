@@ -2267,11 +2267,22 @@
   // operator can type a roll value into. Both are simple present/absent
   // keywords - DspfWriter.getFileFlagKeyword/setFileFlagKeyword (generic
   // over any keywords array) cover them, no new primitives needed.
+  //
+  // Task I-26 added SFLSCROLL to this same screen - also a simple
+  // present/absent flag, no parameters - since it shares the same "one
+  // hidden numeric field within SFL/SFLCTL" shape and IBM's own DDS
+  // Reference explicitly groups it with SFLRCDNBR/SFLROLVAL ("You cannot
+  // specify the SFLROLVAL, the SFLSCROLL and the SFLRCDNBR keywords for
+  // the same field"). `siblingFieldsKeywords` (every OTHER field's own
+  // keywords array in the same record) is needed only for SFLSCROLL's own
+  // extra "only one per record" rule - see
+  // DspfWriter.sflScrollFieldConflictReason's own doc comment.
   // -----------------------------------------------------------------------
 
   function subfileFieldKeywordsHtml(keywords, ownerKey) {
     var rcdnbr = DspfWriter.getFileFlagKeyword(keywords, 'SFLRCDNBR');
     var rolval = DspfWriter.getFileFlagKeyword(keywords, 'SFLROLVAL');
+    var scroll = DspfWriter.getFileFlagKeyword(keywords, 'SFLSCROLL');
     var html = '<div class="status" style="margin-bottom:8px;">For a field within a subfile (SFL) or subfile control (SFLCTL) record that lets the operator type a record number or roll value directly.</div>';
     html += '<div class="section-label">Operator can specify the record number to display (SFLRCDNBR)</div>';
     html += '<select id="' + ownerKey + '-sflrcdnbr">' +
@@ -2284,10 +2295,12 @@
       }).join('') +
       '</select>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflrolval" ' + (rolval.present ? 'checked' : '') + '/>Operator can specify the number of records to roll (SFLROLVAL)</label>';
+    html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflscroll" ' + (scroll.present ? 'checked' : '') + '/>Return top-of-subfile record number on scroll (SFLSCROLL)</label>';
+    html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot share one field, and only one field in the whole record can carry SFLSCROLL.</div>';
     return html;
   }
 
-  function wireSubfileFieldKeywords(keywords, onChange, ownerKey) {
+  function wireSubfileFieldKeywords(keywords, onChange, ownerKey, siblingFieldsKeywords) {
     var rcdnbrEl = document.getElementById(ownerKey + '-sflrcdnbr');
     if (rcdnbrEl) {
       rcdnbrEl.addEventListener('change', function () {
@@ -2298,6 +2311,20 @@
     if (rolvalEl) {
       rolvalEl.addEventListener('change', function () {
         onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLROLVAL', rolvalEl.checked));
+      });
+    }
+    var scrollEl = document.getElementById(ownerKey + '-sflscroll');
+    if (scrollEl) {
+      scrollEl.addEventListener('change', function () {
+        if (scrollEl.checked) {
+          var reason = DspfWriter.sflScrollFieldConflictReason(keywords, siblingFieldsKeywords);
+          if (reason) {
+            window.alert(reason);
+            scrollEl.checked = false;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLSCROLL', scrollEl.checked));
       });
     }
   }
@@ -5630,6 +5657,132 @@
    * SFLPAG/SFLLIN rows - same optional-parameter convention
    * sflMsgPanelsHtml already uses for its own SFLMSGRCD per-size rows.
    */
+  /** Task I-26 - SFLSNGCHC/SFLMLTCHC section within the SFLCTL General
+   *  tab: a type selector (none/single/multiple) plus each type's own
+   *  sub-controls, shown/hidden via plain CSS rather than separate
+   *  accordions since only one type can ever be active at a time (see
+   *  DspfWriter.sflChoiceListConflictReason). `rec` (not just its
+   *  keywords) is needed only to compute isPulldownRecord's own effective-
+   *  default hint text. No Conditioning toggle anywhere here - neither
+   *  keyword documents option indicators as valid. */
+  function sflChoiceListPanelHtml(rec, p) {
+    var kw = rec.keywords || [];
+    var sngchc = DspfWriter.getSflSngChcKeyword(kw);
+    var mltchc = DspfWriter.getSflMltChcKeyword(kw);
+    var inPulldown = isPulldownRecord(rec);
+    var current = sngchc.present ? 'SFLSNGCHC' : (mltchc.present ? 'SFLMLTCHC' : '');
+    var rstcsrDefaultHint = inPulldown ? '*RSTCSR (this record is in a pull-down)' : '*NORSTCSR (this record is not in a pull-down)';
+    var autoSltDefaultHint = inPulldown ? '*AUTOSLT (this record is in a pull-down)' : '*NOAUTOSLT (this record is not in a pull-down)';
+
+    var html = '<select id="' + p + '-selchc-type">' +
+      [
+        ['', '(none)'],
+        ['SFLSNGCHC', 'Single-choice list (SFLSNGCHC)'],
+        ['SFLMLTCHC', 'Multiple-choice list (SFLMLTCHC)'],
+      ].map(function (opt) {
+        return '<option value="' + opt[0] + '"' + (current === opt[0] ? ' selected' : '') + '>' + opt[1] + '</option>';
+      }).join('') +
+      '</select>';
+    html += '<div class="hint-small" style="margin:4px 0 8px;">Mutually exclusive with SFLDROP/SFLFOLD and with each other - selecting one here blocks turning the other on above.</div>';
+
+    function rstcsrSelect(idBase, value) {
+      return '<select id="' + idBase + '-rstcsr" style="margin-top:4px;">' +
+        [
+          ['', 'Restrict cursor: (default - ' + rstcsrDefaultHint + ')'],
+          ['RSTCSR', '*RSTCSR - arrow keys stay inside the list'],
+          ['NORSTCSR', '*NORSTCSR - arrow keys can leave the list'],
+        ].map(function (opt) {
+          return '<option value="' + opt[0] + '"' + (value === opt[0] ? ' selected' : '') + '>' + opt[1] + '</option>';
+        }).join('') +
+        '</select>';
+    }
+    function sltindCheckbox(idBase, checked) {
+      return '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;"><input type="checkbox" id="' + idBase + '-sltind" ' + (checked ? 'checked' : '') + ' /> Selection indicators on color graphical displays (*SLTIND)</label>';
+    }
+
+    html += '<div id="' + p + '-selchc-sngchc" style="' + (current === 'SFLSNGCHC' ? '' : 'display:none;') + 'padding-left:16px;">';
+    html += rstcsrSelect(p + '-selchc-sngchc', sngchc.rstcsr);
+    html += sltindCheckbox(p + '-selchc-sngchc', sngchc.sltind);
+    html += '<select id="' + p + '-selchc-sngchc-autoslt" style="margin-top:6px;">' +
+      [
+        ['', 'Auto-select: (default - ' + autoSltDefaultHint + ')'],
+        ['AUTOSLT', '*AUTOSLT - Enter key selects the highlighted choice'],
+        ['NOAUTOSLT', '*NOAUTOSLT - user must explicitly select'],
+        ['AUTOSLTENH', '*AUTOSLTENH - auto-select only on an enhanced controller'],
+      ].map(function (opt) {
+        return '<option value="' + opt[0] + '"' + (sngchc.autoslt === opt[0] ? ' selected' : '') + '>' + opt[1] + '</option>';
+      }).join('') +
+      '</select>';
+    html += '</div>';
+
+    html += '<div id="' + p + '-selchc-mltchc" style="' + (current === 'SFLMLTCHC' ? '' : 'display:none;') + 'padding-left:16px;">';
+    html += '<input type="text" id="' + p + '-selchc-mltchc-numsel" placeholder="hidden field name (4,0 signed numeric) - optional" value="' + (mltchc.numberSelectedField || '') + '" style="width:100%;box-sizing:border-box;margin-bottom:4px;" />';
+    html += '<div class="hint-small">Number selected (&number-selected) - counts how many items the user picked. Must name a hidden field, length 4, type Y, 0 decimals.</div>';
+    html += rstcsrSelect(p + '-selchc-mltchc', mltchc.rstcsr);
+    html += sltindCheckbox(p + '-selchc-mltchc', mltchc.sltind);
+    html += '</div>';
+
+    return html;
+  }
+
+  /** Wires sflChoiceListPanelHtml. Turning the type selector to SFLSNGCHC
+   *  or SFLMLTCHC is blocked (alert + revert) by
+   *  DspfWriter.sflChoiceListConflictReason, same alertAndRevert idiom
+   *  I-13's own PULLDOWN guard uses; turning it back to "(none)" is never
+   *  blocked. */
+  function wireSflChoiceListPanel(p, getKeywords, onChange) {
+    function commit() {
+      var typeEl = document.getElementById(p + '-selchc-type');
+      if (!typeEl) return;
+      var type = typeEl.value;
+      var keywords = getKeywords();
+      if (type) {
+        // Strip the OTHER choice-list keyword (if any) before checking for
+        // conflicts - this dropdown is the sole UI for both, so switching
+        // from one to the other is always allowed; only an external
+        // SFLDROP/SFLFOLD should ever block the switch.
+        var strippedKeywords = keywords.filter(function (kw) { return kw.name !== 'SFLSNGCHC' && kw.name !== 'SFLMLTCHC'; });
+        var reason = DspfWriter.sflChoiceListConflictReason(type, strippedKeywords);
+        if (reason) {
+          window.alert(reason);
+          typeEl.value = DspfWriter.getSflSngChcKeyword(keywords).present ? 'SFLSNGCHC' : (DspfWriter.getSflMltChcKeyword(keywords).present ? 'SFLMLTCHC' : '');
+          return;
+        }
+      }
+      if (type === 'SFLSNGCHC') {
+        var sRstcsr = document.getElementById(p + '-selchc-sngchc-rstcsr');
+        var sSltind = document.getElementById(p + '-selchc-sngchc-sltind');
+        var sAutoslt = document.getElementById(p + '-selchc-sngchc-autoslt');
+        keywords = DspfWriter.setSflMltChcKeyword(keywords, false);
+        keywords = DspfWriter.setSflSngChcKeyword(keywords, true, sRstcsr ? sRstcsr.value : '', sSltind ? sSltind.checked : false, sAutoslt ? sAutoslt.value : '');
+      } else if (type === 'SFLMLTCHC') {
+        var mNumsel = document.getElementById(p + '-selchc-mltchc-numsel');
+        var mRstcsr = document.getElementById(p + '-selchc-mltchc-rstcsr');
+        var mSltind = document.getElementById(p + '-selchc-mltchc-sltind');
+        keywords = DspfWriter.setSflSngChcKeyword(keywords, false);
+        keywords = DspfWriter.setSflMltChcKeyword(keywords, true, mNumsel ? mNumsel.value : '', mRstcsr ? mRstcsr.value : '', mSltind ? mSltind.checked : false);
+      } else {
+        keywords = DspfWriter.setSflSngChcKeyword(keywords, false);
+        keywords = DspfWriter.setSflMltChcKeyword(keywords, false);
+      }
+      onChange(keywords);
+    }
+    var typeEl = document.getElementById(p + '-selchc-type');
+    if (typeEl) {
+      typeEl.addEventListener('change', function () {
+        var sngchcDiv = document.getElementById(p + '-selchc-sngchc');
+        var mltchcDiv = document.getElementById(p + '-selchc-mltchc');
+        if (sngchcDiv) sngchcDiv.style.display = typeEl.value === 'SFLSNGCHC' ? '' : 'none';
+        if (mltchcDiv) mltchcDiv.style.display = typeEl.value === 'SFLMLTCHC' ? '' : 'none';
+        commit();
+      });
+    }
+    ['-selchc-sngchc-rstcsr', '-selchc-sngchc-sltind', '-selchc-sngchc-autoslt', '-selchc-mltchc-numsel', '-selchc-mltchc-rstcsr', '-selchc-mltchc-sltind'].forEach(function (suffix) {
+      var el = document.getElementById(p + suffix);
+      if (el) el.addEventListener('change', commit);
+    });
+  }
+
   function sflCtlPanelsHtml(rec, idPrefix, expandedSet, fileKeywords) {
     var kw = rec.keywords || [];
     var p = idPrefix;
@@ -5675,6 +5828,7 @@
     g += flagRowHtml(p + '-sflfold', 'Subfile initially folded (SFLFOLD)', fSflfold.present, fSflfold.parameters, 'CFnn or CAnn', fSflfold.conditions, expandedSet);
     var fSflenter = DspfWriter.getFileFlagKeyword(kw, 'SFLENTER');
     g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', fSflenter.present, fSflenter.parameters, 'CFnn or CAnn', undefined, undefined); // I-10: option indicators not valid
+    g += '<div class="section-label">Selection List (SFLSNGCHC / SFLMLTCHC)</div>' + sflChoiceListPanelHtml(rec, p);
     g += '<div class="section-label">Subfile Keywords (shared with plain SFL records)</div>';
     var fSflnxtchg = DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG');
     g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
@@ -5798,6 +5952,8 @@
     wireFlagRow(p + '-sflfold', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLFOLD', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLFOLD').conditions, expandedSet, rerender);
     // I-10: SFLENTER - "Option indicators are not valid for this keyword."
     wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params, undefined, conditions); }, undefined, undefined, undefined);
+    // Task I-26: SFLSNGCHC/SFLMLTCHC selection list
+    wireSflChoiceListPanel(p, getKeywords, onChange);
     wireFlagRow(p + '-sflnxtchg', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLNXTCHG', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, expandedSet, rerender);
     wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGOUT').conditions, expandedSet, rerender);
     // I-10: LOGINP/CHECK(AB,RL) - propagates I-9's own finding (not
@@ -6133,7 +6289,8 @@
     wireSflMsgPanels: wireSflMsgPanels,
     wireSflMsgFieldRefs: wireSflMsgFieldRefs,
     sflPgmqFieldHtml: sflPgmqFieldHtml,
-    wireSflPgmqField: wireSflPgmqField,
+    sflChoiceListPanelHtml: sflChoiceListPanelHtml,
+    wireSflChoiceListPanel: wireSflChoiceListPanel,    wireSflPgmqField: wireSflPgmqField,
     windowBorderPanelHtml: windowBorderPanelHtml,
     wireWindowBorderPanel: wireWindowBorderPanel,
     isWindowRecord: isWindowRecord,

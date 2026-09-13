@@ -4404,13 +4404,14 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!isConstant && catVis.messageId) {
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::message-id', 'Message ID', WebviewClientHelpers.messageIdInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
-    // Task D3 - Subfile Keywords (SFLRCDNBR/SFLROLVAL), for a numeric field
-    // living directly in an SFL or SFLCTL record - gated on the OWNING
-    // RECORD (found.record, computed just below), same convention as D5's
+    // Task D3 - Subfile Keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL - I-26
+    // added SFLSCROLL to this same screen), for a numeric field living
+    // directly in an SFL or SFLCTL record - gated on the OWNING RECORD
+    // (found.record, computed just below), same convention as D5's
     // MNUBARCHC/MNUBARSEP gate.
     const isSflOrSflCtlRecord = !isConstant && (WebviewClientHelpers.isSflRecord(found.record) || WebviewClientHelpers.isSflCtlRecord(found.record));
     if (isSflOrSflCtlRecord) {
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::subfile-keywords', 'Subfile keywords (SFLRCDNBR/SFLROLVAL)', WebviewClientHelpers.subfileFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::subfile-keywords', 'Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)', WebviewClientHelpers.subfileFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
     }
     // D5 - Menu-bar choice fields (docs/sda-reference/ task D5). Two
     // distinct gates, since these serve two different field kinds:
@@ -4521,7 +4522,8 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireMessageIdInstancesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     if (isSflOrSflCtlRecord) {
-      WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      const siblingFieldsKeywords = (found.record.fields || []).filter((f) => f.sourceLine !== field.sourceLine).map((f) => f.keywords);
+      WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, siblingFieldsKeywords);
     }
     if (isMenuBarRecord) {
       WebviewClientHelpers.wireMenuBarChoicesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
