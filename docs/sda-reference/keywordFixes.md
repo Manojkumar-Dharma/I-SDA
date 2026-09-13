@@ -585,7 +585,7 @@ confirmed (via `git stash`) to fail against the pre-fix code.
 | **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. **Fixed (0.10.91):** `MNUBAR` itself was wrongly showing a Conditioning toggle — IBM's own DDS Reference states "Option indicators are not valid for this keyword" — removed; its free-text parameter placeholder (previously flagged as "not confidently verified") is now the confirmed `*SEPARATOR \| *NOSEPARATOR` (default `*SEPARATOR`) syntax. Confirmed already-correct: `MNUBARSW`/`MNUCNL` (both option-indicator-valid, already wired file- and record-level per IBM's "file- or record-level" designation, correct CA-key/response-indicator parameters from Task I-4) and `MNUBARDSP` (already given correct two-format handling by Task L76/I-4). The "duplicate listing" question is confirmed to be a `KEYWORD-INDEX.json` documentation artifact only — the code renders one shared MNUBARDSP row on R1's base General tab, not two — left for I-16's regeneration rather than fixed here. **Flagged, not fixed this task:** MNUBARDSP's own "more than one can be specified if all are optioned" repeatability isn't modeled (single-instance UI only, no repeatable-instance list the way SFLMSG/indicator instances get elsewhere in this codebase) — now **I-17**; MNUBARSW/MNUCNL's mutual CA-key exclusion (IBM: a CAnn key assigned to one cannot be reused on the other within a record) isn't enforced — now **I-18**; MNUBAR's structural constraint (must contain exactly one menu-bar field, no other displayable fields) isn't validated — now **I-19**. All three are bigger, separate-scope changes — logged rather than silently absorbed, and split into their own tasks below rather than left as bare prose so they're pickable. | I-7 | done (0.10.91) |
 | **I-15** | Combination record types: `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL` | Not a full per-type audit (see "Record types NOT getting their own task" above) — recheck R6/R8/R9/R11/R12's "no cross-contamination" finding specifically from THIS audit's angle: does IBM's DDS Reference document any usage/conditioning/parameter rule that only applies when two keywords are combined on the same record (e.g. a restriction on `SFL` that's stated differently when `WINDOW` is also present)? If nothing turns up, close as "confirmed independent, no combination-specific rules" the same way R6/R8/R9/R11/R12 closed with "zero new code needed." If something does turn up, split it into its own task rather than silently patching it here. **Closed (no code change):** `WINDOW`'s own DDS Reference section states outright that `WINDOW` is not allowed on a record with `SFL`, but is explicitly allowed on a record with `SFLCTL` ("Note: The WINDOW keyword is allowed on a record with the SFLCTL keyword. This allows subfiles to be displayed within a window."), confirmed by the DDS Reference's own worked example (a `SFLCTL(SFLDATA) WINDOW(...)` control record). `buildTypedRecordPlan`'s `WDWSFL` type already matches this exactly — it writes plain `SFL` on the main (detail) record and `SFLCTL`+`WINDOW` together on the auto-generated dependent (control) record, never the reverse; there is no reachable path through this UI to land `WINDOW` directly on a plain `SFL` record. `PULLDOWN`'s own forbidden-keyword list (I-13) names `SFL` but not `SFLCTL`, and no other keyword's own DDS Reference section states a `PULLDOWN`+`SFLCTL` restriction either way — `PDNSFL` builds the same shape (`SFL` on the detail record, `SFLCTL`+`PULLDOWN` on the dependent) with nothing to guard against. Both the Window and Pull-down record-properties tabs are also only ever shown for a record that already carries `WINDOW`/`PULLDOWN` (`isWindowRecord`/`isPulldownRecord` gate the tab itself, not just a checkbox within it), so there is no in-UI on/off toggle that could retrofit either keyword onto an existing `SFL`/`SFLCTL` record after creation — confirming R6/R8/R9/R11/R12's "zero cross-contamination" finding still holds from this audit's angle too, for every combination the current code actually implements. **One real combination-specific rule did turn up, split into I-26 rather than fixed here:** `SFLSNGCHC`'s and `SFLMLTCHC`'s own DDS Reference sections each state that their `*RSTCSR`/`*NORSTCSR` and `*AUTOSLT`/`*NOAUTOSLT` parameter defaults flip specifically "if the SFL[SNGCHC\|MLTCHC] subfile control record is defined in a pulldown." This is a genuine `PDNSFLCTL`-specific rule, but `SFLSNGCHC`/`SFLMLTCHC` (and their sibling `SFLSCROLL`) were never implemented in iSDA at all — confirmed absent from I-10's own audited SFLCTL scope and from the codebase — so there is no existing combination behavior to fix; adding the keywords themselves is bigger than this task's own recheck scope. | I-9, I-10, I-11, I-12, I-13 | done - confirmed independent, no code change; SFLSNGCHC/SFLMLTCHC pulldown-default finding split to I-26 |
 | **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | Housekeeping, not an audit task itself — once I-7 through I-15 land real fixes, regenerate the keyword-index files (`build_index.py`/`build_lookup_and_md.py`) so they stop reflecting stale pre-fix state (the `PRTFILE` example above is one instance; there may be others by the time this is picked up). Do this LAST, after the others are done, not incrementally per task — regenerating after every single fix just churns the index files repeatedly for no benefit. | I-7 through I-15 | not started |
-| **I-17** | `MNUBARDSP` repeatable-conditioned-instance support | IBM's own DDS Reference: "Option indicators are valid for the MNUBARDSP keyword, and more than one MNUBARDSP keyword can be specified on the record if all are optioned. If more than one MNUBARDSP keyword is in effect when the record is written, the first one in effect is used." Today's picker models MNUBARDSP as a single instance (`getFileFlagKeyword`/`setFileFlagKeyword`/`getMnubardspFields`/`setMnubardspFields`) on both the non-MNUBAR-record 3-name form and the MNUBAR-record single-pull-down-input form, so a second, differently-conditioned MNUBARDSP on the same record can only be added via the raw Keywords editor, not this row. Needs a repeatable-instance UI, same shape as `recordIndicatorInstancesHtml`/`errorMessageInstancesHtml`/`messageIdInstancesHtml` elsewhere in this codebase, applied to whichever of MNUBARDSP's two parameter shapes is active on the record carrying it. | I-14 | in progress |
+| **I-17** | `MNUBARDSP` repeatable-conditioned-instance support | IBM's own DDS Reference: "Option indicators are valid for the MNUBARDSP keyword, and more than one MNUBARDSP keyword can be specified on the record if all are optioned. If more than one MNUBARDSP keyword is in effect when the record is written, the first one in effect is used." Today's picker models MNUBARDSP as a single instance (`getFileFlagKeyword`/`setFileFlagKeyword`/`getMnubardspFields`/`setMnubardspFields`) on both the non-MNUBAR-record 3-name form and the MNUBAR-record single-pull-down-input form, so a second, differently-conditioned MNUBARDSP on the same record can only be added via the raw Keywords editor, not this row. Needs a repeatable-instance UI, same shape as `recordIndicatorInstancesHtml`/`errorMessageInstancesHtml`/`messageIdInstancesHtml` elsewhere in this codebase, applied to whichever of MNUBARDSP's two parameter shapes is active on the record carrying it. **Done (0.10.95):** replaced the single-instance row with a repeatable, independently-conditioned instance list built on the same generic `DspfWriter.getRepeatableKeywordInstances`/`setRepeatableKeywordInstances` primitive `moubtnPanelHtml`/`wireMoubtnPanel` already use for MOUBTN, rather than a bespoke get/set pair. Both parameter shapes preserved (parsed/composed per-instance locally in `webviewClientHelpers.js`, since the old `getMnubardspFields`/`setMnubardspFields` pair operates on a whole `keywords` array, not one instance's raw parameter string) - see Findings below for the full per-shape and ordering detail, including a pre-existing writer/re-parse characteristic this task's own test had to account for rather than treat as a regression. | I-14 | done (0.10.95) |
 | **I-18** | `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard | IBM's own DDS Reference states this both ways: under `MNUBARSW`, "the CAnn key specified by the MNUBARSW keyword cannot be specified again using another keyword (such as MNUCNL)"; under `MNUCNL`, the mirror statement naming `MNUBARSW`. Nothing in `menuBarKeysPanelHtml`/`wireMenuBarKeysPanel` (shared between the file-level Menu-bar panel and this record-level MNUBAR panel) stops a person from assigning the same CAnn to both today. Needs a hard-block guard analogous in shape to L81's `dftGroupConflictReason` or I-11's `sflNxtchgSflMsgRcdConflictReason` — likely wired into both keywords' own CA-key input's `change` handler, checked against whichever CAnn is currently set on the other. Scope question to resolve during this task: whether the check needs to span both the file-level and record-level copies of these two keywords at once (a file-level MNUBARSW and a record-level MNUCNL sharing a CAnn would presumably also be invalid, per "at the file level extends to all records in the file" language under both keywords) or just the same-record case — read both keywords' full sections again before assuming either scope. | I-14 | not started |
 | **I-19** | `MNUBAR` field-shape structural constraint | IBM's own DDS Reference, under `MNUBAR` itself: "A record with the MNUBAR keyword specified must contain one and only one menu bar field (a field with one or more MNUBARCHC keywords), and cannot contain any displayable fields other than the menu bar field." This is a record-composition rule, not a keyword-conditioning or parameter gap, so it falls outside I-7 through I-14's 4-dimension keyword-audit method entirely — it's a new kind of check (validating a record's field list against a keyword it carries) rather than a keyword-level fix. Scope question to resolve during this task: whether iSDA's field-adding UI already structurally prevents adding a second displayable field to a MNUBAR record (worth checking before assuming a new guard is needed at all), and if not, whether the right point to block it is at field-creation time or as a validation surfaced elsewhere (e.g. a warning on the MNUBAR tab itself, given this codebase's general preference for advisory hints when a constraint spans a different object than the one being edited — see L83's own precedent). | I-14 | not started |
 | **I-20** | Repeatable Indicator-instance model isn't kind-aware | Two separate findings converge on the same root cause. **(a)** I-7's own audit flagged that the repeatable Indicator-instance model (`CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT`, one shared component) offers the same uniform Conditioning toggle for every keyword in the set, even though IBM's own DDS Reference says option indicators are specifically NOT valid for `VLDCMDKEY`/`SETOF`/`CHANGE` — a real conditioning-eligibility bug that's stayed unfixed because the shared component has no per-keyword eligibility hook. **(b)** I-13's own audit separately found that `CLEAR` is on `PULLDOWN`'s own 27-keyword forbidden list ("The following keywords cannot be specified on a record with the PULLDOWN keyword"), but couldn't wire the same `pulldownConflictReason` guard onto it because `CLEAR` lives in this same shared, not-kind-aware component rather than a plain `flagRowHtml` row. Both fixes need the same underlying change: give the repeatable Indicator-instance component a way to know which specific keyword (and, for (b), which record type) it's rendering an instance of, rather than treating all member keywords identically. Worth doing once, covering both findings, rather than two overlapping patches. | I-7, I-13 | not started |
@@ -881,6 +881,86 @@ the same record (guard is scoped to just those two), and that
 `ALWROL`/`ASSUME` are completely unaffected on an ordinary non-WINDOW
 record (no regression). Confirmed (via `git stash`) to fail 6 of its 24
 assertions against the pre-fix code.
+
+### I-17 findings (done, v0.10.95)
+
+Replaced MNUBARDSP's single-instance row (Task L76/I-4's own
+`getFileFlagKeyword`/`setFileFlagKeyword` + `getMnubardspFields`/
+`setMnubardspFields` pair) with a repeatable, independently-conditioned
+instance list, closing the gap I-14's own audit flagged: IBM's DDS
+Reference states "more than one MNUBARDSP keyword can be specified on
+the record if all are optioned," which the single-instance row couldn't
+express at all (a second MNUBARDSP could only be added through the raw
+Keywords editor).
+
+**Design choice - reuse, don't rebuild:** rather than a bespoke
+MNUBARDSP-specific get/set pair, this reuses the exact same generic
+`DspfWriter.getRepeatableKeywordInstances`/`setRepeatableKeywordInstances`
+primitive `moubtnPanelHtml`/`wireMoubtnPanel` already use for MOUBTN (a
+plain repeatable single-keyword-name list with no pairing to another
+keyword) - MNUBARDSP fits that same shape, just with a keyword-specific
+row renderer. New functions added to `webviewClientHelpers.js`:
+`parseMnubardspInstanceParams`/`composeMnubardspInstanceParams` (parse/
+compose one instance's raw parameter text for either of MNUBARDSP's two
+shapes), `mnubardspInstanceRowHtml`, `mnubardspPanelHtml`,
+`wireMnubardspPanel`. The old `getMnubardspFields`/`setMnubardspFields`
+pair in `dspfWriter.js` is left in place, unused by the UI now but still
+a valid, separately-tested public primitive (`recordKeywordsPicker.
+test.js` exercises it directly) - not removed, since deleting a tested,
+exported function outside this task's own scope isn't this task's call
+to make.
+
+**Both parameter shapes preserved:** the `isMnuBarRec` check
+(`kw.some(k => k.name === 'MNUBAR')`) that picked between MNUBARDSP's
+two formats in the old single-instance code is unchanged, just now
+threaded through to decide which row shape (single pull-down-field
+input, or 3-name rec/choice/pull-down row) each instance renders as -
+confirmed via a MNUBAR-record and a non-MNUBAR-record side by side in
+the same test file.
+
+**Blank-instance handling differs from MOUBTN/record-indicator's own
+precedent, deliberately:** those two components' own `makeDefaultInstance`
+return a non-blank placeholder (`'*ULP CF01'`, `resp: '10'`) because a
+genuinely blank instance would vanish on the very next re-render for
+them. MNUBARDSP doesn't have that problem -
+`setRepeatableKeywordInstances` always writes one entry per instance
+with a `name`, regardless of whether `parameters` is empty - so a fresh
+instance is left entirely blank rather than fabricating a placeholder
+record/field name, since (unlike a response indicator number or a
+generic command key) there's no generic valid value for a menu-bar
+record or field name; it has to be a real name from the DSPF being
+edited, which only the person filling in the row can supply.
+
+**Pre-existing writer/re-parse characteristic, surfaced (not
+introduced) by this task's own test:** once one of several same-named
+repeatable instances becomes independently conditioned, round-tripping
+through `applyRecordUpdate` + re-parse can change which physical DDS
+source line - and therefore which array index - each instance re-parses
+back into (a conditioned instance and an unconditioned one don't
+serialize to the same kind of source line; see the test's own inline
+comment for a worked example). This is true of the pre-existing
+record-indicator-instance list this reuses the same primitive from too
+- `dspfWebview.test.js`'s own Indicator-tab scenario already matches
+instances by content (`k.name === X && k.parameters === Y`) rather than
+position for exactly this reason - so this is confirmed to be an
+established, already-worked-around characteristic of the shared
+primitive, not a regression this task introduced. The test below was
+initially written assuming positional stability, caught this itself via
+a failing assertion, and was corrected to match by content instead.
+
+**Test coverage:**
+`src/test/i17MnubardspRepeatableInstances.test.js` renders the real
+generated webview in jsdom and covers: empty state on a fresh record;
+adding a blank instance that survives re-render; the 3-name row
+rendering and committing correctly on a non-MNUBAR record (trailing
+blank dropped); a second, independently-conditioned instance coexisting
+with the first without disturbing it; conditioning one instance leaving
+the other's conditioning untouched; removing one instance (matched by
+content, per the ordering note above) leaving the other intact with its
+conditioning preserved; and the MNUBAR-record's own single-pull-down-
+field shape rendering correctly (no rec/choice inputs) on a second
+record in the same file, with that record's own `MNUBAR`/field-level
+`MNUBARCHC` keywords confirmed untouched throughout.
 
 ---
 

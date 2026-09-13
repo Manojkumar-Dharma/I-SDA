@@ -3667,6 +3667,132 @@
   // once (they're on different tabs, but ids are still page-global).
   // -----------------------------------------------------------------------
 
+  // -----------------------------------------------------------------------
+  // Task I-17 - MNUBARDSP's own documented repeatability ("Option
+  // indicators are valid for the MNUBARDSP keyword, and more than one
+  // MNUBARDSP keyword can be specified on the record if all are
+  // optioned. If more than one MNUBARDSP keyword is in effect when the
+  // record is written, the first one in effect is used.") wasn't modeled
+  // by Task L76/I-4's own single-instance fix (getFileFlagKeyword/
+  // setFileFlagKeyword + getMnubardspFields/setMnubardspFields) - this
+  // reuses the same generic DspfWriter.getRepeatableKeywordInstances/
+  // setRepeatableKeywordInstances primitive moubtnPanelHtml/
+  // wireMoubtnPanel above already use for MOUBTN (a plain repeatable
+  // single-keyword-name list, no pairing with another keyword the way
+  // Color & attributes needs), rather than a bespoke get/set pair.
+  //
+  // MNUBARDSP keeps its own two mutually-exclusive parameter SHAPES (see
+  // getMnubardspFields's own comment in dspfWriter.js for the full
+  // citation: a single optional pull-down-input name on a record that
+  // itself carries MNUBAR, vs. 2 required + 1 optional trailing name on
+  // any other record) - that per-record-type shape choice is orthogonal
+  // to repeatability, so `isMnuBarRec` is threaded through unchanged from
+  // recordKeywordsPanelsHtml's own existing check, and each instance's
+  // raw `parameters` text is parsed/composed locally here rather than
+  // through getMnubardspFields/setMnubardspFields (which read/write the
+  // single keyword directly on a `keywords` array, not a bare parameter
+  // string one repeatable instance owns).
+  // -----------------------------------------------------------------------
+
+  /** Splits one MNUBARDSP instance's raw `parameters` text into its
+   *  positional fields for whichever of the two shapes applies. */
+  function parseMnubardspInstanceParams(text, isMnuBarRec) {
+    var parts = (text || '').trim().split(/\s+/).filter(Boolean);
+    if (isMnuBarRec) return { menuBarRecord: '', choiceField: '', pullDownField: parts[0] || '' };
+    return { menuBarRecord: parts[0] || '', choiceField: parts[1] || '', pullDownField: parts[2] || '' };
+  }
+
+  /** Inverse of parseMnubardspInstanceParams - joins whichever fields
+   *  apply back into raw parameter text, dropping trailing blanks (so a
+   *  blank pullDownField on the non-MNUBAR-record shape writes just
+   *  "REC1 CHC1", not "REC1 CHC1 "). */
+  function composeMnubardspInstanceParams(f, isMnuBarRec) {
+    if (isMnuBarRec) return (f.pullDownField || '').trim();
+    var parts = [(f.menuBarRecord || '').trim(), (f.choiceField || '').trim(), (f.pullDownField || '').trim()];
+    while (parts.length && !parts[parts.length - 1]) parts.pop();
+    return parts.join(' ');
+  }
+
+  function mnubardspInstanceRowHtml(inst, p, isMnuBarRec) {
+    var f = parseMnubardspInstanceParams(inst.parameters, isMnuBarRec);
+    if (isMnuBarRec) {
+      return '<input type="text" class="' + p + '-pull" placeholder="Pull-down input field (name, optional)" value="' + escapeHtml(f.pullDownField) + '" style="width:100%;" />';
+    }
+    return '<div class="three-col">' +
+      '<input type="text" class="' + p + '-rec" placeholder="Menu-bar record (name)" value="' + escapeHtml(f.menuBarRecord) + '" />' +
+      '<input type="text" class="' + p + '-chc" placeholder="Choice field (name)" value="' + escapeHtml(f.choiceField) + '" />' +
+      '<input type="text" class="' + p + '-pull" placeholder="Pull-down input field (name, optional)" value="' + escapeHtml(f.pullDownField) + '" />' +
+      '</div>';
+  }
+
+  /** MNUBARDSP panel (Task I-17), record-level - shared verbatim across
+   *  every record type via recordKeywordsPanelsHtml's own General tab,
+   *  same as the single-instance version it replaces. */
+  function mnubardspPanelHtml(keywords, ownerKey, expandedSet) {
+    var kw = keywords || [];
+    var isMnuBarRec = kw.some(function (k) { return k.name === 'MNUBAR'; });
+    var instances = DspfWriter.getRepeatableKeywordInstances(kw, ['MNUBARDSP']);
+    return repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-mnubardsp-rep',
+      function renderPayload(inst, instIdPrefix) { return mnubardspInstanceRowHtml(inst, instIdPrefix, isMnuBarRec); },
+      expandedSet,
+      '+ Add Menu-Bar display (MNUBARDSP)'
+    );
+  }
+
+  function wireMnubardspPanel(getKeywords, onChange, ownerKey, expandedSet, rerender) {
+    var kw = getKeywords();
+    var isMnuBarRec = kw.some(function (k) { return k.name === 'MNUBAR'; });
+    var instances = DspfWriter.getRepeatableKeywordInstances(kw, ['MNUBARDSP']);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-mnubardsp-rep',
+      instances,
+      function (next) { onChange(DspfWriter.setRepeatableKeywordInstances(getKeywords(), ['MNUBARDSP'], next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var pullEl = document.querySelector('.' + instIdPrefix + '-pull');
+        if (isMnuBarRec) {
+          if (pullEl) pullEl.addEventListener('change', function () {
+            updatePayload({ name: 'MNUBARDSP', parameters: composeMnubardspInstanceParams({ pullDownField: pullEl.value }, true) });
+          });
+          return;
+        }
+        var recEl = document.querySelector('.' + instIdPrefix + '-rec');
+        var chcEl = document.querySelector('.' + instIdPrefix + '-chc');
+        function commit() {
+          updatePayload({
+            name: 'MNUBARDSP',
+            parameters: composeMnubardspInstanceParams({
+              menuBarRecord: recEl ? recEl.value : '',
+              choiceField: chcEl ? chcEl.value : '',
+              pullDownField: pullEl ? pullEl.value : ''
+            }, false)
+          });
+        }
+        if (recEl) recEl.addEventListener('change', commit);
+        if (chcEl) chcEl.addEventListener('change', commit);
+        if (pullEl) pullEl.addEventListener('change', commit);
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        // Unlike MOUBTN/record-indicator's own makeDefaultInstance (which
+        // need a non-blank placeholder so the new row survives the next
+        // re-render), MNUBARDSP's meaning never depends on its parameters
+        // being non-blank - setRepeatableKeywordInstances always writes
+        // one entry per instance with a `name`, regardless of whether
+        // `parameters` is empty, so a freshly-added blank instance is
+        // never dropped. Left blank rather than fabricating a fake
+        // record/field/CA-key-style generic placeholder, since (unlike a
+        // response indicator number or a command key) there's no
+        // generic valid value for a menu-bar record or field name - it
+        // has to be a real name from this DSPF, which only the person
+        // filling in the row can know.
+        return { name: 'MNUBARDSP', conditions: [], parameters: '' };
+      }
+    );
+  }
+
   /**
    * Builds all 7 R1 category panels' inner HTML at once - { general,
    * indicatorKeywords, help, output, input, overlay, print }, keyed to
@@ -3698,38 +3824,20 @@
     g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     // Bug fix (Task L76 - real SDA's "Define Menu-Bar Display Keywords"
     // screenshot, docs/sda-reference/screens/record-level/menu-bar-record-
-    // mnubar/menu-bar-display-keywords/image151.png): MNUBARDSP used to be
-    // one flat free-text "parameters (optional)" box, forcing the person
-    // to hand-type its 1-3 space-separated names in the right order with
-    // no structured input. Real DDS actually gives MNUBARDSP two different
-    // parameter shapes depending on whether the record itself carries
-    // MNUBAR (see getMnubardspFields's own comment in dspfWriter.js for
-    // the full citation): on a MNUBAR record it's a single optional
-    // "Pull-down input field" name (still just the existing generic
-    // getFileFlagKeyword/setFileFlagKeyword single-parameter shape - that
-    // was already correct for this case, so it's untouched here beyond a
-    // clearer placeholder); on any OTHER record it's 2 required + 1
-    // optional trailing name (Menu-bar record / Choice field / Pull-down
-    // input field), which now gets its own 3-input row via the new
-    // getMnubardspFields/setMnubardspFields pair (a 3-field sibling of
-    // getFileTwoFieldKeyword/setFileTwoFieldKeyword, see dspfWriter.js).
-    // The checkbox + Conditioning toggle stay exactly as they were
-    // (flagRowHtml already modeled MNUBARDSP's own indicator conditioning
-    // correctly - that part of the row was never the bug, only the flat
-    // parameters box was).
-    var mnubardsp = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP');
-    var isMnuBarRecForDsp = kw.some(function (k) { return k.name === 'MNUBAR'; });
-    g += flagRowHtml(p + '-mnubardsp', 'Menu-Bar display (MNUBARDSP)', mnubardsp.present, undefined, undefined, mnubardsp.conditions, expandedSet);
-    if (isMnuBarRecForDsp) {
-      g += '<input type="text" id="' + p + '-mnubardsp-pull" placeholder="Pull-down input field (name, optional)" value="' + escapeHtml(mnubardsp.parameters) + '" style="width:100%;margin:-4px 0 6px;" />';
-    } else {
-      var mnubardspFields = DspfWriter.getMnubardspFields(kw);
-      g += '<div class="three-col" style="margin:-4px 0 6px;">' +
-        '<input type="text" id="' + p + '-mnubardsp-rec" placeholder="Menu-bar record (name)" value="' + escapeHtml(mnubardspFields.menuBarRecord) + '" />' +
-        '<input type="text" id="' + p + '-mnubardsp-chc" placeholder="Choice field (name)" value="' + escapeHtml(mnubardspFields.choiceField) + '" />' +
-        '<input type="text" id="' + p + '-mnubardsp-pull" placeholder="Pull-down input field (name, optional)" value="' + escapeHtml(mnubardspFields.pullDownField) + '" />' +
-        '</div>';
-    }
+    // mnubar/menu-bar-display-keywords/image151.png) superseded by
+    // Task I-17 below - real DDS gives MNUBARDSP
+    // two different parameter shapes depending on whether the record
+    // itself carries MNUBAR (see getMnubardspFields's own comment in
+    // dspfWriter.js for the full citation), AND (per Task I-17's own
+    // audit) allows more than one MNUBARDSP on the same record if all
+    // are optioned - mnubardspPanelHtml/wireMnubardspPanel below cover
+    // both: shape selection is still the same isMnuBarRec check L76
+    // introduced, now threaded through a repeatable-instance list built
+    // on the same generic primitive moubtnPanelHtml already uses for
+    // MOUBTN, rather than the single getFileFlagKeyword/
+    // getMnubardspFields pair this replaces.
+    g += '<div class="section-label">Menu-Bar display (MNUBARDSP)</div>';
+    g += mnubardspPanelHtml(kw, p, expandedSet);
     g += entFldAtrHtml(kw, p + '-entfldatr', expandedSet);
     // Bug fix + feature (Task L77): the old row here used
     // DspfWriter.getFileTwoFieldKeyword (CSRLOC's own plain row/col pair
@@ -4306,34 +4414,12 @@
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
-    // Task L76 - hand-wired (like MNUBARSW/MNUCNL in wireMenuBarKeysPanel)
-    // rather than through the generic wireFlagRow/simple() helpers above,
-    // since MNUBARDSP now has two mutually-exclusive input shapes (1 field
-    // on a MNUBAR record, 3 on any other record - see recordKeywordsPanelsHtml's
-    // own comment) that neither wireFlagRow's single-param-box contract
-    // nor simple()'s 3-arg apply() signature can express.
-    (function wireMnubardsp() {
-      var onEl = document.getElementById(p + '-mnubardsp-on');
-      var pullEl = document.getElementById(p + '-mnubardsp-pull');
-      var recEl = document.getElementById(p + '-mnubardsp-rec');
-      var chcEl = document.getElementById(p + '-mnubardsp-chc');
-      function apply(keywords, conditions) {
-        var present = onEl.checked;
-        var isMnuBarRec = (keywords || []).some(function (k) { return k.name === 'MNUBAR'; });
-        if (isMnuBarRec) {
-          return DspfWriter.setFileFlagKeyword(keywords, 'MNUBARDSP', present, pullEl ? pullEl.value : '', undefined, conditions);
-        }
-        return DspfWriter.setMnubardspFields(keywords, present, recEl ? recEl.value : '', chcEl ? chcEl.value : '', pullEl ? pullEl.value : '', conditions);
-      }
-      function commit() { onChange(apply(getKeywords(), undefined)); }
-      if (onEl) onEl.addEventListener('change', commit);
-      if (pullEl) pullEl.addEventListener('change', commit);
-      if (recEl) recEl.addEventListener('change', commit);
-      if (chcEl) chcEl.addEventListener('change', commit);
-      wireFlagRowConditioning(p + '-mnubardsp', DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUBARDSP').conditions, function (newConditions) {
-        onChange(apply(getKeywords(), newConditions));
-      }, expandedSet, rerender);
-    })();
+    // Task L76 (superseded by Task I-17 below) - hand-wired panel/wire
+    // pair rather than the generic wireFlagRow/simple() helpers above,
+    // now further replaced by mnubardspPanelHtml/wireMnubardspPanel's own
+    // repeatable-instance shell (see recordKeywordsPanelsHtml's matching
+    // comment on the build side).
+    wireMnubardspPanel(getKeywords, onChange, p, expandedSet, rerender);
     wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender);
     // Task L77 - hand-wired (like MNUBARDSP above) since RTNCSRLOC's two
     // independent variants each need their own "present" checkbox + name
