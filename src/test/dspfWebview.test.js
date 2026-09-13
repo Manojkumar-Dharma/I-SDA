@@ -4317,7 +4317,7 @@ function runSflMsgPickerScenario() {
     check('SFLMSGRCD accepts a field name', reparsed.keywords.find((k) => k.name === 'SFLMSGRCD').parameters.trim() === 'LINEFLD');
     posted.length = 0;
 
-    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL)/CHGINPDFT all start unchecked, toggling one commits just that keyword');
+    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/CHECK(AB)/CHECK(RL)/CHGINPDFT all start unchecked, toggling one commits just that keyword');
     check('SFLNXTCHG starts unchecked', !doc.getElementById('sm-sflnxtchg-on').checked);
 
     console.log('  Task I-11: SFLNXTCHG is hard-blocked from being turned on here - the DDS Reference states outright "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword", and this record always carries SFLMSGRCD (that\'s what put it on the SFLMSG tab in the first place)');
@@ -4334,14 +4334,9 @@ function runSflMsgPickerScenario() {
       dom.window.alert = originalAlert;
     }
 
-    const keepBox = doc.getElementById('sm-keep-on');
-    keepBox.checked = true;
-    keepBox.dispatchEvent(new Event('change', { bubbles: true }));
-    applyEdit = posted.find((m) => m.type === 'applyEdit');
-    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
-    check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
-    check('SFLNXTCHG was NOT added (independent toggle)', !reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
-    posted.length = 0;
+    console.log('  Task I-25: KEEP no longer has its own live row on this panel - it is on the base Record Keywords -> General tab instead, with a hint pointing there');
+    check('no sm-keep row rendered', !doc.getElementById('sm-keep-on'));
+    check('hint pointing to the base tab is shown', /Keep records on display when closing the file \(KEEP\) is on the base Record Keywords/.test(doc.body.innerHTML));
 
     console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
     doc.getElementById('sm-check-ab-on').checked = true;
@@ -4633,19 +4628,17 @@ function runSflPickerScenario() {
 
     const p = 'sfl-SUBFILE';
 
-    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/KEEP/CHECK(AB)/CHECK(RL) all start unchecked, toggling one commits just that keyword');
+    console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/CHECK(AB)/CHECK(RL) all start unchecked, toggling one commits just that keyword');
     check('setup: SFLNXTCHG checkbox present', !!doc.getElementById(p + '-sflnxtchg-on'));
     check('SFLNXTCHG starts unchecked', doc.getElementById(p + '-sflnxtchg-on').checked === false);
-    doc.getElementById(p + '-keep-on').checked = true;
-    doc.getElementById(p + '-keep-on').dispatchEvent(new Event('change', { bubbles: true }));
-    let applyEdit = posted.find((m) => m.type === 'applyEdit');
-    let reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
-    check('KEEP was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
-    check('SFLNXTCHG was NOT added (independent toggle)', !reparsed.keywords.some((k) => k.name === 'SFLNXTCHG'));
-    check('SFL itself is untouched', reparsed.keywords.some((k) => k.name === 'SFL'));
-    posted.length = 0;
+
+    console.log('  Task I-25: KEEP no longer has its own live row on this panel - it is on the base Record Keywords -> General tab instead, with a hint pointing there');
+    check('no sfl-SUBFILE-keep row rendered', !doc.getElementById(p + '-keep-on'));
+    check('hint pointing to the base tab is shown', /Keep records on display when closing the file \(KEEP\)/.test(doc.body.innerHTML));
 
     console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
+    let applyEdit;
+    let reparsed;
     doc.getElementById(p + '-check-ab-on').checked = true;
     doc.getElementById(p + '-check-ab-on').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
@@ -4664,7 +4657,6 @@ function runSflPickerScenario() {
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SUBFILE');
     check('SETOF(30) written', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '30'));
     check('CHANGE(40) written', reparsed.keywords.some((k) => k.name === 'CHANGE' && k.parameters.trim() === '40'));
-    check('KEEP from the earlier General step is still there (independent panels)', reparsed.keywords.some((k) => k.name === 'KEEP'));
 
     runWindowPickerScenario();
   }, 0);
@@ -5891,13 +5883,16 @@ function runPuldwnsflPickerScenario() {
     sflTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
     const dtlPrefix = 'sfl-PDTL1';
     console.log('  General/Indicator commit exactly as they do on a plain SFL record (Task R3\u2019s panel, unmodified)');
-    doc.getElementById(dtlPrefix + '-keep-on').checked = true;
-    doc.getElementById(dtlPrefix + '-keep-on').dispatchEvent(new Event('change', { bubbles: true }));
+    // Task I-25: KEEP no longer has a live row on this panel - use LOGOUT
+    // (still a live row here) to exercise the same "commits without
+    // disturbing sibling records" behavior.
+    doc.getElementById(dtlPrefix + '-logout-on').checked = true;
+    doc.getElementById(dtlPrefix + '-logout-on').dispatchEvent(new Event('change', { bubbles: true }));
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('an edit was posted', !!applyEdit);
     let reparsed = DspfParser.parseDspf(applyEdit.text);
     let dtlRec = reparsed.records.find((r) => r.name === 'PDTL1');
-    check('KEEP was added to PDTL1', dtlRec.keywords.some((k) => k.name === 'KEEP'));
+    check('LOGOUT was added to PDTL1', dtlRec.keywords.some((k) => k.name === 'LOGOUT'));
     let ctlRecUntouched = reparsed.records.find((r) => r.name === 'PCTL1');
     check("PCTL1's own SFLCTL/PULLDOWN are untouched by the detail record's edit", ctlRecUntouched.keywords.some((k) => k.name === 'SFLCTL') && ctlRecUntouched.keywords.some((k) => k.name === 'PULLDOWN'));
     posted.length = 0;
@@ -5937,7 +5932,7 @@ function runPuldwnsflPickerScenario() {
     check('SFLDSP was added to PCTL1', ctlRec.keywords.some((k) => k.name === 'SFLDSP'));
     check("PCTL1's own PULLDOWN is untouched by the SFLCTL edit", ctlRec.keywords.some((k) => k.name === 'PULLDOWN' && /\*SLTIND/.test(ctlRec.keywords.find((k2) => k2.name === 'PULLDOWN').parameters)));
     const dtlRecFinal = reparsed.records.find((r) => r.name === 'PDTL1');
-    check("PDTL1's own SFL/KEEP are untouched by the control record's edit", dtlRecFinal.keywords.some((k) => k.name === 'SFL') && dtlRecFinal.keywords.some((k) => k.name === 'KEEP'));
+    check("PDTL1's own SFL/LOGOUT are untouched by the control record's edit", dtlRecFinal.keywords.some((k) => k.name === 'SFL') && dtlRecFinal.keywords.some((k) => k.name === 'LOGOUT'));
 
     runPdnSflCtlPickerScenario();
   }, 0);

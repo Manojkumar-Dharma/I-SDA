@@ -4369,13 +4369,18 @@
     g += flagRowHtml('sm-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
     g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
-    var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += flagRowHtml('sm-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
     g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
     g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
     g += chgInpDftFlagHtml(kw, 'sm-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
+    // Task I-25: KEEP (shown on real SDA's own "Select Subfile Message
+    // Keywords" screen) is deliberately NOT repeated here anymore - it's
+    // already on Task R1's base Record Keywords -> General tab, shown for
+    // every record type including this one, so a second live copy here was
+    // just two controls fighting over the same keyword (same rationale
+    // I-25 applied to the SFL/SFLCTL tabs' own KEEP copies below).
+    g += '<div class="hint-small">Keep records on display when closing the file (KEEP) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
     // --- Indicator ---
@@ -4992,12 +4997,12 @@
 
   /** Builds Task R3's 2 SFL-specific sub-panels' inner HTML at once -
    *  { general, indicator } - for the record properties panel's SFL tab
-   *  (see isSflRecord above for when that tab appears). CHGINPDFT (shown
-   *  on real SDA's own "Select Subfile Keywords \u2192 General" screen) is
-   *  deliberately NOT repeated here - it's already on Task R1's base
-   *  Record Keywords \u2192 General tab, shown for every record type
-   *  including SFL, so adding it again here would just be two controls
-   *  fighting over the same keyword. */
+   *  (see isSflRecord above for when that tab appears). CHGINPDFT and (as
+   *  of Task I-25) KEEP - both shown on real SDA's own "Select Subfile
+   *  Keywords \u2192 General" screen - are deliberately NOT repeated here;
+   *  each is already on Task R1's base Record Keywords \u2192 General tab,
+   *  shown for every record type including SFL, so adding either again
+   *  here would just be two controls fighting over the same keyword. */
   function sflKeywordsPanelsHtml(keywords, idPrefix, expandedSet) {
     var kw = keywords || [];
     var p = idPrefix;
@@ -5011,10 +5016,13 @@
     // Task I-9: LOGINP - "Option indicators are not valid for this keyword."
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
     g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined);
-    // Task I-9: KEEP - "Option and response indicators are not valid for
-    // this keyword."
-    var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, undefined, undefined);
+    // Task I-25: KEEP (shown on real SDA's own "Select Subfile Keywords ->
+    // General" screen) is deliberately NOT repeated here anymore - it's
+    // already on Task R1's base Record Keywords -> General tab, shown for
+    // every record type including SFL, so a second live copy here was just
+    // two controls fighting over the same keyword (same rationale
+    // sflKeywordsPanelsHtml's own top comment already applied to
+    // CHGINPDFT below).
     // Task I-9: CHECK - same rule as I-3's file-level finding ("Option
     // indicators are valid only for CHECK(ER) and CHECK(ME)") - AB/RL
     // aren't either of those, so neither offers conditioning here either.
@@ -5022,7 +5030,7 @@
     g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
     g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined);
-    g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
+    g += '<div class="hint-small">Keep records on display when closing the file (KEEP) and change input defaults (CHGINPDFT) are on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
     panels.indicator = indicatorTextRowsHtml(kw, p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6);
@@ -5042,9 +5050,8 @@
     simple(p + '-logout', 'LOGOUT');
     // Task I-9: LOGINP - "Option indicators are not valid for this keyword."
     simple(p + '-loginp', 'LOGINP', false, true);
-    // Task I-9: KEEP - "Option and response indicators are not valid for
-    // this keyword."
-    simple(p + '-keep', 'KEEP', false, true);
+    // Task I-25: KEEP no longer has a live row on this panel - see
+    // sflKeywordsPanelsHtml's own comment.
     // Task I-9: CHECK(AB)/CHECK(RL) - not eligible (see sflKeywordsPanelsHtml's
     // own comment - same rule I-3 already established for file-level CHECK).
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'AB', conditions); }, undefined, undefined, undefined);
@@ -5125,7 +5132,8 @@
     })();
     simple('sm-logout', 'LOGOUT');
     simple('sm-loginp', 'LOGINP');
-    simple('sm-keep', 'KEEP');
+    // Task I-25: KEEP no longer has a live row on this panel - see
+    // sflMsgPanelsHtml's own comment.
     wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
     wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
     wireChgInpDftFlag(getKeywords, onChange, 'sm-chginpdft', expandedSet, rerender);
@@ -5492,13 +5500,14 @@
     g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
     g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
-    var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += flagRowHtml(p + '-keep', 'Keep records on display when closing the file (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
+    // Task I-25: KEEP is no longer repeated on this panel - see
+    // sflCtlPanelsHtml's own comment below (same rationale as the SFL and
+    // SFLMSG tabs' own I-25 removals).
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
     g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
     g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
-    g += '<div class="hint-small">Change input defaults (CHGINPDFT) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
+    g += '<div class="hint-small">Keep records on display when closing the file (KEEP) and change input defaults (CHGINPDFT) are on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
     // --- Indicator (Task L5d - SFLCTL's own real "Define Indicator
@@ -5577,12 +5586,13 @@
     wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params, undefined, conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-sflnxtchg', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLNXTCHG', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, expandedSet, rerender);
     wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGOUT').conditions, expandedSet, rerender);
-    // I-10: LOGINP/KEEP/CHECK(AB,RL) - propagates I-9's own finding (not
+    // I-10: LOGINP/CHECK(AB,RL) - propagates I-9's own finding (not
     // eligible for option indicators) to this SFLCTL panel's own copy of
     // these shared keywords, which never got the fix when I-9 landed it on
     // the plain SFL panel's copy.
     wireFlagRow(p + '-loginp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGINP', present, '', undefined, conditions); }, undefined, undefined, undefined);
-    wireFlagRow(p + '-keep', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'KEEP', present, '', undefined, conditions); }, undefined, undefined, undefined);
+    // Task I-25: KEEP no longer has a live row on this panel - see
+    // sflCtlPanelsHtml's own comment.
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
 

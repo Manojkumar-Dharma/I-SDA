@@ -12,10 +12,15 @@
  * Two categories of finding covered here:
  *  - SFLCTL/SFLMODE/SFLENTER/SFLRNA: newly found not-eligible (this
  *    task's own audit - the Conditioning toggle was wrongly shown before).
- *  - LOGINP/KEEP/CHECK(AB)/CHECK(RL): I-9 already established these are
+ *  - LOGINP/CHECK(AB)/CHECK(RL): I-9 already established these are
  *    not eligible on the plain SFL panel, but that fix was never
  *    propagated to this SFLCTL panel's own separate copy of the same
  *    shared keywords - a real inconsistency, not just an unaudited gap.
+ *
+ * Task I-25 note: KEEP (formerly audited here too) no longer has its own
+ * row on this panel at all - it was de-duplicated down to a single live
+ * copy on the base Record Keywords -> General tab, so its own
+ * eligibility is now covered by the base panel's audit instead.
  *
  * Runs the DSPF designer's real generated client-side script in jsdom
  * (same rationale as i9SflConditioningAudit.test.js).
@@ -85,10 +90,15 @@ setTimeout(() => {
     check(id + ' has no Conditioning toggle', !hasConditioningToggle(id));
   });
 
-  console.log('\nI-9 finding (LOGINP/KEEP/CHECK(AB)/CHECK(RL) not eligible) now propagated to the SFLCTL panel\'s own copy');
-  ['sflctl-SFLCTLR-loginp', 'sflctl-SFLCTLR-keep', 'sflctl-SFLCTLR-check-ab', 'sflctl-SFLCTLR-check-rl'].forEach(function (id) {
+  console.log('\nI-9 finding (LOGINP/CHECK(AB)/CHECK(RL) not eligible) now propagated to the SFLCTL panel\'s own copy');
+  ['sflctl-SFLCTLR-loginp', 'sflctl-SFLCTLR-check-ab', 'sflctl-SFLCTLR-check-rl'].forEach(function (id) {
     check(id + ' has no Conditioning toggle', !hasConditioningToggle(id));
   });
+
+  console.log('\nTask I-25: KEEP no longer has its own row on this panel at all - it is on the base Record Keywords -> General tab instead, with a hint pointing there');
+  check('sflctl-SFLCTLR-keep-on no longer exists', !doc.getElementById('sflctl-SFLCTLR-keep-on'));
+  check('sflctl-SFLCTLR-keep has no Conditioning toggle (does not exist)', !hasConditioningToggle('sflctl-SFLCTLR-keep'));
+  check('hint pointing to the base tab is shown', /Keep records on display when closing the file \(KEEP\)/.test(doc.body.innerHTML));
 
   console.log('\nconfirmed-valid SFLCTL keywords must still offer a Conditioning toggle (no regression)');
   [

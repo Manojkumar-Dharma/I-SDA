@@ -63,7 +63,7 @@ setTimeout(() => {
   check('setup: SFL panel General row (SFLNXTCHG) is present', !!sflnxtchgOn);
 
   console.log('\nconfirmed NOT-valid SFL keywords must NOT offer a Conditioning toggle');
-  ['sfl-SFLREC-loginp', 'sfl-SFLREC-keep', 'sfl-SFLREC-check-ab', 'sfl-SFLREC-check-rl'].forEach(function (id) {
+  ['sfl-SFLREC-loginp', 'sfl-SFLREC-check-ab', 'sfl-SFLREC-check-rl'].forEach(function (id) {
     check(id + ' has no Conditioning toggle', !hasConditioningToggle(id));
   });
 
@@ -72,16 +72,10 @@ setTimeout(() => {
     check(id + ' still has a Conditioning toggle', hasConditioningToggle(id));
   });
 
-  console.log('\nediting an ineligible keyword still commits normally');
-  {
-    const keepOn = doc.getElementById('sfl-SFLREC-keep-on');
-    check('setup: KEEP checkbox is present', !!keepOn);
-    keepOn.checked = true;
-    keepOn.dispatchEvent(new Event('change', { bubbles: true }));
-    const keepOnAfter = doc.getElementById('sfl-SFLREC-keep-on');
-    check('KEEP committed (checkbox reflects checked state after re-render)', keepOnAfter && keepOnAfter.checked === true);
-    check('KEEP still has no Conditioning toggle after commit', !hasConditioningToggle('sfl-SFLREC-keep'));
-  }
+  console.log('\nTask I-25: KEEP no longer has its own row on this panel at all - it is on the base Record Keywords -> General tab instead, with a hint pointing there');
+  check('sfl-SFLREC-keep-on no longer exists', !doc.getElementById('sfl-SFLREC-keep-on'));
+  check('sfl-SFLREC-keep has no Conditioning toggle (does not exist)', !hasConditioningToggle('sfl-SFLREC-keep'));
+  check('hint pointing to the base tab is shown', /Keep records on display when closing the file \(KEEP\)/.test(doc.body.innerHTML));
 
   console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
   process.exit(failures === 0 ? 0 : 1);
