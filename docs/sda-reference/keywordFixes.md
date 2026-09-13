@@ -463,7 +463,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-18** | `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard | I-14 | done (0.10.96) |
 | **I-19** | `MNUBAR` field-shape structural constraint | I-14 | done (0.10.97) |
 | **I-20** | Repeatable Indicator-instance model isn't kind-aware | I-7, I-13 | not started |
-| **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | not started |
+| **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | in progress |
 | **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | not started |
 | **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | not started |
 | **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | not started |
@@ -1289,7 +1289,7 @@ whichever HTML/wiring call sites use them) extended to carry an optional
 conditions parameter, same shape `flagRowHtml`/`wireFlagRow` already
 support.
 
-**Not started.**
+**In progress.**
 
 ### I-22 — `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning
 
