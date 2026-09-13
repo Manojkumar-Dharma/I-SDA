@@ -30,12 +30,25 @@ a task (mark `in progress`, push immediately), `git fetch`/drift-check
 before every push, `node -c buildWebviewTemplate.js` before compiling if
 that file is touched, full `npm test` must stay at zero failures.
 
-Scope for the `I-` series so far is **file-level keywords only** (the 39
-iSDA currently exposes across the 10 categories in
+Scope started as **file-level keywords only** (I-1 through I-6, the 39
+iSDA exposed across the 10 categories in
 `docs/sda-reference/keyword-index/KEYWORD-INDEX.json`'s `file` level,
-plus 5 confirmed-missing ones below). Record-level and field-level get
-their own follow-up series once file-level is closed out — noted under
-"On the horizon" so scope doesn't silently creep mid-series.
+plus 5 confirmed-missing ones) and has since extended to a **record-level
+series, one task per record type** (I-7 onward — see that section's own
+intro for why record-level needed a different shape than one flat list).
+Field-level is next, once the record-level series closes out — see
+"On the horizon."
+
+**Document structure, and how to navigate it:** each of the two audit
+phases (file-level, record-level) opens with one short summary table —
+Task, Topic, Depends on, Status only, so it stays readable and properly
+aligned — followed by a `### I-N — Title` section per task, **in strict
+numeric order**, holding the full scope/finding/fix/test-coverage detail
+for that task. Tasks are numbered in the order they were *opened*, not
+necessarily the order they *landed* (parallel sessions pick up tasks out
+of order) — the version each task landed at is recorded in its own
+Status cell and its own `### I-N` section, not implied by its position in
+the document.
 
 ---
 
@@ -65,7 +78,18 @@ keyword-name mentions anywhere in its section.
 
 ---
 
-## I-1 — Build canonical file-level keyword reference + compare against iSDA
+## File-level audit (I-1 through I-6)
+
+| Task | Topic | Depends on | Status |
+|------|-------|------------|--------|
+| **I-1** | Build canonical file-level keyword reference + compare against iSDA | none | done |
+| **I-2** | `PRTFILE` is not a real DDS keyword (usage/constraint bug) | I-1 | done (0.10.83) |
+| **I-3** | Conditioning (option indicator) audit across all 39 file-level keywords | I-1 | done (0.10.82) |
+| **I-4** | Parameter/sub-parameter completeness audit across all 39 | I-1 | done (0.10.87) |
+| **I-5** | Add confirmed-missing file-level keywords | I-1 | done (0.10.79) |
+| **I-6** | Resolve the `TEXT` file-level question | I-1 | done - removed (0.10.85) |
+
+### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
 **Done.** Extracted all ~155 keyword sections from
 `DDS_Keyword_V7r6.txt`, classified each by documented level(s),
@@ -75,13 +99,7 @@ confirmed file-level subset against iSDA's current 39 (from
 `fileKeywordsPanelsHtml`). Findings feed directly into I-2 through I-6
 below. No code changed in this task — audit only.
 
-| Task | Description | Depends on | Status |
-|------|-------------|------------|--------|
-| **I-1** | Canonical file-level keyword dataset built and diffed against iSDA's current implementation (see findings in I-2 through I-6). No production code touched. | none | done |
-
----
-
-## I-2 — `PRTFILE` is not a real DDS keyword (usage/constraint bug)
+### I-2 — `PRTFILE` is not a real DDS keyword (usage/constraint bug)
 
 **Finding:** IBM's DDS reference has no `PRTFILE` keyword section at all.
 The printer-file name is a **parameter of `PRINT`** itself:
@@ -138,13 +156,7 @@ against the *old* single-field UI; updated it to use the new split
 fields (`fk-print-file` for `*PGM`, `fk-print-params` for a numeric
 response indicator). Full suite: 47/47 files, zero failures.
 
-| Task | Description | Depends on | Status |
-|------|-------------|------------|--------|
-| **I-2** | Fold the mislabeled `PRTFILE` keyword into `PRINT`'s own third parameter form (`PRINT([library/]printer-file-name)`), fixing both the invalid generated DDS syntax and the wrong parameter order/separator. Covers file-level; check record-level's shared `PRTFILE` usage for the same bug before deciding if it's in scope here or a separate task. | I-1 | done (0.10.83) |
-
----
-
-## I-3 — Conditioning (option indicator) audit across all 39 file-level keywords — DONE (v0.10.82)
+### I-3 — Conditioning (option indicator) audit across all 39 file-level keywords
 
 **Full audit results.** Built a canonical eligibility table from each
 keyword's own "Option indicators are/are not valid for this keyword" line
@@ -198,13 +210,7 @@ generated webview in jsdom and asserts, for every keyword this task
 touched, that `.kw-cond-toggle[data-flag-id="..."]` either does or doesn't
 exist — a toggle removed/added only in a code comment isn't a fix.
 
-| Task | Description | Depends on | Status |
-|------|-------------|------------|--------|
-| **I-3** | Full conditioning-eligibility audit across all 39 file-level keywords. 13 keywords (15 rows counting CHECK's 3 sub-flags) had conditioning removed; `ENTFLDATR`/`WDWBORDER` had it added (reverse gap). | I-1 | done |
-
----
-
-## I-4 — Parameter/sub-parameter completeness audit across all 39
+### I-4 — Parameter/sub-parameter completeness audit across all 39
 
 Full audit completed across all 39 file-level keywords, comparing IBM's
 documented parameter syntax (`DDS_Keyword_V7r6.txt`) against iSDA's
@@ -279,13 +285,7 @@ form) — I-2 landed upstream (v0.10.83) with `*PGM` as an explicit
 "Print file (name or *PGM)" input while this task was still in progress,
 so no separate fix was needed here.
 
-| Task | Description | Depends on | Status |
-|------|-------------|------------|--------|
-| **I-4** | Parameter/sub-parameter completeness audit across all 39 file-level keywords. Confirmed one invalid-DDS bug (`MNUBARSW`/`MNUCNL`) and three real completeness/mislabeling gaps (`REF`, `HLPPNLGRP`/`HLPSCHIDX`, and the `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`VLDCMDKEY` missing `'text'` sub-parameter); all fixed. `PRINT`'s `*PGM` option resolved separately by I-2. | I-1 | done |
-
----
-
-## I-5 — Add confirmed-missing file-level keywords
+### I-5 — Add confirmed-missing file-level keywords
 
 Five keywords are documented by IBM as file-level (some as
 file-**or**-record-level, meaning a file-level instance is legitimate
@@ -315,10 +315,6 @@ these 5) before implementing — treat this as 5 sub-tasks under one
 banner rather than one mechanical batch, since `ROLLUP`/`ROLLDOWN`'s
 mutual-exclusion rule alone is enough special-casing to warrant separate
 attention from the other four.
-
-| Task | Description | Depends on | Status |
-|------|-------------|------------|--------|
-| **I-5** | Add 5 confirmed-missing file-level keywords: `HLPRCD`, `MOUBTN`, `ROLLUP`/`ROLLDOWN` (with its `PAGEDOWN`/`PAGEUP` mutual-exclusion rule), `VALNUM`, `WRDWRAP`. | I-1 | done |
 
 **Findings (research pass against `docs/sda-reference/source/DDS_Keyword_V7r6.txt`):**
 
@@ -368,9 +364,7 @@ that actually fails against the pre-fix code, since the dspfWriter.js
 primitives reused here were already generic enough to pass even without
 the UI rows existing).
 
----
-
-## I-6 — Resolve the `TEXT` file-level question
+### I-6 — Resolve the `TEXT` file-level question
 
 **Finding: file-level TEXT is NOT valid DDS - removed from iSDA.** No live
 IBM i connection was available to directly test `CRTDSPF` (the task's own
@@ -409,13 +403,9 @@ notes for `ALTNAME`/`MSGID`/`RETKEY`/`RETCMDKEY` (previously "open
 item", now "verified, general rule" per S36-3's own recent update) and
 corrected `PRINT`'s note to match S36-3's `PRINT(*PGM)` correction.
 
-| Task | Description | Depends on | Status |
-|------|-------------|------------|--------|
-| **I-6** | Verify whether file-level `TEXT` is valid DDS (real `CRTDSPF` test, or an authoritative alternate source) — reference doc only documents record-/field-level. Close as "confirmed correct" or remove from iSDA depending on the outcome. | I-1 | done - removed (0.10.85) |
-
 ---
 
-## Record-level audit (I-7 through I-16) — same 4-dimension method, per record type
+## Record-level audit (I-7 through I-26) — same 4-dimension method, per record type
 
 I-1 through I-6 covered file-level keywords as one flat set of 39. Record
 level doesn't work that way: which keywords are even *applicable* depends
@@ -433,17 +423,18 @@ actually valid for *that* record type specifically, which is exactly the
 **Ground truth for scope, not for correctness** — `PICKER-SCREENS-PLAN.md`
 (R1–R13) and `docs/sda-reference/keyword-index/KEYWORD-INDEX.json`'s
 `record` level already document which keyword *categories* iSDA exposes
-per record type, condensed into each task row below. That tells you
-*where to look*, not that what's there is already correct — the whole
-point of I-1's method (read each keyword's own opening statement in the
-DDS Reference, don't infer from a category label or another keyword's
-mention of it) applies here exactly as it did at file level. Known
-already-stale example: `KEYWORD-INDEX.json`'s record-level Print category
-still lists `PRTFILE` as its own keyword — that's the exact I-2 bug,
-the index just hasn't been regenerated since the fix. Regenerating it
-(`docs/sda-reference/keyword-index/build_index.py` /
+per record type, condensed into each task's own section below. That
+tells you *where to look*, not that what's there is already correct —
+the whole point of I-1's method (read each keyword's own opening
+statement in the DDS Reference, don't infer from a category label or
+another keyword's mention of it) applies here exactly as it did at file
+level. Known already-stale example: `KEYWORD-INDEX.json`'s record-level
+Print category still lists `PRTFILE` as its own keyword — that's the
+exact I-2 bug, the index just hasn't been regenerated since the fix.
+Regenerating it (`docs/sda-reference/keyword-index/build_index.py` /
 `build_lookup_and_md.py`) is fair game for whichever task gets to Print,
-but isn't itself the point of that task.
+but isn't itself the point of that task — I-16 below does this once, at
+the end of the series.
 
 **Record types NOT getting their own task** — `PICKER-SCREENS-PLAN.md`'s
 own R6/R8/R9/R11/R12 already established, with dedicated tests, that
@@ -452,159 +443,161 @@ distinct DDS record types at all: each is just an ordinary `SFLCTL` or
 `SFL` record that also happens to carry `WINDOW` or `PULLDOWN`, with the
 two component panels working independently and zero cross-contamination.
 That finding was about *keyword coverage* (does the right panel appear);
-it hasn't been re-checked from *this* audit's angle (does combining two
-record shapes change any keyword's usage/conditioning/parameter rules
-IBM documents only for the single-shape case). I-15 below covers that
-recheck as one task rather than five, since it's a narrower question than
-a full per-type audit — if it turns up a real combination-specific rule,
-split it out into its own task at that point rather than guessing now.
+it hadn't (until I-15) been re-checked from *this* audit's angle (does
+combining two record shapes change any keyword's usage/conditioning/
+parameter rules IBM documents only for the single-shape case).
 
-| Task | Record type(s) | Scope (current panels/keywords, from KEYWORD-INDEX.json + PICKER-SCREENS-PLAN.md) | Depends on | Status |
-|------|------|-------|------------|--------|
-| **I-7** | `RECORD` (base) | R1's full 8 categories, all in scope for this type: General (`INZRCD`/`KEEP`/`ASSUME`/`ALWROL`/`RETKEY`/`RETCMDKEY`/`CHGINPDFT`/`MNUBARDSP`/`ENTFLDATR`/`RTNCSRLOC`/`TEXT`/`ALTNAME`), Indicator (`CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT`), ~~Application help (`HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA`)~~ *(confirmed during I-7: not actually record-level; Task L5d-ii already moved these to help-specification level, off this tab entirely — the category label above was stale)*, Help (`HLPCLR`/`HLPSEQ`/`HLPCMDKEY`/`HLPTITLE`), Output (`BLINK`/`ALARM`/`MSGALARM`/`LOCK`/`LOGOUT`/`INVITE`/`ALWGPH`/`FRCDTA`/`DSPMOD`/`CSRLOC`/`SLNO`/`CLRL`), Input (`LOGINP`/`UNLOCK`/`GETRETAIN`/`RETLCKSTS`/`CHECK`/`RTNDTA`), Overlay (`OVERLAY`/`PUTRETAIN`/`PROTECT`/`PUTOVR`/`OVRDTA`/`OVRATR`/`INZINP`/`MDTOFF`/`ERASEINP`/`ERASE`), Print (`PRINT` — `PRTFILE` is I-2's fix, not a separate keyword). ~63 keywords total. **Fixed (0.10.88):** Conditioning toggle removed from `INZRCD`/`ASSUME`/`ALWROL`/`HLPCMDKEY`/`SLNO`/`CLRL`/`LOGINP`/`UNLOCK`/`GETRETAIN`/`RTNDTA`/`CHECK`(AB,RL) — IBM: not eligible. Confirmed already-correct: `MNUBARDSP`/`PUTOVR`/`MSGALARM`/`HLPCLR`/`ALTNAME`/`ENTFLDATR`/`CHGINPDFT`/`TEXT`/`RTNCSRLOC` + all Output/Overlay/Print rows. **Flagged, not fixed this task:** `CSRLOC` and record-level `HLPTITLE` are missing conditioning IBM says should be there (would require extending the shared `getFileTwoFieldKeyword`/`getFileQuotedText` primitives — bigger change, deferred); the repeatable Indicator-instance model (`CLEAR`/`HOME`/`VLDCMDKEY`/`SETOF`/`CHANGE`/etc.) uses one uniform conditioning mechanism for all kinds even though IBM says conditioning isn't valid for `VLDCMDKEY`/`SETOF`/`CHANGE` specifically (would need the shared component made kind-aware); `RETKEY`/`RETCMDKEY`/`KEEP` have no explicit option-indicator statement anywhere in the reference doc, left as-is rather than guessing. | I-1 (method) | done (0.10.88) |
-| **I-8** | `USRDFN` | Deliberately narrow — per `isUsrDfnRecord`'s own doc comment in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords" menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`) offers only General/Help/Print, 3 of R1's 8 (down from an original 4 before Task L5d-ii correctly moved Application help off the record-level set entirely, for every record type). This task's job is to verify that narrowed set against IBM's own DDS Reference specifically for USRDFN records — does the DDS Reference actually restrict any of General/Help/Print's own keywords further on a USRDFN record specifically (e.g. a keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`), not just re-confirm the menu screenshot. This is the clearest "applicable/not applicable" case in the whole record-level series. **Fixed (0.10.89):** four keywords found individually documented by the DDS Reference as incompatible with a USRDFN record — see Findings below. Everything else in General/Help/Print checked out already correct. | I-7 | done (0.10.89) |
-| **I-9** | `SFL` (subfile detail record) | Standalone — doesn't reuse I-7's set. Subfile - General (`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile - Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/`SFLROLVAL` — field-level, conditioned on the record being `SFL`/`SFLCTL`, per Task D3). | I-1 (method) | done |
-| **I-10** | `SFLCTL` (subfile control record) | Reuses I-7's full 8 (R1) plus its own: Subfile Control - General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`), Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages (`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record keyword sharing a name with — but structurally distinct from — field-level `MSGID`; don't conflate the two when checking parameters. **Fixed (0.10.90):** four keywords found individually documented by the DDS Reference as having option indicators "not valid" for this keyword despite the Conditioning toggle wrongly being shown — `SFLCTL`, `SFLMODE`, `SFLENTER`, `SFLRNA` — see Findings below. Separately, `LOGINP`/`KEEP`/`CHECK`(AB,RL) — the "shared with plain SFL records" keywords I-9 already fixed on the plain SFL panel — turned out to still show the Conditioning toggle on THIS panel's own separate copy of the same keywords; that fix was never propagated here, now done. `SFLCSRRRN` has no explicit option-indicator statement anywhere in the reference doc, left as-is rather than guessing (same posture I-7 took for `RETKEY`/`RETCMDKEY`/`KEEP`). Everything else in General/Indicator/Subfile Messages confirmed already correct. **Flagged, not fixed this task:** `SFLSIZ`/`SFLPAG`/`SFLLIN` are individually documented as NOT eligible for option indicators but instead conditioned by *display size condition names* (`*DSx`) — a genuinely different conditioning mechanism than every other row on this panel uses, and one this codebase already deliberately defers for this exact trio (confirmed pre-existing in task A1's own note: "SFLSIZ/SFLPAG/SFLLIN multi-instance conditioning ... turned out to be pre-existing, deliberately-documented deferrals, not oversights"). Reaffirmed rather than re-opened, since fixing it would mean rebuilding the whole Display Layout panel's single-instance `getSflDisplayLayout`/`setSflDisplayLayout` model into a per-DSPSIZ one (the same shape L80/L84 built for `SFLMSGRCD`), a bigger change than this task's own audit scope. | I-7, I-9 | done (0.10.90) |
-| **I-11** | `SFLMSG` (message subfile detail record) | Standalone — per Task R5's own finding, doesn't reuse I-7's set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its own General/Indicator categories (need to confirm from `docs/sda-reference/screens/record-level/subfile-message-sflmsg/` whether these are truly independent of I-7's General/Indicator or a subset — R5's own note calls it standalone but the exact keyword list for SFLMSG's own General/Indicator screens isn't broken out separately in `KEYWORD-INDEX.json` from `I-7`'s, worth confirming which keywords actually apply here as part of this task rather than assuming reuse). | I-1 (method) | done |
+| Task | Record type / Topic | Depends on | Status |
+|------|----------------------|------------|--------|
+| **I-7** | `RECORD` (base) | I-1 (method) | done (0.10.88) |
+| **I-8** | `USRDFN` | I-7 | done (0.10.89) |
+| **I-9** | `SFL` (subfile detail record) | I-1 (method) | done (0.10.86) |
+| **I-10** | `SFLCTL` (subfile control record) | I-7, I-9 | done (0.10.90) |
+| **I-11** | `SFLMSG` (message subfile detail record) | I-1 (method) | done (0.10.84) |
+| **I-12** | `WINDOW` | I-7 | done (0.10.93) |
+| **I-13** | `PULLDOWN` | I-7, I-12 | done (0.10.92) |
+| **I-14** | `MNUBAR` (menu bar record) | I-7 | done (0.10.91) |
+| **I-15** | Combination record types (`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | I-9, I-10, I-11, I-12, I-13 | done - confirmed independent (0.10.94) |
+| **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | I-7 through I-15 | not started |
+| **I-17** | `MNUBARDSP` repeatable-conditioned-instance support | I-14 | done (0.10.95) |
+| **I-18** | `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard | I-14 | done (0.10.96) |
+| **I-19** | `MNUBAR` field-shape structural constraint | I-14 | done (0.10.97) |
+| **I-20** | Repeatable Indicator-instance model isn't kind-aware | I-7, I-13 | not started |
+| **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | not started |
+| **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | not started |
+| **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | not started |
+| **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | not started |
+| **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | not started |
+| **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | not started |
 
-**I-8 findings:**
+### I-7 — `RECORD` (base)
+
+**Scope:** R1's full 8 categories, all in scope for this type: General
+(`INZRCD`/`KEEP`/`ASSUME`/`ALWROL`/`RETKEY`/`RETCMDKEY`/`CHGINPDFT`/
+`MNUBARDSP`/`ENTFLDATR`/`RTNCSRLOC`/`TEXT`/`ALTNAME`), Indicator
+(`CLEAR`/`PAGEDOWN`/`PAGEUP`/`HOME`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/
+`CHANGE`/`INDTXT`), ~~Application help (`HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/
+`HLPARA`)~~ *(confirmed during I-7: not actually record-level; Task
+L5d-ii already moved these to help-specification level, off this tab
+entirely — the category label above was stale)*, Help (`HLPCLR`/
+`HLPSEQ`/`HLPCMDKEY`/`HLPTITLE`), Output (`BLINK`/`ALARM`/`MSGALARM`/
+`LOCK`/`LOGOUT`/`INVITE`/`ALWGPH`/`FRCDTA`/`DSPMOD`/`CSRLOC`/`SLNO`/
+`CLRL`), Input (`LOGINP`/`UNLOCK`/`GETRETAIN`/`RETLCKSTS`/`CHECK`/
+`RTNDTA`), Overlay (`OVERLAY`/`PUTRETAIN`/`PROTECT`/`PUTOVR`/`OVRDTA`/
+`OVRATR`/`INZINP`/`MDTOFF`/`ERASEINP`/`ERASE`), Print (`PRINT` —
+`PRTFILE` is I-2's fix, not a separate keyword). ~63 keywords total.
+
+**Fixed (0.10.88):** Conditioning toggle removed from `INZRCD`/`ASSUME`/
+`ALWROL`/`HLPCMDKEY`/`SLNO`/`CLRL`/`LOGINP`/`UNLOCK`/`GETRETAIN`/
+`RTNDTA`/`CHECK`(AB,RL) — IBM: not eligible. Confirmed already-correct:
+`MNUBARDSP`/`PUTOVR`/`MSGALARM`/`HLPCLR`/`ALTNAME`/`ENTFLDATR`/
+`CHGINPDFT`/`TEXT`/`RTNCSRLOC` + all Output/Overlay/Print rows.
+
+**Flagged, not fixed this task:**
+- `CSRLOC` and record-level `HLPTITLE` are missing conditioning IBM says
+  should be there (would require extending the shared
+  `getFileTwoFieldKeyword`/`getFileQuotedText` primitives — bigger
+  change, deferred). **See I-21.**
+- The repeatable Indicator-instance model (`CLEAR`/`HOME`/`VLDCMDKEY`/
+  `SETOF`/`CHANGE`/etc.) uses one uniform conditioning mechanism for all
+  kinds even though IBM says conditioning isn't valid for `VLDCMDKEY`/
+  `SETOF`/`CHANGE` specifically (would need the shared component made
+  kind-aware). **See I-20.**
+- `RETKEY`/`RETCMDKEY`/`KEEP` have no explicit option-indicator statement
+  anywhere in the reference doc — left as-is rather than guessing.
+
+### I-8 — `USRDFN`
+
+**Scope:** deliberately narrow — per `isUsrDfnRecord`'s own doc comment
+in `webviewClientHelpers.js`, real SDA's own "Select Record Keywords"
+menu for USRDFN (`docs/sda-reference/screens/record-level/usrdfn/`)
+offers only General/Help/Print, 3 of R1's 8 (down from an original 4
+before Task L5d-ii correctly moved Application help off the record-level
+set entirely, for every record type). This task's job is to verify that
+narrowed set against IBM's own DDS Reference specifically for USRDFN
+records — does the DDS Reference actually restrict any of General/Help/
+Print's own keywords further on a USRDFN record specifically (e.g. a
+keyword valid on `RECORD` that IBM's own text excludes for `USRDFN`),
+not just re-confirm the menu screenshot. This is the clearest
+"applicable/not applicable" case in the whole record-level series.
 
 Checked every keyword in USRDFN's own narrowed General/Help/Print subset
-against its own DDS Reference section, the same per-keyword method I-1/I-7
-used (read the keyword's own opening statement and any "cannot be
+against its own DDS Reference section, the same per-keyword method I-1/
+I-7 used (read the keyword's own opening statement and any "cannot be
 specified with"/"not valid for" note, don't infer from a category label).
 
-- **Confirmed already correct, no code change** — `INZRCD`, `KEEP`,
-  `RETKEY`, `RETCMDKEY`, `CHGINPDFT`, `MNUBARDSP`, `ENTFLDATR`,
-  `RTNCSRLOC`, `TEXT`, `ALTNAME`, `HLPTITLE`, `PRINT` have no USRDFN-
-  specific statement anywhere in their own DDS Reference sections.
-  `HLPCLR` is confirmed correct rather than merely absent of a
-  prohibition: its own DDS Reference example literally shows
-  `R RECORD1 USRDFN` immediately followed by `HLPCLR` on the next line.
-- **Fixed this task — four keywords the DDS Reference documents as
-  individually incompatible with a USRDFN record:**
-  - `ALWROL` — "The ALWROL keyword cannot be specified with any of the
-    following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN"
-  - `ASSUME` — "This keyword cannot be specified with any of the
-    following keywords: ALWROL, CLRL, SFL, SLNO, USRDFN, USRDSPMGT"
-  - `HLPSEQ` — "You cannot specify HLPSEQ on subfile (SFL keyword) or
-    user-defined (USRDFN keyword) record formats."
-  - `HLPCMDKEY` — "You cannot specify HLPCMDKEY on subfile (SFL keyword),
-    subfile control (SFLCTL keyword), or user-defined (USRDFN keyword)
-    record formats."
+**Confirmed already correct, no code change** — `INZRCD`, `KEEP`,
+`RETKEY`, `RETCMDKEY`, `CHGINPDFT`, `MNUBARDSP`, `ENTFLDATR`,
+`RTNCSRLOC`, `TEXT`, `ALTNAME`, `HLPTITLE`, `PRINT` have no USRDFN-
+specific statement anywhere in their own DDS Reference sections.
+`HLPCLR` is confirmed correct rather than merely absent of a
+prohibition: its own DDS Reference example literally shows
+`R RECORD1 USRDFN` immediately followed by `HLPCLR` on the next line.
 
-  Unlike I-11's SFLNXTCHG/SFLMSGRCD pair (two keywords either one of
-  which can be independently toggled on the same record), USRDFN is the
-  record-type identifier itself (`isUsrDfnRecord`'s own doc comment) —
-  the "+ Add record" wizard writes it once at creation and nothing in
-  this UI ever removes it — so the fix is a one-directional hard block:
-  `DspfWriter.usrdfnConflictReason(keywordName, recordKeywords)` (new,
-  same shape as L81's `dftGroupConflictReason`/I-11's
-  `sflNxtchgSflMsgRcdConflictReason`) checks whether USRDFN is already on
-  the record and, if so, refuses the on-transition for any of the four.
-  Wired via the same alert+revert idiom as I-11: `wireUsrdfnGuardedFlag`
-  (ALWROL/ASSUME/HLPCMDKEY, replacing their plain `simple()` calls) and
-  `wireUsrdfnGuardedTwoField` (HLPSEQ, which has no on/off checkbox of
-  its own — presence is either of its two text boxes being non-blank,
-  per `getFileTwoFieldKeyword`'s own contract) in
-  `webviewClientHelpers.js`. Turning any of the four OFF is never
-  blocked, only the on-transition (covers hand-edited DDS that already
-  has one of them set on a USRDFN record before iSDA opened it). Real
-  SDA's own screen doesn't block this either (relies on `CRTDSPF`'s own
-  compile error) — this is the same "hard-block a documented compile
-  error even where real SDA lets it through" precedent as L81/S36-4/I-11.
-- **Not re-litigated this task** — `CHECK(RL)`/`CHECK(RLTB)` vs USRDFN,
-  and `WINDOW` vs USRDFN, are both real DDS Reference statements too, but
-  neither keyword is reachable from USRDFN's own General/Help/Print
-  subset (`CHECK` lives on the Input tab, which USRDFN's narrowed tab set
-  doesn't expose at all; `WINDOW` is driven by the Basic tab's own
-  `hasWindow` check, a different code path entirely) — out of this
-  task's scope, not an oversight.
+**Fixed (0.10.89) — four keywords the DDS Reference documents as
+individually incompatible with a USRDFN record:**
+- `ALWROL` — "The ALWROL keyword cannot be specified with any of the
+  following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN"
+- `ASSUME` — "This keyword cannot be specified with any of the
+  following keywords: ALWROL, CLRL, SFL, SLNO, USRDFN, USRDSPMGT"
+- `HLPSEQ` — "You cannot specify HLPSEQ on subfile (SFL keyword) or
+  user-defined (USRDFN keyword) record formats."
+- `HLPCMDKEY` — "You cannot specify HLPCMDKEY on subfile (SFL keyword),
+  subfile control (SFLCTL keyword), or user-defined (USRDFN keyword)
+  record formats."
 
-Regression coverage: `src/test/i8UsrdfnConflictAudit.test.js` (new) -
-confirms all four keywords are blocked with an alert naming USRDFN and
-revert with no edit posted on a USRDFN record, an unrelated keyword
-(RETKEY) still commits normally on the same record, and all four still
-work exactly as before (no alert, edit posted) on an ordinary
-non-USRDFN record - confirmed (via `git stash`) to fail (12 of its 36
-assertions) against the pre-fix code.
+Unlike I-11's SFLNXTCHG/SFLMSGRCD pair (two keywords either one of which
+can be independently toggled on the same record), USRDFN is the
+record-type identifier itself (`isUsrDfnRecord`'s own doc comment) — the
+"+ Add record" wizard writes it once at creation and nothing in this UI
+ever removes it — so the fix is a one-directional hard block:
+`DspfWriter.usrdfnConflictReason(keywordName, recordKeywords)` (new, same
+shape as L81's `dftGroupConflictReason`/I-11's
+`sflNxtchgSflMsgRcdConflictReason`) checks whether USRDFN is already on
+the record and, if so, refuses the on-transition for any of the four.
+Wired via the same alert+revert idiom as I-11: `wireUsrdfnGuardedFlag`
+(ALWROL/ASSUME/HLPCMDKEY, replacing their plain `simple()` calls) and
+`wireUsrdfnGuardedTwoField` (HLPSEQ, which has no on/off checkbox of its
+own — presence is either of its two text boxes being non-blank, per
+`getFileTwoFieldKeyword`'s own contract) in `webviewClientHelpers.js`.
+Turning any of the four OFF is never blocked, only the on-transition
+(covers hand-edited DDS that already has one of them set on a USRDFN
+record before iSDA opened it). Real SDA's own screen doesn't block this
+either (relies on `CRTDSPF`'s own compile error) — this is the same
+"hard-block a documented compile error even where real SDA lets it
+through" precedent as L81/S36-4/I-11.
 
-**Findings:**
+**Not re-litigated this task** — `CHECK(RL)`/`CHECK(RLTB)` vs USRDFN,
+and `WINDOW` vs USRDFN, are both real DDS Reference statements too, but
+neither keyword is reachable from USRDFN's own General/Help/Print
+subset (`CHECK` lives on the Input tab, which USRDFN's narrowed tab set
+doesn't expose at all; `WINDOW` is driven by the Basic tab's own
+`hasWindow` check, a different code path entirely) — out of this task's
+scope, not an oversight.
 
-- **General/Indicator categories** — confirmed via the real SDA screenshots
-  (`docs/sda-reference/screens/record-level/subfile-message-sflmsg/general/`
-  and `.../indicator/`): SFLMSG's own "Select General Keywords" screen
-  offers `SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK(AB)`/`CHECK(RL)`/
-  `CHGINPDFT`, and "Define Indicator Keywords" offers `INDTXT`/`SETOF`/
-  `CHANGE` — this is I-9's own SFL keyword set, verbatim, not a subset and
-  not I-7's set. `sflMsgPanelsHtml`/`wireSflMsgPanels` (Task R5) already
-  duplicate this set correctly (they're a separate code path from I-9's
-  `sflKeywordsPanelsHtml`, gated by `isSflMsgRecord`/`isSflRecord` being
-  mutually exclusive) — no code change needed for the screen offering
-  itself.
-- **Message Record category** (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`) —
-  confirmed already correct from earlier tasks: field auto-generation and
-  ordering (L74), the `SFLMSGKEY`-then-`SFLPGMQ` field order the DDS
-  Reference requires, and `SFLMSGRCD`'s own line-number/DSPSIZ-conditioning
-  shape (L80, corrected by L84). No code change needed here either.
-- **New finding, fixed this task**: the DDS Reference documents `SFLNXTCHG`
-  and the rest of the "for all other subfiles" keyword group (`CHANGE`,
-  `CHECK(AB)`/`CHECK(RL)`, `CHGINPDFT`, `INDTXT`, `KEEP`, `LOGINP`,
-  `LOGOUT`, `SETOF`/`SETOFF`) as belonging to a keyword set that's
-  mutually exclusive with `SFLMSGRCD`'s own "for message subfiles" set on
-  the same subfile record format, and states outright under `SFLNXTCHG`'s
-  own notes: "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword."
-  `sflMsgPanelsHtml`'s own General tab (which only ever renders for a
-  record that already carries `SFLMSGRCD`, by `isSflMsgRecord`'s own
-  definition) let a user check `SFLNXTCHG` on with no guard, which would
-  produce invalid DDS. Real SDA itself doesn't block this either (relies
-  on `CRTDSPF`'s own compile error), but per this project's own
-  established precedent (L81, S36-4) of hard-blocking documented DDS
-  compile errors even where real SDA lets them through, added
-  `DspfWriter.sflNxtchgSflMsgRcdConflictReason` (same shape as L81's own
-  `dftGroupConflictReason`) and wired it into `sm-sflnxtchg`'s checkbox
-  with the same alert+revert idiom. Turning `SFLNXTCHG` off is never
-  blocked, only the on-transition.
-- **Open question, NOT acted on this task**: the remaining ~9 keywords in
-  the "for all other subfiles" list are only *implied* to conflict with
-  `SFLMSGRCD` by IBM's "for X / for all other Y" category framing — none
-  of them individually restate the prohibition the way `SFLNXTCHG`'s own
-  page does. Rather than guess whether all 9 are equally hard compile
-  errors (vs. e.g. merely pointless/no-effect on a message subfile),
-  flagged here for a future task to verify against `CRTDSPF` or a more
-  authoritative source, the same way I-4/I-6 were left open rather than
-  guessed at.
+**Test coverage:** `src/test/i8UsrdfnConflictAudit.test.js` — confirms
+all four keywords are blocked with an alert naming USRDFN and revert
+with no edit posted on a USRDFN record, an unrelated keyword (RETKEY)
+still commits normally on the same record, and all four still work
+exactly as before (no alert, edit posted) on an ordinary non-USRDFN
+record - confirmed (via `git stash`) to fail (12 of its 36 assertions)
+against the pre-fix code.
 
-Regression coverage: `dspfWriter.test.js` (unit tests for
-`sflNxtchgSflMsgRcdConflictReason`) and `dspfWebview.test.js`'s existing
-SFLMSG picker test gained a new block confirming the guard fires with an
-alert naming `SFLMSGRCD`, reverts the checkbox, and posts no edit -
-confirmed (via `git stash`) to fail against the pre-fix code.
-| **I-12** | `WINDOW` | Reuses I-7's full 8 plus its own: Window Parameters (`WINDOW` itself — size/roll/position), Border Parameters/Color/Attributes/Characters (`WDWBORDER`, shared verbatim with file-level's own `WDWBORDER` per F1's note — confirm that sharing is still accurate rather than assuming). Window Title has its own existing dedicated panel, not part of this task's scope (already built, not part of the audit unless a gap is found). **Fixed (0.10.93)** — see findings below. | I-7 | done (0.10.93) |
-| **I-13** | `PULLDOWN` | Reuses I-7's full 8 plus its own: Pull-Down - General (`PULLDOWN`/`WDWBORDER` — no window-parameters screen, per R10's own note that pull-downs don't have `WINDOW`'s size/roll options). **Fixed (0.10.92):** `PULLDOWN`'s own DDS Reference section states directly, in its own text, "The following keywords cannot be specified on a record with the PULLDOWN keyword:" followed by a 27-keyword list: `ALARM`, `ALTNAME`, `ALWGPH`, `ALWROL`, `ASSUME`, `CLEAR`, `CLRL`, `ERASE`, `ERASEINP`, `FRCDTA`, `HLPCLR`, `HLPSEQ`, `INVITE`, `INZRCD`, `MDTOFF`, `MNUBAR`, `OVERLAY`, `OVRATR`, `OVRDTA`, `PUTOVR`, `PUTRETAIN`, `RTNDTA`, `SFL`, `SLNO`, `USRDFN`, `WDWTITLE`, `WINDOW` — none of which were previously guarded. Added `DspfWriter.pulldownConflictReason` (bidirectional, same alert+revert idiom as I-8/I-11 - turning PULLDOWN on while a forbidden keyword is present is blocked, and turning a forbidden keyword on while PULLDOWN is present is blocked) and hard-wired it onto the 22 of the 27 that live on the shared RECORD panel this task covers (`INZRCD`/`ALTNAME`/`ALWROL`/`ASSUME`/`HLPCLR`/`HLPSEQ`/`ALARM`/`INVITE`/`ALWGPH`/`FRCDTA`/`SLNO`/`CLRL`/`RTNDTA`/`OVERLAY`/`PUTRETAIN`/`PUTOVR`/`OVRDTA`/`OVRATR`/`MDTOFF`/`ERASEINP`/`ERASE`, plus `ALWROL`/`ASSUME`/`HLPSEQ` also keep their existing I-8 USRDFN guard - both checks run, whichever fires first wins), plus PULLDOWN's own "on" checkbox (`wirePulldownPanels`). `PROTECT`/`INZINP` were individually checked against their own DDS Reference sections and confirmed NOT on the forbidden list - left on plain wiring. PULLDOWN's own parameters (`*SLTIND`/`*RSTCSR`) were already fully reachable and it already correctly offered no Conditioning toggle ("Option indicators are not valid for this keyword") - no change needed there. **Flagged, not fixed this task:** `CLEAR` is on the forbidden list too but lives in the repeatable Indicator-instance model (Task L5d), which isn't kind-aware (same "shared component would need to be made kind-aware" deferral I-7 already took for `VLDCMDKEY`/`SETOF`/`CHANGE`) - not wired, now **I-20**. `MNUBAR`/`SFL`/`USRDFN` are themselves other record-type identifiers and `WINDOW`/`WDWTITLE` belong to I-12's own Window tab (out of this task's own scope per its own plan-doc row) - all five are still covered from PULLDOWN's own on-checkbox side (`pulldownConflictReason('PULLDOWN', ...)` checks against the full 27-keyword list), just not from their own individual keyword-side toggle. | I-7, I-12 (shares the border set) | done (0.10.92) |
-| **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. **Fixed (0.10.91):** `MNUBAR` itself was wrongly showing a Conditioning toggle — IBM's own DDS Reference states "Option indicators are not valid for this keyword" — removed; its free-text parameter placeholder (previously flagged as "not confidently verified") is now the confirmed `*SEPARATOR \| *NOSEPARATOR` (default `*SEPARATOR`) syntax. Confirmed already-correct: `MNUBARSW`/`MNUCNL` (both option-indicator-valid, already wired file- and record-level per IBM's "file- or record-level" designation, correct CA-key/response-indicator parameters from Task I-4) and `MNUBARDSP` (already given correct two-format handling by Task L76/I-4). The "duplicate listing" question is confirmed to be a `KEYWORD-INDEX.json` documentation artifact only — the code renders one shared MNUBARDSP row on R1's base General tab, not two — left for I-16's regeneration rather than fixed here. **Flagged, not fixed this task:** MNUBARDSP's own "more than one can be specified if all are optioned" repeatability isn't modeled (single-instance UI only, no repeatable-instance list the way SFLMSG/indicator instances get elsewhere in this codebase) — now **I-17**; MNUBARSW/MNUCNL's mutual CA-key exclusion (IBM: a CAnn key assigned to one cannot be reused on the other within a record) isn't enforced — now **I-18**; MNUBAR's structural constraint (must contain exactly one menu-bar field, no other displayable fields) isn't validated — now **I-19**. All three are bigger, separate-scope changes — logged rather than silently absorbed, and split into their own tasks below rather than left as bare prose so they're pickable. | I-7 | done (0.10.91) |
-| **I-15** | Combination record types: `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL` | Not a full per-type audit (see "Record types NOT getting their own task" above) — recheck R6/R8/R9/R11/R12's "no cross-contamination" finding specifically from THIS audit's angle: does IBM's DDS Reference document any usage/conditioning/parameter rule that only applies when two keywords are combined on the same record (e.g. a restriction on `SFL` that's stated differently when `WINDOW` is also present)? If nothing turns up, close as "confirmed independent, no combination-specific rules" the same way R6/R8/R9/R11/R12 closed with "zero new code needed." If something does turn up, split it into its own task rather than silently patching it here. **Closed (no code change):** `WINDOW`'s own DDS Reference section states outright that `WINDOW` is not allowed on a record with `SFL`, but is explicitly allowed on a record with `SFLCTL` ("Note: The WINDOW keyword is allowed on a record with the SFLCTL keyword. This allows subfiles to be displayed within a window."), confirmed by the DDS Reference's own worked example (a `SFLCTL(SFLDATA) WINDOW(...)` control record). `buildTypedRecordPlan`'s `WDWSFL` type already matches this exactly — it writes plain `SFL` on the main (detail) record and `SFLCTL`+`WINDOW` together on the auto-generated dependent (control) record, never the reverse; there is no reachable path through this UI to land `WINDOW` directly on a plain `SFL` record. `PULLDOWN`'s own forbidden-keyword list (I-13) names `SFL` but not `SFLCTL`, and no other keyword's own DDS Reference section states a `PULLDOWN`+`SFLCTL` restriction either way — `PDNSFL` builds the same shape (`SFL` on the detail record, `SFLCTL`+`PULLDOWN` on the dependent) with nothing to guard against. Both the Window and Pull-down record-properties tabs are also only ever shown for a record that already carries `WINDOW`/`PULLDOWN` (`isWindowRecord`/`isPulldownRecord` gate the tab itself, not just a checkbox within it), so there is no in-UI on/off toggle that could retrofit either keyword onto an existing `SFL`/`SFLCTL` record after creation — confirming R6/R8/R9/R11/R12's "zero cross-contamination" finding still holds from this audit's angle too, for every combination the current code actually implements. **One real combination-specific rule did turn up, split into I-26 rather than fixed here:** `SFLSNGCHC`'s and `SFLMLTCHC`'s own DDS Reference sections each state that their `*RSTCSR`/`*NORSTCSR` and `*AUTOSLT`/`*NOAUTOSLT` parameter defaults flip specifically "if the SFL[SNGCHC\|MLTCHC] subfile control record is defined in a pulldown." This is a genuine `PDNSFLCTL`-specific rule, but `SFLSNGCHC`/`SFLMLTCHC` (and their sibling `SFLSCROLL`) were never implemented in iSDA at all — confirmed absent from I-10's own audited SFLCTL scope and from the codebase — so there is no existing combination behavior to fix; adding the keywords themselves is bigger than this task's own recheck scope. | I-9, I-10, I-11, I-12, I-13 | done - confirmed independent, no code change; SFLSNGCHC/SFLMLTCHC pulldown-default finding split to I-26 |
-| **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | Housekeeping, not an audit task itself — once I-7 through I-15 land real fixes, regenerate the keyword-index files (`build_index.py`/`build_lookup_and_md.py`) so they stop reflecting stale pre-fix state (the `PRTFILE` example above is one instance; there may be others by the time this is picked up). Do this LAST, after the others are done, not incrementally per task — regenerating after every single fix just churns the index files repeatedly for no benefit. | I-7 through I-15 | not started |
-| **I-17** | `MNUBARDSP` repeatable-conditioned-instance support | IBM's own DDS Reference: "Option indicators are valid for the MNUBARDSP keyword, and more than one MNUBARDSP keyword can be specified on the record if all are optioned. If more than one MNUBARDSP keyword is in effect when the record is written, the first one in effect is used." Today's picker models MNUBARDSP as a single instance (`getFileFlagKeyword`/`setFileFlagKeyword`/`getMnubardspFields`/`setMnubardspFields`) on both the non-MNUBAR-record 3-name form and the MNUBAR-record single-pull-down-input form, so a second, differently-conditioned MNUBARDSP on the same record can only be added via the raw Keywords editor, not this row. Needs a repeatable-instance UI, same shape as `recordIndicatorInstancesHtml`/`errorMessageInstancesHtml`/`messageIdInstancesHtml` elsewhere in this codebase, applied to whichever of MNUBARDSP's two parameter shapes is active on the record carrying it. **Done (0.10.95):** replaced the single-instance row with a repeatable, independently-conditioned instance list built on the same generic `DspfWriter.getRepeatableKeywordInstances`/`setRepeatableKeywordInstances` primitive `moubtnPanelHtml`/`wireMoubtnPanel` already use for MOUBTN, rather than a bespoke get/set pair. Both parameter shapes preserved (parsed/composed per-instance locally in `webviewClientHelpers.js`, since the old `getMnubardspFields`/`setMnubardspFields` pair operates on a whole `keywords` array, not one instance's raw parameter string) - see Findings below for the full per-shape and ordering detail, including a pre-existing writer/re-parse characteristic this task's own test had to account for rather than treat as a regression. | I-14 | done (0.10.95) |
-| **I-18** | `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard | IBM's own DDS Reference states this both ways: under `MNUBARSW`, "the CAnn key specified by the MNUBARSW keyword cannot be specified again using another keyword (such as MNUCNL)"; under `MNUCNL`, the mirror statement naming `MNUBARSW`. Nothing in `menuBarKeysPanelHtml`/`wireMenuBarKeysPanel` (shared between the file-level Menu-bar panel and this record-level MNUBAR panel) stops a person from assigning the same CAnn to both today. Needs a hard-block guard analogous in shape to L81's `dftGroupConflictReason` or I-11's `sflNxtchgSflMsgRcdConflictReason` — likely wired into both keywords' own CA-key input's `change` handler, checked against whichever CAnn is currently set on the other. **Scope question resolved:** re-reading both keywords' full sections confirms the check DOES need to span both the file-level and record-level copies at once, not just the same-record case — both sections say the file-level form "extends to all records in the file, this must be considered when assigning a CAnn key". **Fixed (0.10.96):** added `DspfWriter.mnuBarKeyConflictReason(keywordName, cakey, fileKeywords, recordScopes)` — `recordScopes` is an array of keyword-arrays so one function covers every scope combination: a record-level edit passes `[thatRecord'sOwnKeywords]` (record-level values don't propagate to OTHER records — only the file-level form does); a file-level edit passes every record's own keywords (a file-level assignment reaches all of them). Blank CA-key boxes correctly resolve to each keyword's own documented default (`CA10` for MNUBARSW, `CA12` for MNUCNL) before comparing, since a blank box still means a real, active CA key once the keyword itself is present — not "no CA key". Wired into both the file-level ('fk') and record-level (MNUBAR tab) copies of `wireMenuBarKeysPanel`, threading a new `getFileKeywords`/`getRecordScopes` pair through (same optional-param convention `wireRecordKeywordsPanels`/`wireSflCtlPanels` already use elsewhere in this file) — the file-level caller supplies `getModel().records.map(r => r.keywords)` for `getRecordScopes` (already had a `getModel` accessor from Task S36E's own guard, reused here) and its own `getKeywords` doubles as `getFileKeywords`; the record-level (MNUBAR) caller now takes a new `getFileKeywords` parameter (threaded from `buildWebviewTemplate.js`'s `model.fileKeywords`) and supplies `[getKeywords()]` for `getRecordScopes`. Same alert+revert idiom as I-8/I-11/I-12/I-13 — turning either keyword off, or choosing a non-colliding CA key, is never blocked. Covered by a full DOM-level test (`i18MnubarKeyConflictAudit.test.js`) exercising all four scope combinations: same-level (file-vs-file), file-extends-to-record (both directions), and same-record. | I-14 | done (0.10.96) |
-| **I-19** | `MNUBAR` field-shape structural constraint | IBM's own DDS Reference, under `MNUBAR` itself: "A record with the MNUBAR keyword specified must contain one and only one menu bar field (a field with one or more MNUBARCHC keywords), and cannot contain any displayable fields other than the menu bar field." This is a record-composition rule, not a keyword-conditioning or parameter gap, so it falls outside I-7 through I-14's 4-dimension keyword-audit method entirely — it's a new kind of check (validating a record's field list against a keyword it carries) rather than a keyword-level fix. **Fixed (0.10.97)** — see findings below. | I-14 | done (0.10.97) |
-| **I-20** | Repeatable Indicator-instance model isn't kind-aware | Two separate findings converge on the same root cause. **(a)** I-7's own audit flagged that the repeatable Indicator-instance model (`CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT`, one shared component) offers the same uniform Conditioning toggle for every keyword in the set, even though IBM's own DDS Reference says option indicators are specifically NOT valid for `VLDCMDKEY`/`SETOF`/`CHANGE` — a real conditioning-eligibility bug that's stayed unfixed because the shared component has no per-keyword eligibility hook. **(b)** I-13's own audit separately found that `CLEAR` is on `PULLDOWN`'s own 27-keyword forbidden list ("The following keywords cannot be specified on a record with the PULLDOWN keyword"), but couldn't wire the same `pulldownConflictReason` guard onto it because `CLEAR` lives in this same shared, not-kind-aware component rather than a plain `flagRowHtml` row. Both fixes need the same underlying change: give the repeatable Indicator-instance component a way to know which specific keyword (and, for (b), which record type) it's rendering an instance of, rather than treating all member keywords identically. Worth doing once, covering both findings, rather than two overlapping patches. | I-7, I-13 | not started |
-| **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7's own audit found both keywords are individually documented by IBM as eligible for option-indicator conditioning, but the shared `getFileTwoFieldKeyword`/`getFileQuotedText` primitives these two ride on don't expose a conditions/toggle parameter the way `flagRowHtml`'s do — so no Conditioning UI is offered at all for either, a real gap rather than a deliberate omission. Needs the two shared primitives (and whichever HTML/wiring call sites use them) extended to carry an optional conditions parameter, same shape `flagRowHtml`/`wireFlagRow` already support. | I-7 | not started |
-| **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | Confirmed by I-10's own audit as a pre-existing, deliberately-documented deferral (task A1 already flagged it, not a new find) — these three are individually documented "Option indicators are not valid... Display size condition names are valid" (`*DSx`), a genuinely different conditioning mechanism than every other keyword on the SFLCTL panel uses. Fixing it properly means rebuilding the Display Layout panel's current single-instance `getSflDisplayLayout`/`setSflDisplayLayout` model into a per-`DSPSIZ` one — the same shape L80/L84 already built for `SFLMSGRCD` — rather than a small conditioning-toggle tweak. Bigger, separate-scope change, logged as its own task rather than left as prose in I-10's own row. | I-10 | not started |
-| **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11's own audit fixed the one keyword (`SFLNXTCHG`) that individually restates "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword," but the DDS Reference's own "for all other subfiles" vs. "for message subfiles" category framing implies roughly 9 more keywords (`CHANGE`, `CHECK(AB)`/`CHECK(RL)`, `CHGINPDFT`, `INDTXT`, `KEEP`, `LOGINP`, `LOGOUT`, `SETOF`/`SETOFF`) are equally incompatible with `SFLMSGRCD` on the same record, without any of them individually restating the prohibition the way `SFLNXTCHG`'s own page does. Rather than guess whether all 9 are hard `CRTDSPF` compile errors (vs. merely pointless/no-effect on a message subfile), this task should verify against `CRTDSPF` directly or a more authoritative source before deciding whether to extend `sflNxtchgSflMsgRcdConflictReason`-style guards to any of them. | I-11 | not started |
-| **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12's own audit found WINDOW's own DDS Reference section also states "WINDOW cannot be specified for the record format specified by the PASSRCD keyword" — a cross-reference-by-name check (does record X, which some file-level `PASSRCD(X)` points at, ever get a WINDOW keyword) rather than a same-record flag conflict, so it didn't fit `windowConflictReason`'s existing same-record shape. Needs its own guard that reads the file-level `PASSRCD` value and checks it against whichever record is being given `WINDOW`. | I-12 | not started |
-| **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | Housekeeping, not a correctness bug (confirmed by I-9's own audit: all 4 panels operate on the same record's underlying `keywords` array, so they stay in sync regardless). `KEEP` is independently rendered — each with its own live `flagRowHtml` row — on the base `recordKeywordsPanelsHtml`, the SFL panel, the SFLMSG panel, and the WINDOW/PULLDOWN panel, unlike `CHGINPDFT`, which an earlier task (R3) deliberately de-duplicated down to the base tab only. Low priority — a UI-redundancy cleanup, not a functional fix. | I-7, I-9 | not started |
-| **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-15's own audit found `SFLSNGCHC` and `SFLMLTCHC` are entirely absent from iSDA (never in I-10's own audited SFLCTL scope, confirmed absent from the codebase), yet each has a genuine `PDNSFLCTL`-specific rule worth building in from day one rather than retrofitting later: both keywords' own DDS Reference sections state their `*RSTCSR`/`*NORSTCSR` default flips to `*RSTCSR` and (for `SFLMLTCHC`) `*NOAUTOSLT`/`*AUTOSLT` default flips to `*AUTOSLT`, specifically "if the SFL[SNGCHC\|MLTCHC] subfile control record is defined in a pulldown" (i.e. when the same record also carries `PULLDOWN` via `PDNSFL`) - otherwise the plain, non-pulldown defaults (`*NORSTCSR`/`*NOAUTOSLT`) apply. Also mutually exclusive with each other and with `SFLDROP`/`SFLFOLD` per their own text - worth double-checking against `PUTOVR`'s own restrictions from the Application Display Programming book while implementing, since the DDS Reference here explicitly punts there. `SFLSCROLL` (used with `SFLEND(*SCRBAR)` per that keyword's own section) is a related field-level companion, not yet checked against IBM's text in detail - confirm its own shape as part of this task rather than assuming. `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT` (the color/attribute keywords these two lists also use) are NOT in scope here - their generic field-level choice-color-state widget already exists (`CHOICE_COLOR_STATE_KEYWORDS` in `dspfWriter.js`, built for menu-bar/pull-down choice fields) and should just be reused once `SFLSNGCHC`/`SFLMLTCHC` land, not rebuilt. | I-10, I-15 | not started |
+### I-9 — `SFL` (subfile detail record)
 
-### I-9 findings (done, v0.10.86)
+**Scope:** standalone — doesn't reuse I-7's set. Subfile - General
+(`SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK`/`CHGINPDFT`), Subfile -
+Indicator (`INDTXT`/`SETOF`/`CHANGE`), Subfile keywords (`SFLRCDNBR`/
+`SFLROLVAL` — field-level, conditioned on the record being `SFL`/
+`SFLCTL`, per Task D3).
 
-Audited all 9 keywords `sflKeywordsPanelsHtml`/`wireSflKeywordsPanels` (the
-SFL-specific tab) exposes, same method as I-3: read each keyword's own
-"Option indicators are/are not valid for this keyword" line in
+Audited all 9 keywords `sflKeywordsPanelsHtml`/`wireSflKeywordsPanels`
+(the SFL-specific tab) exposes, same method as I-3: read each keyword's
+own "Option indicators are/are not valid for this keyword" line in
 `DDS_Keyword_V7r6.txt`, diff against what the panel currently offers.
 
-**Confirmed violations (offered conditioning, IBM says not valid)** — toggle
-removed from all of these:
+**Confirmed violations (offered conditioning, IBM says not valid)** —
+toggle removed from all of these:
 - `LOGINP` — "Option indicators are not valid for this keyword."
 - `KEEP` — "Option **and response** indicators are not valid for this
   keyword" (a slightly different phrasing than the usual "option
@@ -638,25 +631,29 @@ SAME underlying keyword — on at least 4 different record-type panels
 the WINDOW/PULLDOWN panel), unlike `CHGINPDFT` which an earlier task (R3)
 deliberately de-duplicated down to the base tab only. This isn't a
 data-correctness bug (all panels operate on the same record's `keywords`
-array, so they stay in sync), just a UI redundancy — flagging for I-7's
-own task or a future cleanup pass rather than fixing here, since I-9's
-scope is conditioning/usage/parameters, not tab layout.
+array, so they stay in sync), just a UI redundancy. **See I-25.**
 
 **Test coverage:** `src/test/i9SflConditioningAudit.test.js` renders the
 real generated webview in jsdom and asserts the toggle's presence/absence
 for every keyword this task touched.
 
----
+### I-10 — `SFLCTL` (subfile control record)
 
-### I-10 findings (done, v0.10.90)
+**Scope:** reuses I-7's full 8 (R1) plus its own: Subfile Control -
+General (`SFLCTL`/`SFLCSRRRN`/`SFLMODE`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ`/
+`SFLDLT`/`SFLCLR`/`SFLEND`/`SFLRNA`/`SFLDROP`/`SFLFOLD`/`SFLENTER`),
+Display Layout (`SFLSIZ`/`SFLPAG`/`SFLLIN`), Subfile Messages
+(`SFLMSG`/`SFLMSGID`). Note `SFLMSGID` here is the **control**-record
+keyword sharing a name with — but structurally distinct from —
+field-level `MSGID`; don't conflate the two when checking parameters.
 
 Audited every keyword `sflCtlPanelsHtml`/`wireSflCtlPanels` (the SFLCTL
 tab) exposes, same method as I-7/I-9: read each keyword's own "Option
 indicators are/are not valid for this keyword" line in
 `DDS_Keyword_V7r6.txt`, diff against what the panel currently offers.
 
-**Confirmed violations (offered conditioning, IBM says not valid)** —
-toggle removed from all of these:
+**Fixed (0.10.90) — confirmed violations (offered conditioning, IBM says
+not valid), toggle removed from all of these:**
 - `SFLCTL` — "Option indicators are not valid for this keyword."
 - `SFLMODE` — "Option indicators are not valid for this keyword."
 - `SFLENTER` — "Option indicators are not valid for this keyword."
@@ -705,19 +702,201 @@ codebase already deliberately defers for this exact trio, confirmed
 pre-existing rather than newly discovered: task A1's own note already
 lists "SFLSIZ/SFLPAG/SFLLIN multi-instance conditioning" among the
 "pre-existing, deliberately-documented deferrals, not oversights" found
-during the record-level screenshot audit. Reaffirmed here rather than
-re-opened — fixing it would mean rebuilding the Display Layout panel's
-current single-instance `getSflDisplayLayout`/`setSflDisplayLayout` model
-into a per-`DSPSIZ`-size one (the same `{primary, bySizeName}` shape L80/
-L84 already built for `SFLMSGRCD`), a bigger change than this task's own
-audit scope covers.
+during the record-level screenshot audit. **See I-22.**
 
 **Test coverage:** `src/test/i10SflctlConditioningAudit.test.js` renders
 the real generated webview in jsdom and asserts the toggle's presence/
 absence for every keyword this task touched, plus a commit-still-works
 regression check for a newly-ineligible row (`SFLRNA`).
 
-### I-14 findings (done, v0.10.91)
+### I-11 — `SFLMSG` (message subfile detail record)
+
+**Scope:** standalone — per Task R5's own finding, doesn't reuse I-7's
+set at all. Message Record (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`), plus its
+own General/Indicator categories.
+
+**General/Indicator categories** — confirmed via the real SDA screenshots
+(`docs/sda-reference/screens/record-level/subfile-message-sflmsg/general/`
+and `.../indicator/`): SFLMSG's own "Select General Keywords" screen
+offers `SFLNXTCHG`/`LOGOUT`/`LOGINP`/`KEEP`/`CHECK(AB)`/`CHECK(RL)`/
+`CHGINPDFT`, and "Define Indicator Keywords" offers `INDTXT`/`SETOF`/
+`CHANGE` — this is I-9's own SFL keyword set, verbatim, not a subset and
+not I-7's set. `sflMsgPanelsHtml`/`wireSflMsgPanels` (Task R5) already
+duplicate this set correctly (they're a separate code path from I-9's
+`sflKeywordsPanelsHtml`, gated by `isSflMsgRecord`/`isSflRecord` being
+mutually exclusive) — no code change needed for the screen offering
+itself.
+
+**Message Record category** (`SFLMSGRCD`/`SFLMSGKEY`/`SFLPGMQ`) —
+confirmed already correct from earlier tasks: field auto-generation and
+ordering (L74), the `SFLMSGKEY`-then-`SFLPGMQ` field order the DDS
+Reference requires, and `SFLMSGRCD`'s own line-number/DSPSIZ-conditioning
+shape (L80, corrected by L84). No code change needed here either.
+
+**Fixed (0.10.84) — new finding:** the DDS Reference documents
+`SFLNXTCHG` and the rest of the "for all other subfiles" keyword group
+(`CHANGE`, `CHECK(AB)`/`CHECK(RL)`, `CHGINPDFT`, `INDTXT`, `KEEP`,
+`LOGINP`, `LOGOUT`, `SETOF`/`SETOFF`) as belonging to a keyword set
+that's mutually exclusive with `SFLMSGRCD`'s own "for message subfiles"
+set on the same subfile record format, and states outright under
+`SFLNXTCHG`'s own notes: "You cannot specify SFLNXTCHG with the
+SFLMSGRCD keyword." `sflMsgPanelsHtml`'s own General tab (which only
+ever renders for a record that already carries `SFLMSGRCD`, by
+`isSflMsgRecord`'s own definition) let a user check `SFLNXTCHG` on with
+no guard, which would produce invalid DDS. Real SDA itself doesn't block
+this either (relies on `CRTDSPF`'s own compile error), but per this
+project's own established precedent (L81, S36-4) of hard-blocking
+documented DDS compile errors even where real SDA lets them through,
+added `DspfWriter.sflNxtchgSflMsgRcdConflictReason` (same shape as L81's
+own `dftGroupConflictReason`) and wired it into `sm-sflnxtchg`'s
+checkbox with the same alert+revert idiom. Turning `SFLNXTCHG` off is
+never blocked, only the on-transition.
+
+**Open question, NOT acted on this task** — the remaining ~9 keywords in
+the "for all other subfiles" list are only *implied* to conflict with
+`SFLMSGRCD` by IBM's "for X / for all other Y" category framing — none
+of them individually restate the prohibition the way `SFLNXTCHG`'s own
+page does. Rather than guess whether all 9 are equally hard compile
+errors (vs. e.g. merely pointless/no-effect on a message subfile),
+flagged for a future task to verify against `CRTDSPF` or a more
+authoritative source, the same way I-4/I-6 were left open rather than
+guessed at. **See I-23.**
+
+**Test coverage:** `dspfWriter.test.js` (unit tests for
+`sflNxtchgSflMsgRcdConflictReason`) and `dspfWebview.test.js`'s existing
+SFLMSG picker test gained a new block confirming the guard fires with an
+alert naming `SFLMSGRCD`, reverts the checkbox, and posts no edit -
+confirmed (via `git stash`) to fail against the pre-fix code.
+
+### I-12 — `WINDOW`
+
+**Scope:** reuses I-7's full 8 plus its own: Window Parameters (`WINDOW`
+itself — size/roll/position), Border Parameters/Color/Attributes/
+Characters (`WDWBORDER`, shared verbatim with file-level's own
+`WDWBORDER` per F1's note). Window Title has its own existing dedicated
+panel, not part of this task's scope (already built, not part of the
+audit unless a gap is found).
+
+Audited the WINDOW record type's own keyword set against the DDS
+Reference — I-7's reused 8 categories plus WINDOW's own Window
+Parameters (`WINDOW` itself) and Border Parameters (`WDWBORDER`, shared
+with file-level) — same per-keyword method as I-1/I-7/I-8/I-10 (read
+each keyword's own opening statement, don't infer from a category label
+or another keyword's mention of it).
+
+- **`WDWBORDER` file-level/record-level sharing** — confirmed accurate,
+  not just assumed: the DDS Reference's `WDWBORDER` section is written
+  once and explicitly covers both levels ("You use this file-level or
+  record-level keyword..."), identical parameter shape either way. No
+  code change needed — `windowBorderPanelHtml`'s reuse of the file-level
+  helpers is correct.
+- **`WINDOW` itself** — confirmed "Option indicators are not valid for
+  this keyword" (already correctly not offering a Conditioning toggle —
+  there never was one on this panel, so nothing to remove). Parameter
+  shapes checked against `getWindowParamsKeyword`/`setWindowParamsKeyword`
+  (`*DFT`, start-line/position, lines/columns, the `*MSGLIN`/`*NOMSGLIN`
+  and `*RSTCSR`/`*NORSTCSR` trailing tokens, and the record-name
+  reference form) — all confirmed already correct.
+- **`RMVWDW`/`USRRSTDSP`** — both individually documented "Option
+  indicators are valid for this keyword" — both already correctly wired
+  with conditioning via `flagRowHtml`'s `conditions` parameter. No change
+  needed.
+
+**Fixed (0.10.93) — new finding:** WINDOW's own DDS Reference section
+states outright: "The WINDOW keyword is not allowed on a record format
+that has any one of the following keywords specified: ALWROL, ASSUME,
+MNUBAR, PULLDOWN, SFL, USRDFN." Of these six, `MNUBAR`/`PULLDOWN`/`SFL`/
+`USRDFN` are each their own record TYPE the "+ Add record" wizard picks
+once at creation time (`RECORD_TYPES` in `webviewClientHelpers.js`) —
+WINDOW is never addable to an existing record of one of those types
+afterward through this UI (the Window tab/Apply button only ever renders
+for a record that already carries `WINDOW`, per `isWindowRecord`), so
+there's no reachable on-transition to guard for that half. `ALWROL`/
+`ASSUME`, however, are plain toggles on the base General tab (I-7's own
+set, reused unchanged for WINDOW records) — turning either ON while
+WINDOW is already present was a genuinely reachable, previously-unguarded
+on-transition that would produce invalid DDS. Same "hard-block only the
+documented, reachable on-transition" precedent as I-8
+(`usrdfnConflictReason`) and I-11 (`sflNxtchgSflMsgRcdConflictReason`):
+added `DspfWriter.windowConflictReason` (same shape as
+`usrdfnConflictReason`) and extended the existing `wireUsrdfnGuardedFlag`
+helper with an `alsoCheckWindow` flag so `ALWROL`/`ASSUME`'s call sites
+layer the new check on top of the pre-existing USRDFN one, without
+dragging WINDOW into `HLPCMDKEY`'s own guard (WINDOW's own text doesn't
+name `HLPCMDKEY`). Turning `ALWROL`/`ASSUME` back off is never blocked,
+and WINDOW itself is only ever written by the record-creation wizard,
+never toggled through this function, so there's no reverse direction to
+check either — this also covers hand-edited DDS that already combines
+them with WINDOW before iSDA opened the file.
+
+**Flagged, not fixed this task**: WINDOW's own section also states
+"WINDOW cannot be specified for the record format specified by the
+PASSRCD keyword" — a cross-reference-by-name check against a file-level
+keyword's string parameter (does record X, which some file-level
+`PASSRCD(X)` points at, ever get a `WINDOW` keyword), a different and
+more involved shape of check than a same-record flag conflict. Deferred
+rather than guessed at, same posture I-4/I-6/I-11's own open questions
+took. **See I-24.**
+
+**Test coverage:** `src/test/i12WindowConflictAudit.test.js` renders the
+real generated webview in jsdom: confirms `ALWROL`/`ASSUME` are blocked
+(alert naming WINDOW, checkbox reverts, no edit posted) on a WINDOW
+record, that an unrelated keyword (`RETKEY`) still commits normally on
+the same record (guard is scoped to just those two), and that
+`ALWROL`/`ASSUME` are completely unaffected on an ordinary non-WINDOW
+record (no regression). Confirmed (via `git stash`) to fail 6 of its 24
+assertions against the pre-fix code.
+
+### I-13 — `PULLDOWN`
+
+**Scope:** reuses I-7's full 8 plus its own: Pull-Down - General
+(`PULLDOWN`/`WDWBORDER` — no window-parameters screen, per R10's own
+note that pull-downs don't have `WINDOW`'s size/roll options).
+
+**Fixed (0.10.92):** `PULLDOWN`'s own DDS Reference section states
+directly, in its own text, "The following keywords cannot be specified
+on a record with the PULLDOWN keyword:" followed by a 27-keyword list:
+`ALARM`, `ALTNAME`, `ALWGPH`, `ALWROL`, `ASSUME`, `CLEAR`, `CLRL`,
+`ERASE`, `ERASEINP`, `FRCDTA`, `HLPCLR`, `HLPSEQ`, `INVITE`, `INZRCD`,
+`MDTOFF`, `MNUBAR`, `OVERLAY`, `OVRATR`, `OVRDTA`, `PUTOVR`, `PUTRETAIN`,
+`RTNDTA`, `SFL`, `SLNO`, `USRDFN`, `WDWTITLE`, `WINDOW` — none of which
+were previously guarded. Added `DspfWriter.pulldownConflictReason`
+(bidirectional, same alert+revert idiom as I-8/I-11 - turning PULLDOWN
+on while a forbidden keyword is present is blocked, and turning a
+forbidden keyword on while PULLDOWN is present is blocked) and
+hard-wired it onto the 22 of the 27 that live on the shared RECORD panel
+this task covers (`INZRCD`/`ALTNAME`/`ALWROL`/`ASSUME`/`HLPCLR`/
+`HLPSEQ`/`ALARM`/`INVITE`/`ALWGPH`/`FRCDTA`/`SLNO`/`CLRL`/`RTNDTA`/
+`OVERLAY`/`PUTRETAIN`/`PUTOVR`/`OVRDTA`/`OVRATR`/`MDTOFF`/`ERASEINP`/
+`ERASE`, plus `ALWROL`/`ASSUME`/`HLPSEQ` also keep their existing I-8
+USRDFN guard - both checks run, whichever fires first wins), plus
+PULLDOWN's own "on" checkbox (`wirePulldownPanels`). `PROTECT`/`INZINP`
+were individually checked against their own DDS Reference sections and
+confirmed NOT on the forbidden list - left on plain wiring. PULLDOWN's
+own parameters (`*SLTIND`/`*RSTCSR`) were already fully reachable and it
+already correctly offered no Conditioning toggle ("Option indicators are
+not valid for this keyword") - no change needed there.
+
+**Flagged, not fixed this task:** `CLEAR` is on the forbidden list too
+but lives in the repeatable Indicator-instance model (Task L5d), which
+isn't kind-aware (same "shared component would need to be made
+kind-aware" deferral I-7 already took for `VLDCMDKEY`/`SETOF`/`CHANGE`) -
+not wired. **See I-20.** `MNUBAR`/`SFL`/`USRDFN` are themselves other
+record-type identifiers and `WINDOW`/`WDWTITLE` belong to I-12's own
+Window tab (out of this task's own scope per its own plan-doc row) - all
+five are still covered from PULLDOWN's own on-checkbox side
+(`pulldownConflictReason('PULLDOWN', ...)` checks against the full
+27-keyword list), just not from their own individual keyword-side
+toggle.
+
+### I-14 — `MNUBAR` (menu bar record)
+
+**Scope:** reuses I-7's full 8 plus its own: Menu-Bar record - General
+(`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords
+(`MNUBARDSP` again — confirmed below not to be a duplicate listing
+artifact vs. two genuinely distinct parameter forms). Field-level
+`MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate
+field-level task, not in scope here.
 
 Audited all 4 keywords `mnuBarPanelsHtml`/`wireMnuBarPanels` (the MNUBAR
 tab) exposes, same method as I-7/I-9/I-10: read each keyword's own
@@ -726,8 +905,8 @@ tab) exposes, same method as I-7/I-9/I-10: read each keyword's own
 then separately check parameters/sub-parameters and the "duplicate
 listing" question this task's own scope note raised.
 
-**Confirmed violation (offered conditioning, IBM says not valid)** —
-toggle removed:
+**Fixed (0.10.91) — confirmed violation (offered conditioning, IBM says
+not valid), toggle removed:**
 - `MNUBAR` — "Option indicators are not valid for this keyword." The
   panel's own `flagRowHtml` call was passing `mnubar.conditions` straight
   through (rather than `undefined`, the "not eligible" idiom I-7/I-8/
@@ -779,28 +958,22 @@ hand-edited now, per I-16's own "do this last, not incrementally" scope.
 
 **Flagged, not fixed this task** (bigger, separate-scope changes, same
 posture as I-10's `SFLSIZ`/`SFLPAG`/`SFLLIN` deferral — each split out
-into its own pickable task below rather than left as bare prose):
+into its own pickable task rather than left as bare prose):
 - `MNUBARDSP`'s own documented repeatability ("more than one ... if all
   are optioned") isn't modeled — the panel is single-instance
   (`getFileFlagKeyword`/`setFileFlagKeyword`), not a repeatable-instance
   list the way `recordIndicatorInstancesHtml`/`errorMessageInstancesHtml`
-  model other repeatable keywords elsewhere in this codebase. Building
-  that out would mean a new repeatable-conditioned-instance component for
-  this one keyword — bigger than this audit task's own scope. **See I-17.**
+  model other repeatable keywords elsewhere in this codebase. **See I-17.**
 - `MNUBARSW`/`MNUCNL`'s own documented mutual CA-key exclusion ("the CAnn
   key specified by MNUBARSW cannot be specified again using another
   keyword such as MNUCNL", and the mirror statement under `MNUCNL`) isn't
   enforced — nothing stops a person from assigning the same CAnn to both
-  in this UI today. A hard-block guard (same shape as L81's
-  `dftGroupConflictReason`/I-11's `sflNxtchgSflMsgRcdConflictReason`)
-  would be a reasonable follow-up but is a new cross-keyword validation,
-  not a conditioning/parameter fix this task's own scope covers. **See I-18.**
+  in this UI today. **See I-18.**
 - `MNUBAR`'s own structural constraint ("must contain one and only one
   menu bar field... and cannot contain any displayable fields other than
   the menu bar field") isn't validated anywhere — this is a field-level/
   record-composition rule, not a keyword-conditioning or parameter gap,
-  so it sits outside this task's 4-dimension method entirely; noted here
-  so it isn't lost rather than acted on. **See I-19.**
+  so it sits outside this task's 4-dimension method entirely. **See I-19.**
 
 **Test coverage:** `src/test/i14MnubarConditioningAudit.test.js` renders
 the real generated webview in jsdom and asserts the Conditioning
@@ -809,89 +982,91 @@ presence on `MNUBARSW`/`MNUCNL` (no regression), the corrected parameter
 placeholder text, and a commit-still-works check after removing the
 toggle — confirmed (via `git stash`) to fail against the pre-fix code.
 
----
+### I-15 — Combination record types: `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`
 
-### I-12 findings (done, v0.10.93)
+**Scope:** not a full per-type audit (see "Record types NOT getting
+their own task" above) — recheck R6/R8/R9/R11/R12's "no
+cross-contamination" finding specifically from THIS audit's angle: does
+IBM's DDS Reference document any usage/conditioning/parameter rule that
+only applies when two keywords are combined on the same record (e.g. a
+restriction on `SFL` that's stated differently when `WINDOW` is also
+present)? If nothing turns up, close as "confirmed independent, no
+combination-specific rules" the same way R6/R8/R9/R11/R12 closed with
+"zero new code needed." If something does turn up, split it into its own
+task rather than silently patching it here.
 
-Audited the WINDOW record type's own keyword set against the DDS
-Reference — I-7's reused 8 categories plus WINDOW's own Window
-Parameters (`WINDOW` itself) and Border Parameters (`WDWBORDER`,
-shared with file-level) — same per-keyword method as I-1/I-7/I-8/I-10
-(read each keyword's own opening statement, don't infer from a category
-label or another keyword's mention of it).
+**Closed (0.10.94, no code change):** `WINDOW`'s own DDS Reference
+section states outright that `WINDOW` is not allowed on a record with
+`SFL`, but is explicitly allowed on a record with `SFLCTL` ("Note: The
+WINDOW keyword is allowed on a record with the SFLCTL keyword. This
+allows subfiles to be displayed within a window."), confirmed by the DDS
+Reference's own worked example (a `SFLCTL(SFLDATA) WINDOW(...)` control
+record). `buildTypedRecordPlan`'s `WDWSFL` type already matches this
+exactly — it writes plain `SFL` on the main (detail) record and
+`SFLCTL`+`WINDOW` together on the auto-generated dependent (control)
+record, never the reverse; there is no reachable path through this UI to
+land `WINDOW` directly on a plain `SFL` record. `PULLDOWN`'s own
+forbidden-keyword list (I-13) names `SFL` but not `SFLCTL`, and no other
+keyword's own DDS Reference section states a `PULLDOWN`+`SFLCTL`
+restriction either way — `PDNSFL` builds the same shape (`SFL` on the
+detail record, `SFLCTL`+`PULLDOWN` on the dependent) with nothing to
+guard against. Both the Window and Pull-down record-properties tabs are
+also only ever shown for a record that already carries `WINDOW`/
+`PULLDOWN` (`isWindowRecord`/`isPulldownRecord` gate the tab itself, not
+just a checkbox within it), so there is no in-UI on/off toggle that
+could retrofit either keyword onto an existing `SFL`/`SFLCTL` record
+after creation — confirming R6/R8/R9/R11/R12's "zero cross-contamination"
+finding still holds from this audit's angle too, for every combination
+the current code actually implements.
 
-- **`WDWBORDER` file-level/record-level sharing** — confirmed accurate,
-  not just assumed: the DDS Reference's `WDWBORDER` section is written
-  once and explicitly covers both levels ("You use this file-level or
-  record-level keyword..."), identical parameter shape either way. No
-  code change needed — `windowBorderPanelHtml`'s reuse of the file-level
-  helpers is correct.
-- **`WINDOW` itself** — confirmed "Option indicators are not valid for
-  this keyword" (already correctly not offering a Conditioning toggle —
-  there never was one on this panel, so nothing to remove). Parameter
-  shapes checked against `getWindowParamsKeyword`/`setWindowParamsKeyword`
-  (`*DFT`, start-line/position, lines/columns, the `*MSGLIN`/`*NOMSGLIN`
-  and `*RSTCSR`/`*NORSTCSR` trailing tokens, and the record-name
-  reference form) — all confirmed already correct.
-- **`RMVWDW`/`USRRSTDSP`** — both individually documented "Option
-  indicators are valid for this keyword" — both already correctly wired
-  with conditioning via `flagRowHtml`'s `conditions` parameter. No change
-  needed.
-- **New finding, fixed this task**: WINDOW's own DDS Reference section
-  states outright: "The WINDOW keyword is not allowed on a record format
-  that has any one of the following keywords specified: ALWROL, ASSUME,
-  MNUBAR, PULLDOWN, SFL, USRDFN." Of these six, `MNUBAR`/`PULLDOWN`/
-  `SFL`/`USRDFN` are each their own record TYPE the "+ Add record" wizard
-  picks once at creation time (`RECORD_TYPES` in
-  `webviewClientHelpers.js`) — WINDOW is never addable to an existing
-  record of one of those types afterward through this UI (the Window
-  tab/Apply button only ever renders for a record that already carries
-  `WINDOW`, per `isWindowRecord`), so there's no reachable on-transition
-  to guard for that half. `ALWROL`/`ASSUME`, however, are plain toggles
-  on the base General tab (I-7's own set, reused unchanged for WINDOW
-  records) — turning either ON while WINDOW is already present was a
-  genuinely reachable, previously-unguarded on-transition that would
-  produce invalid DDS. Same "hard-block only the documented, reachable
-  on-transition" precedent as I-8 (`usrdfnConflictReason`) and I-11
-  (`sflNxtchgSflMsgRcdConflictReason`): added
-  `DspfWriter.windowConflictReason` (same shape as `usrdfnConflictReason`)
-  and extended the existing `wireUsrdfnGuardedFlag` helper with an
-  `alsoCheckWindow` flag so `ALWROL`/`ASSUME`'s call sites layer the new
-  check on top of the pre-existing USRDFN one, without dragging WINDOW
-  into `HLPCMDKEY`'s own guard (WINDOW's own text doesn't name
-  `HLPCMDKEY`). Turning `ALWROL`/`ASSUME` back off is never blocked, and
-  WINDOW itself is only ever written by the record-creation wizard, never
-  toggled through this function, so there's no reverse direction to
-  check either — this also covers hand-edited DDS that already combines
-  them with WINDOW before iSDA opened the file.
-- **Flagged, not fixed this task**: WINDOW's own section also states
-  "WINDOW cannot be specified for the record format specified by the
-  PASSRCD keyword" — a cross-reference-by-name check against a
-  file-level keyword's string parameter (does record X, which some
-  file-level `PASSRCD(X)` points at, ever get a `WINDOW` keyword), a
-  different and more involved shape of check than a same-record flag
-  conflict. Deferred rather than guessed at, same posture I-4/I-6/I-11's
-  own open questions took.
+**One real combination-specific rule did turn up, split into I-26
+rather than fixed here:** `SFLSNGCHC`'s and `SFLMLTCHC`'s own DDS
+Reference sections each state that their `*RSTCSR`/`*NORSTCSR` and
+`*AUTOSLT`/`*NOAUTOSLT` parameter defaults flip specifically "if the
+SFL[SNGCHC|MLTCHC] subfile control record is defined in a pulldown."
+This is a genuine `PDNSFLCTL`-specific rule, but `SFLSNGCHC`/
+`SFLMLTCHC` (and their sibling `SFLSCROLL`) were never implemented in
+iSDA at all — confirmed absent from I-10's own audited SFLCTL scope and
+from the codebase — so there is no existing combination behavior to fix;
+adding the keywords themselves is bigger than this task's own recheck
+scope. **See I-26.**
 
-**Test coverage:** `src/test/i12WindowConflictAudit.test.js` renders the
-real generated webview in jsdom: confirms `ALWROL`/`ASSUME` are blocked
-(alert naming WINDOW, checkbox reverts, no edit posted) on a WINDOW
-record, that an unrelated keyword (`RETKEY`) still commits normally on
-the same record (guard is scoped to just those two), and that
-`ALWROL`/`ASSUME` are completely unaffected on an ordinary non-WINDOW
-record (no regression). Confirmed (via `git stash`) to fail 6 of its 24
-assertions against the pre-fix code.
+### I-16 — `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration
 
-### I-17 findings (done, v0.10.95)
+Housekeeping, not an audit task itself — once I-7 through I-15 land real
+fixes, regenerate the keyword-index files (`build_index.py`/
+`build_lookup_and_md.py`) so they stop reflecting stale pre-fix state
+(the `PRTFILE` example noted above is one instance; there may be others
+by the time this is picked up). Do this LAST, after the others are done,
+not incrementally per task — regenerating after every single fix just
+churns the index files repeatedly for no benefit.
 
-Replaced MNUBARDSP's single-instance row (Task L76/I-4's own
-`getFileFlagKeyword`/`setFileFlagKeyword` + `getMnubardspFields`/
-`setMnubardspFields` pair) with a repeatable, independently-conditioned
-instance list, closing the gap I-14's own audit flagged: IBM's DDS
-Reference states "more than one MNUBARDSP keyword can be specified on
-the record if all are optioned," which the single-instance row couldn't
-express at all (a second MNUBARDSP could only be added through the raw
-Keywords editor).
+**Not started.**
+
+### I-17 — `MNUBARDSP` repeatable-conditioned-instance support
+
+**Scope:** IBM's own DDS Reference: "Option indicators are valid for the
+MNUBARDSP keyword, and more than one MNUBARDSP keyword can be specified
+on the record if all are optioned. If more than one MNUBARDSP keyword is
+in effect when the record is written, the first one in effect is used."
+Today's picker models MNUBARDSP as a single instance
+(`getFileFlagKeyword`/`setFileFlagKeyword`/`getMnubardspFields`/
+`setMnubardspFields`) on both the non-MNUBAR-record 3-name form and the
+MNUBAR-record single-pull-down-input form, so a second, differently-
+conditioned MNUBARDSP on the same record can only be added via the raw
+Keywords editor, not this row. Needs a repeatable-instance UI, same
+shape as `recordIndicatorInstancesHtml`/`errorMessageInstancesHtml`/
+`messageIdInstancesHtml` elsewhere in this codebase, applied to whichever
+of MNUBARDSP's two parameter shapes is active on the record carrying it.
+
+**Done (0.10.95):** replaced the single-instance row with a repeatable,
+independently-conditioned instance list built on the same generic
+`DspfWriter.getRepeatableKeywordInstances`/`setRepeatableKeywordInstances`
+primitive `moubtnPanelHtml`/`wireMoubtnPanel` already use for MOUBTN,
+rather than a bespoke get/set pair. Both parameter shapes preserved
+(parsed/composed per-instance locally in `webviewClientHelpers.js`,
+since the old `getMnubardspFields`/`setMnubardspFields` pair operates on
+a whole `keywords` array, not one instance's raw parameter string).
 
 **Design choice - reuse, don't rebuild:** rather than a bespoke
 MNUBARDSP-specific get/set pair, this reuses the exact same generic
@@ -948,39 +1123,92 @@ primitive, not a regression this task introduced. The test below was
 initially written assuming positional stability, caught this itself via
 a failing assertion, and was corrected to match by content instead.
 
-**Test coverage:**
-`src/test/i17MnubardspRepeatableInstances.test.js` renders the real
-generated webview in jsdom and covers: empty state on a fresh record;
-adding a blank instance that survives re-render; the 3-name row
-rendering and committing correctly on a non-MNUBAR record (trailing
-blank dropped); a second, independently-conditioned instance coexisting
-with the first without disturbing it; conditioning one instance leaving
-the other's conditioning untouched; removing one instance (matched by
-content, per the ordering note above) leaving the other intact with its
-conditioning preserved; and the MNUBAR-record's own single-pull-down-
-field shape rendering correctly (no rec/choice inputs) on a second
-record in the same file, with that record's own `MNUBAR`/field-level
-`MNUBARCHC` keywords confirmed untouched throughout.
+**Test coverage:** `src/test/i17MnubardspRepeatableInstances.test.js`
+renders the real generated webview in jsdom and covers: empty state on a
+fresh record; adding a blank instance that survives re-render; the
+3-name row rendering and committing correctly on a non-MNUBAR record
+(trailing blank dropped); a second, independently-conditioned instance
+coexisting with the first without disturbing it; conditioning one
+instance leaving the other's conditioning untouched; removing one
+instance (matched by content, per the ordering note above) leaving the
+other intact with its conditioning preserved; and the MNUBAR-record's
+own single-pull-down-field shape rendering correctly (no rec/choice
+inputs) on a second record in the same file, with that record's own
+`MNUBAR`/field-level `MNUBARCHC` keywords confirmed untouched throughout.
 
----
+### I-18 — `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard
 
-### I-19 findings (done, v0.10.97)
+**Scope:** IBM's own DDS Reference states this both ways: under
+`MNUBARSW`, "the CAnn key specified by the MNUBARSW keyword cannot be
+specified again using another keyword (such as MNUCNL)"; under
+`MNUCNL`, the mirror statement naming `MNUBARSW`. Nothing in
+`menuBarKeysPanelHtml`/`wireMenuBarKeysPanel` (shared between the
+file-level Menu-bar panel and this record-level MNUBAR panel) stops a
+person from assigning the same CAnn to both today. Needs a hard-block
+guard analogous in shape to L81's `dftGroupConflictReason` or I-11's
+`sflNxtchgSflMsgRcdConflictReason` — likely wired into both keywords'
+own CA-key input's `change` handler, checked against whichever CAnn is
+currently set on the other.
 
-Confirmed, before writing any new guard, that iSDA's field-adding UI does
-NOT already structurally prevent adding a second displayable field to a
-MNUBAR record - the "+ Field"/click-to-place flow has no record-type
-awareness at all (unlike the record-creation wizard, which never puts a
-second field on a fresh MNUBAR record in the first place - `MNUBAR`'s
-own `buildTypedRecordPlan` entry has an empty `extraFields`). So the gap
-was real: a person could freely add extra displayable fields, or a
-second MNUBARCHC field, to an existing MNUBAR record with nothing
-flagging it.
+**Scope question resolved:** re-reading both keywords' full sections
+confirms the check DOES need to span both the file-level and
+record-level copies at once, not just the same-record case — both
+sections say the file-level form "extends to all records in the file,
+this must be considered when assigning a CAnn key".
 
-New `DspfWriter.mnubarFieldShapeNote(fields)` (pure, read-only - see its
-own doc comment for the full scope reasoning) checks a record's field
-list against MNUBAR's own two-part structural rule and returns a single
-message naming whichever half is violated (or both at once), or `null`
-when compliant. Two scope decisions worth calling out here too:
+**Fixed (0.10.96):** added `DspfWriter.mnuBarKeyConflictReason(keywordName,
+cakey, fileKeywords, recordScopes)` — `recordScopes` is an array of
+keyword-arrays so one function covers every scope combination: a
+record-level edit passes `[thatRecord'sOwnKeywords]` (record-level
+values don't propagate to OTHER records — only the file-level form
+does); a file-level edit passes every record's own keywords (a
+file-level assignment reaches all of them). Blank CA-key boxes correctly
+resolve to each keyword's own documented default (`CA10` for MNUBARSW,
+`CA12` for MNUCNL) before comparing, since a blank box still means a
+real, active CA key once the keyword itself is present — not "no CA
+key". Wired into both the file-level ('fk') and record-level (MNUBAR
+tab) copies of `wireMenuBarKeysPanel`, threading a new
+`getFileKeywords`/`getRecordScopes` pair through (same optional-param
+convention `wireRecordKeywordsPanels`/`wireSflCtlPanels` already use
+elsewhere in this file) — the file-level caller supplies
+`getModel().records.map(r => r.keywords)` for `getRecordScopes` (already
+had a `getModel` accessor from Task S36E's own guard, reused here) and
+its own `getKeywords` doubles as `getFileKeywords`; the record-level
+(MNUBAR) caller now takes a new `getFileKeywords` parameter (threaded
+from `buildWebviewTemplate.js`'s `model.fileKeywords`) and supplies
+`[getKeywords()]` for `getRecordScopes`. Same alert+revert idiom as
+I-8/I-11/I-12/I-13 — turning either keyword off, or choosing a
+non-colliding CA key, is never blocked.
+
+**Test coverage:** full DOM-level test (`i18MnubarKeyConflictAudit.test.js`)
+exercising all four scope combinations: same-level (file-vs-file),
+file-extends-to-record (both directions), and same-record.
+
+### I-19 — `MNUBAR` field-shape structural constraint
+
+**Scope:** IBM's own DDS Reference, under `MNUBAR` itself: "A record
+with the MNUBAR keyword specified must contain one and only one menu
+bar field (a field with one or more MNUBARCHC keywords), and cannot
+contain any displayable fields other than the menu bar field." This is
+a record-composition rule, not a keyword-conditioning or parameter gap,
+so it falls outside I-7 through I-14's 4-dimension keyword-audit method
+entirely — it's a new kind of check (validating a record's field list
+against a keyword it carries) rather than a keyword-level fix.
+
+**Fixed (0.10.97):** confirmed, before writing any new guard, that
+iSDA's field-adding UI does NOT already structurally prevent adding a
+second displayable field to a MNUBAR record - the "+ Field"/click-to-place
+flow has no record-type awareness at all (unlike the record-creation
+wizard, which never puts a second field on a fresh MNUBAR record in the
+first place - `MNUBAR`'s own `buildTypedRecordPlan` entry has an empty
+`extraFields`). So the gap was real: a person could freely add extra
+displayable fields, or a second MNUBARCHC field, to an existing MNUBAR
+record with nothing flagging it.
+
+New `DspfWriter.mnubarFieldShapeNote(fields)` (pure, read-only) checks a
+record's field list against MNUBAR's own two-part structural rule and
+returns a single message naming whichever half is violated (or both at
+once), or `null` when compliant. Two scope decisions worth calling out:
 
 - Identifying "the menu-bar field" itself counts BOTH real fields and
   constants carrying `MNUBARCHC` - this codebase already lets
@@ -1008,7 +1236,7 @@ site via `rec.fields`, which every other tab already reads) purely to
 compute this note - no new keyword plumbing, no wiring, no guarded
 commit().
 
-**New coverage:** `src/test/i19MnubarFieldShapeNote.test.js`. Unit-level:
+**Test coverage:** `src/test/i19MnubarFieldShapeNote.test.js`. Unit-level:
 `mnubarFieldShapeNote` called directly with hand-built field arrays -
 a single clean menu-bar field (null); a hidden return-field alongside it
 (still null); a program-to-system choice-text field alongside it (still
@@ -1024,6 +1252,131 @@ unrelated non-MNUBAR record in the same file has no MNUBAR tab (and
 therefore nothing to warn about) at all. Confirmed (via `git stash`) to
 throw a `TypeError` (the function doesn't exist yet) against the pre-fix
 code, rather than silently pass.
+
+### I-20 — Repeatable Indicator-instance model isn't kind-aware
+
+Two separate findings converge on the same root cause. **(a)** I-7's own
+audit flagged that the repeatable Indicator-instance model (`CLEAR`/
+`HOME`/`PAGEDOWN`/`PAGEUP`/`HELP`/`HLPRTN`/`VLDCMDKEY`/`SETOF`/`CHANGE`/
+`INDTXT`, one shared component) offers the same uniform Conditioning
+toggle for every keyword in the set, even though IBM's own DDS Reference
+says option indicators are specifically NOT valid for `VLDCMDKEY`/
+`SETOF`/`CHANGE` — a real conditioning-eligibility bug that's stayed
+unfixed because the shared component has no per-keyword eligibility
+hook. **(b)** I-13's own audit separately found that `CLEAR` is on
+`PULLDOWN`'s own 27-keyword forbidden list ("The following keywords
+cannot be specified on a record with the PULLDOWN keyword"), but
+couldn't wire the same `pulldownConflictReason` guard onto it because
+`CLEAR` lives in this same shared, not-kind-aware component rather than
+a plain `flagRowHtml` row. Both fixes need the same underlying change:
+give the repeatable Indicator-instance component a way to know which
+specific keyword (and, for (b), which record type) it's rendering an
+instance of, rather than treating all member keywords identically.
+Worth doing once, covering both findings, rather than two overlapping
+patches.
+
+**Not started.**
+
+### I-21 — `CSRLOC` / record-level `HLPTITLE` missing conditioning
+
+I-7's own audit found both keywords are individually documented by IBM
+as eligible for option-indicator conditioning, but the shared
+`getFileTwoFieldKeyword`/`getFileQuotedText` primitives these two ride
+on don't expose a conditions/toggle parameter the way `flagRowHtml`'s
+do — so no Conditioning UI is offered at all for either, a real gap
+rather than a deliberate omission. Needs the two shared primitives (and
+whichever HTML/wiring call sites use them) extended to carry an optional
+conditions parameter, same shape `flagRowHtml`/`wireFlagRow` already
+support.
+
+**Not started.**
+
+### I-22 — `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning
+
+Confirmed by I-10's own audit as a pre-existing, deliberately-documented
+deferral (task A1 already flagged it, not a new find) — these three are
+individually documented "Option indicators are not valid... Display
+size condition names are valid" (`*DSx`), a genuinely different
+conditioning mechanism than every other keyword on the SFLCTL panel
+uses. Fixing it properly means rebuilding the Display Layout panel's
+current single-instance `getSflDisplayLayout`/`setSflDisplayLayout`
+model into a per-`DSPSIZ` one — the same shape L80/L84 already built
+for `SFLMSGRCD` — rather than a small conditioning-toggle tweak.
+Bigger, separate-scope change, logged as its own task rather than left
+as prose in I-10's own section.
+
+**Not started.**
+
+### I-23 — Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD`
+
+I-11's own audit fixed the one keyword (`SFLNXTCHG`) that individually
+restates "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword," but
+the DDS Reference's own "for all other subfiles" vs. "for message
+subfiles" category framing implies roughly 9 more keywords (`CHANGE`,
+`CHECK(AB)`/`CHECK(RL)`, `CHGINPDFT`, `INDTXT`, `KEEP`, `LOGINP`,
+`LOGOUT`, `SETOF`/`SETOFF`) are equally incompatible with `SFLMSGRCD` on
+the same record, without any of them individually restating the
+prohibition the way `SFLNXTCHG`'s own page does. Rather than guess
+whether all 9 are hard `CRTDSPF` compile errors (vs. merely pointless/
+no-effect on a message subfile), this task should verify against
+`CRTDSPF` directly or a more authoritative source before deciding
+whether to extend `sflNxtchgSflMsgRcdConflictReason`-style guards to any
+of them.
+
+**Not started.**
+
+### I-24 — `WINDOW` cannot be specified for the record named by file-level `PASSRCD`
+
+I-12's own audit found WINDOW's own DDS Reference section also states
+"WINDOW cannot be specified for the record format specified by the
+PASSRCD keyword" — a cross-reference-by-name check (does record X,
+which some file-level `PASSRCD(X)` points at, ever get a WINDOW
+keyword) rather than a same-record flag conflict, so it didn't fit
+`windowConflictReason`'s existing same-record shape. Needs its own guard
+that reads the file-level `PASSRCD` value and checks it against
+whichever record is being given `WINDOW`.
+
+**Not started.**
+
+### I-25 — `KEEP` duplicated across 4 record-type panels — consolidate to one tab
+
+Housekeeping, not a correctness bug (confirmed by I-9's own audit: all 4
+panels operate on the same record's underlying `keywords` array, so
+they stay in sync regardless). `KEEP` is independently rendered — each
+with its own live `flagRowHtml` row — on the base
+`recordKeywordsPanelsHtml`, the SFL panel, the SFLMSG panel, and the
+WINDOW/PULLDOWN panel, unlike `CHGINPDFT`, which an earlier task (R3)
+deliberately de-duplicated down to the base tab only. Low priority — a
+UI-redundancy cleanup, not a functional fix.
+
+**Not started.**
+
+### I-26 — Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL`
+
+I-15's own audit found `SFLSNGCHC` and `SFLMLTCHC` are entirely absent
+from iSDA (never in I-10's own audited SFLCTL scope, confirmed absent
+from the codebase), yet each has a genuine `PDNSFLCTL`-specific rule
+worth building in from day one rather than retrofitting later: both
+keywords' own DDS Reference sections state their `*RSTCSR`/`*NORSTCSR`
+default flips to `*RSTCSR` and (for `SFLMLTCHC`) `*NOAUTOSLT`/`*AUTOSLT`
+default flips to `*AUTOSLT`, specifically "if the SFL[SNGCHC|MLTCHC]
+subfile control record is defined in a pulldown" (i.e. when the same
+record also carries `PULLDOWN` via `PDNSFL`) - otherwise the plain,
+non-pulldown defaults (`*NORSTCSR`/`*NOAUTOSLT`) apply. Also mutually
+exclusive with each other and with `SFLDROP`/`SFLFOLD` per their own
+text - worth double-checking against `PUTOVR`'s own restrictions from
+the Application Display Programming book while implementing, since the
+DDS Reference here explicitly punts there. `SFLSCROLL` (used with
+`SFLEND(*SCRBAR)` per that keyword's own section) is a related
+field-level companion, not yet checked against IBM's text in detail -
+confirm its own shape as part of this task rather than assuming.
+`CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT` (the color/attribute keywords these two
+lists also use) are NOT in scope here - their generic field-level
+choice-color-state widget already exists (`CHOICE_COLOR_STATE_KEYWORDS`
+in `dspfWriter.js`, built for menu-bar/pull-down choice fields) and
+should just be reused once `SFLSNGCHC`/`SFLMLTCHC` land, not rebuilt.
+
+**Not started.**
 
 ---
 
