@@ -458,7 +458,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-13** | `PULLDOWN` | I-7, I-12 | done (0.10.92) |
 | **I-14** | `MNUBAR` (menu bar record) | I-7 | done (0.10.91) |
 | **I-15** | Combination record types (`SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL`) | I-9, I-10, I-11, I-12, I-13 | done - confirmed independent (0.10.94) |
-| **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | I-7 through I-15 | not started |
+| **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | I-7 through I-15 | done (0.10.108) |
 | **I-17** | `MNUBARDSP` repeatable-conditioned-instance support | I-14 | done (0.10.95) |
 | **I-18** | `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard | I-14 | done (0.10.96) |
 | **I-19** | `MNUBAR` field-shape structural constraint | I-14 | done (0.10.97) |
@@ -1044,7 +1044,84 @@ by the time this is picked up). Do this LAST, after the others are done,
 not incrementally per task — regenerating after every single fix just
 churns the index files repeatedly for no benefit.
 
-**Claimed — in progress.**
+**Done (0.10.108).** By the time this was picked up, I-17 through I-29
+had also landed on top of I-7 through I-15, so the audit against current
+code covered the full record-level series, not just I-7–I-15. Read
+`build_index.py`'s hand-curated data against the actual current panel
+code in `webviewClientHelpers.js`/`dspfWriter.js` (not from memory or
+from the previous JSON snapshot) and corrected every discrepancy found:
+
+- **Removed `PRTFILE`** (file-level and record-level Print categories) —
+  the exact stale example this task's own scope note named; I-2 (v0.10.83)
+  removed it from the codebase entirely, the index just hadn't been
+  regenerated since.
+- **Added I-5's five confirmed-missing file-level keywords** where they
+  actually landed: `VALNUM`/`WRDWRAP` on General, `MOUBTN` (repeatable)
+  on Indicator, `HLPRCD` on Help. `ROLLUP`/`ROLLDOWN` needed no index
+  change — they're `PAGEDOWN`/`PAGEUP`'s own `altNames`, not separate
+  keyword entries.
+- **`MNUBARDSP` marked repeatable** (record-level General category) —
+  I-17 rebuilt it as a genuine repeatable-conditioned-instance list.
+- **`HLPTITLE` marked repeatable** (record-level Help category) — I-27
+  rebuilt it the same way, up to 15 instances/record.
+- **`KEEP` removed from the SFL/SFLCTL subfile panels' own keyword
+  lists** (Subfile - General (SFL), Subfile Control - General (SFLCTL))
+  — I-25's de-dup left it as a hint on those panels pointing at the base
+  Record Keywords → General tab, its sole surviving live copy.
+  `CHGINPDFT` was also removed from the SFL panel's own list for the
+  same reason — confirmed via I-9's own write-up that it was never
+  actually a live row there, just a stale index entry predating I-9.
+- **Added I-26's three new keywords**: `SFLSNGCHC`/`SFLMLTCHC` (SFLCTL
+  General, with their pull-down-conditional default-flip behavior noted
+  in the parameter description) and `SFLSCROLL` (the subfile field-level
+  category, renamed to name all three keywords it now covers).
+- **`SFLSIZ`/`SFLPAG`/`SFLLIN` parameter descriptions corrected** to
+  reflect I-22's per-`DSPSIZ`-size instance model (same shape as
+  `SFLMSGRCD`/`MSGLOC`) rather than the old single-instance
+  `number [, display-size]` shorthand; `SFLPAG`'s own description also
+  had I-22's field-name-vs-number correction folded in.
+- **Removed the separate "Menu-Bar record - Menu-Bar Display Keywords"
+  category and `MNUBARDSP`'s duplicate row on the MNUBAR record's own
+  General tab.** This is the exact "duplicate listing" question I-14
+  raised and explicitly deferred here: confirmed against
+  `mnuBarPanelsHtml`'s own code that only a hint (pointing at the base
+  General tab) renders on the MNUBAR-specific tab, not a second live
+  `MNUBARDSP` row or a distinct sub-panel — the two-category listing
+  really was a documentation artifact, not a second UI surface.
+
+**Not re-litigated this task** (per this task's own housekeeping scope —
+regenerate from current keyword/category *structure*, not re-audit
+conditioning/conflict behavior): I-3/I-7 through I-15/I-18 through
+I-24/I-28's own conditioning-eligibility fixes, mutual-exclusion guards,
+and advisory notes don't change what's *listed* in the index (this
+schema has no conditioning/conflict field at all), so none of those
+required an index change even though real code changed. Also left
+untouched: whether SFLMSG's own General/Indicator categories (reusing
+I-9's SFL set verbatim, per I-11's own finding) deserve their own
+distinct index categories rather than being implicitly covered — a
+genuine index-completeness question, but a new gap to research, not a
+regeneration of already-covered ground; flagged here rather than guessed
+at.
+
+**Process note:** `keywordFixes.md`'s own I-25 section body still reads
+"Not started" even though its row in the record-level summary table
+(and the codebase itself) confirms I-25 landed at v0.10.100 — a
+documentation drift bug in this very file, discovered while cross-
+checking I-25's own KEEP fix against the code for this task. Left
+uncorrected here since fixing `keywordFixes.md`'s own prose is outside
+I-16's stated scope (JSON/MD regeneration only) and isn't this task's
+call to make unilaterally — flagged for whoever picks it up next.
+
+**Verification:** `python3 build_index.py` then
+`python3 build_lookup_and_md.py` (both pure-stdlib, no dependencies),
+followed by spot-checks of `KEYWORD-LOOKUP.json` for every keyword this
+task touched (`MNUBARDSP`, `PRTFILE`, `KEEP`, `HLPTITLE`, `SFLSNGCHC`,
+`SFLMLTCHC`, `SFLSCROLL`, `HLPRCD`, `MOUBTN`, `VALNUM`, `WRDWRAP`) to
+confirm each landed at the right location with the right shape. No
+runtime code touched — `npm run compile` and the full `npm test` suite
+were re-run anyway as a sanity check and are unaffected (3949/3949,
+unchanged from baseline), since this is documentation tooling, not part
+of the extension's own build or test path.
 
 ### I-17 — `MNUBARDSP` repeatable-conditioned-instance support
 

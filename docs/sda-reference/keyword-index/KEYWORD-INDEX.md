@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-12 · 199 keyword entries across 47 categories · 159 unique keyword names.
+Generated 2026-09-13 · 200 keyword entries across 46 categories · 165 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -45,7 +45,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `CHCSLT` | field → Menu-bar choice - Choice Colors and Attributes |
 | `CHCUNAVAIL` | field → Menu-bar choice - Choice Colors and Attributes |
 | `CHECK` | file → General; record → Input; record → Subfile - General (SFL); field → Keying Options; field → Validity Check |
-| `CHGINPDFT` | file → General; record → General; record → Subfile - General (SFL); field → Input Keywords |
+| `CHGINPDFT` | file → General; record → General; field → Input Keywords |
 | `CHKMSGID` | field → Validity Check |
 | `CHOICE` | field → Menu-bar choice - Choice Keywords (CHOICE/CHCCTL/CHCACCEL) |
 | `CHRID` | field → General |
@@ -85,6 +85,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `HLPFULL` | file → Help |
 | `HLPID` | field → Constant field additions |
 | `HLPPNLGRP` | file → Help; record → Application help |
+| `HLPRCD` | file → Help |
 | `HLPRTN` ⚠️ | file → Indicator; record → Indicator |
 | `HLPSCHIDX` | file → Help |
 | `HLPSEQ` | record → Help |
@@ -97,7 +98,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `INVITE` | file → General; record → Output |
 | `INZINP` | record → Overlay |
 | `INZRCD` | record → General |
-| `KEEP` | record → General; record → Subfile - General (SFL) |
+| `KEEP` | record → General |
 | `KEYBRD` | field → Keying Options |
 | `LOCK` | record → Output |
 | `LOGINP` | record → Input; record → Subfile - General (SFL) |
@@ -106,10 +107,11 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `MLTCHCFLD` | field → Menu-bar choice - Choice Selection Type |
 | `MNUBAR` | record → Menu-Bar record - General |
 | `MNUBARCHC` | field → Menu-bar choices / Menu-bar separator field wiring |
-| `MNUBARDSP` | record → General; record → Menu-Bar record - General; record → Menu-Bar record - Menu-Bar Display Keywords |
+| `MNUBARDSP` | record → General |
 | `MNUBARSEP` | field → Menu-bar choice - Separator |
 | `MNUBARSW` | file → Menu-bar; record → Menu-Bar record - General |
 | `MNUCNL` | file → Menu-bar; record → Menu-Bar record - General |
+| `MOUBTN` | file → Indicator |
 | `MSGALARM` | file → General; record → Output |
 | `MSGID` ⚠️ | field → Message ID |
 | `MSGLOC` | file → Display Sizes |
@@ -123,7 +125,6 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `PASSRCD` | file → General |
 | `PRINT` ⚠️ | file → Print; record → Print |
 | `PROTECT` | record → Overlay |
-| `PRTFILE` | file → Print; record → Print |
 | `PULLDOWN` | record → Pull-Down - General |
 | `PUTOVR` | record → Overlay |
 | `PUTRETAIN` | record → Overlay; field → General |
@@ -149,6 +150,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `SFLFOLD` | record → Subfile Control - General (SFLCTL) |
 | `SFLINZ` | record → Subfile Control - General (SFLCTL) |
 | `SFLLIN` | record → Subfile Control - Display Layout |
+| `SFLMLTCHC` | record → Subfile Control - General (SFLCTL) |
 | `SFLMODE` | record → Subfile Control - General (SFLCTL) |
 | `SFLMSG` | record → Subfile Control - Subfile Messages |
 | `SFLMSGID` | record → Subfile Control - Subfile Messages |
@@ -157,20 +159,24 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `SFLNXTCHG` | record → Subfile - General (SFL) |
 | `SFLPAG` | record → Subfile Control - Display Layout |
 | `SFLPGMQ` | record → Subfile Message record (SFLMSG record type) - Message Record |
-| `SFLRCDNBR` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL) |
+| `SFLRCDNBR` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
 | `SFLRNA` | record → Subfile Control - General (SFLCTL) |
-| `SFLROLVAL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL) |
+| `SFLROLVAL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
+| `SFLSCROLL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
 | `SFLSIZ` | record → Subfile Control - Display Layout |
+| `SFLSNGCHC` | record → Subfile Control - General (SFLCTL) |
 | `SLNO` | record → Output |
 | `SNGCHCFLD` | field → Menu-bar choice - Choice Selection Type |
 | `TEXT` | record → General |
 | `UNLOCK` | record → Input |
 | `USRDSPMGT` ⚠️ | file → General |
 | `USRRSTDSP` | record → Window control (WNDSFCTL general screen) |
+| `VALNUM` | file → General |
 | `VALUES` | field → Validity Check |
 | `VLDCMDKEY` | file → Indicator; record → Indicator |
 | `WDWBORDER` | file → Window Border; record → Border Parameters / Border Color / Border Display Attributes / Border Characters; record → Pull-Down - General |
 | `WINDOW` | record → Window Parameters |
+| `WRDWRAP` | file → General |
 
 ---
 
@@ -218,6 +224,8 @@ File-wide behavior flags plus REF/PASSRCD/TEXT.
 | `ERRSFL` | Write error messages to a message subfile |  |  |  |
 | `REF` | Reference database file for field attributes | library / record |  |  |
 | `PASSRCD` | Record to pass unformatted data to/from | record name |  |  |
+| `VALNUM` | Enhanced numeric error checking | no parameters |  |  |
+| `WRDWRAP` | Word wrap for continued-entry fields | no parameters |  |  |
 
 ### Indicator
 
@@ -235,6 +243,7 @@ Screen-control indicator keywords (CA/CF command keys have their own separate Co
 | `HLPRTN` | Indicator for Help return | 10-99 |  | ⚠️ |
 | `VLDCMDKEY` | Indicator for an invalid command key | 10-99 |  |  |
 | `INDTXT` | Descriptive text for an indicator | indicator 'text' | yes |  |
+| `MOUBTN` | Mouse button/event to command-key mapping (Task I-5) | EVENT [TRAILING-EVENT] {command key \| EVENT-ID} [*QUEUE\|*NOQUEUE] | yes |  |
 
 ### Print
 
@@ -244,8 +253,7 @@ Print key and system-print handling.
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
-| `PRINT` | Enable the Print key | response indicator (optional, if program handles it) |  | ⚠️ |
-| `PRTFILE` | System handles print via this print file | file / library |  |  |
+| `PRINT` | Enable the Print key (also carries the *PGM / [library/]printer-file-name print-destination forms - Task I-2: PRTFILE is not a real DDS keyword, it's PRINT's own parameter) | response indicator \| *PGM \| [library/]printer-file-name |  | ⚠️ |
 | `OPENPRT` | Leave print file open until display file is closed |  |  |  |
 
 ### Help
@@ -260,6 +268,7 @@ File-wide online help behavior.
 | `HLPSCHIDX` | Enable a search index for help | search-index-object library |  |  |
 | `HLPFULL` | Full-screen help text |  |  |  |
 | `HLPTITLE` | Help title text | 'quoted text' |  |  |
+| `HLPRCD` | Help record - names the record format containing the help text (Task I-5) | record-format-name [[library-name/]file-name] |  |  |
 
 ### Display Sizes
 
@@ -351,7 +360,7 @@ Record-wide behavior flags plus command-keys entry point, TEXT, ALTNAME.
 | `RETKEY` | Retain CLEAR/HELP/HOME/ROLL keys |  |  | ⚠️ |
 | `RETCMDKEY` | Retain CFnn/CAnn command keys |  |  | ⚠️ |
 | `CHGINPDFT` | Change input field defaults | attribute codes |  |  |
-| `MNUBARDSP` | Menu-bar display | parameters (optional) |  |  |
+| `MNUBARDSP` | Menu-bar display, repeatable/independently-conditioned instances (Task I-17); non-MNUBAR records get a 3-name record/choice/pull-down form, MNUBAR records get a single pull-down-input-field form | parameters (optional, shape depends on record type) | yes |  |
 | `ENTFLDATR` | Default attribute for entry fields in this record |  |  |  |
 | `RTNCSRLOC` | Return cursor location to these hidden fields | row field, column field |  |  |
 | `TEXT` | Documentation text - no compiled/runtime effect | 'quoted text' |  |  |
@@ -404,7 +413,7 @@ Record-level online help.
 | `HLPCLR` | Clear previous help text records |  |  |  |
 | `HLPSEQ` | Sequence of help text records | help group name, sequence number 0-99 |  |  |
 | `HLPCMDKEY` | Return command key from help |  |  |  |
-| `HLPTITLE` | Help title text | 'quoted text' |  |  |
+| `HLPTITLE` | Help title text, repeatable/independently-conditioned instances up to 15/record - Task I-27 | 'quoted text' | yes |  |
 
 ### Output
 
@@ -469,12 +478,11 @@ Print key and system-print handling (record-level).
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
-| `PRINT` | Enable the Print key | response indicator (optional) |  | ⚠️ |
-| `PRTFILE` | System handles print via this print file | file / library |  |  |
+| `PRINT` | Enable the Print key (also carries the *PGM / [library/]printer-file-name print-destination forms - Task I-2: PRTFILE is not a real DDS keyword, it's PRINT's own parameter) | response indicator \| *PGM \| [library/]printer-file-name |  | ⚠️ |
 
 ### Subfile - General (SFL)
 
-SFL detail record's own general flags (reuses the record General panel's Y=Yes rows shown on this screen).
+SFL detail record's own general flags (reuses the record General panel's Y=Yes rows shown on this screen). Task I-25: KEEP is deliberately NOT a live row here anymore - it's a hint pointing at the base Record Keywords -> General tab, the sole surviving live copy; CHGINPDFT is the same pre-existing (Task R3) hint-only arrangement.
 
 *Shared with:* WNDSFL, PULDWNSFL
 
@@ -485,9 +493,7 @@ SFL detail record's own general flags (reuses the record General panel's Y=Yes r
 | `SFLNXTCHG` | Return this record on read next changed | indicators |  |  |
 | `LOGOUT` | Write record to job log |  |  |  |
 | `LOGINP` | Write record to job log (input) |  |  |  |
-| `KEEP` | Keep records on display when closing the file |  |  |  |
 | `CHECK` | Allow blanks (AB) / move cursor right to left (RL) | AB \| RL |  |  |
-| `CHGINPDFT` | Change input defaults | select parameters |  |  |
 
 ### Subfile - Indicator (SFL)
 
@@ -503,16 +509,17 @@ Repeatable indicator instances specific to the subfile detail record.
 | `SETOF` | Set indicator(s) off | indicator | yes |  |
 | `CHANGE` | Return-on-changed indicator | indicator | yes | ⚠️ |
 
-### Subfile keywords (SFLRCDNBR/SFLROLVAL)
+### Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)
 
-Field-level keywords for a field within an SFL/SFLCTL record (numeric fields only, Task D3).
+Field-level keywords for a hidden field within an SFL/SFLCTL record (numeric fields only, Task D3; SFLSCROLL added Task I-26).
 
 *Reference screenshots:* `docs/sda-reference/screens/record-level/subfile-sfl/subfile-keywords/`
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
-| `SFLRCDNBR` | Subfile record number field | *TOP, or a numeric field |  |  |
-| `SFLROLVAL` | Number of records to roll | value or field |  |  |
+| `SFLRCDNBR` | Subfile record number field | CURSOR \| *TOP |  |  |
+| `SFLROLVAL` | Number of records to roll |  |  |  |
+| `SFLSCROLL` | Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26) | no parameters |  |  |
 
 ### Subfile Control - General (SFLCTL)
 
@@ -537,10 +544,12 @@ SFLCTL's own record-level control keywords, plus the linkage to its SFL.
 | `SFLDROP` | Subfile initially truncated |  |  |  |
 | `SFLFOLD` | Subfile initially folded |  |  |  |
 | `SFLENTER` | Use Enter key instead of a command key to process the subfile |  |  |  |
+| `SFLSNGCHC` | Single-choice selection list - mutually exclusive with SFLMLTCHC and with SFLDROP/SFLFOLD (Task I-26) | [*RSTCSR\|*NORSTCSR] [*SLTIND] [*AUTOSLT\|*NOAUTOSLT\|*AUTOSLTENH] - RSTCSR/AUTOSLT defaults flip when the record is in a pull-down |  |  |
+| `SFLMLTCHC` | Multiple-choice selection list - mutually exclusive with SFLSNGCHC and with SFLDROP/SFLFOLD (Task I-26) | [&number-selected] [*RSTCSR\|*NORSTCSR] [*SLTIND] - RSTCSR default flips when the record is in a pull-down |  |  |
 
 ### Subfile Control - Display Layout
 
-Subfile sizing.
+Subfile sizing, one row per declared DSPSIZ display size when the file has 2+ sizes (Task I-22, same per-size shape as SFLMSGRCD/MSGLOC).
 
 *Shared with:* WNDSFCTL, PDNSFLCTL
 
@@ -548,9 +557,9 @@ Subfile sizing.
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
-| `SFLSIZ` | Number of records in the subfile | number [, display-size] |  |  |
-| `SFLPAG` | Number of records per display page | number [, display-size] |  |  |
-| `SFLLIN` | Spaces between subfile records | number |  |  |
+| `SFLSIZ` | Number of records in the subfile - a program-to-system field name cannot be combined with a display-size-conditioned instance (Task I-22) | number \| field name, or per-DSPSIZ-size (*DS3/*DS4/...) instances |  |  |
+| `SFLPAG` | Number of records per display page - numeric only, no field-name form (Task I-22 correction) | number, or per-DSPSIZ-size (*DS3/*DS4/...) instances |  |  |
+| `SFLLIN` | Spaces between subfile records | number, or per-DSPSIZ-size (*DS3/*DS4/...) instances |  |  |
 
 ### Subfile Control - Subfile Messages
 
@@ -625,26 +634,15 @@ PULLDOWN record's own keyword plus its window border.
 
 ### Menu-Bar record - General
 
-MNUBAR record's own keywords.
+MNUBAR record's own keywords, plus MNUBARSW/MNUCNL (shared verbatim with the file-level Menu-bar panel). Task I-14 (closed as a documentation artifact, resolved here at I-16): MNUBARDSP is deliberately NOT its own row on this tab - it lives only on the base Record Keywords -> General tab (present for every record type including MNUBAR), and this tab shows a hint pointing there instead of a second live copy. There is no separate 'Menu-Bar Display Keywords' UI category - that name in earlier index revisions described real SDA's own sub-screen (reached from MNUBARDSP's own 'Select parameters' flag), which iSDA folds into that single base-tab row rather than a second top-level panel.
 
 *Reference screenshots:* `docs/sda-reference/screens/record-level/menu-bar-record-mnubar/general/`
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
-| `MNUBAR` | This record is a menu bar, with an optional display separator | Y \| display-separator |  |  |
-| `MNUBARDSP` | Menu-bar display, optionally naming a pull-down input field | field name (optional) |  |  |
-| `MNUBARSW` | Menu-bar switch key | indicators, CA key 01-24 |  |  |
-| `MNUCNL` | Menu-cancel key | indicators, CA key 01-24, response-indicator 01-99 |  |  |
-
-### Menu-Bar record - Menu-Bar Display Keywords
-
-Repeatable conditioned MNUBARDSP instances.
-
-*Reference screenshots:* `docs/sda-reference/screens/record-level/menu-bar-record-mnubar/menu-bar-display-keywords/`
-
-| Keyword | Description | Parameters | Repeatable | S36E |
-|---|---|---|---|---|
-| `MNUBARDSP` | Menu-bar display, conditioned per instance | indicators, pull-down input field name | yes |  |
+| `MNUBAR` | This record is a menu bar; option indicators are not valid for this keyword | *SEPARATOR \| *NOSEPARATOR (optional, default *SEPARATOR) |  |  |
+| `MNUBARSW` | Menu-bar switch key - mutually exclusive CA key with MNUCNL, checked across file- and record-level scopes (Task I-18) | indicators, CA key 01-24 (default CA10) |  |  |
+| `MNUCNL` | Menu-cancel key - mutually exclusive CA key with MNUBARSW, checked across file- and record-level scopes (Task I-18) | indicators, CA key 01-24 (default CA12), response-indicator 01-99 |  |  |
 
 ## Field-level
 

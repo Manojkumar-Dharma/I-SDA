@@ -1,8 +1,8 @@
 {
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
-    "uniqueKeywords": 159,
-    "generated": "2026-09-12"
+    "uniqueKeywords": 165,
+    "generated": "2026-09-13"
   },
   "keywords": {
     "*AUTOENT": [
@@ -507,18 +507,6 @@
           "PDNSFLCTL",
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
-        ]
-      },
-      {
-        "level": "record",
-        "category": "Subfile - General (SFL)",
-        "description": "Change input defaults",
-        "parameters": "select parameters",
-        "repeatable": false,
-        "screenshotDir": "screens/record-level/subfile-sfl/general",
-        "sharedWith": [
-          "WNDSFL",
-          "PULDWNSFL"
         ]
       },
       {
@@ -1032,6 +1020,17 @@
         "sharedWith": []
       }
     ],
+    "HLPRCD": [
+      {
+        "level": "file",
+        "category": "Help",
+        "description": "Help record - names the record format containing the help text (Task I-5)",
+        "parameters": "record-format-name [[library-name/]file-name]",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/04-help-keywords",
+        "sharedWith": []
+      }
+    ],
     "HLPRTN": [
       {
         "level": "file",
@@ -1101,9 +1100,9 @@
       {
         "level": "record",
         "category": "Help",
-        "description": "Help title text",
+        "description": "Help title text, repeatable/independently-conditioned instances up to 15/record - Task I-27",
         "parameters": "'quoted text'",
-        "repeatable": false,
+        "repeatable": true,
         "screenshotDir": "screens/record-level/base-record-keywords/help",
         "sharedWith": [
           "RECORD",
@@ -1291,18 +1290,6 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ]
-      },
-      {
-        "level": "record",
-        "category": "Subfile - General (SFL)",
-        "description": "Keep records on display when closing the file",
-        "parameters": "",
-        "repeatable": false,
-        "screenshotDir": "screens/record-level/subfile-sfl/general",
-        "sharedWith": [
-          "WNDSFL",
-          "PULDWNSFL"
-        ]
       }
     ],
     "KEYBRD": [
@@ -1399,8 +1386,8 @@
       {
         "level": "record",
         "category": "Menu-Bar record - General",
-        "description": "This record is a menu bar, with an optional display separator",
-        "parameters": "Y | display-separator",
+        "description": "This record is a menu bar; option indicators are not valid for this keyword",
+        "parameters": "*SEPARATOR | *NOSEPARATOR (optional, default *SEPARATOR)",
         "repeatable": false,
         "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
         "sharedWith": []
@@ -1421,9 +1408,9 @@
       {
         "level": "record",
         "category": "General",
-        "description": "Menu-bar display",
-        "parameters": "parameters (optional)",
-        "repeatable": false,
+        "description": "Menu-bar display, repeatable/independently-conditioned instances (Task I-17); non-MNUBAR records get a 3-name record/choice/pull-down form, MNUBAR records get a single pull-down-input-field form",
+        "parameters": "parameters (optional, shape depends on record type)",
+        "repeatable": true,
         "screenshotDir": "screens/record-level/base-record-keywords/general",
         "sharedWith": [
           "RECORD",
@@ -1436,24 +1423,6 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ]
-      },
-      {
-        "level": "record",
-        "category": "Menu-Bar record - General",
-        "description": "Menu-bar display, optionally naming a pull-down input field",
-        "parameters": "field name (optional)",
-        "repeatable": false,
-        "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
-        "sharedWith": []
-      },
-      {
-        "level": "record",
-        "category": "Menu-Bar record - Menu-Bar Display Keywords",
-        "description": "Menu-bar display, conditioned per instance",
-        "parameters": "indicators, pull-down input field name",
-        "repeatable": true,
-        "screenshotDir": "screens/record-level/menu-bar-record-mnubar/menu-bar-display-keywords",
-        "sharedWith": []
       }
     ],
     "MNUBARSEP": [
@@ -1484,8 +1453,8 @@
       {
         "level": "record",
         "category": "Menu-Bar record - General",
-        "description": "Menu-bar switch key",
-        "parameters": "indicators, CA key 01-24",
+        "description": "Menu-bar switch key - mutually exclusive CA key with MNUCNL, checked across file- and record-level scopes (Task I-18)",
+        "parameters": "indicators, CA key 01-24 (default CA10)",
         "repeatable": false,
         "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
         "sharedWith": []
@@ -1506,10 +1475,21 @@
       {
         "level": "record",
         "category": "Menu-Bar record - General",
-        "description": "Menu-cancel key",
-        "parameters": "indicators, CA key 01-24, response-indicator 01-99",
+        "description": "Menu-cancel key - mutually exclusive CA key with MNUBARSW, checked across file- and record-level scopes (Task I-18)",
+        "parameters": "indicators, CA key 01-24 (default CA12), response-indicator 01-99",
         "repeatable": false,
         "screenshotDir": "screens/record-level/menu-bar-record-mnubar/general",
+        "sharedWith": []
+      }
+    ],
+    "MOUBTN": [
+      {
+        "level": "file",
+        "category": "Indicator",
+        "description": "Mouse button/event to command-key mapping (Task I-5)",
+        "parameters": "EVENT [TRAILING-EVENT] {command key | EVENT-ID} [*QUEUE|*NOQUEUE]",
+        "repeatable": true,
+        "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": []
       }
     ],
@@ -1696,8 +1676,8 @@
       {
         "level": "file",
         "category": "Print",
-        "description": "Enable the Print key",
-        "parameters": "response indicator (optional, if program handles it)",
+        "description": "Enable the Print key (also carries the *PGM / [library/]printer-file-name print-destination forms - Task I-2: PRTFILE is not a real DDS keyword, it's PRINT's own parameter)",
+        "parameters": "response indicator | *PGM | [library/]printer-file-name",
         "repeatable": false,
         "screenshotDir": "screens/file-level/03-print-keywords",
         "sharedWith": [],
@@ -1706,8 +1686,8 @@
       {
         "level": "record",
         "category": "Print",
-        "description": "Enable the Print key",
-        "parameters": "response indicator (optional)",
+        "description": "Enable the Print key (also carries the *PGM / [library/]printer-file-name print-destination forms - Task I-2: PRTFILE is not a real DDS keyword, it's PRINT's own parameter)",
+        "parameters": "response indicator | *PGM | [library/]printer-file-name",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/print",
         "sharedWith": [],
@@ -1722,26 +1702,6 @@
         "parameters": "",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/overlay",
-        "sharedWith": []
-      }
-    ],
-    "PRTFILE": [
-      {
-        "level": "file",
-        "category": "Print",
-        "description": "System handles print via this print file",
-        "parameters": "file / library",
-        "repeatable": false,
-        "screenshotDir": "screens/file-level/03-print-keywords",
-        "sharedWith": []
-      },
-      {
-        "level": "record",
-        "category": "Print",
-        "description": "System handles print via this print file",
-        "parameters": "file / library",
-        "repeatable": false,
-        "screenshotDir": "screens/record-level/base-record-keywords/print",
         "sharedWith": []
       }
     ],
@@ -2106,9 +2066,23 @@
         "level": "record",
         "category": "Subfile Control - Display Layout",
         "description": "Spaces between subfile records",
-        "parameters": "number",
+        "parameters": "number, or per-DSPSIZ-size (*DS3/*DS4/...) instances",
         "repeatable": false,
         "screenshotDir": "screens/record-level/subfile-control-sflctl/display-layout",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLMLTCHC": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Multiple-choice selection list - mutually exclusive with SFLSNGCHC and with SFLDROP/SFLFOLD (Task I-26)",
+        "parameters": "[&number-selected] [*RSTCSR|*NORSTCSR] [*SLTIND] - RSTCSR default flips when the record is in a pull-down",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
         "sharedWith": [
           "WNDSFCTL",
           "PDNSFLCTL"
@@ -2197,8 +2171,8 @@
       {
         "level": "record",
         "category": "Subfile Control - Display Layout",
-        "description": "Number of records per display page",
-        "parameters": "number [, display-size]",
+        "description": "Number of records per display page - numeric only, no field-name form (Task I-22 correction)",
+        "parameters": "number, or per-DSPSIZ-size (*DS3/*DS4/...) instances",
         "repeatable": false,
         "screenshotDir": "screens/record-level/subfile-control-sflctl/display-layout",
         "sharedWith": [
@@ -2221,9 +2195,9 @@
     "SFLRCDNBR": [
       {
         "level": "record",
-        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL)",
+        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)",
         "description": "Subfile record number field",
-        "parameters": "*TOP, or a numeric field",
+        "parameters": "CURSOR | *TOP",
         "repeatable": false,
         "screenshotDir": "screens/record-level/subfile-sfl/subfile-keywords",
         "sharedWith": []
@@ -2246,9 +2220,20 @@
     "SFLROLVAL": [
       {
         "level": "record",
-        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL)",
+        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)",
         "description": "Number of records to roll",
-        "parameters": "value or field",
+        "parameters": "",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/subfile-keywords",
+        "sharedWith": []
+      }
+    ],
+    "SFLSCROLL": [
+      {
+        "level": "record",
+        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)",
+        "description": "Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26)",
+        "parameters": "no parameters",
         "repeatable": false,
         "screenshotDir": "screens/record-level/subfile-sfl/subfile-keywords",
         "sharedWith": []
@@ -2258,10 +2243,24 @@
       {
         "level": "record",
         "category": "Subfile Control - Display Layout",
-        "description": "Number of records in the subfile",
-        "parameters": "number [, display-size]",
+        "description": "Number of records in the subfile - a program-to-system field name cannot be combined with a display-size-conditioned instance (Task I-22)",
+        "parameters": "number | field name, or per-DSPSIZ-size (*DS3/*DS4/...) instances",
         "repeatable": false,
         "screenshotDir": "screens/record-level/subfile-control-sflctl/display-layout",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLSNGCHC": [
+      {
+        "level": "record",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Single-choice selection list - mutually exclusive with SFLMLTCHC and with SFLDROP/SFLFOLD (Task I-26)",
+        "parameters": "[*RSTCSR|*NORSTCSR] [*SLTIND] [*AUTOSLT|*NOAUTOSLT|*AUTOSLTENH] - RSTCSR/AUTOSLT defaults flip when the record is in a pull-down",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
         "sharedWith": [
           "WNDSFCTL",
           "PDNSFLCTL"
@@ -2342,6 +2341,17 @@
         "parameters": "indicators (optional)",
         "repeatable": false,
         "screenshotDir": "screens/record-level/window-subfile-control-wndsfctl/general",
+        "sharedWith": []
+      }
+    ],
+    "VALNUM": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Enhanced numeric error checking",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
         "sharedWith": []
       }
     ],
@@ -2430,6 +2440,17 @@
           "WNDSFCTL",
           "PULLDOWN"
         ]
+      }
+    ],
+    "WRDWRAP": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Word wrap for continued-entry fields",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
       }
     ]
   }
