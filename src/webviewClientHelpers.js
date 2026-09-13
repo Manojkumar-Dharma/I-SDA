@@ -1170,6 +1170,20 @@
     ['INDTXT', 'Indicator text'],
   ];
 
+  // Task I-20: of the ten kinds this shared repeatable-row model covers,
+  // VLDCMDKEY/SETOF/CHANGE/INDTXT each state their own "Option indicators
+  // are not valid for this keyword" line in the DDS Reference (CLEAR/HOME/
+  // PAGEDOWN/PAGEUP/HELP/HLPRTN all instead say "are valid") - I-7 flagged
+  // this shared component as not kind-aware (one uniform Conditioning
+  // toggle for every kind regardless), deferred to this task. See
+  // repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances'
+  // own `isConditionable` doc comment above for how a mixed list like this
+  // one opts individual rows out.
+  var RECORD_INDICATOR_NO_CONDITIONING_KINDS = ['VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'];
+  function recordIndicatorInstanceIsConditionable(inst) {
+    return RECORD_INDICATOR_NO_CONDITIONING_KINDS.indexOf(inst.kind) < 0;
+  }
+
   function recordIndicatorInstanceRowHtml(inst, p) {
     var kind = inst.kind || 'CLEAR';
     var html = '<div class="two-col" style="margin-bottom:4px;">';
@@ -1194,7 +1208,9 @@
       ownerKey + '-rep',
       function renderPayload(inst, instIdPrefix) { return recordIndicatorInstanceRowHtml(inst, instIdPrefix); },
       expandedSet,
-      '+ Add indicator keyword'
+      '+ Add indicator keyword',
+      undefined,
+      recordIndicatorInstanceIsConditionable
     ));
   }
 
@@ -1232,6 +1248,25 @@
               return;
             }
           }
+          // Task I-20 finding (b): I-13's own PULLDOWN audit found CLEAR on
+          // PULLDOWN's own 27-keyword forbidden list, but couldn't wire
+          // DspfWriter.pulldownConflictReason onto it because CLEAR lives
+          // in this shared, not-kind-aware component rather than a plain
+          // flagRowHtml row - deferred to this task. `keywords` (this
+          // function's own outer closure variable, the record's current
+          // keyword array) is exactly what pulldownConflictReason needs;
+          // the reverse direction (turning PULLDOWN on while a CLEAR
+          // instance already exists) was already covered for free, since
+          // wirePulldownPanels' own guard scans this same keywords array
+          // for ANY keyword named CLEAR regardless of which UI wrote it.
+          if (nextKind === 'CLEAR') {
+            var pulldownReason = DspfWriter.pulldownConflictReason('CLEAR', keywords);
+            if (pulldownReason) {
+              window.alert(pulldownReason);
+              if (kindEl) kindEl.value = inst.kind;
+              return;
+            }
+          }
           updatePayload(partial);
         }
         if (kindEl) kindEl.addEventListener('change', function () { guardedUpdate({ kind: kindEl.value }); });
@@ -1241,6 +1276,17 @@
       expandedSet,
       rerender,
       function makeDefaultInstance() {
+        // Task I-20 finding (b): the default kind is CLEAR, but CLEAR is
+        // on PULLDOWN's own 27-keyword forbidden list - unlike a plain
+        // on/off flag row (where "blocked" just means the checkbox
+        // reverts and the person picks something else), silently
+        // no-op'ing "+ Add indicator keyword" here would look broken -
+        // the button visibly does nothing and no row appears. Falling
+        // back to HOME instead (not on PULLDOWN's forbidden list) keeps
+        // "+ Add always seeds something" true for every record type;
+        // the guardedUpdate check above still blocks anyone who
+        // explicitly picks CLEAR from the kind dropdown afterward.
+        var kind = DspfWriter.pulldownConflictReason('CLEAR', keywords) ? 'HOME' : 'CLEAR';
         // Non-blank placeholder resp, not '' - same reasoning as every
         // other L1-based makeDefaultInstance in this file (e.g.
         // wireValidityCheckInstances above): this component commits on
@@ -1248,8 +1294,9 @@
         // be invalid DDS and the freshly-added row would vanish again on
         // the very next re-render, before the user gets to type a real
         // response indicator in.
-        return { kind: 'CLEAR', conditions: [], resp: '10', text: '' };
-      }
+        return { kind: kind, conditions: [], resp: '10', text: '' };
+      },
+      recordIndicatorInstanceIsConditionable
     );
   }
 
@@ -4898,21 +4945,45 @@
   // flips, since that's pure UI state, not a document edit.
   // -----------------------------------------------------------------------
 
-  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel, renderStaging) {
+  // Task I-20: `isConditionable(inst)` is an OPTIONAL per-instance predicate
+  // (defaults to "always true" when omitted, so every other caller of this
+  // shared component - Color & attributes, Validity check, MOUBTN, etc,
+  // none of which mix conditionable and non-conditionable kinds in one
+  // list - is unaffected). It lets a single repeatable-instance list mix
+  // kinds that DO allow option-indicator conditioning with kinds that
+  // don't (e.g. the record Indicator-keywords panel's CLEAR, which does,
+  // alongside VLDCMDKEY/SETOF/CHANGE/INDTXT, none of which do per their
+  // own "Option indicators are not valid for this keyword" DDS Reference
+  // lines) without a second parallel component. An instance this predicate
+  // rejects gets no Conditioning toggle at all - same "pass undefined
+  // instead of the real conditions" idiom flagRowHtml callers already use
+  // for a flatly-non-conditionable keyword (see e.g. I-7/I-9's own fixes),
+  // just expressed per-row instead of per-keyword. Existing conditions
+  // already present on such an instance (e.g. read from a pre-existing
+  // file that carries invalid conditioning) are left completely alone -
+  // this only prevents ADDING new conditioning through this UI, matching
+  // the same "omitted conditions preserves whatever already existed"
+  // convention I-14's own MNUBAR fix already established.
+  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel, renderStaging, isConditionable) {
     var list = instances || [];
     var html = '<div id="' + idPrefix + '-instances">';
     if (list.length === 0) {
       html += '<div class="empty-state" style="margin-bottom:6px;">None defined.</div>';
     }
     list.forEach(function (inst, idx) {
+      var conditionable = !isConditionable || isConditionable(inst);
       var conditions = inst.conditions || [];
       var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
-      var isExpanded = !!(expandedSet && expandedSet.has(idPrefix + ':' + idx));
+      var isExpanded = conditionable && !!(expandedSet && expandedSet.has(idPrefix + ':' + idx));
       var instIdPrefix = idPrefix + '-inst' + idx;
       html += '<div class="repeat-inst" data-prefix="' + idPrefix + '" data-idx="' + idx + '">';
       html += '<div class="repeat-inst-main">';
       html += renderPayload(inst, instIdPrefix);
-      html += '<span class="repeat-inst-cond-toggle" data-prefix="' + idPrefix + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      if (conditionable) {
+        html += '<span class="repeat-inst-cond-toggle" data-prefix="' + idPrefix + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      } else {
+        html += '<span class="hint-small">Option indicators are not valid for this keyword.</span>';
+      }
       html += '<button class="repeat-inst-remove" data-prefix="' + idPrefix + '" data-idx="' + idx + '">\u00d7 Remove</button>';
       html += '</div>';
       if (isExpanded) {
@@ -4926,7 +4997,7 @@
     return html;
   }
 
-  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, readNewInstance) {
+  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, readNewInstance, isConditionable) {
     var list = instances || [];
 
     function replaceAt(idx, updater) {
@@ -4943,6 +5014,11 @@
       });
     });
 
+    // Task I-20: a non-conditionable instance (see isConditionable above)
+    // never rendered a `.repeat-inst-cond-toggle` element in the first
+    // place, so this querySelectorAll naturally skips it - no extra guard
+    // needed here beyond what repeatableConditionedInstancesHtml already
+    // decided at render time.
     document.querySelectorAll('.repeat-inst-cond-toggle[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       var idx = parseInt(btn.getAttribute('data-idx'), 10);
       var expandKey = idPrefix + ':' + idx;

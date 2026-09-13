@@ -462,7 +462,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-17** | `MNUBARDSP` repeatable-conditioned-instance support | I-14 | done (0.10.95) |
 | **I-18** | `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard | I-14 | done (0.10.96) |
 | **I-19** | `MNUBAR` field-shape structural constraint | I-14 | done (0.10.97) |
-| **I-20** | Repeatable Indicator-instance model isn't kind-aware | I-7, I-13 | not started |
+| **I-20** | Repeatable Indicator-instance model isn't kind-aware | I-7, I-13 | done (0.10.101) |
 | **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | done (0.10.98) |
 | **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | not started |
 | **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | not started |
@@ -1277,7 +1277,76 @@ instance of, rather than treating all member keywords identically.
 Worth doing once, covering both findings, rather than two overlapping
 patches.
 
-**Not started.**
+**Fixed (0.10.101).** Gave the shared component itself the missing
+eligibility hook rather than forking a second copy: both
+`repeatableConditionedInstancesHtml` and
+`wireRepeatableConditionedInstances` (`webviewClientHelpers.js`) now take
+an OPTIONAL trailing `isConditionable(inst)` predicate - omitted, it
+defaults to "always true" so every OTHER caller (Color & attributes,
+Validity check, MOUBTN, SFLMSG/SFLMSGID) is completely unaffected. An
+instance the predicate rejects renders no Conditioning toggle at all (a
+"Option indicators are not valid for this keyword" hint takes its place)
+and a stale `expandedSet` entry for that row can never force its
+accordion body open even if some other code path had marked it expanded.
+
+**(a):** `recordIndicatorInstancesHtml`/`wireRecordIndicatorInstances`
+now pass `recordIndicatorInstanceIsConditionable`, checking each
+instance's `kind` against a new `RECORD_INDICATOR_NO_CONDITIONING_KINDS`
+list (`VLDCMDKEY`/`SETOF`/`CHANGE`/`INDTXT` - confirmed, one at a time,
+against each keyword's own "Option indicators are not valid for this
+keyword" line in `DDS_Keyword_V7r6.txt`; `CLEAR`/`PAGEDOWN`/`PAGEUP`/
+`HOME`/`HELP`/`HLPRTN` all instead say "are valid" and keep their
+toggle). An instance's own PRE-EXISTING conditions (e.g. read from a
+file that already carries invalid conditioning on one of the four, from
+before this fix or from some other tool) are left completely untouched -
+this only prevents ADDING new conditioning through this UI, the same
+"omitted conditions preserves whatever already existed" convention
+I-14's own MNUBAR fix established.
+
+**(b):** `wireRecordIndicatorInstances`'s `wirePayload` closure already
+has the record's own `keywords` array in scope (its own outer parameter),
+which is exactly what `DspfWriter.pulldownConflictReason` needs - its
+`guardedUpdate` now also calls `pulldownConflictReason('CLEAR', keywords)`
+whenever a kind-switch or resp-edit would leave an instance's `kind` as
+`CLEAR`, alerting and reverting the kind select on conflict, same
+alert+revert idiom as the S36-4 check right above it in the same
+function. The trickier half of (b): the repeatable list's own
+`makeDefaultInstance` (used by "+ Add indicator keyword") defaults to
+`CLEAR` - simply blocking that default on a PULLDOWN record would make
+the Add button look broken (click it, nothing visibly happens beyond an
+alert, no row appears), unlike a plain flag checkbox where "blocked"
+just means the checkbox reverts and the person picks a different
+keyword entirely. Instead, `makeDefaultInstance` now checks
+`pulldownConflictReason('CLEAR', keywords)` and silently falls back to a
+`HOME` default (not on PULLDOWN's forbidden list) when it fires, keeping
+"+ Add always seeds something usable" true for every record type; the
+`guardedUpdate` check above still blocks anyone who explicitly re-picks
+CLEAR from the kind dropdown afterward. The REVERSE direction (turning
+PULLDOWN on while a CLEAR instance already exists somewhere in the
+record) needed no new code - `pulldownConflictReason('PULLDOWN', ...)`,
+already wired onto PULLDOWN's own checkbox by I-13, scans the record's
+WHOLE keyword array for any keyword named `CLEAR` regardless of which UI
+wrote it, so it was already catching this case for free.
+
+**Test coverage:** new `src/test/i20RecordIndicatorConditioningAudit.test.js`
+- the shared `isConditionable` predicate exercised in isolation with a
+synthetic payload shape (both rendering and wiring, including the stale-
+`expandedSet` edge case); all ten record-indicator kinds' toggle presence/
+absence against the real `recordIndicatorInstancesHtml`/
+`wireRecordIndicatorInstances` pair; a mixed-kind list confirming only
+the eligible rows show a toggle; a pre-existing (invalid) VLDCMDKEY
+conditioning surviving an unrelated resp edit unchanged; a CLEAR→SETOF
+kind-switch keeping its inherited conditions; the CLEAR-vs-PULLDOWN
+kind-switch block (alert + revert); the "+ Add" HOME-fallback on a
+PULLDOWN record; and a plain non-PULLDOWN record confirming CLEAR is
+still the default there. Updated the pre-existing "Base Record Keywords
+Indicator tab" scenario in `dspfWebview.test.js` (it happened to run on
+`PSFCTL`, a record that carries PULLDOWN via the R12 PDNSFLCTL scenario
+right above it, and had been exercising CLEAR twice - both now correctly
+rejected) to use the HOME fallback and PAGEDOWN instead, plus added a new
+check there confirming an explicit CLEAR pick is still blocked with an
+alert on that same record. Full suite: 62 test files (58 `ALL CHECKS
+PASSED` + 4 legacy `All checks passed.`), zero failures.
 
 ### I-21 — `CSRLOC` / record-level `HLPTITLE` missing conditioning
 

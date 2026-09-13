@@ -6142,40 +6142,44 @@ function runPdnSflCtlPickerScenario() {
     doc.querySelector('.repeat-inst-add[data-prefix="' + rkP + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check('clicking "+ Add" seeds a valid default CLEAR(10) instance, not a blank one', !!reparsed.keywords.find((k) => k.name === 'CLEAR' && k.parameters.trim() === '10'));
+    // Task I-20 finding (b): PSFCTL carries PULLDOWN, and CLEAR is on
+    // PULLDOWN's own forbidden-keyword list, so "+ Add" on THIS record
+    // falls back to a HOME default instead of the usual CLEAR (see
+    // wireRecordIndicatorInstances' own makeDefaultInstance) - a plain,
+    // non-PULLDOWN record's own "+ Add" still seeds CLEAR by default
+    // (see the DTLCTL/SFLCTL scenario earlier in this same file).
+    check('clicking "+ Add" on this PULLDOWN record seeds a HOME(10) fallback instead of the usual CLEAR default, not a blank one', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '10'));
     posted.length = 0;
 
     const rkIndKindEl = doc.querySelector('.' + rkP + '-recind-rep-inst0-kind');
-    rkIndKindEl.value = 'HOME';
+    rkIndKindEl.value = 'PAGEDOWN';
     rkIndKindEl.dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check('switching kind swaps CLEAR for HOME on the SAME instance, same resp carried over', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '10') && !reparsed.keywords.some((k) => k.name === 'CLEAR'));
+    check('switching kind swaps HOME for PAGEDOWN on the SAME instance, same resp carried over', !!reparsed.keywords.find((k) => k.name === 'PAGEDOWN' && k.parameters.trim() === '10') && !reparsed.keywords.some((k) => k.name === 'HOME'));
     posted.length = 0;
 
     doc.querySelector('.' + rkP + '-recind-rep-inst0-resp').value = '25';
     doc.querySelector('.' + rkP + '-recind-rep-inst0-resp').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check('HOME response indicator updated to 25', reparsed.keywords.find((k) => k.name === 'HOME').parameters.trim() === '25');
+    check('PAGEDOWN response indicator updated to 25', reparsed.keywords.find((k) => k.name === 'PAGEDOWN').parameters.trim() === '25');
     posted.length = 0;
 
-    console.log('  Indicator tab: a second CLEAR row under a DIFFERENT indicator coexists with the first HOME instance - the real screen\u2019s own repeatable-row point');
+    console.log('  Indicator tab: a second HOME row under a DIFFERENT indicator coexists with the first PAGEDOWN instance - the real screen\u2019s own repeatable-row point (HOME, not CLEAR, since PSFCTL carries PULLDOWN and CLEAR is on its forbidden list - see I-20)');
     doc.querySelector('.repeat-inst-add[data-prefix="' + rkP + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check('HOME(25) survives adding a second instance', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '25'));
+    check('PAGEDOWN(25) survives adding a second instance', !!reparsed.keywords.find((k) => k.name === 'PAGEDOWN' && k.parameters.trim() === '25'));
     posted.length = 0;
     const rkIndKind1El = doc.querySelector('.' + rkP + '-recind-rep-inst1-kind');
-    rkIndKind1El.value = 'CLEAR';
-    rkIndKind1El.dispatchEvent(new Event('change', { bubbles: true }));
-    posted.length = 0;
+    check('the second instance already defaulted to HOME (this record\u2019s PULLDOWN fallback), not CLEAR', rkIndKind1El.value === 'HOME');
     doc.querySelector('.' + rkP + '-recind-rep-inst1-resp').value = '31';
     doc.querySelector('.' + rkP + '-recind-rep-inst1-resp').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check('second instance written as its own CLEAR(31)', !!reparsed.keywords.find((k) => k.name === 'CLEAR' && k.parameters.trim() === '31'));
-    check('first instance (HOME(25)) untouched by adding/editing the second', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '25'));
+    check('second instance written as its own HOME(31)', !!reparsed.keywords.find((k) => k.name === 'HOME' && k.parameters.trim() === '31'));
+    check('first instance (PAGEDOWN(25)) untouched by adding/editing the second', !!reparsed.keywords.find((k) => k.name === 'PAGEDOWN' && k.parameters.trim() === '25'));
     posted.length = 0;
 
     console.log('  Indicator tab: INDTXT within this same repeatable set carries its own text field alongside the response indicator');
@@ -6193,16 +6197,31 @@ function runPdnSflCtlPickerScenario() {
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
     const rkIndtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
-    check('INDTXT written with indicator 70 and quoted text, alongside the two other instances', rkIndtxtKw && /^70\s+'Record locked'/.test(rkIndtxtKw.parameters.trim()) && !!reparsed.keywords.find((k) => k.name === 'HOME') && !!reparsed.keywords.find((k) => k.name === 'CLEAR'));
+    check('INDTXT written with indicator 70 and quoted text, alongside the two other instances', rkIndtxtKw && /^70\s+'Record locked'/.test(rkIndtxtKw.parameters.trim()) && !!reparsed.keywords.find((k) => k.name === 'PAGEDOWN') && !!reparsed.keywords.find((k) => k.name === 'HOME'));
     posted.length = 0;
 
     console.log('  Indicator tab: removing an instance leaves the others alone');
     doc.querySelector('.repeat-inst-remove[data-prefix="' + rkP + '-recind-rep"][data-idx="1"]').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
-    check('the removed CLEAR(31) instance is gone', !reparsed.keywords.some((k) => k.name === 'CLEAR'));
-    check('HOME(25) and INDTXT(70 ...) both still present', !!reparsed.keywords.find((k) => k.name === 'HOME') && !!reparsed.keywords.find((k) => k.name === 'INDTXT'));
+    check('the removed HOME(31) instance is gone', !reparsed.keywords.some((k) => k.name === 'HOME'));
+    check('PAGEDOWN(25) and INDTXT(70 ...) both still present', !!reparsed.keywords.find((k) => k.name === 'PAGEDOWN') && !!reparsed.keywords.find((k) => k.name === 'INDTXT'));
     posted.length = 0;
+
+    console.log('  Indicator tab: explicitly picking CLEAR from the kind dropdown IS still blocked on this PULLDOWN record, with an alert naming the conflict and the select reverting');
+    {
+      const savedAlert = dom.window.alert;
+      let alerted = null;
+      dom.window.alert = (msg) => { alerted = msg; };
+      const rkIndKind0El = doc.querySelector('.' + rkP + '-recind-rep-inst0-kind');
+      const beforeValue = rkIndKind0El.value;
+      rkIndKind0El.value = 'CLEAR';
+      rkIndKind0El.dispatchEvent(new Event('change', { bubbles: true }));
+      check('no edit was posted for the blocked CLEAR switch', posted.length === 0);
+      check('an alert naming the PULLDOWN/CLEAR conflict was shown', !!alerted && alerted.indexOf('PULLDOWN') >= 0 && alerted.indexOf('CLEAR') >= 0);
+      check('the kind select reverted back to its previous value', rkIndKind0El.value === beforeValue);
+      dom.window.alert = savedAlert;
+    }
 
     console.log('\ngetWebviewHtml() defaults when uiStyle/uiTheme args are omitted (regression: these used to silently become "," via Array.prototype.join(undefined))');
     const defaultsHtml = getWebviewHtml('vscode-webview://fake', 'n', dspfSource, 'DEFAULTS.DSPF');
