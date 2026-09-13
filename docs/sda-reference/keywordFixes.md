@@ -471,7 +471,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | in progress |
 | **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | not started |
 | **I-28** | Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle despite "Option and response indicators are not valid for this keyword" - I-9 fixed this on the SFL/SFLCTL copies but never on the base copy (now the sole surviving copy after I-25's de-dup); also confirmed by the DDS Reference: `KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` - a separate mutual-exclusion audit may be warranted too | I-9, I-25 | not started |
-| **I-29** | Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN` | I-22 | in progress |
+| **I-29** | Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN` | I-22 | done - confirmed independent (0.10.104) |
 
 ### I-7 — `RECORD` (base)
 
@@ -1672,7 +1672,39 @@ missing keyword-parameter gap or something else the real screen surfaces
 (e.g. a cross-reference into `SFLROLVAL`, which sits on a different
 panel entirely).
 
-**In progress.**
+Found the "more authoritative source" this task asked for: IBM's own
+Screen Design Aid manual (SC09-2604-00, *ADTS/400: Screen Design Aid*),
+not the DDS Reference - the DDS Reference documents DDS keyword syntax,
+not SDA's own terminal UI mechanics, which is exactly why searching only
+the DDS Reference (I-22's own pass) came up empty. That manual's
+"Considerations for Using SDA Displays" section states outright: "When
+duplicate keywords (such as `INDTXT`) are allowed, scroll through those
+keywords by typing + or – in the More/Roll prompt for the keyword."
+
+This is decisive. The "Roll" column isn't a hidden/undocumented DDS
+keyword parameter of `SFLSIZ`/`SFLPAG`/`SFLLIN` at all - it's SDA's own
+generic, product-wide navigation widget for any keyword the DDS
+Reference allows to be specified more than once on the same record
+(a "duplicate keyword," the manual's own term, `INDTXT` being its
+example). `SFLSIZ`/`SFLPAG`/`SFLLIN` qualify as duplicate keywords for
+exactly the reason I-22 already built for: each can legitimately appear
+once per `DSPSIZ` display-size condition name (`*DS2`, `*DS3`, ...).
+On a real 24x80 (or 27x132) terminal, only one occurrence's Number/
+Display Size fits on the visible row at a time, so SDA lets the user
+"roll" (+ / –) between which display-size's occurrence they're currently
+viewing or editing - a physical-screen-real-estate affordance, not
+DDS-level behavior.
+
+I-22's own fix already solved the identical underlying problem (multiple
+`SFLSIZ`/`SFLPAG`/`SFLLIN` instances, one per display size) with a
+different UI: a separate, simultaneously-visible input row per declared
+`DSPSIZ` size, rather than one row the user rolls through. That's not a
+gap relative to real SDA - it's the natural modern-GUI equivalent of the
+same feature, arguably an improvement (every instance visible at once
+instead of paged one-at-a-time through a fixed-width terminal line). No
+missing keyword parameter, no code change needed.
+
+**Done - confirmed independent (0.10.104).**
 
 ---
 
