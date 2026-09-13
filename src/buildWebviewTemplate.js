@@ -5413,7 +5413,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isMnuBar = WebviewClientHelpers.isMnuBarRecord(rec);
     let mnuBarPanels = null;
     if (isMnuBar) {
-      mnuBarPanels = WebviewClientHelpers.mnuBarPanelsHtml(rec.keywords, mnuBarPrefix, expandedKeywordConditioning);
+      mnuBarPanels = WebviewClientHelpers.mnuBarPanelsHtml(rec.keywords, mnuBarPrefix, expandedKeywordConditioning, rec.fields);
     }
 
     const tabs = [

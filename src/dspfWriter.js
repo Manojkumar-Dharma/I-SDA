@@ -1519,6 +1519,90 @@
     }
     return null;
   }
+  /** Task I-19 - MNUBAR's own field-shape structural constraint. MNUBAR's
+   *  own DDS Reference section states, in its own prose (not a
+   *  keyword-compatibility list like windowConflictReason/
+   *  pulldownConflictReason/usrdfnConflictReason above): "A record with
+   *  the MNUBAR keyword specified must contain one and only one menu bar
+   *  field (a field with one or more MNUBARCHC keywords), and cannot
+   *  contain any displayable fields other than the menu bar field."
+   *  Unlike this file's other conflict-reason functions, this isn't a
+   *  same-record "does keyword X coexist with keyword Y" check - it's a
+   *  record-COMPOSITION rule (how many entries this record's own field
+   *  list contains, and of what shape), so it takes the record's
+   *  `fields` array (which, in this parser's model, holds both real DDS
+   *  fields and constants) rather than a `keywords` array.
+   *
+   *  Scope decisions:
+   *  - Identifying "the menu-bar field" considers BOTH real fields
+   *    (`nameType === 'FIELD'`) AND constants (`nameType === 'CONSTANT'`)
+   *    that carry MNUBARCHC - not just fields as MNUBARCHC's own section
+   *    literally says ("field-level keyword"). This deliberately follows
+   *    this codebase's own already-established, already-tested precedent
+   *    (see dspfWebview.test.js's D4 scenario) of letting MNUBARCHC/
+   *    MNUBARSEP be added to a constant too, not just a named field -
+   *    re-litigating that as wrong is out of this task's own scope (a
+   *    record-composition check, not an audit of where MNUBARCHC itself
+   *    may be placed), so this note treats a MNUBARCHC-bearing constant
+   *    as satisfying "the menu bar field" the same as MNUBARCHC-bearing
+   *    field, rather than flagging every such record (this codebase's own
+   *    tested, working default shape) as non-compliant.
+   *  - "cannot contain any displayable fields other than the menu bar
+   *    field", by contrast, IS read at the Reference's own precise word
+   *    - "fields" (`nameType === 'FIELD'`) - a second, unrelated
+   *    CONSTANT (a static label, say) is a distinct model entity from a
+   *    field in this parser and in DDS terminology generally, and the
+   *    Reference's own text says "fields", not "constants" or "entries",
+   *    so nothing here second-guesses that by counting constants toward
+   *    this half of the check either.
+   *  - "displayable" is read as usage O/I/B (the three usages DDS
+   *    actually shows on screen) - H (hidden) and P (program-to-system,
+   *    per MNUBARCHC's own text describing its optional return-field and
+   *    &field-name choice-text forms) are excluded from the count, which
+   *    is exactly what lets those two coexist with the one menu-bar
+   *    field without tripping this note, matching MNUBARCHC's own
+   *    example.
+   *
+   *  Deliberately an ADVISORY note, not a hard block, per this task's own
+   *  plan-doc scope question and the L83 precedent it names: this rule
+   *  spans the WHOLE RECORD's field list, not one keyword on one object
+   *  already open in the panel being edited - silently blocking or
+   *  auto-deleting a field from a single MNUBAR-tab checkbox click would
+   *  be far more surprising than a same-object hard block like
+   *  windowConflictReason/pulldownConflictReason above. There's also no
+   *  reachable single ON-transition to intercept the way there is for a
+   *  flag keyword: the violation is a property of the record's field
+   *  list as a whole, which can change from either side (placing a new
+   *  field, or deleting the one menu-bar field) - a note recomputed on
+   *  every render, like dftOutputRequirementNote's own hint-small line,
+   *  fits this shape far better than a guarded commit() ever could.
+   *
+   *  Returns null when the record is compliant (exactly one menu-bar
+   *  entry, no other displayable fields), or a single message naming
+   *  whichever of the two independent problems apply (both are named
+   *  together, joined, when both are true at once). */
+  function mnubarFieldShapeNote(fields) {
+    var all = fields || [];
+    var menuBarEntries = all.filter(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'MNUBARCHC'; }); });
+    var isDisplayable = function (f) { return f.usage === 'O' || f.usage === 'I' || f.usage === 'B'; };
+    var otherDisplayableFields = all.filter(function (f) {
+      return f.nameType === 'FIELD' && menuBarEntries.indexOf(f) === -1 && isDisplayable(f);
+    });
+
+    var entryLabel = function (f) { return f.nameType === 'CONSTANT' ? (f.constantValue != null ? "'" + f.constantValue + "'" : '(constant)') : f.name; };
+
+    var problems = [];
+    if (menuBarEntries.length === 0) {
+      problems.push('no menu-bar field yet (a field or constant with one or more MNUBARCHC keywords)');
+    } else if (menuBarEntries.length > 1) {
+      problems.push('more than one menu-bar field (' + menuBarEntries.map(entryLabel).join(', ') + ') - only one is allowed');
+    }
+    if (otherDisplayableFields.length) {
+      problems.push('displayable field(s) other than the menu-bar field (' + otherDisplayableFields.map(entryLabel).join(', ') + ')');
+    }
+    if (!problems.length) return null;
+    return 'A menu-bar record must contain exactly one menu-bar field and no other displayable fields (per the DDS Reference) - this record currently has ' + problems.join(' and ') + '.';
+  }
 
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
@@ -5085,6 +5169,7 @@
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
+    mnubarFieldShapeNote: mnubarFieldShapeNote,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,

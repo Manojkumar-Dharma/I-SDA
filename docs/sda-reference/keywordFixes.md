@@ -964,6 +964,69 @@ record in the same file, with that record's own `MNUBAR`/field-level
 
 ---
 
+### I-19 findings (done, v0.10.97)
+
+Confirmed, before writing any new guard, that iSDA's field-adding UI does
+NOT already structurally prevent adding a second displayable field to a
+MNUBAR record - the "+ Field"/click-to-place flow has no record-type
+awareness at all (unlike the record-creation wizard, which never puts a
+second field on a fresh MNUBAR record in the first place - `MNUBAR`'s
+own `buildTypedRecordPlan` entry has an empty `extraFields`). So the gap
+was real: a person could freely add extra displayable fields, or a
+second MNUBARCHC field, to an existing MNUBAR record with nothing
+flagging it.
+
+New `DspfWriter.mnubarFieldShapeNote(fields)` (pure, read-only - see its
+own doc comment for the full scope reasoning) checks a record's field
+list against MNUBAR's own two-part structural rule and returns a single
+message naming whichever half is violated (or both at once), or `null`
+when compliant. Two scope decisions worth calling out here too:
+
+- Identifying "the menu-bar field" itself counts BOTH real fields and
+  constants carrying `MNUBARCHC` - this codebase already lets
+  `MNUBARCHC`/`MNUBARSEP` be added to a constant (see dspfWebview.test.js's
+  D4 scenario, predating this task), so treating only named fields as
+  eligible would have wrongly flagged that already-working, already-
+  tested shape as non-compliant on every render.
+- The "no other displayable fields" half, by contrast, is read at the
+  Reference's own precise word - real fields only, not constants - since
+  the Reference's own text says "fields". Hidden (H) and program-to-
+  system (P) usage fields are excluded from the "displayable" count too,
+  matching MNUBARCHC's own return-field/`&field-name` choice-text forms
+  (both legitimately coexist with the one menu-bar field).
+
+Per the plan-doc's own scope question and the L83 precedent it named,
+this is an ADVISORY note (a `.hint-small.warn` line under the MNUBAR
+tab's `MNUBARCHC` picker), not a hard block - the rule spans the whole
+record's field list rather than one keyword on the object already open
+in the panel, and there's no single reachable on-transition to
+intercept the way a flag-keyword conflict has; the note is simply
+recomputed from the record's current field list on every render (same
+shape as L83's own `dftOutputRequirementNote`). `mnuBarPanelsHtml` gained
+a `fields` parameter (threaded from `buildWebviewTemplate.js`'s call
+site via `rec.fields`, which every other tab already reads) purely to
+compute this note - no new keyword plumbing, no wiring, no guarded
+commit().
+
+**New coverage:** `src/test/i19MnubarFieldShapeNote.test.js`. Unit-level:
+`mnubarFieldShapeNote` called directly with hand-built field arrays -
+a single clean menu-bar field (null); a hidden return-field alongside it
+(still null); a program-to-system choice-text field alongside it (still
+null); no MNUBARCHC field at all (note naming the gap); two MNUBARCHC-
+bearing fields (note naming both); an extra displayable field alongside
+a clean menu-bar field (note naming it); an extra CONSTANT alongside a
+clean menu-bar field (null - constants aren't "fields"); a MNUBARCHC-
+bearing CONSTANT alone satisfying the rule on its own (null); and both
+problems firing at once, both named in one message. DOM-level: a MNUBAR
+record with an extra displayable field shows the warning (with the
+offending field named) styled via the shared `.warn` class, while an
+unrelated non-MNUBAR record in the same file has no MNUBAR tab (and
+therefore nothing to warn about) at all. Confirmed (via `git stash`) to
+throw a `TypeError` (the function doesn't exist yet) against the pre-fix
+code, rather than silently pass.
+
+---
+
 ## On the horizon
 
 - Field-level keyword audit, same 4-dimension method, as its own

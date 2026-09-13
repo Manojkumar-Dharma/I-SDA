@@ -5646,7 +5646,7 @@
    * { general } for symmetry with the other record-type-specific panel
    * builders (see isMnuBarRecord above for when the tab appears).
    */
-  function mnuBarPanelsHtml(keywords, idPrefix, expandedSet) {
+  function mnuBarPanelsHtml(keywords, idPrefix, expandedSet, fields) {
     var kw = keywords || [];
     var p = idPrefix;
     var panels = {};
@@ -5669,6 +5669,15 @@
     g += '<div class="section-label" style="margin-top:14px;"></div>';
     g += menuBarKeysPanelHtml(kw, p, expandedSet);
     g += '<div class="hint-small">Menu-Bar display (MNUBARDSP) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
+    // Task I-19: advisory-only field-shape note (see
+    // DspfWriter.mnubarFieldShapeNote's own doc comment for why this is a
+    // note rather than a hard block) - recomputed from the record's
+    // current field list on every render, so it stays in sync as fields
+    // are added/removed without any dedicated wiring of its own.
+    var shapeNote = DspfWriter.mnubarFieldShapeNote(fields);
+    if (shapeNote) {
+      g += '<div class="hint-small warn">' + escapeHtml(shapeNote) + '</div>';
+    }
     panels.general = g;
 
     return panels;
