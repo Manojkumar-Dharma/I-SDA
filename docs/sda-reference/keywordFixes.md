@@ -631,7 +631,9 @@ toggle removed from all of these:
 rendered — each with its own live `flagRowHtml` row reading/writing the
 SAME underlying keyword — on at least 4 different record-type panels
 (base `recordKeywordsPanelsHtml`, this SFL panel, the SFLMSG panel, and
-the WINDOW/PULLDOWN panel), unlike `CHGINPDFT` which an earlier task (R3)
+the WINDOW/PULLDOWN panel — corrected by I-25's own fix: the fourth was
+actually `SFLCTL`'s own panel, not WINDOW/PULLDOWN, which never had its
+own `KEEP` row), unlike `CHGINPDFT` which an earlier task (R3)
 deliberately de-duplicated down to the base tab only. This isn't a
 data-correctness bug (all panels operate on the same record's `keywords`
 array, so they stay in sync), just a UI redundancy. **See I-25.**
@@ -1675,11 +1677,42 @@ panels operate on the same record's underlying `keywords` array, so
 they stay in sync regardless). `KEEP` is independently rendered — each
 with its own live `flagRowHtml` row — on the base
 `recordKeywordsPanelsHtml`, the SFL panel, the SFLMSG panel, and the
-WINDOW/PULLDOWN panel, unlike `CHGINPDFT`, which an earlier task (R3)
+SFLCTL panel, unlike `CHGINPDFT`, which an earlier task (R3)
 deliberately de-duplicated down to the base tab only. Low priority — a
 UI-redundancy cleanup, not a functional fix.
 
-**Not started.**
+**Fixed (0.10.100).** Removed the SFLMSG/SFL/SFLCTL panels' own
+duplicate live `KEEP` rows entirely (`sflMsgPanelsHtml`/
+`wireSflMsgPanels`, `sflKeywordsPanelsHtml`/`wireSflKeywordsPanels`,
+`sflCtlPanelsHtml`/`wireSflCtlPanels`) — further than R3's own
+`CHGINPDFT` precedent went (that one left the SFLMSG panel's own copy
+live) — leaving exactly one live `KEEP` control, the base Record
+Keywords → General tab, plus a hint on each of the other three panels
+pointing back to it. This task's own scope note above named the fourth
+duplicate panel as "WINDOW/PULLDOWN" — checked against the actual code
+while fixing this and confirmed inaccurate: `windowPanelsHtml`/
+`pulldownPanelsHtml` never had their own `KEEP` row at all (WINDOW/
+PULLDOWN records reach the base General tab the same way every other
+record type does, with nothing extra to de-dup there); the real fourth
+copy was `SFLCTL`'s own panel. Corrected here rather than carried
+forward.
+
+**Found while consolidating, not this task's own fix — logged
+separately:** the base panel's own `KEEP` row still offers a
+Conditioning toggle despite the DDS Reference stating option and
+response indicators are not valid for this keyword (I-9 already found
+and fixed this on the SFL/SFLCTL copies, but the base copy — now the
+sole survivor — never got it). Left as-is per this task's own de-dup-
+only scope. **See I-28**, which also fixed a `KEEP`/`ALWROL`/`CLRL`/
+`SLNO` mutual-exclusion gap found in the same pass.
+
+**Test coverage:** `src/test/i25KeepConsolidationAudit.test.js` (24
+checks) — confirms the base tab is the one surviving live control
+across all 4 record shapes, the other 3 panels show the hint and no
+checkbox, and editing still commits normally. Updated pre-existing
+`KEEP`-dependent assertions in `dspfWebview.test.js`,
+`i9SflConditioningAudit.test.js`, `i10SflctlConditioningAudit.test.js`
+to match.
 
 ### I-26 — Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL`
 
