@@ -1383,6 +1383,55 @@
     return keywordName + ' cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference).';
   }
 
+  /** Task I-13 - PULLDOWN record-level keyword audit. The PULLDOWN
+   *  keyword's own DDS Reference section states directly, right in its
+   *  own text: "The following keywords cannot be specified on a record
+   *  with the PULLDOWN keyword:" followed by this exact 27-keyword list:
+   *  ALARM, ALTNAME, ALWGPH, ALWROL, ASSUME, CLEAR, CLRL, ERASE,
+   *  ERASEINP, FRCDTA, HLPCLR, HLPSEQ, INVITE, INZRCD, MDTOFF, MNUBAR,
+   *  OVERLAY, OVRATR, OVRDTA, PUTOVR, PUTRETAIN, RTNDTA, SFL, SLNO,
+   *  USRDFN, WDWTITLE, WINDOW.
+   *  Unlike I-8's USRDFN case (a record-type identifier written once by
+   *  the "+ Add record" wizard and never removed by this UI, making the
+   *  check one-directional), PULLDOWN is itself toggled on/off
+   *  interactively from the Record Properties "Pull-down" tab's own
+   *  checkbox (see wirePulldownPanels/pulldownPanelsHtml), so this check
+   *  is bidirectional: turning PULLDOWN on while any of these 27 is
+   *  already present is blocked, and turning any of these 27 on while
+   *  PULLDOWN is already present is blocked. Same alert+revert idiom as
+   *  I-8/I-11 - turning any of them OFF (including PULLDOWN itself) is
+   *  never blocked, only the on-transition.
+   *  Of the 27, MNUBAR/SFL/USRDFN are themselves OTHER record-type
+   *  identifiers (gated by their own tabs/wizards, not by a checkbox on
+   *  this shared RECORD panel) and WINDOW/WDWTITLE belong to I-12's own
+   *  Window tab (explicitly out of THIS task's own scope per its
+   *  keywordFixes.md row) - all five are still included below so
+   *  PULLDOWN's own "on" checkbox is guarded against all 27; only the
+   *  remaining 22 (which do live on the shared RECORD panel I-7 built)
+   *  get their own individual keyword-side guard wired in
+   *  webviewClientHelpers.js. CLEAR is part of the repeatable Indicator-
+   *  instance model (Task L5d) - flagged, not wired this task, same
+   *  "shared component would need to be made kind-aware" deferral I-7
+   *  already took for VLDCMDKEY/SETOF/CHANGE. */
+  var PULLDOWN_CONFLICT_KEYWORDS = [
+    'ALARM', 'ALTNAME', 'ALWGPH', 'ALWROL', 'ASSUME', 'CLEAR', 'CLRL',
+    'ERASE', 'ERASEINP', 'FRCDTA', 'HLPCLR', 'HLPSEQ', 'INVITE', 'INZRCD',
+    'MDTOFF', 'MNUBAR', 'OVERLAY', 'OVRATR', 'OVRDTA', 'PUTOVR',
+    'PUTRETAIN', 'RTNDTA', 'SFL', 'SLNO', 'USRDFN', 'WDWTITLE', 'WINDOW'
+  ];
+  function pulldownConflictReason(keywordName, recordKeywords) {
+    var kws = recordKeywords || [];
+    if (keywordName === 'PULLDOWN') {
+      var found = kws.find(function (k) { return PULLDOWN_CONFLICT_KEYWORDS.indexOf(k.name) >= 0; });
+      if (!found) return null;
+      return 'PULLDOWN cannot be specified on a record that already has ' + found.name + ' (per the DDS Reference).';
+    }
+    if (PULLDOWN_CONFLICT_KEYWORDS.indexOf(keywordName) < 0) return null;
+    var hasPulldown = kws.some(function (k) { return k.name === 'PULLDOWN'; });
+    if (!hasPulldown) return null;
+    return keywordName + ' cannot be specified on a record with the PULLDOWN keyword (per the DDS Reference).';
+  }
+
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
    *  come back as their raw (already-quoted-if-needed) parameter string for
@@ -4945,6 +4994,7 @@
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     usrdfnConflictReason: usrdfnConflictReason,
+    pulldownConflictReason: pulldownConflictReason,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,

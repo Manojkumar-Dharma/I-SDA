@@ -1371,6 +1371,32 @@ console.log('\nDspfWriter.sflNxtchgSflMsgRcdConflictReason() (Task I-11) - SFLNX
   check('an unrelated keyword (e.g. LOGOUT) never triggers a conflict', DspfWriter.sflNxtchgSflMsgRcdConflictReason('SFLNXTCHG', [{ name: 'LOGOUT', parameters: '', conditions: [], raw: '', sourceLines: [] }]) === null);
 }
 
+console.log('\nDspfWriter.pulldownConflictReason() (Task I-13) - the 27-keyword list PULLDOWN\'s own DDS Reference section documents as unable to be specified on the same record');
+{
+  check('no conflict on a clean record with neither keyword', DspfWriter.pulldownConflictReason('ALARM', []) === null);
+  check('turning PULLDOWN on with no other keywords present is fine', DspfWriter.pulldownConflictReason('PULLDOWN', []) === null);
+
+  const withPulldown = [{ name: 'PULLDOWN', parameters: '', conditions: [], raw: '', sourceLines: [] }];
+  const reason = DspfWriter.pulldownConflictReason('ALARM', withPulldown) || '';
+  check('ALARM blocked when PULLDOWN is already present', /PULLDOWN/.test(reason));
+
+  const withAlarm = [{ name: 'ALARM', parameters: '', conditions: [], raw: '', sourceLines: [] }];
+  const symmetricReason = DspfWriter.pulldownConflictReason('PULLDOWN', withAlarm) || '';
+  check('symmetric: PULLDOWN blocked when ALARM is already present', /ALARM/.test(symmetricReason));
+
+  // Spot-check a handful of the other 26 forbidden keywords, not all of them.
+  ['ALTNAME', 'ALWGPH', 'ALWROL', 'ASSUME', 'CLEAR', 'CLRL', 'ERASE', 'ERASEINP',
+    'FRCDTA', 'HLPCLR', 'HLPSEQ', 'INVITE', 'INZRCD', 'MDTOFF', 'MNUBAR', 'OVERLAY',
+    'OVRATR', 'OVRDTA', 'PUTOVR', 'PUTRETAIN', 'RTNDTA', 'SFL', 'SLNO', 'USRDFN',
+    'WDWTITLE', 'WINDOW'].forEach(function (name) {
+    check(name + ' blocked when PULLDOWN is already present', DspfWriter.pulldownConflictReason(name, withPulldown) !== null);
+  });
+
+  check('an unrelated keyword (e.g. LOGOUT) never triggers a conflict, even with PULLDOWN present', DspfWriter.pulldownConflictReason('LOGOUT', withPulldown) === null);
+  check('PROTECT (not on the forbidden list) never triggers a conflict', DspfWriter.pulldownConflictReason('PROTECT', withPulldown) === null);
+  check('INZINP (not on the forbidden list) never triggers a conflict', DspfWriter.pulldownConflictReason('INZINP', withPulldown) === null);
+}
+
 console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');
 {
   const none = DspfWriter.getReferenceOverrides([]);

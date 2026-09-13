@@ -4202,18 +4202,22 @@
       if (elA) elA.addEventListener('change', commit);
       if (elB) elB.addEventListener('change', commit);
     }
-    // Task I-8: ALWROL/ASSUME/HLPCMDKEY are each individually documented
-    // by the DDS Reference as incompatible with a USRDFN record - see
-    // DspfWriter.usrdfnConflictReason's own doc comment for the citations.
-    // Same alert+revert idiom as I-11's SFLNXTCHG guard; plain simple()/
-    // wireFlagRow has no hook to intercept the on-transition, so these are
-    // hand-wired here instead.
+    // Task I-8/I-13: ALWROL/ASSUME/HLPCMDKEY are each individually
+    // documented by the DDS Reference as incompatible with a USRDFN
+    // record (usrdfnConflictReason), and ALWROL/ASSUME (but not
+    // HLPCMDKEY) are separately individually documented as incompatible
+    // with a PULLDOWN record too (pulldownConflictReason) - see each
+    // function's own doc comment for citations. Checking both here is
+    // harmless for HLPCMDKEY (pulldownConflictReason returns null for it,
+    // it's not on PULLDOWN's own forbidden list). Same alert+revert idiom
+    // as I-11's SFLNXTCHG guard; plain simple()/wireFlagRow has no hook to
+    // intercept the on-transition, so these are hand-wired here instead.
     function wireUsrdfnGuardedFlag(id, name) {
       var onEl = document.getElementById(id + '-on');
       function commit() {
         var present = onEl.checked;
         if (present) {
-          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords());
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -4224,11 +4228,13 @@
       }
       if (onEl) onEl.addEventListener('change', commit);
     }
-    // Task I-8: HLPSEQ's own guard - same rule, but HLPSEQ has no on/off
-    // checkbox of its own (getFileTwoFieldKeyword/setFileTwoFieldKeyword's
-    // "present" is implied by either text box being non-blank, per their
-    // own doc comments), so the on-transition here is "either box just
-    // became non-blank" rather than a checkbox flipping true.
+    // Task I-8/I-13: HLPSEQ's own guard - same rule (and, per I-13, HLPSEQ
+    // is ALSO individually on PULLDOWN's own forbidden list, unlike
+    // HLPCMDKEY above), but HLPSEQ has no on/off checkbox of its own
+    // (getFileTwoFieldKeyword/setFileTwoFieldKeyword's "present" is
+    // implied by either text box being non-blank, per their own doc
+    // comments), so the on-transition here is "either box just became
+    // non-blank" rather than a checkbox flipping true.
     function wireUsrdfnGuardedTwoField(elIdA, elIdB, name) {
       var elA = document.getElementById(elIdA);
       var elB = document.getElementById(elIdB);
@@ -4236,7 +4242,7 @@
         var aVal = elA ? elA.value : '';
         var bVal = elB ? elB.value : '';
         if ((aVal || '').trim() || (bVal || '').trim()) {
-          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords());
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             var existing = DspfWriter.getFileTwoFieldKeyword(getKeywords(), name);
@@ -4250,9 +4256,41 @@
       if (elA) elA.addEventListener('change', commit);
       if (elB) elB.addEventListener('change', commit);
     }
+    // Task I-13 - PULLDOWN record-level keyword audit. The remaining
+    // keywords on this shared RECORD panel that IBM's own DDS Reference
+    // individually lists, in the PULLDOWN keyword's own section, as
+    // unable to be specified on a record that carries PULLDOWN (and none
+    // of which have any OTHER project already guarding them, unlike
+    // ALWROL/ASSUME/HLPSEQ above) - see
+    // DspfWriter.pulldownConflictReason's own doc comment for the full
+    // citation and keyword list. Same alert+revert idiom, hand-wired here
+    // instead of simple()/wireFlagRow for the same reason as above.
+    // `hasParams` mirrors simple()'s own flag for the handful of these
+    // (SLNO/CLRL/MDTOFF/ERASEINP) that carry a free-text parameter box.
+    function wirePulldownGuardedFlag(id, name, hasParams) {
+      var onEl = document.getElementById(id + '-on');
+      var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
+      function commit() {
+        var present = onEl.checked;
+        if (present) {
+          var reason = DspfWriter.pulldownConflictReason(name, getKeywords());
+          if (reason) {
+            window.alert(reason);
+            onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, paramsEl ? paramsEl.value : ''));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+      if (paramsEl) paramsEl.addEventListener('change', commit);
+    }
 
     // General
-    simple(p + '-inzrcd', 'INZRCD', false, true);
+    // Task I-13: INZRCD is on PULLDOWN's own forbidden-keyword list -
+    // wirePulldownGuardedFlag replaces the plain simple() this used to
+    // go through (was already noConditioning=true per I-7, unaffected).
+    wirePulldownGuardedFlag(p + '-inzrcd', 'INZRCD', false);
     simple(p + '-keep', 'KEEP');
     wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME');
     wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL');
@@ -4326,8 +4364,23 @@
     })();
     var pText = document.getElementById(p + '-text');
     if (pText) pText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', pText.value)); });
+    // Task I-13: ALTNAME is on PULLDOWN's own forbidden-keyword list -
+    // same alert+revert guard as wirePulldownGuardedFlag above, but
+    // ALTNAME is a plain text keyword (setFileQuotedText), not a
+    // checkbox, so "present" here means the box just became non-blank.
     var pAltname = document.getElementById(p + '-altname');
-    if (pAltname) pAltname.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'ALTNAME', pAltname.value)); });
+    if (pAltname) pAltname.addEventListener('change', function () {
+      var val = pAltname.value;
+      if ((val || '').trim()) {
+        var reason = DspfWriter.pulldownConflictReason('ALTNAME', getKeywords());
+        if (reason) {
+          window.alert(reason);
+          pAltname.value = DspfWriter.getFileQuotedText(getKeywords(), 'ALTNAME');
+          return;
+        }
+      }
+      onChange(DspfWriter.setFileQuotedText(getKeywords(), 'ALTNAME', val));
+    });
 
     // Indicator / screen-control (Task L5d)
     wireRecordIndicatorInstances(getKeywords(), onChange, p + '-recind', expandedSet, rerender, getFileKeywords);
@@ -4337,25 +4390,34 @@
     // here anymore.
 
     // Help
-    simple(p + '-hlpclr', 'HLPCLR');
+    // Task I-13: HLPCLR is on PULLDOWN's own forbidden-keyword list (I-8
+    // confirmed it has no USRDFN-side restriction, but PULLDOWN is a
+    // separate, unrelated conflict).
+    wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', false);
     wireUsrdfnGuardedTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
     wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY');
     var hlptitle = document.getElementById(p + '-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
 
     // Output
+    // Task I-13: ALARM/INVITE/ALWGPH/FRCDTA/SLNO/CLRL are each on
+    // PULLDOWN's own forbidden-keyword list - wirePulldownGuardedFlag
+    // replaces the plain simple() these used to go through (noConditioning
+    // status per I-3/I-7 is unaffected: SLNO/CLRL still pass no
+    // conditions/expandedSet/rerender, matching simple()'s own
+    // noConditioning=true behavior).
     simple(p + '-blink', 'BLINK');
-    simple(p + '-alarm', 'ALARM');
+    wirePulldownGuardedFlag(p + '-alarm', 'ALARM', false);
     simple(p + '-msgalarm', 'MSGALARM');
     simple(p + '-lock', 'LOCK');
     simple(p + '-logout', 'LOGOUT');
-    simple(p + '-invite', 'INVITE');
-    simple(p + '-alwgph', 'ALWGPH');
-    simple(p + '-frcdta', 'FRCDTA');
+    wirePulldownGuardedFlag(p + '-invite', 'INVITE', false);
+    wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false);
+    wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false);
     simple(p + '-dspmod', 'DSPMOD', true);
     wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC');
-    simple(p + '-slno', 'SLNO', true, true);
-    simple(p + '-clrl', 'CLRL', true, true);
+    wirePulldownGuardedFlag(p + '-slno', 'SLNO', true);
+    wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true);
 
     // Input
     simple(p + '-loginp', 'LOGINP', false, true);
@@ -4377,19 +4439,24 @@
     // file-level CHECK) - no Conditioning toggle for these two rows.
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
-    simple(p + '-rtndta', 'RTNDTA', false, true);
+    // Task I-13: RTNDTA is on PULLDOWN's own forbidden-keyword list.
+    wirePulldownGuardedFlag(p + '-rtndta', 'RTNDTA', false);
 
     // Overlay
-    simple(p + '-overlay', 'OVERLAY');
-    simple(p + '-putretain', 'PUTRETAIN');
+    // Task I-13: OVERLAY/PUTRETAIN/PUTOVR/OVRDTA/OVRATR/MDTOFF/ERASEINP/
+    // ERASE are each on PULLDOWN's own forbidden-keyword list - PROTECT
+    // and INZINP are NOT on that list (checked individually against their
+    // own DDS Reference sections), left on plain simple().
+    wirePulldownGuardedFlag(p + '-overlay', 'OVERLAY', false);
+    wirePulldownGuardedFlag(p + '-putretain', 'PUTRETAIN', false);
     simple(p + '-protect', 'PROTECT');
-    simple(p + '-putovr', 'PUTOVR');
-    simple(p + '-ovrdta', 'OVRDTA');
-    simple(p + '-ovratr', 'OVRATR');
+    wirePulldownGuardedFlag(p + '-putovr', 'PUTOVR', false);
+    wirePulldownGuardedFlag(p + '-ovrdta', 'OVRDTA', false);
+    wirePulldownGuardedFlag(p + '-ovratr', 'OVRATR', false);
     simple(p + '-inzinp', 'INZINP');
-    simple(p + '-mdtoff', 'MDTOFF', true);
-    simple(p + '-eraseinp', 'ERASEINP', true);
-    simple(p + '-erase', 'ERASE');
+    wirePulldownGuardedFlag(p + '-mdtoff', 'MDTOFF', true);
+    wirePulldownGuardedFlag(p + '-eraseinp', 'ERASEINP', true);
+    wirePulldownGuardedFlag(p + '-erase', 'ERASE', false);
 
     // Print
     // Task S36-4: PRINT's response indicator (including the literal
@@ -5095,10 +5162,24 @@
   /** Wires both pulldownPanelsHtml() panels. Same `getKeywords`/`onChange`
    *  contract every other dedicated picker here uses. */
   function wirePulldownPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+    // Task I-13: turning PULLDOWN itself on is blocked if the record
+    // already carries any of the 27 keywords IBM's own DDS Reference
+    // documents as incompatible with it (see
+    // DspfWriter.pulldownConflictReason's own doc comment) - same
+    // alert+revert idiom as the individual keyword-side guards in
+    // wireRecordKeywordsPanels. Turning PULLDOWN off is never blocked.
     function commitGeneral() {
       var on = document.getElementById(idPrefix + '-on');
       var sltind = document.getElementById(idPrefix + '-sltind');
       var rstcsr = document.getElementById(idPrefix + '-rstcsr');
+      if (on.checked) {
+        var reason = DspfWriter.pulldownConflictReason('PULLDOWN', getKeywords());
+        if (reason) {
+          window.alert(reason);
+          on.checked = DspfWriter.getPulldownKeyword(getKeywords()).present;
+          return;
+        }
+      }
       onChange(DspfWriter.setPulldownKeyword(getKeywords(), on.checked, sltind.checked, rstcsr.checked));
     }
     var on = document.getElementById(idPrefix + '-on');
