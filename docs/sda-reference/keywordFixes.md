@@ -469,7 +469,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | fixed (v0.10.99) |
 | **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | done (v0.10.100) — base General tab kept as sole live control; SFL/SFLMSG/SFLCTL panels each de-duped to a hint; see I-28 for the base tab's own KEEP conditioning-toggle bug found in the process |
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | in progress |
-| **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | not started |
+| **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | done (0.10.105) |
 | **I-28** | Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle despite "Option and response indicators are not valid for this keyword" - I-9 fixed this on the SFL/SFLCTL copies but never on the base copy (now the sole surviving copy after I-25's de-dup); also confirmed by the DDS Reference: `KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` - a separate mutual-exclusion audit may be warranted too | I-9, I-25 | not started |
 | **I-29** | Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN` | I-22 | done - confirmed independent (0.10.104) |
 
@@ -1652,7 +1652,57 @@ which this task should reuse rather than one-off) is bigger, separate
 scope from I-21's own shared-primitive fix - logged as its own task
 rather than left unfinished inside I-21.
 
-**Not started.**
+**Fixed (0.10.105).** Rebuilt record-level `HLPTITLE` as a genuine
+repeatable, independently-conditioned instance list -
+`hlptitleInstanceRowHtml`/`hlptitlePanelHtml`/`wireHlptitlePanel` in
+`webviewClientHelpers.js`, reusing the same generic
+`DspfWriter.getRepeatableKeywordInstances`/`setRepeatableKeywordInstances`
+primitive Task I-17 built for `MNUBARDSP` (and the same
+`repeatableConditionedInstancesHtml`/`wireRepeatableConditionedInstances`
+UI primitive Task I-20 made kind-aware) - HLPTITLE needed no bespoke
+get/set pair of its own since, unlike MNUBARDSP, it's a single plain
+quoted-text parameter with no per-record-type shape variation to thread
+through. Each instance's own text round-trips through
+`quoteDdsLiteral`/`unquoteDdsLiteral` (the same quoting
+`getFileQuotedText`/`setFileQuotedText` already used), so an embedded
+single quote is doubled correctly. `makeDefaultInstance` seeds a
+non-blank placeholder (`'Help title'`) rather than blank text - HLPTITLE's
+own DDS format (`HLPTITLE('text')`) requires a quoted-string argument, so
+a genuinely blank instance would serialize as bare `HLPTITLE` with no
+parens at all (invalid), the same reasoning I-20's own
+`recordIndicatorInstancesHtml` makeDefaultInstance already established
+for `CLEAR`'s non-blank placeholder resp.
+
+Like I-17's own MNUBARDSP panel, this only models the repeatable LIST
+mechanically - it does NOT hard-enforce "all instances must carry option
+indicators once there's more than one" or "an unconditioned instance
+must be the record's only one"; both are surfaced instead as a
+non-blocking hint below the list.
+
+**A real ordering quirk surfaced while writing tests, NOT a bug in this
+fix:** `serializeRecordEntry` (the general record-to-DDS-lines writer,
+predating this task and shared by every repeatable-instance panel) always
+groups a record's unconditioned keywords before its conditioned ones when
+serializing. So adding a second, still-unconditioned, HLPTITLE instance
+to a record that already has a conditioned one re-renders the fresh
+instance at an EARLIER list index than the existing conditioned one after
+the write-then-reparse round trip - not simply appended after it. This is
+pre-existing, general behavior (equally true for MNUBARDSP and
+record-indicator instances), not something to fix here; the test suite
+below accounts for it rather than assuming stable positional indices once
+any conditioning exists among a list's instances.
+
+**Test coverage:** new `src/test/i27HlptitleRepeatableInstances.test.js` -
+empty state, reading an existing instance, `+ Add`'s non-blank
+placeholder, the quote-escaping round-trip (including an embedded single
+quote), IBM's own 90/N90 worked example (two independently-conditioned
+instances, editing one leaves the other's text and conditioning
+untouched), and removing one instance leaving the other (plus an
+unrelated keyword) alone. Updated the pre-existing "Base Record Keywords
+Help tab" scenario in `dspfWebview.test.js` (previously exercising I-21's
+single-instance row) to exercise the new repeatable list instead,
+including the ordering quirk above. Full suite: 63 test files, zero
+failures.
 
 ### I-29 — Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN`
 

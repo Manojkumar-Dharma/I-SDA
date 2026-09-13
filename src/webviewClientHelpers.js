@@ -3908,15 +3908,84 @@
     );
   }
 
-  /**
-   * Builds all 7 R1 category panels' inner HTML at once - { general,
-   * indicatorKeywords, help, output, input, overlay, print }, keyed to
-   * match the subtabsHtml() ids the caller wires up. (Task L5d-ii moved
-   * the former 8th category, Application help, off this record-level set
-   * entirely - see applicationHelpFieldsHtml's own doc comment below for
-   * why.) `idPrefix` (e.g. 'rk-RECORD1') keeps element ids unique per
-   * record when the props panel is rebuilt for a different record.
-   */
+  // -----------------------------------------------------------------------
+  // Task I-27 - record-level HLPTITLE's own documented repeatability
+  // ("Option indicators are allowed on record-level HLPTITLE keywords and
+  // must be specified on each HLPTITLE keyword if the record contains
+  // multiple HLPTITLE keywords. You can specify a maximum of 15 HLPTITLE
+  // keywords on a record if all have option indicators.") wasn't modeled
+  // by I-21's own single-instance fix (getFileQuotedText/setFileQuotedText
+  // gaining a `conditions` parameter, which correctly lets ONE record-level
+  // HLPTITLE be conditioned but can't represent a second one at all). This
+  // reuses the same generic DspfWriter.getRepeatableKeywordInstances/
+  // setRepeatableKeywordInstances primitive mnubardspPanelHtml/
+  // wireMnubardspPanel above already use for MNUBARDSP, rather than a
+  // bespoke get/set pair - HLPTITLE is simpler than MNUBARDSP in one way
+  // (a single plain quoted-text parameter, no per-record-type shape
+  // variation to thread through) and reuses quoteDdsLiteral/
+  // unquoteDdsLiteral (the same quoting getFileQuotedText/setFileQuotedText
+  // already use) to keep each instance's `parameters` as plain edited text
+  // rather than raw DDS quote-escaping.
+  //
+  // Like I-17's own MNUBARDSP panel, this only models the repeatable LIST
+  // mechanically - it does NOT enforce "all instances must carry option
+  // indicators once there's more than one" or "an unconditioned instance
+  // must be the record's only one" (surfaced instead as a non-blocking
+  // hint below the list, same posture MNUBARDSP's own repeatable panel
+  // already takes for its own analogous "all optioned if more than one"
+  // rule).
+  // -----------------------------------------------------------------------
+
+  function hlptitleInstanceRowHtml(inst, p) {
+    return '<input type="text" class="' + p + '-text" placeholder="Help title text" value="' + escapeHtml(DspfWriter.unquoteDdsLiteral(inst.parameters)) + '" style="width:100%;" />';
+  }
+
+  /** Record-level HLPTITLE panel (Task I-27) - shared verbatim across
+   *  every record type via recordKeywordsPanelsHtml's own Help tab, same
+   *  as the single-instance version it replaces. */
+  function hlptitlePanelHtml(keywords, ownerKey, expandedSet) {
+    var kw = keywords || [];
+    var instances = DspfWriter.getRepeatableKeywordInstances(kw, ['HLPTITLE']);
+    var html = repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-hlptitle-rep',
+      function renderPayload(inst, instIdPrefix) { return hlptitleInstanceRowHtml(inst, instIdPrefix); },
+      expandedSet,
+      '+ Add help title (HLPTITLE)'
+    );
+    html += '<div class="hint-small">IBM: more than one HLPTITLE on this record is only valid if EVERY instance carries option indicators (e.g. an indicator and its complement, like 90/N90, selecting between title variants) - an unconditioned HLPTITLE is still valid but must then be the record\u2019s only one. Not enforced here.</div>';
+    return html;
+  }
+
+  function wireHlptitlePanel(getKeywords, onChange, ownerKey, expandedSet, rerender) {
+    var kw = getKeywords();
+    var instances = DspfWriter.getRepeatableKeywordInstances(kw, ['HLPTITLE']);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-hlptitle-rep',
+      instances,
+      function (next) { onChange(DspfWriter.setRepeatableKeywordInstances(getKeywords(), ['HLPTITLE'], next)); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var textEl = document.querySelector('.' + instIdPrefix + '-text');
+        if (textEl) textEl.addEventListener('change', function () {
+          updatePayload({ name: 'HLPTITLE', parameters: DspfWriter.quoteDdsLiteral(textEl.value) });
+        });
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        // Non-blank placeholder text, not '' - HLPTITLE's own DDS format
+        // (`HLPTITLE('text')`) requires a quoted-string argument; unlike
+        // MNUBARDSP's own makeDefaultInstance (where a bare, argument-less
+        // MNUBARDSP is real, documented DDS), a blank HLPTITLE would
+        // serialize as bare `HLPTITLE` with no parens at all - invalid -
+        // same "give it a real, editable starting value" reasoning as
+        // record-indicator's own makeDefaultInstance above.
+        return { name: 'HLPTITLE', conditions: [], parameters: DspfWriter.quoteDdsLiteral('Help title') };
+      }
+    );
+  }
+
+
   function recordKeywordsPanelsHtml(keywords, idPrefix, expandedSet) {
     var kw = keywords || [];
     var p = idPrefix;
@@ -4058,27 +4127,14 @@
     var fHlpcmdkey = DspfWriter.getFileFlagKeyword(kw, 'HLPCMDKEY');
     help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     help += '<div class="section-label">Define help title (HLPTITLE)</div>';
-    help += '<input type="text" id="' + p + '-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
-    // Task I-21: per IBM's own DDS Reference, option indicators ARE
-    // allowed on record-level HLPTITLE (unlike the file-level HLPTITLE
-    // row above in fileKeywordsPanelHtml, which IBM documents as NOT
-    // eligible) - getFileQuotedText/setFileQuotedText didn't carry a
-    // conditions parameter at all until this task, so no Conditioning UI
-    // was ever offered here. NOTE: IBM's own reference also documents
-    // record-level HLPTITLE as repeatable up to 15 times when EVERY
-    // instance carries option indicators (one indicator/complement pair
-    // per help-title variant, the first one in effect at run time wins) -
-    // that richer repeatable-conditioned-instance model (the same shape
-    // Task I-17 built for MNUBARDSP) is real DDS behavior this single-
-    // instance row still can't represent; logged as its own follow-on
-    // scope rather than silently left unhandled - see I-27.
-    var hlptitleConditions = DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE');
-    var hlptitleCondSummary = hlptitleConditions.length > 0 ? ' (' + hlptitleConditions.length + ')' : '';
-    var hlptitleExpanded = !!(expandedSet && expandedSet.has(p + '-hlptitle:cond'));
-    help += '<span class="kw-cond-toggle" data-flag-id="' + p + '-hlptitle" style="margin-top:4px;">Conditioning' + hlptitleCondSummary + (hlptitleExpanded ? ' \u25b4' : ' \u25be') + '</span>';
-    if (hlptitleExpanded) {
-      help += '<div class="kw-cond-body">' + conditionsEditorHtml(hlptitleConditions, p + '-hlptitle-cond', expandedSet) + '</div>';
-    }
+    // Task I-27: record-level HLPTITLE rebuilt as a genuine repeatable,
+    // independently-conditioned instance list (see hlptitlePanelHtml's
+    // own doc comment above for the full IBM citation and why) -
+    // replaces I-21's own single-instance row (a plain text input plus
+    // one shared Conditioning toggle), which correctly let ONE
+    // record-level HLPTITLE be conditioned but couldn't represent a
+    // second one at all.
+    help += hlptitlePanelHtml(kw, p, expandedSet);
     panels.help = help;
 
     // --- Output ---
@@ -4666,15 +4722,13 @@
     wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', false);
     wireUsrdfnGuardedTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
     wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY');
-    var hlptitle = document.getElementById(p + '-hlptitle');
-    if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
-    // Task I-21: record-level HLPTITLE Conditioning toggle - see
-    // recordKeywordsPanelsHtml's own comment on this row for why option
-    // indicators are valid here (unlike file-level HLPTITLE).
-    wireFlagRowConditioning(p + '-hlptitle', DspfWriter.getFileQuotedTextConditions(getKeywords(), 'HLPTITLE'), function (newConditions) {
-      var hlptitleEl = document.getElementById(p + '-hlptitle');
-      onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitleEl ? hlptitleEl.value : '', newConditions));
-    }, expandedSet, rerender);
+    // Task I-27: record-level HLPTITLE rebuilt as a repeatable instance
+    // list - see hlptitlePanelHtml's own doc comment above. (This
+    // replaces the old single `#p-hlptitle` input/listener pair I-21 had
+    // wired here; wireFileKeywordsPanel's own file-level HLPTITLE row - a
+    // different, correctly single-instance, unconditioned keyword per
+    // IBM - is untouched and still uses that same id pattern.)
+    wireHlptitlePanel(getKeywords, onChange, p, expandedSet, rerender);
 
     // Output
     // Task I-13: ALARM/INVITE/ALWGPH/FRCDTA/SLNO/CLRL are each on
@@ -5996,6 +6050,8 @@
     wireValidityCheckInstances: wireValidityCheckInstances,
     recordIndicatorInstancesHtml: recordIndicatorInstancesHtml,
     wireRecordIndicatorInstances: wireRecordIndicatorInstances,
+    hlptitlePanelHtml: hlptitlePanelHtml,
+    wireHlptitlePanel: wireHlptitlePanel,
     errorMessageInstancesHtml: errorMessageInstancesHtml,
     wireErrorMessageInstances: wireErrorMessageInstances,
     fileKeywordsPanelsHtml: fileKeywordsPanelsHtml,
