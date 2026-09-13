@@ -580,7 +580,7 @@ Regression coverage: `dspfWriter.test.js` (unit tests for
 SFLMSG picker test gained a new block confirming the guard fires with an
 alert naming `SFLMSGRCD`, reverts the checkbox, and posts no edit -
 confirmed (via `git stash`) to fail against the pre-fix code.
-| **I-12** | `WINDOW` | Reuses I-7's full 8 plus its own: Window Parameters (`WINDOW` itself — size/roll/position), Border Parameters/Color/Attributes/Characters (`WDWBORDER`, shared verbatim with file-level's own `WDWBORDER` per F1's note — confirm that sharing is still accurate rather than assuming). Window Title has its own existing dedicated panel, not part of this task's scope (already built, not part of the audit unless a gap is found). | I-7 | in progress |
+| **I-12** | `WINDOW` | Reuses I-7's full 8 plus its own: Window Parameters (`WINDOW` itself — size/roll/position), Border Parameters/Color/Attributes/Characters (`WDWBORDER`, shared verbatim with file-level's own `WDWBORDER` per F1's note — confirm that sharing is still accurate rather than assuming). Window Title has its own existing dedicated panel, not part of this task's scope (already built, not part of the audit unless a gap is found). **Fixed (0.10.93)** — see findings below. | I-7 | done (0.10.93) |
 | **I-13** | `PULLDOWN` | Reuses I-7's full 8 plus its own: Pull-Down - General (`PULLDOWN`/`WDWBORDER` — no window-parameters screen, per R10's own note that pull-downs don't have `WINDOW`'s size/roll options). | I-7, I-12 (shares the border set) | **Fixed (0.10.92):** `PULLDOWN`'s own DDS Reference section states directly, in its own text, "The following keywords cannot be specified on a record with the PULLDOWN keyword:" followed by a 27-keyword list: `ALARM`, `ALTNAME`, `ALWGPH`, `ALWROL`, `ASSUME`, `CLEAR`, `CLRL`, `ERASE`, `ERASEINP`, `FRCDTA`, `HLPCLR`, `HLPSEQ`, `INVITE`, `INZRCD`, `MDTOFF`, `MNUBAR`, `OVERLAY`, `OVRATR`, `OVRDTA`, `PUTOVR`, `PUTRETAIN`, `RTNDTA`, `SFL`, `SLNO`, `USRDFN`, `WDWTITLE`, `WINDOW` — none of which were previously guarded. Added `DspfWriter.pulldownConflictReason` (bidirectional, same alert+revert idiom as I-8/I-11 - turning PULLDOWN on while a forbidden keyword is present is blocked, and turning a forbidden keyword on while PULLDOWN is present is blocked) and hard-wired it onto the 22 of the 27 that live on the shared RECORD panel this task covers (`INZRCD`/`ALTNAME`/`ALWROL`/`ASSUME`/`HLPCLR`/`HLPSEQ`/`ALARM`/`INVITE`/`ALWGPH`/`FRCDTA`/`SLNO`/`CLRL`/`RTNDTA`/`OVERLAY`/`PUTRETAIN`/`PUTOVR`/`OVRDTA`/`OVRATR`/`MDTOFF`/`ERASEINP`/`ERASE`, plus `ALWROL`/`ASSUME`/`HLPSEQ` also keep their existing I-8 USRDFN guard - both checks run, whichever fires first wins), plus PULLDOWN's own "on" checkbox (`wirePulldownPanels`). `PROTECT`/`INZINP` were individually checked against their own DDS Reference sections and confirmed NOT on the forbidden list - left on plain wiring. PULLDOWN's own parameters (`*SLTIND`/`*RSTCSR`) were already fully reachable and it already correctly offered no Conditioning toggle ("Option indicators are not valid for this keyword") - no change needed there. **Flagged, not fixed this task:** `CLEAR` is on the forbidden list too but lives in the repeatable Indicator-instance model (Task L5d), which isn't kind-aware (same "shared component would need to be made kind-aware" deferral I-7 already took for `VLDCMDKEY`/`SETOF`/`CHANGE`) - not wired. `MNUBAR`/`SFL`/`USRDFN` are themselves other record-type identifiers and `WINDOW`/`WDWTITLE` belong to I-12's own Window tab (out of this task's own scope per its own plan-doc row) - all five are still covered from PULLDOWN's own on-checkbox side (`pulldownConflictReason('PULLDOWN', ...)` checks against the full 27-keyword list), just not from their own individual keyword-side toggle. |
 | **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. **Fixed (0.10.91):** `MNUBAR` itself was wrongly showing a Conditioning toggle — IBM's own DDS Reference states "Option indicators are not valid for this keyword" — removed; its free-text parameter placeholder (previously flagged as "not confidently verified") is now the confirmed `*SEPARATOR \| *NOSEPARATOR` (default `*SEPARATOR`) syntax. Confirmed already-correct: `MNUBARSW`/`MNUCNL` (both option-indicator-valid, already wired file- and record-level per IBM's "file- or record-level" designation, correct CA-key/response-indicator parameters from Task I-4) and `MNUBARDSP` (already given correct two-format handling by Task L76/I-4). The "duplicate listing" question is confirmed to be a `KEYWORD-INDEX.json` documentation artifact only — the code renders one shared MNUBARDSP row on R1's base General tab, not two — left for I-16's regeneration rather than fixed here. **Flagged, not fixed this task:** MNUBARDSP's own "more than one can be specified if all are optioned" repeatability isn't modeled (single-instance UI only, no repeatable-instance list the way SFLMSG/indicator instances get elsewhere in this codebase) — now **I-17**; MNUBARSW/MNUCNL's mutual CA-key exclusion (IBM: a CAnn key assigned to one cannot be reused on the other within a record) isn't enforced — now **I-18**; MNUBAR's structural constraint (must contain exactly one menu-bar field, no other displayable fields) isn't validated — now **I-19**. All three are bigger, separate-scope changes — logged rather than silently absorbed, and split into their own tasks below rather than left as bare prose so they're pickable. | I-7 | done (0.10.91) |
 | **I-15** | Combination record types: `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL` | Not a full per-type audit (see "Record types NOT getting their own task" above) — recheck R6/R8/R9/R11/R12's "no cross-contamination" finding specifically from THIS audit's angle: does IBM's DDS Reference document any usage/conditioning/parameter rule that only applies when two keywords are combined on the same record (e.g. a restriction on `SFL` that's stated differently when `WINDOW` is also present)? If nothing turns up, close as "confirmed independent, no combination-specific rules" the same way R6/R8/R9/R11/R12 closed with "zero new code needed." If something does turn up, split it into its own task rather than silently patching it here. | I-9, I-10, I-11, I-12, I-13 | not started |
@@ -801,6 +801,79 @@ toggle's absence on the now-ineligible `MNUBAR` row, its continued
 presence on `MNUBARSW`/`MNUCNL` (no regression), the corrected parameter
 placeholder text, and a commit-still-works check after removing the
 toggle — confirmed (via `git stash`) to fail against the pre-fix code.
+
+---
+
+### I-12 findings (done, v0.10.93)
+
+Audited the WINDOW record type's own keyword set against the DDS
+Reference — I-7's reused 8 categories plus WINDOW's own Window
+Parameters (`WINDOW` itself) and Border Parameters (`WDWBORDER`,
+shared with file-level) — same per-keyword method as I-1/I-7/I-8/I-10
+(read each keyword's own opening statement, don't infer from a category
+label or another keyword's mention of it).
+
+- **`WDWBORDER` file-level/record-level sharing** — confirmed accurate,
+  not just assumed: the DDS Reference's `WDWBORDER` section is written
+  once and explicitly covers both levels ("You use this file-level or
+  record-level keyword..."), identical parameter shape either way. No
+  code change needed — `windowBorderPanelHtml`'s reuse of the file-level
+  helpers is correct.
+- **`WINDOW` itself** — confirmed "Option indicators are not valid for
+  this keyword" (already correctly not offering a Conditioning toggle —
+  there never was one on this panel, so nothing to remove). Parameter
+  shapes checked against `getWindowParamsKeyword`/`setWindowParamsKeyword`
+  (`*DFT`, start-line/position, lines/columns, the `*MSGLIN`/`*NOMSGLIN`
+  and `*RSTCSR`/`*NORSTCSR` trailing tokens, and the record-name
+  reference form) — all confirmed already correct.
+- **`RMVWDW`/`USRRSTDSP`** — both individually documented "Option
+  indicators are valid for this keyword" — both already correctly wired
+  with conditioning via `flagRowHtml`'s `conditions` parameter. No change
+  needed.
+- **New finding, fixed this task**: WINDOW's own DDS Reference section
+  states outright: "The WINDOW keyword is not allowed on a record format
+  that has any one of the following keywords specified: ALWROL, ASSUME,
+  MNUBAR, PULLDOWN, SFL, USRDFN." Of these six, `MNUBAR`/`PULLDOWN`/
+  `SFL`/`USRDFN` are each their own record TYPE the "+ Add record" wizard
+  picks once at creation time (`RECORD_TYPES` in
+  `webviewClientHelpers.js`) — WINDOW is never addable to an existing
+  record of one of those types afterward through this UI (the Window
+  tab/Apply button only ever renders for a record that already carries
+  `WINDOW`, per `isWindowRecord`), so there's no reachable on-transition
+  to guard for that half. `ALWROL`/`ASSUME`, however, are plain toggles
+  on the base General tab (I-7's own set, reused unchanged for WINDOW
+  records) — turning either ON while WINDOW is already present was a
+  genuinely reachable, previously-unguarded on-transition that would
+  produce invalid DDS. Same "hard-block only the documented, reachable
+  on-transition" precedent as I-8 (`usrdfnConflictReason`) and I-11
+  (`sflNxtchgSflMsgRcdConflictReason`): added
+  `DspfWriter.windowConflictReason` (same shape as `usrdfnConflictReason`)
+  and extended the existing `wireUsrdfnGuardedFlag` helper with an
+  `alsoCheckWindow` flag so `ALWROL`/`ASSUME`'s call sites layer the new
+  check on top of the pre-existing USRDFN one, without dragging WINDOW
+  into `HLPCMDKEY`'s own guard (WINDOW's own text doesn't name
+  `HLPCMDKEY`). Turning `ALWROL`/`ASSUME` back off is never blocked, and
+  WINDOW itself is only ever written by the record-creation wizard, never
+  toggled through this function, so there's no reverse direction to
+  check either — this also covers hand-edited DDS that already combines
+  them with WINDOW before iSDA opened the file.
+- **Flagged, not fixed this task**: WINDOW's own section also states
+  "WINDOW cannot be specified for the record format specified by the
+  PASSRCD keyword" — a cross-reference-by-name check against a
+  file-level keyword's string parameter (does record X, which some
+  file-level `PASSRCD(X)` points at, ever get a `WINDOW` keyword), a
+  different and more involved shape of check than a same-record flag
+  conflict. Deferred rather than guessed at, same posture I-4/I-6/I-11's
+  own open questions took.
+
+**Test coverage:** `src/test/i12WindowConflictAudit.test.js` renders the
+real generated webview in jsdom: confirms `ALWROL`/`ASSUME` are blocked
+(alert naming WINDOW, checkbox reverts, no edit posted) on a WINDOW
+record, that an unrelated keyword (`RETKEY`) still commits normally on
+the same record (guard is scoped to just those two), and that
+`ALWROL`/`ASSUME` are completely unaffected on an ordinary non-WINDOW
+record (no regression). Confirmed (via `git stash`) to fail 6 of its 24
+assertions against the pre-fix code.
 
 ---
 

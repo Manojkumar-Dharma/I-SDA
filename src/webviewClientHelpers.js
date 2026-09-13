@@ -4212,12 +4212,21 @@
     // it's not on PULLDOWN's own forbidden list). Same alert+revert idiom
     // as I-11's SFLNXTCHG guard; plain simple()/wireFlagRow has no hook to
     // intercept the on-transition, so these are hand-wired here instead.
-    function wireUsrdfnGuardedFlag(id, name) {
+    // Task I-12: ALWROL/ASSUME are ALSO individually documented as
+    // incompatible with a WINDOW record (see DspfWriter.
+    // windowConflictReason's own doc comment) - `alsoCheckWindow` lets
+    // those two call sites layer that third check on top of the
+    // existing USRDFN/PULLDOWN ones, without dragging WINDOW into
+    // HLPCMDKEY's own guard below (WINDOW's own DDS Reference text
+    // doesn't name HLPCMDKEY at all).
+    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow) {
       var onEl = document.getElementById(id + '-on');
       function commit() {
         var present = onEl.checked;
         if (present) {
-          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords());
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
+            DspfWriter.pulldownConflictReason(name, getKeywords()) ||
+            (alsoCheckWindow ? DspfWriter.windowConflictReason(name, getKeywords()) : null);
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -4292,8 +4301,8 @@
     // go through (was already noConditioning=true per I-7, unaffected).
     wirePulldownGuardedFlag(p + '-inzrcd', 'INZRCD', false);
     simple(p + '-keep', 'KEEP');
-    wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME');
-    wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL');
+    wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME', true);
+    wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true);
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);

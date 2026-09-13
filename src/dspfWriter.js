@@ -1432,6 +1432,40 @@
     return keywordName + ' cannot be specified on a record with the PULLDOWN keyword (per the DDS Reference).';
   }
 
+  /** Task I-12 - WINDOW record-level keyword audit. WINDOW's own DDS
+   *  Reference section states outright: "The WINDOW keyword is not
+   *  allowed on a record format that has any one of the following
+   *  keywords specified: ALWROL, ASSUME, MNUBAR, PULLDOWN, SFL, USRDFN."
+   *  Of these six, MNUBAR/PULLDOWN/SFL/USRDFN are each their own record
+   *  TYPE the "+ Add record" wizard picks once at creation time (see
+   *  RECORD_TYPES in webviewClientHelpers.js) - WINDOW is never addable
+   *  to an already-existing record of one of those types through this
+   *  UI (the Window tab/Apply button only ever appears for a record that
+   *  already carries WINDOW - see isWindowRecord), so there's no
+   *  reachable on-transition to guard for that half. ALWROL and ASSUME,
+   *  though, are plain toggles on the base Record Keywords -> General
+   *  tab (I-7's own set), reused unchanged for WINDOW records - turning
+   *  either ON while WINDOW is already present is a genuinely reachable,
+   *  previously-unguarded on-transition that would produce invalid DDS.
+   *  Same one-directional "hard-block only the on-transition" posture as
+   *  I-8's usrdfnConflictReason above (and same reasoning: WINDOW itself
+   *  is only ever written by the record-creation wizard, never toggled
+   *  through this function, so there's no reverse direction to check
+   *  here either) - turning ALWROL/ASSUME back off is never blocked,
+   *  which also covers hand-edited DDS that already combines them with
+   *  WINDOW before iSDA opened the file.
+   *  MNUBAR/PULLDOWN/SFL/USRDFN are deliberately NOT re-checked here even
+   *  though WINDOW's own text names them too - each already has its own
+   *  record-type identity keyword written once at creation (verbatim
+   *  the same reasoning USRDFN's own guard above gives for why it's a
+   *  one-directional check), and none of them exposes an on/off toggle
+   *  a WINDOW record could flip after the fact. */
+  function windowConflictReason(keywordName, recordKeywords) {
+    var hasWindow = (recordKeywords || []).some(function (k) { return k.name === 'WINDOW'; });
+    if (!hasWindow) return null;
+    return keywordName + ' cannot be specified on a record format that also has the WINDOW keyword (per the DDS Reference).';
+  }
+
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
    *  come back as their raw (already-quoted-if-needed) parameter string for
@@ -4995,6 +5029,7 @@
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     usrdfnConflictReason: usrdfnConflictReason,
     pulldownConflictReason: pulldownConflictReason,
+    windowConflictReason: windowConflictReason,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,
