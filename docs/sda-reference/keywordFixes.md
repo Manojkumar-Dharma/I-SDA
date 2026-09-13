@@ -582,7 +582,7 @@ alert naming `SFLMSGRCD`, reverts the checkbox, and posts no edit -
 confirmed (via `git stash`) to fail against the pre-fix code.
 | **I-12** | `WINDOW` | Reuses I-7's full 8 plus its own: Window Parameters (`WINDOW` itself — size/roll/position), Border Parameters/Color/Attributes/Characters (`WDWBORDER`, shared verbatim with file-level's own `WDWBORDER` per F1's note — confirm that sharing is still accurate rather than assuming). Window Title has its own existing dedicated panel, not part of this task's scope (already built, not part of the audit unless a gap is found). | I-7 | in progress |
 | **I-13** | `PULLDOWN` | Reuses I-7's full 8 plus its own: Pull-Down - General (`PULLDOWN`/`WDWBORDER` — no window-parameters screen, per R10's own note that pull-downs don't have `WINDOW`'s size/roll options). | I-7, I-12 (shares the border set) | not started |
-| **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. | I-7 | in progress |
+| **I-14** | `MNUBAR` (menu bar record) | Reuses I-7's full 8 plus its own: Menu-Bar record - General (`MNUBAR`/`MNUBARDSP`/`MNUBARSW`/`MNUCNL`), Menu-Bar Display Keywords (`MNUBARDSP` again — confirm this isn't a duplicate listing artifact in `KEYWORD-INDEX.json` vs. two genuinely distinct parameter forms before assuming it's fine). Field-level `MNUBARCHC`/`MNUBARSEP`/choice keywords (Task D5) are a separate field-level task, not in scope here. **Fixed (0.10.91):** `MNUBAR` itself was wrongly showing a Conditioning toggle — IBM's own DDS Reference states "Option indicators are not valid for this keyword" — removed; its free-text parameter placeholder (previously flagged as "not confidently verified") is now the confirmed `*SEPARATOR \| *NOSEPARATOR` (default `*SEPARATOR`) syntax. Confirmed already-correct: `MNUBARSW`/`MNUCNL` (both option-indicator-valid, already wired file- and record-level per IBM's "file- or record-level" designation, correct CA-key/response-indicator parameters from Task I-4) and `MNUBARDSP` (already given correct two-format handling by Task L76/I-4). The "duplicate listing" question is confirmed to be a `KEYWORD-INDEX.json` documentation artifact only — the code renders one shared MNUBARDSP row on R1's base General tab, not two — left for I-16's regeneration rather than fixed here. **Flagged, not fixed this task:** MNUBARDSP's own "more than one can be specified if all are optioned" repeatability isn't modeled (single-instance UI only, no repeatable-instance list the way SFLMSG/indicator instances get elsewhere in this codebase); MNUBARSW/MNUCNL's mutual CA-key exclusion (IBM: a CAnn key assigned to one cannot be reused on the other within a record) isn't enforced; MNUBAR's structural constraint (must contain exactly one menu-bar field, no other displayable fields) isn't validated. All three are bigger, separate-scope changes — logged rather than silently absorbed. | I-7 | done (0.10.91) |
 | **I-15** | Combination record types: `SFLMSGCTL`, `WNDSFL`, `WNDSFCTL`, `PULDWNSFL`, `PDNSFLCTL` | Not a full per-type audit (see "Record types NOT getting their own task" above) — recheck R6/R8/R9/R11/R12's "no cross-contamination" finding specifically from THIS audit's angle: does IBM's DDS Reference document any usage/conditioning/parameter rule that only applies when two keywords are combined on the same record (e.g. a restriction on `SFL` that's stated differently when `WINDOW` is also present)? If nothing turns up, close as "confirmed independent, no combination-specific rules" the same way R6/R8/R9/R11/R12 closed with "zero new code needed." If something does turn up, split it into its own task rather than silently patching it here. | I-9, I-10, I-11, I-12, I-13 | not started |
 | **I-16** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration | Housekeeping, not an audit task itself — once I-7 through I-15 land real fixes, regenerate the keyword-index files (`build_index.py`/`build_lookup_and_md.py`) so they stop reflecting stale pre-fix state (the `PRTFILE` example above is one instance; there may be others by the time this is picked up). Do this LAST, after the others are done, not incrementally per task — regenerating after every single fix just churns the index files repeatedly for no benefit. | I-7 through I-15 | not started |
 
@@ -706,6 +706,97 @@ audit scope covers.
 the real generated webview in jsdom and asserts the toggle's presence/
 absence for every keyword this task touched, plus a commit-still-works
 regression check for a newly-ineligible row (`SFLRNA`).
+
+### I-14 findings (done, v0.10.91)
+
+Audited all 4 keywords `mnuBarPanelsHtml`/`wireMnuBarPanels` (the MNUBAR
+tab) exposes, same method as I-7/I-9/I-10: read each keyword's own
+"Option indicators are/are not valid for this keyword" line in
+`DDS_Keyword_V7r6.txt`, diff against what the panel currently offers,
+then separately check parameters/sub-parameters and the "duplicate
+listing" question this task's own scope note raised.
+
+**Confirmed violation (offered conditioning, IBM says not valid)** —
+toggle removed:
+- `MNUBAR` — "Option indicators are not valid for this keyword." The
+  panel's own `flagRowHtml` call was passing `mnubar.conditions` straight
+  through (rather than `undefined`, the "not eligible" idiom I-7/I-8/
+  I-9/I-10 all use), so a Conditioning toggle appeared where none should.
+  Fixed in both `mnuBarPanelsHtml` (build) and `wireMnuBarPanels` (wire),
+  which had a matching bug in its own `setFileFlagKeyword` call already
+  reading `getFileFlagKeyword(...).conditions` back off the keyword
+  purely to round-trip it — removed there too so an existing (invalid)
+  file that already carries conditioning on `MNUBAR` is left untouched
+  rather than being silently stripped, matching this codebase's existing
+  "omitted conditions preserves whatever already existed" convention.
+
+**Confirmed already-compliant (both correctly offer conditioning):**
+- `MNUBARSW` — "Option indicators are valid for this keyword." Already
+  correctly wired at both file level (Task F1's Menu-bar category) and
+  record level (`menuBarKeysPanelHtml`, reused verbatim on this tab),
+  matching IBM's own "file- or record-level keyword" designation for
+  it. Its `[(CAnn)]` parameter (default CA10) was already confirmed
+  correct by Task I-4.
+- `MNUCNL` — "Option indicators are valid for this keyword." Same
+  file-and-record-level wiring as `MNUBARSW`, matching its own IBM
+  "file- or record-level keyword" designation. Its
+  `[(CAnn [response-indicator])]` parameter (default CA12) was already
+  confirmed correct by Task I-4.
+- `MNUBARDSP` — "Option indicators are valid for the MNUBARDSP keyword,
+  and more than one MNUBARDSP keyword can be specified on the record if
+  all are optioned." Conditioning toggle already present and correct
+  (Task L76/I-4's own investigation confirmed the toggle itself was
+  never the bug, only the flat parameters box was). The repeatability
+  half of that sentence is a genuine, separate gap — see "flagged, not
+  fixed" below, not silently folded into this fix.
+
+**"Duplicate listing" question, resolved:** this task's own scope note
+asked whether `MNUBARDSP` appearing under both "Menu-Bar record -
+General" and "Menu-Bar record - Menu-Bar Display Keywords" in
+`KEYWORD-INDEX.json` reflects two genuinely distinct parameter forms or
+a stale artifact. Checked against the actual code (`mnuBarPanelsHtml`,
+`recordKeywordsPanelsHtml`): only ONE `MNUBARDSP` row is ever rendered —
+on R1's shared base General tab, present for every record type
+including MNUBAR — with `mnuBarPanelsHtml`'s own comment already
+pointing there via a hint line rather than duplicating it. The "Menu-Bar
+Display Keywords" category name in the index describes real SDA's own
+sub-screen (reached from `MNUBARDSP`'s "Select parameters" flag), which
+iSDA folds into that same single row rather than a separate top-level
+panel — the two-category listing is a documentation artifact from how
+`KEYWORD-INDEX.json` was originally built, not a second, uncovered
+keyword surface. Left for I-16's end-of-series regeneration rather than
+hand-edited now, per I-16's own "do this last, not incrementally" scope.
+
+**Flagged, not fixed this task** (bigger, separate-scope changes, same
+posture as I-10's `SFLSIZ`/`SFLPAG`/`SFLLIN` deferral):
+- `MNUBARDSP`'s own documented repeatability ("more than one ... if all
+  are optioned") isn't modeled — the panel is single-instance
+  (`getFileFlagKeyword`/`setFileFlagKeyword`), not a repeatable-instance
+  list the way `recordIndicatorInstancesHtml`/`errorMessageInstancesHtml`
+  model other repeatable keywords elsewhere in this codebase. Building
+  that out would mean a new repeatable-conditioned-instance component for
+  this one keyword — bigger than this audit task's own scope.
+- `MNUBARSW`/`MNUCNL`'s own documented mutual CA-key exclusion ("the CAnn
+  key specified by MNUBARSW cannot be specified again using another
+  keyword such as MNUCNL", and the mirror statement under `MNUCNL`) isn't
+  enforced — nothing stops a person from assigning the same CAnn to both
+  in this UI today. A hard-block guard (same shape as L81's
+  `dftGroupConflictReason`/I-11's `sflNxtchgSflMsgRcdConflictReason`)
+  would be a reasonable follow-up but is a new cross-keyword validation,
+  not a conditioning/parameter fix this task's own scope covers.
+- `MNUBAR`'s own structural constraint ("must contain one and only one
+  menu bar field... and cannot contain any displayable fields other than
+  the menu bar field") isn't validated anywhere — this is a field-level/
+  record-composition rule, not a keyword-conditioning or parameter gap,
+  so it sits outside this task's 4-dimension method entirely; noted here
+  so it isn't lost rather than acted on.
+
+**Test coverage:** `src/test/i14MnubarConditioningAudit.test.js` renders
+the real generated webview in jsdom and asserts the Conditioning
+toggle's absence on the now-ineligible `MNUBAR` row, its continued
+presence on `MNUBARSW`/`MNUCNL` (no regression), the corrected parameter
+placeholder text, and a commit-still-works check after removing the
+toggle — confirmed (via `git stash`) to fail against the pre-fix code.
 
 ---
 

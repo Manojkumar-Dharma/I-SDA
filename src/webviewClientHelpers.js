@@ -5427,9 +5427,21 @@
     var p = idPrefix;
     var panels = {};
 
+    // Task I-14: confirmed against IBM's own DDS Reference ("MNUBAR (Menu
+    // Bar) keyword for display files") that the parameter is
+    // `[*SEPARATOR | *NOSEPARATOR]` (optional, default *SEPARATOR - a
+    // separator line placed below the last menu-bar choice line unless
+    // *NOSEPARATOR is given), and that "Option indicators are not valid
+    // for this keyword" - so unlike MNUBARSW/MNUCNL/MNUBARDSP just below
+    // (all three explicitly documented as conditionable), MNUBAR itself
+    // must NOT get a Conditioning toggle. The row used to pass
+    // `mnubar.conditions` through to flagRowHtml, wrongly offering one;
+    // passing `undefined` (the same "not eligible" idiom I-7/I-8/I-9/I-10
+    // use elsewhere in this file) removes it. The previous placeholder's
+    // own hint text calling the parameter "not confidently verified" is
+    // replaced with the now-confirmed values.
     var mnubar = DspfWriter.getFileFlagKeyword(kw, 'MNUBAR');
-    var g = flagRowHtml(p + '-mnubar', 'Menu-bar (MNUBAR)', mnubar.present, mnubar.parameters, 'parameters (optional - e.g. the display-separator value)', mnubar.conditions, expandedSet);
-    g += '<div class="hint-small">Real SDA\u2019s own screen shows a separate "Display separator" toggle here - its exact DDS parameter value wasn\u2019t confidently verified, so use the parameters box above or the raw Keywords editor below if you need it.</div>';
+    var g = flagRowHtml(p + '-mnubar', 'Menu-bar (MNUBAR)', mnubar.present, mnubar.parameters, '*SEPARATOR or *NOSEPARATOR (optional, default *SEPARATOR)', undefined, expandedSet);
     g += '<div class="section-label" style="margin-top:14px;"></div>';
     g += menuBarKeysPanelHtml(kw, p, expandedSet);
     g += '<div class="hint-small">Menu-Bar display (MNUBARDSP) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
@@ -5441,7 +5453,13 @@
   /** Wires the mnuBarPanelsHtml() panel. Same `getKeywords`/`onChange`
    *  contract every other dedicated picker here uses. */
   function wireMnuBarPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
-    wireFlagRow(idPrefix + '-mnubar', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'MNUBAR', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUBAR').conditions, expandedSet, rerender);
+    // Task I-14: MNUBAR takes no Conditioning toggle (see mnuBarPanelsHtml's
+    // own comment) - `conditions` passed as `undefined` here matches that,
+    // and setFileFlagKeyword's own "conditions omitted preserves whatever
+    // conditioning already existed" contract means an existing DSPF that
+    // (invalidly) already carried option-indicator conditioning on MNUBAR
+    // is left untouched rather than silently stripped by this fix.
+    wireFlagRow(idPrefix + '-mnubar', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'MNUBAR', present, params); }, undefined, expandedSet, rerender);
     wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender);
   }
 
