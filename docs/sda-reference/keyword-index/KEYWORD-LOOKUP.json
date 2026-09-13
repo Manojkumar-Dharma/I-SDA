@@ -556,8 +556,8 @@
       {
         "level": "file",
         "category": "Indicator",
-        "description": "Indicator to clear the display",
-        "parameters": "10-99, or 01-99",
+        "description": "Indicator to clear the display, with optional descriptive text (Task I-4)",
+        "parameters": "response-indicator 10-99 (or 01-99), ['text'] optional",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": []
@@ -887,8 +887,8 @@
       {
         "level": "file",
         "category": "Indicator",
-        "description": "Indicator for the Help key",
-        "parameters": "10-99",
+        "description": "Indicator for the Help key, with optional descriptive text (Task I-4)",
+        "parameters": "response-indicator 10-99, ['text'] optional",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": [],
@@ -1035,8 +1035,8 @@
       {
         "level": "file",
         "category": "Indicator",
-        "description": "Indicator for Help return",
-        "parameters": "10-99",
+        "description": "Indicator for Help return, with optional descriptive text (Task I-4)",
+        "parameters": "response-indicator 10-99, ['text'] optional",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": [],
@@ -1117,8 +1117,8 @@
       {
         "level": "file",
         "category": "Indicator",
-        "description": "Indicator for the Home key",
-        "parameters": "10-99",
+        "description": "Indicator for the Home key, with optional descriptive text (Task I-4)",
+        "parameters": "response-indicator 10-99, ['text'] optional",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": []
@@ -1613,8 +1613,8 @@
       {
         "level": "file",
         "category": "Indicator",
-        "description": "Indicator for Page down (legacy alias ROLLUP recognized)",
-        "parameters": "10-99",
+        "description": "Indicator for Page down (legacy alias ROLLUP recognized), with optional descriptive text (Task I-4)",
+        "parameters": "response-indicator 10-99, ['text'] optional",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": []
@@ -1639,8 +1639,8 @@
       {
         "level": "file",
         "category": "Indicator",
-        "description": "Indicator for Page up (legacy alias ROLLDOWN recognized)",
-        "parameters": "10-99",
+        "description": "Indicator for Page up (legacy alias ROLLDOWN recognized), with optional descriptive text (Task I-4)",
+        "parameters": "response-indicator 10-99, ['text'] optional",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": []
@@ -2370,8 +2370,8 @@
       {
         "level": "file",
         "category": "Indicator",
-        "description": "Indicator for an invalid command key",
-        "parameters": "10-99",
+        "description": "Indicator for an invalid command key, with optional descriptive text (Task I-4)",
+        "parameters": "response-indicator 10-99, ['text'] optional",
         "repeatable": false,
         "screenshotDir": "screens/file-level/02-indicator-keywords",
         "sharedWith": []

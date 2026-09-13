@@ -75,13 +75,13 @@ cat(file_lvl, "General", "File-wide behavior flags plus REF/PASSRCD/TEXT.", [
 ], screenshotDir="screens/file-level/01-general-keywords")
 
 cat(file_lvl, "Indicator", "Screen-control indicator keywords (CA/CF command keys have their own separate Command Keys panel).", [
-    kw("CLEAR", "Indicator to clear the display", "10-99, or 01-99"),
-    kw("HOME", "Indicator for the Home key", "10-99"),
-    kw("PAGEDOWN", "Indicator for Page down (legacy alias ROLLUP recognized)", "10-99"),
-    kw("PAGEUP", "Indicator for Page up (legacy alias ROLLDOWN recognized)", "10-99"),
-    kw("HELP", "Indicator for the Help key", "10-99", s36e=S36E_HELP),
-    kw("HLPRTN", "Indicator for Help return", "10-99", s36e=S36E_HLPRTN),
-    kw("VLDCMDKEY", "Indicator for an invalid command key", "10-99"),
+    kw("CLEAR", "Indicator to clear the display, with optional descriptive text (Task I-4)", "response-indicator 10-99 (or 01-99), ['text'] optional"),
+    kw("HOME", "Indicator for the Home key, with optional descriptive text (Task I-4)", "response-indicator 10-99, ['text'] optional"),
+    kw("PAGEDOWN", "Indicator for Page down (legacy alias ROLLUP recognized), with optional descriptive text (Task I-4)", "response-indicator 10-99, ['text'] optional"),
+    kw("PAGEUP", "Indicator for Page up (legacy alias ROLLDOWN recognized), with optional descriptive text (Task I-4)", "response-indicator 10-99, ['text'] optional"),
+    kw("HELP", "Indicator for the Help key, with optional descriptive text (Task I-4)", "response-indicator 10-99, ['text'] optional", s36e=S36E_HELP),
+    kw("HLPRTN", "Indicator for Help return, with optional descriptive text (Task I-4)", "response-indicator 10-99, ['text'] optional", s36e=S36E_HLPRTN),
+    kw("VLDCMDKEY", "Indicator for an invalid command key, with optional descriptive text (Task I-4)", "response-indicator 10-99, ['text'] optional"),
     kw("INDTXT", "Descriptive text for an indicator", "indicator 'text'", repeatable=True),
     kw("MOUBTN", "Mouse button/event to command-key mapping (Task I-5)", "EVENT [TRAILING-EVENT] {command key | EVENT-ID} [*QUEUE|*NOQUEUE]", repeatable=True),
 ], screenshotDir="screens/file-level/02-indicator-keywords")

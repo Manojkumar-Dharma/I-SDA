@@ -235,13 +235,13 @@ Screen-control indicator keywords (CA/CF command keys have their own separate Co
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
-| `CLEAR` | Indicator to clear the display | 10-99, or 01-99 |  |  |
-| `HOME` | Indicator for the Home key | 10-99 |  |  |
-| `PAGEDOWN` | Indicator for Page down (legacy alias ROLLUP recognized) | 10-99 |  |  |
-| `PAGEUP` | Indicator for Page up (legacy alias ROLLDOWN recognized) | 10-99 |  |  |
-| `HELP` | Indicator for the Help key | 10-99 |  | ⚠️ |
-| `HLPRTN` | Indicator for Help return | 10-99 |  | ⚠️ |
-| `VLDCMDKEY` | Indicator for an invalid command key | 10-99 |  |  |
+| `CLEAR` | Indicator to clear the display, with optional descriptive text (Task I-4) | response-indicator 10-99 (or 01-99), ['text'] optional |  |  |
+| `HOME` | Indicator for the Home key, with optional descriptive text (Task I-4) | response-indicator 10-99, ['text'] optional |  |  |
+| `PAGEDOWN` | Indicator for Page down (legacy alias ROLLUP recognized), with optional descriptive text (Task I-4) | response-indicator 10-99, ['text'] optional |  |  |
+| `PAGEUP` | Indicator for Page up (legacy alias ROLLDOWN recognized), with optional descriptive text (Task I-4) | response-indicator 10-99, ['text'] optional |  |  |
+| `HELP` | Indicator for the Help key, with optional descriptive text (Task I-4) | response-indicator 10-99, ['text'] optional |  | ⚠️ |
+| `HLPRTN` | Indicator for Help return, with optional descriptive text (Task I-4) | response-indicator 10-99, ['text'] optional |  | ⚠️ |
+| `VLDCMDKEY` | Indicator for an invalid command key, with optional descriptive text (Task I-4) | response-indicator 10-99, ['text'] optional |  |  |
 | `INDTXT` | Descriptive text for an indicator | indicator 'text' | yes |  |
 | `MOUBTN` | Mouse button/event to command-key mapping (Task I-5) | EVENT [TRAILING-EVENT] {command key \| EVENT-ID} [*QUEUE\|*NOQUEUE] | yes |  |
 

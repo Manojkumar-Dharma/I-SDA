@@ -122,46 +122,46 @@
           "keywords": [
             {
               "keyword": "CLEAR",
-              "description": "Indicator to clear the display",
-              "parameters": "10-99, or 01-99",
+              "description": "Indicator to clear the display, with optional descriptive text (Task I-4)",
+              "parameters": "response-indicator 10-99 (or 01-99), ['text'] optional",
               "repeatable": false
             },
             {
               "keyword": "HOME",
-              "description": "Indicator for the Home key",
-              "parameters": "10-99",
+              "description": "Indicator for the Home key, with optional descriptive text (Task I-4)",
+              "parameters": "response-indicator 10-99, ['text'] optional",
               "repeatable": false
             },
             {
               "keyword": "PAGEDOWN",
-              "description": "Indicator for Page down (legacy alias ROLLUP recognized)",
-              "parameters": "10-99",
+              "description": "Indicator for Page down (legacy alias ROLLUP recognized), with optional descriptive text (Task I-4)",
+              "parameters": "response-indicator 10-99, ['text'] optional",
               "repeatable": false
             },
             {
               "keyword": "PAGEUP",
-              "description": "Indicator for Page up (legacy alias ROLLDOWN recognized)",
-              "parameters": "10-99",
+              "description": "Indicator for Page up (legacy alias ROLLDOWN recognized), with optional descriptive text (Task I-4)",
+              "parameters": "response-indicator 10-99, ['text'] optional",
               "repeatable": false
             },
             {
               "keyword": "HELP",
-              "description": "Indicator for the Help key",
-              "parameters": "10-99",
+              "description": "Indicator for the Help key, with optional descriptive text (Task I-4)",
+              "parameters": "response-indicator 10-99, ['text'] optional",
               "repeatable": false,
               "s36e": "S36E-conditional: a response indicator here triggers an ERROR (not just a warning) when USRDSPMGT is present - HLPRTN must also be specified to return control to the program. Verified, S36-3/S36-4."
             },
             {
               "keyword": "HLPRTN",
-              "description": "Indicator for Help return",
-              "parameters": "10-99",
+              "description": "Indicator for Help return, with optional descriptive text (Task I-4)",
+              "parameters": "response-indicator 10-99, ['text'] optional",
               "repeatable": false,
               "s36e": "S36E-conditional: required alongside HELP to return control to the application program when USRDSPMGT is present. Verified, S36-3/S36-4."
             },
             {
               "keyword": "VLDCMDKEY",
-              "description": "Indicator for an invalid command key",
-              "parameters": "10-99",
+              "description": "Indicator for an invalid command key, with optional descriptive text (Task I-4)",
+              "parameters": "response-indicator 10-99, ['text'] optional",
               "repeatable": false
             },
             {
