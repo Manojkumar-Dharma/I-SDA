@@ -6086,6 +6086,62 @@ function runPdnSflCtlPickerScenario() {
     check('KEEP itself was added', reparsed.keywords.some((k) => k.name === 'KEEP'));
     posted.length = 0;
 
+    console.log('\nBase Record Keywords (Task R1) Output tab (Task I-21): CSRLOC now offers a Conditioning toggle - previously getFileTwoFieldKeyword had no conditions parameter at all, so option indicators (which IBM documents as valid on CSRLOC) were never editable here');
+    doc.getElementById(rkP + '-csrloc-row').value = 'LINNBR';
+    doc.getElementById(rkP + '-csrloc-row').dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById(rkP + '-csrloc-col').value = 'POSNBR';
+    doc.getElementById(rkP + '-csrloc-col').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted[posted.length - 1];
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('CSRLOC was written with both field names', reparsed.keywords.find((k) => k.name === 'CSRLOC').parameters.trim() === 'LINNBR POSNBR');
+    posted.length = 0;
+    check('CSRLOC starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-csrloc"]').textContent));
+    doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-csrloc"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + rkP + '-csrloc-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num').value = '45';
+    doc.querySelector('.cond-ind-add[data-prefix="' + rkP + '-csrloc-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    const csrlocKw = reparsed.keywords.find((k) => k.name === 'CSRLOC');
+    check('CSRLOC is now conditioned on indicator 45', csrlocKw.conditions.length === 1 && csrlocKw.conditions[0].indicators[0].number === '45');
+    check("CSRLOC's own field names survived the conditioning edit", csrlocKw.parameters.trim() === 'LINNBR POSNBR');
+    posted.length = 0;
+    check('re-rendering shows the Conditioning(1) summary on the CSRLOC row', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-csrloc"]').textContent));
+
+    doc.getElementById(rkP + '-csrloc-row').value = 'LINNBR2';
+    doc.getElementById(rkP + '-csrloc-row').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check("editing CSRLOC's own field name does not wipe its indicator 45 conditioning", reparsed.keywords.find((k) => k.name === 'CSRLOC').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'CSRLOC').conditions[0].indicators[0].number === '45');
+    posted.length = 0;
+
+    console.log('\nBase Record Keywords (Task R1) Help tab (Task I-21): record-level HLPTITLE now offers a Conditioning toggle too - IBM documents option indicators as valid on record-level HLPTITLE (unlike file-level HLPTITLE, which stays un-conditioned)');
+    doc.getElementById(rkP + '-hlptitle').value = 'Sample Screen 1';
+    doc.getElementById(rkP + '-hlptitle').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check('HLPTITLE text was written', reparsed.keywords.find((k) => k.name === 'HLPTITLE').parameters === "'Sample Screen 1'");
+    posted.length = 0;
+    check('HLPTITLE starts with no Conditioning shown as already set (0)', /Conditioning(?!\s*\(\d)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-hlptitle"]').textContent));
+    doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-hlptitle"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-add-group[data-prefix="' + rkP + '-hlptitle-cond"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num').value = '90';
+    doc.querySelector('.cond-ind-add[data-prefix="' + rkP + '-hlptitle-cond"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    const hlptitleKw = reparsed.keywords.find((k) => k.name === 'HLPTITLE');
+    check('record-level HLPTITLE is now conditioned on indicator 90', hlptitleKw.conditions.length === 1 && hlptitleKw.conditions[0].indicators[0].number === '90');
+    check("HLPTITLE's own text survived the conditioning edit", hlptitleKw.parameters === "'Sample Screen 1'");
+    posted.length = 0;
+    check('re-rendering shows the Conditioning(1) summary on the HLPTITLE row', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + rkP + '-hlptitle"]').textContent));
+
+    doc.getElementById(rkP + '-hlptitle').value = 'Sample Screen 1 revised';
+    doc.getElementById(rkP + '-hlptitle').dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
+    check("editing HLPTITLE's own text does not wipe its indicator 90 conditioning", reparsed.keywords.find((k) => k.name === 'HLPTITLE').conditions.length === 1 && reparsed.keywords.find((k) => k.name === 'HLPTITLE').conditions[0].indicators[0].number === '90');
+    posted.length = 0;
+
     console.log('\nBase Record Keywords (Task R1) Indicator tab (Task L5d): CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/CHANGE/INDTXT are now repeatable, independently-conditioned instances, matching the real SDA \u201cDefine Indicator Keywords\u201d screen for a plain record, instead of one flagRowHtml per keyword');
     check('no indicator-keyword instances yet - empty state shown', doc.getElementById(rkP + '-recind-rep-instances').textContent.indexOf('None defined.') >= 0);
     doc.querySelector('.repeat-inst-add[data-prefix="' + rkP + '-recind-rep"]').dispatchEvent(new Event('click', { bubbles: true }));

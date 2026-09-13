@@ -3992,6 +3992,26 @@
     help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     help += '<div class="section-label">Define help title (HLPTITLE)</div>';
     help += '<input type="text" id="' + p + '-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
+    // Task I-21: per IBM's own DDS Reference, option indicators ARE
+    // allowed on record-level HLPTITLE (unlike the file-level HLPTITLE
+    // row above in fileKeywordsPanelHtml, which IBM documents as NOT
+    // eligible) - getFileQuotedText/setFileQuotedText didn't carry a
+    // conditions parameter at all until this task, so no Conditioning UI
+    // was ever offered here. NOTE: IBM's own reference also documents
+    // record-level HLPTITLE as repeatable up to 15 times when EVERY
+    // instance carries option indicators (one indicator/complement pair
+    // per help-title variant, the first one in effect at run time wins) -
+    // that richer repeatable-conditioned-instance model (the same shape
+    // Task I-17 built for MNUBARDSP) is real DDS behavior this single-
+    // instance row still can't represent; logged as its own follow-on
+    // scope rather than silently left unhandled - see I-27.
+    var hlptitleConditions = DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE');
+    var hlptitleCondSummary = hlptitleConditions.length > 0 ? ' (' + hlptitleConditions.length + ')' : '';
+    var hlptitleExpanded = !!(expandedSet && expandedSet.has(p + '-hlptitle:cond'));
+    help += '<span class="kw-cond-toggle" data-flag-id="' + p + '-hlptitle" style="margin-top:4px;">Conditioning' + hlptitleCondSummary + (hlptitleExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+    if (hlptitleExpanded) {
+      help += '<div class="kw-cond-body">' + conditionsEditorHtml(hlptitleConditions, p + '-hlptitle-cond', expandedSet) + '</div>';
+    }
     panels.help = help;
 
     // --- Output ---
@@ -4017,6 +4037,21 @@
     out += '<div class="section-label">Hidden fields with cursor position for output (CSRLOC)</div>';
     out += '<div class="two-col"><input type="text" id="' + p + '-csrloc-row" placeholder="Row field name" value="' + escapeHtml(csrloc.a) + '" />' +
       '<input type="text" id="' + p + '-csrloc-col" placeholder="Column field name" value="' + escapeHtml(csrloc.b) + '" /></div>';
+    // Task I-21: CSRLOC is individually documented by IBM as "Option
+    // indicators are valid for this keyword" (display size condition
+    // names are NOT valid) - getFileTwoFieldKeyword/setFileTwoFieldKeyword
+    // didn't carry a conditions parameter at all until this task, so no
+    // Conditioning UI was ever offered here even though real DDS allows
+    // it. Reuses flagRowHtml's own toggle markup/id convention
+    // (ownerKey + '-cond' etc.) so wireFlagRowConditioning can wire it
+    // unchanged - the same hand-rolled-row shape entFldAtrHtml already
+    // established for ENTFLDATR above.
+    var csrlocCondSummary = csrloc.conditions.length > 0 ? ' (' + csrloc.conditions.length + ')' : '';
+    var csrlocExpanded = !!(expandedSet && expandedSet.has(p + '-csrloc:cond'));
+    out += '<span class="kw-cond-toggle" data-flag-id="' + p + '-csrloc" style="margin-top:4px;">Conditioning' + csrlocCondSummary + (csrlocExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+    if (csrlocExpanded) {
+      out += '<div class="kw-cond-body">' + conditionsEditorHtml(csrloc.conditions, p + '-csrloc-cond', expandedSet) + '</div>';
+    }
     var slno = DspfWriter.getFileFlagKeyword(kw, 'SLNO');
     out += flagRowHtml(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', undefined, undefined); // I-7: option indicators not valid
     var clrl = DspfWriter.getFileFlagKeyword(kw, 'CLRL');
@@ -4351,12 +4386,20 @@
         return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
       }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
-    function wireTwoField(elIdA, elIdB, name) {
+    /** `ownerKey`/`condExpandedSet`/`condRerender` (optional, Task I-21) add
+     *  a Conditioning toggle identical in shape to wireFlagRow's own -
+     *  omit all three (as HLPSEQ's own guarded wrapper below still does,
+     *  since IBM documents HLPSEQ as NOT eligible for option-indicator
+     *  conditioning) to keep the plain text-only wiring unchanged. */
+    function wireTwoField(elIdA, elIdB, name, ownerKey, condExpandedSet, condRerender) {
       var elA = document.getElementById(elIdA);
       var elB = document.getElementById(elIdB);
-      function commit() { onChange(DspfWriter.setFileTwoFieldKeyword(getKeywords(), name, elA.value, elB.value)); }
-      if (elA) elA.addEventListener('change', commit);
-      if (elB) elB.addEventListener('change', commit);
+      function commit(conditions) { onChange(DspfWriter.setFileTwoFieldKeyword(getKeywords(), name, elA.value, elB.value, conditions)); }
+      if (elA) elA.addEventListener('change', function () { commit(); });
+      if (elB) elB.addEventListener('change', function () { commit(); });
+      if (ownerKey) {
+        wireFlagRowConditioning(ownerKey, DspfWriter.getFileTwoFieldKeyword(getKeywords(), name).conditions, commit, condExpandedSet, condRerender);
+      }
     }
     // Task I-8/I-13: ALWROL/ASSUME/HLPCMDKEY are each individually
     // documented by the DDS Reference as incompatible with a USRDFN
@@ -4541,6 +4584,13 @@
     wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY');
     var hlptitle = document.getElementById(p + '-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
+    // Task I-21: record-level HLPTITLE Conditioning toggle - see
+    // recordKeywordsPanelsHtml's own comment on this row for why option
+    // indicators are valid here (unlike file-level HLPTITLE).
+    wireFlagRowConditioning(p + '-hlptitle', DspfWriter.getFileQuotedTextConditions(getKeywords(), 'HLPTITLE'), function (newConditions) {
+      var hlptitleEl = document.getElementById(p + '-hlptitle');
+      onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitleEl ? hlptitleEl.value : '', newConditions));
+    }, expandedSet, rerender);
 
     // Output
     // Task I-13: ALARM/INVITE/ALWGPH/FRCDTA/SLNO/CLRL are each on
@@ -4558,7 +4608,7 @@
     wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false);
     wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false);
     simple(p + '-dspmod', 'DSPMOD', true);
-    wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC');
+    wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC', p + '-csrloc', expandedSet, rerender);
     wirePulldownGuardedFlag(p + '-slno', 'SLNO', true);
     wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true);
 

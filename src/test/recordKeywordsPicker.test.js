@@ -59,7 +59,7 @@ console.log('getUnlockKeyword / setUnlockKeyword - UNLOCK present/absent plus *E
 console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - "keyword(a b)" shape (CSRLOC/HLPSEQ)');
 {
   let kw = [];
-  check('both blank by default', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC')) === JSON.stringify({ a: '', b: '' }));
+  check('both blank by default', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC')) === JSON.stringify({ a: '', b: '', conditions: [] }));
 
   kw = DspfWriter.setFileTwoFieldKeyword(kw, 'CSRLOC', 'ROWFLD', 'COLFLD');
   check('parameters are "a b"', kw[0].parameters === 'ROWFLD COLFLD');
@@ -78,8 +78,28 @@ console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - "keyword(a b)" 
   kw = DspfWriter.setFileTwoFieldKeyword(kw, 'HLPSEQ', 'GRP1', '5');
   kw = DspfWriter.setFileTwoFieldKeyword(kw, 'CSRLOC', 'RFLD', 'CFLD');
   check('HLPSEQ and CSRLOC coexist independently', kw.length === 2);
-  check('HLPSEQ reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ')) === JSON.stringify({ a: 'GRP1', b: '5' }));
-  check('CSRLOC reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC')) === JSON.stringify({ a: 'RFLD', b: 'CFLD' }));
+  check('HLPSEQ reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ')) === JSON.stringify({ a: 'GRP1', b: '5', conditions: [] }));
+  check('CSRLOC reads back', JSON.stringify(DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC')) === JSON.stringify({ a: 'RFLD', b: 'CFLD', conditions: [] }));
+}
+
+console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - Task I-21, CSRLOC conditions preserve-when-omitted');
+{
+  let kw = [];
+  kw = DspfWriter.setFileTwoFieldKeyword(kw, 'CSRLOC', 'ROWFLD', 'COLFLD', [{ relation: 'AND', indicators: [{ number: '40', not: false }], sourceLines: [] }]);
+  check('explicit conditions are attached', DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC').conditions.length === 1);
+  check("attached indicator is '40'", DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC').conditions[0].indicators[0].number === '40');
+
+  // Editing just the text fields (conditions omitted) must NOT wipe the
+  // conditioning already on the keyword - this used to be an unconditional
+  // `conditions: []` on every call, the same class of bug setFileFlagKeyword
+  // had before its own fix.
+  kw = DspfWriter.setFileTwoFieldKeyword(kw, 'CSRLOC', 'ROWFLD2', 'COLFLD');
+  check("editing 'a' with conditions omitted preserves the existing conditioning", DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC').conditions.length === 1);
+  check("'a' itself still updated", DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC').a === 'ROWFLD2');
+
+  // An explicit [] deliberately clears it.
+  kw = DspfWriter.setFileTwoFieldKeyword(kw, 'CSRLOC', 'ROWFLD2', 'COLFLD', []);
+  check('an explicit [] clears conditions', DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC').conditions.length === 0);
 }
 
 console.log('\ngetMnubardspFields / setMnubardspFields - Task L76, MNUBARDSP\'s 3-name "keyword(a b c)" shape');
@@ -197,6 +217,29 @@ console.log('\nR1 keywords reuse F1\'s generic getFileFlagKeyword/setFileFlagKey
 
   const title = DspfWriter.getFileQuotedText(DspfWriter.setFileQuotedText(kw, 'HLPTITLE', "Order entry - it's live"), 'HLPTITLE');
   check('HLPTITLE (shared with F1) works unchanged at record level', title === "Order entry - it's live");
+}
+
+console.log('\ngetFileQuotedTextConditions / setFileQuotedText conditions param - Task I-21, record-level HLPTITLE conditioning');
+{
+  let kw = [];
+  check('no conditions by default', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 0);
+
+  kw = DspfWriter.setFileQuotedText(kw, 'HLPTITLE', 'Sample Screen 1', [{ relation: 'AND', indicators: [{ number: '90', not: false }], sourceLines: [] }]);
+  check('explicit conditions are attached', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 1);
+  check("attached indicator is '90'", DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE')[0].indicators[0].number === '90');
+  check('text itself round-trips alongside the conditioning', DspfWriter.getFileQuotedText(kw, 'HLPTITLE') === 'Sample Screen 1');
+
+  // Editing just the text (conditions omitted) must NOT wipe the existing
+  // conditioning - before this task setFileQuotedText unconditionally
+  // rebuilt the keyword with `conditions: []` on every call, the same
+  // class of bug setFileFlagKeyword had before its own fix.
+  kw = DspfWriter.setFileQuotedText(kw, 'HLPTITLE', 'Sample Screen 1 revised');
+  check('editing text with conditions omitted preserves the existing conditioning', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 1);
+  check('text itself still updated', DspfWriter.getFileQuotedText(kw, 'HLPTITLE') === 'Sample Screen 1 revised');
+
+  // An explicit [] deliberately clears it.
+  kw = DspfWriter.setFileQuotedText(kw, 'HLPTITLE', 'Sample Screen 1 revised', []);
+  check('an explicit [] clears conditions', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 0);
 }
 
 console.log('\napplyRecordUpdate() - a batch of R1 picker keywords (one per category) round-trips through serialize + re-parse');

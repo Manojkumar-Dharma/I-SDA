@@ -2408,20 +2408,49 @@
 
   /** Plain-text getter for a quoted-string file-level keyword (HLPTITLE) -
    *  same shape as getWindowTitleText, unquoting so the
-   *  editor input shows plain text rather than DDS's own quote escaping. */
+   *  editor input shows plain text rather than DDS's own quote escaping.
+   *  Kept returning a plain string (not an object) since most call sites
+   *  (ALTNAME, TEXT, file-level HLPTITLE, which IBM documents as NOT
+   *  eligible for option-indicator conditioning) only ever want the text -
+   *  see getFileQuotedTextConditions below for the sibling reader Task
+   *  I-21 added for the keywords that DO need conditioning. */
   function getFileQuotedText(keywords, name) {
     var k = (keywords || []).find(function (kw) { return kw.name === name; });
     if (!k) return '';
     return unquoteDdsLiteral(k.parameters);
   }
 
+  /** Task I-21: sibling reader returning just the conditions array for a
+   *  getFileQuotedText-backed keyword (record-level HLPTITLE is
+   *  individually documented by IBM as eligible for option-indicator
+   *  conditioning) - kept as its own small function rather than changing
+   *  getFileQuotedText's own return shape, so getFileQuotedText's many
+   *  plain-string callers stay untouched. */
+  function getFileQuotedTextConditions(keywords, name) {
+    var k = (keywords || []).find(function (kw) { return kw.name === name; });
+    return k ? (k.conditions || []) : [];
+  }
+
   /** Returns a NEW keywords array with `name` set to the quoted+escaped
-   *  form of `text` (removed entirely if `text` is blank). */
-  function setFileQuotedText(keywords, name, text) {
+   *  form of `text` (removed entirely if `text` is blank).
+   *
+   *  `conditions` (optional, Task I-21) - when OMITTED (undefined), any
+   *  indicator conditioning already on the existing keyword instance is
+   *  PRESERVED as-is, matching setFileFlagKeyword's own "omit to preserve,
+   *  pass an explicit array (including []) to actually change it"
+   *  contract. Before this task every call here unconditionally rebuilt
+   *  the keyword with `conditions: []`, so editing HLPTITLE's text (or
+   *  any other getFileQuotedText-backed keyword) would have silently
+   *  stripped conditioning the moment record-level HLPTITLE gained a
+   *  Conditioning UI - the exact same class of bug setFileFlagKeyword's
+   *  own history already documents. */
+  function setFileQuotedText(keywords, name, text, conditions) {
+    var existing = (keywords || []).find(function (kw) { return kw.name === name; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== name; });
     var quoted = quoteDdsLiteral(text);
     if (quoted) {
-      next = next.concat([{ name: name, parameters: quoted, conditions: [], raw: '', sourceLines: [] }]);
+      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: name, parameters: quoted, conditions: nextConditions, raw: '', sourceLines: [] }]);
     }
     return next;
   }
@@ -2837,22 +2866,37 @@
 
   /** Generic "keyword(a b)" reader - two whitespace-separated tokens, both
    *  optional individually (CSRLOC's row/col, HLPSEQ's help-group-name/
-   *  sequence-number). */
+   *  sequence-number). `conditions` (Task I-21) is always included in the
+   *  returned object, same "always present, empty array when there's
+   *  nothing" convention getFileFlagKeyword already follows - CSRLOC is
+   *  individually documented by IBM as eligible for option-indicator
+   *  conditioning; HLPSEQ is documented as NOT eligible, so its own call
+   *  sites simply never read/wire this field. */
   function getFileTwoFieldKeyword(keywords, name) {
     var k = (keywords || []).find(function (kw) { return kw.name === name; });
-    if (!k) return { a: '', b: '' };
+    if (!k) return { a: '', b: '', conditions: [] };
     var parts = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
-    return { a: parts[0] || '', b: parts[1] || '' };
+    return { a: parts[0] || '', b: parts[1] || '', conditions: k.conditions || [] };
   }
 
   /** Returns a NEW keywords array with `name` set to "a b" (or just "a" if
-   *  `b` is blank), removed entirely if both are blank. */
-  function setFileTwoFieldKeyword(keywords, name, a, b) {
+   *  `b` is blank), removed entirely if both are blank.
+   *
+   *  `conditions` (optional, Task I-21) - when OMITTED (undefined), any
+   *  indicator conditioning already on the existing keyword instance is
+   *  PRESERVED as-is, same "omit to preserve, pass an explicit array
+   *  (including []) to actually change it" contract as
+   *  setFileFlagKeyword. Before this task every call here unconditionally
+   *  rebuilt the keyword with `conditions: []`, the same class of
+   *  silent-data-loss bug setFileFlagKeyword's own history documents. */
+  function setFileTwoFieldKeyword(keywords, name, a, b, conditions) {
+    var existing = (keywords || []).find(function (kw) { return kw.name === name; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== name; });
     a = (a || '').trim();
     b = (b || '').trim();
     if (a || b) {
-      next = next.concat([{ name: name, parameters: b ? a + ' ' + b : a, conditions: [], raw: '', sourceLines: [] }]);
+      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: name, parameters: b ? a + ' ' + b : a, conditions: nextConditions, raw: '', sourceLines: [] }]);
     }
     return next;
   }
@@ -5201,6 +5245,7 @@
     getFileFlagKeyword: getFileFlagKeyword,
     setFileFlagKeyword: setFileFlagKeyword,
     getFileQuotedText: getFileQuotedText,
+    getFileQuotedTextConditions: getFileQuotedTextConditions,
     setFileQuotedText: setFileQuotedText,
     quoteDdsLiteral: quoteDdsLiteral,
     unquoteDdsLiteral: unquoteDdsLiteral,

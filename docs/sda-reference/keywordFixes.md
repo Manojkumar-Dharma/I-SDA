@@ -463,12 +463,13 @@ parameter rules IBM documents only for the single-shape case).
 | **I-18** | `MNUBARSW`/`MNUCNL` mutual CA-key exclusion guard | I-14 | done (0.10.96) |
 | **I-19** | `MNUBAR` field-shape structural constraint | I-14 | done (0.10.97) |
 | **I-20** | Repeatable Indicator-instance model isn't kind-aware | I-7, I-13 | not started |
-| **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | in progress |
+| **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | done (0.10.98) |
 | **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | not started |
 | **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | not started |
 | **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | not started |
 | **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | not started |
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | not started |
+| **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | not started |
 
 ### I-7 — `RECORD` (base)
 
@@ -1289,7 +1290,52 @@ whichever HTML/wiring call sites use them) extended to carry an optional
 conditions parameter, same shape `flagRowHtml`/`wireFlagRow` already
 support.
 
-**In progress.**
+Confirmed against IBM's own DDS Reference: `CSRLOC` is record-level
+only, "Option indicators are valid for this keyword. Display size
+condition names are not valid." `HLPTITLE` is file-level-or-record-level
+with an explicit split: "Option indicators are not valid on a file-level
+HLPTITLE keyword. Option indicators are allowed on record-level HLPTITLE
+keywords" — so only the record-level HLPTITLE row needed the fix; the
+existing file-level row's lack of conditioning was already correct.
+`HLPSEQ` (the other keyword riding `getFileTwoFieldKeyword`) is
+individually documented as "Option indicators are not valid for this
+keyword," so its own call site deliberately doesn't pass the new
+conditions parameter.
+
+Fixed both shared primitives:
+- `getFileTwoFieldKeyword` now always returns a `conditions` field
+  (empty array when there's nothing), matching `getFileFlagKeyword`'s own
+  convention. `setFileTwoFieldKeyword` gained an optional trailing
+  `conditions` parameter following the same "omit to preserve, pass an
+  explicit array (including `[]`) to actually change it" contract
+  `setFileFlagKeyword` established — this also fixed a real bug: every
+  call here previously rebuilt the keyword with `conditions: []`
+  unconditionally, silently dropping any existing conditioning the
+  moment either field was edited.
+- `getFileQuotedText` itself was left returning a plain string (most of
+  its callers — `ALTNAME`, `TEXT`, file-level `HLPTITLE` — only ever want
+  the text and are individually documented as NOT eligible for
+  conditioning). A new sibling `getFileQuotedTextConditions` reader
+  covers the keywords that DO need it. `setFileQuotedText` gained the
+  same optional trailing `conditions` parameter and preserve-when-omitted
+  fix as `setFileTwoFieldKeyword` above.
+
+Both `recordKeywordsPanelsHtml`'s CSRLOC row (Output tab) and its
+record-level HLPTITLE row (Help tab) now render a Conditioning toggle
+identical in shape to `flagRowHtml`'s own (reusing `entFldAtrHtml`'s
+established hand-rolled-row convention), wired via
+`wireFlagRowConditioning`/`wireTwoField`'s own new optional args.
+
+Out-of-scope finding, not fixed here: IBM's own reference documents
+record-level `HLPTITLE` as repeatable up to 15 times when every instance
+carries option indicators (one indicator/complement pair per help-title
+variant — the DDS Reference's own example uses exactly this pattern with
+indicators 90/N90). This task's single-instance-plus-toggle fix doesn't
+model that repeatable shape; logged as its own follow-on task since it's
+the same bigger, separate-scope kind of change I-17 needed for
+`MNUBARDSP` — see I-27.
+
+**Done (0.10.98).**
 
 ### I-22 — `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning
 
@@ -1375,6 +1421,29 @@ lists also use) are NOT in scope here - their generic field-level
 choice-color-state widget already exists (`CHOICE_COLOR_STATE_KEYWORDS`
 in `dspfWriter.js`, built for menu-bar/pull-down choice fields) and
 should just be reused once `SFLSNGCHC`/`SFLMLTCHC` land, not rebuilt.
+
+**Not started.**
+
+### I-27 — Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record)
+
+I-21's own audit found IBM's DDS Reference documents record-level
+`HLPTITLE` as repeatable up to 15 times on one record, but ONLY when
+every instance carries option indicators (each one conditioned, an
+indicator/complement pair being the reference's own worked example -
+indicators 90/N90 selecting between two title variants). At run time the
+first `HLPTITLE` in effect wins; an unconditioned record-level
+`HLPTITLE` is still valid but then must be the record's only one.
+I-21's own fix added a Conditioning toggle to the existing single-
+instance row (`getFileQuotedText`/`setFileQuotedText` now carry a
+`conditions` parameter), which correctly lets ONE record-level HLPTITLE
+be conditioned, but doesn't model the repeatable multi-instance shape at
+all - a second HLPTITLE on the same record still can't be added through
+the UI. Rebuilding this into a genuine repeatable-instance list (the
+same generic primitive `DspfWriter.getRepeatableKeywordInstances`/
+`setRepeatableKeywordInstances` Task I-17 already built for `MNUBARDSP`,
+which this task should reuse rather than one-off) is bigger, separate
+scope from I-21's own shared-primitive fix - logged as its own task
+rather than left unfinished inside I-21.
 
 **Not started.**
 
