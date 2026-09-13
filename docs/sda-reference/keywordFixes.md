@@ -464,13 +464,14 @@ parameter rules IBM documents only for the single-shape case).
 | **I-19** | `MNUBAR` field-shape structural constraint | I-14 | done (0.10.97) |
 | **I-20** | Repeatable Indicator-instance model isn't kind-aware | I-7, I-13 | done (0.10.101) |
 | **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | done (0.10.98) |
-| **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | in progress |
+| **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | done (0.10.102) |
 | **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | not started |
 | **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | fixed (v0.10.99) |
 | **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | done (v0.10.100) — base General tab kept as sole live control; SFL/SFLMSG/SFLCTL panels each de-duped to a hint; see I-28 for the base tab's own KEEP conditioning-toggle bug found in the process |
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | not started |
 | **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | not started |
 | **I-28** | Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle despite "Option and response indicators are not valid for this keyword" - I-9 fixed this on the SFL/SFLCTL copies but never on the base copy (now the sole surviving copy after I-25's de-dup); also confirmed by the DDS Reference: `KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` - a separate mutual-exclusion audit may be warranted too | I-9, I-25 | not started |
+| **I-29** | Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN` | I-22 | not started |
 
 ### I-7 — `RECORD` (base)
 
@@ -1421,7 +1422,79 @@ for `SFLMSGRCD` — rather than a small conditioning-toggle tweak.
 Bigger, separate-scope change, logged as its own task rather than left
 as prose in I-10's own section.
 
-**Not started.**
+**Done (0.10.102):** rebuilt `getSflDisplayLayout`/`setSflDisplayLayout`
+in `dspfWriter.js` onto the same `{primary, bySizeName}` shape
+`getFileMsgLocLines`/`getSflMsgRcdLines` already use for the identical
+mechanism, via two new shared helpers,
+`getDisplaySizeConditionedValue`/`setDisplaySizeConditionedValue`
+(generic over a single keyword name, so `getSflDisplayLayout` just calls
+it three times and assembles `{sflsiz, sflpag, sfllin}`). The old
+single-instance version had the exact same silent-data-loss shape L79
+found and fixed for `SFLMSGRCD` — `kw.find(...)` only ever picked the
+FIRST matching instance, so a file that already had two independently-
+conditioned `SFLSIZ`/`SFLPAG`/`SFLLIN` entries (hand-edited DDS) would
+show only one and destroy the other on the next edit.
+
+`sflCtlPanelsHtml` now takes a `fileKeywords` parameter (threaded from
+`buildWebviewTemplate.js`'s `model.fileKeywords`, same as
+`sflMsgPanelsHtml` already does for its own `SFLMSGRCD` rows) purely to
+read the file's declared `DSPSIZ` sizes, and renders one extra input row
+per keyword per size whenever the file has 2+ sizes declared — real
+SDA's own "Define Display Layout" screen
+(`docs/sda-reference/screens/record-level/subfile-control-sflctl/
+display-layout/`) confirmed as ground truth for this shape (a "Number"
+column plus a "Display Size" column per keyword row). `wireSflCtlPanels`
+keeps Task L75's own established behavior — editing any ONE of the
+Display Layout panel's inputs commits every value currently sitting in
+the panel, not just the one that changed — extended rather than
+replaced to also read whichever per-size inputs are present.
+
+**Fixed alongside — SFLSIZ's own field-name/display-size mutual
+exclusion, from the same DDS Reference paragraph as the conditioning
+statement itself:** "You cannot use display size condition names for
+this keyword when a program-to-system field is used as a parameter for
+it." New `DspfWriter.sflsizConditionedFieldNameConflictReason(value)`
+checks whether a size-conditioned SFLSIZ value looks like a field name
+(non-numeric) rather than a plain number, and if so blocks it — same
+alert+revert idiom as I-8/I-11/I-12/I-13 — while leaving the
+unconditioned (primary) slot free to hold either form, since the
+restriction is specifically about combining the two mechanisms on the
+SAME instance, not a blanket ban on field names.
+
+**Correction found while re-reading the DDS Reference for this task,
+fixed in passing:** the old code's own doc comment claimed both
+`SFLSIZ` and `SFLPAG` "each accept EITHER a literal number OR a field
+name," but `SFLPAG`'s own DDS Reference section documents ONLY
+`SFLPAG(number-of-records-to-be-displayed)` — no field-name form
+anywhere in its own text — and the real screen confirms this too (a
+"Program-to-system field" row appears only under `SFLSIZ`, not under
+`SFLPAG`). Corrected `SFLPAG`'s own placeholder text (was "number, or a
+field name," now "number") — this was a documentation/UI-hint
+inaccuracy only; the field itself was always a plain text box that
+never actually restricted what could be typed into it, so no DDS
+already written through this UI could have been affected either way.
+
+**Flagged, not fixed this task:** the real "Define Display Layout"
+screen also has a "Roll" column alongside "Number"/"Display Size" for
+all three keywords, with no corresponding statement found in `SFLSIZ`/
+`SFLPAG`/`SFLLIN`'s own DDS Reference sections during this task's own
+research pass (`SFLPAG`'s text does discuss `ROLLUP`/`ROLLDOWN`
+behavior in prose, but not as a keyword parameter of `SFLSIZ`/`SFLPAG`/
+`SFLLIN` themselves). Left alone rather than guessed at, same posture
+I-4/I-6/I-10/I-11's own open questions took — logged as **I-29** for a
+future task to research properly rather than silently dropped.
+
+**Test coverage:** `src/test/i22SflDisplayLayoutConditioning.test.js` —
+confirms the per-size rows render and pre-fill correctly on a two-size
+file, that editing one field still commits everything currently in the
+panel (Task L75's own behavior, unbroken), that `SFLSIZ`'s primary slot
+accepts a field name while its size-conditioned slot is hard-blocked
+(alert naming SFLSIZ, revert, DDS unchanged) for the same, that
+`SFLPAG`/`SFLLIN` have no such guard on their own per-size inputs, and
+that a single-display-size file renders no per-size rows at all and
+still commits its primary values normally (no regression) — confirmed
+(via `git stash`) to throw against the pre-fix code rather than
+silently pass.
 
 ### I-23 — Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD`
 
@@ -1524,6 +1597,26 @@ same generic primitive `DspfWriter.getRepeatableKeywordInstances`/
 which this task should reuse rather than one-off) is bigger, separate
 scope from I-21's own shared-primitive fix - logged as its own task
 rather than left unfinished inside I-21.
+
+**Not started.**
+
+### I-29 — Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN`
+
+I-22's own audit found real SDA's own "Define Display Layout" screen
+(`docs/sda-reference/screens/record-level/subfile-control-sflctl/
+display-layout/`) shows a "Roll" column alongside "Number"/"Display
+Size" for all three of `SFLSIZ`/`SFLPAG`/`SFLLIN`, with no corresponding
+statement found anywhere in any of the three's own DDS Reference
+sections during that task's own research pass (`SFLPAG`'s own text does
+discuss `ROLLUP`/`ROLLDOWN` runtime behavior in prose - see its own
+"Subfile page equals subfile size" note - but never as a documented
+keyword parameter of `SFLSIZ`/`SFLPAG`/`SFLLIN` themselves). Left alone
+rather than guessed at, same posture I-4/I-6/I-10/I-11's own open
+questions took - this needs either a `CRTDSPF`-against-real-i-series
+test or a more authoritative source before deciding whether it's a real
+missing keyword-parameter gap or something else the real screen surfaces
+(e.g. a cross-reference into `SFLROLVAL`, which sits on a different
+panel entirely).
 
 **Not started.**
 

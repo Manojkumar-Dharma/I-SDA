@@ -5513,18 +5513,16 @@
    * Builds the 4 SFLCTL sub-panels' inner HTML at once - { general,
    * indicator, displayLayout, subfileMessages } - for the record
    * properties panel's SFLCTL tab (see isSflCtlRecord above for when that
-   * tab appears). `idPrefix` namespaces every element id.
-   */
-  /**
-   * Builds the 4 SFLCTL sub-panels' inner HTML at once - { general,
-   * indicator, displayLayout, subfileMessages } - for the record
-   * properties panel's SFLCTL tab (see isSflCtlRecord above for when that
    * tab appears). Takes the whole `rec` (not just rec.keywords), since
    * Task L74's SFLPGMQ row needs `rec.fields` the same way sflMsgPanelsHtml
    * already does (see sflPgmqFieldHtml's own comment for why). `idPrefix`
-   * namespaces every element id.
+   * namespaces every element id. `fileKeywords` (Task I-22) is the whole
+   * file's own keywords array, needed only to read the file's declared
+   * DSPSIZ sizes for the Display Layout panel's own per-size SFLSIZ/
+   * SFLPAG/SFLLIN rows - same optional-parameter convention
+   * sflMsgPanelsHtml already uses for its own SFLMSGRCD per-size rows.
    */
-  function sflCtlPanelsHtml(rec, idPrefix, expandedSet) {
+  function sflCtlPanelsHtml(rec, idPrefix, expandedSet, fileKeywords) {
     var kw = rec.keywords || [];
     var p = idPrefix;
     var panels = {};
@@ -5600,11 +5598,43 @@
     panels.indicator = '<div class="status" style="margin-bottom:10px;">Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>' +
       recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet);
 
-    // --- Display Layout ---
+    // --- Display Layout (Task I-22: SFLSIZ/SFLPAG/SFLLIN each also
+    // accept a display-size (*DSx) condition name for a second value that
+    // applies only to the file's secondary DSPSIZ size - required if the
+    // value actually differs between the two. See
+    // getDisplaySizeConditionedValue's own doc comment in dspfWriter.js
+    // for the full citation. Same "extra row(s) only when 2+ sizes are
+    // declared" shape sflMsgPanelsHtml's own SFLMSGRCD rows already use.
+    // Real screen (docs/sda-reference/screens/record-level/
+    // subfile-control-sflctl/display-layout/) confirms SFLSIZ alone gets
+    // its own separate "Program-to-system field" alternate-entry row -
+    // SFLPAG/SFLLIN don't get one, matching their own DDS Reference
+    // sections (neither documents a field-name form at all) - so only
+    // SFLSIZ's placeholder mentions a field name. That same screen also
+    // shows a "Roll" column this task doesn't have a confirmed citation
+    // for - left alone rather than guessed at, flagged in keywordFixes.md
+    // for a future task instead of implemented here. ---
     var layout = DspfWriter.getSflDisplayLayout(kw);
-    var dl = '<div class="field-row"><label>Records in subfile (SFLSIZ)</label><input type="text" id="' + p + '-sflsiz" placeholder="number, or a field name" value="' + escapeHtml(layout.sflsiz) + '" /></div>';
-    dl += '<div class="field-row"><label>Records per display (SFLPAG)</label><input type="text" id="' + p + '-sflpag" placeholder="number, or a field name" value="' + escapeHtml(layout.sflpag) + '" /></div>';
-    dl += '<div class="field-row"><label>Spaces between records (SFLLIN)</label><input type="text" id="' + p + '-sfllin" placeholder="0 or 1" value="' + escapeHtml(layout.sfllin) + '" /></div>';
+    var dlSizeList = DspfWriter.getDisplaySizesList(fileKeywords || []);
+    function displayLayoutRowHtml(idBase, label, placeholder, entry, numericOnlySizeInputs) {
+      var html = '<div class="field-row"><label>' + label + '</label><input type="text" id="' + idBase + '" placeholder="' + placeholder + '" value="' + escapeHtml(entry.primary) + '" /></div>';
+      if (dlSizeList.length > 1) {
+        dlSizeList.forEach(function (size, idx) {
+          var v = entry.bySizeName[size.name] || '';
+          var sizePlaceholder = (numericOnlySizeInputs ? 'number only' : placeholder) + ' for ' + escapeHtml(size.name);
+          html += '<div class="field-row"><label style="padding-left:16px;">for ' + escapeHtml(size.name) + '</label><input type="text" id="' + idBase + '-ds' + idx + '" placeholder="' + sizePlaceholder + '" value="' + escapeHtml(v) + '" /></div>';
+        });
+      }
+      return html;
+    }
+    var dl = displayLayoutRowHtml(p + '-sflsiz', 'Records in subfile (SFLSIZ)', 'number, or a field name', layout.sflsiz, true);
+    dl += displayLayoutRowHtml(p + '-sflpag', 'Records per display (SFLPAG)', 'number', layout.sflpag, false);
+    dl += displayLayoutRowHtml(p + '-sfllin', 'Spaces between records (SFLLIN)', '0 or 1', layout.sfllin, false);
+    if (dlSizeList.length > 1) {
+      dl += '<div class="hint-small">Display size condition names are required if a value changes between the file\u2019s two display sizes - leave a size\u2019s own input blank to fall back to the unconditioned value above for that size. A size-conditioned SFLSIZ value must be a plain number, not a field name.</div>';
+    } else {
+      dl += '<div class="hint-small">Add a second display size (file-level Display Sizes picker) to condition these by DSPSIZ.</div>';
+    }
     panels.displayLayout = dl;
 
     // --- Subfile Messages (Task L1c - repeatable, independently
@@ -5685,24 +5715,64 @@
     // single shared commit path across the whole panel is simpler and
     // more consistent regardless of whether it was the actual cause.
     // setSflDisplayLayout rewrites all 3 keywords together (see its own
-    // doc comment - none of the three carry independent Conditioning
-    // here), so each input's own 'change' commits ALL THREE current
-    // values, not just the one that changed - editing SFLPAG must not
-    // silently drop an already-set SFLSIZ/SFLLIN.
+    // doc comment), so each input's own 'change' commits every value
+    // CURRENTLY in the panel, not just the one that changed - editing
+    // SFLPAG must not silently drop an already-edited, not-yet-committed
+    // SFLSIZ/SFLLIN value sitting in a sibling input.
+    //
+    // Task I-22: extended (not replaced) for the new per-size (`-ds0`/
+    // `-ds1`) inputs sflCtlPanelsHtml only renders once the file declares
+    // 2+ DSPSIZ sizes - same shared-commit function now also reads
+    // whichever of those are present. A size-conditioned SFLSIZ input is
+    // hard-blocked (alert + revert just that one value, same idiom as
+    // I-8/I-11/I-12/I-13) if given a non-numeric value - see
+    // sflsizConditionedFieldNameConflictReason's own doc comment in
+    // dspfWriter.js. SFLPAG/SFLLIN have no such restriction (neither has
+    // a program-to-system field form to begin with).
     var sflsizEl = document.getElementById(p + '-sflsiz');
     var sflpagEl = document.getElementById(p + '-sflpag');
     var sfllinEl = document.getElementById(p + '-sfllin');
     if (sflsizEl && sflpagEl && sfllinEl) {
       var commitLayout = function () {
+        var sizeList = DspfWriter.getDisplaySizesList((getFileKeywords ? getFileKeywords() : []) || []);
+        function bySizeNameFor(idBase, numericOnly) {
+          var bySizeName = {};
+          if (sizeList.length <= 1) return bySizeName;
+          sizeList.forEach(function (size, idx) {
+            var el = document.getElementById(idBase + '-ds' + idx);
+            if (!el) return;
+            var v = el.value || '';
+            if (numericOnly) {
+              var reason = DspfWriter.sflsizConditionedFieldNameConflictReason(v);
+              if (reason) {
+                window.alert(reason);
+                var existing = DspfWriter.getSflDisplayLayout(getKeywords()).sflsiz.bySizeName[size.name] || '';
+                el.value = existing;
+                v = existing;
+              }
+            }
+            bySizeName[size.name] = v;
+          });
+          return bySizeName;
+        }
         onChange(DspfWriter.setSflDisplayLayout(getKeywords(), {
-          sflsiz: sflsizEl.value,
-          sflpag: sflpagEl.value,
-          sfllin: sfllinEl.value,
+          sflsiz: { primary: sflsizEl.value, bySizeName: bySizeNameFor(p + '-sflsiz', true) },
+          sflpag: { primary: sflpagEl.value, bySizeName: bySizeNameFor(p + '-sflpag', false) },
+          sfllin: { primary: sfllinEl.value, bySizeName: bySizeNameFor(p + '-sfllin', false) },
         }));
       };
       sflsizEl.addEventListener('change', commitLayout);
       sflpagEl.addEventListener('change', commitLayout);
       sfllinEl.addEventListener('change', commitLayout);
+      var sizeListForWiring = DspfWriter.getDisplaySizesList((getFileKeywords ? getFileKeywords() : []) || []);
+      if (sizeListForWiring.length > 1) {
+        sizeListForWiring.forEach(function (size, idx) {
+          ['sflsiz', 'sflpag', 'sfllin'].forEach(function (field) {
+            var el = document.getElementById(p + '-' + field + '-ds' + idx);
+            if (el) el.addEventListener('change', commitLayout);
+          });
+        });
+      }
     }
 
     // Subfile Messages (Task L1c)

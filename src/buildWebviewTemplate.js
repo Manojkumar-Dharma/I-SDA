@@ -5414,7 +5414,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const isSflCtl = WebviewClientHelpers.isSflCtlRecord(rec);
     let sflCtlPanels = null;
     if (isSflCtl) {
-      sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec, sflCtlPrefix, expandedKeywordConditioning);
+      sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec, sflCtlPrefix, expandedKeywordConditioning, model.fileKeywords);
     }
 
     // --- MNUBAR tab: only for menu-bar records (Task R13) - single

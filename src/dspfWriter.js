@@ -4724,39 +4724,118 @@
   // ---------------------------------------------------------------------
 
   /**
-   * Display Layout screen: SFLSIZ (records in subfile) and SFLPAG
-   * (records per page) each accept EITHER a literal number OR a field
-   * name (real DDS's own "Program-to-system field" alternate entry,
-   * confirmed on the screen) - kept as plain strings rather than parsed
-   * as numbers so a field name round-trips untouched, same reasoning
-   * getWindowParamsKeyword's position parameters already take. SFLLIN
-   * (spacing between records) is a plain literal number only (0 or 1 in
-   * practice; DDS doesn't document a field-name form for it). Any of the
-   * three can be absent independently.
+   * Display Layout screen (docs/sda-reference/screens/record-level/
+   * subfile-control-sflctl/display-layout/) - SFLSIZ (records in
+   * subfile), SFLPAG (records per page), and SFLLIN (spacing between
+   * records) each independently accept a plain number, PLUS (per each
+   * one's own DDS Reference section) a display-size condition name
+   * (`*DSx`) for a second, secondary-display-size-only value - required
+   * if that keyword's value actually differs between the file's two
+   * DSPSIZ sizes. Modeled as `{primary, bySizeName}` per keyword, same
+   * shape getFileMsgLocLines/getSflMsgRcdLines already use for the same
+   * mechanism - see getDisplaySizeConditionedValue's own doc comment.
+   *
+   * SFLSIZ alone ALSO accepts a program-to-system field name in place of
+   * a number (confirmed both by its own DDS Reference text and by the
+   * real screen's own separate "Program-to-system field" row under
+   * SFLSIZ's "Number" row, absent from SFLPAG/SFLLIN's own rows) - but
+   * its own text is explicit that "You cannot use display size condition
+   * names for this keyword when a program-to-system field is used as a
+   * parameter for it," so a size-conditioned SFLSIZ value must always be
+   * a plain number even though the unconditioned (primary) one doesn't
+   * have to be - see sflsizConditionedFieldNameConflictReason below.
+   * SFLPAG's own DDS Reference section documents ONLY a plain number
+   * (`SFLPAG(number-of-records-to-be-displayed)`, no field-name
+   * alternative stated anywhere in its own text, and the real screen
+   * above has no "Program-to-system field" row under SFLPAG either) -
+   * SFLLIN's own section is a plain number too. Kept as strings rather
+   * than parsed as numbers throughout so a field name round-trips
+   * untouched, same reasoning getWindowParamsKeyword's position
+   * parameters already take.
    */
+  function getDisplaySizeConditionedValue(keywords, keywordName) {
+    var result = { primary: '', bySizeName: {} };
+    (keywords || []).filter(function (kw) { return kw.name === keywordName; }).forEach(function (kw) {
+      var value = (kw.parameters || '').trim();
+      var sizeGroup = (kw.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
+      if (sizeGroup) {
+        result.bySizeName[sizeGroup.displaySizeCondition.name] = value;
+      } else {
+        result.primary = value;
+      }
+    });
+    return result;
+  }
+
+  /** Returns a NEW keywords array with every existing instance of
+   *  `keywordName` removed and replaced by: one unconditioned instance
+   *  for `primary` (if non-blank), plus one instance per non-blank entry
+   *  in `bySizeName`, each conditioned by that size's own display-size
+   *  condition name - same shape/idiom as setFileMsgLocLines/
+   *  setSflMsgRcdLines. Only ever touches `keywordName`'s own instances -
+   *  safe to call once per keyword in sequence (see setSflDisplayLayout
+   *  below) without disturbing the other two. */
+  function setDisplaySizeConditionedValue(keywords, keywordName, primary, bySizeName) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== keywordName; });
+    var p = (primary == null ? '' : String(primary)).trim();
+    if (p) next = next.concat([{ name: keywordName, parameters: p, conditions: [], raw: '', sourceLines: [] }]);
+    Object.keys(bySizeName || {}).forEach(function (sizeName) {
+      var v = (bySizeName[sizeName] == null ? '' : String(bySizeName[sizeName])).trim();
+      if (!v) return;
+      next = next.concat([{
+        name: keywordName,
+        parameters: v,
+        conditions: [{ relation: 'AND', indicators: [], displaySizeCondition: { name: sizeName, not: false }, sourceLines: [] }],
+        raw: '',
+        sourceLines: [],
+      }]);
+    });
+    return next;
+  }
+
+  /** Task I-22: SFLSIZ's own DDS Reference text - "You cannot use display
+   *  size condition names for this keyword when a program-to-system
+   *  field is used as a parameter for it" - only restricts a SIZE-
+   *  CONDITIONED instance's own value, not the unconditioned (primary)
+   *  one. A DDS field name is alphabetic-first, alphanumeric; the
+   *  "number" form is purely numeric digits - so a non-numeric value
+   *  offered for a size-conditioned SFLSIZ instance is unambiguously the
+   *  forbidden combination, not a judgment call. Returns a reason string
+   *  if `value` (destined for a bySizeName entry) violates this, or null
+   *  if fine. Only applies to SFLSIZ - SFLPAG/SFLLIN have no
+   *  program-to-system field form at all (see this section's own doc
+   *  comment above), so there's nothing to conflict with for either. */
+  function sflsizConditionedFieldNameConflictReason(value) {
+    var v = (value == null ? '' : String(value)).trim();
+    if (!v) return null;
+    if (/^\d+$/.test(v)) return null;
+    return 'SFLSIZ cannot use a display-size condition name on a value that is a program-to-system field (per the DDS Reference) - a size-conditioned SFLSIZ value must be a plain number.';
+  }
+
   function getSflDisplayLayout(keywords) {
-    var kw = keywords || [];
-    var sflsiz = kw.find(function (k) { return k.name === 'SFLSIZ'; });
-    var sflpag = kw.find(function (k) { return k.name === 'SFLPAG'; });
-    var sfllin = kw.find(function (k) { return k.name === 'SFLLIN'; });
     return {
-      sflsiz: sflsiz ? (sflsiz.parameters || '').trim() : '',
-      sflpag: sflpag ? (sflpag.parameters || '').trim() : '',
-      sfllin: sfllin ? (sfllin.parameters || '').trim() : '',
+      sflsiz: getDisplaySizeConditionedValue(keywords, 'SFLSIZ'),
+      sflpag: getDisplaySizeConditionedValue(keywords, 'SFLPAG'),
+      sfllin: getDisplaySizeConditionedValue(keywords, 'SFLLIN'),
     };
   }
 
   /** Returns a NEW keywords array with SFLSIZ/SFLPAG/SFLLIN each
-   *  independently set from `state` (same shape getSflDisplayLayout
-   *  returns) or removed if its field is blank. */
+   *  independently set from `state` (same `{sflsiz, sflpag, sfllin}` of
+   *  `{primary, bySizeName}` shape getSflDisplayLayout returns) - each of
+   *  the three is fully replaced regardless of whether its own value
+   *  actually changed, so a caller must always pass the current state of
+   *  all three (typically getSflDisplayLayout's own fresh return value,
+   *  with just the one field the person edited overwritten) rather than
+   *  a partial update - same "must round-trip everything, not just what
+   *  changed" contract setSflMsgRcdLines/setFileMsgLocLines already
+   *  document for the identical reason. */
   function setSflDisplayLayout(keywords, state) {
-    var next = (keywords || []).filter(function (k) { return k.name !== 'SFLSIZ' && k.name !== 'SFLPAG' && k.name !== 'SFLLIN'; });
-    ['sflsiz', 'sflpag', 'sfllin'].forEach(function (field) {
-      var value = ((state && state[field]) || '').toString().trim();
-      if (!value) return;
-      var keywordName = field === 'sflsiz' ? 'SFLSIZ' : field === 'sflpag' ? 'SFLPAG' : 'SFLLIN';
-      next = next.concat([{ name: keywordName, parameters: value, conditions: [], raw: '', sourceLines: [] }]);
-    });
+    var s = state || {};
+    var next = keywords || [];
+    next = setDisplaySizeConditionedValue(next, 'SFLSIZ', s.sflsiz && s.sflsiz.primary, s.sflsiz && s.sflsiz.bySizeName);
+    next = setDisplaySizeConditionedValue(next, 'SFLPAG', s.sflpag && s.sflpag.primary, s.sflpag && s.sflpag.bySizeName);
+    next = setDisplaySizeConditionedValue(next, 'SFLLIN', s.sfllin && s.sfllin.primary, s.sfllin && s.sfllin.bySizeName);
     return next;
   }
 
@@ -5331,6 +5410,7 @@
     setRecordIndicatorInstances: setRecordIndicatorInstances,
     getSflDisplayLayout: getSflDisplayLayout,
     setSflDisplayLayout: setSflDisplayLayout,
+    sflsizConditionedFieldNameConflictReason: sflsizConditionedFieldNameConflictReason,
     parseSflMsgIdParams: parseSflMsgIdParams,
     formatSflMsgIdParams: formatSflMsgIdParams,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
