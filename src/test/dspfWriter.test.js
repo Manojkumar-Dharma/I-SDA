@@ -1371,6 +1371,24 @@ console.log('\nDspfWriter.sflNxtchgSflMsgRcdConflictReason() (Task I-11) - SFLNX
   check('an unrelated keyword (e.g. LOGOUT) never triggers a conflict', DspfWriter.sflNxtchgSflMsgRcdConflictReason('SFLNXTCHG', [{ name: 'LOGOUT', parameters: '', conditions: [], raw: '', sourceLines: [] }]) === null);
 }
 
+console.log('\nDspfWriter.loginpLogoutSflMsgRcdIgnoredNote() (Task I-23) - the one advisory-level finding out of the ~10 other keywords in that same "for all other subfiles" list; LOGINP/LOGOUT are individually documented as merely ignored on a message subfile, not a compile error');
+{
+  check('no note on a clean subfile record with no SFLMSGRCD', DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGOUT', []) === null);
+  check('no note for LOGINP either, with no SFLMSGRCD', DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGINP', []) === null);
+
+  const withSflMsgRcd = [{ name: 'SFLMSGRCD', parameters: '24', conditions: [], raw: '', sourceLines: [] }];
+  const logoutNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGOUT', withSflMsgRcd) || '';
+  check('LOGOUT gets an advisory note when SFLMSGRCD is present', /SFLMSGRCD/.test(logoutNote) && /ignored/.test(logoutNote));
+
+  const loginpNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGINP', withSflMsgRcd) || '';
+  check('LOGINP gets an advisory note when SFLMSGRCD is present', /SFLMSGRCD/.test(loginpNote) && /ignored/.test(loginpNote));
+
+  // I-23's own audit deliberately did NOT extend this note (or any guard)
+  // to the other ~8 keywords in the same list - none of them individually
+  // restate a message-subfile rule the way LOGINP/LOGOUT do.
+  check('an unrelated keyword (e.g. KEEP) never gets this note', DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('KEEP', withSflMsgRcd) === null);
+}
+
 console.log('\nDspfWriter.pulldownConflictReason() (Task I-13) - the 27-keyword list PULLDOWN\'s own DDS Reference section documents as unable to be specified on the same record');
 {
   check('no conflict on a clean record with neither keyword', DspfWriter.pulldownConflictReason('ALARM', []) === null);

@@ -465,7 +465,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-20** | Repeatable Indicator-instance model isn't kind-aware | I-7, I-13 | done (0.10.101) |
 | **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | done (0.10.98) |
 | **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | done (0.10.102) |
-| **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | in progress |
+| **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | done (0.10.103) - no hard blocks warranted; advisory note added for LOGINP/LOGOUT |
 | **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | fixed (v0.10.99) |
 | **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | done (v0.10.100) — base General tab kept as sole live control; SFL/SFLMSG/SFLCTL panels each de-duped to a hint; see I-28 for the base tab's own KEEP conditioning-toggle bug found in the process |
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | not started |
@@ -1512,7 +1512,61 @@ no-effect on a message subfile), this task should verify against
 whether to extend `sflNxtchgSflMsgRcdConflictReason`-style guards to any
 of them.
 
-**In progress.**
+Verified each of the 9 keywords' OWN dedicated DDS Reference section
+(not just the "for all other subfiles" categorization list they're all
+named in) for an individually-restated rule, the same way `SFLNXTCHG`'s
+own page restates its prohibition. Also found the categorization list
+itself actually has 11 entries, not 9 - `SFLNXTCHG` (already handled)
+and `TEXT` were both missed by the original estimate.
+
+- **`LOGINP`/`LOGOUT`** — each has an explicit statement in its OWN
+  section: "The IBM i operating system ignores LOGINP/LOGOUT for...
+  The record format is a subfile record format for a message subfile."
+  This is a documented NO-EFFECT condition, not a compile error, so it
+  does not warrant a hard block - but it's real, useful, individually-
+  confirmed information, so it gets a new advisory-only note
+  (`DspfWriter.loginpLogoutSflMsgRcdIgnoredNote`, non-blocking, same
+  precedent as `dftOutputRequirementNote`/`mnubarFieldShapeNote`),
+  surfaced on the SFLMSG panel's General tab (the one place both
+  `SFLMSGRCD` and `LOGINP`/`LOGOUT` are live-editable on the same
+  record) when either keyword is turned on and the record already
+  carries `SFLMSGRCD`.
+- **`KEEP`** — its own section states "This keyword cannot be specified
+  with the following keywords: ALWROL, CLRL, SLNO" - a complete,
+  explicit exclusion list that pointedly does NOT include `SFLMSGRCD`.
+  If IBM intended a real compile-time conflict here, this is exactly
+  where they'd have said so, the same way they did for
+  `ALWROL`/`CLRL`/`SLNO`. Ruled out - no guard, no note. (I-9's own
+  audit separately found this same `ALWROL`/`CLRL`/`SLNO` exclusion list
+  needs its own mutual-exclusion guard, unrelated to `SFLMSGRCD` - see
+  I-28.)
+- **`TEXT`** — its own section states outright "TEXT is valid for any
+  record format or field, except a SFLMSGKEY or SFLPGMQ field" -
+  explicitly confirming it's fine at the record level on a message
+  subfile; only the two special hidden fields are restricted, and only
+  at the field level. Ruled out - no guard, no note.
+- **`CHANGE`, `CHECK(AB)`/`CHECK(RL)`, `CHGINPDFT`, `INDTXT`,
+  `SETOF`/`SETOFF`** — none of these five has any individual statement
+  about `SFLMSGRCD` or message subfiles anywhere in the DDS Reference.
+  Each one's own documented mechanism (MDT/response-indicator changes
+  from an input-capable field or an input operation for
+  `CHANGE`/`CHECK(AB)`/`CHECK(RL)`/`CHGINPDFT`/`SETOF`; pure
+  compile-time comment text with no functional effect for `INDTXT`)
+  suggests they would be functionally inert on a message-subfile record
+  (SFL's own text: "At least one displayable field must be specified...
+  unless the subfile is a message subfile" - meaning such a record
+  structurally has no input-capable fields to act on), consistent with
+  the LOGINP/LOGOUT precedent - but since none of the five individually
+  RESTATES that the way LOGINP/LOGOUT do, this task deliberately does
+  NOT add a guessed-at guard or note for them, per the task's own
+  instruction not to guess. Left exactly as-is.
+
+Net result: no new hard-block guards (none of the 9 - now-confirmed-11 -
+keywords carry an individual "cannot specify" statement), and one new
+advisory-only note covering the two keywords (`LOGINP`/`LOGOUT`) that DO
+have an individually-documented, decisive finding.
+
+**Done (0.10.103).**
 
 ### I-24 — `WINDOW` cannot be specified for the record named by file-level `PASSRCD`
 

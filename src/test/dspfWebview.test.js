@@ -4320,6 +4320,28 @@ function runSflMsgPickerScenario() {
     console.log('  General: SFLNXTCHG/LOGOUT/LOGINP/CHECK(AB)/CHECK(RL)/CHGINPDFT all start unchecked, toggling one commits just that keyword');
     check('SFLNXTCHG starts unchecked', !doc.getElementById('sm-sflnxtchg-on').checked);
 
+    console.log('  Task I-23: turning on LOGOUT (or LOGINP) here shows an advisory note - unlike SFLNXTCHG below, IBM documents these as merely IGNORED on a message subfile, not a compile error, so they are still allowed to be turned on, just with a heads-up');
+    check('no advisory shown before LOGOUT is turned on', !/LOGOUT is ignored by the IBM i operating system/.test(doc.body.innerHTML) && !/LOGINP is ignored by the IBM i operating system/.test(doc.body.innerHTML));
+    const smLogoutOn = doc.getElementById('sm-logout-on');
+    smLogoutOn.checked = true;
+    smLogoutOn.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('LOGOUT edit was posted (not blocked)', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('LOGOUT was actually added', reparsed.keywords.some((k) => k.name === 'LOGOUT'));
+    posted.length = 0;
+    check('advisory note now shown, naming SFLMSGRCD and "ignored"', /LOGOUT is ignored by the IBM i operating system on a message-subfile record format \(SFLMSGRCD present\)/.test(doc.body.innerHTML));
+
+    const smLoginpOn = doc.getElementById('sm-loginp-on');
+    smLoginpOn.checked = true;
+    smLoginpOn.dispatchEvent(new Event('change', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
+    check('LOGINP was also added', reparsed.keywords.some((k) => k.name === 'LOGINP'));
+    check("LOGOUT's own advisory survived LOGINP's own edit", reparsed.keywords.some((k) => k.name === 'LOGOUT'));
+    posted.length = 0;
+    check("LOGINP's own advisory note also shown now", /LOGINP is ignored by the IBM i operating system on a message-subfile record format \(SFLMSGRCD present\)/.test(doc.body.innerHTML));
+
     console.log('  Task I-11: SFLNXTCHG is hard-blocked from being turned on here - the DDS Reference states outright "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword", and this record always carries SFLMSGRCD (that\'s what put it on the SFLMSG tab in the first place)');
     {
       const originalAlert = dom.window.alert;

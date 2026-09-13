@@ -4414,8 +4414,20 @@
     g += flagRowHtml('sm-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
     g += flagRowHtml('sm-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    // Task I-23: this record already has SFLMSGRCD (it's a message
+    // subfile), and IBM's own DDS Reference documents LOGOUT as ignored
+    // in that case - advisory only, see
+    // DspfWriter.loginpLogoutSflMsgRcdIgnoredNote's own doc comment.
+    if (fLogout.present) {
+      var logoutNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGOUT', kw);
+      if (logoutNote) g += '<div class="hint-small">' + escapeHtml(logoutNote) + '</div>';
+    }
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
     g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    if (fLoginp.present) {
+      var loginpNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGINP', kw);
+      if (loginpNote) g += '<div class="hint-small">' + escapeHtml(loginpNote) + '</div>';
+    }
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
     g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');

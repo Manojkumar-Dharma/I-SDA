@@ -1318,29 +1318,66 @@
    *  as two DIFFERENT keyword sets for the same record format - "for
    *  message subfiles: SFLMSGRCD/SFLMSGKEY/SFLPGMQ" vs "for all other
    *  subfiles (at the record level): CHANGE/CHECK(AB)/CHECK(RL)/
-   *  CHGINPDFT/INDTXT/KEEP/LOGINP/LOGOUT/SETOF/SETOFF/SFLNXTCHG" - and
+   *  CHGINPDFT/INDTXT/KEEP/LOGINP/LOGOUT/SETOF/SETOFF/SFLNXTCHG/TEXT" - and
    *  separately states outright, under SFLNXTCHG's own note: "You cannot
    *  specify SFLNXTCHG with the SFLMSGRCD keyword." That's the one
    *  explicit, unambiguous prohibition in this pair of lists (the rest are
    *  only implied by the "for X / for all other Y" framing, not each
    *  individually restated the way SFLNXTCHG is), so only SFLNXTCHG is
-   *  hard-blocked here - see keywordFixes.md's I-11 section for why the
-   *  remaining ~10 keywords in the "for all other subfiles" list are
-   *  flagged as an open question for a follow-up task instead of guessed
-   *  at here. Real SDA's own "Select General Keywords" screen for a
-   *  message-subfile record still offers SFLNXTCHG unconditionally (this
-   *  audit's own screenshot evidence) - it relies on CRTDSPF's own compile
-   *  error rather than blocking data entry - but this project's own
-   *  established precedent (L81, S36-4) is to hard-block real DDS compile
-   *  errors the reference explicitly documents, even where real SDA lets
-   *  them through. Returns a reason string if turning SFLNXTCHG on (or
-   *  SFLMSGRCD on, checked from the other side) would violate the rule, or
-   *  null if fine. */
+   *  hard-blocked here - Task I-23 verified the remaining ~10 keywords
+   *  (TEXT included - the "for all other subfiles" list has 11 entries,
+   *  not the ~9 the original I-11 audit estimated) and found NONE of them
+   *  carry an individual "cannot specify" statement anywhere in the DDS
+   *  Reference, so none of them get a hard-block guard - see
+   *  loginpLogoutSflMsgRcdIgnoredNote below for the one advisory-level
+   *  finding I-23 DID confirm, and keywordFixes.md's I-23 section for the
+   *  full per-keyword audit trail. Real SDA's own "Select General
+   *  Keywords" screen for a message-subfile record still offers
+   *  SFLNXTCHG unconditionally (this audit's own screenshot evidence) - it
+   *  relies on CRTDSPF's own compile error rather than blocking data
+   *  entry - but this project's own established precedent (L81, S36-4) is
+   *  to hard-block real DDS compile errors the reference explicitly
+   *  documents, even where real SDA lets them through. Returns a reason
+   *  string if turning SFLNXTCHG on (or SFLMSGRCD on, checked from the
+   *  other side) would violate the rule, or null if fine. */
   function sflNxtchgSflMsgRcdConflictReason(keywordName, recordKeywords) {
     var other = keywordName === 'SFLNXTCHG' ? 'SFLMSGRCD' : 'SFLNXTCHG';
     var hasOther = (recordKeywords || []).some(function (k) { return k.name === other; });
     if (!hasOther) return null;
     return keywordName + ' cannot be specified together with ' + other + ' on the same subfile record (per the DDS Reference).';
+  }
+
+  /** Task I-23 - of the ~10 other keywords in the same "for all other
+   *  subfiles" list SFLNXTCHG appears in (see
+   *  sflNxtchgSflMsgRcdConflictReason's own doc comment just above), only
+   *  LOGINP and LOGOUT individually restate anything about message
+   *  subfiles in their OWN dedicated DDS Reference sections - and it's
+   *  NOT a "cannot specify" prohibition like SFLNXTCHG's: "The IBM i
+   *  operating system ignores LOGINP/LOGOUT for... The record format is a
+   *  subfile record format for a message subfile." That's a documented
+   *  no-effect condition, not a compile error, so this is advisory-only
+   *  (matches mnubarFieldShapeNote's own non-blocking precedent) rather
+   *  than a hard block via sflNxtchgSflMsgRcdConflictReason's shape.
+   *  Everything else in that list was individually checked and ruled out
+   *  during I-23's audit: TEXT's own section explicitly says it's "valid
+   *  for any record format ... except a SFLMSGKEY or SFLPGMQ field" (so
+   *  explicitly NOT restricted here); KEEP's own "cannot be specified
+   *  with" list is ALWROL/CLRL/SLNO only, pointedly not SFLMSGRCD; CHANGE/
+   *  CHECK(AB)/CHECK(RL)/CHGINPDFT/SETOF all key off an input-capable
+   *  field or an input operation, which a message-subfile record
+   *  structurally lacks (SFL's own text: "At least one displayable field
+   *  must be specified ... unless the subfile is a message subfile"), but
+   *  none of those five keywords' own sections restate that as an
+   *  explicit rule the way LOGINP/LOGOUT do, so this task deliberately
+   *  does NOT add a guessed-at note for them - see keywordFixes.md's I-23
+   *  section for the full per-keyword citations. Returns an advisory
+   *  string when `keywordName` (LOGINP or LOGOUT) is on and the same
+   *  record already has SFLMSGRCD, or null otherwise. */
+  function loginpLogoutSflMsgRcdIgnoredNote(keywordName, recordKeywords) {
+    if (keywordName !== 'LOGINP' && keywordName !== 'LOGOUT') return null;
+    var hasSflMsgRcd = (recordKeywords || []).some(function (k) { return k.name === 'SFLMSGRCD'; });
+    if (!hasSflMsgRcd) return null;
+    return keywordName + ' is ignored by the IBM i operating system on a message-subfile record format (SFLMSGRCD present) - per the DDS Reference.';
   }
 
   /** Task I-8 - USRDFN record-level keyword audit. Checking every keyword
@@ -5334,6 +5371,7 @@
     dftGroupConflictReason: dftGroupConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
+    loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,
     usrdfnConflictReason: usrdfnConflictReason,
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
