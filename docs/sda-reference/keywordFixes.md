@@ -470,7 +470,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | done (v0.10.100) — base General tab kept as sole live control; SFL/SFLMSG/SFLCTL panels each de-duped to a hint; see I-28 for the base tab's own KEEP conditioning-toggle bug found in the process |
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | in progress |
 | **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | done (0.10.105) |
-| **I-28** | Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle despite "Option and response indicators are not valid for this keyword" - I-9 fixed this on the SFL/SFLCTL copies but never on the base copy (now the sole surviving copy after I-25's de-dup); also confirmed by the DDS Reference: `KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` - a separate mutual-exclusion audit may be warranted too | I-9, I-25 | not started |
+| **I-28** | Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle despite "Option and response indicators are not valid for this keyword" - I-9 fixed this on the SFL/SFLCTL copies but never on the base copy (now the sole surviving copy after I-25's de-dup); also confirmed by the DDS Reference: `KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` - a separate mutual-exclusion audit may be warranted too | I-9, I-25 | fixed (v0.10.106) |
 | **I-29** | Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN` | I-22 | done - confirmed independent (0.10.104) |
 
 ### I-7 — `RECORD` (base)
@@ -1703,6 +1703,67 @@ Help tab" scenario in `dspfWebview.test.js` (previously exercising I-21's
 single-instance row) to exercise the new repeatable list instead,
 including the ordering quirk above. Full suite: 63 test files, zero
 failures.
+
+### I-28 — Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle; `KEEP`/`ALWROL`/`CLRL`/`SLNO` mutual exclusion
+
+Found auditing the base Record Keywords panel after I-25's consolidation
+(see that task's own note pointing here): `KEEP`'s own DDS Reference
+section states "Option and response indicators are not valid for this
+keyword" - I-9 already fixed this on the SFL/SFLCTL copies, but never on
+the base copy, which is now the sole surviving live copy after I-25's
+de-dup. Fixed in `recordKeywordsPanelsHtml` (build side, `undefined,
+undefined` in place of `fKeep.conditions, expandedSet`, matching
+INZRCD/ASSUME/ALWROL's own shape) and the matching wire side (new
+`wireKeepGuardedFlag`, replacing the old plain `simple(p + '-keep',
+'KEEP')`).
+
+Also confirmed by the DDS Reference - and cross-verified by each of
+`ALWROL`/`CLRL`/`SLNO`'s own sections individually restating it, same
+method I-23 used for `SFLMSGRCD` (see that task's own write-up above,
+which separately ruled OUT a `KEEP`/`SFLMSGRCD` conflict for the exact
+same reason this one IS real: `KEEP`'s own exclusion list explicitly
+names `ALWROL`/`CLRL`/`SLNO` and pointedly does not name `SFLMSGRCD`):
+`KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` on the same
+record format. New `DspfWriter.keepMutexConflictReason(keywordName,
+recordKeywords)` - a pure, order-independent primitive (like
+`usrdfnConflictReason`/`pulldownConflictReason`) that works no matter
+which side of a conflicting pair is toggled on first. Wired at all four
+toggle points: `wireKeepGuardedFlag` for `KEEP` itself, and a new
+`alsoCheckKeep` param on both `wireUsrdfnGuardedFlag` (for `ALWROL`,
+alongside its existing `alsoCheckWindow`) and `wirePulldownGuardedFlag`
+(for `SLNO`/`CLRL`) - added narrowly to just those specific call sites
+rather than blanket-applied, since none of `ASSUME`/`HLPCMDKEY`/the rest
+of `wirePulldownGuardedFlag`'s other callers are on `KEEP`'s own
+exclusion list.
+
+**Out of scope, flagged as a follow-up finding:** `ALWROL`/`CLRL`/`SLNO`
+are each ALSO individually incompatible with `ASSUME`/`SFL`/`SFLCTL`/
+`USRDFN` (their own sections' restated lists go well beyond `KEEP`) - a
+broader web of restrictions than this task's own `KEEP`-scoped title
+covers, not implemented here.
+
+**A process note, not a code finding:** while investigating this task I
+spent a long stretch chasing what looked like a pre-existing 12-check
+regression across `i25KeepConsolidationAudit.test.js` and
+`dspfWebview.test.js` after rebasing onto a newer `origin/main`. It
+turned out to be self-inflicted: `npm run build:webview-assets` alone
+regenerates `src/webviewTemplate.ts` but NOT `dist/webviewTemplate.js`
+(the compiled file the jsdom tests actually `require()`) - that needs the
+full `npm run compile` (`build:webview-assets` + `tsc`). Running only the
+former left every test run in this session working against a stale
+`dist/webviewTemplate.js` from earlier in the day. Full `npm run compile`
+resolved it immediately - zero pre-existing failures once compiled
+properly. No code change resulted from this; noting it here so the next
+session doesn't lose the same time to it.
+
+**Test coverage:** new
+`src/test/i28KeepConditioningAndMutexAudit.test.js` - `KEEP`'s row has no
+Conditioning toggle on an ordinary record; `ALWROL`/`CLRL`/`SLNO` are
+each individually blocked (alert + revert, no edit posted) from being
+turned on when `KEEP` is already present; `KEEP` is blocked the other
+direction when `ALWROL` is already present; and `KEEP` still commits
+normally on a record with none of the other three present (no
+regression). Full suite: 64 test files, zero failures.
 
 ### I-29 — Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN`
 

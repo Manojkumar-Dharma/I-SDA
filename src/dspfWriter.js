@@ -1549,6 +1549,40 @@
     return 'WINDOW cannot be specified for record format ' + b + ' - it is the record named by the file-level PASSRCD(' + a + ') keyword (per the DDS Reference).';
   }
 
+  /** Task I-28 - found auditing the base Record Keywords panel's KEEP row
+   *  (see that same task's own conditioning-toggle fix, wired alongside
+   *  this in webviewClientHelpers.js): KEEP's own DDS Reference section
+   *  states "This keyword cannot be specified with the following
+   *  keywords: ALWROL, CLRL, SLNO" - confirmed by each of those three's
+   *  OWN section individually restating the same exclusion against KEEP
+   *  the other direction (same cross-verification method I-23 used for
+   *  SFLMSGRCD).
+   *  One shared, order-independent primitive (like usrdfnConflictReason/
+   *  pulldownConflictReason above) rather than 4 separate pairwise
+   *  functions - callers pass whichever of the 4 keywords is transitioning
+   *  on plus the record's current keyword list, and it works no matter
+   *  which side of a conflicting pair the user toggles first.
+   *  Out of scope for this task: ALWROL/CLRL/SLNO's own sections each
+   *  ALSO list ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with
+   *  themselves (a broader web of restrictions than KEEP's own list) -
+   *  I-28's own title scopes this task to KEEP's restrictions only; the
+   *  wider ALWROL/CLRL/SLNO-vs-ASSUME/SFL/SFLCTL/USRDFN web is a
+   *  follow-up finding, not implemented here. */
+  function keepMutexConflictReason(keywordName, recordKeywords) {
+    var KEEP_MUTEX = ['ALWROL', 'CLRL', 'SLNO'];
+    var kws = recordKeywords || [];
+    function has(name) { return kws.some(function (k) { return k.name === name; }); }
+    if (keywordName === 'KEEP') {
+      var conflicting = KEEP_MUTEX.filter(has);
+      if (!conflicting.length) return null;
+      return 'KEEP cannot be specified with ' + conflicting.join('/') + ' on the same record format (per the DDS Reference).';
+    }
+    if (KEEP_MUTEX.indexOf(keywordName) !== -1 && has('KEEP')) {
+      return keywordName + ' cannot be specified with KEEP on the same record format (per the DDS Reference).';
+    }
+    return null;
+  }
+
   /** Task I-18 - MNUBARSW/MNUCNL mutual CA-key exclusion guard. Both
    *  keywords' own DDS Reference sections state the same rule, worded
    *  from each side: under MNUBARSW, "Within a record, the CAnn key
@@ -5377,6 +5411,7 @@
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
+    keepMutexConflictReason: keepMutexConflictReason,
     mnubarFieldShapeNote: mnubarFieldShapeNote,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,

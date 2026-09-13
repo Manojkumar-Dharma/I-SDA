@@ -3996,7 +3996,7 @@
     var fInzrcd = DspfWriter.getFileFlagKeyword(kw, 'INZRCD');
     g += flagRowHtml(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += flagRowHtml(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, fKeep.conditions, expandedSet);
+    g += flagRowHtml(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // I-28: option and response indicators not valid
     var fAssume = DspfWriter.getFileFlagKeyword(kw, 'ASSUME');
     g += flagRowHtml(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fAlwrol = DspfWriter.getFileFlagKeyword(kw, 'ALWROL');
@@ -4558,14 +4558,21 @@
     // existing USRDFN/PULLDOWN ones, without dragging WINDOW into
     // HLPCMDKEY's own guard below (WINDOW's own DDS Reference text
     // doesn't name HLPCMDKEY at all).
-    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow) {
+    // Task I-28: ALWROL is ALSO individually documented as incompatible
+    // with KEEP (see DspfWriter.keepMutexConflictReason's own doc
+    // comment) - `alsoCheckKeep` layers that fourth check on top of the
+    // existing USRDFN/PULLDOWN/WINDOW ones, without dragging KEEP into
+    // ASSUME's or HLPCMDKEY's own guards below (neither is on KEEP's own
+    // exclusion list).
+    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep) {
       var onEl = document.getElementById(id + '-on');
       function commit() {
         var present = onEl.checked;
         if (present) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
             DspfWriter.pulldownConflictReason(name, getKeywords()) ||
-            (alsoCheckWindow ? DspfWriter.windowConflictReason(name, getKeywords()) : null);
+            (alsoCheckWindow ? DspfWriter.windowConflictReason(name, getKeywords()) : null) ||
+            (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null);
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -4615,13 +4622,20 @@
     // instead of simple()/wireFlagRow for the same reason as above.
     // `hasParams` mirrors simple()'s own flag for the handful of these
     // (SLNO/CLRL/MDTOFF/ERASEINP) that carry a free-text parameter box.
-    function wirePulldownGuardedFlag(id, name, hasParams) {
+    // Task I-28: SLNO and CLRL are ALSO individually documented as
+    // incompatible with KEEP (see DspfWriter.keepMutexConflictReason's
+    // own doc comment) - `alsoCheckKeep` layers that check on top of the
+    // existing PULLDOWN one for just those two call sites below, without
+    // dragging KEEP into every other keyword this same function wires
+    // (none of the rest is on KEEP's own exclusion list).
+    function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
       function commit() {
         var present = onEl.checked;
         if (present) {
-          var reason = DspfWriter.pulldownConflictReason(name, getKeywords());
+          var reason = DspfWriter.pulldownConflictReason(name, getKeywords()) ||
+            (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null);
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -4633,15 +4647,40 @@
       if (onEl) onEl.addEventListener('change', commit);
       if (paramsEl) paramsEl.addEventListener('change', commit);
     }
+    // Task I-28: KEEP's own guard - same alert+revert idiom as
+    // wireUsrdfnGuardedFlag/wirePulldownGuardedFlag above, hand-wired
+    // separately (rather than adding a 5th param to one of those) since
+    // KEEP itself isn't on USRDFN's or PULLDOWN's own forbidden lists -
+    // only DspfWriter.keepMutexConflictReason applies to it.
+    function wireKeepGuardedFlag(id, name) {
+      var onEl = document.getElementById(id + '-on');
+      function commit() {
+        var present = onEl.checked;
+        if (present) {
+          var reason = DspfWriter.keepMutexConflictReason(name, getKeywords());
+          if (reason) {
+            window.alert(reason);
+            onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, ''));
+      }
+      if (onEl) onEl.addEventListener('change', commit);
+    }
 
     // General
     // Task I-13: INZRCD is on PULLDOWN's own forbidden-keyword list -
     // wirePulldownGuardedFlag replaces the plain simple() this used to
     // go through (was already noConditioning=true per I-7, unaffected).
     wirePulldownGuardedFlag(p + '-inzrcd', 'INZRCD', false);
-    simple(p + '-keep', 'KEEP');
+    // Task I-28: KEEP's own row no longer goes through plain simple() -
+    // see wireKeepGuardedFlag's own doc comment above, and
+    // recordKeywordsPanelsHtml's matching I-28 comment on the build side
+    // for the Conditioning-toggle half of this same fix.
+    wireKeepGuardedFlag(p + '-keep', 'KEEP');
     wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME', true);
-    wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true);
+    wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true, true);
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
@@ -4747,8 +4786,11 @@
     wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false);
     simple(p + '-dspmod', 'DSPMOD', true);
     wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC', p + '-csrloc', expandedSet, rerender);
-    wirePulldownGuardedFlag(p + '-slno', 'SLNO', true);
-    wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true);
+    // Task I-28: SLNO/CLRL are ALSO individually documented as
+    // incompatible with KEEP - see wirePulldownGuardedFlag's own I-28
+    // comment above.
+    wirePulldownGuardedFlag(p + '-slno', 'SLNO', true, true);
+    wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true, true);
 
     // Input
     simple(p + '-loginp', 'LOGINP', false, true);
