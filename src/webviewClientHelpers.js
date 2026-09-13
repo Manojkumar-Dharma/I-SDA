@@ -2979,12 +2979,38 @@
   }
 
   /** Wires a menuBarKeysPanelHtml()-produced panel. Same `getKeywords`/
-   *  `onChange` contract every other dedicated picker here uses. */
-  function wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+   *  `onChange` contract every other dedicated picker here uses.
+   *  `getFileKeywords`/`getRecordScopes` are optional (Task I-18's
+   *  mnuBarKeyConflictReason guard, wired below): `getFileKeywords`
+   *  returns the file-level keyword set to check against (for the
+   *  file-level caller, that's the same array `getKeywords` already
+   *  returns; for the record-level MNUBAR caller, a separate accessor
+   *  onto the file's own keywords); `getRecordScopes` returns an array
+   *  of keyword-arrays for the record-level side of the check (the
+   *  file-level caller passes every record's own keywords, since a
+   *  file-level assignment extends to all of them; the record-level
+   *  caller passes an array holding just its own record's keywords).
+   *  Both are omitted-safe (no guard fires if either is absent) so
+   *  existing callers keep working unchanged if this panel is ever
+   *  reused somewhere that can't supply them. */
+  function wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, getRecordScopes) {
     var mnubarswOn = document.getElementById(idPrefix + '-mnubarsw-on');
     var mnubarswCakey = document.getElementById(idPrefix + '-mnubarsw-cakey');
+    function revertMnubarsw() {
+      var existing = DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUBARSW');
+      mnubarswOn.checked = existing.present;
+      mnubarswCakey.value = (existing.parameters || '').trim().split(/\s+/)[0] || '';
+    }
     function commitMnubarsw(conditions) {
       var params = (mnubarswCakey.value || '').trim();
+      if (mnubarswOn.checked && getFileKeywords && getRecordScopes) {
+        var reason = DspfWriter.mnuBarKeyConflictReason('MNUBARSW', params, getFileKeywords(), getRecordScopes());
+        if (reason) {
+          window.alert(reason);
+          revertMnubarsw();
+          return;
+        }
+      }
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUBARSW', mnubarswOn.checked, params, undefined, conditions));
     }
     if (mnubarswOn) mnubarswOn.addEventListener('change', function () { commitMnubarsw(); });
@@ -2994,8 +3020,23 @@
     var mnucnlOn = document.getElementById(idPrefix + '-mnucnl-on');
     var mnucnlCakey = document.getElementById(idPrefix + '-mnucnl-cakey');
     var mnucnlResp = document.getElementById(idPrefix + '-mnucnl-resp');
+    function revertMnucnl() {
+      var existing = DspfWriter.getFileFlagKeyword(getKeywords(), 'MNUCNL');
+      var parts = (existing.parameters || '').trim().split(/\s+/);
+      mnucnlOn.checked = existing.present;
+      mnucnlCakey.value = parts[0] || '';
+      mnucnlResp.value = parts[1] || '';
+    }
     function commitMnucnl(conditions) {
       var params = [mnucnlCakey.value, mnucnlResp.value].map(function (s) { return (s || '').trim(); }).filter(Boolean).join(' ');
+      if (mnucnlOn.checked && getFileKeywords && getRecordScopes) {
+        var reason = DspfWriter.mnuBarKeyConflictReason('MNUCNL', mnucnlCakey.value, getFileKeywords(), getRecordScopes());
+        if (reason) {
+          window.alert(reason);
+          revertMnucnl();
+          return;
+        }
+      }
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'MNUCNL', mnucnlOn.checked, params, undefined, conditions));
     }
     if (mnucnlOn) mnucnlOn.addEventListener('change', function () { commitMnucnl(); });
@@ -3651,7 +3692,14 @@
     wireWindowBorderPanel('fk-wdw', getKeywords, onChange, expandedSet, rerender);
 
     // Menu-bar
-    wireMenuBarKeysPanel('fk', getKeywords, onChange, expandedSet, rerender);
+    // Task I-18: file-level MNUBARSW/MNUCNL editing needs to check every
+    // record's own copy too (a file-level assignment extends to all of
+    // them, per each keyword's own DDS Reference section) - getModel
+    // gives access to model.records for that; getKeywords here already IS
+    // the file-level keyword set, so it doubles as its own getFileKeywords.
+    wireMenuBarKeysPanel('fk', getKeywords, onChange, expandedSet, rerender, getKeywords, function () {
+      return getModel ? getModel().records.map(function (r) { return r.keywords; }) : [];
+    });
   }
 
   // -----------------------------------------------------------------------
@@ -5627,8 +5675,15 @@
   }
 
   /** Wires the mnuBarPanelsHtml() panel. Same `getKeywords`/`onChange`
-   *  contract every other dedicated picker here uses. */
-  function wireMnuBarPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+   *  contract every other dedicated picker here uses. `getFileKeywords`
+   *  (Task I-18, same optional-param convention as
+   *  wireRecordKeywordsPanels/wireSflCtlPanels elsewhere in this file) is
+   *  threaded straight through to wireMenuBarKeysPanel below, along with
+   *  a `getRecordScopes` that resolves to just this record's own
+   *  keywords - see wireMenuBarKeysPanel's own doc comment for why a
+   *  record-level edit only ever needs to check its OWN record, not
+   *  every other one. */
+  function wireMnuBarPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
     // Task I-14: MNUBAR takes no Conditioning toggle (see mnuBarPanelsHtml's
     // own comment) - `conditions` passed as `undefined` here matches that,
     // and setFileFlagKeyword's own "conditions omitted preserves whatever
@@ -5636,7 +5691,7 @@
     // (invalidly) already carried option-indicator conditioning on MNUBAR
     // is left untouched rather than silently stripped by this fix.
     wireFlagRow(idPrefix + '-mnubar', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'MNUBAR', present, params); }, undefined, expandedSet, rerender);
-    wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender);
+    wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, function () { return [getKeywords()]; });
   }
 
   function escapeHtml(s) {

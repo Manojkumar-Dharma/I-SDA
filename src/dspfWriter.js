@@ -1466,6 +1466,60 @@
     return keywordName + ' cannot be specified on a record format that also has the WINDOW keyword (per the DDS Reference).';
   }
 
+  /** Task I-18 - MNUBARSW/MNUCNL mutual CA-key exclusion guard. Both
+   *  keywords' own DDS Reference sections state the same rule, worded
+   *  from each side: under MNUBARSW, "Within a record, the CAnn key
+   *  specified by the MNUBARSW keyword cannot be specified again using
+   *  another keyword (such as MNUCNL)"; under MNUCNL, the mirror
+   *  statement naming MNUBARSW. Both sections go on to say the
+   *  file-level form "extends to all records in the file, this must be
+   *  considered when assigning a CAnn key" - so the scope genuinely
+   *  spans both file-level AND every individual record's own copy of
+   *  these two keywords, resolving this task's own scope question: it
+   *  is NOT just a same-record check.
+   *  `cakey` is the CAnn value about to be assigned to `keywordName` -
+   *  blank resolves to MNUBARSW's own documented default (CA10) or
+   *  MNUCNL's own documented default (CA12), since a blank box still
+   *  means a real, active CA key once the keyword itself is present, not
+   *  "no CA key". `fileKeywords` is always checked (a file-level
+   *  assignment of the OTHER keyword extends to every record, per both
+   *  sections' own text). `recordScopes` is an array of keyword-arrays -
+   *  the record(s) whose OWN copy of the other keyword also needs
+   *  checking: a caller editing one specific record's own MNUBARSW/
+   *  MNUCNL passes an array holding just that record's own keywords
+   *  (record-level values don't propagate to OTHER records - only the
+   *  file-level form does); a caller editing the FILE-level copy passes
+   *  every record's own keywords (a file-level assignment reaches all of
+   *  them). Same alert+revert idiom as this file's other Conflict Reason
+   *  functions; turning either keyword OFF, or lowering/blanking its own
+   *  CA key, is never blocked, only the on-transition/CA-key-collision. */
+  function mnuBarKeyConflictReason(keywordName, cakey, fileKeywords, recordScopes) {
+    var otherName = keywordName === 'MNUBARSW' ? 'MNUCNL' : (keywordName === 'MNUCNL' ? 'MNUBARSW' : null);
+    if (!otherName) return null;
+    function normalizeCakey(name, raw) {
+      var first = (raw || '').trim().split(/\s+/)[0] || '';
+      if (first) return first.toUpperCase();
+      return name === 'MNUBARSW' ? 'CA10' : 'CA12';
+    }
+    var thisCakey = normalizeCakey(keywordName, cakey);
+    function otherCakeyIn(kwList) {
+      var k = (kwList || []).find(function (x) { return x.name === otherName; });
+      if (!k) return null;
+      return normalizeCakey(otherName, k.parameters);
+    }
+    var fileOther = otherCakeyIn(fileKeywords);
+    if (fileOther && fileOther === thisCakey) {
+      return keywordName + '(' + thisCakey + ') cannot use the same CA key as the file-level ' + otherName + '(' + fileOther + ') - a file-level ' + otherName + ' extends to every record (per the DDS Reference).';
+    }
+    for (var i = 0; i < (recordScopes || []).length; i++) {
+      var recOther = otherCakeyIn(recordScopes[i]);
+      if (recOther && recOther === thisCakey) {
+        return keywordName + '(' + thisCakey + ') cannot use the same CA key as ' + otherName + '(' + recOther + ') already assigned on this record (per the DDS Reference).';
+      }
+    }
+    return null;
+  }
+
   /** Reads the field's "General keywords" (real SDA's category, not this
    *  file's ALIAS which is just plain text here). Text-bearing keywords
    *  come back as their raw (already-quoted-if-needed) parameter string for
@@ -5029,6 +5083,7 @@
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     usrdfnConflictReason: usrdfnConflictReason,
     pulldownConflictReason: pulldownConflictReason,
+    mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,

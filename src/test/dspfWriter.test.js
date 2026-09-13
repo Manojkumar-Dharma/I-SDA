@@ -1397,6 +1397,66 @@ console.log('\nDspfWriter.pulldownConflictReason() (Task I-13) - the 27-keyword 
   check('INZINP (not on the forbidden list) never triggers a conflict', DspfWriter.pulldownConflictReason('INZINP', withPulldown) === null);
 }
 
+console.log('\nDspfWriter.mnuBarKeyConflictReason() (Task I-18) - MNUBARSW/MNUCNL mutual CA-key exclusion, spanning file-level and every record');
+{
+  const kw = (name, parameters) => ({ name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] });
+
+  check('no conflict with nothing else present', DspfWriter.mnuBarKeyConflictReason('MNUBARSW', 'CA10', [], []) === null);
+  check('an unrelated keyword name returns null', DspfWriter.mnuBarKeyConflictReason('LOGOUT', 'CA10', [], []) === null);
+
+  // Same-record collision.
+  {
+    const recordKw = [kw('MNUCNL', 'CA10')];
+    const reason = DspfWriter.mnuBarKeyConflictReason('MNUBARSW', 'CA10', [], [recordKw]) || '';
+    check('MNUBARSW(CA10) blocked when this record\'s own MNUCNL already uses CA10', /CA10/.test(reason) && /MNUCNL/.test(reason));
+  }
+  // Symmetric direction.
+  {
+    const recordKw = [kw('MNUBARSW', 'CA10')];
+    const reason = DspfWriter.mnuBarKeyConflictReason('MNUCNL', 'CA10', [], [recordKw]) || '';
+    check('symmetric: MNUCNL(CA10) blocked when this record\'s own MNUBARSW already uses CA10', /CA10/.test(reason) && /MNUBARSW/.test(reason));
+  }
+  // Different CA keys on the same record: no conflict.
+  {
+    const recordKw = [kw('MNUCNL', 'CA12')];
+    check('different CA keys on the same record: no conflict', DspfWriter.mnuBarKeyConflictReason('MNUBARSW', 'CA10', [], [recordKw]) === null);
+  }
+  // Defaults: blank CA key resolves to CA10 (MNUBARSW) / CA12 (MNUCNL).
+  {
+    const recordKw = [kw('MNUCNL', '')]; // present, blank parameters -> default CA12
+    check('blank MNUBARSW box (default CA10) does not collide with default-CA12 MNUCNL', DspfWriter.mnuBarKeyConflictReason('MNUBARSW', '', [], [recordKw]) === null);
+    const recordKw2 = [kw('MNUCNL', 'CA10')];
+    check('blank MNUBARSW box (default CA10) DOES collide with an explicit MNUCNL(CA10)', DspfWriter.mnuBarKeyConflictReason('MNUBARSW', '', [], [recordKw2]) !== null);
+  }
+  // File-level extends to all records.
+  {
+    const fileKw = [kw('MNUCNL', 'CA10')];
+    const reason = DspfWriter.mnuBarKeyConflictReason('MNUBARSW', 'CA10', fileKw, []) || '';
+    check('record-level MNUBARSW(CA10) blocked when the FILE-level MNUCNL already uses CA10', /CA10/.test(reason) && /file-level/.test(reason));
+  }
+  {
+    const fileKw = [kw('MNUBARSW', 'CA10')];
+    const reason = DspfWriter.mnuBarKeyConflictReason('MNUCNL', 'CA10', fileKw, [[]]) || '';
+    check('file-level extends to a specific record: record-level MNUCNL(CA10) blocked by file-level MNUBARSW(CA10)', /CA10/.test(reason));
+  }
+  // File-level edit checking every record (recordScopes = all records).
+  {
+    const otherRecordKw = [kw('MNUCNL', 'CA10')];
+    const thisRecordKw = [];
+    const reason = DspfWriter.mnuBarKeyConflictReason('MNUBARSW', 'CA10', [], [thisRecordKw, otherRecordKw]) || '';
+    check('a file-level MNUBARSW assignment is blocked if ANY record\'s own MNUCNL already uses that CA key', /CA10/.test(reason));
+  }
+  // Record-level values do NOT propagate to other records.
+  {
+    // Record A has its own MNUCNL(CA10); editing record B's own MNUBARSW(CA10)
+    // should NOT be blocked by record A's value, since record-level values
+    // are scoped to their own record only (file-level is what propagates).
+    const recordBOwnKeywords = [];
+    const reason = DspfWriter.mnuBarKeyConflictReason('MNUBARSW', 'CA10', [], [recordBOwnKeywords]);
+    check('record-level MNUCNL on a DIFFERENT record does not block this record\'s own MNUBARSW', reason === null);
+  }
+}
+
 console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');
 {
   const none = DspfWriter.getReferenceOverrides([]);

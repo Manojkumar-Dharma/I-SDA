@@ -5557,7 +5557,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireSflPgmqField(rec, sflCtlPrefix + '-sflpgmq', (field, updates) => commitFieldUpdateKeepingSelection(field, updates));
     }
     if (isMnuBar) {
-      WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
+      WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
     }
   }
 
