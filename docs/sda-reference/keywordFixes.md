@@ -467,7 +467,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | not started |
 | **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | not started |
 | **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | not started |
-| **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | not started |
+| **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | in progress |
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | not started |
 | **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | not started |
 
