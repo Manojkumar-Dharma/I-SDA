@@ -468,7 +468,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | done (0.10.103) - no hard blocks warranted; advisory note added for LOGINP/LOGOUT |
 | **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | fixed (v0.10.99) |
 | **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | done (v0.10.100) — base General tab kept as sole live control; SFL/SFLMSG/SFLCTL panels each de-duped to a hint; see I-28 for the base tab's own KEEP conditioning-toggle bug found in the process |
-| **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | in progress |
+| **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | done (v0.10.107) — see full write-up below for the AUTOSLT/SFLMLTCHC correction found along the way |
 | **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | done (0.10.105) |
 | **I-28** | Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle despite "Option and response indicators are not valid for this keyword" - I-9 fixed this on the SFL/SFLCTL copies but never on the base copy (now the sole surviving copy after I-25's de-dup); also confirmed by the DDS Reference: `KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` - a separate mutual-exclusion audit may be warranted too | I-9, I-25 | fixed (v0.10.106) |
 | **I-29** | Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN` | I-22 | done - confirmed independent (0.10.104) |
@@ -1629,7 +1629,42 @@ choice-color-state widget already exists (`CHOICE_COLOR_STATE_KEYWORDS`
 in `dspfWriter.js`, built for menu-bar/pull-down choice fields) and
 should just be reused once `SFLSNGCHC`/`SFLMLTCHC` land, not rebuilt.
 
-**Not started.**
+**Fixed (0.10.107).** Added `SFLSNGCHC`/`SFLMLTCHC` as a single
+mutually-exclusive type selector on the SFLCTL "General" tab
+(`sflChoiceListPanelHtml`/`wireSflChoiceListPanel`), each with its own
+`*RSTCSR`/`*NORSTCSR` and `*SLTIND` sub-controls (`SFLSNGCHC` also gets
+its own `*AUTOSLT`/`*NOAUTOSLT`/`*AUTOSLTENH` group; `SFLMLTCHC` gets its
+own optional `&number-selected` field-name text input instead) -
+`DspfWriter.getSflSngChcKeyword`/`setSflSngChcKeyword`/
+`getSflMltChcKeyword`/`setSflMltChcKeyword`. Both the `RSTCSR` and
+(`SFLSNGCHC`-only) `AUTOSLT` dropdowns show the context-dependent default
+as live hint text in their own "(default)" option, computed from
+`isPulldownRecord` - the explicit non-default value is still writable
+either way, never silently guessed. `DspfWriter.
+sflChoiceListConflictReason` hard-blocks (alert + revert) either keyword
+from being turned on while `SFLDROP`/`SFLFOLD` is present (the type
+selector's own switch between `SFLSNGCHC`/`SFLMLTCHC` is exempted from
+its own mutual-exclusion check, since the selector already enforces that
+by construction). `SFLSCROLL` was added to the existing field-level
+Subfile Keywords panel alongside `SFLRCDNBR`/`SFLROLVAL`
+(`subfileFieldKeywordsHtml`/`wireSubfileFieldKeywords`) - confirmed its
+actual shape is a plain flag on a hidden numeric field (not tied to
+`SFLEND(*SCRBAR)` the way this write-up originally guessed); `DspfWriter.
+sflScrollFieldConflictReason` hard-blocks it from sharing a field with
+`SFLROLVAL`/`SFLRCDNBR`, and separately enforces the DDS Reference's
+"only one `SFLSCROLL` per record" rule across every other field in the
+same record (`wireSubfileFieldKeywords` now takes the sibling fields'
+own keywords for this). `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT` were left
+untouched, as planned - the existing `CHOICE_COLOR_STATE_KEYWORDS`
+primitive already works unmodified against any keywords array,
+including an SFLCTL record's own. Correction found along the way: this
+write-up's own parenthetical above had the `AUTOSLT` default-flip
+attributed to `SFLMLTCHC` - the DDS Reference actually places that whole
+group on `SFLSNGCHC` only; `SFLMLTCHC` has no `AUTOSLT` group at all.
+`PUTOVR`'s own restrictions (flagged above as worth double-checking) were
+not found to add anything beyond what's already covered by the
+`SFLDROP`/`SFLFOLD`/other-choice-type mutual exclusion implemented here.
+See `i26SflChoiceListAudit.test.js` (24 checks).
 
 ### I-27 — Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record)
 
