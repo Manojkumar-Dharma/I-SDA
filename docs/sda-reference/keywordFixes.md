@@ -1044,7 +1044,7 @@ by the time this is picked up). Do this LAST, after the others are done,
 not incrementally per task — regenerating after every single fix just
 churns the index files repeatedly for no benefit.
 
-**Not started.**
+**Claimed — in progress.**
 
 ### I-17 — `MNUBARDSP` repeatable-conditioned-instance support
 
