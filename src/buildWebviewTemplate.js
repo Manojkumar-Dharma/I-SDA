@@ -1899,6 +1899,18 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!name) { newRecordError.textContent = 'Enter a name for the new record format.'; return; }
     if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
     if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
+    // Task I-24 - WINDOW cannot be specified for the record named by
+    // file-level PASSRCD (per the DDS Reference). WINDOW is only ever
+    // written by this wizard (or the floating toolbox's auto-named WDWn
+    // tool, which can't collide with a hand-typed PASSRCD value in
+    // practice) - never toggled onto an existing record after the fact -
+    // so this creation-time check is the one reachable place a
+    // user-chosen WINDOW record name can collide with PASSRCD.
+    if (type === 'WINDOW') {
+      const passrcdVal = DspfWriter.getFileFlagKeyword(model.fileKeywords, 'PASSRCD').parameters;
+      const passrcdConflict = DspfWriter.passrcdWindowConflictReason(passrcdVal, name);
+      if (passrcdConflict) { newRecordError.textContent = passrcdConflict; return; }
+    }
 
     let sflmsgOpts = null;
     if (type === 'SFLMSG') {

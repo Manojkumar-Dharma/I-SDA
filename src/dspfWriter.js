@@ -1466,6 +1466,52 @@
     return keywordName + ' cannot be specified on a record format that also has the WINDOW keyword (per the DDS Reference).';
   }
 
+  /** Task I-24 - WINDOW's own DDS Reference section also states "WINDOW
+   *  cannot be specified for the record format specified by the PASSRCD
+   *  keyword" - flagged, not fixed, by I-12 (see that task's own
+   *  "Flagged, not fixed this task" note) because it's a
+   *  cross-reference-by-name check against a FILE-level keyword's string
+   *  parameter, not a same-record flag conflict windowConflictReason above
+   *  already covers.
+   *  (Note: the DDS Reference states the identical restriction for
+   *  ALWROL, CLRL, and SLNO too - all four keywords' own sections use the
+   *  same "cannot be specified for the record format specified by the
+   *  PASSRCD keyword" wording. I-24 is scoped to WINDOW only; the other
+   *  three are a follow-up finding, not implemented here.)
+   *
+   *  Pure name-vs-name comparison (case-insensitive, blank-safe) rather
+   *  than taking a full records array - this is deliberately the smallest
+   *  possible shared primitive so each of the two reachable on-transitions
+   *  below can call it with just the one piece of data it already has,
+   *  instead of both being forced to construct/scan a records array:
+   *   1. "+ Add record" wizard creating a new WINDOW-type record whose
+   *      name matches the file's current PASSRCD value (newRecordBtn's
+   *      own handler in buildWebviewTemplate.js - blocked inline, same as
+   *      its pre-existing duplicate-name check, before commitSourceChange
+   *      ever runs).
+   *   2. Editing file-level PASSRCD to name a record that already carries
+   *      WINDOW (wireFileKeywordsPanels' fk-passrcd handler in
+   *      webviewClientHelpers.js - alert + revert, same idiom as I-12/
+   *      I-18's own file-level guards).
+   *  Both directions are covered because, unlike WINDOW itself (only ever
+   *  written by the record-creation wizard - see windowConflictReason's
+   *  own doc comment), PASSRCD is a plain free-text file-level field a
+   *  user can retype at any time, and a WINDOW-type record's own name is
+   *  chosen by the user at creation time (unlike the floating toolbox's
+   *  auto-named WDWn window tool) - so either side of the match can change
+   *  first. Renaming an EXISTING record isn't a reachable third
+   *  transition for this check: PASSRCD isn't one of
+   *  renameRecordReferences' RECORD_REFERENCE_EXTRACTORS (SFLCTL/WINDOW/
+   *  MNUBARCHC only), so renaming a record never rewrites a file-level
+   *  PASSRCD that named its old name - that's a separate, pre-existing
+   *  gap outside this task's own scope. */
+  function passrcdWindowConflictReason(passrcdName, windowRecordName) {
+    var a = (passrcdName || '').trim().toUpperCase();
+    var b = (windowRecordName || '').trim().toUpperCase();
+    if (!a || !b || a !== b) return null;
+    return 'WINDOW cannot be specified for record format ' + b + ' - it is the record named by the file-level PASSRCD(' + a + ') keyword (per the DDS Reference).';
+  }
+
   /** Task I-18 - MNUBARSW/MNUCNL mutual CA-key exclusion guard. Both
    *  keywords' own DDS Reference sections state the same rule, worded
    *  from each side: under MNUBARSW, "Within a record, the CAnn key
@@ -5213,6 +5259,7 @@
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
+    passrcdWindowConflictReason: passrcdWindowConflictReason,
     mnubarFieldShapeNote: mnubarFieldShapeNote,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,

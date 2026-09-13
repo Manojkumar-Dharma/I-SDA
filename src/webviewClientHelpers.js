@@ -3432,7 +3432,27 @@
     if (refRec) refRec.addEventListener('change', commitRef);
     if (refFormat) refFormat.addEventListener('change', commitRef);
     var passrcd = document.getElementById('fk-passrcd');
-    if (passrcd) passrcd.addEventListener('change', function () { onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!passrcd.value.trim(), passrcd.value.trim())); });
+    if (passrcd) passrcd.addEventListener('change', function () {
+      var newVal = passrcd.value.trim();
+      // Task I-24 - WINDOW cannot be specified for the record named by
+      // file-level PASSRCD (per the DDS Reference). This is the reverse
+      // on-transition from the "+ Add record" wizard's own I-24 guard
+      // (buildWebviewTemplate.js's newRecordBtn handler): retyping PASSRCD
+      // itself to name a record that already carries WINDOW. getModel
+      // gives access to model.records to find that record, if any.
+      if (newVal && getModel) {
+        var winRec = (getModel().records || []).find(function (r) {
+          return r.name && r.name.toUpperCase() === newVal.toUpperCase() && (r.keywords || []).some(function (k) { return k.name === 'WINDOW'; });
+        });
+        var conflict = winRec && DspfWriter.passrcdWindowConflictReason(newVal, winRec.name);
+        if (conflict) {
+          window.alert('Cannot set PASSRCD(' + newVal.toUpperCase() + ') - ' + conflict);
+          passrcd.value = DspfWriter.getFileFlagKeyword(getKeywords(), 'PASSRCD').parameters;
+          return;
+        }
+      }
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!newVal, newVal));
+    });
     // Task I-6: file-level TEXT wiring removed - see fileKeywordsPanelsHtml's
     // own I-6 comment for the full finding. getFileQuotedText/
     // setFileQuotedText themselves are untouched (still used by other

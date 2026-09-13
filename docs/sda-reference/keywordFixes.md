@@ -466,7 +466,7 @@ parameter rules IBM documents only for the single-shape case).
 | **I-21** | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | done (0.10.98) |
 | **I-22** | `SFLSIZ`/`SFLPAG`/`SFLLIN` display-size (`*DSx`) conditioning | I-10 | not started |
 | **I-23** | Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD` | I-11 | not started |
-| **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | claimed |
+| **I-24** | `WINDOW` cannot be specified for the record named by file-level `PASSRCD` | I-12 | fixed (v0.10.99) |
 | **I-25** | `KEEP` duplicated across 4 record-type panels — consolidate to one tab | I-7, I-9 | in progress |
 | **I-26** | Add missing subfile-control selection-list keywords: `SFLSNGCHC`/`SFLMLTCHC`/`SFLSCROLL` | I-10, I-15 | not started |
 | **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | not started |
@@ -1382,7 +1382,17 @@ keyword) rather than a same-record flag conflict, so it didn't fit
 that reads the file-level `PASSRCD` value and checks it against
 whichever record is being given `WINDOW`.
 
-**Claimed.**
+**Fixed** (v0.10.99). Added `DspfWriter.passrcdWindowConflictReason(passrcdName, windowRecordName)` — a pure, blank-safe, case-insensitive name-vs-name comparison. Wired at the two reachable on-transitions:
+- **`buildWebviewTemplate.js`'s `newRecordBtn` handler** — creating a new `WINDOW`-type record via "+ Add record" whose name matches the file's current `PASSRCD` value is blocked inline (`newRecordError`), same as the wizard's pre-existing duplicate-name check, before `commitSourceChange` ever runs.
+- **`webviewClientHelpers.js`'s `wireFileKeywordsPanels`' `fk-passrcd` handler** — retyping file-level `PASSRCD` to name a record that already carries `WINDOW` is blocked with an alert + revert, the same idiom as I-12/I-18's own file-level guards. `getModel` (already threaded into this function) supplies `model.records` to find the target record.
+
+Both directions needed covering because, unlike `WINDOW` itself (only ever written by the record-creation wizard — see `windowConflictReason`'s own doc comment), `PASSRCD` is a plain free-text file-level field a user can retype at any time, and a `WINDOW`-type record's own name is user-chosen at creation (unlike the floating toolbox's auto-named `WDWn` window tool) — so either side of the match can change first.
+
+**Follow-up finding, not implemented here:** the DDS Reference states the identical "cannot be specified for the record format specified by the PASSRCD keyword" restriction for `ALWROL`, `CLRL`, and `SLNO` too — all four keywords' own sections use the same wording. I-24 is scoped to `WINDOW` only.
+
+**Also out of scope:** renaming an *existing* record isn't a reachable third transition for this check — `PASSRCD` isn't one of `renameRecordReferences`' `RECORD_REFERENCE_EXTRACTORS` (`SFLCTL`/`WINDOW`/`MNUBARCHC` only), so renaming a record never rewrites a file-level `PASSRCD` that named its old name. That's a separate, pre-existing gap.
+
+Test: `src/test/i24PassrcdWindowConflictAudit.test.js`.
 
 ### I-25 — `KEEP` duplicated across 4 record-type panels — consolidate to one tab
 
