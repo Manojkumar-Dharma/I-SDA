@@ -2039,7 +2039,7 @@ section below.)
 | Task | Field kind / Usage | Depends on | Status |
 |------|---------------------|------------|--------|
 | **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | done (0.10.109) |
-| **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | not started |
+| **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | claimed — in progress |
 | **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — may be absorbed into I-31 depending on what that task finds |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
 | **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | claimed — in progress |
@@ -2206,6 +2206,12 @@ Input Keywords test). Verified to fail 34 of its 55 checks against
 pre-fix code via `git stash` before this fix was considered valid. Full
 suite: 4004/4004 (up from the 3949 baseline by exactly this file's own
 55 new checks), `npm run compile` clean.
+
+### I-31 — Numeric fields
+
+**Status: claimed, work starting now.**
+
+---
 
 ### I-33 — Constant fields (incl. system-value sub-form)
 
