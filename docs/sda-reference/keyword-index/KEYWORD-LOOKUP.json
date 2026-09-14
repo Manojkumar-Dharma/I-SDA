@@ -2,7 +2,7 @@
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
     "uniqueKeywords": 165,
-    "generated": "2026-09-13"
+    "generated": "2026-09-14"
   },
   "keywords": {
     "*AUTOENT": [
@@ -593,8 +593,8 @@
       {
         "level": "field",
         "category": "General",
-        "description": "Continued field",
-        "parameters": "field name (character fields only)",
+        "description": "Continued field - Task I-30 correction: this is a numeric column-width, not a field name",
+        "parameters": "number (characters per line)",
         "repeatable": false,
         "screenshotDir": "screens/field-level/character/general",
         "sharedWith": []
@@ -648,9 +648,9 @@
       {
         "level": "field",
         "category": "General",
-        "description": "Default value (conditioned)",
+        "description": "Default value, independently conditioned - Task I-30 correction: implemented as ONE conditionable occurrence, not a repeatable list (a field needs only a single default value; see the code's own deliberate-single-instance rationale)",
         "parameters": "'text or value'",
-        "repeatable": true,
+        "repeatable": false,
         "screenshotDir": "screens/field-level/character/general",
         "sharedWith": []
       }
@@ -682,7 +682,7 @@
         "level": "field",
         "category": "Display Attributes",
         "description": "Display attribute(s)",
-        "parameters": "HI RI CS BL ND UL PC SP UH RE MDT (each independently toggleable)",
+        "parameters": "HI RI CS BL ND UL PC MDT PR OID SP (each independently toggleable; Task I-30 corrected two stray values - UH/RE do not exist)",
         "repeatable": true,
         "screenshotDir": "screens/field-level/character/display-attributes",
         "sharedWith": []
@@ -990,6 +990,15 @@
       }
     ],
     "HLPID": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Constant help identifier (Task I-30: present in the code's own General Keywords row list for every field kind, but this index's Character category was missing it - only had it under 'Constant field additions' below)",
+        "parameters": "identifier",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      },
       {
         "level": "field",
         "category": "Constant field additions",
@@ -2308,6 +2317,15 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ]
+      },
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Documentation text - no compiled/runtime effect (Task I-30: was missing from this index entirely)",
+        "parameters": "'quoted text'",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
       }
     ],
     "UNLOCK": [

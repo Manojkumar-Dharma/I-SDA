@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-13 · 200 keyword entries across 46 categories · 165 unique keyword names.
+Generated 2026-09-14 · 202 keyword entries across 46 categories · 165 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -83,7 +83,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `HLPCMDKEY` | record → Help |
 | `HLPEXCLD` | record → Application help |
 | `HLPFULL` | file → Help |
-| `HLPID` | field → Constant field additions |
+| `HLPID` | field → General; field → Constant field additions |
 | `HLPPNLGRP` | file → Help; record → Application help |
 | `HLPRCD` | file → Help |
 | `HLPRTN` ⚠️ | file → Indicator; record → Indicator |
@@ -167,7 +167,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `SFLSNGCHC` | record → Subfile Control - General (SFLCTL) |
 | `SLNO` | record → Output |
 | `SNGCHCFLD` | field → Menu-bar choice - Choice Selection Type |
-| `TEXT` | record → General |
+| `TEXT` | record → General; field → General |
 | `UNLOCK` | record → Input |
 | `USRDSPMGT` ⚠️ | file → General |
 | `USRRSTDSP` | record → Window control (WNDSFCTL general screen) |
@@ -660,13 +660,13 @@ COLOR keyword, up to 7 conditioned instances.
 
 ### Display Attributes
 
-DSPATR keyword, up to 7 conditioned instances, 11 supported values.
+DSPATR keyword, up to 7 conditioned instances (shared with COLOR - one combined card per state), 11 supported values.
 
 *Reference screenshots:* `docs/sda-reference/screens/field-level/character/display-attributes/`
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
-| `DSPATR` | Display attribute(s) | HI RI CS BL ND UL PC SP UH RE MDT (each independently toggleable) | yes |  |
+| `DSPATR` | Display attribute(s) | HI RI CS BL ND UL PC MDT PR OID SP (each independently toggleable; Task I-30 corrected two stray values - UH/RE do not exist) | yes |  |
 
 ### Keying Options
 
@@ -717,9 +717,11 @@ Documentation/reference/default-value keywords.
 | `ALIAS` | Alternative field name |  |  |  |
 | `INDTXT` | Descriptive text for an indicator | indicator 'text' |  |  |
 | `DFT` | Default value | 'text or value' |  |  |
-| `DFTVAL` | Default value (conditioned) | 'text or value' | yes |  |
-| `CNTFLD` | Continued field | field name (character fields only) |  |  |
+| `DFTVAL` | Default value, independently conditioned - Task I-30 correction: implemented as ONE conditionable occurrence, not a repeatable list (a field needs only a single default value; see the code's own deliberate-single-instance rationale) | 'text or value' |  |  |
+| `CNTFLD` | Continued field - Task I-30 correction: this is a numeric column-width, not a field name | number (characters per line) |  |  |
+| `TEXT` | Documentation text - no compiled/runtime effect (Task I-30: was missing from this index entirely) | 'quoted text' |  |  |
 | `FLDCSRPRG` | Field cursor progression order |  |  |  |
+| `HLPID` | Constant help identifier (Task I-30: present in the code's own General Keywords row list for every field kind, but this index's Character category was missing it - only had it under 'Constant field additions' below) | identifier |  |  |
 | `PUTRETAIN` | Retain field on display |  |  |  |
 | `OVRDTA` | Override data |  |  |  |
 | `OVRATR` | Override attributes |  |  |  |

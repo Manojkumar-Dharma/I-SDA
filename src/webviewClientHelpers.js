@@ -851,6 +851,25 @@
   // COLOR/DSPATR editor is still wanted.
   // -----------------------------------------------------------------------
 
+  // Task I-30: IBM's own DDS Reference: "Option indicators are valid for
+  // this [DSPATR] keyword, except when the attributes OID or SP are the
+  // only display attributes specified." COLOR's own conditioning is
+  // unconditionally valid, always - but this UI writes COLOR and DSPATR
+  // from ONE shared state (color + attrs + one conditions array), so a
+  // state with a color set AND an OID/SP-only DSPATR portion can't be
+  // split cleanly: blocking conditioning there would also block COLOR's
+  // own always-valid conditioning, so this predicate only blocks the
+  // clean case (DSPATR-only, no color) where nothing legitimate is lost.
+  // A state combining both a color AND OID/SP-only attributes remains
+  // conditionable - a known, documented edge case (see keywordFixes.md's
+  // I-30 write-up), not silently declared fixed.
+  function colorAttrStateIsConditionable(inst) {
+    if (inst.color) return true;
+    var split = splitAttrsAndPgmField(inst.attrs);
+    if (split.attrs.length === 0) return true;
+    return !split.attrs.every(function (a) { return a === 'OID' || a === 'SP'; });
+  }
+
   function colorAttrStatesHtml(keywords, ownerKey, expandedSet, openState) {
     var states = DspfWriter.getColorAttrStates(keywords);
     var html = '';
@@ -883,7 +902,7 @@
       });
       staging += '</div>';
       return staging;
-    });
+    }, colorAttrStateIsConditionable);
     // Bug fix - was always-expanded raw HTML (the only one of these
     // panels that wasn't a collapsible <details>, unlike Error messages/
     // Keying options right below it); now the same collapsible accordion
@@ -926,7 +945,7 @@
       if (pgmField) attrs = [pgmField].concat(attrs);
       if (!color && attrs.length === 0) return null; // nothing to add
       return { conditions: [], color: color, attrs: attrs };
-    });
+    }, colorAttrStateIsConditionable);
   }
 
   // -----------------------------------------------------------------------
@@ -987,7 +1006,13 @@
     return html;
   }
 
-  /** Validity check (RANGE/COMP/VALUES) panel (Task L5). */
+  /** Validity check (RANGE/COMP/VALUES) panel (Task L5).
+   *  Task I-30: none of the three are ever conditionable - IBM's own DDS
+   *  Reference states "Option indicators are not valid for this keyword"
+   *  for RANGE, COMP, AND VALUES individually (three separate statements,
+   *  not one shared one, but all three say the same thing) - unlike
+   *  CHECK's own AB/VN/VNE/M10/M11 codes just below in the same visual
+   *  panel, which have their own separate (partial) exception. */
   function validityCheckInstancesHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getValidityCheckInstances(keywords);
     return dataKwWrap(['RANGE', 'COMP', 'VALUES'], repeatableConditionedInstancesHtml(
@@ -995,7 +1020,9 @@
       ownerKey + '-rep',
       function renderPayload(inst, instIdPrefix) { return validityCheckInstanceRowHtml(inst, instIdPrefix); },
       expandedSet,
-      '+ Add validity check'
+      '+ Add validity check',
+      undefined,
+      function isConditionable() { return false; }
     ));
   }
 
@@ -1022,7 +1049,8 @@
         // re-render, before the user gets to type real bounds in - same
         // reasoning as L1b's own makeDefaultInstance for ERRMSG.
         return { kind: 'RANGE', conditions: [], parameters: '1 99' };
-      }
+      },
+      function isConditionable() { return false; }
     );
   }
 
@@ -1775,6 +1803,22 @@
   // in sync, since both read fresh state on every render - not a
   // data-integrity risk.
   // -----------------------------------------------------------------------
+  // Task I-30: "Option indicators are valid only for CHECK(ER) and
+  // CHECK(ME)" per IBM's own DDS Reference - every other code (AB/VN/VNE/
+  // M10/M10F/M11/M11F/MF/FE/RB/RZ/RL/LC) is not conditionable at all. An
+  // instance mixing an ER/ME code with any other code doesn't get a pass
+  // either - IBM's statement names ONLY CHECK(ER) and CHECK(ME) as valid,
+  // not "CHECK(ER ...)"/"CHECK(ME ...)" combined with something else, so
+  // conditionable requires the instance's code set to be a non-empty
+  // subset of exactly {ER, ME} (M10F/M11F don't apply here - they're
+  // Immed variants of M10/M11, never combinable with ER/ME's own Immed-
+  // less shape in this UI).
+  function checkInstanceIsConditionable(inst) {
+    var codes = DspfWriter.parseCheckCodes(inst.parameters);
+    if (codes.length === 0) return false;
+    return codes.every(function (c) { return c === 'ER' || c === 'ME'; });
+  }
+
   function checkInstancesHtml(keywords, ownerKey, expandedSet, codeSpecs, addLabel) {
     var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['CHECK']);
     return dataKwWrap(['CHECK'], repeatableConditionedInstancesHtml(instances, ownerKey + '-check-rep', function (inst, instIdPrefix) {
@@ -1797,7 +1841,7 @@
       });
       html += '</div>';
       return html;
-    }, expandedSet, addLabel || '+ Add CHECK instance'));
+    }, expandedSet, addLabel || '+ Add CHECK instance', undefined, checkInstanceIsConditionable));
   }
 
   function wireCheckInstancesEditor(keywords, onChange, ownerKey, expandedSet, rerender, codeSpecs) {
@@ -1843,7 +1887,7 @@
       // seeds with its OWN first code - Keying options defaults to ME,
       // Validity check defaults to AB.
       return { name: 'CHECK', parameters: codeSpecs[0].code, conditions: [] };
-    });
+    }, checkInstanceIsConditionable);
   }
 
   /** "Select Keying Options" - CHECK's ME/ER/MF/FE/RB/RZ/RL/LC codes, sharing
@@ -1942,14 +1986,20 @@
    *  parsing. */
   function inputKeywordsHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label">Input keywords</div>';
+    // Task I-30: DUP is the only one of these three IBM marks
+    // conditionable ("Option indicators are valid for this keyword") -
+    // BLANKS and CHANGE (field-level) are both "not valid for this
+    // keyword" per their own DDS Reference entries, same restriction
+    // record-level CHANGE already had correctly enforced
+    // (RECORD_INDICATOR_NO_CONDITIONING_KINDS above) before this fix.
     [
-      ['dup', 'DUP', 'Dup key duplicates the previous record\u2019s value into this field'],
-      ['blanks', 'BLANKS', 'Numeric field: let the program tell blank apart from zero'],
-      ['change', 'CHANGE', 'Response indicator turns on if the workstation user changed this field'],
+      ['dup', 'DUP', 'Dup key duplicates the previous record\u2019s value into this field', true],
+      ['blanks', 'BLANKS', 'Numeric field: let the program tell blank apart from zero', false],
+      ['change', 'CHANGE', 'Response indicator turns on if the workstation user changed this field', false],
     ].forEach(function (row) {
       var id = ownerKey + '-inp-' + row[0];
       var kw = DspfWriter.getFileFlagKeyword(keywords, row[1]);
-      html += flagRowHtml(id, row[1], kw.present, undefined, undefined, kw.conditions, expandedSet);
+      html += flagRowHtml(id, row[1], kw.present, undefined, undefined, row[3] ? kw.conditions : undefined, expandedSet);
     });
     // Bug fix: CHGINPDFT gets its own dedicated sub-flag checkboxes (see
     // chgInpDftFlagHtml's own comment) instead of the bare on/off row
@@ -1968,7 +2018,7 @@
         function () { return keywords; },
         onChange,
         function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, name, present, params, undefined, conditions); },
-        DspfWriter.getFileFlagKeyword(keywords, name).conditions,
+        name === 'DUP' ? DspfWriter.getFileFlagKeyword(keywords, name).conditions : undefined,
         expandedSet,
         rerender
       );
@@ -1996,11 +2046,20 @@
    *  switched by state, so one occurrence (now independently
    *  conditionable, same as everything else here) is what real DDS itself
    *  supports. */
+  // Task I-30: fifth element is `conditionable` - whether IBM's own DDS
+  // Reference says "Option indicators are valid for this keyword" for
+  // that row. Checked individually against each keyword's own DDS
+  // Reference entry: only DFTVAL/PUTRETAIN/OVRDTA/OVRATR are - the other
+  // ten (ALIAS/INDTXT/DFT/CNTFLD/TEXT/FLDCSRPRG/HLPID/CHRID/IGCALTTYP/
+  // NOCCSID) are each explicitly "not valid for this keyword", but were
+  // all wrongly offering a Conditioning toggle before this fix, since
+  // this row list previously passed every row's own `kw.conditions`
+  // through unconditionally.
   var GENERAL_FIELD_KEYWORD_ROWS = [
-    ['alias', 'ALIAS', 'Alternative (long) name', true],
-    ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true],
-    ['dft', 'DFT', "e.g. 'N/A' (input-only)", true],
-    ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true],
+    ['alias', 'ALIAS', 'Alternative (long) name', true, false],
+    ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true, false],
+    ['dft', 'DFT', "e.g. 'N/A' (input-only)", true, false],
+    ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true, true],
     // Bug fix (reported: "I don't find CNTFLD in right panel for selection"):
     // CNTFLD was entirely missing from this row list, so there was no way to
     // ADD or EDIT it from the properties panel at all - it could only exist
@@ -2021,7 +2080,7 @@
     // FLDCSRPRG rows above/below it) is field-semantics-only in real DDS -
     // this shared row list doesn't yet gate any of the three out for
     // constants, a pre-existing scope note, not something new here.
-    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true],
+    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, false],
     // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
     // a pure documentation keyword (no compiled/runtime effect at all,
     // per IBM's own DDS Reference - it's purely for people reading the
@@ -2033,15 +2092,15 @@
     // own mechanism (getFileFlagKeyword/setFileFlagKeyword) is uniformly
     // raw-text for every quoted keyword already in it, so TEXT matches
     // its neighbors instead of introducing a second convention here.
-    ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true],
-    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true],
-    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true],
-    ['putretain', 'PUTRETAIN', 'Retain field on display', false],
-    ['ovrdta', 'OVRDTA', 'Override data', false],
-    ['ovratr', 'OVRATR', 'Override attributes', false],
-    ['chrid', 'CHRID', 'Translate characters', false],
-    ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false],
-    ['noccsid', 'NOCCSID', 'No coded character set id', false],
+    ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, false],
+    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, false],
+    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, false],
+    ['putretain', 'PUTRETAIN', 'Retain field on display', false, true],
+    ['ovrdta', 'OVRDTA', 'Override data', false, true],
+    ['ovratr', 'OVRATR', 'Override attributes', false, true],
+    ['chrid', 'CHRID', 'Translate characters', false, false],
+    ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false, false],
+    ['noccsid', 'NOCCSID', 'No coded character set id', false, false],
   ];
 
   // L81 - DFT/DFTVAL are the only two rows here subject to DDS's own
@@ -2054,10 +2113,10 @@
   function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3];
+      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], conditionable = row[4];
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
-      html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, kw.conditions, expandedSet);
+      html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
       if (key === 'dft' && kw.present) {
         // L83 - advisory only (see DspfWriter.dftOutputRequirementNote's
         // own doc comment for why this isn't a hard block like L81's).
@@ -2070,7 +2129,7 @@
 
   function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType) {
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1];
+      var key = row[0], name = row[1], conditionable = row[4];
       var id = ownerKey + '-gen-' + key;
       if (DFT_GROUP_KEYS[key]) {
         // L81 - guarded wiring (alert + revert, same idiom S36-4's own
@@ -2100,9 +2159,15 @@
         };
         if (onEl) onEl.addEventListener('change', commit);
         if (paramsEl) paramsEl.addEventListener('change', commit);
-        wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(keywords, name).conditions, function (newConditions) {
-          onChange(DspfWriter.setFileFlagKeyword(keywords, name, onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
-        }, expandedSet, rerender);
+        // Task I-30: DFT itself is "not valid for this keyword" per IBM's
+        // own DDS Reference, unlike DFTVAL just below it in this same
+        // shared branch - only wire the Conditioning control when this
+        // row's own `conditionable` flag says so.
+        if (conditionable) {
+          wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(keywords, name).conditions, function (newConditions) {
+            onChange(DspfWriter.setFileFlagKeyword(keywords, name, onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
+          }, expandedSet, rerender);
+        }
         return;
       }
       wireFlagRow(
@@ -2110,7 +2175,7 @@
         function () { return keywords; },
         onChange,
         function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, name, present, params, undefined, conditions); },
-        DspfWriter.getFileFlagKeyword(keywords, name).conditions,
+        conditionable ? DspfWriter.getFileFlagKeyword(keywords, name).conditions : undefined,
         expandedSet,
         rerender
       );
@@ -2131,13 +2196,16 @@
    *  backward compatibility). */
   function referenceOverridesHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label" style="margin-top:10px;">Ignore previously specified</div>';
+    // Task I-30: both "Option indicators are not valid for this keyword"
+    // per their own DDS Reference entries - conditioning was previously
+    // offered unconditionally.
     [
       ['dltchk', 'DLTCHK', 'Ignore the referenced field\u2019s own validity-check keywords'],
       ['dltedt', 'DLTEDT', 'Ignore the referenced field\u2019s own edit keywords'],
     ].forEach(function (row) {
       var id = ownerKey + '-ref-' + row[0];
       var kw = DspfWriter.getFileFlagKeyword(keywords, row[1]);
-      html += flagRowHtml(id, row[1], kw.present, undefined, undefined, kw.conditions, expandedSet);
+      html += flagRowHtml(id, row[1], kw.present, undefined, undefined, undefined, expandedSet);
     });
     return html;
   }
@@ -2151,7 +2219,7 @@
         function () { return keywords; },
         onChange,
         function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, name, present, params, undefined, conditions); },
-        DspfWriter.getFileFlagKeyword(keywords, name).conditions,
+        undefined,
         expandedSet,
         rerender
       );

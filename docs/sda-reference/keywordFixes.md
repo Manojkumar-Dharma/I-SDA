@@ -2034,7 +2034,7 @@ values, not a distinct field kind with its own keyword set — folded into
 
 | Task | Field kind / Usage | Depends on | Status |
 |------|---------------------|------------|--------|
-| **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | claimed — in progress |
+| **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | done (0.10.109) |
 | **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | not started |
 | **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — may be absorbed into I-31 depending on what that task finds |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`PAGNBR`) | I-1 (method) | claimed — in progress |
@@ -2043,7 +2043,165 @@ values, not a distinct field kind with its own keyword set — folded into
 
 ### I-30 — Character fields (base set)
 
-**Status: claimed, work starting now.**
+Full 4-dimension audit of `fieldKeywordCategoryVisibility()`'s 8 base
+character-field categories (Colors, Display Attributes, Keying Options,
+Validity Check, Input Keywords, General Keywords, Database Reference,
+Error Messages, Message ID - Editing Keywords is numeric-only, out of
+this task's scope, see I-31) against each keyword's own opening
+statement in `docs/sda-reference/source/DDS_Keyword_V7r6.txt`.
+
+**Done (0.10.109).**
+
+**Conditioning-eligibility bugs found and fixed** (the dominant finding
+this task turned up - every one of these had a Conditioning toggle
+offered somewhere IBM's own text says "Option indicators are not valid
+for this keyword", or offered it more broadly than IBM's own partial
+exception allows):
+
+- **`CHECK`** (shared between Keying Options and Validity Check - both
+  panels write the same underlying repeatable `CHECK(...)` instances):
+  IBM states plainly *"Option indicators are valid only for CHECK(ER)
+  and CHECK(ME)"* - the other eleven codes (`VNE`/`VN`/`AB`/`M10`/
+  `M10F`/`M11`/`M11F`/`MF`/`FE`/`RB`/`RZ`/`RL`/`LC`) never allowed
+  conditioning at all, and mixing an ER/ME code with any other code
+  doesn't get a pass either - IBM names only the bare `CHECK(ER)`/
+  `CHECK(ME)` forms, not combinations. Fixed via a new
+  `checkInstanceIsConditionable(inst)` predicate (conditionable only
+  when the instance's parsed code set is a non-empty subset of exactly
+  `{ER, ME}`), wired into both `checkInstancesHtml`/
+  `wireCheckInstancesEditor` - the one shared implementation both
+  Keying Options and Validity Check call through.
+- **`RANGE`/`COMP`/`VALUES`** (Validity Check): each has its own,
+  separately-stated *"Option indicators are not valid for this
+  keyword"* - all three were offering conditioning unconditionally.
+  The cleanest fix of the bunch: no partial exception to model, so
+  `validityCheckInstancesHtml`/`wireValidityCheckInstances` now always
+  pass `isConditionable: function() { return false; }`.
+- **`DSPATR`** (Colors & Attributes, sharing one combined COLOR+DSPATR
+  card/condition-set per state with `colorAttrStatesHtml`): IBM - valid
+  *"except when the attributes OID or SP are the only display
+  attributes specified."* COLOR's own conditioning is unconditionally
+  valid, always, which collides with DSPATR's partial exception since
+  both keywords write from ONE shared `{color, attrs, conditions}`
+  state in this UI (`DspfWriter.getColorAttrStates`/
+  `setColorAttrStates`). Fixed a new `colorAttrStateIsConditionable`
+  predicate that blocks the clean case only - attrs non-empty, every
+  attr in `{OID, SP}`, AND no color set for that state - since blocking
+  a state that ALSO carries a color would wrongly take away COLOR's own
+  always-valid conditioning too. **Known, documented remaining edge
+  case:** a state combining a color with OID/SP-only attributes still
+  offers conditioning (needed for COLOR), which means the resulting
+  DSPATR line, if actually conditioned, would technically violate IBM's
+  rule in that one narrow combination - splitting COLOR's and DSPATR's
+  own condition sets apart cleanly would need a bigger data-model
+  change than this task's own scope; flagged rather than silently
+  declared fixed. Covered by its own regression-test case
+  (`i30CharacterFieldConditioningAudit.test.js`), which locks in this
+  exact boundary rather than papering over it.
+- **`BLANKS`/`CHANGE`** (Input Keywords): both "not valid"; `DUP` is
+  the one row IBM marks conditionable of the three. Field-level
+  `CHANGE` is a wholly separate bug from record-level `CHANGE`, which
+  I-20 already correctly gated - this shared `inputKeywordsHtml` row
+  list was simply never covered by any earlier conditioning audit
+  (I-3 was file-level-only in scope).
+- **General Keywords** (`GENERAL_FIELD_KEYWORD_ROWS`, 14 rows total):
+  ten of them - `ALIAS`/`INDTXT`/`DFT`/`CNTFLD`/`TEXT`/`FLDCSRPRG`/
+  `HLPID`/`CHRID`/`IGCALTTYP`/`NOCCSID` - are each individually "not
+  valid" per their own DDS Reference entries; only `DFTVAL`/
+  `PUTRETAIN`/`OVRDTA`/`OVRATR` are actually conditionable. All
+  fourteen were passing `kw.conditions` straight through unconditionally
+  before this fix. Added a 5th `conditionable` element to each row
+  tuple and threaded it through both the render side
+  (`generalFieldKeywordsHtml`) and both branches of the wire side
+  (`wireGeneralFieldKeywordsEditor` - the shared `DFT`/`DFTVAL`
+  "DFT_GROUP_KEYS" branch needed its own gate too, since `DFT` and
+  `DFTVAL` sit on opposite sides of this fix despite sharing that one
+  branch).
+- **`DLTCHK`/`DLTEDT`** (Database Reference): both "not valid" -
+  `referenceOverridesHtml`/`wireReferenceOverridesEditor` offered
+  conditioning unconditionally before this fix.
+
+**Confirmed clean, no fix needed** (checked as part of the same pass):
+`COLOR` (always conditionable, matches exactly); `CHGINPDFT` (already
+correctly fixed by I-3); `DUP` (correctly conditionable; has one small
+unenforced constraint - "not valid on floating-point fields" - logged
+below, not fixed); `ERRMSG`/`ERRMSGID` (already correctly conditionable
+and repeatable); `REFFLD` (has no Conditioning control at all in its own
+UI, correctly - it's a position-29 field-shape editor, not a
+`flagRowHtml`/repeatable-instance keyword row, so there was never
+anything to gate).
+
+**`KEYBRD` turned out not to be a real DDS keyword at all.** It's
+iSDA's own name for the field's data-type column (DDS position 35,
+"Data type and keyboard shift") - the exact same underlying value the
+Basic tab's own "Data type" dropdown edits. Deliberately implemented
+that way (see the code's own hint text: *"Not a keyword - this is the
+field's own data type (position 35), the same value the Basic tab's
+Data type dropdown edits"*) - confirmed correct, no conditioning concept
+even applies to it, since it's a physical field attribute rather than a
+conditionable keyword.
+
+**Index-only documentation bugs, not functional code bugs** (the actual
+`webviewClientHelpers.js`/`dspfWriter.js` code was already correct in
+all three cases - only `docs/sda-reference/keyword-index/build_index.py`
+was wrong):
+- `DSPATR`'s value list had two values that don't exist anywhere in
+  IBM's own reference (`UH`/`RE`) instead of the real `PR`/`OID` - the
+  code's own `DSPATR_ATTRS` constant was correct throughout.
+- `CNTFLD`'s parameter was described as a field name; it's actually a
+  numeric column-width (characters per line) - the code's own
+  placeholder text already had this right.
+- `DFTVAL` was marked `repeatable=True`, but the code deliberately
+  implements it as a single conditionable occurrence (a field needs
+  only one default value in practice, even though DDS syntax
+  technically permits several) - the index overstated what's actually
+  implemented.
+- `TEXT` and `HLPID` exist in the code's own row list for every field
+  kind but were missing from the index's Character category (`HLPID`
+  already existed under the narrower "Constant field additions"
+  category; `TEXT` was missing from the index entirely). Both added.
+
+Regenerated `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` with these
+three corrections folded in alongside the rest of this task.
+
+**Other findings, logged but NOT fixed in this pass** (scoped out to
+keep this task bounded - real, well-sourced gaps for a follow-up):
+- `CHKMSGID` has no guard ensuring it only appears on a field that also
+  carries an actual validity-check keyword - IBM: *"CHKMSGID is allowed
+  only on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN),
+  CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword."* Same shape as I-8's
+  USRDFN conflict guard, just not implemented here yet.
+- `CHRID` is mutually exclusive with `DUP` and invalid on constant/
+  numeric/`M`/`H`/`P`-usage fields, per IBM's own text - unenforced.
+- `IGCALTTYP` carries a long mutual-exclusion list (AUTO(RAZ)/BLKFOLD/
+  several CHECK codes/CMP-COMP variants/DUP/RANGE/VALUES) - a niche
+  DBCS feature, likely low priority, unenforced.
+- `DUP` is "not valid on a floating-point field (F in position 35)" -
+  `inputKeywordsHtml` doesn't currently receive `dataType` at all, so
+  enforcing this would need threading it through; minor, deferred.
+- `MSGID` has a genuinely unusual, position-dependent conditioning rule
+  found while reading its own DDS Reference entry: *"When more than one
+  MSGID keyword is specified, option indicators are required on all
+  except the last MSGID keyword... Option indicators are not allowed on
+  the last (or only) MSGID keyword."* Unlike every other finding above,
+  this can't be modeled as a simple per-instance boolean gate - it's a
+  MANDATORY requirement on all-but-the-last instance, not an optional
+  toggle, and "last" changes as instances are added/removed/reordered.
+  Left as a discovered-but-unaddressed gap rather than a rushed partial
+  fix; a real UI treatment (likely a validation hint rather than a hard
+  block, similar to L83's `dftOutputRequirementNote` pattern) is a
+  follow-up task of its own.
+
+**Test coverage:** `src/test/i30CharacterFieldConditioningAudit.test.js`
+(55 checks, registered in `package.json`'s `test` script) - covers every
+fix above across both the render (toggle presence/absence) and wire
+(edits still commit correctly with the Conditioning control hidden)
+layers, plus the DSPATR/COLOR documented edge case and three
+confirmed-clean spot checks (COLOR, and implicitly CHGINPDFT/DUP via the
+Input Keywords test). Verified to fail 34 of its 55 checks against
+pre-fix code via `git stash` before this fix was considered valid. Full
+suite: 4004/4004 (up from the 3949 baseline by exactly this file's own
+55 new checks), `npm run compile` clean.
 
 ### I-33 — Constant fields (incl. system-value sub-form)
 
@@ -2053,9 +2211,18 @@ values, not a distinct field kind with its own keyword set — folded into
 
 ## On the horizon
 
-- I-31 through I-35 above, once I-30 (the base character-field set) is
-  done — I-31/I-34/I-35 each depend on I-30's own findings for the
-  shared `fieldKeywordCategoryVisibility()` gate.
+- I-31 through I-35 above are now unblocked - I-30 is done.
+- I-31 (Numeric fields) inherits `checkInstanceIsConditionable` and the
+  `GENERAL_FIELD_KEYWORD_ROWS` `conditionable` pattern I-30 established
+  - re-verify each against Numeric's own DDS Reference entries rather
+  than assuming Character's answers carry over unchanged (a keyword can
+  be conditionable for one usage/data-type combination and not another).
+- I-30's own logged-but-not-fixed findings (CHKMSGID's missing
+  validity-check dependency guard, CHRID's DUP mutual-exclusion and
+  usage restrictions, IGCALTTYP's mutex list, DUP's floating-point
+  restriction, and MSGID's position-dependent mandatory/forbidden
+  conditioning rule) are all real, sourced gaps worth their own
+  follow-up task once I-31 through I-35 close out.
 - `flagRowHtml`'s conditioning-eligibility mechanism (I-3) may be
   generally useful for the field-level tasks above too — reuse it
   rather than inventing a second mechanism, if it fits the field-level
