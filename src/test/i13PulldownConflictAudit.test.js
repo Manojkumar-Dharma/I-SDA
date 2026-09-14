@@ -37,6 +37,8 @@ const dspfSource =
     "     A                                  1  2'Choice'",
     '     A          R PLAINREC',
     "     A                                  1  2'PLAIN SCREEN'",
+    '     A          R PLAINREC2',
+    "     A                                  1  2'PLAIN SCREEN 2'",
   ].join('\n') + '\n';
 
 const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
@@ -170,7 +172,11 @@ setTimeout(() => {
   const plP = 'rk-PLAINREC';
 
   console.log('\nnon-PULLDOWN record: the same guarded keywords still turn on normally (no regression from the new guard)');
-  ['inzrcd', 'alwrol', 'assume', 'hlpclr', 'alarm', 'invite', 'alwgph', 'frcdta', 'rtndta', 'overlay', 'putretain', 'putovr', 'ovrdta', 'ovratr', 'erase'].forEach(function (suffix) {
+  // ASSUME tested separately below on its own record - since I-31, ASSUME
+  // is mutually exclusive with ALWROL (which this same loop turns on
+  // first) on the SAME record, per the DDS Reference. This test is only
+  // about the PULLDOWN-vs-these-keywords relationship, not I-31's own.
+  ['inzrcd', 'alwrol', 'hlpclr', 'alarm', 'invite', 'alwgph', 'frcdta', 'rtndta', 'overlay', 'putretain', 'putovr', 'ovrdta', 'ovratr', 'erase'].forEach(function (suffix) {
     const name = suffix.toUpperCase();
     const box = doc.getElementById(plP + '-' + suffix + '-on');
     check('setup: ' + name + ' checkbox is present on PLAINREC', !!box);
@@ -185,6 +191,23 @@ setTimeout(() => {
     const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PLAINREC');
     check(name + ' actually present in the rewritten DDS', !!reparsed && reparsed.keywords.some((k) => k.name === name));
   });
+
+  console.log('\nnon-PULLDOWN record: ASSUME still turns on normally on its own record (no regression from the new guard)');
+  {
+    selectRecord('PLAINREC2');
+    const box = doc.getElementById('rk-PLAINREC2-assume-on');
+    check('setup: ASSUME checkbox is present on PLAINREC2', !!box);
+    posted.length = 0;
+    const alertMessage = withAlertCapture(function () {
+      box.checked = true;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    check('ASSUME triggered no alert on a non-PULLDOWN record', alertMessage === null);
+    const applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('ASSUME commits normally (edit posted)', !!applyEdit);
+    const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PLAINREC2');
+    check('ASSUME actually present in the rewritten DDS', !!reparsed && reparsed.keywords.some((k) => k.name === 'ASSUME'));
+  }
 
   console.log('\nnon-PULLDOWN record: turning PULLDOWN itself on when a conflicting keyword is present - covered at the pure-function level in dspfWriter.test.js\'s pulldownConflictReason() block, not here: the Pull-down tab/checkbox this test exercises above only renders once a record already carries PULLDOWN (added by the "+ Add record" wizard, see isPulldownRecord\'s own gating in buildWebviewTemplate.js), so there is no DOM path on a plain record to click a PULLDOWN "on" checkbox that does not exist yet.');
 

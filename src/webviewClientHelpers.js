@@ -3604,11 +3604,26 @@
       // (buildWebviewTemplate.js's newRecordBtn handler): retyping PASSRCD
       // itself to name a record that already carries WINDOW. getModel
       // gives access to model.records to find that record, if any.
+      // Task I-36 extended this to ALWROL/CLRL/SLNO too, which share the
+      // identical DDS Reference restriction - checked in this fixed
+      // order (WINDOW first, matching I-24's own original wording) so
+      // the alert names whichever keyword is actually present first,
+      // but a record is only ever expected to carry one of these four
+      // in practice.
       if (newVal && getModel) {
-        var winRec = (getModel().records || []).find(function (r) {
-          return r.name && r.name.toUpperCase() === newVal.toUpperCase() && (r.keywords || []).some(function (k) { return k.name === 'WINDOW'; });
+        var targetRec = (getModel().records || []).find(function (r) {
+          return r.name && r.name.toUpperCase() === newVal.toUpperCase();
         });
-        var conflict = winRec && DspfWriter.passrcdWindowConflictReason(newVal, winRec.name);
+        var conflict = null;
+        if (targetRec) {
+          ['WINDOW', 'ALWROL', 'CLRL', 'SLNO'].some(function (kwName) {
+            if ((targetRec.keywords || []).some(function (k) { return k.name === kwName; })) {
+              conflict = DspfWriter.passrcdRecordConflictReason(kwName, newVal, targetRec.name);
+              return true;
+            }
+            return false;
+          });
+        }
         if (conflict) {
           window.alert('Cannot set PASSRCD(' + newVal.toUpperCase() + ') - ' + conflict);
           passrcd.value = DspfWriter.getFileFlagKeyword(getKeywords(), 'PASSRCD').parameters;
@@ -4681,7 +4696,22 @@
     // existing USRDFN/PULLDOWN/WINDOW ones, without dragging KEEP into
     // ASSUME's or HLPCMDKEY's own guards below (neither is on KEEP's own
     // exclusion list).
-    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep) {
+    // Task I-36: ALWROL is ALSO individually documented as incompatible
+    // with the record named by file-level PASSRCD (see DspfWriter.
+    // passrcdRecordConflictReason's own doc comment, and I-24's own
+    // WINDOW-vs-PASSRCD guard this reuses the same primitive for) -
+    // `alsoCheckPassrcd` layers a fifth check on top, using `p`/
+    // `getFileKeywords` already in this outer function's own closure to
+    // get this record's own name and the file's current PASSRCD value.
+    // Task I-37: ALWROL/CLRL/SLNO's own DDS Reference sections also list
+    // ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves,
+    // and ASSUME's own section confirms the reverse for ALWROL/CLRL/
+    // SLNO - see DspfWriter.alwrolClrlSlnoConflictReason's own doc
+    // comment. Deliberately unconditional (not behind a 6th alsoCheckX
+    // param): it returns null for every keywordName other than ALWROL/
+    // CLRL/SLNO/ASSUME, so it's a safe no-op for this function's other
+    // caller (HLPCMDKEY).
+    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd) {
       var onEl = document.getElementById(id + '-on');
       function commit() {
         var present = onEl.checked;
@@ -4689,7 +4719,9 @@
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
             DspfWriter.pulldownConflictReason(name, getKeywords()) ||
             (alsoCheckWindow ? DspfWriter.windowConflictReason(name, getKeywords()) : null) ||
-            (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null);
+            (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||
+            (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
+            DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -4745,14 +4777,26 @@
     // existing PULLDOWN one for just those two call sites below, without
     // dragging KEEP into every other keyword this same function wires
     // (none of the rest is on KEEP's own exclusion list).
-    function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep) {
+    // Task I-36: SLNO and CLRL are ALSO individually documented as
+    // incompatible with the record named by file-level PASSRCD - same
+    // `alsoCheckPassrcd` pattern as wireUsrdfnGuardedFlag's own I-36
+    // addition just above, reusing `p`/`getFileKeywords` from this outer
+    // function's own closure.
+    // Task I-37: CLRL/SLNO's own DDS Reference sections also list
+    // ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves -
+    // see wireUsrdfnGuardedFlag's own I-37 comment above and
+    // DspfWriter.alwrolClrlSlnoConflictReason's own doc comment.
+    // Deliberately unconditional here too, same reasoning.
+    function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep, alsoCheckPassrcd) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
       function commit() {
         var present = onEl.checked;
         if (present) {
           var reason = DspfWriter.pulldownConflictReason(name, getKeywords()) ||
-            (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null);
+            (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||
+            (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
+            DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -4797,7 +4841,7 @@
     // for the Conditioning-toggle half of this same fix.
     wireKeepGuardedFlag(p + '-keep', 'KEEP');
     wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME', true);
-    wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true, true);
+    wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true, true, true);
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
@@ -4905,9 +4949,9 @@
     wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC', p + '-csrloc', expandedSet, rerender);
     // Task I-28: SLNO/CLRL are ALSO individually documented as
     // incompatible with KEEP - see wirePulldownGuardedFlag's own I-28
-    // comment above.
-    wirePulldownGuardedFlag(p + '-slno', 'SLNO', true, true);
-    wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true, true);
+    // comment above. Task I-36: also PASSRCD - see its own I-36 comment.
+    wirePulldownGuardedFlag(p + '-slno', 'SLNO', true, true, true);
+    wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true, true, true);
 
     // Input
     simple(p + '-loginp', 'LOGINP', false, true);

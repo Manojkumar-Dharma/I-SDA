@@ -39,6 +39,10 @@ const dspfSource =
     '     A          R USRREC                     USRDFN',
     '     A          R PLAINREC',
     "     A                                  1  2'PLAIN SCREEN'",
+    '     A          R PLAINREC2',
+    "     A                                  1  2'PLAIN SCREEN 2'",
+    '     A          R PLAINREC3',
+    "     A                                  1  2'PLAIN SCREEN 3'",
   ].join('\n') + '\n';
 
 const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
@@ -146,14 +150,21 @@ setTimeout(() => {
   }
 
   // --- Plain (non-USRDFN) record: same four keywords must be unaffected ---
-  selectRecord('PLAINREC');
-  const pP = 'rk-PLAINREC';
+  // Each of ALWROL/ASSUME/HLPCMDKEY gets its own separate plain record
+  // (PLAINREC/PLAINREC2/PLAINREC3) rather than sharing one - since I-31,
+  // ALWROL and ASSUME are mutually exclusive with each other on the SAME
+  // record (per the DDS Reference), so turning both on sequentially on
+  // one record would trip that guard and isn't what this test is after;
+  // this test is only about the USRDFN-vs-these-four relationship.
+  const plainRecordFor = { alwrol: 'PLAINREC', assume: 'PLAINREC2', hlpcmdkey: 'PLAINREC3' };
 
   console.log('\nnon-USRDFN record: ALWROL/ASSUME/HLPCMDKEY still turn on normally (no regression from the new guard)');
   ['alwrol', 'assume', 'hlpcmdkey'].forEach(function (suffix) {
     const name = suffix.toUpperCase();
-    const box = doc.getElementById(pP + '-' + suffix + '-on');
-    check('setup: ' + name + ' checkbox is present on PLAINREC', !!box);
+    const recordName = plainRecordFor[suffix];
+    selectRecord(recordName);
+    const box = doc.getElementById('rk-' + recordName + '-' + suffix + '-on');
+    check('setup: ' + name + ' checkbox is present on ' + recordName, !!box);
     posted.length = 0;
     const alertMessage = withAlertCapture(function () {
       box.checked = true;
@@ -162,12 +173,14 @@ setTimeout(() => {
     check(name + ' triggered no alert on a non-USRDFN record', alertMessage === null);
     const applyEdit = posted.find((m) => m.type === 'applyEdit');
     check(name + ' commits normally (edit posted)', !!applyEdit);
-    const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PLAINREC');
+    const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === recordName);
     check(name + ' actually present in the rewritten DDS', !!reparsed && reparsed.keywords.some((k) => k.name === name));
   });
 
   console.log('\nnon-USRDFN record: HLPSEQ still commits normally (no regression from the new guard)');
   {
+    selectRecord('PLAINREC');
+    const pP = 'rk-PLAINREC';
     const groupEl = doc.getElementById(pP + '-hlpseq-group');
     const numEl = doc.getElementById(pP + '-hlpseq-num');
     check('setup: HLPSEQ group/number boxes are present on PLAINREC', !!groupEl && !!numEl);

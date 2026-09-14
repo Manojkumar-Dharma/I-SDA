@@ -1541,13 +1541,43 @@
    *  renameRecordReferences' RECORD_REFERENCE_EXTRACTORS (SFLCTL/WINDOW/
    *  MNUBARCHC only), so renaming a record never rewrites a file-level
    *  PASSRCD that named its old name - that's a separate, pre-existing
-   *  gap outside this task's own scope. */
-  function passrcdWindowConflictReason(passrcdName, windowRecordName) {
+   *  gap outside this task's own scope.
+   *
+   *  Task I-36 generalized this into passrcdRecordConflictReason
+   *  (keywordName parametrized) once ALWROL/CLRL/SLNO turned out to need
+   *  the identical check - passrcdWindowConflictReason is now a thin
+   *  wrapper kept for its own existing callers/tests. */
+  function passrcdRecordConflictReason(keywordName, passrcdName, recordName) {
     var a = (passrcdName || '').trim().toUpperCase();
-    var b = (windowRecordName || '').trim().toUpperCase();
+    var b = (recordName || '').trim().toUpperCase();
     if (!a || !b || a !== b) return null;
-    return 'WINDOW cannot be specified for record format ' + b + ' - it is the record named by the file-level PASSRCD(' + a + ') keyword (per the DDS Reference).';
+    return keywordName + ' cannot be specified for record format ' + b + ' - it is the record named by the file-level PASSRCD(' + a + ') keyword (per the DDS Reference).';
   }
+  function passrcdWindowConflictReason(passrcdName, windowRecordName) {
+    return passrcdRecordConflictReason('WINDOW', passrcdName, windowRecordName);
+  }
+
+  /** Task I-36 - ALWROL/CLRL/SLNO's own DDS Reference sections state the
+   *  identical "cannot be specified for the record format specified by
+   *  the PASSRCD keyword" restriction I-24 fixed for WINDOW (flagged as
+   *  a follow-up finding by I-24 itself - see passrcdRecordConflictReason's
+   *  own doc comment just above). Reuses that same primitive rather than
+   *  a bespoke one per keyword.
+   *  Wired at the two reachable on-transitions, same shape as I-24's own
+   *  WINDOW guard:
+   *   1. Turning ALWROL/CLRL/SLNO on on a record whose OWN name already
+   *      matches the file's current PASSRCD value - wireUsrdfnGuardedFlag
+   *      (ALWROL) / wirePulldownGuardedFlag (SLNO/CLRL)'s own new
+   *      `alsoCheckPassrcd` param, using `p.slice(3)` (idPrefix is always
+   *      `'rk-' + rec.name`, per this record's own `rkPrefix` in
+   *      buildWebviewTemplate.js) for the "record name" side, since
+   *      unlike WINDOW these three are ordinary toggles on ANY record,
+   *      not a record-creation-time "type" - there's no wizard-time
+   *      creation path to guard the way I-24 guarded WINDOW's.
+   *   2. Editing file-level PASSRCD to name a record that already
+   *      carries ALWROL/CLRL/SLNO - wireFileKeywordsPanels' fk-passrcd
+   *      handler now checks all four of WINDOW/ALWROL/CLRL/SLNO against
+   *      the named record, not just WINDOW. */
 
   /** Task I-28 - found auditing the base Record Keywords panel's KEEP row
    *  (see that same task's own conditioning-toggle fix, wired alongside
@@ -1579,6 +1609,54 @@
     }
     if (KEEP_MUTEX.indexOf(keywordName) !== -1 && has('KEEP')) {
       return keywordName + ' cannot be specified with KEEP on the same record format (per the DDS Reference).';
+    }
+    return null;
+  }
+
+  /** Task I-37 - the follow-up finding I-28 flagged in its own doc
+   *  comment just above: ALWROL/CLRL/SLNO's own DDS Reference sections
+   *  each ALSO list ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with
+   *  themselves (identical three-way list on all three - "The ALWROL/
+   *  CLRL keyword cannot be specified with any of the following
+   *  keywords" / "The SLNO keyword is not allowed in a record format
+   *  that has one of the following keywords specified": ASSUME, KEEP,
+   *  SFL, SFLCTL, USRDFN - KEEP already covered by keepMutexConflictReason
+   *  above, the other four are this task's own scope).
+   *  Cross-verified from ASSUME's own section too (confirms ALWROL/CLRL/
+   *  SLNO/SFL/USRDFN/USRDSPMGT - same cross-check method I-23 used for
+   *  SFLMSGRCD): SFL and USRDSPMGT are on ASSUME's own list but not, per
+   *  ALWROL/CLRL/SLNO's own sections, symmetric with all three the other
+   *  way (ASSUME's list is ASSUME-specific, e.g. USRDSPMGT is an S36E
+   *  concern already handled separately) - so only the confirmed-
+   *  bidirectional ASSUME<->{ALWROL,CLRL,SLNO} pair is checked in reverse
+   *  below; SFL/SFLCTL/USRDFN are checked one-directionally only, same
+   *  reasoning usrdfnConflictReason's own doc comment gives: all three
+   *  are record-TYPE identifiers (see isSflRecord/isSflCtlRecord and
+   *  usrdfnConflictReason's own doc comments) written once by the
+   *  "+ Add record" wizard and never toggled off again by this UI, so
+   *  there's no reachable "turn SFL/SFLCTL/USRDFN on while ALWROL/CLRL/
+   *  SLNO is already present" transition to guard the other way.
+   *  USRDFN specifically was already guarded for ALWROL alone (I-8's own
+   *  usrdfnConflictReason, generic to whichever keyword calls through
+   *  wireUsrdfnGuardedFlag) - CLRL/SLNO go through wirePulldownGuardedFlag
+   *  instead, which never called usrdfnConflictReason, so USRDFN-vs-
+   *  CLRL/SLNO was a genuine gap alongside the SFL/SFLCTL one this task
+   *  closes too. Deliberately unconditional in both wire functions below
+   *  (no new alsoCheckX param needed) since this returns null for every
+   *  keywordName outside {ALWROL, CLRL, SLNO, ASSUME}. */
+  function alwrolClrlSlnoConflictReason(keywordName, recordKeywords) {
+    var TARGET = ['ALWROL', 'CLRL', 'SLNO'];
+    var kws = recordKeywords || [];
+    function has(name) { return kws.some(function (k) { return k.name === name; }); }
+    if (TARGET.indexOf(keywordName) !== -1) {
+      var conflicting = ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN'].filter(has);
+      if (!conflicting.length) return null;
+      return keywordName + ' cannot be specified with ' + conflicting.join('/') + ' on the same record format (per the DDS Reference).';
+    }
+    if (keywordName === 'ASSUME') {
+      var conflicting2 = TARGET.filter(has);
+      if (!conflicting2.length) return null;
+      return 'ASSUME cannot be specified with ' + conflicting2.join('/') + ' on the same record format (per the DDS Reference).';
     }
     return null;
   }
@@ -5594,7 +5672,9 @@
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
+    passrcdRecordConflictReason: passrcdRecordConflictReason,
     keepMutexConflictReason: keepMutexConflictReason,
+    alwrolClrlSlnoConflictReason: alwrolClrlSlnoConflictReason,
     mnubarFieldShapeNote: mnubarFieldShapeNote,
     getReferenceOverrides: getReferenceOverrides,
     setReferenceOverrides: setReferenceOverrides,

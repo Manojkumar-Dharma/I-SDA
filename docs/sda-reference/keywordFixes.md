@@ -473,6 +473,8 @@ parameter rules IBM documents only for the single-shape case).
 | **I-27** | Record-level `HLPTITLE` repeatable-conditioned-instance model (up to 15/record) | I-21 | done (0.10.105) |
 | **I-28** | Base Record Keywords panel's `KEEP` row still offers a Conditioning toggle despite "Option and response indicators are not valid for this keyword" - I-9 fixed this on the SFL/SFLCTL copies but never on the base copy (now the sole surviving copy after I-25's de-dup); also confirmed by the DDS Reference: `KEEP` cannot be specified with `ALWROL`, `CLRL`, or `SLNO` - a separate mutual-exclusion audit may be warranted too | I-9, I-25 | fixed (v0.10.106) |
 | **I-29** | Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN` | I-22 | done - confirmed independent (0.10.104) |
+| **I-36** | `ALWROL`/`CLRL`/`SLNO` cannot be specified for the record named by file-level `PASSRCD` (same restriction I-24 fixed for `WINDOW`) | I-24 | fixed (v0.10.111) |
+| **I-37** | `ALWROL`/`CLRL`/`SLNO` are each individually incompatible with `ASSUME`/`SFL`/`SFLCTL`/`USRDFN` (flagged by I-28, broader than its own `KEEP`-scoped mutex guard) | I-28 | fixed (v0.10.111) |
 
 ### I-7 — `RECORD` (base)
 
@@ -2298,6 +2300,84 @@ and `HLPID` present on a constant, with the exact inverse on a named
 field. All new tests confirmed failing against pre-fix code before the
 fix landed (`p-place-const-kind`/`parseMsgConParams`/gating didn't exist
 yet). Full suite green (`npm test`).
+
+---
+
+### I-36 — `ALWROL`/`CLRL`/`SLNO` cannot be specified for the record named by file-level `PASSRCD`
+
+Follow-up finding I-24 flagged in its own doc comment: `WINDOW`,
+`ALWROL`, `CLRL`, and `SLNO` all four use the identical "cannot be
+specified for the record format specified by the PASSRCD keyword"
+wording in their own DDS Reference sections; I-24 fixed only `WINDOW`,
+scoped that way deliberately.
+
+`DspfWriter.passrcdWindowConflictReason` generalized into
+`passrcdRecordConflictReason(keywordName, passrcdName, recordName)` - a
+pure name-vs-name check parametrized by keyword, with the old function
+kept as a one-line wrapper for its own existing callers/tests.
+
+Wired at the same two reachable on-transitions I-24 established, adapted
+for the fact that unlike `WINDOW` (a record-creation-time "type"),
+`ALWROL`/`CLRL`/`SLNO` are ordinary toggles on ANY existing record:
+1. Turning `ALWROL`/`CLRL`/`SLNO` on on a record whose OWN name already
+   matches the file's current `PASSRCD` value - new `alsoCheckPassrcd`
+   param on `wireUsrdfnGuardedFlag` (`ALWROL`) and
+   `wirePulldownGuardedFlag` (`CLRL`/`SLNO`), using `idPrefix.slice(3)`
+   for the record's own name (`idPrefix` is always `'rk-' + rec.name`).
+2. Editing file-level `PASSRCD` to name a record that already carries
+   one of the three - `wireFileKeywordsPanels`' `fk-passrcd` handler now
+   checks all four of `WINDOW`/`ALWROL`/`CLRL`/`SLNO` against the named
+   record, not just `WINDOW`.
+
+Test: `src/test/i36AlwrolClrlSlnoPassrcdAudit.test.js`.
+
+**Fixed (v0.10.111).**
+
+---
+
+### I-37 — `ALWROL`/`CLRL`/`SLNO` are each individually incompatible with `ASSUME`/`SFL`/`SFLCTL`/`USRDFN`
+
+Follow-up finding I-28 flagged in its own doc comment: `ALWROL`/`CLRL`/
+`SLNO`'s own DDS Reference sections each ALSO list `ASSUME`/`SFL`/
+`SFLCTL`/`USRDFN` as mutually exclusive with themselves (identical
+four-way list beyond `KEEP`, which I-28 already covered). Cross-verified
+from `ASSUME`'s own section too (same method I-23 used for
+`SFLMSGRCD`), which confirms the reverse for `ALWROL`/`CLRL`/`SLNO`
+specifically - `ASSUME`'s own list also separately names `SFL` and
+`USRDSPMGT`, which are pre-existing/out-of-scope concerns not part of
+this task.
+
+New `DspfWriter.alwrolClrlSlnoConflictReason(keywordName,
+recordKeywords)`:
+- For `keywordName` in `{ALWROL, CLRL, SLNO}`: blocks if `ASSUME`, `SFL`,
+  `SFLCTL`, or `USRDFN` is already present.
+- For `keywordName === 'ASSUME'`: blocks if any of `ALWROL`/`CLRL`/`SLNO`
+  is already present (the confirmed-bidirectional half of the pair).
+
+`SFL`/`SFLCTL`/`USRDFN` are checked one-directionally only - same
+reasoning `usrdfnConflictReason`'s own doc comment gives: all three are
+record-TYPE identifiers written once by the "+ Add record" wizard and
+never toggled off again by this UI, so there's no reachable reverse
+transition to guard. `USRDFN` specifically was already guarded for
+`ALWROL` alone (I-8's own `usrdfnConflictReason`) - `CLRL`/`SLNO` go
+through `wirePulldownGuardedFlag` instead, which never called it, so
+`USRDFN`-vs-`CLRL`/`SLNO` was a genuine gap alongside the `SFL`/`SFLCTL`
+one this task closes too.
+
+Wired unconditionally into both `wireUsrdfnGuardedFlag` and
+`wirePulldownGuardedFlag`'s commit chains (no new opt-in param needed -
+the function returns `null` for every other keyword name those two wire
+functions handle, so it's a safe no-op elsewhere).
+
+Test: `src/test/i37AlwrolClrlSlnoAssumeSflUsrdfnAudit.test.js` - also
+fixed a latent test-fixture assumption in `i8UsrdfnConflictAudit.test.js`,
+`i12WindowConflictAudit.test.js`, and `i13PulldownConflictAudit.test.js`,
+each of which sequentially toggled `ALWROL` then `ASSUME` on the SAME
+plain record - now genuinely conflicting per this task's own new guard,
+so each was split onto separate records; none of those three tasks' own
+findings changed.
+
+**Fixed (v0.10.111).**
 
 ---
 

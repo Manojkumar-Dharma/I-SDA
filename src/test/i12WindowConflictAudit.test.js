@@ -40,6 +40,8 @@ const dspfSource =
     '     A          R WINREC                     WINDOW(3 10 8 30)',
     '     A          R PLAINREC',
     "     A                                  1  2'PLAIN SCREEN'",
+    '     A          R PLAINREC2',
+    "     A                                  1  2'PLAIN SCREEN 2'",
   ].join('\n') + '\n';
 
 const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
@@ -117,14 +119,19 @@ setTimeout(() => {
   }
 
   // --- Plain (non-WINDOW) record: ALWROL/ASSUME must be unaffected ---
-  selectRecord('PLAINREC');
-  const pP = 'rk-PLAINREC';
 
   console.log('\nnon-WINDOW record: ALWROL/ASSUME still turn on normally (no regression from the new guard, and the pre-existing USRDFN guard still doesn\'t fire either)');
+  // Each on its own separate record - since I-31, ALWROL and ASSUME are
+  // mutually exclusive with each other on the SAME record, per the DDS
+  // Reference. This test is only about the WINDOW-vs-these-two
+  // relationship, not I-31's own.
+  const plainRecordFor = { alwrol: 'PLAINREC', assume: 'PLAINREC2' };
   ['alwrol', 'assume'].forEach(function (suffix) {
     const name = suffix.toUpperCase();
-    const box = doc.getElementById(pP + '-' + suffix + '-on');
-    check('setup: ' + name + ' checkbox is present on PLAINREC', !!box);
+    const recordName = plainRecordFor[suffix];
+    selectRecord(recordName);
+    const box = doc.getElementById('rk-' + recordName + '-' + suffix + '-on');
+    check('setup: ' + name + ' checkbox is present on ' + recordName, !!box);
     posted.length = 0;
     const alertMessage = withAlertCapture(function () {
       box.checked = true;
@@ -133,7 +140,7 @@ setTimeout(() => {
     check(name + ' triggered no alert on a non-WINDOW record', alertMessage === null);
     const applyEdit = posted.find((m) => m.type === 'applyEdit');
     check(name + ' commits normally (edit posted)', !!applyEdit);
-    const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PLAINREC');
+    const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === recordName);
     check(name + ' actually present in the rewritten DDS', !!reparsed && reparsed.keywords.some((k) => k.name === name));
   });
 
