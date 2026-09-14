@@ -2046,7 +2046,7 @@
    *  switched by state, so one occurrence (now independently
    *  conditionable, same as everything else here) is what real DDS itself
    *  supports. */
-  // Task I-30: fifth element is `conditionable` - whether IBM's own DDS
+  // Task I-30: sixth element is `conditionable` - whether IBM's own DDS
   // Reference says "Option indicators are valid for this keyword" for
   // that row. Checked individually against each keyword's own DDS
   // Reference entry: only DFTVAL/PUTRETAIN/OVRDTA/OVRATR are - the other
@@ -2055,11 +2055,29 @@
   // all wrongly offering a Conditioning toggle before this fix, since
   // this row list previously passed every row's own `kw.conditions`
   // through unconditionally.
+  //
+  // I-33 - the 5th element (added after I-30's 5th-element conditionable
+  // flag, so shifted to 6th here) is each row's constant-field
+  // applicability, confirmed against each keyword's own opening/
+  // restriction text in docs/sda-reference/source/DDS_Keyword_V7r6.txt
+  // (not inferred from real SDA's "Select General Keywords" screenshots,
+  // which are scope-only, per this task's own ground-truth caveat -
+  // though the two happen to agree here): 'all' (offered for both
+  // constants and named fields), 'named' (explicitly restricted to
+  // named/input-output-capable fields - DFTVAL: "You can only use this
+  // keyword to initialize named fields. It is not allowed on constant
+  // fields."; CNTFLD: "must be defined as an input-capable field with
+  // the data type A"; FLDCSRPRG: "is defined as an input-capable
+  // field"; CHRID: "is not valid on constant fields..."; IGCALTTYP:
+  // "Specify this keyword only for input- and output-capable fields"),
+  // or 'constant' (HLPID's own text: "You use this CONSTANT field-level
+  // keyword..." - the inverse gap, previously offered to named fields
+  // too even though it's constant-only by definition).
   var GENERAL_FIELD_KEYWORD_ROWS = [
-    ['alias', 'ALIAS', 'Alternative (long) name', true, false],
-    ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true, false],
-    ['dft', 'DFT', "e.g. 'N/A' (input-only)", true, false],
-    ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true, true],
+    ['alias', 'ALIAS', 'Alternative (long) name', true, 'all', false],
+    ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true, 'all', false],
+    ['dft', 'DFT', "e.g. 'N/A' (input-only)", true, 'all', false],
+    ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true, 'named', true],
     // Bug fix (reported: "I don't find CNTFLD in right panel for selection"):
     // CNTFLD was entirely missing from this row list, so there was no way to
     // ADD or EDIT it from the properties panel at all - it could only exist
@@ -2080,7 +2098,7 @@
     // FLDCSRPRG rows above/below it) is field-semantics-only in real DDS -
     // this shared row list doesn't yet gate any of the three out for
     // constants, a pre-existing scope note, not something new here.
-    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, false],
+    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, 'named', false],
     // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
     // a pure documentation keyword (no compiled/runtime effect at all,
     // per IBM's own DDS Reference - it's purely for people reading the
@@ -2092,15 +2110,15 @@
     // own mechanism (getFileFlagKeyword/setFileFlagKeyword) is uniformly
     // raw-text for every quoted keyword already in it, so TEXT matches
     // its neighbors instead of introducing a second convention here.
-    ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, false],
-    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, false],
-    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, false],
-    ['putretain', 'PUTRETAIN', 'Retain field on display', false, true],
-    ['ovrdta', 'OVRDTA', 'Override data', false, true],
-    ['ovratr', 'OVRATR', 'Override attributes', false, true],
-    ['chrid', 'CHRID', 'Translate characters', false, false],
-    ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false, false],
-    ['noccsid', 'NOCCSID', 'No coded character set id', false, false],
+    ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, 'all', false],
+    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false],
+    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, 'constant', false],
+    ['putretain', 'PUTRETAIN', 'Retain field on display', false, 'all', true],
+    ['ovrdta', 'OVRDTA', 'Override data', false, 'all', true],
+    ['ovratr', 'OVRATR', 'Override attributes', false, 'all', true],
+    ['chrid', 'CHRID', 'Translate characters', false, 'named', false],
+    ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false, 'named', false],
+    ['noccsid', 'NOCCSID', 'No coded character set id', false, 'all', false],
   ];
 
   // L81 - DFT/DFTVAL are the only two rows here subject to DDS's own
@@ -2110,10 +2128,12 @@
   // text/boolean) rows ever needed before.
   var DFT_GROUP_KEYS = { dft: 'DFT', dftval: 'DFTVAL' };
 
-  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords) {
+  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], conditionable = row[4];
+      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5];
+      if (scope === 'named' && isConstant) return;
+      if (scope === 'constant' && !isConstant) return;
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
@@ -2127,9 +2147,11 @@
     return html;
   }
 
-  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType) {
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant) {
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], conditionable = row[4];
+      var key = row[0], name = row[1], scope = row[4], conditionable = row[5];
+      if (scope === 'named' && isConstant) return;
+      if (scope === 'constant' && !isConstant) return;
       var id = ownerKey + '-gen-' + key;
       if (DFT_GROUP_KEYS[key]) {
         // L81 - guarded wiring (alert + revert, same idiom S36-4's own

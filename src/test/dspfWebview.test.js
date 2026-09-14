@@ -6660,7 +6660,7 @@ function runDatabaseFieldsPickerScenario() {
 }
 
 function runSystemValueConstantScenario() {
-  console.log('\nTask L16: system-value constants (*DATE/*TIME/*USER/*SYSTEM(SYSNAME)/*PAGNBR) - editing must not corrupt them, and adding one must work');
+  console.log('\nTask L16: system-value constants (*DATE/*TIME/*USER/*SYSTEM(SYSNAME)) - editing must not corrupt them, and adding one must work');
   const src =
     [
       '     A          R RECORD1',
@@ -6737,13 +6737,14 @@ function runSystemValueConstantScenario() {
     placeConstantBtn.dispatchEvent(new Event('click', { bubbles: true }));
     const screenEl = doc.querySelector('.dspf-screen');
     screenEl.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 55, clientY: 95 }));
-    const sysvalToggle = doc.getElementById('p-place-sysval-toggle');
-    check('the placement form has a "System value" toggle', !!sysvalToggle);
-    check('Text input is the default (toggle unchecked)', doc.getElementById('p-place-text-wrap').style.display !== 'none');
-    sysvalToggle.checked = true;
-    sysvalToggle.dispatchEvent(new Event('change', { bubbles: true }));
-    check('checking the toggle hides the Text input', doc.getElementById('p-place-text-wrap').style.display === 'none');
+    const constKindSelect = doc.getElementById('p-place-const-kind');
+    check('the placement form has a "Value source" dropdown', !!constKindSelect);
+    check('Text input is the default (dropdown starts on "text")', doc.getElementById('p-place-text-wrap').style.display !== 'none');
+    constKindSelect.value = 'sysval';
+    constKindSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('switching to "sysval" hides the Text input', doc.getElementById('p-place-text-wrap').style.display === 'none');
     check('...and shows the System value dropdown instead', doc.getElementById('p-place-sysval-wrap').style.display !== 'none');
+    check('PAGNBR removed from the System value dropdown', !Array.from(doc.getElementById('p-place-sysval').options).some((o) => o.value === 'PAGNBR'));
     doc.getElementById('p-place-sysval').value = 'TIME';
     doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
@@ -6753,6 +6754,145 @@ function runSystemValueConstantScenario() {
     const newTimeField = rec1.fields.find((f) => f.keywords.some((k) => k.name === 'TIME'));
     check('new TIME system-value constant created, with a null constantValue (no literal alongside it)', newTimeField && newTimeField.nameType === 'CONSTANT' && newTimeField.constantValue == null);
     posted.length = 0;
+
+    runMsgConConstantScenario();
+  }, 0);
+}
+
+function runMsgConConstantScenario() {
+  console.log('\nTask I-33: MSGCON constants - a real, previously-missing way to give a constant its value from a message description');
+  const src =
+    [
+      '     A          R RECORD1',
+      '     A                                  1 10MSGCON(20 MSG0001 MYLIB/MYMSGF)',
+      "     A                                  2  2'Hello'",
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', src, 'MSGCON.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+
+    console.log('  selecting the MSGCON field shows the structured Length/Message ID/Message file/Library form, NOT a Text input');
+    const boxes = Array.from(doc.querySelectorAll('.dspf-field'));
+    check('setup: 2 field boxes on screen (MSGCON constant, the literal constant)', boxes.length === 2);
+    boxes[0].click();
+    check('Length input present and pre-filled', doc.getElementById('p-const-msgcon-length') && doc.getElementById('p-const-msgcon-length').value === '20');
+    check('Message ID input present and pre-filled', doc.getElementById('p-const-msgcon-msgid') && doc.getElementById('p-const-msgcon-msgid').value === 'MSG0001');
+    check('Message file input present and pre-filled', doc.getElementById('p-const-msgcon-msgfile') && doc.getElementById('p-const-msgcon-msgfile').value === 'MYMSGF');
+    check('Library input present and pre-filled', doc.getElementById('p-const-msgcon-library') && doc.getElementById('p-const-msgcon-library').value === 'MYLIB');
+    check('no Text input rendered for a MSGCON constant', !doc.getElementById('p-const-text'));
+    check('no Fill button rendered either (nothing to fill)', !doc.getElementById('p-fill'));
+
+    console.log('  clicking Apply WITHOUT touching anything must NOT corrupt the line (same class of bug L16 fixed for system-value constants)');
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    const applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    check('MSGCON line round-trips with its original parameters, no stray literal added', /MSGCON\(20 MSG0001 MYLIB\/MYMSGF\)/.test(applyEdit.text));
+    check('no invalid double-literal-plus-keyword line was written', !/''MSGCON|""MSGCON/.test(applyEdit.text));
+    let reparsed = DspfParser.parseDspf(applyEdit.text);
+    let rec1 = reparsed.records.find((r) => r.name === 'RECORD1');
+    const msgConField = rec1.fields.find((f) => f.keywords.some((k) => k.name === 'MSGCON'));
+    check('re-parses as a CONSTANT with a null constantValue (no literal text)', msgConField && msgConField.nameType === 'CONSTANT' && msgConField.constantValue == null);
+    posted.length = 0;
+
+    console.log('  editing the Message ID and applying rewrites MSGCON\'s parameters');
+    doc.getElementById('p-const-msgcon-msgid').value = 'MSG0002';
+    doc.getElementById('p-const-msgcon-msgid').dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    const applyEdit2 = posted.find((m) => m.type === 'applyEdit');
+    check('MSGCON now carries the new message ID', /MSGCON\(20 MSG0002 MYLIB\/MYMSGF\)/.test(applyEdit2.text));
+    posted.length = 0;
+
+    console.log('  "+ Add constant" can create a new MSGCON constant via the Message value-source option');
+    const placeConstantBtn = doc.getElementById('placeConstantBtn');
+    placeConstantBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    const screenEl = doc.querySelector('.dspf-screen');
+    screenEl.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, clientX: 55, clientY: 95 }));
+    const constKindSelect = doc.getElementById('p-place-const-kind');
+    constKindSelect.value = 'msgcon';
+    constKindSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    check('switching to "msgcon" hides the Text input', doc.getElementById('p-place-text-wrap').style.display === 'none');
+    check('...and shows the MSGCON form instead', doc.getElementById('p-place-msgcon-wrap').style.display !== 'none');
+    doc.getElementById('p-place-msgcon-length').value = '30';
+    doc.getElementById('p-place-msgcon-msgid').value = 'MSG0003';
+    doc.getElementById('p-place-msgcon-msgfile').value = 'NEWMSGF';
+    doc.getElementById('p-place-msgcon-library').value = 'NEWLIB';
+    doc.getElementById('p-place-add').dispatchEvent(new Event('click', { bubbles: true }));
+    const applyEdit3 = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit3);
+    reparsed = DspfParser.parseDspf(applyEdit3.text);
+    rec1 = reparsed.records.find((r) => r.name === 'RECORD1');
+    const newMsgConField = rec1.fields.find((f) => f.keywords.some((k) => k.name === 'MSGCON' && /NEWMSGF/.test(k.parameters)));
+    check('new MSGCON constant created, with a null constantValue (no literal alongside it)', newMsgConField && newMsgConField.nameType === 'CONSTANT' && newMsgConField.constantValue == null);
+    posted.length = 0;
+
+    runGeneralKeywordsConstantGatingScenario();
+  }, 0);
+}
+
+function runGeneralKeywordsConstantGatingScenario() {
+  console.log('\nTask I-33: General keywords panel is gated correctly by field kind (constant vs. named)');
+  const src =
+    [
+      '     A          R RECORD1',
+      "     A                                  1  5'Hello'",
+      '     A            NAMEFLD       10A  I  2  5',
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce23', src, 'GATING.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const boxes = Array.from(doc.querySelectorAll('.dspf-field'));
+    check('setup: 2 field boxes on screen (the literal constant, NAMEFLD)', boxes.length === 2);
+
+    console.log('  the literal constant: DFTVAL/CNTFLD/FLDCSRPRG/CHRID/IGCALTTYP are NOT offered (named-field-only per the DDS Reference), HLPID IS offered (constant-only)');
+    boxes[0].click();
+    const constKey = 'field-' + boxes[0].getAttribute('data-source-line');
+    ['dftval', 'cntfld', 'fldcsrprg', 'chrid', 'igcalttyp'].forEach((k) => {
+      check('constant: ' + k.toUpperCase() + ' row absent', !doc.getElementById(constKey + '-gen-' + k + '-on'));
+    });
+    check('constant: HLPID row present', !!doc.getElementById(constKey + '-gen-hlpid-on'));
+    ['alias', 'indtxt', 'dft', 'text', 'putretain', 'ovrdta', 'ovratr', 'noccsid'].forEach((k) => {
+      check('constant: ' + k.toUpperCase() + ' row still present (applies to all field kinds)', !!doc.getElementById(constKey + '-gen-' + k + '-on'));
+    });
+
+    console.log('  NAMEFLD (a named field): DFTVAL/CNTFLD/FLDCSRPRG/CHRID/IGCALTTYP ARE offered, HLPID is NOT (constant-only, was previously offered here too - the inverse half of this bug)');
+    boxes[1].click();
+    const namedKey = 'field-' + boxes[1].getAttribute('data-source-line');
+    ['dftval', 'cntfld', 'fldcsrprg', 'chrid', 'igcalttyp'].forEach((k) => {
+      check('named: ' + k.toUpperCase() + ' row present', !!doc.getElementById(namedKey + '-gen-' + k + '-on'));
+    });
+    check('named: HLPID row absent', !doc.getElementById(namedKey + '-gen-hlpid-on'));
 
     runWindowBorderAndDefaultColorScenario();
   }, 0);

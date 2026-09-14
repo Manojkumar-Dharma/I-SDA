@@ -1981,6 +1981,56 @@
     return idToken + ' ' + fileToken;
   }
 
+  // ---------------------------------------------------------------------
+  // I-33 - MSGCON's own structured parameters, as directly-editable
+  // prompts, same treatment MSGID's own parameters got under L79. Grammar,
+  // confirmed against the DDS Reference's own MSGCON entry:
+  //   MSGCON(length message-ID [library-name/]message-file-name)
+  // where length is 1-132 (the constant's max display length), message-ID
+  // is the literal message description identifier (NOT a &field
+  // reference - MSGCON has no field-reference form, unlike MSGID), and
+  // the file token is the message file, optionally library-qualified.
+  // This is one of only six documented ways to supply a constant field's
+  // displayed value (see docs/sda-reference/source/DDS_Keyword_V7r6.txt's
+  // "Constant fields" rules, ~line 671): explicit/implicit DFT, DATE,
+  // TIME, SYSNAME, USER, or MSGCON - the last of these was entirely
+  // missing from iSDA before this task.
+  // ---------------------------------------------------------------------
+
+  /** Parses MSGCON's raw parameter text into its structured parts, or
+   *  reports `structured:false` (with `raw` set to the original text
+   *  unchanged) for blank text or anything not matching the documented
+   *  3-token grammar. */
+  function parseMsgConParams(paramText) {
+    var trimmed = (paramText || '').trim();
+    if (!trimmed) return { structured: true, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
+    var tokens = trimmed.split(/\s+/).filter(Boolean);
+    if (tokens.length !== 3) return { structured: false, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
+    var length = tokens[0];
+    if (!/^[0-9]+$/.test(length)) return { structured: false, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
+    var msgId = tokens[1];
+    var fileToken = tokens[2];
+    var slash = fileToken.indexOf('/');
+    var library = slash >= 0 ? fileToken.slice(0, slash) : '';
+    var msgFile = slash >= 0 ? fileToken.slice(slash + 1) : fileToken;
+    if (!msgId || !msgFile) return { structured: false, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
+    return { structured: true, length: length, msgId: msgId, library: library, msgFile: msgFile, raw: trimmed };
+  }
+
+  /** Inverse of parseMsgConParams - returns '' (write no MSGCON keyword at
+   *  all) when `length`, `msgId`, or `msgFile` is blank, since all three
+   *  are always required by MSGCON's documented grammar. */
+  function formatMsgConParams(state) {
+    var s = state || {};
+    var length = (s.length || '').trim();
+    var msgId = (s.msgId || '').trim();
+    var msgFile = (s.msgFile || '').trim();
+    if (!length || !msgId || !msgFile) return '';
+    var library = (s.library || '').trim();
+    var fileToken = library ? library + '/' + msgFile : msgFile;
+    return length + ' ' + msgId + ' ' + fileToken;
+  }
+
   /** Reads the field's MSGID keyword (message-identifier-sourced field
    *  text) as its raw parameter string - unlike ERRMSG/WDWTITLE, MSGID's
    *  argument is either "[msg-prefix] &field-name" or "[msgid-prefix]
@@ -5556,6 +5606,8 @@
     setMessageId: setMessageId,
     parseMsgIdParams: parseMsgIdParams,
     formatMsgIdParams: formatMsgIdParams,
+    parseMsgConParams: parseMsgConParams,
+    formatMsgConParams: formatMsgConParams,
     getMessageIdInstances: getMessageIdInstances,
     setMessageIdInstances: setMessageIdInstances,
     getMenubarChoices: getMenubarChoices,

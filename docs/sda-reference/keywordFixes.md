@@ -2026,18 +2026,20 @@ too, or whether L/T/Z need splitting out once the audit is actually
 underway.
 
 **System-value constants NOT getting their own task** — `DATE`/`TIME`/
-`USER`/`SYSNAME`/`PAGNBR` (`src/buildWebviewTemplate.js`'s
+`USER`/`SYSNAME` (`src/buildWebviewTemplate.js`'s
 `SYSTEM_VALUE_KEYWORD_NAMES`) are a UI convenience for populating a
 constant field's literal text with one of DDS's own recognized special
 values, not a distinct field kind with its own keyword set — folded into
-**I-33 (Constant fields)**.
+**I-33 (Constant fields)**. (I-33 itself found a fifth member of this
+list, `PAGNBR`, was never a real DDS keyword at all — see I-33's own
+section below.)
 
 | Task | Field kind / Usage | Depends on | Status |
 |------|---------------------|------------|--------|
 | **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | done (0.10.109) |
 | **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | not started |
 | **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — may be absorbed into I-31 depending on what that task finds |
-| **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`PAGNBR`) | I-1 (method) | claimed — in progress |
+| **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
 | **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | claimed — in progress |
 | **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | not started |
 
@@ -2205,7 +2207,97 @@ suite: 4004/4004 (up from the 3949 baseline by exactly this file's own
 
 ### I-33 — Constant fields (incl. system-value sub-form)
 
-**Status: claimed, work starting now.**
+**Status: done (0.10.110).**
+
+**Finding 1 — `PAGNBR` is not a real DDS keyword (same bug class as
+I-2's `PRTFILE`).** It appears nowhere in
+`docs/sda-reference/source/DDS_Keyword_V7r6.txt`. IBM's own "Constant
+fields" rules (positions 17-38 must be blank; ~line 671) document only
+**six** ways to supply a constant field's value: explicit/implicit `DFT`,
+`DATE`, `TIME`, `SYSNAME`, `USER`, or `MSGCON`. `PAGNBR` was almost
+certainly carried over from RPG's unrelated `*PAGNBR` special word
+(printer output specs) during Task L16. iSDA wrote a bare `PAGNBR`
+keyword into generated DDS source for this option — invalid syntax that
+would fail a real `CRTDSPF` compile. There is no DDS mechanism for a
+display-file "page number" constant (page numbering is a print/report-
+writer concern), so this was removed with no replacement.
+
+**Finding 2 — `MSGCON` (Message Constant), a genuinely documented
+constant-value keyword, was entirely missing.**
+`MSGCON(length message-ID [library-name/]message-file-name)` lets a
+constant's displayed text come from a message description instead of a
+literal — one of the six forms Finding 1 lists above. Added as a full
+peer of the `DATE`/`TIME`/`USER`/`SYSNAME` system-value sub-form: its own
+structured Length/Message ID/Message file/Library UI (parsed/formatted
+via `DspfWriter.parseMsgConParams`/`formatMsgConParams`, modeled on
+L79's `parseMsgIdParams`/`formatMsgIdParams` for MSGID), its own entry in
+the "+ Add constant" placement flow's "Value source" selector, and its
+own preview in `DspfEngine.fieldDisplayText` (`[MSG-ID]` placeholder,
+matching the `*DATE`/`*USER`-style placeholders the system-value forms
+already used). Confirmed against MSGCON's own restriction text: single
+instance (not repeatable), mutually exclusive with
+`DATE`/`DFT`/`EDTCDE`/`EDTWRD`/`TIME`, option indicators valid only for
+conditioning the message's presence (not for changing its content) — so
+it deliberately does *not* get the EDTCDE/EDTWRD panel the
+`DATE`/`TIME` system-value forms do.
+
+**Finding 3 — the shared `GENERAL_FIELD_KEYWORD_ROWS` list
+(`src/webviewClientHelpers.js`) gates keywords wrong in *both*
+directions, for every field kind, not just constants.** Confirmed
+individually against each keyword's own restriction text:
+- `DFTVAL`: *"You can only use this keyword to initialize named fields.
+  It is not allowed on constant fields."* — was offered on constants.
+- `CNTFLD`: *"must be defined as an input-capable field with the data
+  type A"* — was offered on constants.
+- `FLDCSRPRG`: *"is defined as an input-capable field"* — was offered on
+  constants.
+- `CHRID`: *"is not valid on constant fields..."* (verbatim) — was
+  offered on constants.
+- `IGCALTTYP`: *"Specify this keyword only for input- and output-capable
+  fields"* — was offered on constants.
+- `HLPID`: its own text opens *"You use this constant field-level
+  keyword..."* — the inverse gap: was offered on **named** fields too,
+  even though it's constant-only by definition.
+
+Real SDA's own "Select General Keywords" screens for a constant
+(`docs/sda-reference/screens/field-level/constant/general/`) vs. a named
+character field
+(`docs/sda-reference/screens/field-level/character/general/`) independently
+confirm this exact same split, though the fix here is driven by IBM's own
+restriction text per this project's own audit convention (SDA screenshots
+are scope-only, not correctness, per this task's own ground-truth
+caveat). `TEXT` is explicitly documented as valid on any field including
+constants (*"valid for any record format or field, except a SFLMSGKEY or
+SFLPGMQ field"*) and was left as `'all'`. Each row in
+`GENERAL_FIELD_KEYWORD_ROWS` now carries a 5th `'all'`/`'named'`/
+`'constant'` scope tag; `generalFieldKeywordsHtml`/
+`wireGeneralFieldKeywordsEditor` take an `isConstant` parameter and
+filter accordingly. There's a pre-existing code comment in
+`webviewClientHelpers.js` (predating this task) that had already flagged
+`CNTFLD`/`FLDCSRPRG` as a known gap left for I-33 to close.
+
+**Not fixed here (separate, pre-existing, broader scope):** several of
+these same keywords' own text also says option indicators are invalid
+for them (e.g. `INDTXT`, `TEXT`) — that's a conditioning-eligibility
+question that applies across every field kind, not just constants, and
+is more likely I-30/I-31's territory (or a dedicated field-level
+conditioning audit, mirroring I-3's file-level one) than something to
+fold into I-33's constant-specific scope. Logged here rather than fixed
+silently, per this project's own "out-of-scope items are explicitly
+logged" convention.
+
+**Tests:** `src/test/dspfWriter.test.js` — new `parseMsgConParams`/
+`formatMsgConParams` unit-test block (structured/unstructured parsing,
+round-trip formatting, all-three-parts-required validation). New
+scenarios in `src/test/dspfWebview.test.js`: `PAGNBR` removal from the
+system-value dropdown; a full MSGCON constant lifecycle (render existing,
+edit-and-apply without corruption, create new via the placement flow);
+and a dedicated constant-vs-named General Keywords gating scenario
+confirming `DFTVAL`/`CNTFLD`/`FLDCSRPRG`/`CHRID`/`IGCALTTYP` are absent
+and `HLPID` present on a constant, with the exact inverse on a named
+field. All new tests confirmed failing against pre-fix code before the
+fix landed (`p-place-const-kind`/`parseMsgConParams`/gating didn't exist
+yet). Full suite green (`npm test`).
 
 ---
 

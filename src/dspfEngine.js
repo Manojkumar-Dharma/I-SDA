@@ -295,7 +295,7 @@
   }
 
   /**
-   * Exact display width for a numeric field (or DATE/TIME/PAGNBR system-value
+   * Exact display width for a numeric field (or DATE/TIME system-value
    * constant) carrying an EDTWRD keyword. An edit word is a literal
    * character-for-character template - IBM's own reference calls out that a
    * floating-currency character still occupies a real screen position (it's
@@ -326,7 +326,7 @@
     if (t === 'T') return 8; // every TIMFMT value is 8 chars, including the *ISO default - already exact
     if (t === 'Z') return 26;
     if (t === 'S' || t === 'N' || t === 'I' || t === '') {
-      // t === '' also covers DATE/TIME/PAGNBR system-value CONSTANTs (they
+      // t === '' also covers DATE/TIME system-value CONSTANTs (they
       // have no data-type column of their own) - EDTCDE/EDTWRD show up on
       // those in real DDS (e.g. slashes inserted into a DATE placeholder)
       // just as often as on named numeric fields.
@@ -348,8 +348,22 @@
         else if (kwNames.indexOf('TIME') !== -1) text = new Date().toLocaleTimeString();
         else if (kwNames.indexOf('USER') !== -1) text = '*USER';
         else if (kwNames.indexOf('SYSNAME') !== -1) text = '*SYSNAME';
-        else if (kwNames.indexOf('PAGNBR') !== -1) text = '1';
-        else text = '';
+        else {
+          // I-33 - MSGCON constants have no literal text either (their
+          // display value comes from a message description at run time,
+          // same "system-supplied, not stored here" shape as DATE/TIME/
+          // USER/SYSNAME above) - preview the message ID itself, in
+          // brackets, as the design-time placeholder. field.keywords is
+          // used directly (not kwNames) since the message ID lives in
+          // MSGCON's own parameters, not its keyword name.
+          var msgConKw = field.keywords.find(function (k) { return k.name === 'MSGCON'; });
+          if (msgConKw) {
+            var msgConTokens = (msgConKw.parameters || '').trim().split(/\s+/).filter(Boolean);
+            text = msgConTokens.length >= 2 ? '[' + msgConTokens[1] + ']' : '[MSG]';
+          } else {
+            text = '';
+          }
+        }
       }
       return text;
     }

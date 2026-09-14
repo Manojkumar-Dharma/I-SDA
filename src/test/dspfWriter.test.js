@@ -1939,5 +1939,32 @@ console.log('\nL79 - DspfWriter.parseMsgIdParams()/formatMsgIdParams() - MSGID\u
   check('formatMsgIdParams with a blank message file writes nothing', DspfWriter.formatMsgIdParams({ fieldName: 'AMOUNT', msgFile: '' }) === '');
 }
 
+console.log('\n' + 'I-33 - DspfWriter.parseMsgConParams()/formatMsgConParams() - MSGCON\u2019s length message-ID [library-name/]message-file-name grammar (see MSGCON\u2019s own text in DDS_Keyword_V7r6.txt, ~line 8922 - a literal message-ID, NOT a &field reference like MSGID has)');
+{
+  const withLibrary = DspfWriter.parseMsgConParams('50 MSG0001 MYLIB/MSGF1');
+  check('parses length + message-ID + library/file', withLibrary.structured && withLibrary.length === '50' && withLibrary.msgId === 'MSG0001' && withLibrary.library === 'MYLIB' && withLibrary.msgFile === 'MSGF1');
+
+  const noLibrary = DspfWriter.parseMsgConParams('20 MSG0002 MSGF2');
+  check('parses length + message-ID + file only (no library)', noLibrary.structured && noLibrary.length === '20' && noLibrary.msgId === 'MSG0002' && noLibrary.library === '' && noLibrary.msgFile === 'MSGF2');
+
+  const blank = DspfWriter.parseMsgConParams('');
+  check('blank parses as structured-but-empty (ready for a fresh staging row)', blank.structured && !blank.msgId && !blank.msgFile);
+
+  const nonNumericLength = DspfWriter.parseMsgConParams('ABC MSG0001 MSGF1');
+  check('a non-numeric first token is reported unstructured (raw-text fallback) - length must be numeric', nonNumericLength.structured === false && nonNumericLength.raw === 'ABC MSG0001 MSGF1');
+
+  const tooFewTokens = DspfWriter.parseMsgConParams('50 MSG0001');
+  check('fewer than 3 tokens is reported unstructured - all three parts are required by MSGCON\u2019s own grammar', tooFewTokens.structured === false);
+
+  const tooManyTokens = DspfWriter.parseMsgConParams('50 MSG0001 MYLIB/MSGF1 EXTRA');
+  check('more than 3 tokens is also reported unstructured', tooManyTokens.structured === false);
+
+  check('formatMsgConParams round-trips length+msgId+library/file', DspfWriter.formatMsgConParams({ length: '50', msgId: 'MSG0001', library: 'MYLIB', msgFile: 'MSGF1' }) === '50 MSG0001 MYLIB/MSGF1');
+  check('formatMsgConParams round-trips length+msgId+file (no library)', DspfWriter.formatMsgConParams({ length: '20', msgId: 'MSG0002', msgFile: 'MSGF2' }) === '20 MSG0002 MSGF2');
+  check('formatMsgConParams with a blank length writes nothing (length, message ID, and file are all required)', DspfWriter.formatMsgConParams({ length: '', msgId: 'MSG0001', msgFile: 'MSGF1' }) === '');
+  check('formatMsgConParams with a blank message ID writes nothing', DspfWriter.formatMsgConParams({ length: '50', msgId: '', msgFile: 'MSGF1' }) === '');
+  check('formatMsgConParams with a blank message file writes nothing', DspfWriter.formatMsgConParams({ length: '50', msgId: 'MSG0001', msgFile: '' }) === '');
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

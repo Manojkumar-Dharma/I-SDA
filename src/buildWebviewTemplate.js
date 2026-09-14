@@ -4276,13 +4276,13 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const editable = DspfWriter.isEditable(field);
     const isConstant = field.nameType === 'CONSTANT';
-    // A "system value" constant (DATE/TIME/USER/SYSNAME/PAGNBR) parses as a
+    // A "system value" constant (DATE/TIME/USER/SYSNAME) parses as a
     // plain CONSTANT (DDS leaves its name column blank, same as an ordinary
     // literal - see dspfParser.ts's nameTypeFor) but is fundamentally
     // different from one: its displayed value comes from the SYSTEM at
     // runtime, not from "constantValue" (which is null for these - there's
     // no literal text to store). Bug fixed here: this used to only
-    // recognize DATE/TIME/PAGNBR, silently missing USER and SYSNAME -
+    // recognize DATE/TIME, silently missing USER and SYSNAME -
     // which meant editing OR adding a *USER/*SYSNAME placeholder fell
     // through to the plain-literal-text code path below. That path always
     // sends "updates.constantValue" on every Apply click (even one that
@@ -4294,8 +4294,30 @@ const htmlTemplate = `<!DOCTYPE html>
     // on the same line. Now consistently recognized (matching
     // DspfEngine.fieldDisplayText's own list below) and given its own
     // dedicated, non-destructive UI instead of the free-text Text input.
-    const SYSTEM_VALUE_KEYWORD_NAMES = ['DATE', 'TIME', 'USER', 'SYSNAME', 'PAGNBR'];
+    //
+    // I-33 finding: this list previously also included 'PAGNBR', which is
+    // not a real DDS keyword at all - it does not appear anywhere in
+    // docs/sda-reference/source/DDS_Keyword_V7r6.txt. IBM's own "Constant
+    // fields" rules (~line 671) document only SIX ways to supply a
+    // constant's value: explicit/implicit DFT, DATE, TIME, SYSNAME, USER,
+    // or MSGCON. Writing a bare PAGNBR keyword (as this code previously
+    // did, inherited from RPG's unrelated *PAGNBR special word) produced
+    // invalid DDS that would fail a real CRTDSPF compile - the same class
+    // of bug I-2 found in PRTFILE. Removed with no replacement (there is
+    // no DDS mechanism for a display-file "page number" constant - page
+    // numbering is a print/report-writer concern, not a display field
+    // one). MSGCON is added below as its own dedicated form instead, since
+    // unlike the other four it takes three parameters rather than none.
+    const SYSTEM_VALUE_KEYWORD_NAMES = ['DATE', 'TIME', 'USER', 'SYSNAME'];
     const isSystemValueConstant = isConstant && field.keywords.some((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) !== -1);
+    // I-33 - MSGCON(length message-ID [library-name/]message-file-name) is
+    // the sixth documented way to supply a constant's value: its text
+    // comes from a message description rather than a literal or a system
+    // value. Mutually exclusive with DATE/DFT/EDTCDE/EDTWRD/TIME per its
+    // own keyword text, so - like isSystemValueConstant above - this is
+    // its own dedicated, non-destructive UI rather than falling through to
+    // the plain-literal-text Text input.
+    const isMsgConConstant = isConstant && field.keywords.some((k) => k.name === 'MSGCON');
     let html = '';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this field is disabled to avoid corrupting it. Edit the source directly.</div>';
 
@@ -4304,19 +4326,33 @@ const htmlTemplate = `<!DOCTYPE html>
     if (isSystemValueConstant) {
       // A system-value constant has no literal text at all - its whole
       // identity is WHICH system value it displays. Exactly one of these
-      // five keywords is expected at a time (they're mutually exclusive
+      // four keywords is expected at a time (they're mutually exclusive
       // ways of filling in "the system supplies this"), so this is a
       // single-select dropdown, not a repeatable keyword list - switching
       // it removes whichever one was there and adds the newly chosen one
-      // (see the Apply handler below). EDTCDE/EDTWRD (common on DATE/TIME/
-      // PAGNBR - e.g. inserting slashes into a date) still live in the
-      // Attributes tab below, unaffected by this dropdown.
+      // (see the Apply handler below). EDTCDE/EDTWRD (common on DATE/TIME -
+      // e.g. inserting slashes into a date) still live in the Attributes
+      // tab below, unaffected by this dropdown.
       const currentSysKw = field.keywords.find((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) !== -1);
-      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name', PAGNBR: 'PAGNBR - page number' };
+      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name' };
       basicHtml += '<div class="field-row"><label>System value</label><select id="p-const-sysval">' +
         SYSTEM_VALUE_KEYWORD_NAMES.map((v) => '<option value="' + v + '"' + (currentSysKw && currentSysKw.name === v ? ' selected' : '') + '>' + sysValueLabels[v] + '</option>').join('') +
         '</select></div>';
       basicHtml += '<div class="hint-small">This field shows a system-supplied value, not literal text - the design preview shows a live placeholder (e.g. today\u2019s date), and the real value fills in at runtime.</div>';
+    } else if (isMsgConConstant) {
+      // A MSGCON constant, like a system-value one, has no literal text of
+      // its own - its whole identity is the message it points to. Broken
+      // out into the same structured Length/Message ID/Message file/
+      // Library prompts real SDA uses for MSGID's own parameters (see
+      // DspfWriter.parseMsgConParams/formatMsgConParams's own doc comment
+      // for MSGCON's exact grammar).
+      const msgConKw = field.keywords.find((k) => k.name === 'MSGCON');
+      const parsed = DspfWriter.parseMsgConParams(msgConKw ? msgConKw.parameters : '');
+      basicHtml += '<div class="field-row"><label>Length</label><input type="number" id="p-const-msgcon-length" min="1" max="132" value="' + DspfEngine.escapeHtml(parsed.length) + '" /></div>';
+      basicHtml += '<div class="field-row"><label>Message ID</label><input type="text" id="p-const-msgcon-msgid" value="' + DspfEngine.escapeHtml(parsed.msgId) + '" placeholder="MSG0001" /></div>';
+      basicHtml += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-const-msgcon-msgfile" value="' + DspfEngine.escapeHtml(parsed.msgFile) + '" /></div>';
+      basicHtml += '<div class="field-row"><label>Library</label><input type="text" id="p-const-msgcon-library" value="' + DspfEngine.escapeHtml(parsed.library) + '" placeholder="*LIBL" /></div></div>';
+      basicHtml += '<div class="hint-small">This field\u2019s text is pulled from a message description at run time, not typed in here - the design preview shows the message ID as a placeholder.</div>';
     } else if (isConstant) {
       // A constant has no name/length/data type/usage of its own - its whole
       // identity IS its literal text, which was previously not editable
@@ -4393,7 +4429,7 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::input-keywords', 'Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (catVis.generalKeywords) {
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::general-keywords', 'General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType, field.usage, found.record.keywords), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::general-keywords', 'General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType, field.usage, found.record.keywords, isConstant), false);
     }
     if (!isConstant && catVis.databaseReference) {
       let dbRefBody = '';
@@ -4483,6 +4519,19 @@ const htmlTemplate = `<!DOCTYPE html>
         // path here ever sets updates.constantValue for one of these.
         const chosen = document.getElementById('p-const-sysval').value;
         updates.keywords = field.keywords.filter((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) === -1).concat([{ name: chosen, parameters: '', conditions: [], sourceLines: [] }]);
+      } else if (isMsgConConstant) {
+        // Same non-destructive posture as the system-value branch above -
+        // constantValue is left untouched (stays null) and only MSGCON's
+        // own parameters are rewritten, preserving MSGCON's existing
+        // conditioning (setFileFlagKeyword's own conditions-omitted
+        // convention).
+        const msgConParams = DspfWriter.formatMsgConParams({
+          length: document.getElementById('p-const-msgcon-length').value,
+          msgId: document.getElementById('p-const-msgcon-msgid').value,
+          msgFile: document.getElementById('p-const-msgcon-msgfile').value,
+          library: document.getElementById('p-const-msgcon-library').value,
+        });
+        updates.keywords = DspfWriter.setFileFlagKeyword(field.keywords, 'MSGCON', !!msgConParams, msgConParams);
       } else if (isConstant) {
         updates.constantValue = document.getElementById('p-const-text').value;
       } else {
@@ -4516,7 +4565,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireKeyingOptionsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (newDataType) => commitEdit(ownerRecordName, field, { dataType: newDataType }));
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType);
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant);
     if (!isConstant) {
       WebviewClientHelpers.wireDatabaseReferenceEditor(field, (updates) => commitEdit(ownerRecordName, field, updates), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
       WebviewClientHelpers.wireMessageIdInstancesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
@@ -4537,7 +4586,7 @@ const htmlTemplate = `<!DOCTYPE html>
       }
     }
 
-    if (isConstant && !isSystemValueConstant) {
+    if (isConstant && !isSystemValueConstant && !isMsgConConstant) {
       document.getElementById('p-fill').addEventListener('click', () => {
         const ch = (document.getElementById('p-fill-char').value || '.').slice(0, 1) || '.';
         const len = Math.max(1, parseInt(document.getElementById('p-fill-len').value, 10) || 1);
@@ -4547,16 +4596,20 @@ const htmlTemplate = `<!DOCTYPE html>
 
     document.getElementById('p-center').addEventListener('click', () => {
       const columns = (lastScreen && lastScreen.columns) || 80;
-      // A system-value constant has no Text input to measure - its width
-      // is whatever DspfEngine.displayLength itself would compute for it at
-      // render time (DATE honors DATFMT via dateFieldLength, TIME is always
-      // 8, etc. - see displayLength's own doc comment), so reuse that
-      // directly rather than guessing a width here.
+      // A system-value or MSGCON constant has no Text input to measure.
+      // System values reuse DspfEngine.displayLength itself (DATE honors
+      // DATFMT via dateFieldLength, TIME is always 8, etc. - see
+      // displayLength's own doc comment) rather than guessing a width
+      // here; MSGCON's own length parameter IS its documented display
+      // width (the constant is padded/truncated to it at run time), so
+      // that input is the width directly, not a proxy for one.
       const width = isSystemValueConstant
         ? DspfEngine.displayLength(field, found.record, model)
-        : isConstant
-          ? (document.getElementById('p-const-text').value || '').length
-          : Math.max(1, parseInt(document.getElementById('p-length').value, 10) || 1);
+        : isMsgConConstant
+          ? Math.max(1, parseInt(document.getElementById('p-const-msgcon-length').value, 10) || 1)
+          : isConstant
+            ? (document.getElementById('p-const-text').value || '').length
+            : Math.max(1, parseInt(document.getElementById('p-length').value, 10) || 1);
       const col = Math.max(1, Math.floor((columns - width) / 2) + 1);
       document.getElementById('p-col').value = String(col);
     });
@@ -4846,20 +4899,33 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<div class="two-col"><div class="field-row"><label>Line</label><input type="number" id="p-place-line" value="' + pendingPlacement.line + '" /></div>';
     html += '<div class="field-row"><label>Column</label><input type="number" id="p-place-col" value="' + pendingPlacement.column + '" /></div></div>';
     if (kind === 'CONSTANT') {
-      // Task: *DATE/*TIME/*USER/*SYSTEM(SYSNAME)/*PAGNBR system-value
-      // constants previously had NO way to be created here at all - "Enter
-      // the constant text" was required, with nothing offering the
-      // alternative of a keyword-only, no-text constant. A checkbox swaps
-      // the Text input for a dropdown of the five real DDS keywords that
-      // make a constant field display a system-supplied value instead of
-      // literal text (see renderFieldProps's own isSystemValueConstant
-      // doc comment for the full keyword list/reasoning).
-      html += '<div class="field-row"><label><input type="checkbox" id="p-place-sysval-toggle" /> System value (date/time/user/etc.) instead of literal text</label></div>';
-      html += '<div id="p-place-text-wrap" class="field-row"><label>Text</label><input type="text" id="p-place-text" placeholder="Constant text" /></div>';
-      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name', PAGNBR: 'PAGNBR - page number' };
-      html += '<div id="p-place-sysval-wrap" class="field-row" style="display:none;"><label>System value</label><select id="p-place-sysval">' +
-        ['DATE', 'TIME', 'USER', 'SYSNAME', 'PAGNBR'].map((v) => '<option value="' + v + '">' + sysValueLabels[v] + '</option>').join('') +
+      // Task: *DATE/*TIME/*USER/*SYSTEM(SYSNAME) system-value constants
+      // previously had NO way to be created here at all - "Enter the
+      // constant text" was required, with nothing offering the
+      // alternative of a keyword-only, no-text constant. A "Value source"
+      // dropdown picks between literal text, a system value, and (I-33) a
+      // MSGCON message reference - the three ways DDS lets a constant's
+      // value be non-literal (see renderFieldProps's own
+      // isSystemValueConstant/isMsgConConstant doc comments for the full
+      // keyword list/reasoning). I-33 also removed 'PAGNBR' from the
+      // system-value list here - it was never a real DDS keyword (see
+      // renderFieldProps's own doc comment on SYSTEM_VALUE_KEYWORD_NAMES).
+      html += '<div class="field-row"><label>Value source</label><select id="p-place-const-kind">' +
+        '<option value="text">Literal text</option>' +
+        '<option value="sysval">System value (date/time/user/etc.)</option>' +
+        '<option value="msgcon">Message (MSGCON)</option>' +
         '</select></div>';
+      html += '<div id="p-place-text-wrap" class="field-row"><label>Text</label><input type="text" id="p-place-text" placeholder="Constant text" /></div>';
+      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name' };
+      html += '<div id="p-place-sysval-wrap" class="field-row" style="display:none;"><label>System value</label><select id="p-place-sysval">' +
+        ['DATE', 'TIME', 'USER', 'SYSNAME'].map((v) => '<option value="' + v + '">' + sysValueLabels[v] + '</option>').join('') +
+        '</select></div>';
+      html += '<div id="p-place-msgcon-wrap" style="display:none;">';
+      html += '<div class="field-row"><label>Length</label><input type="number" id="p-place-msgcon-length" min="1" max="132" value="20" /></div>';
+      html += '<div class="field-row"><label>Message ID</label><input type="text" id="p-place-msgcon-msgid" placeholder="MSG0001" /></div>';
+      html += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-place-msgcon-msgfile" /></div>';
+      html += '<div class="field-row"><label>Library</label><input type="text" id="p-place-msgcon-library" placeholder="*LIBL" /></div></div>';
+      html += '</div>';
     } else {
       html += '<div class="field-row"><label>Name</label><input type="text" id="p-place-name" maxlength="10" placeholder="FIELD1" /></div>';
       html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-place-length" min="1" value="10" /></div>';
@@ -4875,11 +4941,13 @@ const htmlTemplate = `<!DOCTYPE html>
     propsBody.innerHTML = html;
 
     document.getElementById('p-place-cancel').addEventListener('click', () => { pendingPlacement = null; render(); });
-    const sysvalToggle = document.getElementById('p-place-sysval-toggle');
-    if (sysvalToggle) {
-      sysvalToggle.addEventListener('change', () => {
-        document.getElementById('p-place-text-wrap').style.display = sysvalToggle.checked ? 'none' : '';
-        document.getElementById('p-place-sysval-wrap').style.display = sysvalToggle.checked ? '' : 'none';
+    const constKindSelect = document.getElementById('p-place-const-kind');
+    if (constKindSelect) {
+      constKindSelect.addEventListener('change', () => {
+        const v = constKindSelect.value;
+        document.getElementById('p-place-text-wrap').style.display = v === 'text' ? '' : 'none';
+        document.getElementById('p-place-sysval-wrap').style.display = v === 'sysval' ? '' : 'none';
+        document.getElementById('p-place-msgcon-wrap').style.display = v === 'msgcon' ? '' : 'none';
       });
     }
     document.getElementById('p-place-add').addEventListener('click', () => {
@@ -4893,9 +4961,19 @@ const htmlTemplate = `<!DOCTYPE html>
 
       let newFieldSpec;
       if (kind === 'CONSTANT') {
-        if (sysvalToggle && sysvalToggle.checked) {
+        const constKind = constKindSelect ? constKindSelect.value : 'text';
+        if (constKind === 'sysval') {
           const chosen = document.getElementById('p-place-sysval').value;
           newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: chosen, parameters: '', conditions: [], sourceLines: [] }], location: { line: line, column: column } };
+        } else if (constKind === 'msgcon') {
+          const msgConParams = DspfWriter.formatMsgConParams({
+            length: document.getElementById('p-place-msgcon-length').value,
+            msgId: document.getElementById('p-place-msgcon-msgid').value,
+            msgFile: document.getElementById('p-place-msgcon-msgfile').value,
+            library: document.getElementById('p-place-msgcon-library').value,
+          });
+          if (!msgConParams) { errorEl.textContent = 'Enter the message length, message ID, and message file.'; return; }
+          newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: 'MSGCON', parameters: msgConParams, conditions: [], sourceLines: [] }], location: { line: line, column: column } };
         } else {
           const text = document.getElementById('p-place-text').value;
           if (!text) { errorEl.textContent = 'Enter the constant text.'; return; }
