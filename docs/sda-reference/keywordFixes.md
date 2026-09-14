@@ -2043,7 +2043,7 @@ section below.)
 | **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — may be absorbed into I-31 depending on what that task finds |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
 | **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | claimed — in progress |
-| **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | not started |
+| **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | claimed |
 
 ### I-30 — Character fields (base set)
 
