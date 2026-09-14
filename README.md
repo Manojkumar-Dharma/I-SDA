@@ -15,16 +15,23 @@ original source — all inside VS Code.
 Early but functional. The parser, screen resolver, and interactive editor
 have been verified against IBM's own published DDS examples and round-trip
 tested (edit → regenerate source lines → re-parse → confirm nothing else
-changed). Every tracked L-series (DSPF designer) and M-series (Menu
-designer) limitation/bug-fix task is `done`, and the P-series New-UI
-layout migration (P1-P5i) is complete — see
+changed). Every tracked L-series (DSPF designer), M-series (Menu
+designer), and S36-series (`.dspf36`/System-36 support) limitation/bug-fix
+task is `done`, the P-series New-UI layout migration (P1-P5i) is
+complete, and the A1/A2 screenshot-inventory audits are also `done` — see
 [`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) for the
 full history. All record-level and field-level picker screens tracked in
 [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md) are
-also `done`. The only open items are two screenshot-inventory audits
-(A1/A2) — not features, just a verification pass against real SDA's own
-reference screens. See [Features](#features) below for what's covered at
-each DDS scoping level.
+also `done`. A separate, ongoing effort audits every already-implemented
+keyword against IBM's own DDS reference for usage/conditioning/parameter
+correctness (not "is a feature missing" but "does it match documented
+behavior") — file-level (I-1 through I-6) and record-level (I-7 through
+I-29) are both `done`; see
+[`keywordFixes.md`](docs/sda-reference/keywordFixes.md) for the full
+per-keyword findings, and its own "On the horizon" section for what's
+still queued (a field-level pass, plus a couple of narrowly-scoped
+follow-up findings not yet promoted to their own tasks). See
+[Features](#features) below for what's covered at each DDS scoping level.
 
 ## Features
 
@@ -66,6 +73,13 @@ anything without a dedicated screen yet.
   pairing (control record and detail record) are independently editable
   and previewable.
 - `SFLMSG`/`SFLMSGCTL` message-subfile pickers.
+- Subfile single/multiple-choice selection-list keywords `SFLSNGCHC`/
+  `SFLMLTCHC` (`SFLCTL`), mutually exclusive with each other and with
+  `SFLDROP`/`SFLFOLD`, with a default that correctly flips when the
+  `SFLCTL` record sits in a pull-down.
+- Record-level `MNUBARDSP` and `HLPTITLE` support the same repeatable,
+  independently-conditioned multi-instance model as field-level keywords
+  (up to 15 instances for `HLPTITLE`), not just one flat value.
 - `WINDOW`-specific picker (size/roll, border parameters/color/attributes/
   characters, restrict-cursor, message line) plus drag/resize/move handles
   and click-to-rename window title directly on the preview.
@@ -89,6 +103,8 @@ anything without a dedicated screen yet.
   on the same field — Color & attributes, Error messages, Subfile
   Messages, Keying options, Validity check, and Message ID all support
   this rather than collapsing to one instance.
+- `SFLSCROLL` (subfile scroll-bar field), mutually exclusive with
+  `SFLRCDNBR`/`SFLROLVAL` on the same field and unique across the record.
 - Menu-bar choice fields (`MNUBARCHC`/`MNUBARSEP`/`SNGCHCFLD`/
   `MLTCHCFLD`/`CHOICE`/`CHCCTL`/`CHCACCEL`/`CHCAVAIL`/`CHCUNAVAIL`/
   `CHCSLT`).
@@ -276,7 +292,10 @@ fixable work all live in
 rather than being duplicated here — that doc already tracks status
 (`not started`/`in progress`/`done`) per item the same way it tracks
 everything else, so it's the single place to check what's an accepted
-constraint versus genuinely open work.
+constraint versus genuinely open work. The separate keyword-compliance
+audit against IBM's own DDS reference (usage/conditioning/parameter
+correctness, as opposed to missing features) is tracked the same way in
+[`keywordFixes.md`](docs/sda-reference/keywordFixes.md).
 
 ## License
 
