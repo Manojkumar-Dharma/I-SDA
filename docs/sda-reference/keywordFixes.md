@@ -33,22 +33,23 @@ that file is touched, full `npm test` must stay at zero failures.
 Scope started as **file-level keywords only** (I-1 through I-6, the 39
 iSDA exposed across the 10 categories in
 `docs/sda-reference/keyword-index/KEYWORD-INDEX.json`'s `file` level,
-plus 5 confirmed-missing ones) and has since extended to a **record-level
-series, one task per record type** (I-7 onward — see that section's own
-intro for why record-level needed a different shape than one flat list).
-Field-level is next, once the record-level series closes out — see
-"On the horizon."
+plus 5 confirmed-missing ones), extended to a **record-level series, one
+task per record type** (I-7 through I-29 — see that section's own intro
+for why record-level needed a different shape than one flat list), and
+now extends further to a **field-level series, one task per field
+kind/usage combination** (I-30 onward — see that section's own intro for
+why field-level needed yet another shape).
 
-**Document structure, and how to navigate it:** each of the two audit
-phases (file-level, record-level) opens with one short summary table —
-Task, Topic, Depends on, Status only, so it stays readable and properly
-aligned — followed by a `### I-N — Title` section per task, **in strict
-numeric order**, holding the full scope/finding/fix/test-coverage detail
-for that task. Tasks are numbered in the order they were *opened*, not
-necessarily the order they *landed* (parallel sessions pick up tasks out
-of order) — the version each task landed at is recorded in its own
-Status cell and its own `### I-N` section, not implied by its position in
-the document.
+**Document structure, and how to navigate it:** each of the three audit
+phases (file-level, record-level, field-level) opens with one short
+summary table — Task, Topic, Depends on, Status only, so it stays
+readable and properly aligned — followed by a `### I-N — Title` section
+per task, **in strict numeric order**, holding the full scope/finding/
+fix/test-coverage detail for that task. Tasks are numbered in the order
+they were *opened*, not necessarily the order they *landed* (parallel
+sessions pick up tasks out of order) — the version each task landed at
+is recorded in its own Status cell and its own `### I-N` section, not
+implied by its position in the document.
 
 ---
 
@@ -405,7 +406,7 @@ corrected `PRINT`'s note to match S36-3's `PRINT(*PGM)` correction.
 
 ---
 
-## Record-level audit (I-7 through I-26) — same 4-dimension method, per record type
+## Record-level audit (I-7 through I-29) — same 4-dimension method, per record type
 
 I-1 through I-6 covered file-level keywords as one flat set of 39. Record
 level doesn't work that way: which keywords are even *applicable* depends
@@ -1964,11 +1965,94 @@ missing keyword parameter, no code change needed.
 
 ---
 
+## Field-level audit (I-30 through I-35) — same 4-dimension method, per field kind/usage
+
+I-1 through I-29 covered file-level and record-level keywords. Field
+level needs its own shape again, for a different reason than record
+level did: IBM's own DDS Reference splits field-level rules along **two
+independent axes**, not one.
+
+**Axis 1 — field kind.** A field is either an unnamed **constant**
+(literal text — IBM's own text is explicit: "Make no entry in this
+position for a constant (unnamed) field", i.e. constants don't even
+carry a Usage code), a **named field**, or a **menu-bar choice field**
+(`SNGCHCFLD`/`MLTCHCFLD`) — the last is iSDA's own distinct field kind,
+with its own screenshot category
+(`docs/sda-reference/screens/field-level/menu-bar-choice`) and panel
+code, sitting alongside `character`/`constant`/`numeric` as a sibling,
+not a variant of either.
+
+**Axis 2 — Usage (DDS position 38), named fields only.** IBM's Reference
+(`docs/sda-reference/source/DDS_Keyword_V7r6.txt`, "Usage for display
+files (position 38)" — search that exact heading) documents six values,
+each with a materially different valid-keyword set: **O** (output only,
+the blank default), **I** (input only), **B** (both), **H** (hidden —
+no location, not input/output-capable despite carrying data), **M**
+(message — output-only, and IBM restricts it to exactly `ALIAS`/
+`INDTXT`/`OVRDTA`/`REFFLD`/`TEXT`, nothing else), and **P**
+(program-to-system — output-only, invisible, restricted to `ALIAS`/
+`TEXT` plus being named as a parameter on a fixed list of other
+keywords: `CHCACCEL`/`CHCCTL`/`CHKMSGID`/`CHOICE`/`ERRMSGID`/`GRDATR`/
+`GRDBOX`/`GRDCLR`/`GRDLIN`/`HTML`/`MNUBARCHC`/`MSGID`/`PSHBTNCHC`/
+`SFLCHCCTL`/`SFLMSGID`/`SFLSIZ`/`WDWTITLE`/`WINDOW`). iSDA's own
+`fieldKeywordCategoryVisibility()` (`src/webviewClientHelpers.js`)
+already models an O/I/B/H split for its 8 keyword categories (Colors/
+Display Attributes, Keying Options, Validity Check, Input Keywords,
+General Keywords, Database Reference, Error Messages, Message ID,
+Editing Keywords) matching real SDA's own "For Field Type" column — but
+by its own comment, **fails open (shows every category) for M and P**,
+since "SDA's own table never covers them." Whether that's actually
+correct given IBM's tiny fixed keyword lists above, or a real gap, is
+exactly what I-35 checks.
+
+**Ground truth for scope, not for correctness** — same caveat as
+record-level's own intro: `docs/sda-reference/screens/field-level/`'s
+four subdirectories (`character`, `numeric`, `constant`, `menu-bar-
+choice`) and `KEYWORD-INDEX.json`'s `field` level tell you *where to
+look*, not that what's there is already correct. Read each keyword's own
+opening statement in the DDS Reference; don't infer from a category
+label.
+
+**Data types NOT getting their own task** — Date (`L`)/Time (`T`)/
+Timestamp (`Z`) are numeric-adjacent but have their own narrower Usage
+rule (IBM's text above: "Valid field usage (DDS position 38) can be O,
+B, or I" for these three specifically — no H/M/P at all) and their own
+keywords (`DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`). Rather than a 7th task,
+this is folded into **I-31 (Numeric)** as a named sub-check, since
+`isNumericField` in the current code already groups L/T/Z alongside
+S/Y/B/P/F as one "numeric-ish" bucket for shift-value purposes — I-31
+should confirm whether that's the right grouping for keyword purposes
+too, or whether L/T/Z need splitting out once the audit is actually
+underway.
+
+**System-value constants NOT getting their own task** — `DATE`/`TIME`/
+`USER`/`SYSNAME`/`PAGNBR` (`src/buildWebviewTemplate.js`'s
+`SYSTEM_VALUE_KEYWORD_NAMES`) are a UI convenience for populating a
+constant field's literal text with one of DDS's own recognized special
+values, not a distinct field kind with its own keyword set — folded into
+**I-33 (Constant fields)**.
+
+| Task | Field kind / Usage | Depends on | Status |
+|------|---------------------|------------|--------|
+| **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | claimed — in progress |
+| **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | not started |
+| **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — may be absorbed into I-31 depending on what that task finds |
+| **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`PAGNBR`) | I-1 (method) | not started |
+| **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | not started |
+| **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | not started |
+
+### I-30 — Character fields (base set)
+
+**Status: claimed, work starting now.**
+
+---
+
 ## On the horizon
 
-- Field-level keyword audit, same 4-dimension method, as its own
-  follow-up series once the record-level tasks above are closed.
+- I-31 through I-35 above, once I-30 (the base character-field set) is
+  done — I-31/I-34/I-35 each depend on I-30's own findings for the
+  shared `fieldKeywordCategoryVisibility()` gate.
 - `flagRowHtml`'s conditioning-eligibility mechanism (I-3) may be
-  generally useful for the record-level tasks above too — reuse it
-  rather than inventing a second mechanism, if it fits the record-level
+  generally useful for the field-level tasks above too — reuse it
+  rather than inventing a second mechanism, if it fits the field-level
   panel code's shape as-is.
