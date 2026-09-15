@@ -2042,7 +2042,7 @@ section below.)
 | **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | claimed — in progress |
 | **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — may be absorbed into I-31 depending on what that task finds |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
-| **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | claimed — in progress |
+| **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | done (0.10.112) |
 | **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | claimed |
 
 ### I-30 — Character fields (base set)
@@ -2306,6 +2306,102 @@ and `HLPID` present on a constant, with the exact inverse on a named
 field. All new tests confirmed failing against pre-fix code before the
 fix landed (`p-place-const-kind`/`parseMsgConParams`/gating didn't exist
 yet). Full suite green (`npm test`).
+
+---
+
+### I-34 — Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`)
+
+Full 4-dimension audit of the menu-bar/pulldown choice-field keyword set
+(`SNGCHCFLD`, `MLTCHCFLD`, `CHOICE`, `CHCCTL`, `CHCACCEL`, `CHCAVAIL`,
+`CHCUNAVAIL`, `CHCSLT`, `MNUBARCHC`, `MNUBARSEP`) against
+`DDS_Keyword_V7r6.txt`.
+
+**Usage/constraint bug found and fixed:** IBM's own `MLTCHCFLD` format
+string carries `*RSTCSR`/`*NORSTCSR`, `*SLTIND`/`*NOSLTIND`, and
+`*NUMCOL`/`*NUMROW`/`*GUTTER` only — the whole
+`*AUTOSLT`/`*NOAUTOSLT`/`*AUTOSLTENH`/`*AUTOENT`/`*NOAUTOENT`/
+`*AUTOENTNN` family exists solely on `SNGCHCFLD`'s own format string.
+`choiceSelectionTypeHtml` was offering both radio groups unconditionally
+regardless of which kind was selected — a real `MLTCHCFLD` with
+`*AUTOSLT` would fail to compile. Fixed at both layers: the UI hides the
+two groups entirely once `MLTCHCFLD` is selected (and
+`wireChoiceSelectionTypeEditor` re-checks the kind at apply-time rather
+than trusting whatever happens to be in the DOM, so a stale selector left
+over from switching the Type dropdown without a full rerender can't leak
+a stray flag through), and `setChoiceSelectionType` itself filters the
+SNGCHCFLD-only flags whenever `state.kind === 'MLTCHCFLD'` as a
+belt-and-braces guarantee at the actual DDS-writing layer.
+
+**Conditioning eligibility — the dominant finding, a reverse gap on five
+keywords:** `CHOICE`, `MNUBARCHC`, `CHCAVAIL`, `CHCUNAVAIL`, `CHCSLT`, and
+`MNUBARSEP` are each individually documented "Option indicators are valid
+for this keyword" in the DDS Reference, but none had any Conditioning UI
+before this task:
+- `CHOICE` and `MNUBARCHC` are per-choice-number repeatable instances.
+  New `DspfWriter.setChoiceConditions`/`setMenubarChoiceConditions` key by
+  choice-number rather than ordinal position (unlike `setCommandKeyAt`'s
+  index-based approach) — IBM's own text for both keywords states
+  duplicate choice-number values within a field are not allowed, the same
+  uniqueness assumption the existing id-keyed merge logic in
+  `choiceKeywordsListHtml`/`menuBarChoicesHtml` already made. Each row now
+  renders its own `kw-cond-toggle`/`kw-cond-body`, committing immediately
+  on toggle (independent of the row list's own batch "Apply" button) —
+  the same split `wireEntFldAtrEditor` already established.
+- `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT` are whole-field. `getChoiceColorState`/
+  `setChoiceColorState` already carried a `conditions` parameter (added
+  incidentally during I-3's `ENTFLDATR` fix, since both reuse the same
+  generic function), but `choiceColorStatesHtml` never rendered a toggle
+  for any of the three callers — the plumbing existed but nothing exposed
+  it. Fixed by adding one toggle per state, each committing independently
+  of the shared Apply button.
+- `MNUBARSEP` is whole-field too, and previously had no `conditions`
+  concept modeled at all — `getMenubarSeparator`/`setMenubarSeparator`
+  now round-trip a `conditions` array (preserved when a caller's `state`
+  omits it, same convention as `setFileFlagKeyword`), with the panel
+  offering one toggle, again committing independently of its own Apply
+  button.
+
+**Silent-data-loss bug found and fixed (same class as I-2/I-3's own
+fixes for `setFileFlagKeyword`/`setChoiceColorState`):** `setChoices` and
+`setMenubarChoices` both hard-coded `conditions: []` on every batch
+rewrite. Once the per-choice Conditioning toggles above exist, that would
+have silently wiped any conditioning the very next time "Apply choice
+keywords" or "Apply menu-bar choices" was clicked. Both now preserve a
+choice's existing conditions by id across the rewrite unless the caller's
+entry explicitly supplies its own.
+
+**Parameter completeness:** `CHOICE`'s optional trailing `*SPACEB` flag
+("insert a blank space/line before this choice", for logical grouping of
+consecutively-numbered choices) was entirely unmodeled. Added to
+`getChoices`/`setChoices` and a new checkbox on each choice row.
+
+**Confirmed CLEAN (no fix needed):** `SNGCHCFLD`/`MLTCHCFLD` themselves
+("Option indicators are not valid for this keyword" — correctly offer no
+toggle) and `CHCCTL`/`CHCACCEL` (same "not valid" statement, also
+correctly clean already).
+
+**Scope note, not fixed here:** `CHCACCEL` is documented as valid only on
+`SNGCHCFLD` fields in pull-down records, but the UI currently offers it
+regardless of choice-field kind. Left as a follow-up rather than folded
+into this pass — logged here per this project's own "out-of-scope items
+are explicitly logged" convention.
+
+**Tests:** New `src/test/i34MenuBarChoiceFieldsAudit.test.js` (45
+checks) covering: the `MLTCHCFLD` auto-select/auto-enter UI-and-writer
+gating fix; the confirmed-clean absence of a toggle on `SNGCHCFLD`/
+`MLTCHCFLD` themselves; the new per-choice `CHOICE`/`MNUBARCHC`
+Conditioning toggles and their id-keyed setters, including a check that
+updating one choice's conditions leaves every other keyword (including
+sibling `CHOICE`/`CHCCTL` instances) untouched; the `setChoices`/
+`setMenubarChoices` silent-data-loss fix (conditions preserved across a
+batch rewrite that doesn't mention them); `*SPACEB` round-tripping and
+its new UI checkbox; the three new `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT`
+toggles, including a click-wiring check that a toggle click reruns via
+`rerender` independently of the shared Apply button; the confirmed-clean
+absence of a toggle on the `CHCCTL`/`CHCACCEL` portions of a choice row;
+and the new `MNUBARSEP` toggle plus its conditions round-trip through
+`getMenubarSeparator`/`setMenubarSeparator`. Full suite green (4,163
+checks, `npm test` exit 0); `npx tsc -p . --noEmit` clean.
 
 ---
 

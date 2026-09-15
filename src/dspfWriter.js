@@ -2233,9 +2233,9 @@
       .filter(function (k) { return k.name === 'MNUBARCHC'; })
       .map(function (k) {
         var m = (k.parameters || '').trim().match(/^(\d+)\s+(\S+)\s+((?:&\S+)|(?:'(?:[^']|'')*'))(?:\s+(&\S+))?/);
-        if (!m) return { id: '', pulldownRecord: '', text: (k.parameters || '').trim(), returnField: '' };
+        if (!m) return { id: '', pulldownRecord: '', text: (k.parameters || '').trim(), returnField: '', conditions: k.conditions || [] };
         var text = m[3].charAt(0) === '&' ? m[3] : m[3].slice(1, -1).replace(/''/g, "'");
-        return { id: m[1], pulldownRecord: m[2], text: text, returnField: m[4] || '' };
+        return { id: m[1], pulldownRecord: m[2], text: text, returnField: m[4] || '', conditions: k.conditions || [] };
       });
   }
 
@@ -2246,8 +2246,22 @@
    *  than writing a malformed keyword. `returnField` is optional (real
    *  SDA's own screen leaves it blank most of the time); when supplied
    *  without a leading '&' one is added, since it's always a field
-   *  reference, never a literal. */
+   *  reference, never a literal. Task I-34: `conditions` is preserved by
+   *  choice-id across this batch rewrite when the caller's entry doesn't
+   *  explicitly supply its own - same "preserve unless overridden"
+   *  convention as setFileFlagKeyword/setChoiceColorState, closing the
+   *  same silent-data-loss class of bug those had before I-2/I-3 fixed
+   *  them (this list editor used to hard-code conditions: [] on every
+   *  write, which would have silently wiped any conditioning set through
+   *  the new per-choice Conditioning toggle the moment "Apply menu-bar
+   *  choices" was next clicked). */
   function setMenubarChoices(keywords, choices) {
+    var existingById = {};
+    (keywords || []).forEach(function (k) {
+      if (k.name !== 'MNUBARCHC') return;
+      var id = splitLeadingChoiceId(k.parameters).id;
+      if (id) existingById[id] = k.conditions || [];
+    });
     var next = (keywords || []).filter(function (k) { return k.name !== 'MNUBARCHC'; });
     (choices || []).forEach(function (c) {
       var id = (c.id || '').trim();
@@ -2257,9 +2271,34 @@
       var params = id + ' ' + record + ' ' + formatChoiceText(text);
       var returnField = (c.returnField || '').trim();
       if (returnField) params += ' ' + (returnField.charAt(0) === '&' ? returnField : '&' + returnField);
-      next = next.concat([{ name: 'MNUBARCHC', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
+      var conditions = c.conditions !== undefined ? c.conditions : (existingById[id] || []);
+      next = next.concat([{ name: 'MNUBARCHC', parameters: params, conditions: conditions, raw: '', sourceLines: [] }]);
     });
     return next;
+  }
+
+  /** Returns a NEW keywords array with the ONE MNUBARCHC keyword instance
+   *  whose choice-number matches `id` given a new `conditions` array,
+   *  leaving every other keyword (including other MNUBARCHC instances)
+   *  completely untouched. Task I-34: MNUBARCHC is documented "Option
+   *  indicators are valid for this keyword" - a reverse gap, no
+   *  Conditioning UI existed for it at all before this task. Keyed by
+   *  choice-id rather than ordinal position (unlike setCommandKeyAt's own
+   *  index-based approach) because IBM's own MNUBARCHC text states
+   *  duplicate choice-number values within a single menu-bar field are
+   *  not allowed - the same uniqueness assumption the id-keyed editors in
+   *  webviewClientHelpers.js already make. Powers the toggle's own
+   *  immediate commit, independent of the batch "Apply menu-bar choices"
+   *  button. */
+  function setMenubarChoiceConditions(keywords, id, conditions) {
+    var target = String(id || '').trim();
+    var seen = false;
+    return (keywords || []).map(function (k) {
+      if (seen || k.name !== 'MNUBARCHC') return k;
+      if (splitLeadingChoiceId(k.parameters).id !== target) return k;
+      seen = true;
+      return { name: k.name, parameters: k.parameters, conditions: conditions || [], raw: k.raw, sourceLines: k.sourceLines };
+    });
   }
 
   /** MNUBARSEP((*COLOR color) (*DSPATR attrs) (*CHAR 'c')) - the menu-bar's
@@ -2270,7 +2309,7 @@
    *  beyond what's already present vs. absent. */
   function getMenubarSeparator(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'MNUBARSEP'; });
-    var result = { color: '', attrs: [], char: '' };
+    var result = { color: '', attrs: [], char: '', conditions: k ? (k.conditions || []) : [] };
     if (!k) return result;
     var text = k.parameters || '';
     var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
@@ -2283,15 +2322,23 @@
   }
 
   /** Returns a NEW keywords array with MNUBARSEP built from `state` -
-   *  `{ colorEnabled, color, attrsEnabled, attrs, charEnabled, char }` -
-   *  removed entirely if none of the three groups are enabled. */
+   *  `{ colorEnabled, color, attrsEnabled, attrs, charEnabled, char,
+   *  conditions }` - removed entirely if none of the three groups are
+   *  enabled. Task I-34: MNUBARSEP is documented "Option indicators are
+   *  valid for this keyword" (reverse gap, no toggle existed before).
+   *  `conditions`, when OMITTED, preserves whatever conditioning already
+   *  existed - same convention as setFileFlagKeyword/setChoiceColorState. */
   function setMenubarSeparator(keywords, state) {
+    var existing = (keywords || []).find(function (kw) { return kw.name === 'MNUBARSEP'; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'MNUBARSEP'; });
     var groups = [];
     if (state.colorEnabled && state.color) groups.push('(*COLOR ' + state.color + ')');
     if (state.attrsEnabled && state.attrs && state.attrs.length) groups.push('(*DSPATR ' + state.attrs.join(' ') + ')');
     if (state.charEnabled && state.char) groups.push("(*CHAR '" + state.char.charAt(0) + "')");
-    if (groups.length) next = next.concat([{ name: 'MNUBARSEP', parameters: groups.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+    if (groups.length) {
+      var conditions = state.conditions !== undefined ? state.conditions : (existing ? (existing.conditions || []) : []);
+      next = next.concat([{ name: 'MNUBARSEP', parameters: groups.join(' '), conditions: conditions, raw: '', sourceLines: [] }]);
+    }
     return next;
   }
 
@@ -2328,13 +2375,29 @@
     return result;
   }
 
+  /** Params documented ONLY on SNGCHCFLD's own format string - IBM's
+   *  MLTCHCFLD format string is `MLTCHCFLD[([*RSTCSR|*NORSTCSR]
+   *  [*NOSLTIND|*SLTIND] [...*NUMCOL/*NUMROW/*GUTTER...])]` - no
+   *  AUTOSLT/AUTOENT family at all. Task I-34. */
+  var SNGCHCFLD_ONLY_FLAGS = ['*AUTOSLT', '*NOAUTOSLT', '*AUTOSLTENH', '*AUTOENT', '*NOAUTOENT', '*AUTOENTNN'];
+
   /** Returns a NEW keywords array with SNGCHCFLD/MLTCHCFLD replaced by one
    *  keyword built from `state` (same shape getChoiceSelectionType
-   *  returns) - removed entirely if `state.kind` is blank. */
+   *  returns) - removed entirely if `state.kind` is blank. Task I-34: when
+   *  `state.kind` is MLTCHCFLD, any SNGCHCFLD_ONLY_FLAGS present in
+   *  `state.flags` are silently dropped rather than written - IBM's own
+   *  MLTCHCFLD format string has no AUTOSLT/AUTOENT family at all, so
+   *  writing one would produce DDS that fails to compile. Filtered here
+   *  (the actual DDS-writing layer) as well as in
+   *  wireChoiceSelectionTypeEditor's own UI-level guard, so this stays
+   *  correct even if some other future caller passes them directly. */
   function setChoiceSelectionType(keywords, state) {
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'SNGCHCFLD' && kw.name !== 'MLTCHCFLD'; });
     if (!state || !state.kind) return next;
     var parts = (state.flags || []).slice();
+    if (state.kind === 'MLTCHCFLD') {
+      parts = parts.filter(function (f) { return SNGCHCFLD_ONLY_FLAGS.indexOf(f) < 0; });
+    }
     if (state.numCol) parts.push('*NUMCOL(' + state.numCol + ')');
     if (state.numRow) parts.push('*NUMROW(' + state.numRow + ')');
     if (state.gutter) parts.push('*GUTTER(' + state.gutter + ')');
@@ -2342,30 +2405,77 @@
     return next;
   }
 
-  /** CHOICE(id 'text') - one per choice on a SNGCHCFLD/MLTCHCFLD field,
-   *  same shape as DspfEngine.parseChoiceParams. */
+  /** CHOICE(id 'text' [*SPACEB]) - one per choice on a SNGCHCFLD/MLTCHCFLD
+   *  field. `text` mirrors DspfEngine.parseChoiceParams' own shape;
+   *  `spaceBefore` (Task I-34: IBM's own format string lists an optional
+   *  trailing *SPACEB - "insert a blank space/line before this choice",
+   *  for logical grouping of consecutively-numbered choices - previously
+   *  unmodeled entirely) and `conditions` (Task I-34: CHOICE is
+   *  documented "Option indicators are valid for this keyword" - a
+   *  reverse gap, no Conditioning UI existed for it before) are new. */
   function getChoices(keywords) {
     return (keywords || [])
       .filter(function (k) { return k.name === 'CHOICE'; })
       .map(function (k) {
         var split = splitLeadingChoiceId(k.parameters);
-        var text = split.rest.charAt(0) === '&' ? split.rest : split.rest.replace(/^'|'$/g, '').replace(/''/g, "'");
-        return { id: split.id, text: text };
+        var rest = split.rest.trim();
+        var spaceBefore = /\*SPACEB\s*$/i.test(rest);
+        if (spaceBefore) rest = rest.replace(/\*SPACEB\s*$/i, '').trim();
+        var text = rest.charAt(0) === '&' ? rest : rest.replace(/^'|'$/g, '').replace(/''/g, "'");
+        return { id: split.id, text: text, spaceBefore: spaceBefore, conditions: k.conditions || [] };
       });
   }
 
   /** Returns a NEW keywords array with every existing CHOICE removed and
-   *  replaced by one per entry in `choices` ({ id, text }) - blank
-   *  entries (no id or text) skipped. */
+   *  replaced by one per entry in `choices` ({ id, text, spaceBefore }) -
+   *  blank entries (no id or text) skipped. Task I-34: `conditions` is
+   *  preserved by choice-id across this batch rewrite when the caller's
+   *  entry doesn't explicitly supply its own - same "preserve unless
+   *  overridden" convention setMenubarChoices now also follows, closing
+   *  the same silent-data-loss class of bug I-2/I-3 fixed for
+   *  setFileFlagKeyword/setChoiceColorState (this editor used to
+   *  hard-code conditions: [] on every write, which would have silently
+   *  wiped any conditioning set through the new per-choice Conditioning
+   *  toggle the moment "Apply choice keywords" was next clicked). */
   function setChoices(keywords, choices) {
+    var existingByChoiceId = {};
+    (keywords || []).forEach(function (k) {
+      if (k.name !== 'CHOICE') return;
+      var id = splitLeadingChoiceId(k.parameters).id;
+      if (id) existingByChoiceId[id] = k.conditions || [];
+    });
     var next = (keywords || []).filter(function (k) { return k.name !== 'CHOICE'; });
     (choices || []).forEach(function (c) {
       var id = (c.id || '').trim();
       var text = (c.text || '').trim();
       if (!id || !text) return;
-      next = next.concat([{ name: 'CHOICE', parameters: id + ' ' + formatChoiceText(text), conditions: [], raw: '', sourceLines: [] }]);
+      var params = id + ' ' + formatChoiceText(text);
+      if (c.spaceBefore) params += ' *SPACEB';
+      var conditions = c.conditions !== undefined ? c.conditions : (existingByChoiceId[id] || []);
+      next = next.concat([{ name: 'CHOICE', parameters: params, conditions: conditions, raw: '', sourceLines: [] }]);
     });
     return next;
+  }
+
+  /** Returns a NEW keywords array with the ONE CHOICE keyword instance
+   *  whose choice-number matches `id` given a new `conditions` array,
+   *  leaving every other keyword (including other CHOICE instances)
+   *  completely untouched. Keyed by choice-id rather than ordinal
+   *  position (unlike setCommandKeyAt's own index-based approach) because
+   *  IBM's own CHOICE text states duplicate choice-number values within a
+   *  selection field are not allowed - the same uniqueness assumption
+   *  choiceKeywordsListHtml's own id-keyed merge already makes. Powers
+   *  the toggle's own immediate commit, independent of the batch "Apply
+   *  choice keywords" button. Task I-34. */
+  function setChoiceConditions(keywords, id, conditions) {
+    var target = String(id || '').trim();
+    var seen = false;
+    return (keywords || []).map(function (k) {
+      if (seen || k.name !== 'CHOICE') return k;
+      if (splitLeadingChoiceId(k.parameters).id !== target) return k;
+      seen = true;
+      return { name: k.name, parameters: k.parameters, conditions: conditions || [], raw: k.raw, sourceLines: k.sourceLines };
+    });
   }
 
   /** CHCACCEL(id 'text') - one per choice's accelerator-key text, same
@@ -5692,12 +5802,14 @@
     setMessageIdInstances: setMessageIdInstances,
     getMenubarChoices: getMenubarChoices,
     setMenubarChoices: setMenubarChoices,
+    setMenubarChoiceConditions: setMenubarChoiceConditions,
     getMenubarSeparator: getMenubarSeparator,
     setMenubarSeparator: setMenubarSeparator,
     getChoiceSelectionType: getChoiceSelectionType,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,
     setChoices: setChoices,
+    setChoiceConditions: setChoiceConditions,
     getChoiceAccelerators: getChoiceAccelerators,
     setChoiceAccelerators: setChoiceAccelerators,
     getChoiceControls: getChoiceControls,

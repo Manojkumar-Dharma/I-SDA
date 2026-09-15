@@ -2462,12 +2462,12 @@
    *  below removes the impossible single-line fit entirely, the same fix
    *  already applied to the sibling CHOICE keyword editor for the same
    *  reason. */
-  function menuBarChoicesHtml(keywords, ownerKey) {
+  function menuBarChoicesHtml(keywords, ownerKey, expandedSet) {
     var choices = DspfWriter.getMenubarChoices(keywords);
     var html = '<div class="section-label">Menu-bar choices (MNUBARCHC)</div>';
     html += '<div id="' + ownerKey + '-mnubarchc-rows">';
     choices.forEach(function (c, idx) {
-      html += menuBarChoiceRowHtml(ownerKey, idx, c);
+      html += menuBarChoiceRowHtml(ownerKey, idx, c, expandedSet);
     });
     html += '</div>';
     html += '<button class="secondary ' + ownerKey + '-mnubarchc-add" style="width:100%;margin-top:6px;">+ Add choice</button>';
@@ -2475,9 +2475,10 @@
     return html;
   }
 
-  function menuBarChoiceRowHtml(ownerKey, idx, c) {
-    c = c || { id: '', pulldownRecord: '', text: '', returnField: '' };
-    var row = '<div class="choice-row-block" data-idx="' + idx + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
+  function menuBarChoiceRowHtml(ownerKey, idx, c, expandedSet) {
+    c = c || { id: '', pulldownRecord: '', text: '', returnField: '', conditions: [] };
+    var conditions = c.conditions || [];
+    var row = '<div class="choice-row-block" data-idx="' + idx + '" data-choice-id="' + escapeHtml(c.id) + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
     row += '<div class="choice-row">' +
       '<input type="text" class="' + ownerKey + '-mnubarchc-id" placeholder="#" maxlength="3" value="' + escapeHtml(c.id) + '" style="width:36px;" />' +
       '<input type="text" class="' + ownerKey + '-mnubarchc-record" placeholder="pulldown record" maxlength="10" value="' + escapeHtml(c.pulldownRecord) + '" style="flex:1;" />' +
@@ -2485,17 +2486,34 @@
       '</div>';
     row += '<input type="text" class="' + ownerKey + '-mnubarchc-text" placeholder="text, or &field" value="' + escapeHtml(c.text) + '" style="width:100%;margin-top:6px;" />';
     row += '<input type="text" class="' + ownerKey + '-mnubarchc-returnfield" placeholder="return field (opt.)" maxlength="11" value="' + escapeHtml(c.returnField || '') + '" style="width:100%;margin-top:6px;" />';
+    // Task I-34: MNUBARCHC is documented "Option indicators are valid for
+    // this keyword" - a per-choice Conditioning toggle, same kw-cond-
+    // toggle/kw-cond-body markup entFldAtrHtml's own single-instance
+    // toggle uses, keyed by choice-id (not idx) since
+    // setMenubarChoiceConditions targets the MNUBARCHC keyword by
+    // choice-number, not ordinal position - only rendered once the row
+    // has a real id (a brand-new "+ Add choice" row has nothing to key
+    // conditioning against until it's been given a number and applied).
+    if (c.id) {
+      var condKey = ownerKey + '-mnubarchc-cond-' + c.id;
+      var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
+      var condExpanded = !!(expandedSet && expandedSet.has(condKey + ':cond'));
+      row += '<span class="kw-cond-toggle" data-flag-id="' + condKey + '" style="display:inline-block;margin-top:6px;">Conditioning' + condSummary + (condExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      if (condExpanded) {
+        row += '<div class="kw-cond-body">' + conditionsEditorHtml(conditions, condKey + '-cond', expandedSet) + '</div>';
+      }
+    }
     row += '</div>';
     return row;
   }
 
-  function wireMenuBarChoicesEditor(keywords, onChange, ownerKey) {
+  function wireMenuBarChoicesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
     var container = document.getElementById(ownerKey + '-mnubarchc-rows');
     if (!container) return;
     var addBtn = document.querySelector('.' + ownerKey + '-mnubarchc-add');
     var applyBtn = document.querySelector('.' + ownerKey + '-mnubarchc-apply');
     if (addBtn) addBtn.addEventListener('click', function () {
-      container.insertAdjacentHTML('beforeend', menuBarChoiceRowHtml(ownerKey, container.children.length, null));
+      container.insertAdjacentHTML('beforeend', menuBarChoiceRowHtml(ownerKey, container.children.length, null, expandedSet));
       wireRemoveButtons();
     });
     function wireRemoveButtons() {
@@ -2516,6 +2534,21 @@
       });
       onChange(DspfWriter.setMenubarChoices(keywords, choices));
     });
+    // Task I-34: per-choice Conditioning toggle, commits immediately via
+    // DspfWriter.setMenubarChoiceConditions (id-keyed), independent of
+    // the batch "Apply menu-bar choices" button above - same "Conditioning
+    // commits immediately, other fields commit via Apply" split
+    // wireEntFldAtrEditor already uses.
+    var menuChoices = DspfWriter.getMenubarChoices(keywords);
+    document.querySelectorAll('.choice-row-block[data-choice-id]').forEach(function (block) {
+      var id = block.getAttribute('data-choice-id');
+      if (!id) return;
+      var existing = menuChoices.find(function (c) { return c.id === id; });
+      var condKey = ownerKey + '-mnubarchc-cond-' + id;
+      wireFlagRowConditioning(condKey, existing ? existing.conditions : [], function (newConditions) {
+        onChange(DspfWriter.setMenubarChoiceConditions(keywords, id, newConditions));
+      }, expandedSet, rerender);
+    });
   }
 
   /** MNUBARSEP - the menu-bar's own separator line. Same "enable checkbox
@@ -2523,7 +2556,7 @@
    *  own windowBorder panel) but a single separator character instead of 8
    *  border positions, and no *CHAR-less alternative for a bare Y default -
    *  real SDA's own screen always pairs the Y flag with its own field. */
-  function menuBarSeparatorHtml(keywords, ownerKey) {
+  function menuBarSeparatorHtml(keywords, ownerKey, expandedSet) {
     var sep = DspfWriter.getMenubarSeparator(keywords);
     var enabled = { color: !!sep.color, attrs: sep.attrs.length > 0, chars: !!sep.char };
     var html = '<div class="section-label">Menu-bar separator (MNUBARSEP)</div>';
@@ -2538,24 +2571,46 @@
     }).join('') + '</div>';
     html += '<label style="display:flex;align-items:center;gap:6px;margin:8px 0 6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-mnubarsep-char-on" ' + (enabled.chars ? 'checked' : '') + ' /> Separator character</label>';
     html += '<input type="text" maxlength="1" id="' + ownerKey + '-mnubarsep-char" value="' + escapeHtml(sep.char) + '" style="width:40px;" />';
+    // Task I-34: MNUBARSEP is documented "Option indicators are valid for
+    // this keyword" - reverse gap, no toggle existed before. Same single-
+    // instance kw-cond-toggle/kw-cond-body shape entFldAtrHtml uses.
+    var condSummary = sep.conditions.length > 0 ? ' (' + sep.conditions.length + ')' : '';
+    var condExpanded = !!(expandedSet && expandedSet.has(ownerKey + '-mnubarsep:cond'));
+    html += '<span class="kw-cond-toggle" data-flag-id="' + ownerKey + '-mnubarsep" style="display:inline-block;margin:8px 0 0;">Conditioning' + condSummary + (condExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+    if (condExpanded) {
+      html += '<div class="kw-cond-body">' + conditionsEditorHtml(sep.conditions, ownerKey + '-mnubarsep-cond', expandedSet) + '</div>';
+    }
     html += '<button class="secondary ' + ownerKey + '-mnubarsep-apply" style="width:100%;margin-top:8px;">Apply separator</button>';
     return html;
   }
 
-  function wireMenuBarSeparatorEditor(keywords, onChange, ownerKey) {
+  function wireMenuBarSeparatorEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
     var applyBtn = document.querySelector('.' + ownerKey + '-mnubarsep-apply');
-    if (!applyBtn) return;
-    applyBtn.addEventListener('click', function () {
-      var attrs = Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-mnubarsep-attr:checked')).map(function (el) { return el.value; });
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function () {
+        var attrs = Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-mnubarsep-attr:checked')).map(function (el) { return el.value; });
+        onChange(DspfWriter.setMenubarSeparator(keywords, {
+          colorEnabled: document.getElementById(ownerKey + '-mnubarsep-color-on').checked,
+          color: document.getElementById(ownerKey + '-mnubarsep-color').value,
+          attrsEnabled: document.getElementById(ownerKey + '-mnubarsep-attrs-on').checked,
+          attrs: attrs,
+          charEnabled: document.getElementById(ownerKey + '-mnubarsep-char-on').checked,
+          char: document.getElementById(ownerKey + '-mnubarsep-char').value,
+        }));
+      });
+    }
+    // Task I-34: Conditioning commits immediately (id-less - MNUBARSEP is
+    // a single instance), independent of the "Apply separator" button
+    // above - same split wireEntFldAtrEditor uses.
+    wireFlagRowConditioning(ownerKey + '-mnubarsep', DspfWriter.getMenubarSeparator(keywords).conditions, function (newConditions) {
+      var current = DspfWriter.getMenubarSeparator(keywords);
       onChange(DspfWriter.setMenubarSeparator(keywords, {
-        colorEnabled: document.getElementById(ownerKey + '-mnubarsep-color-on').checked,
-        color: document.getElementById(ownerKey + '-mnubarsep-color').value,
-        attrsEnabled: document.getElementById(ownerKey + '-mnubarsep-attrs-on').checked,
-        attrs: attrs,
-        charEnabled: document.getElementById(ownerKey + '-mnubarsep-char-on').checked,
-        char: document.getElementById(ownerKey + '-mnubarsep-char').value,
+        colorEnabled: !!current.color, color: current.color,
+        attrsEnabled: current.attrs.length > 0, attrs: current.attrs,
+        charEnabled: !!current.char, char: current.char,
+        conditions: newConditions,
       }));
-    });
+    }, expandedSet, rerender);
   }
 
   // The *param flags real SDA's "Define Choice Selection Type" screen
@@ -2570,10 +2625,18 @@
     { name: 'autoent', label: 'Auto-enter', options: [['', '(not specified)'], ['*AUTOENT', 'Enable auto-enter on all display'], ['*NOAUTOENT', 'No auto-enter'], ['*AUTOENTNN', 'Only with no numeric selection']] },
   ];
 
+  /** Task I-34: IBM's MLTCHCFLD format string has no *AUTOSLT/*AUTOENT
+   *  family at all - those two radio groups exist ONLY on SNGCHCFLD.
+   *  Mirrors DspfWriter.SNGCHCFLD_ONLY_FLAGS' own group names. */
+  var SNGCHCFLD_ONLY_GROUPS = { autoslt: true, autoent: true };
+
   /** SNGCHCFLD/MLTCHCFLD - marks a field as a single- or multiple-choice
    *  selection field and its own *param behavior flags. This is the entry
    *  point for the other choice panels below (choiceKeywordsListHtml/
-   *  choiceColorStatesHtml only make sense once a field IS one of these). */
+   *  choiceColorStatesHtml only make sense once a field IS one of these).
+   *  No Conditioning toggle here (and correctly so): IBM's own SNGCHCFLD/
+   *  MLTCHCFLD reference text states "Option indicators are not valid for
+   *  this keyword" for both. */
   function choiceSelectionTypeHtml(keywords, ownerKey) {
     var state = DspfWriter.getChoiceSelectionType(keywords);
     var html = '<div class="section-label">Choice selection type</div>';
@@ -2583,6 +2646,12 @@
         return '<option value="' + k + '"' + (state.kind === k ? ' selected' : '') + '>' + label + '</option>';
       }).join('') + '</select></div>';
     CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
+      // Task I-34: *AUTOSLT/*AUTOENT only exist on SNGCHCFLD's own format
+      // string - don't even render the group when the field is MLTCHCFLD
+      // (or not yet a choice field), so there's nothing stale left in the
+      // DOM for wireChoiceSelectionTypeEditor's own kind-based guard to
+      // have to filter out.
+      if (state.kind !== 'SNGCHCFLD' && SNGCHCFLD_ONLY_GROUPS[group.name]) return;
       var current = group.options.map(function (o) { return o[0]; }).find(function (v) { return v !== '' && state.flags.indexOf(v) >= 0; }) || '';
       html += '<div class="field-row"><label>' + escapeHtml(group.label) + '</label><select class="' + ownerKey + '-cst-' + group.name + '">' +
         group.options.map(function (opt) {
@@ -2602,13 +2671,20 @@
     var applyBtn = document.querySelector('.' + ownerKey + '-cst-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
+      var kind = document.getElementById(ownerKey + '-cst-kind').value;
       var flags = [];
       CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
+        // Task I-34: re-check kind here too, not just by omitting the
+        // <select> from the rendered HTML above - if the Type dropdown
+        // is switched away from SNGCHCFLD client-side without a full
+        // rerender in between, a stale autoslt/autoent <select> left
+        // over from the PREVIOUS render could otherwise still be read.
+        if (kind !== 'SNGCHCFLD' && SNGCHCFLD_ONLY_GROUPS[group.name]) return;
         var sel = document.querySelector('.' + ownerKey + '-cst-' + group.name);
         if (sel && sel.value) flags.push(sel.value);
       });
       onChange(DspfWriter.setChoiceSelectionType(keywords, {
-        kind: document.getElementById(ownerKey + '-cst-kind').value,
+        kind: kind,
         flags: flags,
         numCol: document.getElementById(ownerKey + '-cst-numcol').value,
         numRow: document.getElementById(ownerKey + '-cst-numrow').value,
@@ -2624,7 +2700,7 @@
    *  "Define Choice Keywords" screen which prompts for all three under one
    *  choice-number header). Rows commit together via one Apply, same
    *  batch-edit pattern as menuBarChoicesHtml. */
-  function choiceKeywordsListHtml(keywords, ownerKey) {
+  function choiceKeywordsListHtml(keywords, ownerKey, expandedSet) {
     var choices = DspfWriter.getChoices(keywords);
     var controls = DspfWriter.getChoiceControls(keywords);
     var accelerators = DspfWriter.getChoiceAccelerators(keywords);
@@ -2633,23 +2709,24 @@
     controls.forEach(function (c) { ids[c.id] = true; });
     accelerators.forEach(function (c) { ids[c.id] = true; });
     var merged = Object.keys(ids).sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); }).map(function (id) {
-      var choice = choices.find(function (c) { return c.id === id; }) || { text: '' };
+      var choice = choices.find(function (c) { return c.id === id; }) || { text: '', spaceBefore: false, conditions: [] };
       var control = controls.find(function (c) { return c.id === id; }) || { controlField: '', messageId: '', messageFile: '', library: '' };
       var accel = accelerators.find(function (c) { return c.id === id; }) || { text: '' };
-      return { id: id, text: choice.text, controlField: control.controlField, messageId: control.messageId, messageFile: control.messageFile, library: control.library, accelText: accel.text };
+      return { id: id, text: choice.text, spaceBefore: choice.spaceBefore, controlField: control.controlField, messageId: control.messageId, messageFile: control.messageFile, library: control.library, accelText: accel.text, conditions: choice.conditions || [] };
     });
     var html = '<div class="section-label">Choice keywords (CHOICE / CHCCTL / CHCACCEL)</div>';
     html += '<div id="' + ownerKey + '-choicekw-rows">';
-    merged.forEach(function (c, idx) { html += choiceKeywordRowHtml(ownerKey, idx, c); });
+    merged.forEach(function (c, idx) { html += choiceKeywordRowHtml(ownerKey, idx, c, expandedSet); });
     html += '</div>';
     html += '<button class="secondary ' + ownerKey + '-choicekw-add" style="width:100%;margin-top:6px;">+ Add choice</button>';
     html += '<button class="' + ownerKey + '-choicekw-apply" style="width:100%;margin-top:6px;">Apply choice keywords</button>';
     return html;
   }
 
-  function choiceKeywordRowHtml(ownerKey, idx, c) {
-    c = c || { id: '', text: '', controlField: '', messageId: '', messageFile: '', library: '', accelText: '' };
-    var row = '<div class="choice-row-block" data-idx="' + idx + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
+  function choiceKeywordRowHtml(ownerKey, idx, c, expandedSet) {
+    c = c || { id: '', text: '', spaceBefore: false, controlField: '', messageId: '', messageFile: '', library: '', accelText: '', conditions: [] };
+    var conditions = c.conditions || [];
+    var row = '<div class="choice-row-block" data-idx="' + idx + '" data-choice-id="' + escapeHtml(c.id) + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
     row += '<div class="choice-row">' +
       '<input type="text" class="' + ownerKey + '-choicekw-id" placeholder="#" maxlength="3" value="' + escapeHtml(c.id) + '" style="width:36px;" />' +
       '<input type="text" class="' + ownerKey + '-choicekw-text" placeholder="choice text (CHOICE)" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
@@ -2664,17 +2741,35 @@
       '<input type="text" class="' + ownerKey + '-choicekw-msgfile" placeholder="message file" value="' + escapeHtml(c.messageFile) + '" />' +
       '</div>';
     row += '<input type="text" class="' + ownerKey + '-choicekw-lib" placeholder="library (optional)" value="' + escapeHtml(c.library) + '" style="width:100%;margin-top:6px;" />';
+    // Task I-34: *SPACEB - CHOICE's own optional trailing flag ("insert a
+    // blank space/line before this choice"), previously unmodeled.
+    row += '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;"><input type="checkbox" class="' + ownerKey + '-choicekw-spaceb" ' + (c.spaceBefore ? 'checked' : '') + ' /> Insert blank before this choice (*SPACEB)</label>';
+    // Task I-34: CHOICE is documented "Option indicators are valid for
+    // this keyword" - a per-choice Conditioning toggle, same kw-cond-
+    // toggle/kw-cond-body markup menuBarChoiceRowHtml's own per-instance
+    // toggle uses, keyed by choice-id (not idx) since setChoiceConditions
+    // targets the CHOICE keyword by choice-number, not ordinal position -
+    // only rendered once the row has a real id.
+    if (c.id) {
+      var condKey = ownerKey + '-choicekw-cond-' + c.id;
+      var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
+      var condExpanded = !!(expandedSet && expandedSet.has(condKey + ':cond'));
+      row += '<span class="kw-cond-toggle" data-flag-id="' + condKey + '" style="display:inline-block;margin-top:6px;">Conditioning' + condSummary + (condExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      if (condExpanded) {
+        row += '<div class="kw-cond-body">' + conditionsEditorHtml(conditions, condKey + '-cond', expandedSet) + '</div>';
+      }
+    }
     row += '</div>';
     return row;
   }
 
-  function wireChoiceKeywordsListEditor(keywords, onChange, ownerKey) {
+  function wireChoiceKeywordsListEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
     var container = document.getElementById(ownerKey + '-choicekw-rows');
     if (!container) return;
     var addBtn = document.querySelector('.' + ownerKey + '-choicekw-add');
     var applyBtn = document.querySelector('.' + ownerKey + '-choicekw-apply');
     if (addBtn) addBtn.addEventListener('click', function () {
-      container.insertAdjacentHTML('beforeend', choiceKeywordRowHtml(ownerKey, container.children.length, null));
+      container.insertAdjacentHTML('beforeend', choiceKeywordRowHtml(ownerKey, container.children.length, null, expandedSet));
       wireRemoveButtons();
     });
     function wireRemoveButtons() {
@@ -2688,7 +2783,8 @@
       var choices = [], controls = [], accelerators = [];
       rows.forEach(function (row) {
         var id = row.querySelector('.' + ownerKey + '-choicekw-id').value;
-        choices.push({ id: id, text: row.querySelector('.' + ownerKey + '-choicekw-text').value });
+        var spacebEl = row.querySelector('.' + ownerKey + '-choicekw-spaceb');
+        choices.push({ id: id, text: row.querySelector('.' + ownerKey + '-choicekw-text').value, spaceBefore: !!(spacebEl && spacebEl.checked) });
         controls.push({
           id: id,
           controlField: row.querySelector('.' + ownerKey + '-choicekw-ctrl').value,
@@ -2702,6 +2798,20 @@
       next = DspfWriter.setChoiceControls(next, controls);
       next = DspfWriter.setChoiceAccelerators(next, accelerators);
       onChange(next);
+    });
+    // Task I-34: per-choice Conditioning toggle, commits immediately via
+    // DspfWriter.setChoiceConditions (id-keyed), independent of the batch
+    // "Apply choice keywords" button above - same split wireEntFldAtrEditor
+    // already uses.
+    var choiceList = DspfWriter.getChoices(keywords);
+    document.querySelectorAll('.choice-row-block[data-choice-id]').forEach(function (block) {
+      var id = block.getAttribute('data-choice-id');
+      if (!id) return;
+      var existing = choiceList.find(function (c) { return c.id === id; });
+      var condKey = ownerKey + '-choicekw-cond-' + id;
+      wireFlagRowConditioning(condKey, existing ? existing.conditions : [], function (newConditions) {
+        onChange(DspfWriter.setChoiceConditions(keywords, id, newConditions));
+      }, expandedSet, rerender);
     });
   }
 
@@ -2718,7 +2828,7 @@
    *  states a choice field's entries can be shown in (see DspfWriter's own
    *  getChoiceColorState doc comment). Three independent enable-checkbox +
    *  color + attrs groups side by side, one shared Apply. */
-  function choiceColorStatesHtml(keywords, ownerKey) {
+  function choiceColorStatesHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label">Choice colors &amp; attributes</div>';
     CHOICE_COLOR_STATES.forEach(function (state) {
       var current = DspfWriter.getChoiceColorState(keywords, state.keyword);
@@ -2732,24 +2842,48 @@
         var checked = current.attrs.indexOf(a) >= 0;
         return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-ccs-' + state.key + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
       }).join('') + '</div>';
+      // Task I-34: CHCAVAIL/CHCUNAVAIL/CHCSLT are each documented "Option
+      // indicators are valid for this keyword" - getChoiceColorState/
+      // setChoiceColorState already carry a `conditions` field (added
+      // during I-3's ENTFLDATR fix, since they share the same generic
+      // function), but no panel ever rendered a toggle for THESE three
+      // callers until now - a reverse gap same shape as ENTFLDATR's own.
+      var condId = ownerKey + '-ccs-' + state.key;
+      var condSummary = current.conditions.length > 0 ? ' (' + current.conditions.length + ')' : '';
+      var condExpanded = !!(expandedSet && expandedSet.has(condId + ':cond'));
+      html += '<span class="kw-cond-toggle" data-flag-id="' + condId + '" style="display:inline-block;margin-top:4px;">Conditioning' + condSummary + (condExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      if (condExpanded) {
+        html += '<div class="kw-cond-body">' + conditionsEditorHtml(current.conditions, condId + '-cond', expandedSet) + '</div>';
+      }
       html += '</div>';
     });
     html += '<button class="secondary ' + ownerKey + '-ccs-apply" style="width:100%;margin-top:6px;">Apply choice colors &amp; attributes</button>';
     return html;
   }
 
-  function wireChoiceColorStatesEditor(keywords, onChange, ownerKey) {
+  function wireChoiceColorStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
     var applyBtn = document.querySelector('.' + ownerKey + '-ccs-apply');
-    if (!applyBtn) return;
-    applyBtn.addEventListener('click', function () {
-      var next = keywords;
-      CHOICE_COLOR_STATES.forEach(function (state) {
-        var on = document.getElementById(ownerKey + '-ccs-' + state.key + '-on').checked;
-        var color = on ? document.getElementById(ownerKey + '-ccs-' + state.key + '-color').value : '';
-        var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-ccs-' + state.key + '-attr:checked')).map(function (el) { return el.value; }) : [];
-        next = DspfWriter.setChoiceColorState(next, state.keyword, color, attrs);
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function () {
+        var next = keywords;
+        CHOICE_COLOR_STATES.forEach(function (state) {
+          var on = document.getElementById(ownerKey + '-ccs-' + state.key + '-on').checked;
+          var color = on ? document.getElementById(ownerKey + '-ccs-' + state.key + '-color').value : '';
+          var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-ccs-' + state.key + '-attr:checked')).map(function (el) { return el.value; }) : [];
+          next = DspfWriter.setChoiceColorState(next, state.keyword, color, attrs);
+        });
+        onChange(next);
       });
-      onChange(next);
+    }
+    // Task I-34: Conditioning commits immediately per state, independent
+    // of the shared Apply button above - same split wireEntFldAtrEditor
+    // already uses.
+    CHOICE_COLOR_STATES.forEach(function (state) {
+      var condId = ownerKey + '-ccs-' + state.key;
+      wireFlagRowConditioning(condId, DspfWriter.getChoiceColorState(keywords, state.keyword).conditions, function (newConditions) {
+        var current = DspfWriter.getChoiceColorState(keywords, state.keyword);
+        onChange(DspfWriter.setChoiceColorState(keywords, state.keyword, current.color, current.attrs, newConditions));
+      }, expandedSet, rerender);
     });
   }
 
