@@ -71,7 +71,7 @@ console.log('\nWebviewClientHelpers.fieldKeywordCategoryVisibility() - D2 usage-
   check('validityAndErrorMessage hidden for Both + float', vis('B', 'F').validityAndErrorMessage === false);
   check('validityAndErrorMessage still visible for Input + non-float (A)', vis('I', 'A').validityAndErrorMessage === true);
 
-  console.log('  Unrecognized/blank usage (M, P, undefined) fails OPEN - never hides a category SDA\'s own table never covers');
+  console.log('  Genuinely blank/unset usage (no position-38 entry yet) still fails OPEN - not one of IBM\'s six defined codes to look up a fixed list for');
   const blank = vis('', 'A');
   check('blank usage: colorAndAttributes stays visible', blank.colorAndAttributes === true);
   check('blank usage: keyingOptions stays visible', blank.keyingOptions === true);
@@ -82,12 +82,29 @@ console.log('\nWebviewClientHelpers.fieldKeywordCategoryVisibility() - D2 usage-
   const undef = vis(undefined, undefined);
   check('undefined usage/dataType: colorAndAttributes stays visible (constants have no usage of their own)', undef.colorAndAttributes === true);
   check('undefined usage/dataType: generalKeywords always visible', undef.generalKeywords === true);
+
+  console.log('  Task I-35: Usage M/P no longer fail open - IBM documents a fixed, much SMALLER keyword list for both than any other usage, so every category except General Keywords/Database reference is now hidden outright');
   const m = vis('M', 'A');
-  check('usage M: colorAndAttributes stays visible (not Hidden)', m.colorAndAttributes === true);
-  check('usage M: messageId stays visible (unrecognized usage fails open)', m.messageId === true);
+  check('usage M: colorAndAttributes hidden (not on M\'s own fixed keyword list)', m.colorAndAttributes === false);
+  check('usage M: keyingOptions hidden', m.keyingOptions === false);
+  check('usage M: validityAndErrorMessage hidden', m.validityAndErrorMessage === false);
+  check('usage M: errorMessages hidden', m.errorMessages === false);
+  check('usage M: inputKeywords hidden', m.inputKeywords === false);
+  check('usage M: generalKeywords stays visible (ALIAS/INDTXT/OVRDTA/TEXT are on M\'s own list)', m.generalKeywords === true);
+  check('usage M: databaseReference stays visible (REFFLD is on M\'s own list)', m.databaseReference === true);
+  check('usage M: messageId hidden (MSGID is not on M\'s own list)', m.messageId === false);
+  check('usage M: editingKeywords hidden', m.editingKeywords === false);
+
   const p = vis('P', 'A');
-  check('usage P: colorAndAttributes stays visible (not Hidden)', p.colorAndAttributes === true);
-  check('usage P: keyingOptions stays visible (unrecognized usage fails open)', p.keyingOptions === true);
+  check('usage P: colorAndAttributes hidden (not on P\'s own fixed keyword list)', p.colorAndAttributes === false);
+  check('usage P: keyingOptions hidden', p.keyingOptions === false);
+  check('usage P: validityAndErrorMessage hidden', p.validityAndErrorMessage === false);
+  check('usage P: errorMessages hidden', p.errorMessages === false);
+  check('usage P: inputKeywords hidden', p.inputKeywords === false);
+  check('usage P: generalKeywords stays visible (ALIAS/INDTXT/TEXT are on P\'s own list)', p.generalKeywords === true);
+  check('usage P: databaseReference stays visible (REFFLD is on P\'s own list)', p.databaseReference === true);
+  check('usage P: messageId hidden', p.messageId === false);
+  check('usage P: editingKeywords hidden', p.editingKeywords === false);
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));

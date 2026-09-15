@@ -1830,22 +1830,51 @@
   // Deliberately gates only VISIBILITY, never deletes a keyword a field
   // already carries just because its Usage changed - an already-set
   // keyword from a now-inapplicable category stays intact and editable via
-  // the raw Keywords tab, which is never gated. M/P (Message text/Program-
-  // to-system) usages and any blank/unrecognized usage fail OPEN (treated
-  // as "show everything") since SDA's own table never covers them and
-  // hiding a category the user might still need is worse than an extra one
-  // they can ignore. Error messages is tied to Validity check's own gate
-  // here (both live in the same combined validityAndEditHtml panel) rather
-  // than getting its own Input-or-Both-plus-Output rule split out - an
-  // error message without an associated validity check to fail has nothing
-  // to report, so this is a deliberate scoping choice, not an oversight.
+  // the raw Keywords tab, which is never gated.
+  // Task I-35 - M (Message) and P (Program-to-system) usage USED to fail
+  // open here (show every category), on the reasoning that "SDA's own
+  // table never covers them" (real SDA's own screenshot table only has
+  // columns for O/I/B/H). That reasoning doesn't hold up against IBM's
+  // own DDS Reference, which is far MORE restrictive for M/P than any
+  // other usage, not less: M's own section states "Only the following
+  // keywords are valid for a message field: ALIAS, INDTXT, OVRDTA,
+  // REFFLD, TEXT" and P's own section states "The only keywords allowed
+  // on a program-to-system field are: ALIAS, TEXT, INDTXT, REFFLD" (no
+  // OVRDTA) - five and four keywords respectively, nothing else, not even
+  // DSPATR/COLOR/CHECK/DUP/MSGID/EDTCDE. Failing open for M/P was backwards
+  // - every category below EXCEPT General Keywords and Database Reference
+  // is now hidden outright for M/P, and those two remaining categories
+  // still need keyword-level filtering of their own (neither is a "some of
+  // this category" match - GENERAL_FIELD_KEYWORD_ROWS's own new mpScope
+  // column and referenceOverridesHtml's own new usage param, both below,
+  // handle that finer grain this category-level function can't express).
+  // Genuinely blank/unset usage (no DDS position-38 entry, which is
+  // Output-only per IBM's own default) is NOT the same case as M/P and
+  // keeps the old fail-open posture below it - unset usage on a field
+  // still being drafted isn't one of IBM's six defined codes to look up a
+  // fixed list for, unlike M/P which A) have both a code AND a fixed list.
   // -----------------------------------------------------------------------
   function fieldKeywordCategoryVisibility(usage, dataType) {
     var u = usage || '';
+    if (u === 'M' || u === 'P') {
+      return {
+        colorAndAttributes: false,
+        keyingOptions: false,
+        validityAndErrorMessage: false,
+        errorMessages: false,
+        inputKeywords: false,
+        generalKeywords: true,
+        databaseReference: true,
+        messageId: false,
+        editingKeywords: false,
+      };
+    }
     var isKnownUsage = u === 'H' || u === 'I' || u === 'O' || u === 'B';
     if (!isKnownUsage) {
-      // Blank (unset) or an unrecognized usage (M/P) - SDA's own table never
-      // covers these, so show every category rather than guessing wrong.
+      // Blank (unset) usage - not one of IBM's six defined codes yet (a
+      // field still being drafted), so show every category rather than
+      // guessing wrong. M/P are handled above, NOT here, now that I-35
+      // found IBM documents fixed keyword lists for both.
       return {
         colorAndAttributes: true,
         keyingOptions: true,
@@ -2216,11 +2245,23 @@
   // or 'constant' (HLPID's own text: "You use this CONSTANT field-level
   // keyword..." - the inverse gap, previously offered to named fields
   // too even though it's constant-only by definition).
+  // Task I-35 - the 7th element is each row's Usage M(essage)/
+  // P(rogram-to-system) applicability, per IBM's own fixed keyword lists
+  // for those two usages (see fieldKeywordCategoryVisibility's own I-35
+  // doc comment for the exact DDS Reference wording): 'all' (ALIAS/INDTXT/
+  // TEXT - valid for M AND P), 'msg-only' (OVRDTA - valid for M but NOT
+  // P, per M's own list including it and P's own list explicitly not),
+  // or 'none' (every other row here - DFT/DFTVAL/CNTFLD/FLDCSRPRG/HLPID/
+  // PUTRETAIN/OVRATR/CHRID/IGCALTTYP/NOCCSID are on neither usage's fixed
+  // list). Only consulted for M/P fields (generalFieldKeywordsHtml/
+  // wireGeneralFieldKeywordsEditor's own new `usage` filtering) - this
+  // category stays visible as a whole for every other usage, where all 14
+  // rows are already correctly gated by 'all'/'named'/'constant' above.
   var GENERAL_FIELD_KEYWORD_ROWS = [
-    ['alias', 'ALIAS', 'Alternative (long) name', true, 'all', false],
-    ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true, 'all', false],
-    ['dft', 'DFT', "e.g. 'N/A' (input-only)", true, 'all', false],
-    ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true, 'named', true],
+    ['alias', 'ALIAS', 'Alternative (long) name', true, 'all', false, 'all'],
+    ['indtxt', 'INDTXT', "e.g. 50 'Amount valid'", true, 'all', false, 'all'],
+    ['dft', 'DFT', "e.g. 'N/A' (input-only)", true, 'all', false, 'none'],
+    ['dftval', 'DFTVAL', "e.g. 'N/A' (output/both)", true, 'named', true, 'none'],
     // Bug fix (reported: "I don't find CNTFLD in right panel for selection"):
     // CNTFLD was entirely missing from this row list, so there was no way to
     // ADD or EDIT it from the properties panel at all - it could only exist
@@ -2241,7 +2282,7 @@
     // FLDCSRPRG rows above/below it) is field-semantics-only in real DDS -
     // this shared row list doesn't yet gate any of the three out for
     // constants, a pre-existing scope note, not something new here.
-    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, 'named', false],
+    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, 'named', false, 'none'],
     // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
     // a pure documentation keyword (no compiled/runtime effect at all,
     // per IBM's own DDS Reference - it's purely for people reading the
@@ -2253,15 +2294,15 @@
     // own mechanism (getFileFlagKeyword/setFileFlagKeyword) is uniformly
     // raw-text for every quoted keyword already in it, so TEXT matches
     // its neighbors instead of introducing a second convention here.
-    ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, 'all', false],
-    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false],
-    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, 'constant', false],
-    ['putretain', 'PUTRETAIN', 'Retain field on display', false, 'all', true],
-    ['ovrdta', 'OVRDTA', 'Override data', false, 'all', true],
-    ['ovratr', 'OVRATR', 'Override attributes', false, 'all', true],
-    ['chrid', 'CHRID', 'Translate characters', false, 'named', false],
-    ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false, 'named', false],
-    ['noccsid', 'NOCCSID', 'No coded character set id', false, 'all', false],
+    ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, 'all', false, 'all'],
+    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false, 'none'],
+    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, 'constant', false, 'none'],
+    ['putretain', 'PUTRETAIN', 'Retain field on display', false, 'all', true, 'none'],
+    ['ovrdta', 'OVRDTA', 'Override data', false, 'all', true, 'msg-only'],
+    ['ovratr', 'OVRATR', 'Override attributes', false, 'all', true, 'none'],
+    ['chrid', 'CHRID', 'Translate characters', false, 'named', false, 'none'],
+    ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false, 'named', false, 'none'],
+    ['noccsid', 'NOCCSID', 'No coded character set id', false, 'all', false, 'none'],
   ];
 
   // L81 - DFT/DFTVAL are the only two rows here subject to DDS's own
@@ -2274,9 +2315,16 @@
   function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5];
+      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6];
       if (scope === 'named' && isConstant) return;
       if (scope === 'constant' && !isConstant) return;
+      // Task I-35: Usage M/P each have a fixed, much smaller keyword list
+      // than every other usage (see fieldKeywordCategoryVisibility's own
+      // I-35 doc comment) - mpScope, unlike scope above, only ever
+      // NARROWS what's shown for M/P specifically; every other usage's
+      // own visibility is untouched by this check.
+      if (usage === 'M' && mpScope === 'none') return;
+      if (usage === 'P' && mpScope !== 'all') return;
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
@@ -2290,11 +2338,16 @@
     return html;
   }
 
-  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant) {
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage) {
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], scope = row[4], conditionable = row[5];
+      var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6];
       if (scope === 'named' && isConstant) return;
       if (scope === 'constant' && !isConstant) return;
+      // Task I-35 - see generalFieldKeywordsHtml's own I-35 comment above;
+      // must match its own skip logic exactly or a row could render (or
+      // fail to render) without a matching wire-up.
+      if (usage === 'M' && mpScope === 'none') return;
+      if (usage === 'P' && mpScope !== 'all') return;
       var id = ownerKey + '-gen-' + key;
       if (DFT_GROUP_KEYS[key]) {
         // L81 - guarded wiring (alert + revert, same idiom S36-4's own
@@ -2431,7 +2484,14 @@
     html += '<div class="field-row"><label>Library</label><input type="text" id="' + ownerKey + '-reffld-library" value="' + escapeHtml(state.library) + '" placeholder="*LIBL" /></div></div>';
     html += '<div class="hint-small">Field name is required whenever any of these is filled in (defaults to this field\u2019s own name if left blank) - or leave everything here blank, with just the checkbox above on, for a bare \u2018same-named field\u2019 reference.</div>';
     html += '</div>';
-    html += referenceOverridesHtml(field.keywords, ownerKey, expandedSet);
+    // Task I-35: DLTCHK/DLTEDT are NOT on Usage M/P's own fixed keyword
+    // lists (unlike REFFLD above, which IS - see
+    // fieldKeywordCategoryVisibility's own I-35 doc comment) - skipped
+    // for M/P fields specifically, matching wireDatabaseReferenceEditor's
+    // own matching skip just below.
+    if (field.usage !== 'M' && field.usage !== 'P') {
+      html += referenceOverridesHtml(field.keywords, ownerKey, expandedSet);
+    }
     return html;
   }
 
@@ -2485,7 +2545,12 @@
       if (el) el.addEventListener('change', commit);
     });
 
-    wireReferenceOverridesEditor(field.keywords, function (newKeywords) { onFieldChange({ keywords: newKeywords }); }, ownerKey, expandedSet, rerender);
+    // Task I-35: skip wiring DLTCHK/DLTEDT for M/P fields - matches
+    // databaseReferenceHtml's own matching skip (neither keyword is on
+    // Usage M/P's fixed list, so their rows are never rendered there).
+    if (field.usage !== 'M' && field.usage !== 'P') {
+      wireReferenceOverridesEditor(field.keywords, function (newKeywords) { onFieldChange({ keywords: newKeywords }); }, ownerKey, expandedSet, rerender);
+    }
   }
 
   // -----------------------------------------------------------------------

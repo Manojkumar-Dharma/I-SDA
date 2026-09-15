@@ -2043,7 +2043,7 @@ section below.)
 | **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | done (0.10.114) |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
 | **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | done (0.10.112) |
-| **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | claimed |
+| **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | fixed (v0.10.115) |
 
 ### I-30 — Character fields (base set)
 
@@ -2628,6 +2628,71 @@ absence of a toggle on the `CHCCTL`/`CHCACCEL` portions of a choice row;
 and the new `MNUBARSEP` toggle plus its conditions round-trip through
 `getMenubarSeparator`/`setMenubarSeparator`. Full suite green (4,163
 checks, `npm test` exit 0); `npx tsc -p . --noEmit` clean.
+
+---
+
+### I-35 — Usage `M` (Message) and `P` (Program-to-system) fail-open audit
+
+`fieldKeywordCategoryVisibility()` used to fail OPEN for Usage `M`/`P`
+(show every category), on the reasoning that real SDA's own "For Field
+Type" screenshot table never covers them. That reasoning doesn't hold
+up against IBM's own DDS Reference, read directly rather than relying
+on this doc's own earlier summary (which turned out to be incomplete
+for `P` - see below): IBM is far MORE restrictive for `M`/`P` than any
+other usage, not less.
+- `M`'s own section: *"Only the following keywords are valid for a
+  message field: ALIAS, INDTXT, OVRDTA, REFFLD, TEXT."*
+- `P`'s own section: *"The only keywords allowed on a program-to-system
+  field are: ALIAS, TEXT, INDTXT, REFFLD."* (no `OVRDTA`) - this doc's
+  own earlier intro summary said `P` was "restricted to `ALIAS`/`TEXT`
+  plus being named as a parameter elsewhere," omitting `INDTXT`/`REFFLD`
+  as directly-valid-on-the-field-itself keywords; corrected here.
+
+Fixed at three levels, since `M`/`P`'s combined 4-5 valid keywords are
+scattered across categories that otherwise bundle many more:
+1. **`fieldKeywordCategoryVisibility`** - every category is now hidden
+   outright for `M`/`P` except General Keywords and Database Reference
+   (the only two containing any valid `M`/`P` keyword at all). Genuinely
+   blank/unset usage (not one of IBM's six defined codes yet) is
+   unaffected - it keeps the old fail-open posture, a different case
+   from `M`/`P` which each have both a code AND a documented fixed list.
+2. **`GENERAL_FIELD_KEYWORD_ROWS`'s new `mpScope` column** - General
+   Keywords bundles 14 rows together; only `ALIAS`/`INDTXT`/`TEXT`
+   (valid for both `M` and `P`) and `OVRDTA` (valid for `M` only, per
+   `M`'s own list including it and `P`'s own list not) survive for
+   `M`/`P` - the other 10 rows (`DFT`/`DFTVAL`/`CNTFLD`/`FLDCSRPRG`/
+   `HLPID`/`PUTRETAIN`/`OVRATR`/`CHRID`/`IGCALTTYP`/`NOCCSID`) are
+   filtered out specifically for `M`/`P`, even though the category
+   itself stays visible. Wired into both `generalFieldKeywordsHtml` and
+   `wireGeneralFieldKeywordsEditor` (which needed a new `usage` param
+   threaded through from `buildWebviewTemplate.js`, since it previously
+   had no way to know the field's own usage at all).
+3. **`databaseReferenceHtml`/`wireDatabaseReferenceEditor`** - `REFFLD`
+   stays available for `M`/`P` (it's on both lists), but `DLTCHK`/
+   `DLTEDT` (bundled in the same panel via `referenceOverridesHtml`) are
+   skipped for `M`/`P` specifically, since neither is on either usage's
+   fixed list.
+
+**Related finding, not fixed by this task:** Usage `P` fields appear to
+have no reachable selection path in the UI at all. `dspfEngine.js`
+explicitly excludes `usage === 'P'` from canvas drawing (same treatment
+as Hidden), but the Hidden-fields tab (`hiddenFieldsSectionHtml`) only
+lists `usage === 'H'` - so a `P`-usage field can exist in the DDS source
+(hand-edited or otherwise imported) with no click-to-select path
+anywhere in iSDA's own UI to ever reach its properties panel and apply
+this task's own fix in practice. `M`-usage fields don't have this
+problem (not excluded from canvas drawing). Fixing this would mean a
+dedicated "Program-to-system fields" tab analogous to the Hidden one -
+a bigger, separate task, not attempted here. This task's own fix is
+still correct and tested directly against the row/panel-building
+functions themselves (see the test file below), independent of this
+separate reachability gap.
+
+Test: `src/test/i35UsageMpFailOpenAudit.test.js`, plus updated
+`src/test/fieldKeywordVisibility.test.js` (which had hard-coded the old,
+incorrect M/P fail-open behavior as the expected/correct one).
+
+**Fixed (v0.10.115).**
 
 ---
 
