@@ -3768,6 +3768,20 @@
     help += '<div class="two-col"><input type="text" id="fk-hlprcd-record" placeholder="Record format name" value="' + escapeHtml(hlprcdParts[0] || '') + '" />' +
       '<input type="text" id="fk-hlprcd-library" placeholder="Library (optional)" value="' + escapeHtml(hlprcdLibrary) + '" /></div>';
     help += '<input type="text" id="fk-hlprcd-file" placeholder="File name (optional, defaults to this file)" value="' + escapeHtml(hlprcdFile) + '" style="width:100%;margin-top:4px;" />';
+    // Task I-38: HLPDOC was entirely absent from iSDA (confirmed missing
+    // from I-1's own original file-level baseline, not something I-1/I-5
+    // already found and deferred). IBM's own format,
+    // HLPDOC(label document-name folder-name), has all three parts
+    // required (unlike HLPRCD's own optional library/file) - parsed/
+    // composed the same checkbox-plus-hand-split-parameters way HLPRCD
+    // just above already does, rather than a dedicated getter/setter.
+    // Option indicators ARE valid (unlike HLPFULL/HLPTITLE just above).
+    var hlpdoc = DspfWriter.getFileFlagKeyword(kw, 'HLPDOC');
+    var hlpdocParts = (hlpdoc.parameters || '').trim().split(/\s+/).filter(Boolean);
+    help += flagRowHtml('fk-hlpdoc', 'Help document (HLPDOC)', hlpdoc.present, undefined, undefined, hlpdoc.conditions, expandedSet);
+    help += '<input type="text" id="fk-hlpdoc-label" placeholder="Online help text label name" value="' + escapeHtml(hlpdocParts[0] || '') + '" style="width:100%;" />';
+    help += '<div class="two-col" style="margin-top:4px;"><input type="text" id="fk-hlpdoc-document" placeholder="Document name" value="' + escapeHtml(hlpdocParts[1] || '') + '" />' +
+      '<input type="text" id="fk-hlpdoc-folder" placeholder="Folder name" value="' + escapeHtml(hlpdocParts[2] || '') + '" /></div>';
     panels.help = help;
 
     // --- Display sizes (DSPSIZ) ---
@@ -4175,6 +4189,45 @@
     if (hlprcdLibraryEl) hlprcdLibraryEl.addEventListener('change', function () { commitHlprcd(); });
     if (hlprcdFileEl) hlprcdFileEl.addEventListener('change', function () { commitHlprcd(); });
     wireFlagRowConditioning('fk-hlprcd', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').conditions, commitHlprcd, expandedSet, rerender);
+
+    // Task I-38: HLPDOC - same "-on" checkbox drives presence regardless
+    // of whether the sub-fields are filled in yet" contract as HLPRCD's
+    // own commitHlprcd just above. All three parts (label/document/
+    // folder) are required by IBM's own format, so a still-incomplete
+    // set of fields is written as whatever's typed so far - same
+    // "caller's responsibility to fill it in properly, not this
+    // function's job to validate DDS-level required-ness" stance
+    // setFileTwoFieldKeyword and friends already take. Guarded (per
+    // hlpdocConflictReason) against HLPPNLGRP/HLPRTN already being
+    // present, same alertAndRevert idiom wireUsrdfnGuardedFlag uses
+    // elsewhere - only the "turning HLPDOC on" direction is guarded here;
+    // the reverse (blocking HLPPNLGRP/HLPRTN while HLPDOC is already on)
+    // is deferred, same "one direction built first" precedent
+    // sflChoiceListConflictReason's own doc comment documents.
+    var hlpdocOn = document.getElementById('fk-hlpdoc-on');
+    var hlpdocLabel = document.getElementById('fk-hlpdoc-label');
+    var hlpdocDocument = document.getElementById('fk-hlpdoc-document');
+    var hlpdocFolder = document.getElementById('fk-hlpdoc-folder');
+    function commitHlpdoc(conditions) {
+      if (hlpdocOn.checked) {
+        var reason = DspfWriter.hlpdocConflictReason('HLPDOC', getKeywords());
+        if (reason) {
+          window.alert(reason);
+          hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
+          return;
+        }
+      }
+      var label = (hlpdocLabel.value || '').trim();
+      var doc2 = (hlpdocDocument.value || '').trim();
+      var folder = (hlpdocFolder.value || '').trim();
+      var parts = [label, doc2, folder].filter(Boolean);
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPDOC', hlpdocOn.checked, parts.join(' '), undefined, conditions));
+    }
+    if (hlpdocOn) hlpdocOn.addEventListener('change', function () { commitHlpdoc(); });
+    if (hlpdocLabel) hlpdocLabel.addEventListener('change', function () { commitHlpdoc(); });
+    if (hlpdocDocument) hlpdocDocument.addEventListener('change', function () { commitHlpdoc(); });
+    if (hlpdocFolder) hlpdocFolder.addEventListener('change', function () { commitHlpdoc(); });
+    wireFlagRowConditioning('fk-hlpdoc', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').conditions, commitHlpdoc, expandedSet, rerender);
 
     // Display sizes
     var dspsizApply = document.getElementById('fk-dspsiz-apply');

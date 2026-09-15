@@ -89,6 +89,7 @@ keyword-name mentions anywhere in its section.
 | **I-4** | Parameter/sub-parameter completeness audit across all 39 | I-1 | done (0.10.87) |
 | **I-5** | Add confirmed-missing file-level keywords | I-1 | done (0.10.79) |
 | **I-6** | Resolve the `TEXT` file-level question | I-1 | done - removed (0.10.85) |
+| **I-38** | `HLPDOC` was missing from iSDA at the file level entirely | I-1 | done (0.10.116) |
 
 ### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
@@ -2772,21 +2773,78 @@ findings changed.
 
 **Fixed (v0.10.111).**
 
+### I-38 — `HLPDOC` was missing from iSDA at the file level entirely
+
+**Finding:** IBM's DDS Reference documents `HLPDOC` (Help Document) as a
+file- or help-specification-level keyword:
+
+```
+HLPDOC(online-help-information-text-label-name document-name folder-name)
+```
+
+all three parts required (unlike `HLPRCD`'s own optional
+`[[library/]file-name]`). Option indicators ARE valid. "You cannot
+specify `HLPDOC` with `HLPBDY`, `HLPPNLGRP`, or `HLPRTN`." iSDA had no
+`HLPDOC` support anywhere — not the checkbox, not the getter/setter, not
+even a line in this file. Traced back to I-1's own original 39-keyword
+file-level baseline: `HLPDOC` simply wasn't in it, and I-5's later
+5-keyword addition (`HLPRCD`, `MOUBTN`, `ROLLUP`/`ROLLDOWN`, `VALNUM`,
+`WRDWRAP`) didn't include it either — a genuine scope gap in I-1's audit,
+not something previously found and deferred.
+
+**Fixed (v0.10.116).** Added the file-level form only — reusing
+`getFileFlagKeyword`/`setFileFlagKeyword` with the 3 parts hand-composed
+client-side, the same "generic primitive + client-side parse/compose"
+choice I-5's own `HLPRCD` addition made, and the same "-on checkbox
+drives presence regardless of whether the sub-fields have anything typed
+yet" contract. Added a new `hlpdocConflictReason(keywordName, keywords)`
+in `dspfWriter.js`, checked bidirectionally: turning `HLPDOC` on while
+file-level `HLPPNLGRP` or `HLPRTN` is already present is blocked
+(`window.alert` + revert, the same `alertAndRevert` idiom I-8/I-11/I-13's
+own conflict checkers use), and vice versa. `HLPBDY` is
+help-specification-level only in this codebase (`applicationHelpFieldsHtml`'s
+own per-H-spec panel) — there is no file-level `HLPBDY` instance a
+file-level `HLPDOC` could ever conflict with, so that half of IBM's rule
+has nothing to check at this level.
+
+**Deliberately out of scope, left for a follow-up:** the
+help-specification-level form of `HLPDOC` (record-level, inside an H
+specification alongside `HLPARA`) — same "file-level only, H-spec-level
+deferred" precedent I-5's own `HLPRCD` entry already set for that
+keyword. The reverse conflict direction (blocking `HLPPNLGRP`/`HLPRTN`
+from turning on while `HLPDOC` is already present) is also not wired at
+their own checkbox commit sites yet — only `HLPDOC`'s own "turning on"
+direction is guarded — same "one direction built first" convention
+`sflChoiceListConflictReason`'s own doc comment documents elsewhere in
+this codebase.
+
+Regression coverage: `src/test/i38HlpdocFileLevel.test.js` (jsdom,
+exercises the real generated File Properties > Help panel — verified via
+`git stash` that it genuinely fails against pre-fix code, not just after
+the fix).
+
 ---
 
 ## On the horizon
 
 **Process note:** this section previously described I-31 through I-35 as
-upcoming work. All of I-1 through I-35, plus the two follow-up tasks
-I-36/I-37, are now done — see each phase's own summary table above (File-
-level, Record-level, Field-level) for per-task status and landing
-version. The text below was left stale after I-35 closed out; corrected
-here to log only what is genuinely still open, same kind of drift I-25's
-own section once had (caught and fixed in I-16).
+upcoming work. All of I-1 through I-37, plus the file-level `HLPDOC` gap
+found and fixed as I-38, are now done — see each phase's own summary
+table above (File-level, Record-level, Field-level) for per-task status
+and landing version. The text below was left stale after I-35 closed
+out; corrected here to log only what is genuinely still open, same kind
+of drift I-25's own section once had (caught and fixed in I-16).
 
 No I-series task is currently queued, claimed, or in progress. What
 remains is a set of real, sourced gaps individual tasks logged but
-deliberately did not fix (all still open as of v0.10.115):
+deliberately did not fix (all still open as of v0.10.116):
+
+- **From I-38 (file-level `HLPDOC`):** the help-specification-level form
+  of `HLPDOC` (inside an H specification, alongside `HLPARA`) isn't
+  modeled at all — file-level only was added. The reverse conflict
+  direction (blocking `HLPPNLGRP`/`HLPRTN` from turning on while
+  file-level `HLPDOC` is already present) also isn't wired at their own
+  checkbox commit sites yet.
 
 - **From I-30 (Character fields):** `CHKMSGID`'s missing validity-check
   dependency guard; `CHRID`/`IGCALTTYP`'s mutual-exclusion lists; `DUP`'s

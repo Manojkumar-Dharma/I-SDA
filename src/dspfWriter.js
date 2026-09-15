@@ -3144,6 +3144,48 @@
     return next;
   }
 
+  // Task I-38 (keywordFixes.md): HLPDOC was entirely absent from iSDA -
+  // confirmed missing from I-1's own original 39-keyword file-level
+  // baseline (I-5 later added 5 more confirmed-missing keywords, but
+  // HLPDOC wasn't among those 5 either - a gap in scope, not something
+  // previously found and deferred). IBM's own DDS Reference documents it
+  // as a file- OR help-specification-level keyword:
+  //   HLPDOC(online-help-information-text-label-name document-name
+  //          folder-name)
+  // all three parts required (no optional sub-parameter, unlike HLPRCD's
+  // own [[library/]file-name]). Option indicators ARE valid. "You cannot
+  // specify HLPDOC with HLPBDY, HLPPNLGRP, or HLPRTN." This task adds the
+  // FILE-level form only (reusing getFileFlagKeyword/setFileFlagKeyword,
+  // same "generic primitive + client-side parse/compose" choice I-5's own
+  // HLPRCD addition made) - the H-specification-level form is a separate,
+  // already-existing panel (applicationHelpFieldsHtml, HLPPNLGRP/HLPEXCLD/
+  // HLPBDY/HLPARA) outside this task's own scope, same "file-level only,
+  // H-spec-level deferred" precedent I-5's own HLPRCD entry already set.
+  //
+  // hlpdocConflictReason below checks HLPDOC against the two FILE-level
+  // keywords iSDA already models that IBM's own text forbids alongside it
+  // (HLPPNLGRP, HLPRTN) - HLPBDY is H-specification-level only in this
+  // codebase (applicationHelpFieldsHtml's own per-H-spec panel), so there
+  // is no file-level HLPBDY instance a file-level HLPDOC could ever
+  // conflict with; that half of IBM's rule has nothing to check at this
+  // level. Same alertAndRevert-bidirectional idiom I-8/I-11/I-13's own
+  // conflict checkers use, checked from BOTH directions (turning on
+  // HLPDOC while HLPPNLGRP/HLPRTN is already present, and vice versa) -
+  // see wireUsrdfnGuardedFlag's own callers in webviewClientHelpers.js
+  // for where each direction is wired.
+  function hlpdocConflictReason(keywordName, keywords) {
+    var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
+    if (keywordName === 'HLPDOC') {
+      if (present('HLPPNLGRP')) return 'HLPDOC cannot be specified in the same file as HLPPNLGRP (mutually exclusive per the DDS Reference).';
+      if (present('HLPRTN')) return 'HLPDOC cannot be specified in the same file as HLPRTN (mutually exclusive per the DDS Reference).';
+      return '';
+    }
+    if ((keywordName === 'HLPPNLGRP' || keywordName === 'HLPRTN') && present('HLPDOC')) {
+      return keywordName + ' cannot be specified in the same file as HLPDOC (mutually exclusive per the DDS Reference).';
+    }
+    return '';
+  }
+
   /**
    * Task I-2 (keywordFixes.md) - bug fix: there is no standalone PRTFILE
    * keyword in real DDS. IBM's DDS Reference documents the printer-file
@@ -6061,6 +6103,7 @@
     setFileHlpPnlGrpKeyword: setFileHlpPnlGrpKeyword,
     getFileHlpSchIdxKeyword: getFileHlpSchIdxKeyword,
     setFileHlpSchIdxKeyword: setFileHlpSchIdxKeyword,
+    hlpdocConflictReason: hlpdocConflictReason,
     getWdwBorder: getWdwBorder,
     setWdwBorder: setWdwBorder,
     getWindowParamsKeyword: getWindowParamsKeyword,
