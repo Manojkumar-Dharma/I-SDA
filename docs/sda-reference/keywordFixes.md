@@ -2776,19 +2776,39 @@ findings changed.
 
 ## On the horizon
 
-- I-31 through I-35 above are now unblocked - I-30 is done.
-- I-31 (Numeric fields) inherits `checkInstanceIsConditionable` and the
-  `GENERAL_FIELD_KEYWORD_ROWS` `conditionable` pattern I-30 established
-  - re-verify each against Numeric's own DDS Reference entries rather
-  than assuming Character's answers carry over unchanged (a keyword can
-  be conditionable for one usage/data-type combination and not another).
-- I-30's own logged-but-not-fixed findings (CHKMSGID's missing
-  validity-check dependency guard, CHRID's DUP mutual-exclusion and
-  usage restrictions, IGCALTTYP's mutex list, DUP's floating-point
-  restriction, and MSGID's position-dependent mandatory/forbidden
-  conditioning rule) are all real, sourced gaps worth their own
-  follow-up task once I-31 through I-35 close out.
-- `flagRowHtml`'s conditioning-eligibility mechanism (I-3) may be
-  generally useful for the field-level tasks above too — reuse it
-  rather than inventing a second mechanism, if it fits the field-level
-  panel code's shape as-is.
+**Process note:** this section previously described I-31 through I-35 as
+upcoming work. All of I-1 through I-35, plus the two follow-up tasks
+I-36/I-37, are now done — see each phase's own summary table above (File-
+level, Record-level, Field-level) for per-task status and landing
+version. The text below was left stale after I-35 closed out; corrected
+here to log only what is genuinely still open, same kind of drift I-25's
+own section once had (caught and fixed in I-16).
+
+No I-series task is currently queued, claimed, or in progress. What
+remains is a set of real, sourced gaps individual tasks logged but
+deliberately did not fix (all still open as of v0.10.115):
+
+- **From I-30 (Character fields):** `CHKMSGID`'s missing validity-check
+  dependency guard; `CHRID`/`IGCALTTYP`'s mutual-exclusion lists; `DUP`'s
+  floating-point restriction; `MSGID`'s position-dependent
+  mandatory/forbidden conditioning rule.
+- **From I-32 (Date/Time/Timestamp fields):** `REF`/`REFFLD` should copy
+  `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`/`TEXT`/`ALIAS`/`CCSID`/`FLTPCN`/
+  editing keywords from a referenced database field per the DDS
+  Reference, but iSDA's own REF-resolution flow only pulls
+  length/dataType/decimalPositions today.
+- **From I-35 (Usage M/P):** Usage `P` fields have no reachable selection
+  path anywhere in the current UI, so the fixed-keyword-list scoping
+  I-35 added for Usage `P` can't actually be exercised yet.
+- **From I-11/I-15/I-23:** whether SFLMSG's own General/Indicator
+  categories (reusing I-9's SFL set verbatim) deserve distinct
+  `KEYWORD-INDEX.json` categories of their own, rather than being
+  implicitly covered, is a genuine index-completeness question raised
+  during I-16 but not itself researched or resolved.
+- `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved
+  reusable for the field-level tasks (I-30 onward built on it directly)
+  — noting this held, in case a future series needs the same pattern
+  again.
+
+Any of the above is a reasonable next task to open (its own claim
+commit, its own `I-N`), but none is started.
