@@ -364,6 +364,13 @@ cat(fld_lvl, "Editing Keywords (numeric only)", "Numeric-field output editing.",
     kw("EDTMSK", "Edit mask", "'mask'"),
 ], screenshotDir="screens/field-level/numeric/editing-keywords")
 
+cat(fld_lvl, "Date/Time Fields", "DATFMT/DATSEP (date fields, data type L only) and TIMFMT/TIMSEP (time fields, data type T only) - Task I-32: entirely missing from this index before this task (and entirely unexposed in the UI itself, until I-32's own fix). Neither pair applies to timestamp (Z) fields, which have their own fixed standard format with no DATFMT/TIMFMT/DATSEP/TIMSEP customization at all. No screenshotDir: no dedicated real-SDA screen for these two keyword pairs exists anywhere under docs/sda-reference/screens/.", [
+    kw("DATFMT", "Date format (data type L only)", "*JOB | *MDY | *DMY | *YMD | *JUL | *ISO | *USA | *EUR | *JIS"),
+    kw("DATSEP", "Date separator (data type L only) - cannot be specified with a fixed-separator DATFMT (*ISO/*USA/*EUR/*JIS)", "*JOB | 'separator character'"),
+    kw("TIMFMT", "Time format (data type T only) - no *JOB value, unlike DATFMT", "*HMS | *ISO | *USA | *EUR | *JIS"),
+    kw("TIMSEP", "Time separator (data type T only) - cannot be specified with a fixed-separator TIMFMT (*ISO/*USA/*EUR/*JIS)", "*JOB | 'separator character'"),
+])
+
 cat(fld_lvl, "Constant field additions", "Keyword valid at constant-field level beyond the character-field base set.", [
     kw("HLPID", "Help ID for a constant field", "identifier"),
 ], screenshotDir="screens/field-level/constant/general")

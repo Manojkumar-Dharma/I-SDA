@@ -2,7 +2,7 @@
   "meta": {
     "title": "iSDA Keyword Index",
     "purpose": "Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.",
-    "generated": "2026-09-14",
+    "generated": "2026-09-15",
     "source_repo": "github.com/Manojkumar-Dharma/I-SDA",
     "notes": [
       "Extracted directly from src/webviewClientHelpers.js and src/dspfWriter.js (ground truth), cross-checked against docs/sda-reference/screens/* (real SDA reference screenshots) during the A1/A2 audit.",
@@ -15,8 +15,8 @@
       "Follow-up check (same session as I-16): file-level CLEAR/HOME/PAGEDOWN/PAGEUP/HELP/HLPRTN/VLDCMDKEY corrected to show their optional ['text'] sub-parameter (Task I-4, v0.10.87) - this index had never been updated for that fix either.",
       "Task I-30 (character fields, the first field-level task): corrected three field-level 'General' category entries against the actual code rather than an old snapshot - DSPATR's value list had two values (UH/RE) that don't exist anywhere in IBM's own DDS Reference (should be PR/OID, matching the code's own DSPATR_ATTRS constant exactly); CNTFLD's parameter was described as a field name but is actually a numeric column-width; DFTVAL was marked repeatable=True but the code deliberately implements it as a single conditionable occurrence, not a repeatable list. Also added TEXT (missing from this index entirely) and HLPID (missing from the Character category specifically - it already existed under 'Constant field additions'). As with I-16, this index still doesn't track conditioning eligibility (a 'valid/not valid for this keyword' fact per keyword) - I-30's own extensive conditioning-toggle fixes across Colors & Attributes/Keying Options/Validity Check/Input Keywords/General Keywords/Database Reference live in keywordFixes.md and the code itself, not here."
     ],
-    "totalCategories": 46,
-    "totalKeywordEntries": 202
+    "totalCategories": 47,
+    "totalKeywordEntries": 206
   },
   "levels": [
     {
@@ -1483,6 +1483,38 @@
               "keyword": "EDTMSK",
               "description": "Edit mask",
               "parameters": "'mask'",
+              "repeatable": false
+            }
+          ]
+        },
+        {
+          "category": "Date/Time Fields",
+          "description": "DATFMT/DATSEP (date fields, data type L only) and TIMFMT/TIMSEP (time fields, data type T only) - Task I-32: entirely missing from this index before this task (and entirely unexposed in the UI itself, until I-32's own fix). Neither pair applies to timestamp (Z) fields, which have their own fixed standard format with no DATFMT/TIMFMT/DATSEP/TIMSEP customization at all. No screenshotDir: no dedicated real-SDA screen for these two keyword pairs exists anywhere under docs/sda-reference/screens/.",
+          "sharedWith": [],
+          "screenshotDir": null,
+          "keywords": [
+            {
+              "keyword": "DATFMT",
+              "description": "Date format (data type L only)",
+              "parameters": "*JOB | *MDY | *DMY | *YMD | *JUL | *ISO | *USA | *EUR | *JIS",
+              "repeatable": false
+            },
+            {
+              "keyword": "DATSEP",
+              "description": "Date separator (data type L only) - cannot be specified with a fixed-separator DATFMT (*ISO/*USA/*EUR/*JIS)",
+              "parameters": "*JOB | 'separator character'",
+              "repeatable": false
+            },
+            {
+              "keyword": "TIMFMT",
+              "description": "Time format (data type T only) - no *JOB value, unlike DATFMT",
+              "parameters": "*HMS | *ISO | *USA | *EUR | *JIS",
+              "repeatable": false
+            },
+            {
+              "keyword": "TIMSEP",
+              "description": "Time separator (data type T only) - cannot be specified with a fixed-separator TIMFMT (*ISO/*USA/*EUR/*JIS)",
+              "parameters": "*JOB | 'separator character'",
               "repeatable": false
             }
           ]

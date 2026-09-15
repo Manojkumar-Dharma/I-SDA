@@ -1174,6 +1174,149 @@
   }
 
   // ---------------------------------------------------------------------
+  // I-32 - DATFMT/DATSEP (date fields, data type L only) and TIMFMT/
+  // TIMSEP (time fields, data type T only). Both pairs were entirely
+  // unexposed anywhere in iSDA before this task - DspfEngine.dateFieldLength
+  // already READ DATFMT (for display-width purposes) but nothing ever let
+  // the user set it, or DATSEP/TIMFMT/TIMSEP at all. Neither applies to
+  // timestamp (Z) fields - DATFMT's own text: "valid only for date fields
+  // (data type L)"; TIMFMT's own text: "valid for time fields (data type
+  // T)" - Z has its own fixed standard format
+  // (yyyy-mm-dd-hh.mm.ss.mmmmmm) with no DATFMT/TIMFMT/DATSEP/TIMSEP
+  // customization at all (confirmed: neither keyword's DDS Reference
+  // section, nor anywhere else in DDS_Keyword_V7r6.txt, ever mentions
+  // data type Z in connection with either pair).
+  //
+  // Each pair is single-instance (not repeatable) and option-indicator-
+  // free by its own text ("Option indicators are not valid for this
+  // keyword, although option indicators can be used to condition the
+  // field for which it is specified" - i.e. the field itself can be
+  // conditioned into/out of existence, but the keyword's OWN value can't
+  // vary by indicator) - same shape as EDTMSK before it, so these follow
+  // getEditMask/setEditMask's own pattern directly.
+  // ---------------------------------------------------------------------
+
+  var FIXED_SEPARATOR_DATE_FORMATS = ['*ISO', '*USA', '*EUR', '*JIS'];
+  var FIXED_SEPARATOR_TIME_FORMATS = ['*ISO', '*USA', '*EUR', '*JIS'];
+
+  /** DATFMT's own parameter is a bare special value (e.g. "*JUL") with no
+   *  quoting - unlike DATSEP/TIMSEP below, there's no free text to parse
+   *  here, so this is a direct read/write of the parameter string. */
+  function getDateFormat(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'DATFMT'; });
+    return k ? (k.parameters || '') : '';
+  }
+
+  /** Returns a NEW keywords array with any existing DATFMT removed and,
+   *  if `format` is non-empty, one new DATFMT keyword added with it
+   *  (e.g. "*JUL") as its bare, unquoted parameter. */
+  function setDateFormat(keywords, format) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'DATFMT'; });
+    if (format) next = next.concat([{ name: 'DATFMT', parameters: format, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** Parses DATSEP/TIMSEP's shared `*JOB | 'separator-char'` grammar into
+   *  the bare display value a <select> can hold: '' (not specified),
+   *  '*JOB', or the single unquoted separator character. Unrecognized raw
+   *  text (shouldn't occur from iSDA's own writer, but could from
+   *  hand-edited source) falls back to the raw text itself, same
+   *  unstructured-fallback posture as parseMsgConParams for its own
+   *  unparseable inputs. */
+  function parseSeparatorParam(raw) {
+    var t = (raw || '').trim();
+    if (!t) return '';
+    if (t.toUpperCase() === '*JOB') return '*JOB';
+    var m = t.match(/^'(.*)'$/);
+    if (m) return m[1];
+    return t;
+  }
+
+  /** Inverse of parseSeparatorParam - wraps a bare separator character in
+   *  the single quotes DATSEP/TIMSEP's grammar requires; leaves '*JOB'
+   *  and '' (not specified) unquoted. */
+  function formatSeparatorParam(value) {
+    var v = (value == null ? '' : value);
+    if (!v) return '';
+    if (v.toUpperCase() === '*JOB') return '*JOB';
+    return "'" + v + "'";
+  }
+
+  function getDateSeparator(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'DATSEP'; });
+    return k ? parseSeparatorParam(k.parameters) : '';
+  }
+
+  /** `value` is the bare display value (e.g. "-" or "*JOB"), NOT
+   *  pre-quoted - formatSeparatorParam handles quoting internally, unlike
+   *  setEditMask/setDateFormat above where the caller supplies the raw
+   *  DDS text directly. Returns a NEW keywords array with any existing
+   *  DATSEP removed and, if `value` is non-empty, one new DATSEP keyword
+   *  added. */
+  function setDateSeparator(keywords, value) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'DATSEP'; });
+    var formatted = formatSeparatorParam(value);
+    if (formatted) next = next.concat([{ name: 'DATSEP', parameters: formatted, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** DATFMT's own text states this as a hard restriction ("If you specify
+   *  the *ISO, *USA, *EUR, or *JIS value, you cannot specify the DATSEP
+   *  keyword. These date formats have fixed separators.") even though
+   *  DATSEP's own mirroring text softens it to "should not" - treated
+   *  here as enforced, matching this project's general posture of
+   *  blocking DDS that a real CRTDSPF compile would reject rather than
+   *  only warning. Returns a reason string if `dateFormat` has a fixed
+   *  separator, or null if DATSEP is fine to specify (including for a
+   *  blank/unspecified dateFormat, which defaults to *ISO per DATFMT's
+   *  own text but hasn't been explicitly chosen yet). */
+  function dateSeparatorConflictReason(dateFormat) {
+    if (FIXED_SEPARATOR_DATE_FORMATS.indexOf((dateFormat || '').toUpperCase()) !== -1) {
+      return 'DATSEP cannot be specified with DATFMT(' + dateFormat + ') - this format has a fixed date separator (per the DDS Reference).';
+    }
+    return null;
+  }
+
+  /** TIMFMT's own parameter is a bare special value (e.g. "*HMS"), same
+   *  shape as getDateFormat/setDateFormat above - no *JOB option exists
+   *  for TIMFMT itself (unlike DATFMT), confirmed by its own format table
+   *  in the DDS Reference never listing one. */
+  function getTimeFormat(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'TIMFMT'; });
+    return k ? (k.parameters || '') : '';
+  }
+
+  function setTimeFormat(keywords, format) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'TIMFMT'; });
+    if (format) next = next.concat([{ name: 'TIMFMT', parameters: format, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  function getTimeSeparator(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'TIMSEP'; });
+    return k ? parseSeparatorParam(k.parameters) : '';
+  }
+
+  function setTimeSeparator(keywords, value) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'TIMSEP'; });
+    var formatted = formatSeparatorParam(value);
+    if (formatted) next = next.concat([{ name: 'TIMSEP', parameters: formatted, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** TIMFMT's own text states the same hard restriction DATFMT does, word
+   *  for word in structure: "If you specify the time-format parameter
+   *  value as *ISO, *USA, *EUR, or *JIS, you cannot specify the TIMSEP
+   *  keyword. These formats have fixed separators." Enforced the same
+   *  way as dateSeparatorConflictReason above. */
+  function timeSeparatorConflictReason(timeFormat) {
+    if (FIXED_SEPARATOR_TIME_FORMATS.indexOf((timeFormat || '').toUpperCase()) !== -1) {
+      return 'TIMSEP cannot be specified with TIMFMT(' + timeFormat + ') - this format has a fixed time separator (per the DDS Reference).';
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------
   // CHKMSGID (Check Message Identifier): overrides the system-supplied
   // error message a validity check (CHECK(VN/VNE/M10/M11), CMP, COMP,
   // RANGE, or VALUES) issues when it rejects the field's data - real
@@ -5839,6 +5982,16 @@
     setEditMask: setEditMask,
     editMaskConflictReason: editMaskConflictReason,
     dateTimeUsageConflictReason: dateTimeUsageConflictReason,
+    getDateFormat: getDateFormat,
+    setDateFormat: setDateFormat,
+    getDateSeparator: getDateSeparator,
+    setDateSeparator: setDateSeparator,
+    dateSeparatorConflictReason: dateSeparatorConflictReason,
+    getTimeFormat: getTimeFormat,
+    setTimeFormat: setTimeFormat,
+    getTimeSeparator: getTimeSeparator,
+    setTimeSeparator: setTimeSeparator,
+    timeSeparatorConflictReason: timeSeparatorConflictReason,
     getCheckMsgId: getCheckMsgId,
     setCheckMsgId: setCheckMsgId,
     getErrorMessageInstances: getErrorMessageInstances,

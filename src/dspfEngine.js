@@ -214,18 +214,28 @@
     '*JUL': 6,
   };
 
-  function dateFieldLength(field, record, dspfFile) {
-    // DDS DATFMT precedence: field-level keyword, then record-level, then
-    // file-level, then the *ISO system default if none is specified
-    // anywhere - same precedence order already established for WINDOW's
-    // own SFLCTL/WINDOW keyword lookups elsewhere in this file.
+  // I-32 - DATFMT is documented as a field-level-only keyword: its own DDS
+  // Reference section states "You use this field-level keyword..." and it
+  // never appears in any file-level or record-level keyword list anywhere
+  // in DDS_Keyword_V7r6.txt (confirmed against the canonical
+  // KEYWORD-INDEX.json too - it lists DATFMT nowhere at either level).
+  // Fixed: the record-level/file-level DATFMT fallback this function used
+  // to check was dead code checking for something DDS has no mechanism to
+  // produce - removed, same "confirmed unreachable, removed" treatment
+  // I-31's own Finding 3 gave isNumericField's B/P arms. (REF/REFFLD DOES
+  // let a field's DATFMT/DATSEP/TIMFMT/TIMSEP - along with TEXT/ALIAS/
+  // CCSID/FLTPCN/editing keywords - come from a referenced DATABASE field,
+  // per "Reference for display files (position 29)"'s own keyword list -
+  // but that's the field's OWN keywords ending up on it via resolution,
+  // not a distinct record/file-level DATFMT lookup path. iSDA's own
+  // REF-resolution flow, extension.ts's handleResolveReferencedField, only
+  // pulls length/dataType/decimalPositions today, not any of these - out
+  // of I-32's own field-level-UI scope, logged in keywordFixes.md instead
+  // of fixed here.)
+  function dateFieldLength(field) {
     var fieldKw = (field.keywords || []).find(function (k) { return k.name === 'DATFMT'; });
     if (fieldKw) return datfmtLength(fieldKw.parameters);
-    var recordKw = record ? (record.keywords || []).find(function (k) { return k.name === 'DATFMT'; }) : null;
-    if (recordKw) return datfmtLength(recordKw.parameters);
-    var fileKw = dspfFile ? (dspfFile.fileKeywords || []).find(function (k) { return k.name === 'DATFMT'; }) : null;
-    if (fileKw) return datfmtLength(fileKw.parameters);
-    return DATFMT_LENGTHS['*ISO']; // unspecified anywhere defaults to *ISO
+    return DATFMT_LENGTHS['*ISO']; // unspecified defaults to *ISO
   }
 
   function datfmtLength(paramText) {
@@ -322,7 +332,7 @@
     var len = field.length || 0;
     var t = (field.dataType || '').toUpperCase();
     if (t === 'F') return len + 7;
-    if (t === 'L') return dateFieldLength(field, record, dspfFile); // honors DATFMT: field, then record, then file level
+    if (t === 'L') return dateFieldLength(field); // honors the field's own DATFMT (field-level only - see dateFieldLength's own doc comment)
     if (t === 'T') return 8; // every TIMFMT value is 8 chars, including the *ISO default - already exact
     if (t === 'Z') return 26;
     if (t === 'S' || t === 'N' || t === 'I' || t === '') {

@@ -381,7 +381,7 @@ console.log('date (L) field display length honors the field\'s own DATFMT keywor
   check('*JOB -> always reserves 10, even though it may display as fewer characters at runtime', lengthOf('JOBFLD') === 10);
 }
 
-console.log('date (L) field display length falls back to record-level, then file-level DATFMT');
+console.log('I-32: date (L) field display length ignores record-level/file-level DATFMT keywords (DATFMT is field-level-only per the DDS Reference; no cascading exists in real DDS - a prior session\u2019s "falls back to record-level, then file-level" behavior was fabricated and is fixed here)');
 {
   const src = [
     buildLine({ seq: '00005', func: 'DATFMT(*USA)' }),
@@ -394,11 +394,11 @@ console.log('date (L) field display length falls back to record-level, then file
   const model = DspfParser.parseDspf(src);
 
   const s1 = DspfEngine.resolveScreen(model, 'SCR1', new Set());
-  check('no field or record DATFMT -> inherits file-level *USA (10)', s1.fields.find((f) => f.name === 'FILEDFLT').length === 10);
+  check('no field DATFMT -> *ISO default (10), a file-level DATFMT keyword is NOT honored', s1.fields.find((f) => f.name === 'FILEDFLT').length === 10);
 
   const s2 = DspfEngine.resolveScreen(model, 'SCR2', new Set());
-  check('no field DATFMT, but record has one -> inherits record-level *MDY (8), NOT the file-level *USA', s2.fields.find((f) => f.name === 'RECDFLT').length === 8);
-  check('a field with its own DATFMT overrides the record-level one', s2.fields.find((f) => f.name === 'FLDOVER').length === 6);
+  check('no field DATFMT -> *ISO default (10), a record-level DATFMT keyword is NOT honored either', s2.fields.find((f) => f.name === 'RECDFLT').length === 10);
+  check('a field with its own DATFMT still works correctly, unaffected by this fix', s2.fields.find((f) => f.name === 'FLDOVER').length === 6);
 }
 
 console.log('time (T) field display length is always 8, unaffected by TIMFMT (already exact - regression check)');

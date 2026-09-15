@@ -1966,5 +1966,68 @@ console.log('\n' + 'I-33 - DspfWriter.parseMsgConParams()/formatMsgConParams() -
   check('formatMsgConParams with a blank message file writes nothing', DspfWriter.formatMsgConParams({ length: '50', msgId: 'MSG0001', msgFile: '' }) === '');
 }
 
+console.log('\n' + 'I-32 - DspfWriter.getDateFormat()/setDateFormat() - DATFMT (date fields, data type L only)');
+{
+  const withDatfmt = [{ name: 'DATFMT', parameters: '*JUL', conditions: [], sourceLines: [] }];
+  check('getDateFormat reads an existing DATFMT', DspfWriter.getDateFormat(withDatfmt) === '*JUL');
+  check('getDateFormat returns empty string when absent', DspfWriter.getDateFormat([]) === '');
+  const added = DspfWriter.setDateFormat([], '*EUR');
+  check('setDateFormat adds a new DATFMT with the bare, unquoted value', added.length === 1 && added[0].name === 'DATFMT' && added[0].parameters === '*EUR');
+  const replaced = DspfWriter.setDateFormat(withDatfmt, '*MDY');
+  check('setDateFormat replaces an existing DATFMT, not appends a second one', replaced.length === 1 && replaced[0].parameters === '*MDY');
+  const cleared = DspfWriter.setDateFormat(withDatfmt, '');
+  check('setDateFormat with a blank format removes DATFMT entirely', cleared.length === 0);
+}
+
+console.log('\n' + 'I-32 - DspfWriter.getDateSeparator()/setDateSeparator() - DATSEP (date fields only), and its shared parseSeparatorParam/formatSeparatorParam grammar with TIMSEP');
+{
+  const withQuotedSep = [{ name: 'DATSEP', parameters: "'-'", conditions: [], sourceLines: [] }];
+  check('getDateSeparator strips the quotes off a quoted separator', DspfWriter.getDateSeparator(withQuotedSep) === '-');
+  const withJobSep = [{ name: 'DATSEP', parameters: '*JOB', conditions: [], sourceLines: [] }];
+  check('getDateSeparator leaves *JOB unquoted/as-is', DspfWriter.getDateSeparator(withJobSep) === '*JOB');
+  check('getDateSeparator returns empty string when absent', DspfWriter.getDateSeparator([]) === '');
+  const addedSlash = DspfWriter.setDateSeparator([], '/');
+  check('setDateSeparator quotes a bare separator character when writing it', addedSlash.length === 1 && addedSlash[0].name === 'DATSEP' && addedSlash[0].parameters === "'/'");
+  const addedBlank = DspfWriter.setDateSeparator([], ' ');
+  check('setDateSeparator quotes a blank separator too (not treated as \u201cno value\u201d)', addedBlank.length === 1 && addedBlank[0].parameters === "' '");
+  const addedJob = DspfWriter.setDateSeparator([], '*JOB');
+  check('setDateSeparator writes *JOB unquoted', addedJob.length === 1 && addedJob[0].parameters === '*JOB');
+  const clearedSep = DspfWriter.setDateSeparator(withQuotedSep, '');
+  check('setDateSeparator with a blank value removes DATSEP entirely', clearedSep.length === 0);
+
+  check('dateSeparatorConflictReason blocks *ISO (fixed separator)', typeof DspfWriter.dateSeparatorConflictReason('*ISO') === 'string');
+  check('dateSeparatorConflictReason blocks *USA/*EUR/*JIS too', DspfWriter.dateSeparatorConflictReason('*USA') && DspfWriter.dateSeparatorConflictReason('*EUR') && DspfWriter.dateSeparatorConflictReason('*JIS'));
+  check('dateSeparatorConflictReason allows *MDY/*DMY/*YMD/*JUL/*JOB/blank (variable-separator formats)', !DspfWriter.dateSeparatorConflictReason('*MDY') && !DspfWriter.dateSeparatorConflictReason('*JUL') && !DspfWriter.dateSeparatorConflictReason('*JOB') && !DspfWriter.dateSeparatorConflictReason(''));
+}
+
+console.log('\n' + 'I-32 - DspfWriter.getTimeFormat()/setTimeFormat() - TIMFMT (time fields, data type T only - no *JOB value, unlike DATFMT)');
+{
+  const withTimfmt = [{ name: 'TIMFMT', parameters: '*HMS', conditions: [], sourceLines: [] }];
+  check('getTimeFormat reads an existing TIMFMT', DspfWriter.getTimeFormat(withTimfmt) === '*HMS');
+  check('getTimeFormat returns empty string when absent', DspfWriter.getTimeFormat([]) === '');
+  const addedT = DspfWriter.setTimeFormat([], '*EUR');
+  check('setTimeFormat adds a new TIMFMT with the bare, unquoted value', addedT.length === 1 && addedT[0].name === 'TIMFMT' && addedT[0].parameters === '*EUR');
+  const replacedT = DspfWriter.setTimeFormat(withTimfmt, '*USA');
+  check('setTimeFormat replaces an existing TIMFMT, not appends a second one', replacedT.length === 1 && replacedT[0].parameters === '*USA');
+  const clearedT = DspfWriter.setTimeFormat(withTimfmt, '');
+  check('setTimeFormat with a blank format removes TIMFMT entirely', clearedT.length === 0);
+}
+
+console.log('\n' + 'I-32 - DspfWriter.getTimeSeparator()/setTimeSeparator() - TIMSEP (time fields only)');
+{
+  const withQuotedTSep = [{ name: 'TIMSEP', parameters: "','", conditions: [], sourceLines: [] }];
+  check('getTimeSeparator strips the quotes off a quoted separator', DspfWriter.getTimeSeparator(withQuotedTSep) === ',');
+  check('getTimeSeparator returns empty string when absent', DspfWriter.getTimeSeparator([]) === '');
+  const addedColon = DspfWriter.setTimeSeparator([], ':');
+  check('setTimeSeparator quotes a bare separator character when writing it', addedColon.length === 1 && addedColon[0].name === 'TIMSEP' && addedColon[0].parameters === "':'");
+  const addedJobT = DspfWriter.setTimeSeparator([], '*JOB');
+  check('setTimeSeparator writes *JOB unquoted', addedJobT.length === 1 && addedJobT[0].parameters === '*JOB');
+  const clearedTSep = DspfWriter.setTimeSeparator(withQuotedTSep, '');
+  check('setTimeSeparator with a blank value removes TIMSEP entirely', clearedTSep.length === 0);
+
+  check('timeSeparatorConflictReason blocks *ISO/*USA/*EUR/*JIS (fixed separators)', DspfWriter.timeSeparatorConflictReason('*ISO') && DspfWriter.timeSeparatorConflictReason('*USA') && DspfWriter.timeSeparatorConflictReason('*EUR') && DspfWriter.timeSeparatorConflictReason('*JIS'));
+  check('timeSeparatorConflictReason allows *HMS/blank (variable-separator formats; TIMFMT has no *JOB value at all)', !DspfWriter.timeSeparatorConflictReason('*HMS') && !DspfWriter.timeSeparatorConflictReason(''));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

@@ -6931,6 +6931,101 @@ function runGeneralKeywordsConstantGatingScenario() {
     });
     check('named: HLPID row absent', !doc.getElementById(namedKey + '-gen-hlpid-on'));
 
+    runDateTimeFormatScenario();
+  }, 0);
+}
+
+function runDateTimeFormatScenario() {
+  console.log('\nTask I-32: DATFMT/DATSEP (date fields) and TIMFMT/TIMSEP (time fields) - previously entirely unexposed in the UI');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'RECORD1' }),
+      buildLine({ seq: '00020', name: 'DATEFLD', dataType: 'L', usage: 'B', line: '1', col: '5', func: "DATFMT(*MDY) DATSEP('-')" }),
+      buildLine({ seq: '00030', name: 'TIMEFLD', dataType: 'T', usage: 'B', line: '2', col: '5', func: "TIMFMT(*HMS) TIMSEP(':')" }),
+      buildLine({ seq: '00040', name: 'NUMFLD', dataType: 'S', length: '5', decimals: '0', usage: 'B', line: '3', col: '5' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce24', src, 'DATETIME.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      window.Element.prototype.getBoundingClientRect = function () {
+        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+      };
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const { Event } = dom.window;
+    const boxes = Array.from(doc.querySelectorAll('.dspf-field'));
+    check('setup: 3 field boxes on screen (DATEFLD, TIMEFLD, NUMFLD)', boxes.length === 3);
+
+    console.log('  DATEFLD (data type L): the Date format accordion is present and pre-filled, Time format is NOT shown');
+    const dateField = boxes.find((b) => b.getAttribute('data-field') === 'DATEFLD');
+    dateField.click();
+    const dateKey = 'field-' + dateField.getAttribute('data-source-line');
+    check('DATFMT select present and pre-filled to *MDY', doc.getElementById(dateKey + '-datfmt') && doc.getElementById(dateKey + '-datfmt').value === '*MDY');
+    check('DATSEP select present and pre-filled to - (quotes stripped for display)', doc.getElementById(dateKey + '-datsep') && doc.getElementById(dateKey + '-datsep').value === '-');
+    check('no TIMFMT/TIMSEP controls rendered for a date field', !doc.getElementById(dateKey + '-timfmt') && !doc.getElementById(dateKey + '-timsep'));
+
+    console.log('  clicking Apply on the date-format form WITHOUT touching anything must not corrupt the line');
+    doc.querySelector('.' + dateKey + '-dtfmt-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    let applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    check('DATFMT/DATSEP round-trip unchanged', /DATFMT\(\*MDY\)/.test(applyEdit.text) && /DATSEP\('-'\)/.test(applyEdit.text));
+    posted.length = 0;
+
+    console.log('  switching DATFMT to a fixed-separator format (*ISO) while DATSEP is still set is blocked at Apply, with the DATSEP select reverted');
+    let alerted = null;
+    dom.window.alert = (msg) => { alerted = msg; };
+    doc.getElementById(dateKey + '-datfmt').value = '*ISO';
+    doc.getElementById(dateKey + '-datfmt').dispatchEvent(new Event('change', { bubbles: true }));
+    doc.querySelector('.' + dateKey + '-dtfmt-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    check('the DATFMT/DATSEP conflict was caught with an alert naming DATSEP and DATFMT(*ISO)', !!alerted && /DATSEP/.test(alerted) && /DATFMT\(\*ISO\)/.test(alerted));
+    check('no edit was posted for the blocked attempt', posted.length === 0);
+    check("the DATSEP select was reverted back to '-'", doc.getElementById(dateKey + '-datsep').value === '-');
+
+    console.log('  clearing DATSEP first, then switching to *ISO, commits cleanly (no conflict once DATSEP is gone)');
+    doc.getElementById(dateKey + '-datsep').value = '';
+    doc.getElementById(dateKey + '-datsep').dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById(dateKey + '-datfmt').value = '*ISO';
+    doc.getElementById(dateKey + '-datfmt').dispatchEvent(new Event('change', { bubbles: true }));
+    doc.querySelector('.' + dateKey + '-dtfmt-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit was posted', !!applyEdit);
+    check('DATFMT(*ISO) written with no DATSEP alongside it', /DATFMT\(\*ISO\)/.test(applyEdit.text) && !/DATSEP/.test(applyEdit.text));
+    posted.length = 0;
+
+    console.log('  TIMEFLD (data type T): the Time format accordion is present and pre-filled, Date format is NOT shown, and TIMFMT has no *JOB option');
+    const timeField = Array.from(doc.querySelectorAll('.dspf-field')).find((b) => b.getAttribute('data-field') === 'TIMEFLD');
+    timeField.click();
+    const timeKey = 'field-' + timeField.getAttribute('data-source-line');
+    check('TIMFMT select present and pre-filled to *HMS', doc.getElementById(timeKey + '-timfmt') && doc.getElementById(timeKey + '-timfmt').value === '*HMS');
+    check('TIMSEP select present and pre-filled to : (quotes stripped for display)', doc.getElementById(timeKey + '-timsep') && doc.getElementById(timeKey + '-timsep').value === ':');
+    check('no DATFMT/DATSEP controls rendered for a time field', !doc.getElementById(timeKey + '-datfmt') && !doc.getElementById(timeKey + '-datsep'));
+    check('TIMFMT\u2019s own dropdown has no *JOB option (DATFMT does, TIMFMT does not)', !Array.from(doc.getElementById(timeKey + '-timfmt').options).some((o) => o.value === '*JOB'));
+
+    console.log('  switching TIMFMT to a fixed-separator format (*EUR) while TIMSEP is still set is blocked at Apply');
+    alerted = null;
+    doc.getElementById(timeKey + '-timfmt').value = '*EUR';
+    doc.getElementById(timeKey + '-timfmt').dispatchEvent(new Event('change', { bubbles: true }));
+    doc.querySelector('.' + timeKey + '-dtfmt-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    check('the TIMFMT/TIMSEP conflict was caught with an alert naming TIMSEP and TIMFMT(*EUR)', !!alerted && /TIMSEP/.test(alerted) && /TIMFMT\(\*EUR\)/.test(alerted));
+    check('no edit was posted for the blocked attempt', posted.length === 0);
+
+    console.log('  NUMFLD (a plain numeric field, not L/T/Z): neither Date format nor Time format is offered');
+    const numField = boxes.find((b) => b.getAttribute('data-field') === 'NUMFLD');
+    numField.click();
+    const numKey = 'field-' + numField.getAttribute('data-source-line');
+    check('no date/time format controls rendered for a plain numeric field', !doc.getElementById(numKey + '-datfmt') && !doc.getElementById(numKey + '-timfmt'));
+
     runWindowBorderAndDefaultColorScenario();
   }, 0);
 }

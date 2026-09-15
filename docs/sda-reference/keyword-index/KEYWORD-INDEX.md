@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-14 · 202 keyword entries across 46 categories · 165 unique keyword names.
+Generated 2026-09-15 · 206 keyword entries across 47 categories · 169 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -55,6 +55,8 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `COLOR` | field → Colors |
 | `COMP` | field → Validity Check |
 | `CSRLOC` | record → Output |
+| `DATFMT` | field → Date/Time Fields |
+| `DATSEP` | field → Date/Time Fields |
 | `DFT` | field → General |
 | `DFTVAL` | field → General |
 | `DLTCHK` | field → Database Reference |
@@ -168,6 +170,8 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `SLNO` | record → Output |
 | `SNGCHCFLD` | field → Menu-bar choice - Choice Selection Type |
 | `TEXT` | record → General; field → General |
+| `TIMFMT` | field → Date/Time Fields |
+| `TIMSEP` | field → Date/Time Fields |
 | `UNLOCK` | record → Input |
 | `USRDSPMGT` ⚠️ | file → General |
 | `USRRSTDSP` | record → Window control (WNDSFCTL general screen) |
@@ -773,6 +777,17 @@ Numeric-field output editing.
 | `EDTCDE` | Edit code, optionally replacing leading zeros | A-D, J-Q, W, Y, Z, 1-9; optional */$ |  |  |
 | `EDTWRD` | Edit word | 'edit word mask' |  |  |
 | `EDTMSK` | Edit mask | 'mask' |  |  |
+
+### Date/Time Fields
+
+DATFMT/DATSEP (date fields, data type L only) and TIMFMT/TIMSEP (time fields, data type T only) - Task I-32: entirely missing from this index before this task (and entirely unexposed in the UI itself, until I-32's own fix). Neither pair applies to timestamp (Z) fields, which have their own fixed standard format with no DATFMT/TIMFMT/DATSEP/TIMSEP customization at all. No screenshotDir: no dedicated real-SDA screen for these two keyword pairs exists anywhere under docs/sda-reference/screens/.
+
+| Keyword | Description | Parameters | Repeatable | S36E |
+|---|---|---|---|---|
+| `DATFMT` | Date format (data type L only) | *JOB \| *MDY \| *DMY \| *YMD \| *JUL \| *ISO \| *USA \| *EUR \| *JIS |  |  |
+| `DATSEP` | Date separator (data type L only) - cannot be specified with a fixed-separator DATFMT (*ISO/*USA/*EUR/*JIS) | *JOB \| 'separator character' |  |  |
+| `TIMFMT` | Time format (data type T only) - no *JOB value, unlike DATFMT | *HMS \| *ISO \| *USA \| *EUR \| *JIS |  |  |
+| `TIMSEP` | Time separator (data type T only) - cannot be specified with a fixed-separator TIMFMT (*ISO/*USA/*EUR/*JIS) | *JOB \| 'separator character' |  |  |
 
 ### Constant field additions
 

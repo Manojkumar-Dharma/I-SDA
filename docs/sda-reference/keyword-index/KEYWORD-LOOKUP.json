@@ -1,8 +1,8 @@
 {
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
-    "uniqueKeywords": 165,
-    "generated": "2026-09-14"
+    "uniqueKeywords": 169,
+    "generated": "2026-09-15"
   },
   "keywords": {
     "*AUTOENT": [
@@ -630,6 +630,28 @@
         "parameters": "row field, column field",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "DATFMT": [
+      {
+        "level": "field",
+        "category": "Date/Time Fields",
+        "description": "Date format (data type L only)",
+        "parameters": "*JOB | *MDY | *DMY | *YMD | *JUL | *ISO | *USA | *EUR | *JIS",
+        "repeatable": false,
+        "screenshotDir": null,
+        "sharedWith": []
+      }
+    ],
+    "DATSEP": [
+      {
+        "level": "field",
+        "category": "Date/Time Fields",
+        "description": "Date separator (data type L only) - cannot be specified with a fixed-separator DATFMT (*ISO/*USA/*EUR/*JIS)",
+        "parameters": "*JOB | 'separator character'",
+        "repeatable": false,
+        "screenshotDir": null,
         "sharedWith": []
       }
     ],
@@ -2325,6 +2347,28 @@
         "parameters": "'quoted text'",
         "repeatable": false,
         "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "TIMFMT": [
+      {
+        "level": "field",
+        "category": "Date/Time Fields",
+        "description": "Time format (data type T only) - no *JOB value, unlike DATFMT",
+        "parameters": "*HMS | *ISO | *USA | *EUR | *JIS",
+        "repeatable": false,
+        "screenshotDir": null,
+        "sharedWith": []
+      }
+    ],
+    "TIMSEP": [
+      {
+        "level": "field",
+        "category": "Date/Time Fields",
+        "description": "Time separator (data type T only) - cannot be specified with a fixed-separator TIMFMT (*ISO/*USA/*EUR/*JIS)",
+        "parameters": "*JOB | 'separator character'",
+        "repeatable": false,
+        "screenshotDir": null,
         "sharedWith": []
       }
     ],

@@ -4411,6 +4411,13 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!isConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, accordionOpenState);
+      // I-32 - DATFMT/DATSEP (data type L) and TIMFMT/TIMSEP (data type
+      // T) are gated purely by dataType, not by any
+      // fieldKeywordCategoryVisibility() category - see
+      // WebviewClientHelpers.dateTimeFormatHtml's own doc comment. Only
+      // ever renders something for L or T; '' for every other data type
+      // (including Z, which has no DATFMT/TIMFMT customization at all).
+      attrsHtml += WebviewClientHelpers.dateTimeFormatHtml(field.keywords, 'field-' + field.sourceLine, field.dataType, accordionOpenState);
     } else if (isSystemValueConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: false }, expandedKeywordConditioning, accordionOpenState);
     }
@@ -4569,6 +4576,7 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage);
+      WebviewClientHelpers.wireDateTimeFormat(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, field.dataType);
     } else if (isSystemValueConstant) {
       // Constants have no Usage of their own (I-31: DspfWriter.
       // editMaskConflictReason correctly treats the resulting

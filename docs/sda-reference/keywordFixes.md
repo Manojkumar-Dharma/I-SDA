@@ -2040,7 +2040,7 @@ section below.)
 |------|---------------------|------------|--------|
 | **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | done (0.10.109) |
 | **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | done (0.10.113) |
-| **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | claimed — in progress (O/B/I-only Usage sub-check already absorbed into I-31's `DspfWriter.dateTimeUsageConflictReason`, done; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` are this task's own remaining scope) |
+| **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | done (0.10.114) |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
 | **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | done (0.10.112) |
 | **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | claimed |
@@ -2345,11 +2345,97 @@ blocking H and accepting B. Full suite: all 69 test files pass
 
 ### I-32 — Date/Time/Timestamp fields (`DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`)
 
-**Status: claimed, work starting now.** (The O/B/I-only Usage
-sub-check named in this task's own scope line was already absorbed
-into I-31's `DspfWriter.dateTimeUsageConflictReason` — done there.
-This task's own remaining scope is `DATFMT`/`DATSEP`/`TIMFMT`/
-`TIMSEP`.)
+**Status: done (0.10.114).** (The O/B/I-only Usage sub-check named in
+this task's own scope line was already absorbed into I-31's
+`DspfWriter.dateTimeUsageConflictReason` — done there. This task's own
+scope was `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` themselves.)
+
+**Finding 1 — all four keywords were entirely unexposed anywhere in
+the UI.** `DspfEngine.dateFieldLength` already *read* `DATFMT` (for
+display-width purposes), but nothing ever let the user *set* it, or
+`DATSEP`/`TIMFMT`/`TIMSEP` at all — confirmed by grepping the whole
+codebase before starting. Added a "Date format (DATFMT / DATSEP)"
+accordion (data type `L` only) and a "Time format (TIMFMT / TIMSEP)"
+accordion (data type `T` only) to the field properties panel, gated
+purely by `dataType` rather than any `fieldKeywordCategoryVisibility()`
+category, since that's the only thing IBM's own text gates either pair
+by. New `DspfWriter.getDateFormat`/`setDateFormat`,
+`getDateSeparator`/`setDateSeparator`, and the `TIMFMT`/`TIMSEP`
+equivalents, sharing a `parseSeparatorParam`/`formatSeparatorParam`
+pair for the identical `*JOB | 'separator-char'` grammar both `DATSEP`
+and `TIMSEP` use. Confirmed `TIMFMT` has **no `*JOB` value** at all
+(unlike `DATFMT`) — its own format table in the DDS Reference lists
+only `*HMS`/`*ISO`/`*USA`/`*EUR`/`*JIS`.
+
+**Finding 2 — the fixed-separator conflict rule, enforced at Apply
+time.** Both `DATFMT`'s and `TIMFMT`'s own text state a hard
+restriction: *"If you specify the \*ISO, \*USA, \*EUR, or \*JIS value,
+you cannot specify the DATSEP \[or TIMSEP\] keyword. These \[...\]
+formats have fixed separators."* (`DATSEP`'s and `TIMSEP`'s own
+mirroring text softens this to "should not," but the primary
+`DATFMT`/`TIMFMT` sections state it as "cannot" — treated as enforced
+here, matching this project's general posture of blocking DDS a real
+`CRTDSPF` compile would reject.) New
+`dateSeparatorConflictReason`/`timeSeparatorConflictReason` functions
+block the Apply click with an alert and revert the separator dropdown,
+same UX pattern I-31's own `dateTimeUsageConflictReason` established
+for the L/T/Z Usage guard.
+
+**Finding 3 — a genuine, previously-tested-but-fabricated
+record-level/file-level `DATFMT` cascade in
+`DspfEngine.dateFieldLength`.** The pre-existing code (and its own
+test, `src/test/dspfEngine.test.js`) implemented and asserted a
+"field-level keyword, then record-level, then file-level" `DATFMT`
+precedence — but `DATFMT` is documented as field-level-only (its own
+text opens *"You use this field-level keyword..."*), has exactly one
+entry in the whole 15,601-line DDS Reference, and never appears in any
+record-level or file-level keyword list — confirmed against the
+canonical `KEYWORD-INDEX.json` too, which lists it nowhere at either
+level. There is no DDS mechanism that produces a record- or file-level
+`DATFMT`, so this fallback could never fire from valid DDS — same "read
+the reference before trusting an inherited assumption" lesson as I-2's
+`PRTFILE` and I-31's dead `isNumericField` B/P arms, except this one
+had a passing (but wrong-premise) test backing it. Simplified
+`dateFieldLength` to a field-level-only lookup; rewrote the
+now-misleading test scenario to assert the *correct* behavior (a
+record-/file-level `DATFMT` keyword, if present via hand-edited source,
+is silently ignored — the field falls back to its own `DATFMT` or the
+`*ISO` default, never inherits one from its record or file).
+
+**Finding 4 (indexing gap, fixed) — none of the four keywords existed
+anywhere in `KEYWORD-INDEX.json`.** Added a new "Date/Time Fields"
+field-level category via `build_index.py`, regenerated all three output
+files (`KEYWORD-INDEX.json`/`.md`, `KEYWORD-LOOKUP.json`). No
+`screenshotDir` set — no dedicated real-SDA screen for either keyword
+pair exists anywhere under `docs/sda-reference/screens/`.
+
+**Finding 5 (confirmed real, NOT fixed here — logged for a future
+task).** The DDS Reference's own "Reference for display files
+(position 29)" section lists `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` (along
+with `TEXT`/`ALIAS`/`CCSID`/`FLTPCN`/editing keywords) as attributes a
+field is supposed to inherit from its referenced database field via
+`REF`/`REFFLD`. iSDA's own `REF`-resolution flow
+(`extension.ts`'s `handleResolveReferencedField`) currently only pulls
+`length`/`dataType`/`decimalPositions` from the referenced field — none
+of these. Not fixed here: it's a much broader gap than I-32's own
+field-level-UI scope (spans several keywords well beyond just
+date/time), and would also require extending the underlying Code for i
+DSPFFD fetch itself, not just the writer/UI layer this task touches.
+
+**Tests:** new `DspfWriter` unit-test block in `dspfWriter.test.js`
+covering `getDateFormat`/`setDateFormat`, `getDateSeparator`/
+`setDateSeparator` (including quote-stripping/quoting and the
+`dateSeparatorConflictReason` fixed-separator matrix), and the
+`TIMFMT`/`TIMSEP` equivalents (including confirming no `*JOB` value
+exists for `TIMFMT`). New `dspfWebview.test.js` scenario covering both
+accordions rendering/pre-filling correctly, a no-op Apply not
+corrupting the line, the fixed-separator conflict being blocked with
+the dropdown reverted, a legitimate change committing cleanly once the
+conflict is cleared, and confirming neither accordion renders for a
+plain numeric field. `dspfEngine.test.js`'s own `DATFMT` scenario
+rewritten to assert the corrected (field-level-only) behavior. All new/
+changed tests confirmed failing against pre-fix code via `git stash`.
+Full suite green (`npm test`, 73/73 sections).
 
 ---
 
