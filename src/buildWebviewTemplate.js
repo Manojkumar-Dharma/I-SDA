@@ -4540,6 +4540,20 @@ const htmlTemplate = `<!DOCTYPE html>
         updates.decimalPositions = document.getElementById('p-dec').value === '' ? null : parseInt(document.getElementById('p-dec').value, 10);
         updates.dataType = document.getElementById('p-type').value || null;
         updates.usage = document.getElementById('p-usage').value || null;
+        // Task I-31 - L/T/Z (Date/Time/Timestamp) fields have their own
+        // narrower Usage restriction (O, B, or I only - no H/M/P) than
+        // every other data type; see DspfWriter.dateTimeUsageConflictReason's
+        // own doc comment for the DDS Reference citation. Blocked here,
+        // before commitEdit, rather than reverting the selects - the
+        // Apply button's own "click again after fixing" flow already
+        // lets the user adjust and retry, same posture as the other
+        // early-return guards on this panel (e.g. the incomplete-SFLMSGID
+        // case never gets applied either).
+        const dateTimeUsageReason = DspfWriter.dateTimeUsageConflictReason(updates.dataType, updates.usage);
+        if (dateTimeUsageReason) {
+          window.alert(dateTimeUsageReason);
+          return;
+        }
       }
       commitEdit(ownerRecordName, field, updates);
     });
@@ -4554,9 +4568,14 @@ const htmlTemplate = `<!DOCTYPE html>
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
-      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType);
+      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage);
     } else if (isSystemValueConstant) {
-      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType);
+      // Constants have no Usage of their own (I-31: DspfWriter.
+      // editMaskConflictReason correctly treats the resulting
+      // undefined/blank usage as neither I nor B, so EDTMSK stays
+      // blocked here - matching real DDS, which has no usage position
+      // for a constant field at all).
+      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage);
     }
     if (!isConstant && catVis.errorMessages) {
       WebviewClientHelpers.wireErrorMessageInstances(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));

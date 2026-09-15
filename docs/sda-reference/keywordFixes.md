@@ -2039,8 +2039,8 @@ section below.)
 | Task | Field kind / Usage | Depends on | Status |
 |------|---------------------|------------|--------|
 | **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | done (0.10.109) |
-| **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | claimed — in progress |
-| **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — may be absorbed into I-31 depending on what that task finds |
+| **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | done (0.10.113) |
+| **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — the O/B/I-only Usage sub-check was absorbed into I-31 (`DspfWriter.dateTimeUsageConflictReason`, done); `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` themselves remain this task's own scope |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
 | **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | done (0.10.112) |
 | **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | claimed |
@@ -2209,7 +2209,137 @@ suite: 4004/4004 (up from the 3949 baseline by exactly this file's own
 
 ### I-31 — Numeric fields
 
-**Status: claimed, work starting now.**
+**Status: done (0.10.113).**
+
+**Scope recap** — I-30 already covered the 8 categories shared with
+character fields (Colors & Attributes, Keying Options, Validity Check,
+Input Keywords, General Keywords, Database Reference, Error Messages,
+Message ID) via the same shared code paths, so this task's own scope is
+what's actually numeric-specific: Editing Keywords, the L/T/Z grouping
+question the intro above named, and the L/T/Z Usage sub-check the intro
+also named.
+
+**Confirmed clean (no fix needed):**
+- `fieldKeywordCategoryVisibility`'s `editingKeywords` gate (`u === 'O'
+  || u === 'B'`) and `validityAndErrorMessage`'s float exclusion
+  (`isIOB && dataType !== 'F'`) were both already correct from an
+  earlier task (D3) — spot-checked against real SDA's own numeric
+  "Select Field Keywords" screen
+  (`docs/sda-reference/screens/field-level/numeric/_menu/image173.png`,
+  which shows "Editing keywords ... Numeric Output or Both" and
+  "Validity check ... Input or Both, not float" verbatim) and against
+  IBM's own RANGE/COMP/VALUES/CHECK(AB)/CHECK(M10)/CHECK(M11) sections,
+  each of which individually states the keyword cannot be specified on
+  a floating-point field.
+- `EDTCDE`/`EDTWRD`/`EDTMSK` conditioning: each states "Option
+  indicators are not valid for this keyword" in the DDS Reference, and
+  `editKeywordSectionHtml` never offered a Conditioning toggle for any
+  of the three, before or after this task's own fix below.
+- L/T/Z grouped alongside S/Y/F under `isNumericField` for
+  keyboard-shift-picker purposes (the intro's named question): confirmed
+  correct as-is. Real SDA has no separate screen category for date/
+  time/timestamp fields at all —
+  `docs/sda-reference/screens/field-level` has exactly four
+  subdirectories (`character`, `numeric`, `constant`, `menu-bar-
+  choice`) — so L/T/Z fields fall under "numeric" for every field-level
+  UI purpose in real SDA, including this picker. No split needed.
+
+**Finding 1 (real bug, fixed) — `EDTMSK` could never actually be
+written correctly.** `getEditKeyword`/`setEditKeyword`'s old
+`EDIT_KEYWORDS` constant (`src/dspfWriter.js`) listed `EDTCDE`,
+`EDTWRD`, *and* `EDTMSK` as one mutually-exclusive group, with a single
+UI dropdown offering all three as alternatives. But IBM's own `EDTMSK`
+section states it *"must also contain the EDTCDE or EDTWRD
+keywords"* — it can never stand alone — and separately *"must be usage
+I or usage B"*, narrower than `editingKeywords`' own O-or-B category
+gate. Treating `EDTMSK` as a third alternative to `EDTCDE`/`EDTWRD`
+meant selecting it always silently wiped out whichever of the other two
+the field already carried (and vice versa), so this UI could never
+actually produce the `EDTCDE`+`EDTMSK` or `EDTWRD`+`EDTMSK` combination
+IBM's own text requires — every field that picked "Edit mask" from the
+old dropdown would compile with `EDTMSK` alone, which isn't valid DDS
+regardless of usage.
+
+Fixed: `EDTMSK` now has its own independent `getEditMask`/`setEditMask`
+pair in `dspfWriter.js`, entirely separate from `getEditKeyword`/
+`setEditKeyword`'s `EDTCDE`/`EDTWRD` group, plus a new
+`editMaskConflictReason(keywords, usage)` guard enforcing both of
+`EDTMSK`'s own documented requirements (usage I/B, checked first per
+IBM's own statement order; then an `EDTCDE`/`EDTWRD` keyword already
+present). `editKeywordSectionHtml`/`wireValidityAndEdit`
+(`src/webviewClientHelpers.js`) now render a separate "Edit mask"
+input alongside the `EDTCDE`/`EDTWRD` kind selector (which now only
+offers those two, not `EDTMSK`) and check `editMaskConflictReason`
+against the *pending* post-`setEditKeyword` state at Apply time — so a
+same-click "set `EDTCDE` and `EDTMSK` together" on a previously-blank
+field is allowed, not incorrectly blocked against stale saved state.
+Blocked attempts alert with the specific reason and revert both inputs,
+matching this project's established alert+revert guard convention
+(e.g. L82's `DFT`/`DFTVAL` vs. `EDTCDE`/`EDTWRD` guard, which this fix
+sits right alongside and doesn't disturb).
+
+**Finding 2 (real bug, fixed) — L/T/Z's own narrower Usage restriction
+(the intro's other named sub-check) was entirely unenforced.** IBM's
+DDS Reference, right after Date/Time/Timestamp's own field-length
+rules: *"Valid field usage (DDS position 38) can be O, B, or I"* — no
+H (Hidden), M (Message text), or P (Program-to-system) at all, unlike
+every numeric/character data type, all of which allow the full
+H/I/O/B/M/P set. The Basic tab's Usage dropdown offered all six values
+unconditionally regardless of data type, so a field could be set to
+`L`/`T`/`Z` with usage `H`/`M`/`P` and iSDA would happily write it out —
+invalid DDS a real `CRTDSPF` compile would reject.
+
+Fixed: new `DspfWriter.dateTimeUsageConflictReason(dataType, usage)`
+(returns null for every non-L/T/Z data type, so it's a no-op for
+numeric/character fields), checked in the Basic tab's `p-apply` click
+handler before `commitEdit` — blocks the commit with an alert naming
+the restriction, rather than reverting the selects, matching this
+panel's own existing "click Apply again after fixing" posture (e.g.
+the incomplete-`SFLMSGID` case a few tasks back also just skips the
+commit rather than reverting).
+
+**Finding 3 (dead code, removed) — `isNumericField`'s `dataType ===
+'B'`/`'P'` arms could never match anything.** IBM's own "Data type and
+keyboard shift for display files (position 35)" table has no `B` or
+`P` row at all, and the Basic tab's own Data type dropdown (the only
+place `field.dataType` is ever written) only ever offers `''`, `A`,
+`X`, `N`, `S`, `Y`, `I`, `D`, `M`, `F`, `L`, `T`, `Z` — so `dataType`
+can never equal `'B'` or `'P'` in practice. Both dead arms removed from
+`isNumericField`'s condition in `webviewClientHelpers.js`; behavior is
+unchanged for every value that can actually occur.
+
+**Not fixed here (out of scope, logged per this project's own
+convention):** `EDTCDE`'s optional second parameter (`*` or a floating
+currency symbol, appended after the edit-code letter — real SDA's own
+"Select Editing Keywords" screen,
+`docs/sda-reference/screens/field-level/numeric/editing-keywords/image182.png`,
+shows it as a distinct "Replace leading zeros with" prompt) is reachable
+in the current UI only as free text typed into the same parameters box
+as the edit-code letter itself, not as a dedicated widget. Since the
+field is a plain text input, nothing is actually blocked — a user can
+still type e.g. `J*` — so this is a discoverability/UX gap, not a
+correctness bug, and was left as-is rather than building a second
+sub-control for it.
+
+**Tests:** `src/test/i31NumericFieldConditioningAudit.test.js` (new,
+33+11 checks) covers `fieldKeywordCategoryVisibility`'s
+`editingKeywords`/`validityAndErrorMessage` gates, the `EDTCDE`/
+`EDTWRD`/`EDTMSK` conditioning confirmation, the `EDTMSK` split
+(`getEditMask`/`setEditMask`/`editMaskConflictReason`, both via the
+rendered HTML and directly against `DspfWriter`), the keyboard-shift
+picker's numeric vs. character value lists (including the now-dead
+`B`/`P` letters falling back to the character list, same as any other
+unrecognized value), and `dateTimeUsageConflictReason`'s full O/B/I-
+accepted vs. H/M/P-rejected matrix for `L`/`T`/`Z`, confirming it's a
+no-op for every other data type. `dspfWebview.test.js`'s "Numeric field
+picker (Task D3)" scenario was extended end-to-end: the `AMT` sub-
+scenario now demonstrates `EDTMSK` blocked on a usage-O field and then
+committing correctly (`EDTCDE`+`EDTMSK` together, same click) once
+usage is changed to B via the Basic tab's own Apply button; a new
+`DATEFLD` (dataType `L`, usage O) field demonstrates the Usage guard
+blocking H and accepting B. Full suite: all 69 test files pass
+(registered in `package.json`'s `test` script), `npm run compile` and
+`tsc --noEmit` both clean.
 
 ---
 

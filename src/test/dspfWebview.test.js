@@ -2176,15 +2176,17 @@ function runFieldPropertyHelpersScenario() {
     check('the blocked kind selector is reverted back to its previous value (none)', ecKindEl.value === '');
     check('no applyEdit was posted for the blocked EDTCDE attempt', !posted.some((m) => m.type === 'applyEdit'));
 
-    console.log('    switching to EDTMSK instead (not part of the DFT/DFTVAL conflict group) is NOT blocked');
+    console.log('    Task I-31: EDTMSK is now a SEPARATE input from the EDTCDE/EDTWRD kind selector - typing into it alone (kind still blank/blocked by DFT) is blocked, since EDTMSK requires an EDTCDE or EDTWRD keyword already on the field');
     posted.length = 0;
     alertMessage = null;
-    ecKindEl.value = 'EDTMSK';
-    ecParamsEl.value = "'(999) 999-9999'";
+    const emMaskEl = doc.getElementById(plainFieldKey + '-em-mask');
+    check('setup: the Edit mask (EDTMSK) input is present for PLAINFLD, separate from the kind selector', !!emMaskEl);
+    ecKindEl.value = '';
+    emMaskEl.value = "'(999) 999-9999'";
     doc.querySelector('.' + plainFieldKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
-    let edtmskEdit = posted.find((m) => m.type === 'applyEdit');
-    check('EDTMSK commits normally even with DFT present (EDTMSK is not in the conflict group)', edtmskEdit && edtmskEdit.text.includes("EDTMSK('(999) 999-9999')"));
-    check('no alert was raised for the EDTMSK commit', alertMessage === null);
+    check('EDTMSK with no EDTCDE/EDTWRD present is blocked with an alert naming that requirement', /EDTCDE or EDTWRD/.test(alertMessage || ''));
+    check('no applyEdit was posted for the blocked bare-EDTMSK attempt', !posted.some((m) => m.type === 'applyEdit'));
+    check('the blocked mask input is reverted back to blank', emMaskEl.value === '');
 
     console.log('  Task L83: DFT on an output-capable (usage B) field without OVRDTA/PUTOVR shows an advisory hint, not a block - PLAINFLD is usage B and already carries DFT with neither OVRDTA nor record-level PUTOVR set');
     const generalKeywordsBody = doc.getElementById('propsBody').textContent;
@@ -5287,6 +5289,7 @@ function runNumericFieldPickerScenario() {
       buildLine({ seq: '00040', name: 'QTY', dataType: 'S', length: '5', usage: 'H' }),
       buildLine({ seq: '00050', name: 'RECNBR', dataType: 'S', length: '5', usage: 'B', line: '1', col: '30' }),
       buildLine({ seq: '00060', name: 'DESCR', dataType: 'A', length: '10', usage: 'B', line: '2', col: '1' }),
+      buildLine({ seq: '00070', name: 'DATEFLD', dataType: 'L', usage: 'O', line: '3', col: '1' }),
     ].join('\n') + '\n';
   const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'NUMERIC.DSPF').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
@@ -5312,20 +5315,40 @@ function runNumericFieldPickerScenario() {
       return false;
     }
 
-    console.log('  AMT (Usage O, numeric): Edit code/word/mask section is present, EDTMSK is a selectable kind');
+    console.log('  AMT (Usage O, numeric): Edit code/word/mask section is present; EDTMSK is its own independent input, not a third kind alongside EDTCDE/EDTWRD');
     check('AMT is selectable on the canvas', selectFieldByName('AMT'));
     const ecKindSelect = Array.from(doc.querySelectorAll('select')).find((s) => s.id.endsWith('-ec-kind'));
     check('Edit code/word/mask select exists for an Output field', !!ecKindSelect);
-    check('EDTMSK is one of its options', Array.from(ecKindSelect.options).some((o) => o.value === 'EDTMSK'));
+    check('the kind selector only offers EDTCDE/EDTWRD - no EDTMSK option', Array.from(ecKindSelect.options).map((o) => o.value).sort().join(',') === ',EDTCDE,EDTWRD');
     const ecOwnerKey = ecKindSelect.id.replace('-ec-kind', '');
-    ecKindSelect.value = 'EDTMSK';
-    doc.getElementById(ecOwnerKey + '-ec-params').value = "'(999) 999-9999'";
+    const emMaskSelect = doc.getElementById(ecOwnerKey + '-em-mask');
+    check('a separate Edit mask (EDTMSK) input exists', !!emMaskSelect);
+
+    console.log('    Task I-31: EDTMSK on a usage-O field is blocked - EDTMSK requires usage I or B (per the DDS Reference)');
+    ecKindSelect.value = 'EDTCDE';
+    doc.getElementById(ecOwnerKey + '-ec-params').value = 'J';
+    emMaskSelect.value = "'(999) 999-9999'";
     doc.querySelector('.' + ecOwnerKey + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    check('no applyEdit was posted for the usage-O EDTMSK attempt', !posted.some((m) => m.type === 'applyEdit'));
+    check('the blocked mask input is reverted back to blank', emMaskSelect.value === '');
+
+    console.log('    Changing AMT to usage B lets EDTCDE+EDTMSK commit together in the same click');
+    doc.getElementById('p-usage').value = 'B';
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
+    selectFieldByName('AMT');
+    const ecKindSelect2 = Array.from(doc.querySelectorAll('select')).find((s) => s.id.endsWith('-ec-kind'));
+    const ecOwnerKey2 = ecKindSelect2.id.replace('-ec-kind', '');
+    ecKindSelect2.value = 'EDTCDE';
+    doc.getElementById(ecOwnerKey2 + '-ec-params').value = 'J';
+    doc.getElementById(ecOwnerKey2 + '-em-mask').value = "'(999) 999-9999'";
+    doc.querySelector('.' + ecOwnerKey2 + '-vc-apply').dispatchEvent(new Event('click', { bubbles: true }));
     let applyEdit = posted.find((m) => m.type === 'applyEdit');
     check('an edit was posted', !!applyEdit);
     let reparsed = DspfParser.parseDspf(applyEdit.text);
     let amtField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'AMT');
-    check('EDTMSK written with the quoted mask', amtField.keywords.some((k) => k.name === 'EDTMSK' && k.parameters.trim() === "'(999) 999-9999'"));
+    check('EDTCDE written', amtField.keywords.some((k) => k.name === 'EDTCDE' && k.parameters.trim() === 'J'));
+    check('EDTMSK written with the quoted mask, alongside EDTCDE, from the SAME click', amtField.keywords.some((k) => k.name === 'EDTMSK' && k.parameters.trim() === "'(999) 999-9999'"));
     posted.length = 0;
 
     console.log('  QTY (Usage H, Hidden): Edit code/word/mask section is absent (not Output/Both)');
@@ -5407,6 +5430,20 @@ function runNumericFieldPickerScenario() {
     sflscrollEl.checked = true;
     sflscrollEl.dispatchEvent(new Event('change', { bubbles: true }));
     check('SFLSCROLL reverted back to unchecked (mutually exclusive with SFLROLVAL/SFLRCDNBR on the same field)', sflscrollEl.checked === false);
+    posted.length = 0;
+
+    console.log('  Task I-31: DATEFLD (dataType L, usage O) - changing Usage to H/M/P is blocked (L/T/Z require O, B, or I)');
+    check('DATEFLD is selectable on the canvas', selectFieldByName('DATEFLD'));
+    doc.getElementById('p-usage').value = 'H';
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    check('no applyEdit was posted for the L+H combination', !posted.some((m) => m.type === 'applyEdit'));
+    doc.getElementById('p-usage').value = 'B';
+    doc.getElementById('p-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    applyEdit = posted.find((m) => m.type === 'applyEdit');
+    check('an edit WAS posted for the L+B combination (valid per the DDS Reference)', !!applyEdit);
+    reparsed = DspfParser.parseDspf(applyEdit.text);
+    const dateFld = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'DATEFLD');
+    check('DATEFLD usage committed as B', dateFld.usage === 'B');
     posted.length = 0;
 
     runMnuBarPickerScenario();

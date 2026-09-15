@@ -1078,27 +1078,99 @@
     return setRepeatableKeywordInstances(keywords, VALIDITY_CHECK_READ_KEYWORDS, flat);
   }
 
-  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD', 'EDTMSK'];
+  // Task I-31 finding: EDTMSK used to live in this same mutually-exclusive
+  // group as EDTCDE/EDTWRD, but IBM's own DDS Reference states EDTMSK
+  // "must also contain the EDTCDE or EDTWRD keywords" - it can never
+  // stand alone, so treating it as a third alternative to EDTCDE/EDTWRD
+  // (selecting it wiped out whichever of the other two the field already
+  // carried, and vice versa) could never actually produce the EDTCDE+
+  // EDTMSK or EDTWRD+EDTMSK combination IBM's own text requires. EDTMSK
+  // now has its own independent get/set pair (getEditMask/setEditMask)
+  // and its own conflict check (editMaskConflictReason) below, entirely
+  // separate from this group.
+  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD'];
 
-  /** Same one-at-a-time rule as validity checks - a field can't carry more
-   *  than one of an edit code, an edit word, or an edit mask -
-   *  { kind: ''|'EDTCDE'|'EDTWRD'|'EDTMSK', parameters: string }. */
+  /** A field can't carry more than one of an edit code or an edit word -
+   *  { kind: ''|'EDTCDE'|'EDTWRD', parameters: string }. See EDIT_KEYWORDS'
+   *  own comment above for why EDTMSK isn't part of this group. */
   function getEditKeyword(keywords) {
     var k = (keywords || []).find(function (k) { return EDIT_KEYWORDS.indexOf(k.name) >= 0; });
     return k ? { kind: k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
   }
 
-  /** Returns a NEW keywords array with any existing EDTCDE/EDTWRD/EDTMSK
+  /** Returns a NEW keywords array with any existing EDTCDE/EDTWRD
    *  removed and, if `kind` is non-empty, one new keyword added with
    *  `parameters` (a bare edit-code letter for EDTCDE, e.g. "J"; the full
-   *  quoted substitution string for EDTWRD, e.g. "'  DR  CR'"; or the full
-   *  quoted mask string for EDTMSK, e.g. "'(999) 999-9999'" - the caller
-   *  supplies quoting for EDTWRD/EDTMSK itself since their internal
-   *  structure is meaningful). */
+   *  quoted substitution string for EDTWRD, e.g. "'  DR  CR'" - the
+   *  caller supplies quoting for EDTWRD itself since its internal
+   *  structure is meaningful). Does not touch EDTMSK - see setEditMask
+   *  below. */
   function setEditKeyword(keywords, kind, parameters) {
     var next = (keywords || []).filter(function (k) { return EDIT_KEYWORDS.indexOf(k.name) < 0; });
     if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
     return next;
+  }
+
+  /** Task I-31 - EDTMSK (Edit Mask), independent of getEditKeyword/
+   *  setEditKeyword above. { text: string } - the full quoted mask
+   *  string, e.g. "'(999) 999-9999'" (caller supplies quoting, same
+   *  convention EDTWRD's own parameters use). */
+  function getEditMask(keywords) {
+    var k = (keywords || []).find(function (k) { return k.name === 'EDTMSK'; });
+    return { text: k ? (k.parameters || '') : '' };
+  }
+
+  /** Returns a NEW keywords array with any existing EDTMSK removed and,
+   *  if `text` is non-empty, one new EDTMSK keyword added with it as its
+   *  parameters. Does not touch EDTCDE/EDTWRD - see editMaskConflictReason
+   *  below for the rule that an EDTMSK can only ever meaningfully coexist
+   *  with one of them, enforced by the caller before this is invoked. */
+  function setEditMask(keywords, text) {
+    var next = (keywords || []).filter(function (k) { return k.name !== 'EDTMSK'; });
+    if (text) next = next.concat([{ name: 'EDTMSK', parameters: text, conditions: [], raw: '', sourceLines: [] }]);
+    return next;
+  }
+
+  /** Task I-31 - EDTMSK's own two documented requirements, both stated
+   *  individually in its DDS Reference section: "The field containing
+   *  the EDTMSK keyword must be usage I or usage B. It must also contain
+   *  the EDTCDE or EDTWRD keywords." `usage` and `keywords` are checked
+   *  against whatever the caller is ABOUT to leave on the field (not
+   *  necessarily what's already saved - a same-click "add EDTCDE and
+   *  EDTMSK together" must be allowed), so callers pass the pending
+   *  EDTCDE/EDTWRD state via `keywords` themselves. Returns a
+   *  human-readable reason if turning EDTMSK on right now would violate
+   *  either rule (checked in the order IBM's own text states them), or
+   *  null if it's fine. */
+  function editMaskConflictReason(keywords, usage) {
+    var u = (usage || '').toUpperCase();
+    if (u !== 'I' && u !== 'B') {
+      return 'EDTMSK requires field usage I or B (per the DDS Reference).';
+    }
+    var hasEditCode = (keywords || []).some(function (k) { return k.name === 'EDTCDE' || k.name === 'EDTWRD'; });
+    if (!hasEditCode) {
+      return 'EDTMSK requires the field to also carry EDTCDE or EDTWRD (per the DDS Reference).';
+    }
+    return null;
+  }
+
+  /** Task I-31 - the named sub-check keywordFixes.md's own I-31 write-up
+   *  calls out: L/T/Z (Date/Time/Timestamp) data types have their own,
+   *  narrower Usage restriction than every other data type. IBM's DDS
+   *  Reference states it plainly, right after these three types' own
+   *  field-length rules: "Valid field usage (DDS position 38) can be O,
+   *  B, or I" - no H (Hidden), M (Message text), or P (Program-to-
+   *  system) at all, unlike every numeric/character data type, all of
+   *  which allow the full H/I/O/B/M/P set. Returns a reason string if
+   *  `usage` is invalid for `dataType`, or null if it's fine (including
+   *  for every non-L/T/Z data type, which this check doesn't apply to
+   *  at all). */
+  function dateTimeUsageConflictReason(dataType, usage) {
+    var isDateTimeType = dataType === 'L' || dataType === 'T' || dataType === 'Z';
+    if (!isDateTimeType) return null;
+    var u = (usage || '').toUpperCase();
+    if (u === 'O' || u === 'B' || u === 'I') return null;
+    return 'Date/Time/Timestamp fields (data type L/T/Z) must be usage O, B, or I (per the DDS Reference).';
   }
 
   // ---------------------------------------------------------------------
@@ -5763,6 +5835,10 @@
     setValidityCheckInstances: setValidityCheckInstances,
     getEditKeyword: getEditKeyword,
     setEditKeyword: setEditKeyword,
+    getEditMask: getEditMask,
+    setEditMask: setEditMask,
+    editMaskConflictReason: editMaskConflictReason,
+    dateTimeUsageConflictReason: dateTimeUsageConflictReason,
     getCheckMsgId: getCheckMsgId,
     setCheckMsgId: setCheckMsgId,
     getErrorMessageInstances: getErrorMessageInstances,

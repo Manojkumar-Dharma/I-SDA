@@ -1375,17 +1375,34 @@
 
   /** Bug fix - EDTCDE/EDTWRD/EDTMSK split into its own collapsible
    *  accordion (see validityCheckSectionHtml's own doc comment above for
-   *  why). */
+   *  why).
+   *
+   *  Task I-31 finding: EDTMSK used to be folded into the SAME mutually-
+   *  exclusive 'kind' dropdown as EDTCDE/EDTWRD (the old option list was
+   *  ['', 'EDTCDE', 'EDTWRD', 'EDTMSK']) - but IBM's own DDS Reference
+   *  states EDTMSK "must also contain the EDTCDE or EDTWRD keywords"; it
+   *  can never stand alone. Treating it as a third alternative to
+   *  EDTCDE/EDTWRD meant selecting it always wiped out whichever of the
+   *  other two the field already carried (and vice versa), so this UI
+   *  could never actually produce a valid EDTCDE+EDTMSK or EDTWRD+EDTMSK
+   *  combination. EDTMSK now gets its own independent input, backed by
+   *  DspfWriter.getEditMask/setEditMask, with DspfWriter.
+   *  editMaskConflictReason enforcing both of EDTMSK's own documented
+   *  requirements (usage I or B; an EDTCDE or EDTWRD keyword already
+   *  present) at Apply time. */
   function editKeywordSectionHtml(keywords, ownerKey, openState) {
     var ec = DspfWriter.getEditKeyword(keywords);
+    var em = DspfWriter.getEditMask(keywords);
     var html = '<div class="two-col">' +
       '<select id="' + ownerKey + '-ec-kind">' +
-      ['', 'EDTCDE', 'EDTWRD', 'EDTMSK'].map(function (k) {
+      ['', 'EDTCDE', 'EDTWRD'].map(function (k) {
         return '<option value="' + k + '"' + (ec.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
       }).join('') +
       '</select>' +
       '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
-      '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string &middot; EDTMSK: full quoted mask string, e.g. \'(999) 999-9999\'</div>' +
+      '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string</div>' +
+      '<input type="text" id="' + ownerKey + '-em-mask" placeholder="Edit mask (EDTMSK) - full quoted mask string, e.g. \'(999) 999-9999\'" value="' + escapeHtml(em.text) + '" style="width:100%;margin-top:6px;" />' +
+      '<div class="hint-small">EDTMSK requires usage I or B and an EDTCDE or EDTWRD keyword already on the field (per the DDS Reference) - independent of the edit code/word above, not a third alternative to it.</div>' +
       '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply edit code/word/mask</button>';
     return accordionWrapHtml(ownerKey + '::edit-keyword', 'Edit code / word / mask', html, false, openState);
   }
@@ -1405,7 +1422,7 @@
     return html;
   }
 
-  function wireValidityAndEdit(keywords, onChange, ownerKey, options, expandedSet, rerender, dataType) {
+  function wireValidityAndEdit(keywords, onChange, ownerKey, options, expandedSet, rerender, dataType, usage) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
     if (includeValidity) {
@@ -1432,25 +1449,39 @@
       // so only the edit code/word/mask fields remain here.
       var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
       var ecParams = document.getElementById(ownerKey + '-ec-params').value;
+      var emText = document.getElementById(ownerKey + '-em-mask').value;
+      var prevEc = DspfWriter.getEditKeyword(keywords);
+      var prevEm = DspfWriter.getEditMask(keywords);
+      function revert() {
+        document.getElementById(ownerKey + '-ec-kind').value = prevEc.kind;
+        document.getElementById(ownerKey + '-ec-params').value = prevEc.parameters;
+        document.getElementById(ownerKey + '-em-mask').value = prevEm.text;
+      }
       // L82 - symmetric side of L81's DFT/DFTVAL guard: EDTCDE/EDTWRD
-      // (but NOT EDTMSK, which the DDS Reference never lists in this
-      // conflict) are blocked from being selected here while the field
-      // already carries DFT or DFTVAL, using the exact same
+      // are blocked from being selected here while the field already
+      // carries DFT or DFTVAL, using the exact same
       // DspfWriter.dftGroupConflictReason L81 already established -
       // just called from this panel's own side of the relationship now.
-      // Switching to EDTMSK, switching back to '(none)', or re-applying
-      // an unchanged kind is never blocked.
+      // Switching back to '(none)' or re-applying an unchanged kind is
+      // never blocked.
       if (ecKind === 'EDTCDE' || ecKind === 'EDTWRD') {
         var reason = DspfWriter.dftGroupConflictReason(ecKind, keywords, dataType);
-        if (reason) {
-          window.alert(reason);
-          var prevEc = DspfWriter.getEditKeyword(keywords);
-          document.getElementById(ownerKey + '-ec-kind').value = prevEc.kind;
-          document.getElementById(ownerKey + '-ec-params').value = prevEc.parameters;
-          return;
-        }
+        if (reason) { window.alert(reason); revert(); return; }
       }
-      onChange(DspfWriter.setEditKeyword(keywords, ecKind, ecParams));
+      // Task I-31 - EDTMSK's own two documented requirements (usage I/B;
+      // an EDTCDE/EDTWRD keyword present), checked against what THIS
+      // apply is about to leave on the field, not just its current
+      // saved state - a same-click "add EDTCDE and EDTMSK together"
+      // must be allowed, so editMaskConflictReason is called against
+      // `pendingKeywords` (post setEditKeyword, pre setEditMask), not
+      // the stale outer `keywords`. Clearing the mask back to blank is
+      // never blocked.
+      var pendingKeywords = DspfWriter.setEditKeyword(keywords, ecKind, ecParams);
+      if (emText) {
+        var maskReason = DspfWriter.editMaskConflictReason(pendingKeywords, usage);
+        if (maskReason) { window.alert(maskReason); revert(); return; }
+      }
+      onChange(DspfWriter.setEditMask(pendingKeywords, emText));
     });
   }
 
@@ -1935,14 +1966,31 @@
     // were being offered 6 character-only values (A/X/W/M/J/O/E/G minus the
     // ones shared with numeric) that don't apply to them, while genuinely
     // losing S and Y entirely (neither letter existed anywhere in the old
-    // unconditional 11-value list). `dataType` (the field's own DDS data-
-    // type column, e.g. 'A' for character, 'S'/'Y'/'B'/'P'/blank for
-    // numeric - same convention displayLength/renderFieldDiv already key
-    // off in dspfEngine.js) picks the correct list; a missing/unrecognized
-    // dataType falls back to the character list (the wider of the two, so
-    // nothing already-set becomes unselectable) rather than guessing wrong
-    // in the narrower direction.
-    var isNumericField = dataType === 'S' || dataType === 'Y' || dataType === 'B' || dataType === 'P' || dataType === 'L' || dataType === 'T' || dataType === 'Z' || dataType === 'F';
+    // unconditional 11-value list). `dataType` (the field's own position-
+    // 35 data type/keyboard-shift column - the Basic tab's Data type
+    // dropdown writes exactly one of '', 'A', 'X', 'N', 'S', 'Y', 'I',
+    // 'D', 'M', 'F', 'L', 'T', 'Z', per IBM's own "Data type and keyboard
+    // shift for display files (position 35)" table) picks the correct
+    // list; a missing/unrecognized dataType falls back to the character
+    // list (the wider of the two, so nothing already-set becomes
+    // unselectable) rather than guessing wrong in the narrower direction.
+    //
+    // Task I-31 finding: this used to also test dataType === 'B'/'P' -
+    // neither letter is a real position-35 entry (IBM's table above has
+    // no B or P row at all, and the Basic tab's own dropdown - the only
+    // place dataType is ever set - never offers either), so both arms
+    // were dead code that could never actually match. Removed. L/T/Z
+    // (Date/Time/Timestamp) are kept in this "numeric-ish" grouping,
+    // confirmed correct for keyboard-shift purposes specifically: IBM's
+    // own numeric Database Reference screen (image183.png, cited above)
+    // and Keying Options screen (image176.png) are the only two SDA
+    // screens offering a keyboard-shift override at all, and L/T/Z
+    // fields have no screen of their own in real SDA (see
+    // docs/sda-reference/screens/field-level's four categories -
+    // character/numeric/constant/menu-bar-choice only) - they fall under
+    // "numeric" for every field-level UI purpose in real SDA, this one
+    // included.
+    var isNumericField = dataType === 'S' || dataType === 'Y' || dataType === 'L' || dataType === 'T' || dataType === 'Z' || dataType === 'F';
     var shiftValues = isNumericField ? ['', 'S', 'N', 'Y', 'I', 'D'] : ['', 'N', 'A', 'X', 'W', 'I', 'D', 'M', 'J', 'O', 'E', 'G'];
     html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute</div>';
     html += '<div class="hint-small">Not a keyword - this is the field\u2019s own data type (position 35), the same value the Basic tab\u2019s Data type dropdown edits.</div>';
