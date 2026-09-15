@@ -2040,7 +2040,7 @@ section below.)
 |------|---------------------|------------|--------|
 | **I-30** | Character fields (base set: Colors, Display Attributes, Keying Options, Validity Check, Input Keywords, General Keywords, Database Reference, Error Messages, Message ID — `fieldKeywordCategoryVisibility()`'s O/I/B/H gate itself) | I-1 (method) | done (0.10.109) |
 | **I-31** | Numeric fields (adds Editing Keywords; narrows Validity Check for float per existing code; confirms/splits the Date/Time/Timestamp (L/T/Z) grouping) | I-30 | done (0.10.113) |
-| **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | not started — the O/B/I-only Usage sub-check was absorbed into I-31 (`DspfWriter.dateTimeUsageConflictReason`, done); `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` themselves remain this task's own scope |
+| **I-32** | Date/Time/Timestamp fields (L/T/Z) — narrower O/B/I-only Usage; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` | I-31 | claimed — in progress (O/B/I-only Usage sub-check already absorbed into I-31's `DspfWriter.dateTimeUsageConflictReason`, done; `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP` are this task's own remaining scope) |
 | **I-33** | Constant fields, including the system-value sub-form (`DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`) | I-1 (method) | done (0.10.110) |
 | **I-34** | Menu-bar choice fields (`SNGCHCFLD`/`MLTCHCFLD`) | I-1 (method) | done (0.10.112) |
 | **I-35** | Usage `M` (Message) and `P` (Program-to-system) — verify iSDA's fail-open behavior against IBM's fixed keyword lists above | I-30 | claimed |
@@ -2340,6 +2340,16 @@ usage is changed to B via the Basic tab's own Apply button; a new
 blocking H and accepting B. Full suite: all 69 test files pass
 (registered in `package.json`'s `test` script), `npm run compile` and
 `tsc --noEmit` both clean.
+
+---
+
+### I-32 — Date/Time/Timestamp fields (`DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`)
+
+**Status: claimed, work starting now.** (The O/B/I-only Usage
+sub-check named in this task's own scope line was already absorbed
+into I-31's `DspfWriter.dateTimeUsageConflictReason` — done there.
+This task's own remaining scope is `DATFMT`/`DATSEP`/`TIMFMT`/
+`TIMSEP`.)
 
 ---
 
