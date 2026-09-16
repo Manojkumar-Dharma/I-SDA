@@ -2303,7 +2303,48 @@
     ['chrid', 'CHRID', 'Translate characters', false, 'named', false, 'none'],
     ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false, 'named', false, 'none'],
     ['noccsid', 'NOCCSID', 'No coded character set id', false, 'all', false, 'none'],
+    // Task I-39 - BLKFOLD/FLTFIXDEC/FLTPCN/MAPVAL were confirmed entirely
+    // missing from iSDA (no getter/setter, no row, no mention anywhere in
+    // the codebase) by a full-text audit of DDS_Keyword_V7r6.txt against
+    // actual code, cross-checked against KEYWORD-INDEX.md (which had
+    // simply never been updated to include them). All four are
+    // "Option indicators are not valid for this keyword" per their own
+    // DDS Reference entries, so `conditionable` (6th element) is false
+    // for each, same as most of this row list's other flag-only rows.
+    // The 8th element (`dtScope`, new here - every existing row above
+    // implicitly defaults to 'all' since row[7] is simply undefined for
+    // them) narrows a row to fields of a particular data type, the same
+    // way `mpScope` (7th element) narrows by Usage M/P: 'float-only'
+    // (FLTFIXDEC/FLTPCN - IBM's own text: "floating-point field(s)
+    // only"/"valid for floating-point fields only"), 'non-float'
+    // (BLKFOLD - "You cannot specify the BLKFOLD keyword on a
+    // floating-point field"), or 'datetime-only' (MAPVAL - "only valid
+    // with the date (L), time (T), or timestamp (Z) data types").
+    // FLTPCN's own fixed *SINGLE|*DOUBLE parameter and MAPVAL's own
+    // parenthesized value-pair list are both offered as a raw text box
+    // (hasParam=true) rather than a dedicated select/list editor here -
+    // same "type the DDS text yourself" convention this row list already
+    // uses for DFT/DFTVAL/TEXT above, kept deliberately simple for this
+    // first pass; a follow-up task can add a friendlier editor for either
+    // if it turns out to be worth it.
+    ['blkfold', 'BLKFOLD', undefined, false, 'named', false, 'none', 'non-float'],
+    ['fltfixdec', 'FLTFIXDEC', undefined, false, 'named', false, 'none', 'float-only'],
+    ['fltpcn', 'FLTPCN', '*SINGLE or *DOUBLE', true, 'named', false, 'none', 'float-only'],
+    ['mapval', 'MAPVAL', "e.g. ('01/01/40' *BLANK)", true, 'named', false, 'none', 'datetime-only'],
   ];
+
+  /** Task I-39 - resolves GENERAL_FIELD_KEYWORD_ROWS's own 8th element
+   *  (`dtScope`) against a field's actual `dataType`, `undefined` (row
+   *  omits it, defaulting to 'all') included. Shared by
+   *  generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor so the two
+   *  can never disagree about which rows are visible for a given field. */
+  function generalFieldKeywordRowMatchesDataType(dtScope, dataType) {
+    if (!dtScope || dtScope === 'all') return true;
+    if (dtScope === 'float-only') return dataType === 'F';
+    if (dtScope === 'non-float') return dataType !== 'F';
+    if (dtScope === 'datetime-only') return dataType === 'L' || dataType === 'T' || dataType === 'Z';
+    return true;
+  }
 
   // L81 - DFT/DFTVAL are the only two rows here subject to DDS's own
   // documented mutual-exclusion/floating-point restriction (see
@@ -2315,7 +2356,7 @@
   function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6];
+      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7];
       if (scope === 'named' && isConstant) return;
       if (scope === 'constant' && !isConstant) return;
       // Task I-35: Usage M/P each have a fixed, much smaller keyword list
@@ -2325,6 +2366,9 @@
       // own visibility is untouched by this check.
       if (usage === 'M' && mpScope === 'none') return;
       if (usage === 'P' && mpScope !== 'all') return;
+      // Task I-39 - dtScope narrows a row to fields of a particular data
+      // type (see GENERAL_FIELD_KEYWORD_ROWS's own I-39 comment).
+      if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
@@ -2340,7 +2384,7 @@
 
   function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage) {
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6];
+      var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7];
       if (scope === 'named' && isConstant) return;
       if (scope === 'constant' && !isConstant) return;
       // Task I-35 - see generalFieldKeywordsHtml's own I-35 comment above;
@@ -2348,6 +2392,9 @@
       // fail to render) without a matching wire-up.
       if (usage === 'M' && mpScope === 'none') return;
       if (usage === 'P' && mpScope !== 'all') return;
+      // Task I-39 - must match generalFieldKeywordsHtml's own dtScope skip
+      // logic exactly, same reasoning as the mpScope comment just above.
+      if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
       var id = ownerKey + '-gen-' + key;
       if (DFT_GROUP_KEYS[key]) {
         // L81 - guarded wiring (alert + revert, same idiom S36-4's own
@@ -2581,6 +2628,21 @@
     var rcdnbr = DspfWriter.getFileFlagKeyword(keywords, 'SFLRCDNBR');
     var rolval = DspfWriter.getFileFlagKeyword(keywords, 'SFLROLVAL');
     var scroll = DspfWriter.getFileFlagKeyword(keywords, 'SFLSCROLL');
+    // Task I-39 - SFLCHCCTL/SFLCSRPRG were confirmed entirely missing from
+    // iSDA (no getter/setter, no row, no mention anywhere) by a full-text
+    // audit of DDS_Keyword_V7r6.txt against actual code. Both are simple,
+    // no-parameter, non-conditionable field-level flags ("Option
+    // indicators are not valid for this keyword" per each's own DDS
+    // Reference entry) that only make sense on a field within an SFL/
+    // SFLCTL record - same shape and same panel as SFLRCDNBR/SFLROLVAL/
+    // SFLSCROLL just above, so they're added here rather than as a new
+    // accordion. SFLCHCCTL has real structural requirements this first
+    // pass doesn't hard-block (must be the record's first field, length 1,
+    // data type Y, decimal positions 0, usage H) - surfaced as a hint
+    // rather than a guard, same "close the entirely-missing gap first"
+    // scope I-39's own claim comment in keywordFixes.md documents.
+    var chcctl = DspfWriter.getFileFlagKeyword(keywords, 'SFLCHCCTL');
+    var csrprg = DspfWriter.getFileFlagKeyword(keywords, 'SFLCSRPRG');
     var html = '<div class="status" style="margin-bottom:8px;">For a field within a subfile (SFL) or subfile control (SFLCTL) record that lets the operator type a record number or roll value directly.</div>';
     html += '<div class="section-label">Operator can specify the record number to display (SFLRCDNBR)</div>';
     html += '<select id="' + ownerKey + '-sflrcdnbr">' +
@@ -2595,6 +2657,10 @@
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflrolval" ' + (rolval.present ? 'checked' : '') + '/>Operator can specify the number of records to roll (SFLROLVAL)</label>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflscroll" ' + (scroll.present ? 'checked' : '') + '/>Return top-of-subfile record number on scroll (SFLSCROLL)</label>';
     html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot share one field, and only one field in the whole record can carry SFLSCROLL.</div>';
+    html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflchcctl" ' + (chcctl.present ? 'checked' : '') + '/>Choice control field for a selection list (SFLCHCCTL)</label>';
+    html += '<div class="hint-small">Must be the first field in the subfile record: length 1, data type Y (zoned numeric), 0 decimal positions, usage H (hidden). Only one field per record can carry this.</div>';
+    html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflcsrprg" ' + (csrprg.present ? 'checked' : '') + '/>Cursor progresses to same field in next subfile record (SFLCSRPRG)</label>';
+    html += '<div class="hint-small">Ignored on displays not attached to a controller with an enhanced data stream. Not allowed in a record that also carries SFLLIN.</div>';
     return html;
   }
 
@@ -2623,6 +2689,23 @@
           }
         }
         onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLSCROLL', scrollEl.checked));
+      });
+    }
+    // Task I-39 - SFLCHCCTL/SFLCSRPRG (see subfileFieldKeywordsHtml's own
+    // I-39 comment above). Neither is conditionable per IBM's own DDS
+    // Reference, and neither has real structural guards wired here yet
+    // (see the same comment for why) - a plain present/absent toggle,
+    // same as SFLROLVAL just above.
+    var chcctlEl = document.getElementById(ownerKey + '-sflchcctl');
+    if (chcctlEl) {
+      chcctlEl.addEventListener('change', function () {
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLCHCCTL', chcctlEl.checked));
+      });
+    }
+    var csrprgEl = document.getElementById(ownerKey + '-sflcsrprg');
+    if (csrprgEl) {
+      csrprgEl.addEventListener('change', function () {
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRPRG', csrprgEl.checked));
       });
     }
   }
@@ -3604,6 +3687,17 @@
     // Task I-3: ERRSFL - "Option indicators are not valid for this keyword."
     var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
     g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, undefined, undefined);
+    // Task I-39 - CSRINPONLY was confirmed entirely missing from iSDA (no
+    // getter/setter, no row, no mention anywhere) by a full-text audit of
+    // DDS_Keyword_V7r6.txt against actual code. File- or record-level flag
+    // (this is the file-level row; recordKeywordsPanelsHtml below adds the
+    // matching record-level row), no parameters, and - unlike ERRSFL just
+    // above - IBM's own DDS Reference explicitly states "Option indicators
+    // are valid for this keyword", so this row keeps its Conditioning
+    // toggle (expandedSet passed through, matching INVITE/ALWGPH's own
+    // rows just above in this same panel).
+    var fCsrinponly = DspfWriter.getFileFlagKeyword(kw, 'CSRINPONLY');
+    g += flagRowHtml('fk-csrinponly', 'Restrict cursor to input-capable positions (CSRINPONLY)', fCsrinponly.present, undefined, undefined, fCsrinponly.conditions, expandedSet);
     g += '<div class="section-label">Reference database file (REF)</div>';
     g += '<div class="two-col"><input type="text" id="fk-ref-library" placeholder="Library (opt)" value="' + escapeHtml(refState.library) + '" />' +
       '<input type="text" id="fk-ref-record" placeholder="Database file name" value="' + escapeHtml(refState.record) + '" /></div>';
@@ -3944,6 +4038,7 @@
     wireChgInpDftFlag(getKeywords, onChange, 'fk-chginpdft', expandedSet, rerender);
     wireEntFldAtrEditor(getKeywords, onChange, 'fk-entfldatr', expandedSet, rerender);
     simple('fk-errsfl', 'ERRSFL', false, undefined, true);
+    simple('fk-csrinponly', 'CSRINPONLY');
     var refLib = document.getElementById('fk-ref-library');
     var refRec = document.getElementById('fk-ref-record');
     var refFormat = document.getElementById('fk-ref-format');
@@ -4601,6 +4696,16 @@
     g += flagRowHtml(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, fRetkey.conditions, expandedSet);
     var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
     g += flagRowHtml(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, fRetcmdkey.conditions, expandedSet);
+    // Task I-39 - CSRINPONLY was confirmed entirely missing from iSDA (no
+    // getter/setter, no row, no mention anywhere) by a full-text audit of
+    // DDS_Keyword_V7r6.txt against actual code. This is the record-level
+    // row (see fileKeywordsPanelsHtml's own I-39 comment for the matching
+    // file-level row); IBM's own DDS Reference documents CSRINPONLY as a
+    // "file-level or record-level keyword", both independently valid, and
+    // states "Option indicators are valid for this keyword", so this row
+    // keeps its Conditioning toggle same as RETKEY/RETCMDKEY just above.
+    var fCsrinponly = DspfWriter.getFileFlagKeyword(kw, 'CSRINPONLY');
+    g += flagRowHtml(p + '-csrinponly', 'Restrict cursor to input-capable positions (CSRINPONLY)', fCsrinponly.present, undefined, undefined, fCsrinponly.conditions, expandedSet);
     g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     // Bug fix (Task L76 - real SDA's "Define Menu-Bar Display Keywords"
     // screenshot, docs/sda-reference/screens/record-level/menu-bar-record-
@@ -5308,6 +5413,7 @@
     wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true, true, true);
     simple(p + '-retkey', 'RETKEY');
     simple(p + '-retcmdkey', 'RETCMDKEY');
+    simple(p + '-csrinponly', 'CSRINPONLY');
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
     // Task L76 (superseded by Task I-17 below) - hand-wired panel/wire
     // pair rather than the generic wireFlagRow/simple() helpers above,
@@ -6283,6 +6389,20 @@
       '</select>';
     html += '<div class="hint-small" style="margin:4px 0 8px;">Mutually exclusive with SFLDROP/SFLFOLD and with each other - selecting one here blocks turning the other on above.</div>';
 
+    // Task I-39 - SFLRTNSEL was confirmed entirely missing from iSDA (no
+    // getter/setter, no row, no mention anywhere) by a full-text audit of
+    // DDS_Keyword_V7r6.txt against actual code. Record-level flag on the
+    // SFLCTL record, no parameters, not conditionable ("Option indicators
+    // are not valid for this keyword"). IBM's own DDS Reference: "If this
+    // keyword is specified then SFLMLTCHC or SFLSNGCHC must be specified" -
+    // surfaced as a hint rather than a hard block for this first pass
+    // (same "close the entirely-missing gap first" scope noted elsewhere
+    // in this task), so it's placed right here alongside the selector that
+    // drives both.
+    var fSflrtnsel = DspfWriter.getFileFlagKeyword(kw, 'SFLRTNSEL');
+    html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="' + p + '-sflrtnsel" ' + (fSflrtnsel.present ? 'checked' : '') + ' /> Return all selected choices, including unchanged defaults (SFLRTNSEL)</label>';
+    if (!current) html += '<div class="hint-small" style="margin-bottom:8px;">Requires SFLSNGCHC or SFLMLTCHC (selected above) to have any effect.</div>';
+
     function rstcsrSelect(idBase, value) {
       return '<select id="' + idBase + '-rstcsr" style="margin-top:4px;">' +
         [
@@ -6329,6 +6449,16 @@
    *  I-13's own PULLDOWN guard uses; turning it back to "(none)" is never
    *  blocked. */
   function wireSflChoiceListPanel(p, getKeywords, onChange) {
+    // Task I-39 - SFLRTNSEL (see sflChoiceListPanelHtml's own I-39 comment
+    // above). Plain present/absent toggle, wired independently of
+    // commit()/the type selector since it never itself changes SFLSNGCHC/
+    // SFLMLTCHC's own state.
+    var sflrtnselEl = document.getElementById(p + '-sflrtnsel');
+    if (sflrtnselEl) {
+      sflrtnselEl.addEventListener('change', function () {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLRTNSEL', sflrtnselEl.checked));
+      });
+    }
     function commit() {
       var typeEl = document.getElementById(p + '-selchc-type');
       if (!typeEl) return;

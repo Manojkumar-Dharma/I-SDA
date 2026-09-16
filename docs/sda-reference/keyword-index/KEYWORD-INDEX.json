@@ -2,7 +2,7 @@
   "meta": {
     "title": "iSDA Keyword Index",
     "purpose": "Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.",
-    "generated": "2026-09-15",
+    "generated": "2026-09-15 (updated 2026-09-16 for Task I-39)",
     "source_repo": "github.com/Manojkumar-Dharma/I-SDA",
     "notes": [
       "Extracted directly from src/webviewClientHelpers.js and src/dspfWriter.js (ground truth), cross-checked against docs/sda-reference/screens/* (real SDA reference screenshots) during the A1/A2 audit.",
@@ -13,7 +13,8 @@
       "Task S36-6: an optional 's36e' field marks the 7 keywords USRDSPMGT restricts (plus USRDSPMGT itself) - see the dedicated 'S36E-conditional keywords' section in KEYWORD-INDEX.md for the full list and Task S36-3's own rule table (src/dspfWriter.js's S36E_KEYWORD_RESTRICTIONS) for citations. Field-level CHANGE (Input Keywords category) is a distinct keyword from record-level CHANGE and is deliberately NOT marked - S36-3 verified only the record-level CHANGE keyword.",
       "Task I-16: full regeneration pass against the codebase as it stood after I-7 through I-29 (docs/sda-reference/keywordFixes.md). Notable corrections vs. the previous snapshot: removed the stale standalone 'PRTFILE' keyword at both file- and record-level (I-2 - it was never real DDS syntax, only ever PRINT's own parameter); added file-level HLPRCD/MOUBTN/VALNUM/WRDWRAP (I-5); marked record-level MNUBARDSP (I-17) and record-level HLPTITLE (I-27) as repeatable, independently-conditioned instance lists; removed KEEP from the SFL/SFLCTL subfile panels' own keyword lists now that it's a hint pointing at the sole surviving live copy on the base Record Keywords General tab, not a second live control (I-25); added SFLSNGCHC/SFLMLTCHC (SFLCTL General) and SFLSCROLL (subfile field keywords) (I-26); removed the separate 'Menu-Bar record - Menu-Bar Display Keywords' category and MNUBARDSP's duplicate row on the MNUBAR record's own General tab - confirmed a documentation artifact, not a second live UI surface (I-14, closed here). This does not re-litigate conditioning eligibility, mutual-exclusion guards, or advisory notes from I-3/I-7 through I-24/I-28 - those don't change what's listed here, only how each listed keyword behaves; conditioning/conflict details live in keywordFixes.md, not in this structural index.",
       "Follow-up check (same session as I-16): file-level CLEAR/HOME/PAGEDOWN/PAGEUP/HELP/HLPRTN/VLDCMDKEY corrected to show their optional ['text'] sub-parameter (Task I-4, v0.10.87) - this index had never been updated for that fix either.",
-      "Task I-30 (character fields, the first field-level task): corrected three field-level 'General' category entries against the actual code rather than an old snapshot - DSPATR's value list had two values (UH/RE) that don't exist anywhere in IBM's own DDS Reference (should be PR/OID, matching the code's own DSPATR_ATTRS constant exactly); CNTFLD's parameter was described as a field name but is actually a numeric column-width; DFTVAL was marked repeatable=True but the code deliberately implements it as a single conditionable occurrence, not a repeatable list. Also added TEXT (missing from this index entirely) and HLPID (missing from the Character category specifically - it already existed under 'Constant field additions'). As with I-16, this index still doesn't track conditioning eligibility (a 'valid/not valid for this keyword' fact per keyword) - I-30's own extensive conditioning-toggle fixes across Colors & Attributes/Keying Options/Validity Check/Input Keywords/General Keywords/Database Reference live in keywordFixes.md and the code itself, not here."
+      "Task I-30 (character fields, the first field-level task): corrected three field-level 'General' category entries against the actual code rather than an old snapshot - DSPATR's value list had two values (UH/RE) that don't exist anywhere in IBM's own DDS Reference (should be PR/OID, matching the code's own DSPATR_ATTRS constant exactly); CNTFLD's parameter was described as a field name but is actually a numeric column-width; DFTVAL was marked repeatable=True but the code deliberately implements it as a single conditionable occurrence, not a repeatable list. Also added TEXT (missing from this index entirely) and HLPID (missing from the Character category specifically - it already existed under 'Constant field additions'). As with I-16, this index still doesn't track conditioning eligibility (a 'valid/not valid for this keyword' fact per keyword) - I-30's own extensive conditioning-toggle fixes across Colors & Attributes/Keying Options/Validity Check/Input Keywords/General Keywords/Database Reference live in keywordFixes.md and the code itself, not here.",
+      "Task I-39: added BLKFOLD, CSRINPONLY (file+record), FLTFIXDEC, FLTPCN, MAPVAL, SFLCHCCTL, SFLCSRPRG, SFLRTNSEL - 8 keywords found entirely missing from iSDA (no getter/setter, no row, no mention anywhere in the codebase) by a full-text audit of docs/sda-reference/source/DDS_Keyword_V7r6.txt against actual code."
     ],
     "totalCategories": 47,
     "totalKeywordEntries": 206
@@ -111,6 +112,12 @@
             {
               "keyword": "WRDWRAP",
               "description": "Word wrap for continued-entry fields",
+              "parameters": "no parameters",
+              "repeatable": false
+            },
+            {
+              "keyword": "CSRINPONLY",
+              "description": "Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39)",
               "parameters": "no parameters",
               "repeatable": false
             }
@@ -457,6 +464,12 @@
               "parameters": "'alternative-name'",
               "repeatable": false,
               "s36e": "S36E-adjacent but NOT USRDSPMGT-conditional (verified): 1-8 chars, no leading '*', must be unique among all record/alternate names, not allowed on SFL. See S36-3 in LIMITATIONS-PLAN.md."
+            },
+            {
+              "keyword": "CSRINPONLY",
+              "description": "Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39)",
+              "parameters": "no parameters",
+              "repeatable": false
             }
           ]
         },
@@ -902,6 +915,18 @@
               "description": "Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26)",
               "parameters": "no parameters",
               "repeatable": false
+            },
+            {
+              "keyword": "SFLCHCCTL",
+              "description": "Choice control field for a selection list; must be the record's first field, length 1, data type Y, 0 decimals, usage H (Task I-39)",
+              "parameters": "no parameters",
+              "repeatable": false
+            },
+            {
+              "keyword": "SFLCSRPRG",
+              "description": "Cursor progresses to the same field in the next subfile record instead of the next field; ignored without an enhanced data stream, not allowed with SFLLIN (Task I-39)",
+              "parameters": "no parameters",
+              "repeatable": false
             }
           ]
         },
@@ -1002,6 +1027,12 @@
               "keyword": "SFLMLTCHC",
               "description": "Multiple-choice selection list - mutually exclusive with SFLSNGCHC and with SFLDROP/SFLFOLD (Task I-26)",
               "parameters": "[&number-selected] [*RSTCSR|*NORSTCSR] [*SLTIND] - RSTCSR default flips when the record is in a pull-down",
+              "repeatable": false
+            },
+            {
+              "keyword": "SFLRTNSEL",
+              "description": "Return all selected choices (including unchanged defaults) to GET-NEXT-CHANGED; requires SFLMLTCHC or SFLSNGCHC (Task I-39)",
+              "parameters": "no parameters",
               "repeatable": false
             }
           ]
@@ -1396,6 +1427,30 @@
               "keyword": "NOCCSID",
               "description": "No coded character set ID",
               "parameters": "",
+              "repeatable": false
+            },
+            {
+              "keyword": "BLKFOLD",
+              "description": "Fold output text at a blank rather than the end of the line; not valid on floating-point fields (Task I-39)",
+              "parameters": "no parameters",
+              "repeatable": false
+            },
+            {
+              "keyword": "FLTFIXDEC",
+              "description": "Display a floating-point (usage B/O) field in fixed-decimal notation instead of standard floating-point form (Task I-39)",
+              "parameters": "no parameters",
+              "repeatable": false
+            },
+            {
+              "keyword": "FLTPCN",
+              "description": "Floating-point field precision, single or double (Task I-39)",
+              "parameters": "*SINGLE | *DOUBLE",
+              "repeatable": false
+            },
+            {
+              "keyword": "MAPVAL",
+              "description": "Map field data to a different value on input/output; date (L)/time (T)/timestamp (Z) fields only (Task I-39)",
+              "parameters": "program-value/system-value pairs",
               "repeatable": false
             }
           ]

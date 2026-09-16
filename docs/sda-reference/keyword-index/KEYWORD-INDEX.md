@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-15 · 206 keyword entries across 47 categories · 169 unique keyword names.
+Generated 2026-09-15 (updated 2026-09-16 for Task I-39) · 215 keyword entries across 47 categories · 177 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -36,6 +36,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `ASSUME` | record → General |
 | `BLANKS` | field → Input Keywords |
 | `BLINK` | record → Output |
+| `BLKFOLD` | field → General |
 | `CA01-CA24` | file → Command Keys |
 | `CF01-CF24` | file → Command Keys |
 | `CHANGE` ⚠️ | record → Indicator; record → Subfile - Indicator (SFL); field → Input Keywords |
@@ -54,6 +55,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `CNTFLD` | field → General |
 | `COLOR` | field → Colors |
 | `COMP` | field → Validity Check |
+| `CSRINPONLY` | file → General; record → General |
 | `CSRLOC` | record → Output |
 | `DATFMT` | field → Date/Time Fields |
 | `DATSEP` | field → Date/Time Fields |
@@ -76,6 +78,8 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `ERRMSGID` | field → Error Messages |
 | `ERRSFL` | file → General |
 | `FLDCSRPRG` | field → General |
+| `FLTFIXDEC` | field → General |
+| `FLTPCN` | field → General |
 | `FRCDTA` | record → Output |
 | `GETRETAIN` | record → Input |
 | `HELP` ⚠️ | file → Indicator; record → Indicator |
@@ -105,6 +109,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `LOCK` | record → Output |
 | `LOGINP` | record → Input; record → Subfile - General (SFL) |
 | `LOGOUT` | record → Output; record → Subfile - General (SFL) |
+| `MAPVAL` | field → General |
 | `MDTOFF` | record → Overlay |
 | `MLTCHCFLD` | field → Menu-bar choice - Choice Selection Type |
 | `MNUBAR` | record → Menu-Bar record - General |
@@ -140,7 +145,9 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `RTNCSRLOC` | record → General |
 | `RTNDTA` | record → Input |
 | `SETOF` | record → Indicator; record → Subfile - Indicator (SFL) |
+| `SFLCHCCTL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
 | `SFLCLR` | record → Subfile Control - General (SFLCTL) |
+| `SFLCSRPRG` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
 | `SFLCSRRRN` | record → Subfile Control - General (SFLCTL) |
 | `SFLCTL` | record → Subfile Control - General (SFLCTL) |
 | `SFLDLT` | record → Subfile Control - General (SFLCTL) |
@@ -164,6 +171,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `SFLRCDNBR` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
 | `SFLRNA` | record → Subfile Control - General (SFLCTL) |
 | `SFLROLVAL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
+| `SFLRTNSEL` | record → Subfile Control - General (SFLCTL) |
 | `SFLSCROLL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
 | `SFLSIZ` | record → Subfile Control - Display Layout |
 | `SFLSNGCHC` | record → Subfile Control - General (SFLCTL) |
@@ -230,6 +238,7 @@ File-wide behavior flags plus REF/PASSRCD/TEXT.
 | `PASSRCD` | Record to pass unformatted data to/from | record name |  |  |
 | `VALNUM` | Enhanced numeric error checking | no parameters |  |  |
 | `WRDWRAP` | Word wrap for continued-entry fields | no parameters |  |  |
+| `CSRINPONLY` | Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39) | no parameters |  |  |
 
 ### Indicator
 
@@ -363,6 +372,7 @@ Record-wide behavior flags plus command-keys entry point, TEXT, ALTNAME.
 | `ALWROL` | Allow rolling of lines |  |  |  |
 | `RETKEY` | Retain CLEAR/HELP/HOME/ROLL keys |  |  | ⚠️ |
 | `RETCMDKEY` | Retain CFnn/CAnn command keys |  |  | ⚠️ |
+| `CSRINPONLY` | Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39) | no parameters |  |  |
 | `CHGINPDFT` | Change input field defaults | attribute codes |  |  |
 | `MNUBARDSP` | Menu-bar display, repeatable/independently-conditioned instances (Task I-17); non-MNUBAR records get a 3-name record/choice/pull-down form, MNUBAR records get a single pull-down-input-field form | parameters (optional, shape depends on record type) | yes |  |
 | `ENTFLDATR` | Default attribute for entry fields in this record |  |  |  |
@@ -524,6 +534,8 @@ Field-level keywords for a hidden field within an SFL/SFLCTL record (numeric fie
 | `SFLRCDNBR` | Subfile record number field | CURSOR \| *TOP |  |  |
 | `SFLROLVAL` | Number of records to roll |  |  |  |
 | `SFLSCROLL` | Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26) | no parameters |  |  |
+| `SFLCHCCTL` | Choice control field for a selection list; must be the record's first field, length 1, data type Y, 0 decimals, usage H (Task I-39) | no parameters |  |  |
+| `SFLCSRPRG` | Cursor progresses to the same field in the next subfile record instead of the next field; ignored without an enhanced data stream, not allowed with SFLLIN (Task I-39) | no parameters |  |  |
 
 ### Subfile Control - General (SFLCTL)
 
@@ -550,6 +562,7 @@ SFLCTL's own record-level control keywords, plus the linkage to its SFL.
 | `SFLENTER` | Use Enter key instead of a command key to process the subfile |  |  |  |
 | `SFLSNGCHC` | Single-choice selection list - mutually exclusive with SFLMLTCHC and with SFLDROP/SFLFOLD (Task I-26) | [*RSTCSR\|*NORSTCSR] [*SLTIND] [*AUTOSLT\|*NOAUTOSLT\|*AUTOSLTENH] - RSTCSR/AUTOSLT defaults flip when the record is in a pull-down |  |  |
 | `SFLMLTCHC` | Multiple-choice selection list - mutually exclusive with SFLSNGCHC and with SFLDROP/SFLFOLD (Task I-26) | [&number-selected] [*RSTCSR\|*NORSTCSR] [*SLTIND] - RSTCSR default flips when the record is in a pull-down |  |  |
+| `SFLRTNSEL` | Return all selected choices (including unchanged defaults) to GET-NEXT-CHANGED; requires SFLMLTCHC or SFLSNGCHC (Task I-39) | no parameters |  |  |
 
 ### Subfile Control - Display Layout
 
@@ -732,6 +745,10 @@ Documentation/reference/default-value keywords.
 | `CHRID` | Translate characters (graphic character set/code page) |  |  |  |
 | `IGCALTTYP` | Alter IGC (DBCS) type (character fields only) |  |  |  |
 | `NOCCSID` | No coded character set ID |  |  |  |
+| `BLKFOLD` | Fold output text at a blank rather than the end of the line; not valid on floating-point fields (Task I-39) | no parameters |  |  |
+| `FLTFIXDEC` | Display a floating-point (usage B/O) field in fixed-decimal notation instead of standard floating-point form (Task I-39) | no parameters |  |  |
+| `FLTPCN` | Floating-point field precision, single or double (Task I-39) | *SINGLE \| *DOUBLE |  |  |
+| `MAPVAL` | Map field data to a different value on input/output; date (L)/time (T)/timestamp (Z) fields only (Task I-39) | program-value/system-value pairs |  |  |
 
 ### Database Reference
 

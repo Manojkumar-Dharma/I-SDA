@@ -2919,7 +2919,7 @@ paragraph.
 
 ### I-39 — Full-text audit against DDS_Keyword_V7r6.txt found 8 keywords entirely missing from iSDA
 
-**Claimed.** Cross-checked every keyword name in the DDS Reference's own table
+**Fixed (v0.10.118).** Cross-checked every keyword name in the DDS Reference's own table
 of contents (`docs/sda-reference/source/DDS_Keyword_V7r6.txt`) against actual
 occurrences in `src/*.js`/`src/*.ts` (not just `KEYWORD-INDEX.md`, which is a
 point-in-time snapshot that can drift - confirmed several apparent gaps were
@@ -2963,6 +2963,39 @@ precedent `hlpdocConflictReason`'s own doc comment set in I-38 - since the
 priority here is closing the "keyword doesn't exist in iSDA at all" gap
 first.
 
+first.
+
+Landed exactly as planned. `BLKFOLD`/`FLTFIXDEC`/`FLTPCN`/`MAPVAL` were
+added to `GENERAL_FIELD_KEYWORD_ROWS` with a new 8th `dtScope` element
+(`'float-only'`/`'non-float'`/`'datetime-only'`, resolved by the new
+`generalFieldKeywordRowMatchesDataType` helper shared between
+`generalFieldKeywordsHtml`/`wireGeneralFieldKeywordsEditor`, same "shared
+resolver so the two can never disagree" reasoning `mpScope` already used).
+`CSRINPONLY` got one row each in `fileKeywordsPanelsHtml`/
+`wireFileKeywordsPanels` and `recordKeywordsPanelsHtml`/
+`wireRecordKeywordsPanels`, both with Conditioning enabled (IBM: "Option
+indicators are valid for this keyword" at both levels). `SFLCHCCTL`/
+`SFLCSRPRG` landed in `subfileFieldKeywordsHtml`/`wireSubfileFieldKeywords`
+as two more plain checkboxes alongside `SFLRCDNBR`/`SFLROLVAL`/`SFLSCROLL`,
+with hint text on `SFLCHCCTL`'s own field-shape requirement (first field,
+length 1, type Y, 0 decimals, usage H) and `SFLCSRPRG`'s `SFLLIN`
+incompatibility - neither hard-blocked yet. `SFLRTNSEL` landed in
+`sflChoiceListPanelHtml`/`wireSflChoiceListPanel` next to the `SFLSNGCHC`/
+`SFLMLTCHC` selector it depends on, with a hint shown when neither is
+selected.
+
+Regression coverage: `src/test/i39MissingKeywordsAudit.test.js` - row
+presence, `dtScope` data-type gating, and commit behavior for all 8
+keywords, run against the real `webviewClientHelpers.js` functions (same
+harness pattern `i35UsageMpFailOpenAudit.test.js` uses).
+
+**Deliberately out of scope, left for follow-up:** every hard guard noted
+above as "not hard-blocked yet" - `BLKFOLD` vs floating-point (data-type
+gating already prevents the row from ever showing on a float field, so
+this is a lower-priority belt-and-suspenders case), `SFLCHCCTL`'s own
+field-shape/first-field/one-per-record rules, `SFLCSRPRG` vs `SFLLIN`,
+and `SFLRTNSEL` vs missing `SFLMLTCHC`/`SFLSNGCHC`.
+
 ---
 
 ### I-40 — `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries
@@ -2999,6 +3032,16 @@ index wasn't regenerated after I-31–I-34/I-38 landed): `DATE`/`TIME`/
 Plan: regenerate via `build_index.py`/`build_lookup_and_md.py`, fold in
 the 7 label corrections and 9 missing entries above. Documentation only —
 no `src/` changes expected.
+
+**Note for whoever picks this up:** I-39's own manual edits to
+`KEYWORD-INDEX.md`/`.json` (`BLKFOLD`/`CSRINPONLY`/`FLTFIXDEC`/`FLTPCN`/
+`MAPVAL`/`SFLCHCCTL`/`SFLCSRPRG`/`SFLRTNSEL`, plus the corrected
+215/47/177 header counts) already landed before this task starts —
+`SFLCHCCTL`/`SFLCSRPRG` were filed under the same (mislabeled, per I-40's
+own finding above) "record → Subfile keywords" category as `SFLRCDNBR`/
+`SFLROLVAL`/`SFLSCROLL` for consistency with their existing neighbors, so
+I-40's regeneration should keep that grouping (correcting the label to
+field-level) rather than reverting it.
 
 ### I-41 — Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC`
 
