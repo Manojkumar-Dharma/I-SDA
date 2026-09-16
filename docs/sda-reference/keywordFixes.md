@@ -90,6 +90,9 @@ keyword-name mentions anywhere in its section.
 | **I-5** | Add confirmed-missing file-level keywords | I-1 | done (0.10.79) |
 | **I-6** | Resolve the `TEXT` file-level question | I-1 | done - removed (0.10.85) |
 | **I-38** | `HLPDOC` was missing from iSDA at the file level entirely | I-1 | done (0.10.116) |
+| **I-40** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries | I-1 | not started |
+| **I-41** | Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC` | I-1 | not started |
+| **I-42** | Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference | I-1, I-5 | not started |
 
 ### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
@@ -2960,6 +2963,84 @@ precedent `hlpdocConflictReason`'s own doc comment set in I-38 - since the
 priority here is closing the "keyword doesn't exist in iSDA at all" gap
 first.
 
+---
+
+### I-40 — `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries
+
+**Claimed.** Independent full-text audit of `DDS_Keyword_V7r6.txt` against
+current `src/*.js` (see
+`docs/sda-reference/source/dds-keyword-audit-report.md` for the full
+write-up and methodology), cross-checked against I-38/I-39 before filing to
+avoid duplicating either's claim.
+
+Traced each keyword's actual call site and confirmed the **code** already
+matches the DDS Reference in every case below — only the index's level
+labels are wrong:
+
+- `CHECK` — index says file/record/field; code (`checkInstancesHtml`,
+  called only from `validityCheckSectionHtml`/`keyingOptionsHtml`, both
+  field-level) and DDS Reference agree it's field-only.
+- `HLPPNLGRP` — index says file/record; its second surface
+  (`applicationHelpFieldsHtml`) is invoked only from the
+  help-specification (`*PNLGRP` H-spec) editor, not an actual
+  display-file record surface. DDS Reference: file-level or
+  help-specification-level, never record.
+- `SFLMSGKEY`/`SFLPGMQ`/`SFLRCDNBR`/`SFLROLVAL`/`SFLSCROLL` — index says
+  record; all five are written/read only via `subfileFieldKeywordsHtml`,
+  a field-level panel, matching the DDS Reference's own field-level
+  classification.
+
+Missing from the index despite being implemented in code (stale since the
+index wasn't regenerated after I-31–I-34/I-38 landed): `DATE`/`TIME`/
+`USER`/`SYSNAME` (I-33, `SYSTEM_VALUE_KEYWORD_NAMES`), `MSGCON` (I-33),
+`SFL`/`USRDFN` (record-type selector), `WDWTITLE`
+(`getWindowTitleText`/`setWindowTitleText`), `HLPDOC` (I-38).
+
+Plan: regenerate via `build_index.py`/`build_lookup_and_md.py`, fold in
+the 7 label corrections and 9 missing entries above. Documentation only —
+no `src/` changes expected.
+
+### I-41 — Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC`
+
+**Claimed.** Same audit as I-40 (see
+`docs/sda-reference/source/dds-keyword-audit-report.md`, Finding B).
+Confirmed zero occurrences anywhere in `dspfWriter.js`/
+`webviewClientHelpers.js`/`buildWebviewTemplate.js`, and not among I-39's
+already-claimed 8 keywords or the legacy-alias set I-39 deliberately
+excluded.
+
+- `HTML` — field-level flag. No legacy-alias exemption applies here;
+  distinct feature, not a deprecated synonym of something iSDA already
+  has.
+- `PSHBTNFLD`/`PSHBTNCHC` — push-button field. Likely needs a new field
+  *kind* rather than a simple flag row, since push-button fields aren't
+  modeled as a field type in iSDA at all today; `PSHBTNCHC` depends on
+  `PSHBTNFLD` existing first. Scope/sizing to be confirmed before
+  implementation starts.
+
+### I-42 — Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference
+
+**Claimed.** Same audit as I-40 (see
+`docs/sda-reference/source/dds-keyword-audit-report.md`, Finding C).
+Each keyword below has exactly one call site in `webviewClientHelpers.js`,
+always `'fk-'`-prefixed (file-level panel only), narrower than what the
+DDS Reference allows:
+
+- `MOUBTN` — DDS allows file, record; iSDA offers file only.
+- `VALNUM` — DDS allows file, record, field; iSDA offers file only.
+- `WRDWRAP` — DDS allows file, record, field; iSDA offers file only.
+- `USRDSPMGT` — DDS allows file, record; iSDA offers file only.
+- `ENTFLDATR` — DDS allows file, record, field; iSDA offers file + record
+  (`entFldAtrHtml` called from both `fileKeywordsPanelsHtml` and
+  `recordKeywordsPanelsHtml`), missing field-level.
+
+I-5's own entry ("added file-level HLPRCD/MOUBTN/VALNUM/WRDWRAP")
+confirms these were deliberately scoped to file-level only at the time —
+this looks like legitimate untracked follow-up rather than something
+overlooked and forgotten.
+
+---
+
 ## On the horizon
 
 **Process note:** this section previously described I-31 through I-35 as
@@ -2970,9 +3051,10 @@ and landing version. The text below was left stale after I-35 closed
 out; corrected here to log only what is genuinely still open, same kind
 of drift I-25's own section once had (caught and fixed in I-16).
 
-No I-series task is currently queued, claimed, or in progress. What
-remains is a set of real, sourced gaps individual tasks logged but
-deliberately did not fix (all still open as of v0.10.116):
+I-39 through I-42 are currently claimed (not yet implemented) — see their
+own sections above. What remains below is a set of real, sourced gaps
+individual tasks logged but deliberately did not fix (all still open as
+of v0.10.117):
 
 - **From I-38 (file-level `HLPDOC`):** the help-specification-level form
   of `HLPDOC` (inside an H specification, alongside `HLPARA`) isn't
