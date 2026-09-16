@@ -2825,6 +2825,52 @@ the fix).
 
 ---
 
+### I-39 — Full-text audit against DDS_Keyword_V7r6.txt found 8 keywords entirely missing from iSDA
+
+**Claimed.** Cross-checked every keyword name in the DDS Reference's own table
+of contents (`docs/sda-reference/source/DDS_Keyword_V7r6.txt`) against actual
+occurrences in `src/*.js`/`src/*.ts` (not just `KEYWORD-INDEX.md`, which is a
+point-in-time snapshot that can drift - confirmed several apparent gaps were
+already handled and just missing from the index: `DATE`/`TIME`/`USER`/
+`SYSNAME` system-value constants, `MSGCON` (I-33), `HLPDOC` (I-38), and the
+legacy-alias keywords `CMP`/`AUTO`/`LOWER`/`SETOFF`/`ROLLUP`/`ROLLDOWN`
+(equivalent to `COMP`/`CHECK`/`SETOF`/`PAGEDOWN`/`PAGEUP` per the Reference's
+own "the X keyword is preferred" wording - deliberately not given their own
+UI controls, same convention already established for `CMP` vs `COMP`).
+
+Eight keywords found genuinely absent - no UI control, no getter/setter, no
+mention anywhere in the codebase:
+
+- `BLKFOLD` - field-level flag, named output-only character fields (not
+  floating-point).
+- `CSRINPONLY` - file- or record-level flag, no parameters.
+- `FLTFIXDEC` - field-level flag, floating-point (data type F) output-capable
+  fields only.
+- `FLTPCN` - field-level, `*SINGLE`/`*DOUBLE`, floating-point fields only.
+- `MAPVAL` - field-level, list of program-value/system-value pairs, valid
+  only for date (L)/time (T)/timestamp (Z) fields.
+- `SFLCHCCTL` - field-level flag, subfile choice-control field (selection
+  lists).
+- `SFLCSRPRG` - field-level flag, subfile record cursor progression.
+- `SFLRTNSEL` - record-level flag, SFLCTL record (requires `SFLMLTCHC` or
+  `SFLSNGCHC`).
+
+Plan: add all 8 as straightforward present/absent (or single-select, for
+`FLTPCN`) rows reusing the existing generic `DspfWriter.getFileFlagKeyword`/
+`setFileFlagKeyword` primitives (works over any keywords array - file,
+record, or field - same reuse I-38 made for `HLPDOC`), landing `BLKFOLD`/
+`FLTFIXDEC`/`FLTPCN`/`MAPVAL` in the field-level General panel,
+`SFLCHCCTL`/`SFLCSRPRG` alongside `SFLRCDNBR`/`SFLROLVAL`/`SFLSCROLL` in
+`subfileFieldKeywordsHtml`, `SFLRTNSEL` alongside `SFLMLTCHC`/`SFLSNGCHC` in
+the SFLCTL panel, and `CSRINPONLY` in both the file-level General panel and
+the record-level General panel. Hard mutual-exclusion/eligibility guards
+(e.g. `BLKFOLD` vs floating-point, `FLTFIXDEC`/`FLTPCN` vs non-float,
+`SFLRTNSEL` requiring `SFLMLTCHC`/`SFLSNGCHC`) are noted via hint text rather
+than hard-blocked in this first pass - same "one direction/one pass first"
+precedent `hlpdocConflictReason`'s own doc comment set in I-38 - since the
+priority here is closing the "keyword doesn't exist in iSDA at all" gap
+first.
+
 ## On the horizon
 
 **Process note:** this section previously described I-31 through I-35 as
