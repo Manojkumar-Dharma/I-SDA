@@ -94,6 +94,7 @@ keyword-name mentions anywhere in its section.
 | **I-41** | Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC` | I-1 | not started |
 | **I-42** | Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference | I-1, I-5 | not started |
 | **I-43** | Bug: `HLPRCD`/`HLPDOC` checkboxes cannot be turned on at all - a catch-22 in `commitHlprcd`/`commitHlpdoc` (`webviewClientHelpers.js`). Their sub-field inputs (Record name / Label+Document+Folder) commit on their own `change` event even while the checkbox is unchecked, and since `present=false` is passed, `setFileFlagKeyword` discards the typed value entirely; the next re-render then shows the field blank again. Checking the box afterward re-reads that now-blank field and fails the required-field validation added in the `HLPRCD`/`HLPDOC` cross-verify follow-up above, alerting and reverting the checkbox back off - no ordering of "type first" vs. "check first" survives. Reported by user with a reproduction; confirmed directly against `setFileFlagKeyword` (typed value discarded when `present:false`). Fix direction: don't commit sub-field edits while the checkbox is off (or otherwise preserve the typed text across the off→on transition) so the required-field check has something to see. | I-38, HLPRCD/HLPDOC cross-verify | not started |
+| **I-44** | Bug: record-level keyword pickers don't enforce record-TYPE scoping in most cases - reported by user via `ASSUME` showing as selectable on a `USRDFN` record, and `DSPMOD` showing as selectable regardless of whether it's actually allowed. Root cause confirmed: `DspfWriter.usrdfnConflictReason(keywordName, keywords)` is a fully generic function (works correctly for ANY keyword name, verified directly) because `USRDFN`'s own DDS Reference section is a strict WHITELIST - "No file- or record-level keywords apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT" - not a short per-keyword exclusion list like most keywords. But it's only wired to 4 call sites (`ASSUME`, `ALWROL`, `HLPSEQ`, `HLPCMDKEY` - added piecemeal by I-8/I-12/I-13, each time because that keyword's OWN section happened to name USRDFN, never because USRDFN's own section was read as a blanket rule). Confirmed at least 33 other record-level keywords wired via plain `simple()`/`wirePulldownGuardedFlag()` with zero USRDFN check - `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `BLINK`, `MSGALARM`, `LOCK`, `LOGOUT`, `DSPMOD`, `CSRLOC`, `LOGINP`, `GETRETAIN`, `RETLCKSTS`, `PROTECT`, `INZINP`, `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `SFLNXTCHG`, `INZRCD`, `ALARM`, `ALWGPH`, `FRCDTA`, `SLNO`, `CLRL`, `RTNDTA`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `MDTOFF`, `ERASEINP`, `ERASE` - every one individually re-tested and would be correctly blocked if the existing guard were simply called on it. `DSPMOD` also has a SECOND, independent gap: its own text states it's "valid only when both the 24 x 80 and 27 x 132 display sizes are specified on the DSPSIZ keyword" (a file-level DSPSIZ prerequisite, unrelated to USRDFN) - also unchecked. Scope for this task: (1) wire the existing `usrdfnConflictReason` to every record/field/file-level keyword not on USRDFN's 9-keyword whitelist; (2) add the DSPSIZ-dual-size prerequisite check for DSPMOD; (3) since this was found by re-reading ONE record type's (USRDFN) own section as a blanket rule rather than trusting each keyword's own cross-references, do the same re-read for `SFL`/`SFLCTL`'s own restriction lists and `WINDOW`'s/`MNUBAR`'s (PULLDOWN's own 27-keyword list is already handled per I-13) to check for the same class of gap there before assuming they're complete. Use `KEYWORD-INDEX.json`'s existing per-keyword data as the audit substrate, same approach I-3/I-13 used. Not yet fixed, logged for later pickup. | I-8, I-12, I-13 | not started |
 
 ### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
@@ -3095,12 +3096,14 @@ and landing version. The text below was left stale after I-35 closed
 out; corrected here to log only what is genuinely still open, same kind
 of drift I-25's own section once had (caught and fixed in I-16).
 
-I-39 through I-43 are currently claimed (not yet implemented) — see their
-own sections above (I-43 is a real bug, not an audit gap: `HLPRCD`/
+I-39 through I-44 are currently claimed (not yet implemented) — see their
+own sections above (I-43/I-44 are real bugs, not audit gaps: `HLPRCD`/
 `HLPDOC`'s checkboxes can't be turned on at all due to a catch-22 in
-their sub-field commit wiring). What remains below is a set of real,
-sourced gaps individual tasks logged but deliberately did not fix (all
-still open as of v0.10.117):
+their sub-field commit wiring, and most record-level keywords don't
+enforce `USRDFN`'s own whitelist restriction despite the generic guard
+function already existing and working correctly). What remains below is
+a set of real, sourced gaps individual tasks logged but deliberately did
+not fix (all still open as of v0.10.117):
 
 - **From I-38 (file-level `HLPDOC`):** the help-specification-level form
   of `HLPDOC` (inside an H specification, alongside `HLPARA`) isn't
