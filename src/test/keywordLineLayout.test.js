@@ -215,5 +215,41 @@ console.log('\nAdding a SINGLE keyword to a constant that previously had NONE al
   check('COLOR(BLU) survives the round-trip', rfield.keywords.some((k) => k.name === 'COLOR' && k.parameters.trim() === 'BLU'));
 }
 
+console.log('\nTask L86: editing/adding an unrelated field-level keyword must not reorder the field\'s OTHER untouched keywords across the conditioned/unconditioned boundary (mirrors L85\'s own record/file-level fix, one level down at the field level)');
+{
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'REC1' }),
+      buildLine({ seq: '00020', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '10', col: '10', func: 'COLOR(BLU)' }),
+      buildLine({ seq: '00030', ind1: '20', func: 'DSPATR(HI)' }),
+      buildLine({ seq: '00040', func: 'VALUES(ABC)' }),
+    ].join('\n') + '\n';
+  const model = DspfParser.parseDspf(src);
+  const lines = src.split(/\r\n|\r|\n/);
+  const field = model.records[0].fields[0];
+
+  // Original document order (after COLOR, which rides the field's own line): DSPATR(HI, conditioned on
+  // indicator 20), then VALUES(ABC, unconditioned). The pre-fix bucket-and-concat put all remaining
+  // unconditioned keywords before all conditioned ones, which would silently swap these two - VALUES
+  // ahead of DSPATR - even though editing/adding EDTCDE below never touched either of them.
+  const newKeywords = field.keywords.concat([{ name: 'EDTCDE', parameters: 'Z', conditions: [], raw: '', sourceLines: [] }]);
+  const newLines = DspfWriter.applyFieldUpdate(field, lines, { keywords: newKeywords });
+  const nonBlank = newLines.filter((l) => l.trim().length > 0);
+
+  const dspatrIdx = nonBlank.findIndex((l) => /DSPATR\(HI\)/.test(l));
+  const valuesIdx = nonBlank.findIndex((l) => /VALUES\(ABC\)/.test(l));
+  const edtcdeIdx = nonBlank.findIndex((l) => /EDTCDE\(Z\)/.test(l));
+  check('DSPATR(HI) still precedes VALUES(ABC), its original document order relative to it', dspatrIdx >= 0 && valuesIdx >= 0 && dspatrIdx < valuesIdx);
+  check('the newly-added EDTCDE(Z) is appended after both untouched keywords, not inserted between them', edtcdeIdx > dspatrIdx && edtcdeIdx > valuesIdx);
+  check('DSPATR(HI) keeps its own dedicated line with nothing else on it', nonBlank.some((l) => /DSPATR\(HI\)/.test(l) && !/VALUES|EDTCDE|COLOR/.test(l)));
+
+  const reparsed = DspfParser.parseDspf(newLines.join('\n'));
+  const rfield = reparsed.records[0].fields[0];
+  check('all 4 keywords survive the round-trip', rfield.keywords.length === 4);
+  check('DSPATR keeps its indicator 20 conditioning', rfield.keywords.find((k) => k.name === 'DSPATR').conditions[0].indicators[0].number === '20');
+  check('VALUES(ABC) stays unconditioned', (rfield.keywords.find((k) => k.name === 'VALUES').conditions || []).length === 0);
+  check('EDTCDE(Z) added correctly', rfield.keywords.some((k) => k.name === 'EDTCDE' && k.parameters.trim() === 'Z'));
+}
+
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
 process.exit(failures === 0 ? 0 : 1);

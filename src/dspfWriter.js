@@ -339,9 +339,14 @@
     var allKeywords = field.keywords || [];
     var isBareConstant = field.nameType === 'CONSTANT' && field.constantValue != null;
     var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
-    var conditioned = allKeywords.filter(function (k) { return k.conditions && k.conditions.length > 0; });
     var firstUnconditioned = isBareConstant ? [] : unconditioned.slice(0, 1);
-    var restKeywords = isBareConstant ? unconditioned.concat(conditioned) : unconditioned.slice(1).concat(conditioned);
+    // L86: was `unconditioned.slice(1).concat(conditioned)` (bare-constant branch: `unconditioned.concat(conditioned)`) -
+    // the same bucket-and-concat pattern L85 fixed in serializeRecordEntry/serializeFileKeywordsEntry, which silently
+    // reordered any OTHER untouched keyword that crossed the unconditioned/conditioned boundary. keywordsExcept lifts out
+    // just the one keyword (if any) riding the field's own content line, preserving every other keyword's relative order
+    // exactly as it appeared - including the bare-constant branch, where firstUnconditioned[0] is undefined and
+    // keywordsExcept's no-op path already returns the full original-order keyword list unchanged.
+    var restKeywords = keywordsExcept(allKeywords, firstUnconditioned[0]);
 
     var fieldPrefixLines = serializeConditionPrefixLines(field.conditions, originalLine1to6);
     var posCols = serializePositionalCols(field, originalLine1to6);
