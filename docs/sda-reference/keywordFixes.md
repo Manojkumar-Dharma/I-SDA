@@ -93,7 +93,7 @@ keyword-name mentions anywhere in its section.
 | **I-40** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries | I-1 | not started |
 | **I-41** | Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC` | I-1 | not started |
 | **I-42** | Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference | I-1, I-5 | not started |
-| **I-43** | Bug: `HLPRCD`/`HLPDOC` checkboxes cannot be turned on at all - a catch-22 in `commitHlprcd`/`commitHlpdoc` (`webviewClientHelpers.js`). Their sub-field inputs (Record name / Label+Document+Folder) commit on their own `change` event even while the checkbox is unchecked, and since `present=false` is passed, `setFileFlagKeyword` discards the typed value entirely; the next re-render then shows the field blank again. Checking the box afterward re-reads that now-blank field and fails the required-field validation added in the `HLPRCD`/`HLPDOC` cross-verify follow-up above, alerting and reverting the checkbox back off - no ordering of "type first" vs. "check first" survives. Reported by user with a reproduction; confirmed directly against `setFileFlagKeyword` (typed value discarded when `present:false`). Fix direction: don't commit sub-field edits while the checkbox is off (or otherwise preserve the typed text across the off→on transition) so the required-field check has something to see. | I-38, HLPRCD/HLPDOC cross-verify | in progress |
+| **I-43** | Bug: `HLPRCD`/`HLPDOC` checkboxes cannot be turned on at all - a catch-22 in `commitHlprcd`/`commitHlpdoc` (`webviewClientHelpers.js`). Their sub-field inputs (Record name / Label+Document+Folder) commit on their own `change` event even while the checkbox is unchecked, and since `present=false` is passed, `setFileFlagKeyword` discards the typed value entirely; the next re-render then shows the field blank again. Checking the box afterward re-reads that now-blank field and fails the required-field validation added in the `HLPRCD`/`HLPDOC` cross-verify follow-up above, alerting and reverting the checkbox back off - no ordering of "type first" vs. "check first" survives. Reported by user with a reproduction; confirmed directly against `setFileFlagKeyword` (typed value discarded when `present:false`). Fix direction: don't commit sub-field edits while the checkbox is off (or otherwise preserve the typed text across the off→on transition) so the required-field check has something to see. | I-38, HLPRCD/HLPDOC cross-verify | done (v0.10.121) |
 | **I-44** | Bug: most record-level keywords don't enforce `USRDFN`'s own whitelist restriction - reported by user via `ASSUME` showing as selectable on a `USRDFN` record. Root cause confirmed: `DspfWriter.usrdfnConflictReason(keywordName, keywords)` is a fully generic function (works correctly for ANY keyword name, verified directly) because `USRDFN`'s own DDS Reference section is a strict WHITELIST - "No file- or record-level keywords apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT" - not a short per-keyword exclusion list like most keywords. But it's only wired to 4 call sites (`ASSUME`, `ALWROL`, `HLPSEQ`, `HLPCMDKEY` - added piecemeal by I-8/I-12/I-13, each time because that keyword's OWN section happened to name USRDFN, never because USRDFN's own section was read as a blanket rule). Confirmed at least 33 other record-level keywords wired via plain `simple()`/`wirePulldownGuardedFlag()` with zero USRDFN check, every one individually re-tested and would be correctly blocked if the existing guard were simply called on it: `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `BLINK`, `MSGALARM`, `LOCK`, `LOGOUT`, `DSPMOD`, `CSRLOC`, `LOGINP`, `GETRETAIN`, `RETLCKSTS`, `PROTECT`, `INZINP`, `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `SFLNXTCHG`, `INZRCD`, `ALARM`, `ALWGPH`, `FRCDTA`, `SLNO`, `CLRL`, `RTNDTA`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `MDTOFF`, `ERASEINP`, `ERASE`. Scope for THIS task: wire `usrdfnConflictReason` to all 33 (same alert+revert idiom `wireUsrdfnGuardedFlag` already uses for the existing 4 - most of these can likely reuse that same helper directly). Split off from a single larger finding so it can be picked up independently of I-45 through I-48 below (each covers a different, unrelated investigation). Not yet fixed, logged for later pickup. | I-8, I-12, I-13 | not started |
 | **I-45** | Bug (split off from I-44's original finding): `DSPMOD` has its own SEPARATE unchecked prerequisite, unrelated to USRDFN - its own DDS Reference text states it's "valid only when both the 24 x 80 and 27 x 132 display sizes are specified on the DSPSIZ keyword" (a file-level `DSPSIZ` condition), but `DSPMOD`'s row (`simple(p + '-dspmod', 'DSPMOD', true)` in `webviewClientHelpers.js`) has no check of any kind. Scope: add a guard (same alert+revert idiom, or a visible hint if the row can't easily reach `getFileKeywords` from its current wiring) that blocks/warns turning `DSPMOD` on unless the file's own `DSPSIZ` currently declares both `*DS3` and `*DS4` (or both numeric equivalents). Independent of I-44 (different file, different underlying rule) - can be picked up in parallel. Not yet fixed, logged for later pickup. | I-44 (same original finding, split out) | not started |
 | **I-46** | Investigation (split off from I-44's original finding): re-read `SFL`'s and `SFLCTL`'s own DDS Reference sections the same way I-44 re-read `USRDFN`'s - as a possible blanket whitelist/exclusion rule, not just individual keyword-to-keyword cross-references - to check for the same class of under-enforced restriction. `SFL`/`SFLCTL` are already named as mutually exclusive with `ASSUME`/`ALWROL`/`CLRL`/`SLNO` (I-37's `alwrolClrlSlnoConflictReason`) and appear on `PULLDOWN`'s own forbidden list (I-13), but neither of those confirms whether `SFL`/`SFLCTL` restrict what ELSE can be on their own record the way `USRDFN` does. Scope: read both keywords' full DDS Reference sections fresh, confirm whether a similar blanket rule exists, and wire whatever gap is found (or close this out as "confirmed already handled" if none is). Independent of I-44/I-45 - different keywords, different DDS sections, can run in parallel. Not yet fixed, logged for later pickup. | I-44 (same original finding, split out) | not started |
@@ -3090,6 +3090,58 @@ overlooked and forgotten.
 
 ---
 
+### I-43 — Fixed: `HLPRCD`/`HLPDOC` checkbox catch-22 (v0.10.121)
+
+**Done.** Root cause confirmed exactly as filed: `commitHlprcd`'s three
+sub-field listeners (`hlprcdRecord`/`hlprcdLibraryEl`/`hlprcdFileEl`) and
+`commitHlpdoc`'s three (`hlpdocLabel`/`hlpdocDocument`/`hlpdocFolder`) each
+called their commit function unconditionally on their own `change` event,
+even while the checkbox was off. With the checkbox unchecked, that call
+skips the required-field guard entirely (it's gated by
+`if (hlprcdOn.checked && ...)`/`if (hlpdocOn.checked && ...)`) and falls
+straight through to the unconditional
+`onChange(...setFileFlagKeyword(..., false, ...))` at the bottom.
+`present:false` makes `setFileFlagKeyword` discard the typed value, and
+`commitFileEdit` → `commitSourceChange` calls `render()` **synchronously**
+right after, regenerating the whole Help panel's HTML from the
+still-keyword-less model — wiping the input back to blank. Checking the box
+afterward reads that now-blank field, fails the required-field check added
+in the `HLPRCD`/`HLPDOC` cross-verify follow-up above, alerts, and reverts
+the checkbox — exactly the catch-22 reported.
+
+Fix: guard each sub-field's `change` listener with
+`if (!hlprcdOn.checked) return;` / `if (!hlpdocOn.checked) return;` before
+calling `commitHlprcd()`/`commitHlpdoc()`. Only the checkbox's own listener
+still commits unconditionally (both directions - turning on AND off must
+still go through, since that's what actually adds/removes the keyword).
+While the checkbox is off, editing a sub-field is now a pure no-op - no
+`onChange`, no `render()`, nothing wiped - so whatever the user types sits
+untouched in the DOM until they check the box, at which point
+`commitHlprcd`/`commitHlpdoc` reads it fresh and has real values to
+validate against, in either typing order ("type first" or "check first").
+
+**Test-harness pitfall worth flagging:** `i38HlpdocFileLevel.test.js`
+already exercises this exact "type all three parts, then check the box"
+flow and passed even against the pre-fix, genuinely-broken code. It does
+so because it captures `label`/`document2`/`folder`/`on` element
+references once, up front, and keeps reusing those same references after
+every render. `commitSourceChange`'s `render()` call regenerates
+`propsBody.innerHTML` (and calls `wireFileKeywordsPanels` again, rebinding
+fresh listeners to fresh elements each time) - so those original,
+now-detached elements silently stop reflecting what's actually on screen,
+and the test ends up validating a self-consistent but invisible orphaned
+copy of the form rather than what a real user would type into. The new
+regression test (`i43HlprcdHlpdocCheckboxCatch22.test.js`) re-queries every
+element via `doc.getElementById` immediately after each step for exactly
+this reason, and does reproduce the bug against pre-fix code (11 failing
+checks) before going green against the fix. Left `i38`'s own test
+untouched since it still passes and still covers real ground (conflict
+guards, required-field validation, HLPRCD/HLPDOC coexistence) - just noting
+the gap here so a future stale-reference regression doesn't slip through
+the same way again.
+
+---
+
 ## On the horizon
 
 **Process note:** this section previously described I-31 through I-35 as
@@ -3100,19 +3152,21 @@ and landing version. The text below was left stale after I-35 closed
 out; corrected here to log only what is genuinely still open, same kind
 of drift I-25's own section once had (caught and fixed in I-16).
 
-I-39 through I-48 are currently claimed (not yet implemented) — see their
-own sections above (I-43 is a real bug, not an audit gap: `HLPRCD`/
-`HLPDOC`'s checkboxes can't be turned on at all due to a catch-22 in
-their sub-field commit wiring. I-44 through I-48 split off a single
-larger finding - most record-level keywords don't enforce `USRDFN`'s own
-whitelist restriction, despite the generic guard function already
-existing and working correctly - into 5 independently-pickable pieces:
-I-44 is the core USRDFN-whitelist wiring fix, I-45 is DSPMOD's own
-unrelated DSPSIZ prerequisite gap, and I-46/I-47/I-48 are re-audits of
-whether `SFL`/`SFLCTL`, `WINDOW`, and `MNUBAR` respectively have the same
-class of under-enforced blanket restriction USRDFN turned out to have).
-What remains below is a set of real, sourced gaps individual tasks
-logged but deliberately did not fix (all still open as of v0.10.117):
+I-39 through I-48 are currently claimed (not yet implemented, except
+I-43 which is now done - see the dedicated section below) - see their
+own sections above (I-43 was a real bug, not an audit gap: `HLPRCD`/
+`HLPDOC`'s checkboxes couldn't be turned on at all due to a catch-22 in
+their sub-field commit wiring, fixed in v0.10.121. I-44 through I-48
+split off a single larger finding - most record-level keywords don't
+enforce `USRDFN`'s own whitelist restriction, despite the generic guard
+function already existing and working correctly - into 5
+independently-pickable pieces: I-44 is the core USRDFN-whitelist wiring
+fix, I-45 is DSPMOD's own unrelated DSPSIZ prerequisite gap, and
+I-46/I-47/I-48 are re-audits of whether `SFL`/`SFLCTL`, `WINDOW`, and
+`MNUBAR` respectively have the same class of under-enforced blanket
+restriction USRDFN turned out to have). What remains below is a set of
+real, sourced gaps individual tasks logged but deliberately did not fix
+(all still open as of v0.10.117):
 
 - **From I-38 (file-level `HLPDOC`):** the help-specification-level form
   of `HLPDOC` (inside an H specification, alongside `HLPARA`) isn't

@@ -4334,10 +4334,24 @@
       var params = second ? record + ' ' + second : record;
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPRCD', hlprcdOn.checked, params, undefined, conditions));
     }
+    // Task I-43 fix: a sub-field's own `change` event used to call
+    // commitHlprcd() unconditionally, even while the checkbox is off. With
+    // hlprcdOn.checked false, that call falls straight through to the
+    // unconditional onChange(...setFileFlagKeyword(..., false, ...)) at the
+    // bottom - present:false discards whatever was just typed, and
+    // commitSourceChange's own synchronous render() then regenerates this
+    // whole panel from the (still-HLPRCD-less) model, wiping the input back
+    // to blank. The checkbox's own listener still always commits (both
+    // turning on AND off must go through, to actually add/remove the
+    // keyword) - only the three sub-field listeners are guarded here, so
+    // typing while the checkbox is off is a pure no-op that never touches
+    // onChange/render, leaving whatever the user typed sitting untouched in
+    // the DOM until they check the box (at which point commitHlprcd reads
+    // it fresh and has something real to validate against).
     if (hlprcdOn) hlprcdOn.addEventListener('change', function () { commitHlprcd(); });
-    if (hlprcdRecord) hlprcdRecord.addEventListener('change', function () { commitHlprcd(); });
-    if (hlprcdLibraryEl) hlprcdLibraryEl.addEventListener('change', function () { commitHlprcd(); });
-    if (hlprcdFileEl) hlprcdFileEl.addEventListener('change', function () { commitHlprcd(); });
+    if (hlprcdRecord) hlprcdRecord.addEventListener('change', function () { if (!hlprcdOn.checked) return; commitHlprcd(); });
+    if (hlprcdLibraryEl) hlprcdLibraryEl.addEventListener('change', function () { if (!hlprcdOn.checked) return; commitHlprcd(); });
+    if (hlprcdFileEl) hlprcdFileEl.addEventListener('change', function () { if (!hlprcdOn.checked) return; commitHlprcd(); });
     wireFlagRowConditioning('fk-hlprcd', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').conditions, commitHlprcd, expandedSet, rerender);
 
     // Task I-38: HLPDOC - same "-on" checkbox drives presence regardless
@@ -4387,10 +4401,15 @@
       var parts = [label, doc2, folder].filter(Boolean);
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPDOC', hlpdocOn.checked, parts.join(' '), undefined, conditions));
     }
+    // Task I-43 fix: same catch-22 as HLPRCD's own sub-fields just above -
+    // see that fix's comment for the full mechanism (unconditional
+    // onChange(...present:false...) -> synchronous render() wipes the
+    // field). Only the checkbox's own listener commits unconditionally;
+    // the three sub-field listeners no-op while the checkbox is off.
     if (hlpdocOn) hlpdocOn.addEventListener('change', function () { commitHlpdoc(); });
-    if (hlpdocLabel) hlpdocLabel.addEventListener('change', function () { commitHlpdoc(); });
-    if (hlpdocDocument) hlpdocDocument.addEventListener('change', function () { commitHlpdoc(); });
-    if (hlpdocFolder) hlpdocFolder.addEventListener('change', function () { commitHlpdoc(); });
+    if (hlpdocLabel) hlpdocLabel.addEventListener('change', function () { if (!hlpdocOn.checked) return; commitHlpdoc(); });
+    if (hlpdocDocument) hlpdocDocument.addEventListener('change', function () { if (!hlpdocOn.checked) return; commitHlpdoc(); });
+    if (hlpdocFolder) hlpdocFolder.addEventListener('change', function () { if (!hlpdocOn.checked) return; commitHlpdoc(); });
     wireFlagRowConditioning('fk-hlpdoc', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').conditions, commitHlpdoc, expandedSet, rerender);
 
     // Display sizes
