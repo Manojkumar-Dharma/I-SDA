@@ -2811,17 +2811,106 @@ has nothing to check at this level.
 help-specification-level form of `HLPDOC` (record-level, inside an H
 specification alongside `HLPARA`) — same "file-level only, H-spec-level
 deferred" precedent I-5's own `HLPRCD` entry already set for that
-keyword. The reverse conflict direction (blocking `HLPPNLGRP`/`HLPRTN`
-from turning on while `HLPDOC` is already present) is also not wired at
-their own checkbox commit sites yet — only `HLPDOC`'s own "turning on"
-direction is guarded — same "one direction built first" convention
-`sflChoiceListConflictReason`'s own doc comment documents elsewhere in
-this codebase.
+keyword. The reverse conflict direction (blocking `HLPPNLGRP` from
+turning on while `HLPDOC` is already present) has since been wired too
+— see the follow-up section immediately below. `HLPRTN`'s own reverse
+direction is still not wired at its checkbox commit site: `HLPRTN`'s
+file-level row goes through the shared `commitIndicatorTextRow` helper
+(also used for `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`VLDCMDKEY`), which
+has no per-keyword conflict hook to attach one to — same "one direction
+built first" convention `sflChoiceListConflictReason`'s own doc comment
+documents elsewhere in this codebase.
 
 Regression coverage: `src/test/i38HlpdocFileLevel.test.js` (jsdom,
 exercises the real generated File Properties > Help panel — verified via
 `git stash` that it genuinely fails against pre-fix code, not just after
 the fix).
+
+---
+
+### Follow-up — `HLPRCD` vs `HLPDOC` cross-verify (user-requested, extends I-38)
+
+**Question asked:** whether `HLPRCD` and `HLPDOC` conflict (iSDA
+currently allows both), plus a request to validate `HLPDOC`'s required
+sub-fields and cross-check `HLPRCD`'s own sub-fields while at it.
+
+**Answer: `HLPRCD` and `HLPDOC` together is valid DDS - not a bug.**
+IBM's DDS Reference states the mutual exclusions that exist explicitly,
+each one by name: "You cannot specify `HLPDOC` with `HLPBDY`,
+`HLPPNLGRP`, or `HLPRTN`" (already correct, from I-38), and separately,
+in `HLPPNLGRP`'s own section, "a display file cannot contain both
+`HLPPNLGRP` and `HLPRCD` keywords, nor `HLPPNLGRP` and `HLPDOC`
+keywords." `HLPRCD` and `HLPDOC` are never named against each other
+anywhere in the Reference. Both keywords' file-level trigger condition
+reads identically ("displayed when no help area for the active records
+contains the current cursor location"), which looks redundant, but
+redundant isn't the same as invalid - this codebase only blocks
+combinations IBM's text actually forbids, and confirmed here that this
+isn't one of them.
+
+**Real gap found and fixed: `HLPPNLGRP` vs `HLPRCD` had no conflict
+check at all.** The IBM sentence above states TWO exclusions -
+`HLPPNLGRP`+`HLPRCD` and `HLPPNLGRP`+`HLPDOC` - but I-5 (which added
+`HLPRCD`) never checked either, and I-38 (which added `HLPDOC`) only
+ever checked its own half. `HLPRCD`'s side of that same sentence was
+never wired anywhere. Fixed: new `hlprcdConflictReason(keywordName,
+keywords)` in `dspfWriter.js`, checked bidirectionally in
+`commitHlprcd`/`commitHlppnlgrp` (`webviewClientHelpers.js`) with the
+same `window.alert` + revert idiom `hlpdocConflictReason`'s own callers
+use. While there, also wired `hlpdocConflictReason`'s previously-
+unwired reverse direction into `commitHlppnlgrp` (see I-38's own updated
+note above) - `HLPPNLGRP` turning on is now blocked by either `HLPRCD`
+or `HLPDOC` already being present, closing both documented gaps in one
+pass since they share the same commit function. `HLPRCD` and `HLPRTN`
+are deliberately NOT checked against each other: IBM states `HLPRTN`
+"takes priority over" `HLPRCD`/`HLPPNLGRP`/`HLPDOC` when more than one
+is present - a precedence rule, not a prohibition (unlike `HLPDOC`'s own
+separate, explicitly-worded exclusion) - so that combination stays
+valid and unblocked.
+
+**Real gap found and fixed: `HLPDOC`'s three required sub-fields were
+never validated.** IBM's format, `HLPDOC(label document-name
+folder-name)`, has no brackets around any of its three parts - all are
+mandatory whenever the keyword is present. The original I-38
+implementation deliberately wrote whatever was typed so far the moment
+the checkbox went on (documented at the time as "caller's
+responsibility to fill it in properly"), including nothing at all -
+`setFileFlagKeyword` omits the parens entirely when parameters is
+blank, so an all-blank commit wrote a bare `HLPDOC` with no parameter
+list, and a 1- or 2-part fragment is equally invalid DDS. Fixed:
+`commitHlpdoc` now blocks (alert + revert the checkbox) whenever the
+checkbox is - or would remain - checked with any of the three parts
+blank, checked on every commit, not just the moment the box is first
+ticked (so blanking a previously-filled part back out while still
+checked is caught too, not just the initial turn-on).
+
+**Real gap found and fixed: `HLPRCD`'s own sub-fields had two
+unchecked requirements.** IBM's format,
+`HLPRCD(record-format-name [[library-name/]file-name])`: (1)
+`record-format-name` is NOT bracketed - it's mandatory whenever the
+checkbox is on, but nothing enforced that; a checked `HLPRCD` with a
+blank record field wrote malformed DDS (a leading-space fragment like
+`HLPRCD( HELPFILE)` with no record name if a file was typed, or a bare
+`HLPRCD` with no parens at all if nothing was typed). (2) library-name
+is only meaningful nested inside `[library-name/]file-name` - it has no
+standalone form - but the original expression (`file ? (library ?
+library + '/' + file : file) : ''`) silently DROPPED a typed library
+value with zero feedback whenever the file field was left blank, which
+reads like data loss to whoever typed it, not a deliberate no-op.
+Fixed: `commitHlprcd` now blocks turning `HLPRCD` on with a blank
+record name (alert + revert), and blocks (alert, no revert - the
+checkbox itself isn't the problem) any commit that would leave a
+library name entered without an accompanying file name.
+
+Regression coverage: extended `src/test/i38HlpdocFileLevel.test.js`
+with `hlprcdConflictReason` unit tests (mirroring the existing
+`hlpdocConflictReason` ones) and UI-level scenarios for all of the
+above - both conflict directions, both `HLPRCD` sub-field requirements,
+the updated `HLPDOC` all-three-parts requirement (including the
+blank-it-back-out-while-checked case), and a scenario that explicitly
+confirms `HLPRCD`+`HLPDOC` committing together successfully, answering
+the original question with a passing test rather than just a doc
+paragraph.
 
 ---
 
@@ -2888,9 +2977,11 @@ deliberately did not fix (all still open as of v0.10.116):
 - **From I-38 (file-level `HLPDOC`):** the help-specification-level form
   of `HLPDOC` (inside an H specification, alongside `HLPARA`) isn't
   modeled at all — file-level only was added. The reverse conflict
-  direction (blocking `HLPPNLGRP`/`HLPRTN` from turning on while
-  file-level `HLPDOC` is already present) also isn't wired at their own
-  checkbox commit sites yet.
+  direction against `HLPPNLGRP` has since been wired (see the
+  `HLPRCD`/`HLPDOC` follow-up section above); `HLPRTN`'s own reverse
+  direction is still not wired — its file-level row goes through the
+  shared `commitIndicatorTextRow` helper, which has no per-keyword
+  conflict hook.
 
 - **From I-30 (Character fields):** `CHKMSGID`'s missing validity-check
   dependency guard; `CHRID`/`IGCALTTYP`'s mutual-exclusion lists; `DUP`'s

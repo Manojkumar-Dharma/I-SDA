@@ -4135,6 +4135,27 @@
     var hlppnlgrpLibrary = document.getElementById('fk-hlppnlgrp-library');
     var hlppnlgrpPanelgroup = document.getElementById('fk-hlppnlgrp-panelgroup');
     function commitHlppnlgrp(conditions) {
+      // Cross-verify follow-up (alongside HLPRCD's own commitHlprcd
+      // below): IBM's text states a file cannot contain both HLPPNLGRP
+      // and HLPRCD, nor HLPPNLGRP and HLPDOC - hlprcdConflictReason
+      // covers the HLPRCD half (new); hlpdocConflictReason already
+      // covered the HLPDOC half but was only ever wired for HLPDOC's own
+      // "turning on" direction (I-38) - wired here for HLPPNLGRP's own
+      // side of that same pairing now too.
+      if (hlppnlgrpOn.checked) {
+        var rcdReason = DspfWriter.hlprcdConflictReason('HLPPNLGRP', getKeywords());
+        if (rcdReason) {
+          window.alert(rcdReason);
+          hlppnlgrpOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').present;
+          return;
+        }
+        var docReason = DspfWriter.hlpdocConflictReason('HLPPNLGRP', getKeywords());
+        if (docReason) {
+          window.alert(docReason);
+          hlppnlgrpOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').present;
+          return;
+        }
+      }
       var mod = (hlppnlgrpModule.value || '').trim();
       var lib = (hlppnlgrpLibrary.value || '').trim();
       var pg = (hlppnlgrpPanelgroup.value || '').trim();
@@ -4172,6 +4193,23 @@
     // own commitIndtxt above already follows, so a user can type the
     // record name first and tick the box after (or vice versa) without
     // either write silently reverting the other's edit.
+    //
+    // Cross-verified against IBM's own format,
+    // HLPRCD(record-format-name [[library-name/]file-name]) - two real
+    // gaps found and fixed here: (1) record-format-name is NOT in
+    // brackets at all, so it's mandatory whenever the checkbox is on,
+    // but nothing enforced that - a checked HLPRCD with a blank record
+    // field used to write malformed DDS (e.g. a leading-space
+    // `HLPRCD( HELPFILE)` with no record name, or bare `HLPRCD` with no
+    // parens at all if file/library were also blank, since
+    // setFileFlagKeyword only omits the parens entirely when parameters
+    // is blank). (2) library-name is only valid nested inside
+    // `[library-name/]file-name` - it has no meaning on its own - but
+    // the old `second = file ? (library ? library + '/' + file : file)
+    // : ''` line silently DROPPED a typed library value with zero
+    // feedback whenever file was left blank, which reads like a bug to
+    // whoever typed it, not a deliberate no-op. Guarded the same
+    // alertAndRevert idiom hlpdocConflictReason's own callers below use.
     var hlprcdOn = document.getElementById('fk-hlprcd-on');
     var hlprcdRecord = document.getElementById('fk-hlprcd-record');
     var hlprcdLibraryEl = document.getElementById('fk-hlprcd-library');
@@ -4180,6 +4218,23 @@
       var record = (hlprcdRecord.value || '').trim();
       var library = (hlprcdLibraryEl.value || '').trim();
       var file = (hlprcdFileEl.value || '').trim();
+      if (hlprcdOn.checked) {
+        var reason = DspfWriter.hlprcdConflictReason('HLPRCD', getKeywords());
+        if (reason) {
+          window.alert(reason);
+          hlprcdOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').present;
+          return;
+        }
+        if (!record) {
+          window.alert('HLPRCD requires a record format name (per the DDS Reference).');
+          hlprcdOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').present;
+          return;
+        }
+        if (library && !file) {
+          window.alert("HLPRCD's library name only applies together with a file name - enter a file name too, or clear the library (per the DDS Reference's [[library-name/]file-name] form).");
+          return;
+        }
+      }
       var second = file ? (library ? library + '/' + file : file) : '';
       var params = second ? record + ' ' + second : record;
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPRCD', hlprcdOn.checked, params, undefined, conditions));
@@ -4192,18 +4247,27 @@
 
     // Task I-38: HLPDOC - same "-on" checkbox drives presence regardless
     // of whether the sub-fields are filled in yet" contract as HLPRCD's
-    // own commitHlprcd just above. All three parts (label/document/
-    // folder) are required by IBM's own format, so a still-incomplete
-    // set of fields is written as whatever's typed so far - same
-    // "caller's responsibility to fill it in properly, not this
-    // function's job to validate DDS-level required-ness" stance
-    // setFileTwoFieldKeyword and friends already take. Guarded (per
-    // hlpdocConflictReason) against HLPPNLGRP/HLPRTN already being
-    // present, same alertAndRevert idiom wireUsrdfnGuardedFlag uses
-    // elsewhere - only the "turning HLPDOC on" direction is guarded here;
-    // the reverse (blocking HLPPNLGRP/HLPRTN while HLPDOC is already on)
-    // is deferred, same "one direction built first" precedent
-    // sflChoiceListConflictReason's own doc comment documents.
+    // own commitHlprcd just above. Guarded (per hlpdocConflictReason)
+    // against HLPPNLGRP/HLPRTN already being present, same alertAndRevert
+    // idiom wireUsrdfnGuardedFlag uses elsewhere - only the "turning
+    // HLPDOC on" direction is guarded here; the reverse (blocking
+    // HLPPNLGRP/HLPRTN while HLPDOC is already on) is now wired for
+    // HLPPNLGRP just below (HLPRTN's own file-level row goes through the
+    // shared commitIndicatorTextRow helper, which has no per-keyword
+    // conflict hook - left as-is).
+    //
+    // Cross-check follow-up: all three parts (label/document/folder) are
+    // required by IBM's own format - unlike HLPRCD's own bracketed,
+    // genuinely-optional second parameter above, HLPDOC's format has NO
+    // brackets around any of its three parts at all. This used to write
+    // whatever was typed so far the moment the checkbox went on -
+    // including nothing at all, producing a bare `HLPDOC` with no
+    // parens (setFileFlagKeyword omits parens entirely when parameters
+    // is blank) or a 1-/2-part fragment, both invalid DDS. Now blocked
+    // with the same alertAndRevert idiom as the conflict check just
+    // above, checked every time the checkbox is (or stays) on - not just
+    // at the moment it's first ticked - so blanking a previously-filled
+    // part back out while still checked is caught too.
     var hlpdocOn = document.getElementById('fk-hlpdoc-on');
     var hlpdocLabel = document.getElementById('fk-hlpdoc-label');
     var hlpdocDocument = document.getElementById('fk-hlpdoc-document');
@@ -4220,6 +4284,11 @@
       var label = (hlpdocLabel.value || '').trim();
       var doc2 = (hlpdocDocument.value || '').trim();
       var folder = (hlpdocFolder.value || '').trim();
+      if (hlpdocOn.checked && (!label || !doc2 || !folder)) {
+        window.alert('HLPDOC requires all three parts - online help text label name, document name, and folder name (per the DDS Reference).');
+        hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
+        return;
+      }
       var parts = [label, doc2, folder].filter(Boolean);
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPDOC', hlpdocOn.checked, parts.join(' '), undefined, conditions));
     }

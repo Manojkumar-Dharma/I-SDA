@@ -3186,6 +3186,44 @@
     return '';
   }
 
+  /** Cross-check requested against I-38's own HLPDOC work: IBM's DDS
+   *  Reference states, right after HLPPNLGRP's own format description,
+   *  "a display file cannot contain both HLPPNLGRP and HLPRCD keywords,
+   *  nor HLPPNLGRP and HLPDOC keywords." The HLPDOC half is
+   *  hlpdocConflictReason just above; this is the HLPRCD half, which had
+   *  no conflict check of any kind before now - I-5 added HLPRCD's own
+   *  UI without one, and I-38's later HLPDOC work didn't retroactively
+   *  add it either.
+   *
+   *  HLPRCD and HLPDOC are deliberately NOT checked against each other
+   *  here (and hlpdocConflictReason above deliberately doesn't check
+   *  HLPRCD either): nowhere does IBM's text forbid having both in the
+   *  same file - the "cannot contain both" language is stated only for
+   *  HLPPNLGRP's two pairings, each named explicitly. Both keywords'
+   *  own file-level trigger condition is identical ("displayed when no
+   *  help area for the active records contains the current cursor
+   *  location"), which reads redundant, but redundant is not the same
+   *  as invalid, and this codebase only blocks what IBM's text actually
+   *  states.
+   *
+   *  HLPRTN is also deliberately NOT checked against HLPRCD: IBM's text
+   *  says HLPRTN "takes priority over any HLPRCD, HLPPNLGRP, or HLPDOC
+   *  keywords" when more than one is present - a priority/precedence
+   *  rule, not a prohibition (unlike HLPDOC's own separate, explicitly-
+   *  worded "You cannot specify HLPDOC with ... HLPRTN" rule above) - so
+   *  HLPRTN and HLPRCD coexisting is valid DDS and nothing here blocks
+   *  it. */
+  function hlprcdConflictReason(keywordName, keywords) {
+    var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
+    if (keywordName === 'HLPRCD' && present('HLPPNLGRP')) {
+      return 'HLPRCD cannot be specified in the same file as HLPPNLGRP (mutually exclusive per the DDS Reference).';
+    }
+    if (keywordName === 'HLPPNLGRP' && present('HLPRCD')) {
+      return 'HLPPNLGRP cannot be specified in the same file as HLPRCD (mutually exclusive per the DDS Reference).';
+    }
+    return '';
+  }
+
   /**
    * Task I-2 (keywordFixes.md) - bug fix: there is no standalone PRTFILE
    * keyword in real DDS. IBM's DDS Reference documents the printer-file
@@ -6104,6 +6142,7 @@
     getFileHlpSchIdxKeyword: getFileHlpSchIdxKeyword,
     setFileHlpSchIdxKeyword: setFileHlpSchIdxKeyword,
     hlpdocConflictReason: hlpdocConflictReason,
+    hlprcdConflictReason: hlprcdConflictReason,
     getWdwBorder: getWdwBorder,
     setWdwBorder: setWdwBorder,
     getWindowParamsKeyword: getWindowParamsKeyword,
