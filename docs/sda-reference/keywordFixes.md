@@ -93,6 +93,7 @@ keyword-name mentions anywhere in its section.
 | **I-40** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries | I-1 | not started |
 | **I-41** | Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC` | I-1 | not started |
 | **I-42** | Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference | I-1, I-5 | not started |
+| **I-43** | Bug: `HLPRCD`/`HLPDOC` checkboxes cannot be turned on at all - a catch-22 in `commitHlprcd`/`commitHlpdoc` (`webviewClientHelpers.js`). Their sub-field inputs (Record name / Label+Document+Folder) commit on their own `change` event even while the checkbox is unchecked, and since `present=false` is passed, `setFileFlagKeyword` discards the typed value entirely; the next re-render then shows the field blank again. Checking the box afterward re-reads that now-blank field and fails the required-field validation added in the `HLPRCD`/`HLPDOC` cross-verify follow-up above, alerting and reverting the checkbox back off - no ordering of "type first" vs. "check first" survives. Reported by user with a reproduction; confirmed directly against `setFileFlagKeyword` (typed value discarded when `present:false`). Fix direction: don't commit sub-field edits while the checkbox is off (or otherwise preserve the typed text across the off→on transition) so the required-field check has something to see. | I-38, HLPRCD/HLPDOC cross-verify | not started |
 
 ### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
@@ -3094,10 +3095,12 @@ and landing version. The text below was left stale after I-35 closed
 out; corrected here to log only what is genuinely still open, same kind
 of drift I-25's own section once had (caught and fixed in I-16).
 
-I-39 through I-42 are currently claimed (not yet implemented) — see their
-own sections above. What remains below is a set of real, sourced gaps
-individual tasks logged but deliberately did not fix (all still open as
-of v0.10.117):
+I-39 through I-43 are currently claimed (not yet implemented) — see their
+own sections above (I-43 is a real bug, not an audit gap: `HLPRCD`/
+`HLPDOC`'s checkboxes can't be turned on at all due to a catch-22 in
+their sub-field commit wiring). What remains below is a set of real,
+sourced gaps individual tasks logged but deliberately did not fix (all
+still open as of v0.10.117):
 
 - **From I-38 (file-level `HLPDOC`):** the help-specification-level form
   of `HLPDOC` (inside an H specification, alongside `HLPARA`) isn't
