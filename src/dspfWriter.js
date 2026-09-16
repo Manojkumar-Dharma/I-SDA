@@ -244,6 +244,23 @@
     });
   }
 
+  /** Returns `keywords` with `keywordToOmit` removed (by identity, not value - two keywords with
+   *  the same name/parameters are still distinct entries), preserving the relative order of every
+   *  other keyword exactly as it appeared. Used by serializeRecordEntry/serializeFileKeywordsEntry
+   *  to lift out the single keyword riding the record/file's first line without disturbing the
+   *  document order of everything else (see L85: the old approach bucketed the remainder into
+   *  "all unconditioned" then "all conditioned" and concatenated those two buckets, which silently
+   *  reordered any untouched keyword that happened to sit on the other side of that boundary from
+   *  where it started). No-op (returns a copy of `keywords`) when `keywordToOmit` is falsy or not
+   *  found in `keywords`. */
+  function keywordsExcept(keywords, keywordToOmit) {
+    var all = keywords || [];
+    if (!keywordToOmit) return all.slice();
+    var idx = all.indexOf(keywordToOmit);
+    if (idx === -1) return all.slice();
+    return all.slice(0, idx).concat(all.slice(idx + 1));
+  }
+
   /** Serializes one or more keywords that share the same (non-empty) condition: the condition's
    *  prefix chunks as indicator-only lines, then a final line combining the last chunk's indicator
    *  columns with the keyword text itself (wrapped via continuation if it doesn't fit one line). */
@@ -406,13 +423,14 @@
 
   /** Same per-keyword-conditioning treatment as serializeFieldEntry, applied to a record's own
    *  keywords: at most its first unconditioned keyword rides the R-line itself, everything else
-   *  (further unconditioned keywords, plus every conditioned one) gets its own dedicated line. */
+   *  (further unconditioned keywords, plus every conditioned one) gets its own dedicated line, in
+   *  the same relative order they already had (see L85 / keywordsExcept doc comment - the
+   *  remainder is no longer re-bucketed into "all unconditioned then all conditioned"). */
   function serializeRecordEntry(record, originalLine1to6) {
     var allKeywords = record.keywords || [];
     var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
-    var conditioned = allKeywords.filter(function (k) { return k.conditions && k.conditions.length > 0; });
     var firstUnconditioned = unconditioned.slice(0, 1);
-    var restKeywords = unconditioned.slice(1).concat(conditioned);
+    var restKeywords = keywordsExcept(allKeywords, firstUnconditioned[0]);
 
     var recordPrefixLines = serializeConditionPrefixLines(record.conditions, originalLine1to6);
     var posCols = serializeRecordPositionalCols(record, originalLine1to6);
@@ -467,12 +485,13 @@
   }
 
   /** Same one-keyword-per-line treatment as serializeFieldEntry/serializeRecordEntry: at most the
-   *  first unconditioned file keyword rides the very first line, everything else gets its own. */
+   *  first unconditioned file keyword rides the very first line, everything else gets its own, in
+   *  the same relative order they already had (see L85 / keywordsExcept doc comment). */
   function serializeFileKeywordsEntry(fileKeywords, originalLine1to6) {
-    var unconditioned = (fileKeywords || []).filter(function (k) { return !k.conditions || k.conditions.length === 0; });
-    var conditioned = (fileKeywords || []).filter(function (k) { return k.conditions && k.conditions.length > 0; });
+    var allKeywords = fileKeywords || [];
+    var unconditioned = allKeywords.filter(function (k) { return !k.conditions || k.conditions.length === 0; });
     var firstUnconditioned = unconditioned.slice(0, 1);
-    var restKeywords = unconditioned.slice(1).concat(conditioned);
+    var restKeywords = keywordsExcept(allKeywords, firstUnconditioned[0]);
 
     var seqForm = padTo(originalLine1to6 != null ? originalLine1to6 : 'A', 6);
     var posChars = new Array(44).fill(' ');

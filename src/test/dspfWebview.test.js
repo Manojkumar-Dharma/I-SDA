@@ -6216,15 +6216,15 @@ function runPdnSflCtlPickerScenario() {
     console.log('  Help tab: a second HLPTITLE instance, IBM\u2019s own worked example - complementary indicators 90/N90 selecting between two title variants');
     doc.querySelector('.repeat-inst-add[data-prefix="' + rkP + '-hlptitle-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
     posted.length = 0;
-    // The record serializer (serializeRecordEntry) always groups a
-    // record's unconditioned keywords before its conditioned ones, so the
-    // freshly-added (still unconditioned) instance re-renders at idx0 and
-    // the already-conditioned instance from above shifts to idx1 - NOT
-    // simply appended after it. Same general convention every other
-    // repeatable-instance panel (MNUBARDSP, record-indicator) is subject
-    // to; not specific to this task.
-    doc.querySelector('.' + rkP + '-hlptitle-rep-inst0-text').value = 'Sample Screen 2';
-    doc.querySelector('.' + rkP + '-hlptitle-rep-inst0-text').dispatchEvent(new Event('change', { bubbles: true }));
+    // Task L85 fix: the record serializer now preserves document order
+    // across the conditioned/unconditioned boundary (it used to bucket
+    // ALL unconditioned keywords before ALL conditioned ones on every
+    // write, silently reordering untouched keywords). So the existing
+    // conditioned instance from above (idx0) keeps its position, and the
+    // freshly-added (still unconditioned) instance is appended after it
+    // at idx1 - not the other way around.
+    doc.querySelector('.' + rkP + '-hlptitle-rep-inst1-text').value = 'Sample Screen 2';
+    doc.querySelector('.' + rkP + '-hlptitle-rep-inst1-text').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
     hlptitleKws = reparsed.keywords.filter((k) => k.name === 'HLPTITLE');
@@ -6233,11 +6233,11 @@ function runPdnSflCtlPickerScenario() {
     posted.length = 0;
 
     console.log('  Help tab: removing an instance leaves the other alone');
-    doc.querySelector('.repeat-inst-remove[data-prefix="' + rkP + '-hlptitle-rep"][data-idx="0"]').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.repeat-inst-remove[data-prefix="' + rkP + '-hlptitle-rep"][data-idx="1"]').dispatchEvent(new Event('click', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PSFCTL');
     hlptitleKws = reparsed.keywords.filter((k) => k.name === 'HLPTITLE');
-    check('the removed (unconditioned, idx0) instance is gone, the conditioned instance remains', hlptitleKws.length === 1 && hlptitleKws[0].parameters === "'Sample Screen 1 revised'" && hlptitleKws[0].conditions[0].indicators[0].number === '90');
+    check('the removed (unconditioned, idx1) instance is gone, the conditioned instance remains', hlptitleKws.length === 1 && hlptitleKws[0].parameters === "'Sample Screen 1 revised'" && hlptitleKws[0].conditions[0].indicators[0].number === '90');
     posted.length = 0;
 
     console.log('\nBase Record Keywords (Task R1) Indicator tab (Task L5d): CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/CHANGE/INDTXT are now repeatable, independently-conditioned instances, matching the real SDA \u201cDefine Indicator Keywords\u201d screen for a plain record, instead of one flagRowHtml per keyword');
