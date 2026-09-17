@@ -53,6 +53,50 @@ implied by its position in the document.
 
 ---
 
+## Open work — recommended pickup order (as of v0.10.122)
+
+I-1 through I-38 (the full file/record/field-level base series) are all
+done, and so are I-43 and I-44. Ten tasks remain open. They're listed
+below in dependency/pickup order rather than by numeric ID - IDs reflect
+the order each task was *opened*, not a recommended sequence (see
+"Document structure" above) - so this list is a navigational aid layered
+on top of the summary tables and `### I-N` sections below, which stay in
+their existing strict-numeric-ID order (task IDs are referenced from
+tests, `CHANGELOG.md`, and `LIMITATIONS-PLAN.md`, so they're never
+renumbered).
+
+1. **I-50** - tiny, fully standalone: remove `RETLCKSTS`'s incorrect
+   params box. Depends only on already-done work; no reason to wait.
+2. **I-51** - reuses the `wireFlagRowConditioning` helper I-44 just
+   added to `wireUsrdfnGuardedFlag`, so it's cheapest to pick up while
+   that pattern is fresh. Depends on I-44 (done) and I-13 (done).
+3. **I-49** - the single biggest gap I-44's own implementation
+   surfaced: the Advanced/raw keyword accordion bypasses every one of
+   I-44's USRDFN guards entirely, since it isn't wired through
+   `simple()`/`wirePulldownGuardedFlag()`/`wireTwoField()` at all.
+   Materially bigger than I-44 itself - budget accordingly. Depends on
+   I-44 (done).
+4. **I-45**, **I-46**, **I-47**, **I-48** - the four independent
+   blanket-restriction investigations split off from I-44's original
+   finding (`DSPMOD`/`DSPSIZ`, `SFL`/`SFLCTL`, `WINDOW`, `MNUBAR`
+   respectively). Each reads its own keyword's DDS Reference section
+   fresh; none of the four depends on any other, so any order among
+   them is fine, including running them in parallel across sessions.
+5. **I-41** - add the 3 confirmed-missing field-level keywords
+   (`HTML`, `PSHBTNFLD`, `PSHBTNCHC`). A content addition, independent
+   of the USRDFN-lineage tasks above.
+6. **I-42** - extend level-scope for the 5 keywords whose current
+   scope is too narrow (`MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/
+   `ENTFLDATR`). Same bucket as I-41 - both change the keyword set
+   `I-40` below indexes.
+7. **I-40** - keyword-index regeneration, **last, on purpose**. Same
+   rule I-16 already established for this exact situation: regenerate
+   once, after every task that changes the keyword set has landed, or
+   the index goes stale again the moment the next one does. I-41 and
+   I-42 both change the keyword set, so I-40 has to follow them.
+
+---
+
 ## Reference method (so re-audits are reproducible)
 
 IBM's DDS reference document is one alphabetical run of ~155 keyword
