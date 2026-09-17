@@ -5649,7 +5649,10 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
-    WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName));
+    // Task I-49: guard the raw keyword editor's own "+ Add keyword" against
+    // USRDFN's whitelist (rec.keywords is this render's own fresh snapshot,
+    // same as every other guard/panel wired in this function).
+    WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName), (name) => DspfWriter.usrdfnWhitelistConflictReason(name, rec.keywords));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
       WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);

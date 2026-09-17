@@ -1659,6 +1659,45 @@
     return keywordName + ' cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference).';
   }
 
+  /** Task I-49 - the strict USRDFN whitelist itself. USRDFN's own DDS
+   *  Reference text (quoted in usrdfnConflictReason's own doc comment
+   *  above and I-44's keywordFixes.md row) is a WHITELIST: "No file- or
+   *  record-level keywords apply to this record except INVITE, KEEP,
+   *  PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT." Every
+   *  existing USRDFN guard - usrdfnConflictReason above (ASSUME/ALWROL/
+   *  HLPSEQ/HLPCMDKEY) and I-44's 29 record-level keywords wired through
+   *  wireUsrdfnGuardedFlag/wireUsrdfnGuardedTwoField/
+   *  wirePulldownGuardedFlag - only ever fires for ONE specific,
+   *  individually-confirmed-not-whitelisted keyword per call site; none
+   *  of them actually consult the whitelist text itself.
+   *  This is the general case I-49 found missing: the Advanced/raw
+   *  keywords accordion (keywordEditorHtml/wireKeywordEditor) lets the
+   *  user add literally ANY keyword by name, to any entity including a
+   *  record, and isn't wired through any of the above at all. Given
+   *  `keywordName` (already uppercased by wireKeywordEditor's own add
+   *  handler) and the target record's current keywords, returns a reason
+   *  string if the record is USRDFN and `keywordName` is not on the
+   *  whitelist, or null otherwise (record isn't USRDFN, or the keyword
+   *  IS whitelisted). USRDFN itself is always allowed - it's the
+   *  record-type identifier and is already present by definition
+   *  whenever this returns non-null for anything else. Per USRDFN's own
+   *  text, HELP/HLPRTN/INVITE only count towards the whitelist when
+   *  added directly to this record (not at the file level) - this
+   *  function only ever sees record-level adds (the raw editor's
+   *  file-level call site never passes a guard, see I-49's
+   *  keywordFixes.md row), so that distinction doesn't need re-checking
+   *  here. */
+  var USRDFN_WHITELIST_KEYWORDS = [
+    'INVITE', 'KEEP', 'PASSRCD', 'HLPRTN', 'HELP', 'HLPCLR', 'PRINT',
+    'OPENPRT', 'TEXT', 'USRDFN'
+  ];
+  function usrdfnWhitelistConflictReason(keywordName, recordKeywords) {
+    var hasUsrdfn = (recordKeywords || []).some(function (k) { return k.name === 'USRDFN'; });
+    if (!hasUsrdfn) return null;
+    if (USRDFN_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
+    return keywordName + ' cannot be added to a user-defined (USRDFN) record format - only INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT are allowed (per the DDS Reference).';
+  }
+
   /** Task I-13 - PULLDOWN record-level keyword audit. The PULLDOWN
    *  keyword's own DDS Reference section states directly, right in its
    *  own text: "The following keywords cannot be specified on a record
@@ -6111,6 +6150,7 @@
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,
     usrdfnConflictReason: usrdfnConflictReason,
+    usrdfnWhitelistConflictReason: usrdfnWhitelistConflictReason,
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,

@@ -581,7 +581,21 @@
     return html;
   }
 
-  function wireKeywordEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+  // Task I-49: optional trailing `addGuardFn(name, params)` param, checked
+  // only in the "+ Add keyword" handler below, before `onChange` is ever
+  // called. Every existing call site (file/field/help-entry keywords, and
+  // pre-I-49 record keywords) omits it and is completely unaffected - the
+  // guard only fires where a caller opts in. The record-level call site
+  // (renderRecordProps in buildWebviewTemplate.js) is the only one that
+  // passes one, wired to DspfWriter.usrdfnWhitelistConflictReason so a
+  // USRDFN record's own raw keyword editor can no longer add anything
+  // outside USRDFN's own whitelist (see that function's doc comment) -
+  // the gap I-44's own audit found and logged as this task. Returns a
+  // reason string to block (alerted, same idiom as the guarded flag/
+  // two-field helpers above - remove is NEVER guarded, matching those
+  // helpers' own "only the on-transition" rule), or null/undefined to
+  // allow the add through as before.
+  function wireKeywordEditor(keywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var list = keywords || [];
 
     document.querySelectorAll('.kw-remove[data-owner="' + ownerKey + '"]').forEach(function (btn) {
@@ -620,6 +634,13 @@
         var name = (nameInput.value || '').trim().toUpperCase();
         var params = (paramsInput.value || '').trim();
         if (!name) return;
+        if (addGuardFn) {
+          var reason = addGuardFn(name, params);
+          if (reason) {
+            window.alert(reason);
+            return;
+          }
+        }
         onChange(list.concat([{ name: name, parameters: params, conditions: [], raw: '', sourceLines: [] }]));
       });
     }
