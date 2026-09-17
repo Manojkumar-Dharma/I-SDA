@@ -80,7 +80,10 @@ function check(label, condition) {
 
 const dspfSource =
   [
-    '     A                                      DSPSIZ(24 80 *DS3)',
+    // Task I-45: both display sizes declared so DSPMOD's own separate
+    // DSPSIZ prerequisite (unrelated to this file's own USRDFN focus)
+    // doesn't interfere with Group B's regression check for DSPMOD below.
+    '     A                                      DSPSIZ(24 80 *DS3 27 132 *DS4)',
     '     A          R USRREC                     USRDFN',
     '     A          R PLAINREC',
     "     A                                  1  2'PLAIN SCREEN'",

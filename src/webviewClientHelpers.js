@@ -5340,7 +5340,19 @@
     // call sites whose keyword is individually documented "Option
     // indicators are valid for this keyword" (unlike ASSUME/ALWROL/
     // HLPCMDKEY, none of which offered a toggle here before either).
-    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd, hasParams, withConditioning) {
+    // Task I-45 (split off from the same I-44 finding): DSPMOD's own DDS
+    // Reference text has a SEPARATE, unrelated-to-USRDFN prerequisite -
+    // "valid only when both the 24 x 80 and 27 x 132 display sizes are
+    // specified on the DSPSIZ keyword" (see DspfWriter.
+    // dspmodDspsizPrerequisiteReason's own doc comment). `alsoCheckDspsiz`
+    // layers that sixth check on top, using `getFileKeywords` already in
+    // this outer function's own closure (same as `alsoCheckPassrcd`
+    // above) - unlike PASSRCD's check, this one doesn't need this
+    // record's own name (`p`), since DSPSIZ is purely a file-level
+    // condition with no per-record targeting. Defaults falsy for every
+    // other caller (ASSUME/ALWROL/HLPCMDKEY/BLINK/MSGALARM/LOCK/LOGOUT),
+    // none of which has any DSPSIZ-related rule of their own.
+    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd, hasParams, withConditioning, alsoCheckDspsiz) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
       function commit(conditions) {
@@ -5352,6 +5364,7 @@
             (alsoCheckWindow ? DspfWriter.windowConflictReason(name, getKeywords()) : null) ||
             (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||
             (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
+            (alsoCheckDspsiz && getFileKeywords ? DspfWriter.dspmodDspsizPrerequisiteReason(getFileKeywords()) : null) ||
             DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
@@ -5648,12 +5661,11 @@
     wirePulldownGuardedFlag(p + '-invite', 'INVITE', false, false, false, true);
     wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false, false, false, true);
     wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false, false, false, true);
-    // Task I-45 (split off from this same I-44 finding): DSPMOD has its
-    // own separate unchecked DSPSIZ(*DS3 *DS4) prerequisite, unrelated to
-    // USRDFN - out of scope here, logged for later pickup. This row only
-    // gains the USRDFN-whitelist guard; hasParams=true and the existing
-    // Conditioning toggle are both preserved unchanged.
-    wireUsrdfnGuardedFlag(p + '-dspmod', 'DSPMOD', false, false, false, true, true);
+    // Task I-45: DSPMOD's own separate DSPSIZ(*DS3 *DS4) prerequisite is
+    // now enforced via wireUsrdfnGuardedFlag's `alsoCheckDspsiz` param
+    // (see that function's own doc comment) - hasParams=true and the
+    // existing Conditioning toggle are both preserved unchanged.
+    wireUsrdfnGuardedFlag(p + '-dspmod', 'DSPMOD', false, false, false, true, true, true);
     // Task I-44: CSRLOC's own DDS Reference section explicitly lists
     // "User-defined record formats (identified by the USRDFN keyword)"
     // as invalid for this keyword, and separately confirms "Option

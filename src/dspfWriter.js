@@ -3424,6 +3424,30 @@
     return next;
   }
 
+  /** Task I-45 (split off from I-44's original finding): DSPMOD's own DDS
+   *  Reference section states "This keyword is valid only when both the
+   *  24 x 80 and 27 x 132 display sizes are specified on the DSPSIZ
+   *  keyword" - a file-level prerequisite entirely unrelated to USRDFN
+   *  (I-44's own scope) and unchecked by any existing guard (DSPMOD's row
+   *  went through plain `simple()` before I-44's own pass, then
+   *  `wireUsrdfnGuardedFlag` after it - neither ever looked at DSPSIZ).
+   *  `getDisplaySizesList` already normalizes both of DSPSIZ's own valid
+   *  forms - named (`*DS3`/`*DS4`, resolved via KNOWN_DISPLAY_SIZE_NAMES)
+   *  and bare numeric (`24 80`/`27 132`) - to the same `{lines, columns}`
+   *  shape, so this just checks both required sizes are present in
+   *  whatever order the file lists them (DSPMOD's own text only requires
+   *  both be declared; the first one listed becomes the default display
+   *  mode, unaffected by this check). Returns a reason string if `sizes`
+   *  is missing either the 24x80 or 27x132 size, or null if both are
+   *  present. */
+  function dspmodDspsizPrerequisiteReason(fileKeywords) {
+    var sizes = getDisplaySizesList(fileKeywords);
+    var has24x80 = sizes.some(function (s) { return s.lines === 24 && s.columns === 80; });
+    var has27x132 = sizes.some(function (s) { return s.lines === 27 && s.columns === 132; });
+    if (has24x80 && has27x132) return null;
+    return 'DSPMOD is valid only when the DSPSIZ keyword specifies both the 24x80 and 27x132 display sizes (per the DDS Reference).';
+  }
+
   // Bug fix (L22 keyword-inventory audit): MSGLOC was entirely missing.
   // Confirmed via IBM's own DDS Reference: MSGLOC is a FILE-LEVEL keyword
   // with a single required numeric line-number parameter (1-27), used
@@ -6151,6 +6175,7 @@
     loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,
     usrdfnConflictReason: usrdfnConflictReason,
     usrdfnWhitelistConflictReason: usrdfnWhitelistConflictReason,
+    dspmodDspsizPrerequisiteReason: dspmodDspsizPrerequisiteReason,
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
