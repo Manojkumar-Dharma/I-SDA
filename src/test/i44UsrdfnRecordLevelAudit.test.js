@@ -174,7 +174,7 @@ setTimeout(() => {
     { suffix: 'dspmod', name: 'DSPMOD', hasParams: true, paramValue: '*DS4' },
     { suffix: 'loginp', name: 'LOGINP' },
     { suffix: 'getretain', name: 'GETRETAIN' },
-    { suffix: 'retlcksts', name: 'RETLCKSTS', hasParams: true, paramValue: '50' },
+    { suffix: 'retlcksts', name: 'RETLCKSTS' }, // I-50 fixed the hasParams bug this file used to assert against
     { suffix: 'protect', name: 'PROTECT' },
     { suffix: 'inzinp', name: 'INZINP' },
     { suffix: 'alarm', name: 'ALARM' },

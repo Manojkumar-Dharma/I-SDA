@@ -4912,7 +4912,13 @@
     var fGetretain = DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN');
     inp += flagRowHtml(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var retlcksts = DspfWriter.getFileFlagKeyword(kw, 'RETLCKSTS');
-    inp += flagRowHtml(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, retlcksts.parameters, 'indicators (optional)', retlcksts.conditions, expandedSet);
+    // Task I-50: RETLCKSTS's own DDS Reference text states "This keyword
+    // has no parameters" - the params box (previously rendered here
+    // unconditionally, matching the pre-fix hasParams=true wiring below)
+    // was a pre-existing bug, not real DDS syntax. Dropped both
+    // paramsValue and paramsPlaceholder so flagRowHtml renders this as a
+    // plain flag+conditioning row, same shape as LOGOUT/BLINK/etc. above.
+    inp += flagRowHtml(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, undefined, undefined, retlcksts.conditions, expandedSet);
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
     inp += flagRowHtml(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
@@ -5305,12 +5311,10 @@
     // Task I-44: two new trailing params, both defaulting to the exact
     // prior behavior (no params box, no Conditioning toggle) so ASSUME/
     // ALWROL/HLPCMDKEY above are completely unaffected. `hasParams` mirrors
-    // simple()'s/wirePulldownGuardedFlag's own flag for the one I-44 call
-    // site that needs it (DSPMOD; RETLCKSTS also passes it, matching that
-    // row's own pre-existing simple(..., true) call even though RETLCKSTS'
-    // own DDS Reference text says "This keyword has no parameters" - an
-    // existing, unrelated bug logged separately, not introduced or fixed
-    // here). `withConditioning` wires the same live Conditioning toggle
+    // simple()'s/wirePulldownGuardedFlag's own flag for the I-44 call
+    // site that needs it (DSPMOD; RETLCKSTS's own hasParams=true was fixed
+    // to false by I-50, since RETLCKSTS's own DDS Reference text says
+    // "This keyword has no parameters"). `withConditioning` wires the same live Conditioning toggle
     // simple()'s own noConditioning=false default provides, for the I-44
     // call sites whose keyword is individually documented "Option
     // indicators are valid for this keyword" (unlike ASSUME/ALWROL/
@@ -5640,11 +5644,14 @@
     // Task I-44: RETLCKSTS - individually record-level, "Option
     // indicators are valid for this keyword" per its own DDS Reference
     // text, so withConditioning=true preserves the existing toggle.
-    // hasParams=true is preserved unchanged too, even though that same
-    // DDS Reference text also says "This keyword has no parameters" -
-    // that mismatch is a pre-existing bug, logged separately (not
-    // introduced or fixed by this task).
-    wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, true, true);
+    // Task I-50: hasParams flipped to false (was true) - that same DDS
+    // Reference text also says "This keyword has no parameters", and the
+    // params box was a pre-existing bug (logged separately, not
+    // introduced or fixed by I-44). Any parameter text an old DSPF might
+    // already carry on this keyword is dropped the next time this row is
+    // edited, matching the fact it was never valid DDS syntax to begin
+    // with.
+    wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, false, true);
     // Task I-7: CHECK's AB/RL sub-flags - "Option indicators are valid
     // only for CHECK(ER) and CHECK(ME)" per IBM's own DDS Reference,
     // neither of which iSDA implements (same finding I-3 already made for
