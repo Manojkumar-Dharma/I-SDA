@@ -5421,10 +5421,36 @@
     // call sites regardless (none is on that whitelist), making this a
     // safe, uniform addition rather than something needing per-caller
     // opt-in like alsoCheckKeep/alsoCheckPassrcd above.
-    function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep, alsoCheckPassrcd) {
+    // Task I-51: `withConditioning` (new trailing param, defaulting to the
+    // exact prior behavior - no toggle wired - so every EXISTING caller
+    // that doesn't pass it is unaffected) wires the same live Conditioning
+    // toggle wireUsrdfnGuardedFlag's own I-44 addition provides, for
+    // callers whose keyword is individually documented "Option indicators
+    // are valid/allowed for this keyword": ALARM, ALWGPH, FRCDTA, HLPCLR,
+    // INVITE, OVERLAY, PUTRETAIN, PUTOVR, OVRDTA, OVRATR, MDTOFF,
+    // ERASEINP, ERASE. Before I-51, this function never wired a
+    // Conditioning toggle at all - for those 13, several of whose own
+    // rows already pass a real `conditions` value into `flagRowHtml`
+    // (HLPCLR/INVITE/ALARM/ALWGPH/FRCDTA/OVERLAY/PUTRETAIN/PUTOVR/OVRDTA/
+    // OVRATR/MDTOFF/ERASEINP/ERASE all do), the toggle button rendered but
+    // silently did nothing when clicked. INZRCD/SLNO/CLRL/RTNDTA are
+    // deliberately NOT in that list even though I-51's own original
+    // finding (keywordFixes.md) also named RTNDTA - re-verified against
+    // RTNDTA's own DDS Reference text while implementing this and found
+    // "Option indicators are not valid for this keyword" (matching its
+    // own row's pre-existing `flagRowHtml(..., undefined, undefined)` -
+    // no toggle ever rendered for it, so there was no dead-control bug to
+    // fix there; I-51's own list was corrected, not followed blindly).
+    // HLPCLR and INVITE, conversely, were NOT in I-51's original list
+    // despite being individually documented "valid"/"allowed" and having
+    // the identical dead-toggle symptom on their own rows - added here
+    // after independently re-checking every wirePulldownGuardedFlag
+    // caller against the DDS Reference rather than trusting that list as
+    // exhaustive.
+    function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep, alsoCheckPassrcd, withConditioning) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
-      function commit() {
+      function commit(conditions) {
         var present = onEl.checked;
         if (present) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
@@ -5438,10 +5464,13 @@
             return;
           }
         }
-        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, paramsEl ? paramsEl.value : ''));
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, paramsEl ? paramsEl.value : '', undefined, conditions));
       }
-      if (onEl) onEl.addEventListener('change', commit);
-      if (paramsEl) paramsEl.addEventListener('change', commit);
+      if (onEl) onEl.addEventListener('change', function () { commit(); });
+      if (paramsEl) paramsEl.addEventListener('change', function () { commit(); });
+      if (withConditioning) {
+        wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, commit, expandedSet, rerender);
+      }
     }
     // Task I-28: KEEP's own guard - same alert+revert idiom as
     // wireUsrdfnGuardedFlag/wirePulldownGuardedFlag above, hand-wired
@@ -5565,7 +5594,7 @@
     // Task I-13: HLPCLR is on PULLDOWN's own forbidden-keyword list (I-8
     // confirmed it has no USRDFN-side restriction, but PULLDOWN is a
     // separate, unrelated conflict).
-    wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', false);
+    wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', false, false, false, true);
     wireUsrdfnGuardedTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
     wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY');
     // Task I-27: record-level HLPTITLE rebuilt as a repeatable instance
@@ -5591,13 +5620,13 @@
     // Conditioning toggle is preserved via wireUsrdfnGuardedFlag's own
     // withConditioning flag.
     wireUsrdfnGuardedFlag(p + '-blink', 'BLINK', false, false, false, false, true);
-    wirePulldownGuardedFlag(p + '-alarm', 'ALARM', false);
+    wirePulldownGuardedFlag(p + '-alarm', 'ALARM', false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-msgalarm', 'MSGALARM', false, false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-lock', 'LOCK', false, false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-logout', 'LOGOUT', false, false, false, false, true);
-    wirePulldownGuardedFlag(p + '-invite', 'INVITE', false);
-    wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false);
-    wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false);
+    wirePulldownGuardedFlag(p + '-invite', 'INVITE', false, false, false, true);
+    wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false, false, false, true);
+    wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false, false, false, true);
     // Task I-45 (split off from this same I-44 finding): DSPMOD has its
     // own separate unchecked DSPSIZ(*DS3 *DS4) prerequisite, unrelated to
     // USRDFN - out of scope here, logged for later pickup. This row only
@@ -5666,8 +5695,8 @@
     // ERASE are each on PULLDOWN's own forbidden-keyword list - PROTECT
     // and INZINP are NOT on that list (checked individually against their
     // own DDS Reference sections), left on plain simple().
-    wirePulldownGuardedFlag(p + '-overlay', 'OVERLAY', false);
-    wirePulldownGuardedFlag(p + '-putretain', 'PUTRETAIN', false);
+    wirePulldownGuardedFlag(p + '-overlay', 'OVERLAY', false, false, false, true);
+    wirePulldownGuardedFlag(p + '-putretain', 'PUTRETAIN', false, false, false, true);
     // Task I-44: PROTECT/INZINP are each individually record-level with
     // "Option indicators are valid for this keyword" per their own DDS
     // Reference sections and no other specific-keyword exclusion list
@@ -5675,13 +5704,13 @@
     // this same panel's pre-existing I-13 comment above) - same
     // USRDFN-whitelist-only gap, existing Conditioning toggle preserved.
     wireUsrdfnGuardedFlag(p + '-protect', 'PROTECT', false, false, false, false, true);
-    wirePulldownGuardedFlag(p + '-putovr', 'PUTOVR', false);
-    wirePulldownGuardedFlag(p + '-ovrdta', 'OVRDTA', false);
-    wirePulldownGuardedFlag(p + '-ovratr', 'OVRATR', false);
+    wirePulldownGuardedFlag(p + '-putovr', 'PUTOVR', false, false, false, true);
+    wirePulldownGuardedFlag(p + '-ovrdta', 'OVRDTA', false, false, false, true);
+    wirePulldownGuardedFlag(p + '-ovratr', 'OVRATR', false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-inzinp', 'INZINP', false, false, false, false, true);
-    wirePulldownGuardedFlag(p + '-mdtoff', 'MDTOFF', true);
-    wirePulldownGuardedFlag(p + '-eraseinp', 'ERASEINP', true);
-    wirePulldownGuardedFlag(p + '-erase', 'ERASE', false);
+    wirePulldownGuardedFlag(p + '-mdtoff', 'MDTOFF', true, false, false, true);
+    wirePulldownGuardedFlag(p + '-eraseinp', 'ERASEINP', true, false, false, true);
+    wirePulldownGuardedFlag(p + '-erase', 'ERASE', false, false, false, true);
 
     // Print
     // Task S36-4: PRINT's response indicator (including the literal

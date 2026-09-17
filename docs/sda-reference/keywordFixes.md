@@ -53,41 +53,38 @@ implied by its position in the document.
 
 ---
 
-## Open work — recommended pickup order (as of v0.10.123)
+## Open work — recommended pickup order (as of v0.10.124)
 
 I-1 through I-38 (the full file/record/field-level base series) are all
-done, and so are I-43, I-44, and I-50. Nine tasks remain open. They're
-listed below in dependency/pickup order rather than by numeric ID - IDs
-reflect the order each task was *opened*, not a recommended sequence (see
-"Document structure" above) - so this list is a navigational aid layered
-on top of the summary tables and `### I-N` sections below, which stay in
-their existing strict-numeric-ID order (task IDs are referenced from
-tests, `CHANGELOG.md`, and `LIMITATIONS-PLAN.md`, so they're never
-renumbered).
+done, and so are I-43, I-44, I-50, and I-51. Eight tasks remain open.
+They're listed below in dependency/pickup order rather than by numeric
+ID - IDs reflect the order each task was *opened*, not a recommended
+sequence (see "Document structure" above) - so this list is a
+navigational aid layered on top of the summary tables and `### I-N`
+sections below, which stay in their existing strict-numeric-ID order
+(task IDs are referenced from tests, `CHANGELOG.md`, and
+`LIMITATIONS-PLAN.md`, so they're never renumbered).
 
-1. **I-51** - reuses the `wireFlagRowConditioning` helper I-44 just
-   added to `wireUsrdfnGuardedFlag`, so it's cheapest to pick up while
-   that pattern is fresh. Depends on I-44 (done) and I-13 (done).
-2. **I-49** - the single biggest gap I-44's own implementation
+1. **I-49** - the single biggest gap I-44's own implementation
    surfaced: the Advanced/raw keyword accordion bypasses every one of
    I-44's USRDFN guards entirely, since it isn't wired through
    `simple()`/`wirePulldownGuardedFlag()`/`wireTwoField()` at all.
    Materially bigger than I-44 itself - budget accordingly. Depends on
    I-44 (done).
-3. **I-45**, **I-46**, **I-47**, **I-48** - the four independent
+2. **I-45**, **I-46**, **I-47**, **I-48** - the four independent
    blanket-restriction investigations split off from I-44's original
    finding (`DSPMOD`/`DSPSIZ`, `SFL`/`SFLCTL`, `WINDOW`, `MNUBAR`
    respectively). Each reads its own keyword's DDS Reference section
    fresh; none of the four depends on any other, so any order among
    them is fine, including running them in parallel across sessions.
-4. **I-41** - add the 3 confirmed-missing field-level keywords
+3. **I-41** - add the 3 confirmed-missing field-level keywords
    (`HTML`, `PSHBTNFLD`, `PSHBTNCHC`). A content addition, independent
    of the USRDFN-lineage tasks above.
-5. **I-42** - extend level-scope for the 5 keywords whose current
+4. **I-42** - extend level-scope for the 5 keywords whose current
    scope is too narrow (`MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/
    `ENTFLDATR`). Same bucket as I-41 - both change the keyword set
    `I-40` below indexes.
-6. **I-40** - keyword-index regeneration, **last, on purpose**. Same
+5. **I-40** - keyword-index regeneration, **last, on purpose**. Same
    rule I-16 already established for this exact situation: regenerate
    once, after every task that changes the keyword set has landed, or
    the index goes stale again the moment the next one does. I-41 and
@@ -143,7 +140,7 @@ keyword-name mentions anywhere in its section.
 | **I-48** | Investigation (split off from I-44's original finding): same re-read, for `MNUBAR`'s own DDS Reference section. `MNUBAR` appears on `PULLDOWN`'s own forbidden list (I-13) and has its own dedicated `MNUBARDSP`/`MNUBARSW`/`MNUCNL` sub-keyword handling (I-17/I-18/I-19/L76), but hasn't itself been checked for a blanket restriction on what else can coexist on a record that carries it. Independent of I-44 through I-47 - can run in parallel. Not yet fixed, logged for later pickup. | I-44 (same original finding, split out) | not started |
 | **I-49** | Gap found while implementing I-44: the one remaining way a `USRDFN` record could still end up carrying one of I-44's 29 record-level keywords is the Advanced/raw keywords accordion (`keywordEditorHtml`) - a generic add-any-keyword-by-name editor that's rendered unconditionally regardless of record type and isn't wired through `simple()`/`wirePulldownGuardedFlag()`/`wireTwoField()` at all, so none of I-44's guards apply to it. Confirmed via live DOM check that this accordion IS still rendered for a USRDFN record (unlike the Indicator/Output/Input/Overlay tabs, which Task R2 already hides entirely for USRDFN). Scope: this is materially bigger than I-44 - enforcing USRDFN's whitelist here means blocking or filtering literally every non-whitelisted keyword the picker offers, not just these 29, likely at the picker's own add/apply step rather than per-row. Independent of I-44 through I-48 - can be picked up separately. Not yet fixed, logged for later pickup. | I-44 (found during its implementation) | not started |
 | **I-50** | Bug found while implementing I-44: `RETLCKSTS`'s own row had always been wired with `hasParams=true` (renders a parameter text box) on both the render side (`flagRowHtml(..., retlcksts.parameters, 'indicators (optional)', ...)`) and the wire side (`wireUsrdfnGuardedFlag(..., hasParams=true, withConditioning=true)`), but `RETLCKSTS`'s own DDS Reference text states "This keyword has no parameters." Pre-existing, unrelated to USRDFN - not introduced by I-44, which preserved the existing (buggy) behavior unchanged to avoid stacking an unrelated fix into that task's diff. Fixed exactly as planned: dropped the params box entirely on both sides (`paramsValue`/`paramsPlaceholder` now `undefined` on the render call, `hasParams` flipped to `false` on the wire call), leaving the live Conditioning toggle untouched. New `i50RetlckstsParamsBug.test.js`, confirmed via `git stash` to genuinely fail against pre-fix code; updated `i44UsrdfnRecordLevelAudit.test.js`'s own `RETLCKSTS` groupB entry to drop the `hasParams`/`paramValue` expectations it used to assert against. Full suite: 4612/4612 assertions, zero failures. | I-44 (found during its implementation) | done (v0.10.123) |
-| **I-51** | Bug found while implementing I-44: `wirePulldownGuardedFlag` (added by I-13) never wires a live Conditioning toggle at all, for any of its callers - yet several of the keywords routed through it since I-13 (`ALARM`, `ALWGPH`, `FRCDTA`, `MDTOFF`, `ERASEINP`, `ERASE`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `RTNDTA`) are each individually documented "Option indicators are valid for this keyword," and several of their own HTML rows that pass a real `conditions` value into `flagRowHtml` (e.g. `MDTOFF`, `ERASEINP`) still render a Conditioning toggle button in the UI - so for those, the toggle is visible but silently does nothing when clicked (no click handler ever gets wired to it). Pre-existing since I-13, unrelated to USRDFN - not introduced or fixed by I-44. Scope: extend `wirePulldownGuardedFlag` with the same `wireFlagRowConditioning` wiring `wireUsrdfnGuardedFlag` gained this task (I-44), for whichever of its callers' own DDS Reference text confirms option indicators are valid. Independent of I-44 - can be picked up separately. Not yet fixed, logged for later pickup. | I-44 (found during its implementation), I-13 | not started |
+| **I-51** | Bug found while implementing I-44: `wirePulldownGuardedFlag` (added by I-13) never wires a live Conditioning toggle at all, for any of its callers - yet several of the keywords routed through it since I-13 (`ALARM`, `ALWGPH`, `FRCDTA`, `MDTOFF`, `ERASEINP`, `ERASE`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `RTNDTA`) are each individually documented "Option indicators are valid for this keyword," and several of their own HTML rows that pass a real `conditions` value into `flagRowHtml` (e.g. `MDTOFF`, `ERASEINP`) still render a Conditioning toggle button in the UI - so for those, the toggle is visible but silently does nothing when clicked (no click handler ever gets wired to it). Pre-existing since I-13, unrelated to USRDFN - not introduced or fixed by I-44. On implementation, independently re-verified every `wirePulldownGuardedFlag` caller against the DDS Reference rather than trusting this task's own original list as exhaustive or exact, and corrected it two ways: `RTNDTA` was named above but its own DDS Reference text actually says "Option indicators are **not** valid for this keyword," and its own row already passes `undefined` for `conditions` (no toggle ever rendered, so no bug there) - excluded. `HLPCLR` and `INVITE` were NOT named above despite being individually documented "valid"/"allowed" and having the identical dead-toggle symptom on their own rows - added. Final in-scope set (13): `ALARM`, `ALWGPH`, `FRCDTA`, `HLPCLR`, `INVITE`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `MDTOFF`, `ERASEINP`, `ERASE`. `INZRCD`/`SLNO`/`CLRL`/`RTNDTA` confirmed correctly excluded already (each "not valid," no toggle rendered). Fixed by extending `wirePulldownGuardedFlag` with a new optional `withConditioning` trailing param (backward compatible - the two unaffected callers, `INZRCD` and the already-excluded four, are untouched) that wires the same `wireFlagRowConditioning` call `wireUsrdfnGuardedFlag` gained in I-44. New `i51PulldownConditioningFix.test.js`: for all 13, clicks the toggle, adds a pending OR-condition, commits an indicator, and confirms the reparsed DDS actually carries it (same click-through method as `dspfWebview.test.js`'s own BLINK/SFLDSP scenarios) - confirmed via `git stash` to genuinely fail (13 checks) against pre-fix code. Also found and fixed, while here: I-50's own commit had bumped `package.json`'s version but never ran `npm install` to sync `package-lock.json`'s two version fields, and never added its own new test (`i50RetlckstsParamsBug.test.js`) to `package.json`'s `test` script, so `npm test` was silently skipping it - both corrected as part of this commit. | I-44 (found during its implementation), I-13 | done (v0.10.124) |
 
 ### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
