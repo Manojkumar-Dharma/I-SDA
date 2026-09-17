@@ -5236,16 +5236,19 @@
    *  passed to recordKeywordsPanelsHtml(). */
   function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
     var p = idPrefix;
-    // Task I-7: several keywords below pass noConditioning=true - IBM's
-    // own DDS Reference states "Option indicators are not valid for this
-    // keyword" for each (INZRCD/ASSUME/ALWROL/HLPCMDKEY/SLNO/CLRL/
-    // LOGINP/GETRETAIN/RTNDTA), same pattern I-3 already established at
-    // file level for CHGINPDFT/OPENPRT/etc.
-    function simple(id, name, hasParams, noConditioning) {
-      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
-        return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
-      }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
-    }
+    // Task I-7: several keywords below were noConditioning=true under the
+    // old plain simple() wiring - IBM's own DDS Reference states "Option
+    // indicators are not valid for this keyword" for each (INZRCD/ASSUME/
+    // ALWROL/HLPCMDKEY/SLNO/CLRL/LOGINP/GETRETAIN/RTNDTA), same pattern
+    // I-3 already established at file level for CHGINPDFT/OPENPRT/etc.
+    // Task I-44: this panel's own local simple() helper (a thin wrapper
+    // around wireFlagRow with no USRDFN check) has been removed - every
+    // row that used it now goes through wireUsrdfnGuardedFlag/
+    // wireUsrdfnGuardedTwoField/wirePulldownGuardedFlag instead (see each
+    // row's own I-44 comment below for why), so nothing in this function
+    // calls plain wireFlagRow directly anymore except the two
+    // CHECK(AB)/CHECK(RL) rows and the Print row below, neither of which
+    // this task's 33-keyword list names.
     /** `ownerKey`/`condExpandedSet`/`condRerender` (optional, Task I-21) add
      *  a Conditioning toggle identical in shape to wireFlagRow's own -
      *  omit all three (as HLPSEQ's own guarded wrapper below still does,
@@ -5299,10 +5302,25 @@
     // param): it returns null for every keywordName other than ALWROL/
     // CLRL/SLNO/ASSUME, so it's a safe no-op for this function's other
     // caller (HLPCMDKEY).
-    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd) {
+    // Task I-44: two new trailing params, both defaulting to the exact
+    // prior behavior (no params box, no Conditioning toggle) so ASSUME/
+    // ALWROL/HLPCMDKEY above are completely unaffected. `hasParams` mirrors
+    // simple()'s/wirePulldownGuardedFlag's own flag for the one I-44 call
+    // site that needs it (DSPMOD; RETLCKSTS also passes it, matching that
+    // row's own pre-existing simple(..., true) call even though RETLCKSTS'
+    // own DDS Reference text says "This keyword has no parameters" - an
+    // existing, unrelated bug logged separately, not introduced or fixed
+    // here). `withConditioning` wires the same live Conditioning toggle
+    // simple()'s own noConditioning=false default provides, for the I-44
+    // call sites whose keyword is individually documented "Option
+    // indicators are valid for this keyword" (unlike ASSUME/ALWROL/
+    // HLPCMDKEY, none of which offered a toggle here before either).
+    function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd, hasParams, withConditioning) {
       var onEl = document.getElementById(id + '-on');
-      function commit() {
+      var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
+      function commit(conditions) {
         var present = onEl.checked;
+        var params = paramsEl ? paramsEl.value : '';
         if (present) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
             DspfWriter.pulldownConflictReason(name, getKeywords()) ||
@@ -5316,9 +5334,13 @@
             return;
           }
         }
-        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, ''));
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, hasParams ? params : '', undefined, conditions));
       }
-      if (onEl) onEl.addEventListener('change', commit);
+      if (onEl) onEl.addEventListener('change', function () { commit(); });
+      if (paramsEl) paramsEl.addEventListener('change', function () { commit(); });
+      if (withConditioning) {
+        wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, commit, expandedSet, rerender);
+      }
     }
     // Task I-8/I-13: HLPSEQ's own guard - same rule (and, per I-13, HLPSEQ
     // is ALSO individually on PULLDOWN's own forbidden list, unlike
@@ -5327,10 +5349,17 @@
     // implied by either text box being non-blank, per their own doc
     // comments), so the on-transition here is "either box just became
     // non-blank" rather than a checkbox flipping true.
-    function wireUsrdfnGuardedTwoField(elIdA, elIdB, name) {
+    // Task I-44: three new trailing params (mirroring wireTwoField's own
+    // ownerKey/condExpandedSet/condRerender shape) so this can replace
+    // CSRLOC's own plain wireTwoField call without dropping its existing
+    // live Conditioning toggle - CSRLOC is individually documented "Option
+    // indicators are valid for this keyword" (unlike HLPSEQ below, whose
+    // own call site omits all three and keeps its pre-existing
+    // noConditioning behavior unchanged).
+    function wireUsrdfnGuardedTwoField(elIdA, elIdB, name, ownerKey, condExpandedSet, condRerender) {
       var elA = document.getElementById(elIdA);
       var elB = document.getElementById(elIdB);
-      function commit() {
+      function commit(conditions) {
         var aVal = elA ? elA.value : '';
         var bVal = elB ? elB.value : '';
         if ((aVal || '').trim() || (bVal || '').trim()) {
@@ -5343,10 +5372,13 @@
             return;
           }
         }
-        onChange(DspfWriter.setFileTwoFieldKeyword(getKeywords(), name, aVal, bVal));
+        onChange(DspfWriter.setFileTwoFieldKeyword(getKeywords(), name, aVal, bVal, conditions));
       }
-      if (elA) elA.addEventListener('change', commit);
-      if (elB) elB.addEventListener('change', commit);
+      if (elA) elA.addEventListener('change', function () { commit(); });
+      if (elB) elB.addEventListener('change', function () { commit(); });
+      if (ownerKey) {
+        wireFlagRowConditioning(ownerKey, DspfWriter.getFileTwoFieldKeyword(getKeywords(), name).conditions, commit, condExpandedSet, condRerender);
+      }
     }
     // Task I-13 - PULLDOWN record-level keyword audit. The remaining
     // keywords on this shared RECORD panel that IBM's own DDS Reference
@@ -5375,13 +5407,24 @@
     // see wireUsrdfnGuardedFlag's own I-37 comment above and
     // DspfWriter.alwrolClrlSlnoConflictReason's own doc comment.
     // Deliberately unconditional here too, same reasoning.
+    // Task I-44: usrdfnConflictReason is ALSO deliberately unconditional
+    // here (not behind a 7th alsoCheckX param) for the exact same reason -
+    // USRDFN's own DDS Reference section is a blanket whitelist ("No
+    // file- or record-level keywords apply to this record except
+    // INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and
+    // TEXT"), not a short per-keyword exclusion list, so usrdfnConflictReason
+    // correctly returns null for every one of this function's 15 I-44
+    // call sites regardless (none is on that whitelist), making this a
+    // safe, uniform addition rather than something needing per-caller
+    // opt-in like alsoCheckKeep/alsoCheckPassrcd above.
     function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep, alsoCheckPassrcd) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
       function commit() {
         var present = onEl.checked;
         if (present) {
-          var reason = DspfWriter.pulldownConflictReason(name, getKeywords()) ||
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
+            DspfWriter.pulldownConflictReason(name, getKeywords()) ||
             (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||
             (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
             DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords());
@@ -5430,9 +5473,19 @@
     wireKeepGuardedFlag(p + '-keep', 'KEEP');
     wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME', true);
     wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true, true, true);
-    simple(p + '-retkey', 'RETKEY');
-    simple(p + '-retcmdkey', 'RETCMDKEY');
-    simple(p + '-csrinponly', 'CSRINPONLY');
+    // Task I-44: RETKEY/RETCMDKEY/CSRINPONLY are each individually
+    // record-level keywords with no exclusion list of their own naming
+    // any OTHER specific keyword - the gap was purely USRDFN's own
+    // unenforced whitelist (see wireUsrdfnGuardedFlag's own I-44 comment
+    // above), so plain simple() is replaced here with no other
+    // alsoCheckX flags needed. All three keep their existing Conditioning
+    // toggle (each individually documented "Option indicators are valid
+    // for this keyword" - CSRINPONLY's own DDS Reference section says so
+    // explicitly; RETKEY/RETCMDKEY's shared section doesn't say either
+    // way, so their pre-existing toggle is left exactly as it was).
+    wireUsrdfnGuardedFlag(p + '-retkey', 'RETKEY', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-retcmdkey', 'RETCMDKEY', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-csrinponly', 'CSRINPONLY', false, false, false, false, true);
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
     // Task L76 (superseded by Task I-17 below) - hand-wired panel/wire
     // pair rather than the generic wireFlagRow/simple() helpers above,
@@ -5526,16 +5579,35 @@
     // status per I-3/I-7 is unaffected: SLNO/CLRL still pass no
     // conditions/expandedSet/rerender, matching simple()'s own
     // noConditioning=true behavior).
-    simple(p + '-blink', 'BLINK');
+    // Task I-44: BLINK/MSGALARM/LOCK/LOGOUT are each individually
+    // record-level keywords with their own DDS Reference section
+    // confirming "Option indicators are valid for this keyword" and no
+    // OTHER specific-keyword exclusion list - same USRDFN-whitelist-only
+    // gap as RETKEY/RETCMDKEY/CSRINPONLY above, so their existing
+    // Conditioning toggle is preserved via wireUsrdfnGuardedFlag's own
+    // withConditioning flag.
+    wireUsrdfnGuardedFlag(p + '-blink', 'BLINK', false, false, false, false, true);
     wirePulldownGuardedFlag(p + '-alarm', 'ALARM', false);
-    simple(p + '-msgalarm', 'MSGALARM');
-    simple(p + '-lock', 'LOCK');
-    simple(p + '-logout', 'LOGOUT');
+    wireUsrdfnGuardedFlag(p + '-msgalarm', 'MSGALARM', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-lock', 'LOCK', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-logout', 'LOGOUT', false, false, false, false, true);
     wirePulldownGuardedFlag(p + '-invite', 'INVITE', false);
     wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false);
     wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false);
-    simple(p + '-dspmod', 'DSPMOD', true);
-    wireTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC', p + '-csrloc', expandedSet, rerender);
+    // Task I-45 (split off from this same I-44 finding): DSPMOD has its
+    // own separate unchecked DSPSIZ(*DS3 *DS4) prerequisite, unrelated to
+    // USRDFN - out of scope here, logged for later pickup. This row only
+    // gains the USRDFN-whitelist guard; hasParams=true and the existing
+    // Conditioning toggle are both preserved unchanged.
+    wireUsrdfnGuardedFlag(p + '-dspmod', 'DSPMOD', false, false, false, true, true);
+    // Task I-44: CSRLOC's own DDS Reference section explicitly lists
+    // "User-defined record formats (identified by the USRDFN keyword)"
+    // as invalid for this keyword, and separately confirms "Option
+    // indicators are valid for this keyword" - wireUsrdfnGuardedTwoField
+    // (extended this task to also accept the ownerKey/conditioning trio,
+    // see its own doc comment above) replaces the plain wireTwoField this
+    // used to go through, preserving the existing Conditioning toggle.
+    wireUsrdfnGuardedTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC', p + '-csrloc', expandedSet, rerender);
     // Task I-28: SLNO/CLRL are ALSO individually documented as
     // incompatible with KEEP - see wirePulldownGuardedFlag's own I-28
     // comment above. Task I-36: also PASSRCD - see its own I-36 comment.
@@ -5543,7 +5615,14 @@
     wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true, true, true);
 
     // Input
-    simple(p + '-loginp', 'LOGINP', false, true);
+    // Task I-44: LOGINP is individually record-level with no per-keyword
+    // exclusion list of its own (only the USRDFN-whitelist gap applies) -
+    // this row was already noConditioning=true per I-7/I-9 (LOGINP's own
+    // DDS Reference text: "Option indicators are not valid for this
+    // keyword"), so no hasParams/withConditioning flags are needed -
+    // wireUsrdfnGuardedFlag's own defaults already match simple()'s prior
+    // noConditioning behavior exactly.
+    wireUsrdfnGuardedFlag(p + '-loginp', 'LOGINP');
     var unlockOn = document.getElementById(p + '-unlock-on');
     var unlockErase = document.getElementById(p + '-unlock-erase');
     var unlockMdtoff = document.getElementById(p + '-unlock-mdtoff');
@@ -5554,8 +5633,18 @@
     // Task I-7: UNLOCK - "Option indicators are not valid for this
     // keyword" - no Conditioning toggle wired (was previously wired here,
     // a bug).
-    simple(p + '-getretain', 'GETRETAIN', false, true);
-    simple(p + '-retlcksts', 'RETLCKSTS', true);
+    // Task I-44: GETRETAIN - same shape as LOGINP just above (individually
+    // record-level, no other exclusion list, was already noConditioning=
+    // true per I-7 - "Option indicators are not valid for this keyword").
+    wireUsrdfnGuardedFlag(p + '-getretain', 'GETRETAIN');
+    // Task I-44: RETLCKSTS - individually record-level, "Option
+    // indicators are valid for this keyword" per its own DDS Reference
+    // text, so withConditioning=true preserves the existing toggle.
+    // hasParams=true is preserved unchanged too, even though that same
+    // DDS Reference text also says "This keyword has no parameters" -
+    // that mismatch is a pre-existing bug, logged separately (not
+    // introduced or fixed by this task).
+    wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, true, true);
     // Task I-7: CHECK's AB/RL sub-flags - "Option indicators are valid
     // only for CHECK(ER) and CHECK(ME)" per IBM's own DDS Reference,
     // neither of which iSDA implements (same finding I-3 already made for
@@ -5572,11 +5661,17 @@
     // own DDS Reference sections), left on plain simple().
     wirePulldownGuardedFlag(p + '-overlay', 'OVERLAY', false);
     wirePulldownGuardedFlag(p + '-putretain', 'PUTRETAIN', false);
-    simple(p + '-protect', 'PROTECT');
+    // Task I-44: PROTECT/INZINP are each individually record-level with
+    // "Option indicators are valid for this keyword" per their own DDS
+    // Reference sections and no other specific-keyword exclusion list
+    // (confirmed not on PULLDOWN's own forbidden list either, matching
+    // this same panel's pre-existing I-13 comment above) - same
+    // USRDFN-whitelist-only gap, existing Conditioning toggle preserved.
+    wireUsrdfnGuardedFlag(p + '-protect', 'PROTECT', false, false, false, false, true);
     wirePulldownGuardedFlag(p + '-putovr', 'PUTOVR', false);
     wirePulldownGuardedFlag(p + '-ovrdta', 'OVRDTA', false);
     wirePulldownGuardedFlag(p + '-ovratr', 'OVRATR', false);
-    simple(p + '-inzinp', 'INZINP');
+    wireUsrdfnGuardedFlag(p + '-inzinp', 'INZINP', false, false, false, false, true);
     wirePulldownGuardedFlag(p + '-mdtoff', 'MDTOFF', true);
     wirePulldownGuardedFlag(p + '-eraseinp', 'ERASEINP', true);
     wirePulldownGuardedFlag(p + '-erase', 'ERASE', false);

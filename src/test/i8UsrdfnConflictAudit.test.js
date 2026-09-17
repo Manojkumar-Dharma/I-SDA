@@ -136,17 +136,17 @@ setTimeout(() => {
     check('no applyEdit was posted for the blocked HLPSEQ attempt', !posted.some((m) => m.type === 'applyEdit'));
   }
 
-  console.log('\nUSRDFN record: an unrelated, still-valid General keyword commits normally (guard is scoped to the four flagged keywords only)');
+  console.log('\nUSRDFN record: a keyword genuinely on USRDFN\'s own whitelist still commits normally (I-44 note: RETKEY used to be this test\'s "unrelated, still-valid" example, back when the guard was scoped to just four keywords by name rather than USRDFN\'s own blanket whitelist rule - RETKEY is correctly guarded now too, see i44UsrdfnRecordLevelAudit.test.js, so KEEP - one of the nine keywords USRDFN\'s own DDS Reference text explicitly excepts, and still on the General tab USRDFN records keep - replaces it here)');
   {
-    const retkeyOn = doc.getElementById(uP + '-retkey-on');
-    check('setup: RETKEY checkbox is present', !!retkeyOn);
+    const keepOn = doc.getElementById(uP + '-keep-on');
+    check('setup: KEEP checkbox is present', !!keepOn);
     posted.length = 0;
-    retkeyOn.checked = true;
-    retkeyOn.dispatchEvent(new Event('change', { bubbles: true }));
+    keepOn.checked = true;
+    keepOn.dispatchEvent(new Event('change', { bubbles: true }));
     const applyEdit = posted.find((m) => m.type === 'applyEdit');
-    check('RETKEY commits normally (edit posted, no alert path)', !!applyEdit);
+    check('KEEP commits normally (edit posted, no alert path)', !!applyEdit);
     const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'USRREC');
-    check('RETKEY actually present in the rewritten DDS', !!reparsed && reparsed.keywords.some((k) => k.name === 'RETKEY'));
+    check('KEEP actually present in the rewritten DDS', !!reparsed && reparsed.keywords.some((k) => k.name === 'KEEP'));
   }
 
   // --- Plain (non-USRDFN) record: same four keywords must be unaffected ---
