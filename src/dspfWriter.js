@@ -1844,6 +1844,65 @@
     return keywordName + ' cannot be specified on a record format that also has the WINDOW keyword (per the DDS Reference).';
   }
 
+  /** Task I-47 - re-read WINDOW's own DDS Reference section the same way
+   *  I-44 re-read USRDFN's. Findings: WINDOW's own text names SIX
+   *  keywords a record format can't also carry - ALWROL and ASSUME
+   *  (already individually known via windowConflictReason above, wired
+   *  through wireUsrdfnGuardedFlag's checkbox path) plus THREE not
+   *  previously cross-checked against WINDOW anywhere in this codebase:
+   *  MNUBAR, PULLDOWN, and SFL (USRDFN was already indirectly covered -
+   *  see below). No broader whitelist shape here (unlike USRDFN/SFL's
+   *  own sections) - just this one closed six-keyword exclusion list,
+   *  the same shape windowConflictReason/usrdfnConflictReason already
+   *  use, just parametrized over BOTH directions instead of one.
+   *  (Also confirmed, not a code change: "WINDOW is allowed on a record
+   *  with the SFLCTL keyword" is an explicit exception, so SFLCTL is
+   *  deliberately excluded from this list; WINDOW's own PASSRCD
+   *  restriction was already fixed by I-24; the ERRSFL/MSGLOC-"ignored"
+   *  and WDWBORDER-parameter-shape notes in the same section are
+   *  informational precedence/formatting guidance, not "cannot specify
+   *  together" rules - nothing to enforce there.)
+   *  The reachability gap: WINDOW, MNUBAR, PULLDOWN, SFL, and USRDFN are
+   *  each their own record TYPE the "+ Add record" wizard picks exactly
+   *  once (RECORD_TYPES in webviewClientHelpers.js - see
+   *  usrdfnWhitelistConflictReason's own doc comment for the identical
+   *  point made about USRDFN/SFL/SFLCTL), so the wizard itself can never
+   *  create a record combining two of them - only the raw/Advanced
+   *  keyword editor (keywordEditorHtml/wireKeywordEditor, the same
+   *  bypass I-49 and I-46 each closed for USRDFN's and SFL's own
+   *  whitelists) can. USRDFN and SFL are ALREADY indirectly blocked in
+   *  the WINDOW-has-them-add-it direction, because WINDOW isn't on
+   *  either one's own whitelist (usrdfnWhitelistConflictReason/
+   *  sflWhitelistConflictReason both already fire for `WINDOW` on a
+   *  USRDFN/SFL record) - but nothing existing catches MNUBAR/PULLDOWN
+   *  in that direction, and NOTHING existing catches the REVERSE
+   *  direction for any of the six (raw-adding WINDOW itself to a record
+   *  that already has ALWROL/ASSUME/MNUBAR/PULLDOWN/SFL/USRDFN).
+   *  This function is the general, bidirectional case: given `keywordName`
+   *  being added and the record's current keywords, returns a reason if
+   *  the add would create the forbidden mix in EITHER direction (record
+   *  already has WINDOW and keywordName is one of the six; or record
+   *  already has one of the six and keywordName is WINDOW), or null
+   *  otherwise. Wired only into the record-level raw keyword editor's
+   *  addGuardFn chain (buildWebviewTemplate.js), alongside the USRDFN/
+   *  SFL whitelist checks - windowConflictReason's own two existing
+   *  checkbox call sites (ASSUME/ALWROL) are untouched. */
+  var WINDOW_MUTEX_KEYWORDS = ['ALWROL', 'ASSUME', 'MNUBAR', 'PULLDOWN', 'SFL', 'USRDFN'];
+  function windowMutexConflictReason(keywordName, recordKeywords) {
+    var keywords = recordKeywords || [];
+    var hasWindow = keywords.some(function (k) { return k.name === 'WINDOW'; });
+    if (hasWindow && WINDOW_MUTEX_KEYWORDS.indexOf(keywordName) !== -1) {
+      return keywordName + ' cannot be specified on a record format that also has the WINDOW keyword (per the DDS Reference).';
+    }
+    if (keywordName === 'WINDOW') {
+      var conflict = keywords.find(function (k) { return WINDOW_MUTEX_KEYWORDS.indexOf(k.name) !== -1; });
+      if (conflict) {
+        return 'WINDOW cannot be specified on a record format that also has the ' + conflict.name + ' keyword (per the DDS Reference).';
+      }
+    }
+    return null;
+  }
+
   /** Task I-24 - WINDOW's own DDS Reference section also states "WINDOW
    *  cannot be specified for the record format specified by the PASSRCD
    *  keyword" - flagged, not fixed, by I-12 (see that task's own
@@ -6276,6 +6335,7 @@
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
+    windowMutexConflictReason: windowMutexConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     keepMutexConflictReason: keepMutexConflictReason,
