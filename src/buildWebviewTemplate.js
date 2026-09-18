@@ -4318,6 +4318,19 @@ const htmlTemplate = `<!DOCTYPE html>
     // its own dedicated, non-destructive UI rather than falling through to
     // the plain-literal-text Text input.
     const isMsgConConstant = isConstant && field.keywords.some((k) => k.name === 'MSGCON');
+    // Task I-41 - HTML is a SEVENTH way to supply a constant's value,
+    // structurally identical to MSGCON above (a keyword-driven,
+    // non-literal value) even though IBM's own "Constant fields" rules
+    // list (~line 671) only documents six - HTML was evidently added to
+    // the DDS language after that enumeration was written. Same
+    // non-destructive dedicated-UI treatment as isSystemValueConstant/
+    // isMsgConConstant above, reusing DspfWriter.getFileQuotedText/
+    // setFileQuotedText/quoteDdsLiteral directly (HTML's own grammar -
+    // HTML('value') - is a single quoted-literal parameter, the exact
+    // shape those helpers already handle for HLPTITLE/TEXT/etc.) rather
+    // than needing new parse/format functions the way MSGCON's own
+    // 3-token grammar did.
+    const isHtmlConstant = isConstant && field.keywords.some((k) => k.name === 'HTML');
     let html = '';
     if (!editable) html += '<div class="warn">Multi-group or &gt;3-indicator conditioning — editing this field is disabled to avoid corrupting it. Edit the source directly.</div>';
 
@@ -4353,6 +4366,15 @@ const htmlTemplate = `<!DOCTYPE html>
       basicHtml += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-const-msgcon-msgfile" value="' + DspfEngine.escapeHtml(parsed.msgFile) + '" /></div>';
       basicHtml += '<div class="field-row"><label>Library</label><input type="text" id="p-const-msgcon-library" value="' + DspfEngine.escapeHtml(parsed.library) + '" placeholder="*LIBL" /></div></div>';
       basicHtml += '<div class="hint-small">This field\u2019s text is pulled from a message description at run time, not typed in here - the design preview shows the message ID as a placeholder.</div>';
+    } else if (isHtmlConstant) {
+      // Task I-41 - an HTML constant's "value" is the literal HTML tag
+      // text passed to the keyword itself (HTML('<TITLE>')), not
+      // constantValue - same non-literal-text posture as MSGCON above.
+      // getFileQuotedText/quoteDdsLiteral already unquote/quote this
+      // exactly the way HLPTITLE's own free-text field does.
+      const htmlText = DspfWriter.getFileQuotedText(field.keywords, 'HTML');
+      basicHtml += '<div class="field-row"><label>HTML tag</label><input type="text" id="p-const-html-text" value="' + DspfEngine.escapeHtml(htmlText) + '" placeholder="&lt;TITLE&gt;" /></div>';
+      basicHtml += '<div class="hint-small">Sent as a Hypertext Markup Language tag alongside the 5250 data stream (only processed by a 5250 Workstation Gateway device) - the design preview shows the tag text itself, not rendered HTML.</div>';
     } else if (isConstant) {
       // A constant has no name/length/data type/usage of its own - its whole
       // identity IS its literal text, which was previously not editable
@@ -4539,6 +4561,14 @@ const htmlTemplate = `<!DOCTYPE html>
           library: document.getElementById('p-const-msgcon-library').value,
         });
         updates.keywords = DspfWriter.setFileFlagKeyword(field.keywords, 'MSGCON', !!msgConParams, msgConParams);
+      } else if (isHtmlConstant) {
+        // Task I-41 - setFileQuotedText already quotes+escapes and drops
+        // the keyword entirely when the text is blank (same convention
+        // MSGCON's own !!msgConParams branch above follows manually) -
+        // conditions are omitted here so any existing option-indicator
+        // conditioning on the HTML keyword is preserved untouched, same
+        // as HLPTITLE's own text-edit path.
+        updates.keywords = DspfWriter.setFileQuotedText(field.keywords, 'HTML', document.getElementById('p-const-html-text').value);
       } else if (isConstant) {
         updates.constantValue = document.getElementById('p-const-text').value;
       } else {
@@ -4571,7 +4601,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
@@ -4613,7 +4643,7 @@ const htmlTemplate = `<!DOCTYPE html>
       }
     }
 
-    if (isConstant && !isSystemValueConstant && !isMsgConConstant) {
+    if (isConstant && !isSystemValueConstant && !isMsgConConstant && !isHtmlConstant) {
       document.getElementById('p-fill').addEventListener('click', () => {
         const ch = (document.getElementById('p-fill-char').value || '.').slice(0, 1) || '.';
         const len = Math.max(1, parseInt(document.getElementById('p-fill-len').value, 10) || 1);
@@ -4623,20 +4653,25 @@ const htmlTemplate = `<!DOCTYPE html>
 
     document.getElementById('p-center').addEventListener('click', () => {
       const columns = (lastScreen && lastScreen.columns) || 80;
-      // A system-value or MSGCON constant has no Text input to measure.
-      // System values reuse DspfEngine.displayLength itself (DATE honors
-      // DATFMT via dateFieldLength, TIME is always 8, etc. - see
-      // displayLength's own doc comment) rather than guessing a width
+      // A system-value, MSGCON, or HTML constant has no Text input to
+      // measure. System values reuse DspfEngine.displayLength itself
+      // (DATE honors DATFMT via dateFieldLength, TIME is always 8, etc. -
+      // see displayLength's own doc comment) rather than guessing a width
       // here; MSGCON's own length parameter IS its documented display
       // width (the constant is padded/truncated to it at run time), so
-      // that input is the width directly, not a proxy for one.
+      // that input is the width directly, not a proxy for one. HTML has
+      // no length parameter of its own at all (Task I-41) - its own tag
+      // text length is used directly, same as a plain literal constant's
+      // own Text input would be.
       const width = isSystemValueConstant
         ? DspfEngine.displayLength(field, found.record, model)
         : isMsgConConstant
           ? Math.max(1, parseInt(document.getElementById('p-const-msgcon-length').value, 10) || 1)
-          : isConstant
-            ? (document.getElementById('p-const-text').value || '').length
-            : Math.max(1, parseInt(document.getElementById('p-length').value, 10) || 1);
+          : isHtmlConstant
+            ? Math.max(1, (document.getElementById('p-const-html-text').value || '').length)
+            : isConstant
+              ? (document.getElementById('p-const-text').value || '').length
+              : Math.max(1, parseInt(document.getElementById('p-length').value, 10) || 1);
       const col = Math.max(1, Math.floor((columns - width) / 2) + 1);
       document.getElementById('p-col').value = String(col);
     });
@@ -4941,6 +4976,7 @@ const htmlTemplate = `<!DOCTYPE html>
         '<option value="text">Literal text</option>' +
         '<option value="sysval">System value (date/time/user/etc.)</option>' +
         '<option value="msgcon">Message (MSGCON)</option>' +
+        '<option value="html">HTML tag (I-41)</option>' +
         '</select></div>';
       html += '<div id="p-place-text-wrap" class="field-row"><label>Text</label><input type="text" id="p-place-text" placeholder="Constant text" /></div>';
       const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name' };
@@ -4953,6 +4989,12 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-place-msgcon-msgfile" /></div>';
       html += '<div class="field-row"><label>Library</label><input type="text" id="p-place-msgcon-library" placeholder="*LIBL" /></div></div>';
       html += '</div>';
+      // Task I-41 - HTML's own required parameter is a single quoted
+      // literal tag string (HTML('value')) - the &program-to-system-field
+      // reference form isn't offered here (matching every one of the DDS
+      // Reference's own HTML examples, which all use a quoted literal);
+      // that form is still reachable via the raw keyword editor.
+      html += '<div id="p-place-html-wrap" class="field-row" style="display:none;"><label>HTML tag</label><input type="text" id="p-place-html-text" placeholder="&lt;TITLE&gt;" /></div>';
     } else {
       html += '<div class="field-row"><label>Name</label><input type="text" id="p-place-name" maxlength="10" placeholder="FIELD1" /></div>';
       html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-place-length" min="1" value="10" /></div>';
@@ -4975,6 +5017,7 @@ const htmlTemplate = `<!DOCTYPE html>
         document.getElementById('p-place-text-wrap').style.display = v === 'text' ? '' : 'none';
         document.getElementById('p-place-sysval-wrap').style.display = v === 'sysval' ? '' : 'none';
         document.getElementById('p-place-msgcon-wrap').style.display = v === 'msgcon' ? '' : 'none';
+        document.getElementById('p-place-html-wrap').style.display = v === 'html' ? '' : 'none';
       });
     }
     document.getElementById('p-place-add').addEventListener('click', () => {
@@ -5001,6 +5044,17 @@ const htmlTemplate = `<!DOCTYPE html>
           });
           if (!msgConParams) { errorEl.textContent = 'Enter the message length, message ID, and message file.'; return; }
           newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: 'MSGCON', parameters: msgConParams, conditions: [], sourceLines: [] }], location: { line: line, column: column } };
+        } else if (constKind === 'html') {
+          // Task I-41 - a brand-new constant can't yet carry any of
+          // HTML's own mutually-exclusive keywords (it has none yet), so
+          // only the SFL-record half of htmlConflictReason can ever fire
+          // here - still checked, since the field could be placed onto an
+          // EXISTING SFL record.
+          const htmlText = document.getElementById('p-place-html-text').value;
+          if (!htmlText) { errorEl.textContent = 'Enter the HTML tag text.'; return; }
+          const htmlReason = DspfWriter.htmlConflictReason('HTML', [], rec.keywords);
+          if (htmlReason) { errorEl.textContent = htmlReason; return; }
+          newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: 'HTML', parameters: DspfWriter.quoteDdsLiteral(htmlText), conditions: [], sourceLines: [] }], location: { line: line, column: column } };
         } else {
           const text = document.getElementById('p-place-text').value;
           if (!text) { errorEl.textContent = 'Enter the constant text.'; return; }

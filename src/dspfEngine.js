@@ -371,7 +371,26 @@
             var msgConTokens = (msgConKw.parameters || '').trim().split(/\s+/).filter(Boolean);
             text = msgConTokens.length >= 2 ? '[' + msgConTokens[1] + ']' : '[MSG]';
           } else {
-            text = '';
+            // Task I-41 - an HTML constant likewise has no literal text of
+            // its own; its own DDS Reference text says row/column have no
+            // meaning for it (only tag ORDER matters) and it's only
+            // processed by a 5250 Workstation Gateway device, so nothing
+            // is actually rendered on a real 5250 screen either - the
+            // design-time placeholder just previews the tag text itself.
+            // Inlines the same quoted-literal-unwrap regex
+            // DspfWriter.unquoteDdsLiteral uses (not shared via require() -
+            // this file is deliberately decoupled from dspfWriter.js, same
+            // reason parseScreenSizes/parseDisplaySizeTriples are kept
+            // manually in sync rather than shared). Falls back to '[HTML]'
+            // for the &program-to-system-field reference form, which this
+            // regex doesn't match.
+            var htmlKw = field.keywords.find(function (k) { return k.name === 'HTML'; });
+            if (htmlKw) {
+              var htmlMatch = /^'((?:[^']|'')*)'/.exec((htmlKw.parameters || '').trim());
+              text = htmlMatch ? htmlMatch[1].replace(/''/g, "'") : '[HTML]';
+            } else {
+              text = '';
+            }
           }
         }
       }

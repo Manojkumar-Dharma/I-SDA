@@ -130,7 +130,7 @@ keyword-name mentions anywhere in its section.
 | **I-6** | Resolve the `TEXT` file-level question | I-1 | done - removed (0.10.85) |
 | **I-38** | `HLPDOC` was missing from iSDA at the file level entirely | I-1 | done (0.10.116) |
 | **I-40** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries | I-1 | not started |
-| **I-41** | Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC` - see own detailed section below. **Claimed**, PSHBTNFLD/PSHBTNCHC split off as I-57 after scoping. | I-1 | in progress |
+| **I-41** | Add missing field-level keyword `HTML` - see own detailed section below. PSHBTNFLD/PSHBTNCHC split off as I-57 after scoping (a genuinely separate, larger new-field-kind undertaking). | I-1 | done (v0.10.133) |
 | **I-42** | Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference | I-1, I-5 | not started |
 | **I-43** | Bug: `HLPRCD`/`HLPDOC` checkboxes cannot be turned on at all - a catch-22 in `commitHlprcd`/`commitHlpdoc` (`webviewClientHelpers.js`). Their sub-field inputs (Record name / Label+Document+Folder) commit on their own `change` event even while the checkbox is unchecked, and since `present=false` is passed, `setFileFlagKeyword` discards the typed value entirely; the next re-render then shows the field blank again. Checking the box afterward re-reads that now-blank field and fails the required-field validation added in the `HLPRCD`/`HLPDOC` cross-verify follow-up above, alerting and reverting the checkbox back off - no ordering of "type first" vs. "check first" survives. Reported by user with a reproduction; confirmed directly against `setFileFlagKeyword` (typed value discarded when `present:false`). Fix direction: don't commit sub-field edits while the checkbox is off (or otherwise preserve the typed text across the off→on transition) so the required-field check has something to see. | I-38, HLPRCD/HLPDOC cross-verify | done (v0.10.121) |
 | **I-44** | Bug: most record-level keywords don't enforce `USRDFN`'s own whitelist restriction - reported by user via `ASSUME` showing as selectable on a `USRDFN` record. Root cause confirmed: `DspfWriter.usrdfnConflictReason(keywordName, keywords)` is a fully generic function (works correctly for ANY keyword name, verified directly) because `USRDFN`'s own DDS Reference section is a strict WHITELIST - "No file- or record-level keywords apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT" - not a short per-keyword exclusion list like most keywords. But it's only wired to 4 call sites (`ASSUME`, `ALWROL`, `HLPSEQ`, `HLPCMDKEY` - added piecemeal by I-8/I-12/I-13, each time because that keyword's OWN section happened to name USRDFN, never because USRDFN's own section was read as a blanket rule). Confirmed at least 33 other record-level keywords wired via plain `simple()`/`wirePulldownGuardedFlag()` with zero USRDFN check: `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `BLINK`, `MSGALARM`, `LOCK`, `LOGOUT`, `DSPMOD`, `CSRLOC`, `LOGINP`, `GETRETAIN`, `RETLCKSTS`, `PROTECT`, `INZINP`, `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `SFLNXTCHG`, `INZRCD`, `ALARM`, `ALWGPH`, `FRCDTA`, `SLNO`, `CLRL`, `RTNDTA`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `MDTOFF`, `ERASEINP`, `ERASE`. On implementation, re-auditing this list against the DDS Reference (not just re-testing each in isolation) found 4 false positives: `HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA` are each individually documented as help-SPECIFICATION-level keywords, not file- or record-level - they're wired in `wireApplicationHelpFields` against a help entry's own local keyword array, not the record's - and USRDFN's own text explicitly carves this out: "Help specifications are valid for this record." `SFLNXTCHG` is confirmed-not-applicable for a different reason: every one of its own wiring call sites (`wireSflKeywordsPanels`'s SFLCTL panel, and the message-subfile panel beside it) is a record type structurally mutually exclusive with USRDFN, so there's no live call site where the guard could ever fire either way. Fixed the remaining 29: added the check directly inside `wirePulldownGuardedFlag` (covers `INZRCD`/`ALARM`/`ALWGPH`/`FRCDTA`/`SLNO`/`CLRL`/`RTNDTA`/`OVERLAY`/`PUTRETAIN`/`PUTOVR`/`OVRDTA`/`OVRATR`/`MDTOFF`/`ERASEINP`/`ERASE` in one place), and extended `wireUsrdfnGuardedFlag`/`wireUsrdfnGuardedTwoField` with new optional `hasParams`/conditioning-toggle params (backward compatible - existing `ASSUME`/`ALWROL`/`HLPCMDKEY`/`HLPSEQ` callers unaffected) so the remaining 13 could be converted off plain `simple()`/`wireTwoField()` without dropping their existing params box or live Conditioning toggle (each verified individually against its own DDS Reference text first). Separate audit finding, also confirmed via a live DOM check: `isUsrDfnRecord`'s own Task R2 (already in place before I-44) already hides 25 of these 29 keywords' entire tab category (Indicator/Output/Input/Overlay) for a USRDFN record, so only 4 - `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `INZRCD` - are actually reachable through today's UI on a real USRDFN record; the other 25's guard is correct, harmless defense-in-depth per each keyword's own DDS Reference text, not a currently observable behavior change (R2 had already closed that gap at the category level). New test `i44UsrdfnRecordLevelAudit.test.js` covers both groups (full block/revert/no-post for the 4 reachable keywords; DOM-absence + no-regression-on-a-plain-record for the other 25 and CSRLOC), and updated `i8UsrdfnConflictAudit.test.js`'s own "unrelated, still-valid" example off `RETKEY` (now correctly guarded) onto `KEEP` (genuinely on USRDFN's whitelist). Split off from a single larger finding so it can be picked up independently of I-45 through I-48 below (each covers a different, unrelated investigation), and I-49/I-50/I-51 below (new findings from this task's own implementation). | I-8, I-12, I-13 | done (v0.10.122) |
@@ -3097,11 +3097,11 @@ own finding above) "record → Subfile keywords" category as `SFLRCDNBR`/
 I-40's regeneration should keep that grouping (correcting the label to
 field-level) rather than reverting it.
 
-### I-41 — Add missing field-level keywords `HTML`, `PSHBTNFLD`, `PSHBTNCHC`
+### I-41 — Fixed: added missing field-level keyword `HTML` (v0.10.133); `PSHBTNFLD`/`PSHBTNCHC` split off as I-57
 
-**Claimed (re-confirmed).** Same audit as I-40 (see
-`docs/sda-reference/source/dds-keyword-audit-report.md`, Finding B).
-Confirmed zero occurrences anywhere in `dspfWriter.js`/
+**Done** (`HTML` only - see I-57 for `PSHBTNFLD`/`PSHBTNCHC`). Same audit
+as I-40 (see `docs/sda-reference/source/dds-keyword-audit-report.md`,
+Finding B). Confirmed zero occurrences anywhere in `dspfWriter.js`/
 `webviewClientHelpers.js`/`buildWebviewTemplate.js`, and not among I-39's
 already-claimed 8 keywords or the legacy-alias set I-39 deliberately
 excluded.
@@ -3113,24 +3113,66 @@ excluded.
   (explicit/implicit DFT, DATE, TIME, SYSNAME, USER, MSGCON) - HTML is a
   seventh, structurally identical way to give a constant a
   keyword-driven (non-literal) value, added after that list was written.
-  Scoped to mirror I-33's own `MSGCON` precedent exactly: a new "Value
-  source" dropdown option at both constant-creation (`renderPlacementProps`)
-  and constant-editing (`renderFieldProps`) time, reusing the EXISTING
-  generic `DspfWriter.getFileQuotedText`/`setFileQuotedText`/
-  `quoteDdsLiteral` helpers (no new parse/format functions needed - HTML's
-  grammar is a single quoted-literal parameter, same shape those already
-  handle). Mutually exclusive with `COLOR`/`DATE`/`DFT`/`DSPATR`/`EDTCDE`/
+  Implemented mirroring I-33's own `MSGCON` precedent exactly: a new
+  "Value source" dropdown option at both constant-creation
+  (`renderPlacementProps`) and constant-editing (`renderFieldProps`)
+  time, reusing the EXISTING generic `DspfWriter.getFileQuotedText`/
+  `setFileQuotedText`/`quoteDdsLiteral` helpers directly (HTML's grammar
+  is a single quoted-literal parameter, the exact shape those already
+  handle - no new parse/format functions needed). A design-time preview
+  placeholder was added to `DspfEngine.fieldDisplayText` (shows the tag
+  text itself, since HTML's own text says row/column only affect tag
+  *order*, and nothing is actually rendered on a real 5250 screen at
+  all - only a 5250 Workstation Gateway device processes it).
+  Mutually exclusive with `COLOR`/`DATE`/`DFT`/`DSPATR`/`EDTCDE`/
   `EDTWRD`/`HLPID`/`MSGCON`/`NOCCSID`/`OVRATR`/`PUTRETAIN`/`SYSNAME`/`TIME`/
   `USER`, and not allowed in a field of a subfile (SFL) record - both
-  enforced via a new `DspfWriter.htmlConflictReason`, wired into the
-  field-level raw keyword editor's `addGuardFn` (previously unguarded -
-  the record-level one already has four chained checks by I-49/I-46/I-47/
-  I-48, the field-level one had none). The `HTML(&program-to-system-field)`
-  field-reference form is NOT covered by the dedicated dropdown (only the
-  quoted-literal form is, matching every one of its own DDS Reference
-  examples) - still reachable via the raw keyword editor's free-text
-  parameter box, unaffected by this task's own guard (which only checks
-  the keyword NAME, not its parameter form).
+  enforced via new `DspfWriter.htmlConflictReason(keywordName,
+  fieldKeywords, recordKeywords)` (bidirectional, same shape as I-47's
+  own `windowMutexConflictReason`), wired into the field-level raw
+  keyword editor's `addGuardFn` (previously unguarded entirely - the
+  record-level one already has four chained checks by
+  I-49/I-46/I-47/I-48, the field-level one had none before this task).
+  The `HTML(&program-to-system-field)` field-reference form is NOT
+  covered by the dedicated dropdown (only the quoted-literal form is,
+  matching every one of its own DDS Reference examples) - still
+  reachable via the raw keyword editor's free-text parameter box,
+  unaffected by this task's own guard (which only checks the keyword
+  NAME, not its parameter form). The Attributes tab's `DSPATR`/`COLOR`
+  checkboxes (`wireColorAttrStatesEditor`) are rendered unconditionally
+  for every constant type (MSGCON included, since MSGCON's own mutual
+  exclusion list doesn't touch them) and were NOT gated against HTML's
+  own, wider exclusion list - a disclosed, narrow gap (only reachable by
+  creating an HTML constant, then separately visiting the Attributes tab
+  to check `DSPATR`/`COLOR`), left for a future pass rather than
+  expanding this task's own scope; the raw editor's guard already covers
+  the far more likely path (typing the conflicting keyword by name).
+  Two real bugs were found and fixed while wiring the new "Value source"
+  branch, both `TypeError`s from code that enumerated
+  `isSystemValueConstant`/`isMsgConConstant` without knowing about the
+  new `isHtmlConstant` case: (1) the `p-fill` "Fill" button's wiring
+  condition (`isConstant && !isSystemValueConstant && !isMsgConConstant`)
+  didn't exclude `isHtmlConstant`, so selecting an HTML constant crashed
+  `renderFieldProps` outright (`p-fill` is never rendered for a
+  dedicated-form constant, same as MSGCON) - fixed by adding
+  `&& !isHtmlConstant`; (2) the "Center" button's width-computation
+  ternary fell through to `document.getElementById('p-const-text')`
+  (which doesn't exist for an HTML constant) - fixed by adding an
+  `isHtmlConstant` branch ahead of the plain-`isConstant` one, using the
+  HTML tag text's own length. Both were caught by the new test's
+  `window.addEventListener('error', ...)` hook (added specifically
+  because the first bug's `TypeError` was initially masked - jsdom logs
+  uncaught exceptions to stderr but doesn't fail the run, so the original
+  test pass was a false green until this hook made every scenario assert
+  `errors.length === 0`). New `i41HtmlConstantKeyword.test.js`: an
+  existing HTML constant's dedicated form (pre-filled, no Text input,
+  Apply doesn't corrupt the line, editing rewrites the parameter);
+  "+ Add constant" creates a new HTML constant via the dropdown; the raw
+  editor blocks HTML in both directions against a field carrying DSPATR
+  (with an unrelated keyword unaffected); the raw editor blocks HTML on
+  a field of an SFL record. Confirmed via `git stash` to genuinely fail
+  (4 checks, one a real `TypeError` crash) against pre-fix code. Full
+  suite: zero failures across 85 test files.
 - `PSHBTNFLD`/`PSHBTNCHC` — push-button field. Scoping investigation
   (before implementation): structurally near-identical to the
   ALREADY-IMPLEMENTED `SNGCHCFLD`/`CHOICE` pair (Task on `mnuActFieldState`/

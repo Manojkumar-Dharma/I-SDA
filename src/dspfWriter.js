@@ -1955,6 +1955,39 @@
     return keywordName + ' cannot be added to a menu-bar (MNUBAR) record format - only CAnn/CFnn, CLEAR, CLRL, CSRLOC, DSPMOD, HELP, HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME, INDTXT, INVITE, KEEP, LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL, OVERLAY, PAGEDOWN/PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT, UNLOCK, and VLDCMDKEY are allowed (per the DDS Reference).';
   }
 
+  /** Task I-41 - HTML's own DDS Reference section states two restrictions:
+   *  (1) "The following keywords are not allowed with the HTML keyword:"
+   *  COLOR, DATE, DFT, DSPATR, EDTCDE, EDTWRD, HLPID, MSGCON, NOCCSID,
+   *  OVRATR, PUTRETAIN, SYSNAME, TIME, USER - a bidirectional mutual
+   *  exclusion on the SAME field, same shape as `windowMutexConflictReason`
+   *  above (a closed list, not a whitelist); (2) "The HTML keyword is not
+   *  allowed in a field of a subfile record" - a same-RECORD check against
+   *  the literal SFL keyword, same shape as `dspmodSflConflictReason`
+   *  above. `recordKeywords` is optional (omit when the owning record
+   *  isn't known/relevant, e.g. a brand-new field being created from
+   *  scratch that can't yet be on an SFL record) - the SFL check is
+   *  simply skipped when it's not supplied, matching every other
+   *  optional-context-arg guard in this file. */
+  var HTML_MUTUAL_EXCLUSION_KEYWORDS = [
+    'COLOR', 'DATE', 'DFT', 'DSPATR', 'EDTCDE', 'EDTWRD', 'HLPID',
+    'MSGCON', 'NOCCSID', 'OVRATR', 'PUTRETAIN', 'SYSNAME', 'TIME', 'USER'
+  ];
+  function htmlConflictReason(keywordName, fieldKeywords, recordKeywords) {
+    var kws = fieldKeywords || [];
+    if (keywordName === 'HTML') {
+      var hasSfl = (recordKeywords || []).some(function (k) { return k.name === 'SFL'; });
+      if (hasSfl) return 'HTML is not allowed in a field of a subfile (SFL) record (per the DDS Reference).';
+      var conflict = kws.find(function (k) { return HTML_MUTUAL_EXCLUSION_KEYWORDS.indexOf(k.name) !== -1; });
+      if (conflict) return 'HTML is not allowed with the ' + conflict.name + ' keyword on the same field (per the DDS Reference).';
+      return null;
+    }
+    if (HTML_MUTUAL_EXCLUSION_KEYWORDS.indexOf(keywordName) !== -1) {
+      var hasHtml = kws.some(function (k) { return k.name === 'HTML'; });
+      if (hasHtml) return keywordName + ' is not allowed with the HTML keyword on the same field (per the DDS Reference).';
+    }
+    return null;
+  }
+
   /** Task I-24 - WINDOW's own DDS Reference section also states "WINDOW
    *  cannot be specified for the record format specified by the PASSRCD
    *  keyword" - flagged, not fixed, by I-12 (see that task's own
@@ -6389,6 +6422,7 @@
     windowConflictReason: windowConflictReason,
     windowMutexConflictReason: windowMutexConflictReason,
     mnubarWhitelistConflictReason: mnubarWhitelistConflictReason,
+    htmlConflictReason: htmlConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     keepMutexConflictReason: keepMutexConflictReason,
