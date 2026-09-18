@@ -1263,6 +1263,26 @@
     ));
   }
 
+  // Task I-55 - same SFL/MNUBAR whitelist gap I-55 found and fixed for
+  // MNUBARDSP, checked here too (flagged as "worth checking in the same
+  // pass" on I-55's own keywordFixes.md row): this shared model's own
+  // per-row "kind" dropdown can change AFTER an instance already exists
+  // (unlike MNUBARDSP, where the instance's identity never changes), so
+  // guarding only the "+ Add" button (as wireRepeatableConditionedInstances'
+  // new addGuardFn does for MNUBARDSP) wouldn't catch someone switching an
+  // existing CHANGE/SETOF row to HOME on an SFL record, or to SETOF on a
+  // MNUBAR record, after the fact. Generalizes I-20's own CLEAR-vs-
+  // PULLDOWN-only check (kept, since PULLDOWN's own forbidden list singles
+  // out CLEAR specifically, not the other nine kinds) to run
+  // sflWhitelistConflictReason/mnubarWhitelistConflictReason for
+  // whichever kind is being set, same safe-no-op-when-record-type-
+  // doesn't-match shape every other whitelist guard here already has.
+  function recordIndicatorKindConflictReason(kind, keywords) {
+    return (kind === 'CLEAR' ? DspfWriter.pulldownConflictReason('CLEAR', keywords) : null) ||
+      DspfWriter.sflWhitelistConflictReason(kind, keywords) ||
+      DspfWriter.mnubarWhitelistConflictReason(kind, keywords);
+  }
+
   function wireRecordIndicatorInstances(keywords, onChange, ownerKey, expandedSet, rerender, getFileKeywords) {
     var instances = DspfWriter.getRecordIndicatorInstances(keywords);
     wireRepeatableConditionedInstances(
@@ -1297,24 +1317,26 @@
               return;
             }
           }
-          // Task I-20 finding (b): I-13's own PULLDOWN audit found CLEAR on
-          // PULLDOWN's own 27-keyword forbidden list, but couldn't wire
-          // DspfWriter.pulldownConflictReason onto it because CLEAR lives
-          // in this shared, not-kind-aware component rather than a plain
-          // flagRowHtml row - deferred to this task. `keywords` (this
-          // function's own outer closure variable, the record's current
-          // keyword array) is exactly what pulldownConflictReason needs;
-          // the reverse direction (turning PULLDOWN on while a CLEAR
-          // instance already exists) was already covered for free, since
-          // wirePulldownPanels' own guard scans this same keywords array
-          // for ANY keyword named CLEAR regardless of which UI wrote it.
-          if (nextKind === 'CLEAR') {
-            var pulldownReason = DspfWriter.pulldownConflictReason('CLEAR', keywords);
-            if (pulldownReason) {
-              window.alert(pulldownReason);
-              if (kindEl) kindEl.value = inst.kind;
-              return;
-            }
+          // Task I-20 finding (b) / I-55: I-13's own PULLDOWN audit found
+          // CLEAR on PULLDOWN's own 27-keyword forbidden list, but
+          // couldn't wire DspfWriter.pulldownConflictReason onto it
+          // because CLEAR lives in this shared, not-kind-aware component
+          // rather than a plain flagRowHtml row - deferred to I-20, then
+          // generalized by I-55 to also cover SFL's/MNUBAR's own
+          // whitelist restrictions for every kind, not just CLEAR (see
+          // recordIndicatorKindConflictReason's own doc comment above).
+          // `keywords` (this function's own outer closure variable, the
+          // record's current keyword array) is exactly what all three
+          // checks need; the reverse direction (turning PULLDOWN/SFL/
+          // MNUBAR on while a conflicting instance already exists) was
+          // already covered for free elsewhere, since each of those own
+          // guards scans this same keywords array for the conflicting
+          // keyword name regardless of which UI wrote it.
+          var kindConflictReason = recordIndicatorKindConflictReason(nextKind, keywords);
+          if (kindConflictReason) {
+            window.alert(kindConflictReason);
+            if (kindEl) kindEl.value = inst.kind;
+            return;
           }
           updatePayload(partial);
         }
@@ -1325,17 +1347,31 @@
       expandedSet,
       rerender,
       function makeDefaultInstance() {
-        // Task I-20 finding (b): the default kind is CLEAR, but CLEAR is
-        // on PULLDOWN's own 27-keyword forbidden list - unlike a plain
-        // on/off flag row (where "blocked" just means the checkbox
-        // reverts and the person picks something else), silently
-        // no-op'ing "+ Add indicator keyword" here would look broken -
-        // the button visibly does nothing and no row appears. Falling
-        // back to HOME instead (not on PULLDOWN's forbidden list) keeps
-        // "+ Add always seeds something" true for every record type;
-        // the guardedUpdate check above still blocks anyone who
-        // explicitly picks CLEAR from the kind dropdown afterward.
-        var kind = DspfWriter.pulldownConflictReason('CLEAR', keywords) ? 'HOME' : 'CLEAR';
+        // Task I-20 finding (b) / I-55: the preferred default kind is
+        // CLEAR, but CLEAR is on PULLDOWN's own 27-keyword forbidden
+        // list and not on SFL's own whitelist - unlike a plain on/off
+        // flag row (where "blocked" just means the checkbox reverts and
+        // the person picks something else), silently no-op'ing "+ Add
+        // indicator keyword" here would look broken - the button visibly
+        // does nothing and no row appears. I-20 originally fell back to
+        // HOME (not on PULLDOWN's forbidden list); I-55 generalizes this
+        // into an ordered fallback that also skips SFL's/MNUBAR's own
+        // whitelist restrictions (recordIndicatorKindConflictReason,
+        // same check guardedUpdate above now runs on every kind change),
+        // ending at INDTXT - confirmed on both SFL's whitelist (I-46) and
+        // MNUBAR's whitelist (I-48), and never on PULLDOWN's forbidden
+        // list, so it's always a safe last resort for every record type
+        // this shared component is reachable from. The guardedUpdate
+        // check above still blocks anyone who explicitly picks a
+        // conflicting kind from the dropdown afterward.
+        var fallbackOrder = ['CLEAR', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'PAGEDOWN', 'PAGEUP', 'CHANGE', 'SETOF', 'INDTXT'];
+        var kind = 'INDTXT';
+        for (var fi = 0; fi < fallbackOrder.length; fi++) {
+          if (!recordIndicatorKindConflictReason(fallbackOrder[fi], keywords)) {
+            kind = fallbackOrder[fi];
+            break;
+          }
+        }
         // Non-blank placeholder resp, not '' - same reasoning as every
         // other L1-based makeDefaultInstance in this file (e.g.
         // wireValidityCheckInstances above): this component commits on
@@ -4652,6 +4688,29 @@
         // has to be a real name from this DSPF, which only the person
         // filling in the row can know.
         return { name: 'MNUBARDSP', conditions: [], parameters: '' };
+      },
+      undefined,
+      // Task I-55: MNUBARDSP has no per-row "kind" to fall back to like
+      // recordIndicatorKindConflictReason's own model does below - the
+      // instance IS always MNUBARDSP - so an invalid "+ Add" here can
+      // only be blocked outright, same alert-and-no-op idiom as every
+      // other whitelist guard in this file. sflWhitelistConflictReason
+      // fires for a plain SFL record (MNUBARDSP is not on SFL's own
+      // whitelist - I-46). USRDFN is deliberately NOT checked here -
+      // I-8's own record-level audit explicitly named MNUBARDSP among
+      // the keywords individually checked against USRDFN's DDS
+      // Reference text and found no incompatibility statement for it
+      // ("left alone rather than guessed at" - see usrdfnConflictReason's
+      // own doc comment), so adding a block here would reverse that
+      // already-deliberate decision, not close a gap; I-55's own
+      // keywordFixes.md row scopes this to the SFL whitelist only.
+      // mnubarWhitelistConflictReason is also NOT checked - MNUBARDSP IS
+      // on MNUBAR's own whitelist (it's the keyword this record type
+      // exists to carry), so it would always be a safe no-op anyway,
+      // same as every other already-whitelisted keyword's call sites
+      // elsewhere in this file.
+      function addGuardFn() {
+        return DspfWriter.sflWhitelistConflictReason('MNUBARDSP', kw);
       }
     );
   }
@@ -5640,12 +5699,37 @@
     // independent commits - editing one variant's fields never touches
     // the other's keyword instance (see setRtncsrlocRecNameFields/
     // setRtncsrlocWindowMouseFields's own "left untouched" comments).
+    // Task I-56: neither IIFE had any guard at all - RTNCSRLOC is not on
+    // SFL's own whitelist (I-46) or MNUBAR's own whitelist (I-48), and
+    // (like ENTFLDATR/PRINT before I-53/I-54) bypasses all three shared
+    // guarded-wiring functions via its own bespoke commit. Same
+    // alert-and-no-op idiom, checked once per commit before either
+    // setRtncsrloc*Fields call. USRDFN is deliberately NOT checked -
+    // I-8's own record-level audit explicitly named RTNCSRLOC among the
+    // keywords individually checked against USRDFN's DDS Reference text
+    // with no incompatibility found ("left alone rather than guessed
+    // at"), and I-56's own keywordFixes.md row left this "unconfirmed -
+    // not verified in this pass" rather than guessing at it.
+    function rtncsrlocConflictReason() {
+      return DspfWriter.sflWhitelistConflictReason('RTNCSRLOC', getKeywords()) ||
+        DspfWriter.mnubarWhitelistConflictReason('RTNCSRLOC', getKeywords());
+    }
     (function wireRtncsrlocRecName() {
       var onEl = document.getElementById(p + '-rtncsrloc-rn-on');
       var recEl = document.getElementById(p + '-rtncsrloc-rn-rec');
       var fldEl = document.getElementById(p + '-rtncsrloc-rn-fld');
       var posEl = document.getElementById(p + '-rtncsrloc-rn-pos');
       function commit() {
+        var reason = rtncsrlocConflictReason();
+        if (reason) {
+          window.alert(reason);
+          var current = DspfWriter.getRtncsrlocRecNameFields(getKeywords());
+          if (onEl) onEl.checked = current.present;
+          if (recEl) recEl.value = current.cursorRecord;
+          if (fldEl) fldEl.value = current.cursorField;
+          if (posEl) posEl.value = current.cursorPosition;
+          return;
+        }
         onChange(DspfWriter.setRtncsrlocRecNameFields(getKeywords(), onEl.checked, recEl ? recEl.value : '', fldEl ? fldEl.value : '', posEl ? posEl.value : ''));
       }
       if (onEl) onEl.addEventListener('change', commit);
@@ -5661,6 +5745,18 @@
       var row2El = document.getElementById(p + '-rtncsrloc-wm-row2');
       var col2El = document.getElementById(p + '-rtncsrloc-wm-col2');
       function commit() {
+        var reason = rtncsrlocConflictReason();
+        if (reason) {
+          window.alert(reason);
+          var current = DspfWriter.getRtncsrlocWindowMouseFields(getKeywords());
+          if (onEl) onEl.checked = current.present;
+          if (typeEl) typeEl.value = current.type;
+          if (row1El) row1El.value = current.cursorRow;
+          if (col1El) col1El.value = current.cursorColumn;
+          if (row2El) row2El.value = current.cursorRow2;
+          if (col2El) col2El.value = current.cursorColumn2;
+          return;
+        }
         onChange(DspfWriter.setRtncsrlocWindowMouseFields(getKeywords(), onEl.checked, typeEl ? typeEl.value : 'WINDOW', row1El ? row1El.value : '', col1El ? col1El.value : '', row2El ? row2El.value : '', col2El ? col2El.value : ''));
       }
       if (onEl) onEl.addEventListener('change', commit);
@@ -6104,7 +6200,30 @@
     return html;
   }
 
-  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, readNewInstance, isConditionable) {
+  // Task I-55 - the generic repeatable-instance editor (used by MNUBARDSP,
+  // MOUBTN, the record Indicator-keywords model, Color & attributes,
+  // Error messages, Message ID, SFLMSG/SFLMSGID, CHECK, HLPTITLE) was
+  // never wired through any of the USRDFN/SFL/MNUBAR whitelist guards
+  // I-44/I-46/I-48/I-49/I-53/I-54 already built for the plain flag-row
+  // primitives (wireUsrdfnGuardedFlag/wireUsrdfnGuardedTwoField/
+  // wirePulldownGuardedFlag) and the record-level raw keyword editor
+  // (wireKeywordEditor's own addGuardFn) - a record whose own DDS
+  // Reference whitelist excludes a repeatable keyword entirely (e.g.
+  // MNUBARDSP on a plain SFL record) could still gain one through this
+  // editor's own "+ Add instance" button with zero check of any kind.
+  // New optional trailing `addGuardFn(freshInstance) -> reason|null`,
+  // checked once per "+ Add" click (not per keystroke/per-field, since -
+  // unlike a plain flag row's on/off checkbox - a brand-new repeatable
+  // instance is the only "on transition" this generic component itself
+  // ever performs; a caller whose own per-row "kind" can change after
+  // creation, like the record Indicator-keywords model just below, needs
+  // its own additional guard on that transition - see
+  // recordIndicatorKindConflictReason's own call site for that case).
+  // Same alert-and-no-op idiom every other guard in this codebase already
+  // uses; existing callers that omit this new trailing param are
+  // completely unaffected (backward compatible, same shape every other
+  // optional trailing guard param in this file already follows).
+  function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, readNewInstance, isConditionable, addGuardFn) {
     var list = instances || [];
 
     function replaceAt(idx, updater) {
@@ -6164,6 +6283,13 @@
       addBtn.addEventListener('click', function () {
         var fresh = readNewInstance ? readNewInstance(idPrefix + '-new') : { conditions: [] };
         if (!fresh) return;
+        if (addGuardFn) {
+          var reason = addGuardFn(fresh);
+          if (reason) {
+            window.alert(reason);
+            return;
+          }
+        }
         onChange(list.concat([fresh]));
       });
     }
