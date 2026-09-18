@@ -1903,6 +1903,58 @@
     return null;
   }
 
+  /** Task I-48 - re-read MNUBAR's own DDS Reference section the same way
+   *  I-44/I-46/I-47 re-read USRDFN's/SFL's/WINDOW's. Finding: MNUBAR's
+   *  own section states outright, in the exact same closed-whitelist
+   *  shape as USRDFN's/SFL's own text: "The following keywords are
+   *  allowed on a record containing the MNUBAR keyword:" followed by a
+   *  27-entry table - CAnn, CFnn, CLEAR, CLRL, CSRLOC, DSPMOD, HELP,
+   *  HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME, INDTXT, INVITE, KEEP,
+   *  LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL, OVERLAY, PAGEDOWN/
+   *  PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT, UNLOCK, VLDCMDKEY -
+   *  with no matching "anything else is fine too" language anywhere in
+   *  the section (same closed-list shape as USRDFN's/SFL's own "except"/
+   *  "also valid" text, just introduced as "allowed" instead).
+   *  MNUBAR's own record-composition rule (exactly one menu-bar field,
+   *  no other displayable fields) was already fixed by I-19
+   *  (mnubarFieldShapeNote above) and is out of this task's own scope -
+   *  this function covers the separate keyword-whitelist restriction
+   *  only, which had NO existing guard of any kind before this task:
+   *  isMnuBarRecord only drives whether the MNUBAR tab itself is shown
+   *  (unlike isUsrDfnRecord's own Task R2 narrowing), so a MNUBAR
+   *  record's other tabs (Indicator/Output/Input/Overlay) render the
+   *  full, unfiltered set, and the record-level raw keyword editor
+   *  (keywordEditorHtml/wireKeywordEditor) has no guard for it either.
+   *  CAnn/CFnn are represented in this codebase's own model as literal
+   *  keyword names CA01..CA24/CF01..CF24 (see DspfWriter.parseCommandKeys'
+   *  own comment), not as a single "CA"/"CF" name with a parameter, so
+   *  they're matched here by pattern rather than being spelled out
+   *  individually in the whitelist array; PAGEDOWN/ROLLUP and PAGEUP/
+   *  ROLLDOWN are DDS synonym pairs for the same two keywords (not four
+   *  distinct ones), both forms included since either spelling is valid
+   *  DDS. This function covers the record-level raw keyword editor only -
+   *  the same general-purpose catch-all I-49/I-46/I-47 each built their
+   *  own whitelist/mutex function for, wired the same way (see
+   *  buildWebviewTemplate.js's own wireKeywordEditor call site). An
+   *  exhaustive sweep of the structured per-keyword checkboxes across the
+   *  General/Indicator/Output/Input/Overlay/Print tabs (the same "much
+   *  larger undertaking" I-46 split off as I-53 for SFL's own whitelist)
+   *  is logged separately as I-54, not attempted here. */
+  var MNUBAR_WHITELIST_KEYWORDS = [
+    'CLEAR', 'CLRL', 'CSRLOC', 'DSPMOD', 'HELP', 'HLPCLR', 'HLPCMDKEY',
+    'HLPRTN', 'HLPTITLE', 'HOME', 'INDTXT', 'INVITE', 'KEEP', 'LOCK',
+    'MNUBARDSP', 'MNUBARSEP', 'MNUBARSW', 'MNUCNL', 'OVERLAY', 'PAGEDOWN',
+    'PAGEUP', 'PRINT', 'PROTECT', 'ROLLUP', 'ROLLDOWN', 'TEXT', 'UNLOCK',
+    'VLDCMDKEY', 'MNUBAR'
+  ];
+  function mnubarWhitelistConflictReason(keywordName, recordKeywords) {
+    var hasMnubar = (recordKeywords || []).some(function (k) { return k.name === 'MNUBAR'; });
+    if (!hasMnubar) return null;
+    if (MNUBAR_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
+    if (/^CA\d{2}$/.test(keywordName) || /^CF\d{2}$/.test(keywordName)) return null;
+    return keywordName + ' cannot be added to a menu-bar (MNUBAR) record format - only CAnn/CFnn, CLEAR, CLRL, CSRLOC, DSPMOD, HELP, HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME, INDTXT, INVITE, KEEP, LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL, OVERLAY, PAGEDOWN/PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT, UNLOCK, and VLDCMDKEY are allowed (per the DDS Reference).';
+  }
+
   /** Task I-24 - WINDOW's own DDS Reference section also states "WINDOW
    *  cannot be specified for the record format specified by the PASSRCD
    *  keyword" - flagged, not fixed, by I-12 (see that task's own
@@ -6336,6 +6388,7 @@
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
     windowMutexConflictReason: windowMutexConflictReason,
+    mnubarWhitelistConflictReason: mnubarWhitelistConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     keepMutexConflictReason: keepMutexConflictReason,
