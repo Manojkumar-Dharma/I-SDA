@@ -3245,11 +3245,28 @@
     return html;
   }
 
-  function wireEntFldAtrEditor(getKeywords, onChange, ownerKey, expandedSet, rerender) {
+  // Task I-53 - optional trailing `addGuardFn(name)` param (same shape as
+  // wireKeywordEditor's own I-49 addition), checked only in the Apply
+  // button's click handler before `onChange`. The file-level call site
+  // (fk-entfldatr) omits it and is unaffected; only the record-level call
+  // site passes one, wired to DspfWriter.sflWhitelistConflictReason -
+  // ENTFLDATR's own bespoke Apply-button commit bypasses
+  // wireUsrdfnGuardedFlag/wirePulldownGuardedFlag/wireUsrdfnGuardedTwoField
+  // entirely (it's built on setChoiceColorState, not
+  // setFileFlagKeyword/setFileTwoFieldKeyword), so none of those
+  // functions' own I-53 addition ever sees it.
+  function wireEntFldAtrEditor(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var applyBtn = document.querySelector('.' + ownerKey + '-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
       var on = document.getElementById(ownerKey + '-on').checked;
+      if (on && addGuardFn) {
+        var reason = addGuardFn('ENTFLDATR');
+        if (reason) {
+          window.alert(reason);
+          return;
+        }
+      }
       var color = on ? document.getElementById(ownerKey + '-color').value : '';
       var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-attr:checked')).map(function (el) { return el.value; }) : [];
       onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', color, attrs));
@@ -5362,6 +5379,20 @@
     // alwrolClrlSlnoConflictReason just below it), no new trailing param
     // needed since the check function itself is scoped to keywordName
     // === 'DSPMOD'.
+    // Task I-53 - sweeps the structured record-level checkboxes for the
+    // gap I-46 found and left open in its own doc comment: I-46 only
+    // closed the raw keyword editor's own bypass of SFL's whitelist
+    // (DspfWriter.sflWhitelistConflictReason's own doc comment has the
+    // full SFL-vs-SFLCTL citation). Every keyword wired through this
+    // function - the 4 originally-reachable-on-USRDFN ones I-44 found
+    // plus the 25 defense-in-depth ones - is now ALSO checked against
+    // SFL's own closed whitelist, unconditionally (like
+    // alwrolClrlSlnoConflictReason/dspmodSflConflictReason just above):
+    // the function itself returns null for anything already on SFL's
+    // whitelist (e.g. LOGINP/LOGOUT, both wired through this same
+    // function) or when the record isn't SFL at all, so this is a safe,
+    // no-behavior-change addition for every non-SFL caller and every
+    // already-whitelisted keyword.
     function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd, hasParams, withConditioning, alsoCheckDspsiz) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
@@ -5376,7 +5407,8 @@
             (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
             (alsoCheckDspsiz && getFileKeywords ? DspfWriter.dspmodDspsizPrerequisiteReason(getFileKeywords()) : null) ||
             DspfWriter.dspmodSflConflictReason(name, getKeywords()) ||
-            DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords());
+            DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords()) ||
+            DspfWriter.sflWhitelistConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -5412,7 +5444,7 @@
         var aVal = elA ? elA.value : '';
         var bVal = elB ? elB.value : '';
         if ((aVal || '').trim() || (bVal || '').trim()) {
-          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords());
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords()) || DspfWriter.sflWhitelistConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             var existing = DspfWriter.getFileTwoFieldKeyword(getKeywords(), name);
@@ -5492,6 +5524,8 @@
     // after independently re-checking every wirePulldownGuardedFlag
     // caller against the DDS Reference rather than trusting that list as
     // exhaustive.
+    // Task I-53 - see wireUsrdfnGuardedFlag's own I-53 comment above; same
+    // unconditional, safe-for-non-SFL-callers addition here.
     function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep, alsoCheckPassrcd, withConditioning) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
@@ -5502,7 +5536,8 @@
             DspfWriter.pulldownConflictReason(name, getKeywords()) ||
             (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||
             (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
-            DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords());
+            DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords()) ||
+            DspfWriter.sflWhitelistConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -5571,7 +5606,7 @@
     // repeatable-instance shell (see recordKeywordsPanelsHtml's matching
     // comment on the build side).
     wireMnubardspPanel(getKeywords, onChange, p, expandedSet, rerender);
-    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender);
+    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender, function (name) { return DspfWriter.sflWhitelistConflictReason(name, getKeywords()); });
     // Task L77 - hand-wired (like MNUBARDSP above) since RTNCSRLOC's two
     // independent variants each need their own "present" checkbox + name
     // fields, not a single wireTwoField pair. The two IIFEs are
@@ -5790,8 +5825,16 @@
         var present = onEl.checked;
         var params = assembleParams();
         var violation = present ? DspfWriter.checkS36EResponseIndicatorViolation(getFileKeywords ? getFileKeywords() : [], 'PRINT', params) : null;
-        if (violation) {
-          window.alert(violation.message);
+        // Task I-53 - PRINT's own record-level commit is hand-rolled
+        // (bypasses wireUsrdfnGuardedFlag/wirePulldownGuardedFlag/
+        // wireUsrdfnGuardedTwoField entirely, so none of those functions'
+        // I-53 addition ever sees it), and PRINT is NOT on SFL's own
+        // whitelist (it IS on USRDFN's, which is why usrdfnConflictReason
+        // was never needed here) - checked separately, after the existing
+        // S36E check, same alert+revert idiom.
+        var sflViolation = !violation && present ? DspfWriter.sflWhitelistConflictReason('PRINT', getKeywords()) : null;
+        if (violation || sflViolation) {
+          window.alert(violation ? violation.message : sflViolation);
           var prev = DspfWriter.getFileFlagKeyword(getKeywords(), 'PRINT');
           var prevForm = DspfWriter.getFilePrintFileForm(getKeywords());
           onEl.checked = prev.present;
