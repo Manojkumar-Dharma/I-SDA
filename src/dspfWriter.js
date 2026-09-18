@@ -3448,6 +3448,38 @@
     return 'DSPMOD is valid only when the DSPSIZ keyword specifies both the 24x80 and 27x132 display sizes (per the DDS Reference).';
   }
 
+  /** Task I-52 (gap found while implementing I-45): DSPMOD's own DDS
+   *  Reference section has a SECOND, independent prerequisite beyond
+   *  I-45's own DSPSIZ one, in the very next sentence after the "not
+   *  valid for user-defined records (USRDFN keyword)" line: "The DSPMOD
+   *  keyword cannot be specified on a subfile record (SFL keyword). The
+   *  subfile is [dis]played according to the DSPMOD of the corresponding
+   *  subfile control record." That second sentence is the key scoping
+   *  detail - it names the plain SFL (detail) record specifically, and
+   *  explains *why* only that record is restricted (the SFLCTL record's
+   *  own DSPMOD already governs the whole subfile), so SFLCTL is
+   *  deliberately NOT included here despite being the other half of
+   *  every other SFL-mutex rule in this file (see
+   *  alwrolClrlSlnoConflictReason's own ['ASSUME','SFL','SFLCTL',
+   *  'USRDFN'] list just above, which covers a DIFFERENT keyword's own
+   *  DDS Reference wording that names both). Checks the literal SFL
+   *  keyword's presence on `recordKeywords` directly (same shape as
+   *  alwrolClrlSlnoConflictReason above) rather than reusing
+   *  WebviewClientHelpers.isSflRecord, since that helper deliberately
+   *  excludes SFLMSG records for an unrelated UI-tab reason (see its own
+   *  doc comment) that has nothing to do with this keyword's own SFL
+   *  restriction. Deliberately unconditional on `keywordName` (same
+   *  "safe no-op for every other caller" shape as
+   *  alwrolClrlSlnoConflictReason/usrdfnConflictReason above) rather than
+   *  a new wireUsrdfnGuardedFlag trailing param, since it only ever
+   *  returns non-null for DSPMOD. */
+  function dspmodSflConflictReason(keywordName, recordKeywords) {
+    if (keywordName !== 'DSPMOD') return null;
+    var hasSfl = (recordKeywords || []).some(function (k) { return k.name === 'SFL'; });
+    if (!hasSfl) return null;
+    return 'DSPMOD cannot be specified on a subfile (SFL) record - the subfile is displayed according to the DSPMOD of its corresponding subfile control (SFLCTL) record instead (per the DDS Reference).';
+  }
+
   // Bug fix (L22 keyword-inventory audit): MSGLOC was entirely missing.
   // Confirmed via IBM's own DDS Reference: MSGLOC is a FILE-LEVEL keyword
   // with a single required numeric line-number parameter (1-27), used
@@ -6176,6 +6208,7 @@
     usrdfnConflictReason: usrdfnConflictReason,
     usrdfnWhitelistConflictReason: usrdfnWhitelistConflictReason,
     dspmodDspsizPrerequisiteReason: dspmodDspsizPrerequisiteReason,
+    dspmodSflConflictReason: dspmodSflConflictReason,
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,

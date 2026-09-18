@@ -5352,6 +5352,16 @@
     // condition with no per-record targeting. Defaults falsy for every
     // other caller (ASSUME/ALWROL/HLPCMDKEY/BLINK/MSGALARM/LOCK/LOGOUT),
     // none of which has any DSPSIZ-related rule of their own.
+    // Task I-52 (gap found while implementing I-45): DSPMOD's own DDS
+    // Reference text has a SECOND, independent prerequisite - it cannot
+    // be specified on a plain SFL (subfile detail) record at all, since
+    // that record's display mode already follows its own SFLCTL record's
+    // DSPMOD - see DspfWriter.dspmodSflConflictReason's own doc comment
+    // for why SFLCTL itself is deliberately exempt. Wired unconditionally
+    // (same "safe no-op for every other caller" shape as
+    // alwrolClrlSlnoConflictReason just below it), no new trailing param
+    // needed since the check function itself is scoped to keywordName
+    // === 'DSPMOD'.
     function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd, hasParams, withConditioning, alsoCheckDspsiz) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
@@ -5365,6 +5375,7 @@
             (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||
             (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
             (alsoCheckDspsiz && getFileKeywords ? DspfWriter.dspmodDspsizPrerequisiteReason(getFileKeywords()) : null) ||
+            DspfWriter.dspmodSflConflictReason(name, getKeywords()) ||
             DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
@@ -5665,6 +5676,10 @@
     // now enforced via wireUsrdfnGuardedFlag's `alsoCheckDspsiz` param
     // (see that function's own doc comment) - hasParams=true and the
     // existing Conditioning toggle are both preserved unchanged.
+    // Task I-52: DSPMOD's own SECOND prerequisite (blocked on a plain SFL
+    // record) is now ALSO enforced, unconditionally, via
+    // DspfWriter.dspmodSflConflictReason inside wireUsrdfnGuardedFlag
+    // itself - no new param needed at this call site.
     wireUsrdfnGuardedFlag(p + '-dspmod', 'DSPMOD', false, false, false, true, true, true);
     // Task I-44: CSRLOC's own DDS Reference section explicitly lists
     // "User-defined record formats (identified by the USRDFN keyword)"
