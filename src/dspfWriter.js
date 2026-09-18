@@ -1698,6 +1698,69 @@
     return keywordName + ' cannot be added to a user-defined (USRDFN) record format - only INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT are allowed (per the DDS Reference).';
   }
 
+  /** Task I-46 - re-read SFL's and SFLCTL's own DDS Reference sections
+   *  fresh (split off from I-44's original USRDFN finding, to check
+   *  whether the same class of blanket-whitelist restriction applies to
+   *  either). Findings:
+   *
+   *  SFL's own section states outright: "Besides SFL, the following
+   *  keywords are also valid on the subfile record format:" followed by
+   *  two MUTUALLY EXCLUSIVE lists depending on whether the record is a
+   *  message subfile - "For message subfiles: SFLMSGRCD (required at the
+   *  record level), SFLMSGKEY (required at the field level), SFLPGMQ" vs
+   *  "For all other subfiles (at the record level): CHANGE, LOGINP,
+   *  CHECK(AB), CHECK(RL), LOGOUT, SETOF, CHGINPDFT, SETOFF, INDTXT,
+   *  SFLNXTCHG, KEEP, TEXT". This is the exact same shape as USRDFN's own
+   *  "except" whitelist above, just phrased additively ("also valid")
+   *  rather than exclusively ("except") - an enumerated closed list with
+   *  no matching "anything else is fine too" language anywhere in the
+   *  section. (SFLMSGKEY/SFLPGMQ are field-level, not record-level, so
+   *  they don't belong in this record-level whitelist at all; isSflRecord
+   *  in webviewClientHelpers.js already excludes SFLMSG records from what
+   *  this function treats as a plain SFL record, mirroring that split.)
+   *
+   *  SFLCTL's own section, in contrast, introduces its Required/Optional
+   *  keyword tables with "The following tables are a SUMMARY OF SUBFILE
+   *  KEYWORDS used with the SFLCTL keyword" - explicitly scoped to
+   *  SFL-family keywords, not a claim that every other ordinary DDS
+   *  keyword (COLOR, DSPATR, TEXT, BLINK, etc.) is disallowed. The only
+   *  individual restriction SFLCTL's own text states outright - "The
+   *  USRDFN keyword is not valid for the subfile-control record format" -
+   *  is already structurally unreachable through this UI: USRDFN and
+   *  SFL/SFLCTL are each their own record TYPE the "+ Add record" wizard
+   *  picks exactly once at creation (RECORD_TYPES in
+   *  webviewClientHelpers.js), so a record can never carry both. SFLCTL
+   *  needs no new guard from this task.
+   *
+   *  This function covers the SFL side only, for the record-level "raw
+   *  keyword editor" (keywordEditorHtml/wireKeywordEditor) - the same
+   *  general-purpose catch-all I-49 built usrdfnWhitelistConflictReason
+   *  above for, and wired the same way (see buildWebviewTemplate.js's own
+   *  wireKeywordEditor call site). An exhaustive sweep of every
+   *  structured-checkbox row across the General/Indicator/Output/Input/
+   *  Overlay/Print tabs (the way I-44 individually rewired 29 USRDFN
+   *  call sites through wireUsrdfnGuardedFlag) is a separate, much larger
+   *  undertaking - logged as its own follow-up (I-52) rather than
+   *  attempted here, same "audit finds it, a separate task wires the
+   *  exhaustive per-checkbox sweep" split I-44/I-49 themselves went
+   *  through. */
+  var SFL_RECORD_WHITELIST_KEYWORDS = [
+    'SFL', 'CHANGE', 'LOGINP', 'CHECK', 'LOGOUT', 'SETOF', 'SETOFF',
+    'CHGINPDFT', 'INDTXT', 'SFLNXTCHG', 'KEEP', 'TEXT'
+  ];
+  function sflWhitelistConflictReason(keywordName, recordKeywords) {
+    var kws = recordKeywords || [];
+    var hasSfl = kws.some(function (k) { return k.name === 'SFL'; });
+    if (!hasSfl) return null;
+    var hasSflMsgRcd = kws.some(function (k) { return k.name === 'SFLMSGRCD'; });
+    if (hasSflMsgRcd) {
+      if (keywordName === 'SFL' || keywordName === 'SFLMSGRCD') return null;
+      return keywordName + ' cannot be added to a message-subfile (SFL + SFLMSGRCD) record format - only SFLMSGRCD is allowed besides SFL itself (per the DDS Reference).';
+    }
+    if (SFL_RECORD_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
+    return keywordName + ' cannot be added to a subfile (SFL) record format - only CHANGE, LOGINP, CHECK, LOGOUT, SETOF/SETOFF, CHGINPDFT, INDTXT, SFLNXTCHG, KEEP, and TEXT are allowed besides SFL itself (per the DDS Reference).';
+  }
+
   /** Task I-13 - PULLDOWN record-level keyword audit. The PULLDOWN
    *  keyword's own DDS Reference section states directly, right in its
    *  own text: "The following keywords cannot be specified on a record
@@ -6209,6 +6272,7 @@
     usrdfnWhitelistConflictReason: usrdfnWhitelistConflictReason,
     dspmodDspsizPrerequisiteReason: dspmodDspsizPrerequisiteReason,
     dspmodSflConflictReason: dspmodSflConflictReason,
+    sflWhitelistConflictReason: sflWhitelistConflictReason,
     pulldownConflictReason: pulldownConflictReason,
     mnuBarKeyConflictReason: mnuBarKeyConflictReason,
     windowConflictReason: windowConflictReason,
