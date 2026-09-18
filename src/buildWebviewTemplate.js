@@ -4457,6 +4457,17 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!isConstant && catVis.inputKeywords) {
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::input-keywords', 'Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
+    // Task I-42 - ENTFLDATR is documented \"field-level, record-level, or
+    // file-level\" (record and file were already offered); this is the
+    // field-level form, reusing the same entFldAtrHtml/wireEntFldAtrEditor
+    // pair. IBM: \"The field containing the ENTFLDATR keyword must be an
+    // input-capable field\" - so it's gated the same way as the other
+    // input-only categories (catVis.inputKeywords: usage I/B, blank usage
+    // fails open) and never offered on constants. When defined at both
+    // levels, the field-level spec wins (IBM), so no extra conflict rule.
+    if (!isConstant && catVis.inputKeywords) {
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::entry-field-attribute', 'Entry field attribute', WebviewClientHelpers.entFldAtrHtml(field.keywords, 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning), false);
+    }
     if (catVis.generalKeywords) {
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::general-keywords', 'General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType, field.usage, found.record.keywords, isConstant), false);
     }
@@ -4622,7 +4633,10 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireKeyingOptionsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (newDataType) => commitEdit(ownerRecordName, field, { dataType: newDataType }));
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage);
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords);
+    if (!isConstant && catVis.inputKeywords) {
+      WebviewClientHelpers.wireEntFldAtrEditor(() => field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, () => renderFieldProps(recordName));
+    }
     if (!isConstant) {
       WebviewClientHelpers.wireDatabaseReferenceEditor(field, (updates) => commitEdit(ownerRecordName, field, updates), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
       WebviewClientHelpers.wireMessageIdInstancesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));

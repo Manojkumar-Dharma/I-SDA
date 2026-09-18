@@ -131,7 +131,7 @@ keyword-name mentions anywhere in its section.
 | **I-38** | `HLPDOC` was missing from iSDA at the file level entirely | I-1 | done (0.10.116) |
 | **I-40** | `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries | I-1 | not started |
 | **I-41** | Add missing field-level keyword `HTML` - see own detailed section below. PSHBTNFLD/PSHBTNCHC split off as I-57 after scoping (a genuinely separate, larger new-field-kind undertaking). | I-1 | done (v0.10.133) |
-| **I-42** | Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference | I-1, I-5 | in progress |
+| **I-42** | Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`ENTFLDATR` level-scope to match DDS Reference (`USRDSPMGT` was a false positive - stays file-level only; see own section) | I-1, I-5 | done (v0.10.135) |
 | **I-43** | Bug: `HLPRCD`/`HLPDOC` checkboxes cannot be turned on at all - a catch-22 in `commitHlprcd`/`commitHlpdoc` (`webviewClientHelpers.js`). Their sub-field inputs (Record name / Label+Document+Folder) commit on their own `change` event even while the checkbox is unchecked, and since `present=false` is passed, `setFileFlagKeyword` discards the typed value entirely; the next re-render then shows the field blank again. Checking the box afterward re-reads that now-blank field and fails the required-field validation added in the `HLPRCD`/`HLPDOC` cross-verify follow-up above, alerting and reverting the checkbox back off - no ordering of "type first" vs. "check first" survives. Reported by user with a reproduction; confirmed directly against `setFileFlagKeyword` (typed value discarded when `present:false`). Fix direction: don't commit sub-field edits while the checkbox is off (or otherwise preserve the typed text across the off→on transition) so the required-field check has something to see. | I-38, HLPRCD/HLPDOC cross-verify | done (v0.10.121) |
 | **I-44** | Bug: most record-level keywords don't enforce `USRDFN`'s own whitelist restriction - reported by user via `ASSUME` showing as selectable on a `USRDFN` record. Root cause confirmed: `DspfWriter.usrdfnConflictReason(keywordName, keywords)` is a fully generic function (works correctly for ANY keyword name, verified directly) because `USRDFN`'s own DDS Reference section is a strict WHITELIST - "No file- or record-level keywords apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT" - not a short per-keyword exclusion list like most keywords. But it's only wired to 4 call sites (`ASSUME`, `ALWROL`, `HLPSEQ`, `HLPCMDKEY` - added piecemeal by I-8/I-12/I-13, each time because that keyword's OWN section happened to name USRDFN, never because USRDFN's own section was read as a blanket rule). Confirmed at least 33 other record-level keywords wired via plain `simple()`/`wirePulldownGuardedFlag()` with zero USRDFN check: `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `BLINK`, `MSGALARM`, `LOCK`, `LOGOUT`, `DSPMOD`, `CSRLOC`, `LOGINP`, `GETRETAIN`, `RETLCKSTS`, `PROTECT`, `INZINP`, `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `SFLNXTCHG`, `INZRCD`, `ALARM`, `ALWGPH`, `FRCDTA`, `SLNO`, `CLRL`, `RTNDTA`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `MDTOFF`, `ERASEINP`, `ERASE`. On implementation, re-auditing this list against the DDS Reference (not just re-testing each in isolation) found 4 false positives: `HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA` are each individually documented as help-SPECIFICATION-level keywords, not file- or record-level - they're wired in `wireApplicationHelpFields` against a help entry's own local keyword array, not the record's - and USRDFN's own text explicitly carves this out: "Help specifications are valid for this record." `SFLNXTCHG` is confirmed-not-applicable for a different reason: every one of its own wiring call sites (`wireSflKeywordsPanels`'s SFLCTL panel, and the message-subfile panel beside it) is a record type structurally mutually exclusive with USRDFN, so there's no live call site where the guard could ever fire either way. Fixed the remaining 29: added the check directly inside `wirePulldownGuardedFlag` (covers `INZRCD`/`ALARM`/`ALWGPH`/`FRCDTA`/`SLNO`/`CLRL`/`RTNDTA`/`OVERLAY`/`PUTRETAIN`/`PUTOVR`/`OVRDTA`/`OVRATR`/`MDTOFF`/`ERASEINP`/`ERASE` in one place), and extended `wireUsrdfnGuardedFlag`/`wireUsrdfnGuardedTwoField` with new optional `hasParams`/conditioning-toggle params (backward compatible - existing `ASSUME`/`ALWROL`/`HLPCMDKEY`/`HLPSEQ` callers unaffected) so the remaining 13 could be converted off plain `simple()`/`wireTwoField()` without dropping their existing params box or live Conditioning toggle (each verified individually against its own DDS Reference text first). Separate audit finding, also confirmed via a live DOM check: `isUsrDfnRecord`'s own Task R2 (already in place before I-44) already hides 25 of these 29 keywords' entire tab category (Indicator/Output/Input/Overlay) for a USRDFN record, so only 4 - `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `INZRCD` - are actually reachable through today's UI on a real USRDFN record; the other 25's guard is correct, harmless defense-in-depth per each keyword's own DDS Reference text, not a currently observable behavior change (R2 had already closed that gap at the category level). New test `i44UsrdfnRecordLevelAudit.test.js` covers both groups (full block/revert/no-post for the 4 reachable keywords; DOM-absence + no-regression-on-a-plain-record for the other 25 and CSRLOC), and updated `i8UsrdfnConflictAudit.test.js`'s own "unrelated, still-valid" example off `RETKEY` (now correctly guarded) onto `KEEP` (genuinely on USRDFN's whitelist). Split off from a single larger finding so it can be picked up independently of I-45 through I-48 below (each covers a different, unrelated investigation), and I-49/I-50/I-51 below (new findings from this task's own implementation). | I-8, I-12, I-13 | done (v0.10.122) |
 | **I-45** | Bug (split off from I-44's original finding): `DSPMOD` has its own SEPARATE unchecked prerequisite, unrelated to USRDFN - its own DDS Reference text states it's "valid only when both the 24 x 80 and 27 x 132 display sizes are specified on the DSPSIZ keyword" (a file-level `DSPSIZ` condition). Confirmed: `DSPMOD`'s row (via `wireUsrdfnGuardedFlag` after I-44, plain `simple()` before it) had no check of any kind for this. Fixed with new `DspfWriter.dspmodDspsizPrerequisiteReason(fileKeywords)`, which reuses `getDisplaySizesList` (already normalizes both of DSPSIZ's valid forms - named `*DS3`/`*DS4` and bare numeric `24 80`/`27 132` - to the same `{lines, columns}` shape) to check both required sizes are present, in either order (the first one listed is only the *default* mode per DSPMOD's own text, not a requirement on order). Wired into `wireUsrdfnGuardedFlag` via a new optional trailing `alsoCheckDspsiz` param (same "layer one more check on top" shape as `alsoCheckWindow`/`alsoCheckKeep`/`alsoCheckPassrcd`), passed only at DSPMOD's own call site - every other caller (`ASSUME`/`ALWROL`/`HLPCMDKEY`/`BLINK`/`MSGALARM`/`LOCK`/`LOGOUT`) is unaffected. Same alert+revert idiom as every other guard here. New `i45DspmodDspsizPrerequisite.test.js` (single size either way, no `DSPSIZ` at all, both sizes in either order). Fixing this exposed that `i44UsrdfnRecordLevelAudit.test.js`'s own fixture only declared one display size, which meant its (unrelated) DSPMOD-on-a-plain-record regression check was itself relying on the bug this task just fixed - updated that fixture's `DSPSIZ` to declare both sizes so that check continues to test what it always meant to (no USRDFN-guard interference), independent of this task's own fix. Separate finding, NOT fixed here (logged as I-52): `DSPMOD`'s own DDS Reference text also states "The DSPMOD keyword cannot be specified on a subfile record (SFL keyword)" - a second, independent prerequisite this task's own scope never covered. Full suite: 4802/4802 assertions, zero failures. | I-44 (same original finding, split out) | done (v0.10.126) |
@@ -147,6 +147,9 @@ keyword-name mentions anywhere in its section.
 | **I-51** | Bug found while implementing I-44: `wirePulldownGuardedFlag` (added by I-13) never wires a live Conditioning toggle at all, for any of its callers - yet several of the keywords routed through it since I-13 (`ALARM`, `ALWGPH`, `FRCDTA`, `MDTOFF`, `ERASEINP`, `ERASE`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `RTNDTA`) are each individually documented "Option indicators are valid for this keyword," and several of their own HTML rows that pass a real `conditions` value into `flagRowHtml` (e.g. `MDTOFF`, `ERASEINP`) still render a Conditioning toggle button in the UI - so for those, the toggle is visible but silently does nothing when clicked (no click handler ever gets wired to it). Pre-existing since I-13, unrelated to USRDFN - not introduced or fixed by I-44. On implementation, independently re-verified every `wirePulldownGuardedFlag` caller against the DDS Reference rather than trusting this task's own original list as exhaustive or exact, and corrected it two ways: `RTNDTA` was named above but its own DDS Reference text actually says "Option indicators are **not** valid for this keyword," and its own row already passes `undefined` for `conditions` (no toggle ever rendered, so no bug there) - excluded. `HLPCLR` and `INVITE` were NOT named above despite being individually documented "valid"/"allowed" and having the identical dead-toggle symptom on their own rows - added. Final in-scope set (13): `ALARM`, `ALWGPH`, `FRCDTA`, `HLPCLR`, `INVITE`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `MDTOFF`, `ERASEINP`, `ERASE`. `INZRCD`/`SLNO`/`CLRL`/`RTNDTA` confirmed correctly excluded already (each "not valid," no toggle rendered). Fixed by extending `wirePulldownGuardedFlag` with a new optional `withConditioning` trailing param (backward compatible - the two unaffected callers, `INZRCD` and the already-excluded four, are untouched) that wires the same `wireFlagRowConditioning` call `wireUsrdfnGuardedFlag` gained in I-44. New `i51PulldownConditioningFix.test.js`: for all 13, clicks the toggle, adds a pending OR-condition, commits an indicator, and confirms the reparsed DDS actually carries it (same click-through method as `dspfWebview.test.js`'s own BLINK/SFLDSP scenarios) - confirmed via `git stash` to genuinely fail (13 checks) against pre-fix code. Also found and fixed, while here: I-50's own commit had bumped `package.json`'s version but never ran `npm install` to sync `package-lock.json`'s two version fields, and never added its own new test (`i50RetlckstsParamsBug.test.js`) to `package.json`'s `test` script, so `npm test` was silently skipping it - both corrected as part of this commit. | I-44 (found during its implementation), I-13 | done (v0.10.124) |
 | **I-52** | Gap found while implementing I-45: `DSPMOD`'s own DDS Reference text has a SECOND, independent prerequisite beyond the `DSPSIZ` one I-45 fixed - "The DSPMOD keyword cannot be specified on a subfile record (SFL keyword). The subfile is [dis]played according to the DSPMOD of the corresponding subfile control record." Confirmed live gap: `recordKeywordsPanelsHtml`'s Output tab (which renders DSPMOD's row) has no `isSflRecord`/`isSflCtlRecord` category-gating anywhere in `renderRecordProps` - unlike USRDFN's own Task R2 narrowing, every record type gets the full 8-tab set, so DSPMOD was fully reachable and editable on a plain SFL record with no guard. The second sentence of the DDS Reference text is the key scoping detail: it deliberately names only the plain SFL (detail) record, and explains why - the SFLCTL record's own DSPMOD already governs the whole subfile - so `SFLCTL` is NOT included in this fix's conflict list, unlike every other SFL-mutex rule in this file (e.g. `alwrolClrlSlnoConflictReason`'s own `['ASSUME','SFL','SFLCTL','USRDFN']` list, which covers a different keyword's own wording that names both). Fixed with new `DspfWriter.dspmodSflConflictReason(keywordName, recordKeywords)`, checking the literal `SFL` keyword's presence on the record directly (NOT `WebviewClientHelpers.isSflRecord`, which deliberately excludes SFLMSG records for an unrelated UI-tab reason that has nothing to do with this keyword's own restriction). Wired unconditionally into `wireUsrdfnGuardedFlag`'s existing check chain - no new trailing param needed, since the function itself is scoped to `keywordName === 'DSPMOD'` (same "safe no-op for every other caller" shape as `alwrolClrlSlnoConflictReason`/`usrdfnConflictReason`). Same alert+revert idiom as every other guard here. New `i52DspmodSflConflict.test.js` (plain SFL record blocked; SFLCTL record NOT blocked - commits normally; plain non-SFL record unaffected), all 3 scenarios using a DSPSIZ declaring both sizes so I-45's own prerequisite never interferes. Distinct from I-46 (still in progress elsewhere): I-46 is re-reading SFL/SFLCTL's OWN DDS Reference sections for a USRDFN-style blanket rule on what else can coexist on an SFL/SFLCTL record; this finding is the mirror case, a restriction stated in DSPMOD's OWN section. Full suite: zero failures. | I-45 (found during its implementation) | done (v0.10.127) |
 | **I-57** | Split off from I-41's own scoping investigation: implement `PSHBTNFLD`/`PSHBTNCHC` (push-button field), the second half of I-41's original scope. Structurally near-identical to the already-implemented `SNGCHCFLD`/`CHOICE` pair - `PSHBTNFLD` maps to `SNGCHCFLD`'s own selection-field flag (own distinct param list: `*NORSTCSR`/`*RSTCSR`, `*NUMCOL nbr`/`*NUMROW nbr`, `*GUTTER width`), `PSHBTNCHC(choice-number choice-text [command-key] [*SPACEB])` maps to `CHOICE`'s own per-choice repeatable keyword (with one addition: an optional command-key parameter valid values `CA01`-`CA24`/`CF01`-`CF24`/`PRINT`/`HELP`/`CLEAR`/`ENTER`/`HOME`/`ROLLUP`/`ROLLDOWN`, defaulting to `ENTER` when omitted). The field containing `PSHBTNFLD` must be input-capable, type Y, length 2, decimals 0 (same shape DDS enforces on other selection-field types already modeled). `PSHBTNFLD`'s own DDS Reference text also lists its own small allowed-keyword whitelist for the field carrying it (`ALIAS`/`CHANGE`/`CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL`/`INDTXT`/`NOCCSID`/`PSHBTNCHC`/`DSPATR(PC)`/`TEXT`) - worth a guard analogous to `htmlConflictReason` (I-41) once the field kind itself exists. Not yet started, logged for later pickup - a genuinely separate, larger UI undertaking (new field-kind selector option, new choice-list editor panel, new param-parsing functions) than I-41's own HTML fix, which is why it was split out rather than attempted in the same task. | I-41 (same original finding, split out) | not started |
+| **I-58** | Follow-up from I-42: reverse direction of `WRDWRAP`'s mutual-exclusion rule - `AUTO(RAZ/RAB)`, `CHECK(MF/M10F/M11F/RB/RZ/RL/RLTB)`, `CHGINPDFT(MF)`, `DSPATR(OID/SP)`, `DUP`, `FLTFIXDEC`, `IGCALTTYP` can still be added to a field that already carries `WRDWRAP`. Needs a sweep of each keyword's own field-level panel plus a guard hook on the field-level raw keyword editor. | I-42 | not started |
+| **I-59** | Follow-up from I-42: shared `ENTFLDATR` editor (`entFldAtrHtml`/`getChoiceColorState`) can't represent a bare `ENTFLDATR` (renders unchecked; Apply drops it) and discards the `*CURSOR`/`*NOCURSOR` parameter on Apply. Pre-existing at file/record level, newly reachable at field level. | I-42 | not started |
+| **I-60** | Follow-up from I-42: record-level `ENTFLDATR` Apply guard checks SFL's and MNUBAR's whitelists but not USRDFN's - can still be applied to a `USRDFN` record via the General tab (confirmed). | I-42, I-44 | not started |
 
 ### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
@@ -3192,26 +3195,104 @@ excluded.
   as its own follow-up, **I-57** (next free ID as of this task), rather
   than attempted alongside HTML in this same task.
 
-### I-42 — Extend `MOUBTN`/`VALNUM`/`WRDWRAP`/`USRDSPMGT`/`ENTFLDATR` level-scope to match DDS Reference
+### I-42 — Fixed: extended `MOUBTN`/`VALNUM`/`WRDWRAP`/`ENTFLDATR` level-scope to match DDS Reference (`USRDSPMGT` found to be a false positive) (v0.10.135)
 
-**Claimed.** Same audit as I-40 (see
+**Done.** Same audit as I-40 (see
 `docs/sda-reference/source/dds-keyword-audit-report.md`, Finding C).
-Each keyword below has exactly one call site in `webviewClientHelpers.js`,
-always `'fk-'`-prefixed (file-level panel only), narrower than what the
-DDS Reference allows:
+Each keyword below had exactly one call site in `webviewClientHelpers.js`,
+narrower than what the DDS Reference allows. Re-read each keyword's own
+DDS Reference section fresh before implementing (same method as
+I-44/I-46/I-47/I-48) rather than trusting the audit table as exact - and
+one of the five was wrong:
 
-- `MOUBTN` — DDS allows file, record; iSDA offers file only.
-- `VALNUM` — DDS allows file, record, field; iSDA offers file only.
-- `WRDWRAP` — DDS allows file, record, field; iSDA offers file only.
-- `USRDSPMGT` — DDS allows file, record; iSDA offers file only.
-- `ENTFLDATR` — DDS allows file, record, field; iSDA offers file + record
-  (`entFldAtrHtml` called from both `fileKeywordsPanelsHtml` and
-  `recordKeywordsPanelsHtml`), missing field-level.
+- **`USRDSPMGT` - NOT changed; the audit's claim was a false positive.**
+  The audit listed it as "file, record". Both of its own DDS Reference
+  sections say otherwise: the display-file section opens "You use this
+  **file-level** keyword to specify that all data written to the display
+  is held...", and the System/36 section opens "You use this file-level
+  keyword to indicate that this display file should be processed with
+  System/36 environment functions." Nothing in either section mentions
+  record level. It stays file-level only. `i42LevelScopeExtension.test.js`
+  asserts that no record-level `USRDSPMGT` row exists, so a future
+  re-audit doesn't "fix" it by mistake. **I-40 (keyword-index
+  regeneration) should keep `USRDSPMGT` as file-level.**
+- **`MOUBTN` (file, record) - added record-level.** Reuses the file-level
+  `moubtnPanelHtml`/`wireMoubtnPanel` verbatim (same repeatable,
+  independently conditioned instances), placed on the record Indicator
+  tab to match its file-level placement. `wireMoubtnPanel` gained a new
+  optional trailing `addGuardFn` (same shape as I-55's guard on
+  `wireMnubardspPanel`; the file-level call site omits it and is
+  unaffected). The record-level call site checks `usrdfnWhitelistConflictReason`,
+  `sflWhitelistConflictReason` and `mnubarWhitelistConflictReason` - `MOUBTN` is on none
+  of those three closed whitelists (unlike `MNUBARDSP`, where I-8's audit found no
+  USRDFN incompatibility and left it alone, so I-55 only guarded SFL).
+- **`VALNUM` and `WRDWRAP` (file, record, field) - added record- and
+  field-level.** Both are flag-only ("no parameters"; "Option indicators
+  are not valid"), so neither gets a params box nor a Conditioning
+  toggle. Record-level: a plain row on the General tab, wired through
+  the existing `wireUsrdfnGuardedFlag`, which already carries the
+  USRDFN/PULLDOWN/SFL/MNUBAR checks - so the closed whitelists (and
+  `WRDWRAP`'s own "Subfiles do not support WRDWRAP" note, via SFL's
+  whitelist) are enforced with no new per-keyword logic. Field-level:
+  two new rows in `GENERAL_FIELD_KEYWORD_ROWS`, using two new `dtScope`
+  values (`numeric-only`: data type `Y`; `wrdwrap-shifts`: not one of
+  `S`/`Y`/`D`/`M`/`F`/`J`/`O`/`E`/`G`) and a new 9th `usageScope`
+  element (`input-capable`: usage `I`/`B`, blank fails open) - same
+  hide-the-row idiom as I-39's `dtScope` rows. `VALNUM`'s own text
+  requires "an input-capable field with the data type Y"; `WRDWRAP`'s
+  requires usage `I`/`B` and excludes those nine shifts.
+- **`WRDWRAP`'s own mutual-exclusion rules** ("cannot be specified with
+  `AUTO(RAZ, RAB)`, `CHECK(MF, M10F, M11F, RB, RZ, RL, RLTB)`,
+  `CHGINPDFT(MF)`, `DSPATR(OID, SP)`, `DUP`, `FLTFIXDEC`, `IGCALTTYP`",
+  plus "Subfiles do not support WRDWRAP") are enforced on the
+  on-transition by new `DspfWriter.wrdwrapFieldConflictReason`, wired
+  into a dedicated `wrdwrap` branch of `wireGeneralFieldKeywordsEditor`
+  (alert + revert, same idiom as L81's DFT/DFTVAL branch). Sub-parameters
+  are matched by token, so `CHECK(ME MF)` is caught while `CHECK(ME)`,
+  `CHECK(AB)`, `CHGINPDFT(FE)` and `DSPATR(HI UL)` are not. That function
+  also re-checks usage/data type/subfile so it is correct on its own for
+  any future caller. `wireGeneralFieldKeywordsEditor` gained a trailing
+  `recordKeywords` param for the subfile test (a subfile *control* record's
+  fields are not blocked - only the `SFL` detail record's, per the note).
+- **`ENTFLDATR` (file, record, field) - added field-level.** New "Entry
+  field attribute" accordion in `renderFieldProps`, reusing
+  `entFldAtrHtml`/`wireEntFldAtrEditor` (now exported), gated by
+  `catVis.inputKeywords` (IBM: "The field containing the ENTFLDATR
+  keyword must be an input-capable field") and never shown for constants.
+  No new conflict rule: "when defined at both the field- and record-level,
+  the field-level specification is used", and its EDTMSK/DSPATR(PR)
+  notes are informational.
 
-I-5's own entry ("added file-level HLPRCD/MOUBTN/VALNUM/WRDWRAP")
-confirms these were deliberately scoped to file-level only at the time —
-this looks like legitimate untracked follow-up rather than something
-overlooked and forgotten.
+Regression coverage: `src/test/i42LevelScopeExtension.test.js` (134
+checks): record-level `VALNUM`/`WRDWRAP` on plain/USRDFN/SFL/MNUBAR
+records, record-level `MOUBTN` "+ Add" (plain adds and stays repeatable;
+blocked on USRDFN/SFL/MNUBAR; file-level unchanged), field-level row
+visibility for every excluded shift/usage, every documented
+`WRDWRAP` conflict (and the near-misses that must NOT block), and the
+real generated webview (accordion present on an `A`/`B` field,
+`ENTFLDATR` applied to the selected field only, `VALNUM` only on a `Y`
+field, nothing on an output-only field). Confirmed to fail against
+pre-fix code.
+
+**Follow-ups logged (not fixed here):**
+
+- **I-58** - the reverse direction of `WRDWRAP`'s mutual-exclusion rule:
+  adding `AUTO(RAZ|RAB)`, `CHECK(MF|M10F|M11F|RB|RZ|RL|RLTB)`,
+  `CHGINPDFT(MF)`, `DSPATR(OID|SP)`, `DUP`, `FLTFIXDEC` or `IGCALTTYP` to a
+  field that already carries `WRDWRAP` isn't blocked. Needs a sweep of each
+  keyword's own field-level panel plus the field-level raw keyword editor
+  (which has no `addGuardFn` yet).
+- **I-59** - pre-existing limitation of the shared `ENTFLDATR` editor
+  (`entFldAtrHtml`, built on `getChoiceColorState`), now reachable at
+  field level where IBM's own examples use both affected forms: a bare
+  `ENTFLDATR` (IBM's `F1` example) renders as unchecked and clicking Apply
+  drops it, and the cursor-visible parameter `*CURSOR`/`*NOCURSOR` (IBM's
+  `F3` example; `*NOCURSOR` also requires data type `I`) is silently
+  discarded on Apply. Affects file, record and field level alike.
+- **I-60** - pre-existing gap found while checking I-42: the record-level
+  `ENTFLDATR` Apply guard only checks SFL's and MNUBAR's whitelists
+  (I-53/I-54), not USRDFN's, so `ENTFLDATR` can still be applied to a
+  `USRDFN` record through the General tab.
 
 ---
 

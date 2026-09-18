@@ -1552,6 +1552,72 @@
     return 'DFT on an output-capable field also requires ' + missing.join(' and ') + ' (per the DDS Reference).';
   }
 
+  /** Task I-42 - WRDWRAP's own DDS Reference section (now offered at field
+   *  level, per the audit's Finding C) states, in one place, everything
+   *  that can make it invalid on a given field: (1) "This keyword can only
+   *  be specified on fields that have a usage of input-only (I) or
+   *  input/output (B)"; (2) "You cannot specify the WRDWRAP keyword on the
+   *  following keyboard shifts: Signed Numeric (S), Numeric Only (Y),
+   *  Digits Only (D), Numeric Only Character (M), Floating Point (F), DBCS
+   *  Only (J), DBCS Open (O), DBCS Either (E), Graphic (G)"; (3) "WRDWRAP
+   *  cannot be specified with the following keywords: AUTO(RAZ, RAB),
+   *  CHECK(MF, M10F, M11F, RB, RZ, RL, RLTB), CHGINPDFT(MF), DSPATR(OID,
+   *  SP), DUP, FLTFIXDEC, IGCALTTYP"; and (4) note 3, "Subfiles do not
+   *  support WRDWRAP" (checked here as the literal SFL keyword on the
+   *  field's own record, the same test dspmodSflConflictReason uses, so
+   *  a subfile detail record's own fields are covered).
+   *
+   *  Deliberately scoped to keywordName === 'WRDWRAP' (a safe no-op for
+   *  every other name), and to the FORWARD direction only - turning
+   *  WRDWRAP on while a conflicting keyword is already on the field. The
+   *  reverse direction (adding AUTO/CHECK/DUP/etc. to a field that
+   *  already carries WRDWRAP) needs a separate sweep of each of those
+   *  keywords' own field-level panels and is logged as its own follow-up.
+   *  Usage/data type are checked here even though the field-level row is
+   *  already hidden for them (see generalFieldKeywordRowMatchesDataType/
+   *  ...MatchesUsage), so this function is correct on its own for any
+   *  future caller. A blank usage or data type is treated as "not yet
+   *  set" and never blocks (same fail-open posture as
+   *  fieldKeywordCategoryVisibility's own blank-usage branch).
+   *  Returns a reason string, or null when WRDWRAP is fine to add. */
+  var WRDWRAP_BLOCKED_SHIFTS = ['S', 'Y', 'D', 'M', 'F', 'J', 'O', 'E', 'G'];
+  var WRDWRAP_KEYWORD_CONFLICTS = {
+    AUTO: ['RAZ', 'RAB'],
+    CHECK: ['MF', 'M10F', 'M11F', 'RB', 'RZ', 'RL', 'RLTB'],
+    CHGINPDFT: ['MF'],
+    DSPATR: ['OID', 'SP'],
+    DUP: null,
+    FLTFIXDEC: null,
+    IGCALTTYP: null,
+  };
+  function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
+    if (keywordName !== 'WRDWRAP') return null;
+    var u = (usage || '').toUpperCase();
+    if (u && u !== 'I' && u !== 'B') {
+      return 'WRDWRAP can only be specified on input-only (I) or input/output (B) fields (per the DDS Reference).';
+    }
+    var dt = (dataType || '').toUpperCase();
+    if (dt && WRDWRAP_BLOCKED_SHIFTS.indexOf(dt) >= 0) {
+      return 'WRDWRAP cannot be specified on a field with keyboard shift/data type ' + dt + ' (per the DDS Reference: not valid on S, Y, D, M, F, J, O, E, or G).';
+    }
+    if ((recordKeywords || []).some(function (k) { return k.name === 'SFL'; })) {
+      return 'WRDWRAP is not supported on subfile (SFL) record fields (per the DDS Reference).';
+    }
+    var hits = [];
+    (fieldKeywords || []).forEach(function (k) {
+      if (!Object.prototype.hasOwnProperty.call(WRDWRAP_KEYWORD_CONFLICTS, k.name)) return;
+      var bad = WRDWRAP_KEYWORD_CONFLICTS[k.name];
+      if (bad === null) { hits.push(k.name); return; }
+      var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
+      var matched = bad.filter(function (b) { return tokens.indexOf(b) >= 0; });
+      if (matched.length) hits.push(k.name + '(' + matched.join(', ') + ')');
+    });
+    if (hits.length) {
+      return 'WRDWRAP cannot be specified together with ' + hits.join(', ') + ' on the same field (per the DDS Reference).';
+    }
+    return null;
+  }
+
   /** Task I-11 - SFLNXTCHG vs SFLMSGRCD, both record-level keywords on the
    *  subfile (SFL) detail record format. The DDS Reference documents these
    *  as two DIFFERENT keyword sets for the same record format - "for
@@ -6409,6 +6475,7 @@
     getGeneralFieldKeywords: getGeneralFieldKeywords,
     setGeneralFieldKeywords: setGeneralFieldKeywords,
     dftGroupConflictReason: dftGroupConflictReason,
+    wrdwrapFieldConflictReason: wrdwrapFieldConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,

@@ -1150,7 +1150,10 @@
     return html;
   }
 
-  /** MOUBTN panel (Task I-5), file-level. */
+  /** MOUBTN panel (Task I-5, file-level; Task I-42 adds record-level -
+   *  IBM: "You use this file-level or record-level keyword"). Shared
+   *  verbatim by both levels via `ownerKey` ('fk' vs the record's own
+   *  prefix). */
   function moubtnPanelHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['MOUBTN']);
     return dataKwWrap(['MOUBTN'], repeatableConditionedInstancesHtml(
@@ -1162,7 +1165,11 @@
     ));
   }
 
-  function wireMoubtnPanel(getKeywords, onChange, ownerKey, expandedSet, rerender) {
+  // Task I-42 - optional trailing `addGuardFn(freshInstance) -> reason|null`
+  // (same shape/idiom as wireMnubardspPanel's own I-55 guard): checked once
+  // per "+ Add" click. Only the record-level call site passes one; the
+  // file-level call site (ownerKey 'fk') omits it and is unaffected.
+  function wireMoubtnPanel(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var instances = DspfWriter.getRepeatableKeywordInstances(getKeywords(), ['MOUBTN']);
     wireRepeatableConditionedInstances(
       ownerKey + '-moubtn-rep',
@@ -1190,7 +1197,9 @@
         // so a genuinely blank MOUBTN() would be invalid DDS and vanish
         // again on the very next re-render before the user can fill it in).
         return { name: 'MOUBTN', conditions: [], parameters: '*ULP CF01' };
-      }
+      },
+      undefined,
+      addGuardFn
     );
   }
 
@@ -2388,6 +2397,21 @@
     ['fltfixdec', 'FLTFIXDEC', undefined, false, 'named', false, 'none', 'float-only'],
     ['fltpcn', 'FLTPCN', '*SINGLE or *DOUBLE', true, 'named', false, 'none', 'float-only'],
     ['mapval', 'MAPVAL', "e.g. ('01/01/40' *BLANK)", true, 'named', false, 'none', 'datetime-only'],
+    // Task I-42 - VALNUM/WRDWRAP are each documented "file-level,
+    // record-level, or field-level" (audit Finding C) but were only ever
+    // offered at file level. Both are flag-only ("This keyword has no
+    // parameters") and "Option indicators are not valid" for either, so
+    // hasParam/conditionable are both false. Two new narrowing values on
+    // the 8th (dtScope) element and a new 9th element (usageScope) express
+    // each keyword's own field-level prerequisites: VALNUM "must be defined
+    // as an input-capable field with the data type Y"; WRDWRAP "can only
+    // be specified on fields that have a usage of input-only (I) or
+    // input/output (B)" and not on the S/Y/D/M/F/J/O/E/G keyboard shifts.
+    // WRDWRAP's own mutual-exclusion/subfile rules are enforced on the
+    // on-transition (see wireGeneralFieldKeywordsEditor's own I-42 branch
+    // and DspfWriter.wrdwrapFieldConflictReason).
+    ['valnum', 'VALNUM', undefined, false, 'named', false, 'none', 'numeric-only', 'input-capable'],
+    ['wrdwrap', 'WRDWRAP', undefined, false, 'named', false, 'none', 'wrdwrap-shifts', 'input-capable'],
   ];
 
   /** Task I-39 - resolves GENERAL_FIELD_KEYWORD_ROWS's own 8th element
@@ -2400,6 +2424,27 @@
     if (dtScope === 'float-only') return dataType === 'F';
     if (dtScope === 'non-float') return dataType !== 'F';
     if (dtScope === 'datetime-only') return dataType === 'L' || dataType === 'T' || dataType === 'Z';
+    // Task I-42 - VALNUM: "input-capable field with the data type Y".
+    if (dtScope === 'numeric-only') return (dataType || '').toUpperCase() === 'Y';
+    // Task I-42 - WRDWRAP: not valid on these nine keyboard shifts. A blank
+    // data type (still being drafted) fails open, like every other row.
+    if (dtScope === 'wrdwrap-shifts') return ['S', 'Y', 'D', 'M', 'F', 'J', 'O', 'E', 'G'].indexOf((dataType || '').toUpperCase()) === -1;
+    return true;
+  }
+
+  /** Task I-42 - resolves GENERAL_FIELD_KEYWORD_ROWS's own 9th element
+   *  (`usageScope`, omitted/'all' for every pre-existing row). Only
+   *  'input-capable' exists so far: usage I or B, with blank (unset)
+   *  usage failing open - the same posture fieldKeywordCategoryVisibility
+   *  already takes for a field whose usage hasn't been chosen yet. Shared
+   *  by generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor for the
+   *  same reason generalFieldKeywordRowMatchesDataType is. */
+  function generalFieldKeywordRowMatchesUsage(usageScope, usage) {
+    if (!usageScope || usageScope === 'all') return true;
+    if (usageScope === 'input-capable') {
+      var u = (usage || '').toUpperCase();
+      return u === '' || u === 'I' || u === 'B';
+    }
     return true;
   }
 
@@ -2413,7 +2458,7 @@
   function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7];
+      var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
       if (scope === 'named' && isConstant) return;
       if (scope === 'constant' && !isConstant) return;
       // Task I-35: Usage M/P each have a fixed, much smaller keyword list
@@ -2426,6 +2471,8 @@
       // Task I-39 - dtScope narrows a row to fields of a particular data
       // type (see GENERAL_FIELD_KEYWORD_ROWS's own I-39 comment).
       if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
+      // Task I-42 - usageScope narrows a row to input-capable fields.
+      if (!generalFieldKeywordRowMatchesUsage(usageScope, usage)) return;
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
@@ -2439,9 +2486,9 @@
     return html;
   }
 
-  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage) {
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage, recordKeywords) {
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
-      var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7];
+      var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
       if (scope === 'named' && isConstant) return;
       if (scope === 'constant' && !isConstant) return;
       // Task I-35 - see generalFieldKeywordsHtml's own I-35 comment above;
@@ -2452,7 +2499,33 @@
       // Task I-39 - must match generalFieldKeywordsHtml's own dtScope skip
       // logic exactly, same reasoning as the mpScope comment just above.
       if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
+      // Task I-42 - must match generalFieldKeywordsHtml's own usageScope
+      // skip logic exactly, same reasoning as the mpScope/dtScope comments.
+      if (!generalFieldKeywordRowMatchesUsage(usageScope, usage)) return;
       var id = ownerKey + '-gen-' + key;
+      if (key === 'wrdwrap') {
+        // Task I-42 - guarded wiring (alert + revert, same idiom as the
+        // DFT/DFTVAL branch just below): turning WRDWRAP ON is blocked on a
+        // subfile record's field or when the field already carries one of
+        // its documented mutually exclusive keywords
+        // (DspfWriter.wrdwrapFieldConflictReason). Turning it OFF is never
+        // blocked. No Conditioning wiring - "Option indicators are not
+        // valid for this keyword".
+        var wwOn = document.getElementById(id + '-on');
+        if (wwOn) wwOn.addEventListener('change', function () {
+          var present = wwOn.checked;
+          if (present) {
+            var reason = DspfWriter.wrdwrapFieldConflictReason(name, keywords, dataType, usage, recordKeywords);
+            if (reason) {
+              window.alert(reason);
+              wwOn.checked = DspfWriter.getFileFlagKeyword(keywords, name).present;
+              return;
+            }
+          }
+          onChange(DspfWriter.setFileFlagKeyword(keywords, name, present, ''));
+        });
+        return;
+      }
       if (DFT_GROUP_KEYS[key]) {
         // L81 - guarded wiring (alert + revert, same idiom S36-4's own
         // guardedSimple established), instead of the generic wireFlagRow:
@@ -4823,6 +4896,15 @@
     var fCsrinponly = DspfWriter.getFileFlagKeyword(kw, 'CSRINPONLY');
     g += flagRowHtml(p + '-csrinponly', 'Restrict cursor to input-capable positions (CSRINPONLY)', fCsrinponly.present, undefined, undefined, fCsrinponly.conditions, expandedSet);
     g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
+    // Task I-42 - VALNUM/WRDWRAP are each documented "file-level, record-
+    // level, or field-level"; these are the record-level rows (see
+    // fileKeywordsPanelsHtml's own fk-valnum/fk-wrdwrap rows for the
+    // file-level ones). Both "have no parameters" and "Option indicators
+    // are not valid", so no params box and no Conditioning toggle.
+    var fRecValnum = DspfWriter.getFileFlagKeyword(kw, 'VALNUM');
+    g += flagRowHtml(p + '-valnum', 'Enhanced numeric error checking (VALNUM)', fRecValnum.present, undefined, undefined, undefined, undefined);
+    var fRecWrdwrap = DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP');
+    g += flagRowHtml(p + '-wrdwrap', 'Word wrap for continued-entry fields (WRDWRAP)', fRecWrdwrap.present, undefined, undefined, undefined, undefined);
     // Bug fix (Task L76 - real SDA's "Define Menu-Bar Display Keywords"
     // screenshot, docs/sda-reference/screens/record-level/menu-bar-record-
     // mnubar/menu-bar-display-keywords/image151.png) superseded by
@@ -4906,6 +4988,14 @@
     // this replaced the old one-flagRowHtml-per-keyword treatment) ---
     var ind = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords. Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>';
     ind += recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet);
+    // Task I-42 - MOUBTN is documented "file-level or record-level"; the
+    // record-level form reuses the file-level panel verbatim (same
+    // repeatable, independently-conditioned instances - "Option indicators
+    // are valid for this keyword"). Lives on this Indicator tab, matching
+    // its file-level placement in fileKeywordsPanelsHtml's own
+    // indicatorKeywords panel.
+    ind += '<div class="section-label">Mouse buttons (MOUBTN)</div>';
+    ind += moubtnPanelHtml(kw, p, expandedSet);
     panels.indicatorKeywords = ind;
 
     // --- Application help ---
@@ -5681,6 +5771,25 @@
     wireUsrdfnGuardedFlag(p + '-retkey', 'RETKEY', false, false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-retcmdkey', 'RETCMDKEY', false, false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-csrinponly', 'CSRINPONLY', false, false, false, false, true);
+    // Task I-42 - record-level VALNUM/WRDWRAP go through the same guarded
+    // wire as every other record-level flag, so USRDFN's/SFL's/MNUBAR's own
+    // whitelists (none of the three list either keyword) and PULLDOWN's own
+    // exclusion list are all enforced with no new logic - WRDWRAP on an SFL
+    // record is blocked by sflWhitelistConflictReason, which also covers
+    // WRDWRAP's own "Subfiles do not support WRDWRAP" note. No params, no
+    // Conditioning ("Option indicators are not valid").
+    wireUsrdfnGuardedFlag(p + '-valnum', 'VALNUM', false, false, false, false, false);
+    wireUsrdfnGuardedFlag(p + '-wrdwrap', 'WRDWRAP', false, false, false, false, false);
+    // Task I-42 - record-level MOUBTN "+ Add": MOUBTN is on none of the
+    // USRDFN/SFL/MNUBAR whitelists (each a closed list - see I-49/I-46/
+    // I-48), so all three are checked, unlike MNUBARDSP's own SFL-only
+    // guard above (I-55). Unconditionally safe, same as the sweep
+    // functions: each check is a no-op unless the record is that type.
+    wireMoubtnPanel(getKeywords, onChange, p, expandedSet, rerender, function () {
+      return DspfWriter.usrdfnWhitelistConflictReason('MOUBTN', getKeywords()) ||
+        DspfWriter.sflWhitelistConflictReason('MOUBTN', getKeywords()) ||
+        DspfWriter.mnubarWhitelistConflictReason('MOUBTN', getKeywords());
+    });
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
     // Task L76 (superseded by Task I-17 below) - hand-wired panel/wire
     // pair rather than the generic wireFlagRow/simple() helpers above,
@@ -7389,6 +7498,11 @@
     wireInputKeywordsEditor: wireInputKeywordsEditor,
     generalFieldKeywordsHtml: generalFieldKeywordsHtml,
     wireGeneralFieldKeywordsEditor: wireGeneralFieldKeywordsEditor,
+    // Task I-42 - exported so the field-level ENTFLDATR accordion (built in
+    // buildWebviewTemplate.js's renderFieldProps, outside this module) can
+    // reuse the exact same markup/wiring the file- and record-level tabs use.
+    entFldAtrHtml: entFldAtrHtml,
+    wireEntFldAtrEditor: wireEntFldAtrEditor,
     referenceOverridesHtml: referenceOverridesHtml,
     wireReferenceOverridesEditor: wireReferenceOverridesEditor,
     databaseReferenceHtml: databaseReferenceHtml,
