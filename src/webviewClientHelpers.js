@@ -5393,6 +5393,21 @@
     // function) or when the record isn't SFL at all, so this is a safe,
     // no-behavior-change addition for every non-SFL caller and every
     // already-whitelisted keyword.
+    // Task I-54 - sweeps these same structured record-level checkboxes for
+    // the identical gap I-48 found and left open in its own doc comment
+    // (mirroring I-53's own sweep for SFL's whitelist, just above/below):
+    // I-48 only closed the raw keyword editor's own bypass of MNUBAR's
+    // whitelist (DspfWriter.mnubarWhitelistConflictReason's own doc
+    // comment has the full citation and keyword list). Every keyword
+    // wired through this function is now ALSO checked against MNUBAR's
+    // own closed whitelist, unconditionally - the function itself returns
+    // null for anything already on MNUBAR's whitelist (e.g. LOGINP,
+    // wired through this same function but not on MNUBAR's own list -
+    // actually IS blocked, matching I-54's own enumerated 25) or when the
+    // record isn't MNUBAR at all, so this is a safe, no-behavior-change
+    // addition for every non-MNUBAR caller and every already-whitelisted
+    // keyword (CSRLOC/DSPMOD/HLPCMDKEY/etc., each wired through this same
+    // function, are all on MNUBAR's own whitelist and so see no change).
     function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd, hasParams, withConditioning, alsoCheckDspsiz) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
@@ -5408,7 +5423,8 @@
             (alsoCheckDspsiz && getFileKeywords ? DspfWriter.dspmodDspsizPrerequisiteReason(getFileKeywords()) : null) ||
             DspfWriter.dspmodSflConflictReason(name, getKeywords()) ||
             DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords()) ||
-            DspfWriter.sflWhitelistConflictReason(name, getKeywords());
+            DspfWriter.sflWhitelistConflictReason(name, getKeywords()) ||
+            DspfWriter.mnubarWhitelistConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -5437,6 +5453,10 @@
     // indicators are valid for this keyword" (unlike HLPSEQ below, whose
     // own call site omits all three and keeps its pre-existing
     // noConditioning behavior unchanged).
+    // Task I-54 - same unconditional MNUBAR-whitelist addition as
+    // wireUsrdfnGuardedFlag's own I-54 comment above (HLPSEQ/CSRLOC, the
+    // two keywords wired through this function, are each covered by
+    // I-54's own enumerated sweep/MNUBAR's own whitelist respectively).
     function wireUsrdfnGuardedTwoField(elIdA, elIdB, name, ownerKey, condExpandedSet, condRerender) {
       var elA = document.getElementById(elIdA);
       var elB = document.getElementById(elIdB);
@@ -5444,7 +5464,7 @@
         var aVal = elA ? elA.value : '';
         var bVal = elB ? elB.value : '';
         if ((aVal || '').trim() || (bVal || '').trim()) {
-          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords()) || DspfWriter.sflWhitelistConflictReason(name, getKeywords());
+          var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords()) || DspfWriter.sflWhitelistConflictReason(name, getKeywords()) || DspfWriter.mnubarWhitelistConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             var existing = DspfWriter.getFileTwoFieldKeyword(getKeywords(), name);
@@ -5526,6 +5546,8 @@
     // exhaustive.
     // Task I-53 - see wireUsrdfnGuardedFlag's own I-53 comment above; same
     // unconditional, safe-for-non-SFL-callers addition here.
+    // Task I-54 - see wireUsrdfnGuardedFlag's own I-54 comment above; same
+    // unconditional, safe-for-non-MNUBAR-callers addition here.
     function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep, alsoCheckPassrcd, withConditioning) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
@@ -5537,7 +5559,8 @@
             (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||
             (alsoCheckPassrcd && getFileKeywords ? DspfWriter.passrcdRecordConflictReason(name, DspfWriter.getFileFlagKeyword(getFileKeywords(), 'PASSRCD').parameters, p.slice(3)) : null) ||
             DspfWriter.alwrolClrlSlnoConflictReason(name, getKeywords()) ||
-            DspfWriter.sflWhitelistConflictReason(name, getKeywords());
+            DspfWriter.sflWhitelistConflictReason(name, getKeywords()) ||
+            DspfWriter.mnubarWhitelistConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
             onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
@@ -5606,7 +5629,11 @@
     // repeatable-instance shell (see recordKeywordsPanelsHtml's matching
     // comment on the build side).
     wireMnubardspPanel(getKeywords, onChange, p, expandedSet, rerender);
-    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender, function (name) { return DspfWriter.sflWhitelistConflictReason(name, getKeywords()); });
+    // Task I-53/I-54: ENTFLDATR is on neither SFL's nor MNUBAR's own
+    // whitelist, and (like PRINT below) bypasses wireUsrdfnGuardedFlag/
+    // wirePulldownGuardedFlag/wireUsrdfnGuardedTwoField entirely via its
+    // own bespoke Apply-button commit - checked directly here.
+    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender, function (name) { return DspfWriter.sflWhitelistConflictReason(name, getKeywords()) || DspfWriter.mnubarWhitelistConflictReason(name, getKeywords()); });
     // Task L77 - hand-wired (like MNUBARDSP above) since RTNCSRLOC's two
     // independent variants each need their own "present" checkbox + name
     // fields, not a single wireTwoField pair. The two IIFEs are
