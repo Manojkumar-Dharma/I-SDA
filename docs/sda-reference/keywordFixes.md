@@ -121,7 +121,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Not started | — |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
-| [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Not started | — |
+| [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | In progress | — |
 | [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | In progress | — |
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
@@ -4210,7 +4210,7 @@ I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing 
 
 ### I-79 — `SFLCHCCTL`: field-shape, first-field and one-per-record rules
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-39
+> **Area:** Field · **Status:** In progress · **Depends on:** I-39
 
 I-39 added `SFLCHCCTL` with hint text only. Its documented rules are not hard-blocked: it must be the **first** field of the subfile record, length 1, data type `Y`, 0 decimals, usage `H`, and only one per record. Re-verify against `DDS_Keyword_V7r6.txt`, then enforce.
 
