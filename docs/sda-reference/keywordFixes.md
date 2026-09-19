@@ -104,7 +104,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | Done | v0.10.138 |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
 | [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | Done | v0.10.140 |
-| [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | Not started | — |
+| [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | In progress | — |
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Not started | — |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Not started | — |
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Not started | — |
@@ -139,7 +139,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-62](#i-62) | Not started | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
+| 1 | [I-62](#i-62) | In progress | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
 | 2 | [I-63](#i-63) | Not started | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape. Size (estimate): Small–medium. Raised by I-57. |
 | 3 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
 | 4 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
@@ -3950,7 +3950,7 @@ Not addressed here: Resolve Referenced Field (extension host) also rewrites a fi
 
 ### I-62 — `PSHBTNFLD`: guard the Basic tab against breaking its required definition
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-57
+> **Area:** Field · **Status:** In progress · **Depends on:** I-57
 
 `PSHBTNFLD` requires "an input-capable field with data type Y, length equal to 2, and decimal positions of 0". I-57 enforces this when the toggle is turned on (it rewrites the field), but the Basic tab's Apply is unguarded. **Confirmed by probe (jsdom) on a `2Y 0B` push-button field:** changing data type to `A`, length to `10`, or usage to `O` each applied with no alert and no edit blocked, leaving a field that still carries `PSHBTNFLD` but is invalid DDS. (Decimals were not probed; expected to behave the same.)
 
