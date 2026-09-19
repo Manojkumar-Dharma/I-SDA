@@ -4553,7 +4553,15 @@
     // parameter (see fileKeywordsPanelsHtml's own comment) - custom
     // commit functions here build the combined `indicator ['text']`
     // parameter string instead.
-    function commitIndicatorTextRow(id, name, altNames, guarded, noConditioning) {
+    // Task I-68 - optional 6th param `conflictFn() -> reason|''`, checked
+    // ONLY on the off->on transition (never when merely editing the
+    // response indicator/text/conditioning of a keyword that is already
+    // present - a hand-edited file that already carries both HLPRTN and
+    // HLPDOC must stay editable). alert + revert, same idiom as the S36E
+    // `guarded` check below. Only HLPRTN passes one, giving it the reverse
+    // direction of I-38's HLPDOC/HLPRTN mutual exclusion that its forward
+    // direction (HLPDOC turning on while HLPRTN is present) already had.
+    function commitIndicatorTextRow(id, name, altNames, guarded, noConditioning, conflictFn) {
       var onEl = document.getElementById(id + '-on');
       var indEl = document.getElementById(id + '-ind');
       var textEl = document.getElementById(id + '-text');
@@ -4565,6 +4573,14 @@
       function commit(conditions) {
         var present = onEl.checked;
         var indVal = (indEl.value || '').trim();
+        if (conflictFn && present && !DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).present) {
+          var conflict = conflictFn();
+          if (conflict) {
+            window.alert(conflict);
+            onEl.checked = false;
+            return;
+          }
+        }
         if (guarded && present) {
           var violation = DspfWriter.checkS36EResponseIndicatorViolation(getKeywords(), name, indVal);
           if (violation) {
@@ -4594,12 +4610,15 @@
       ['fk-home', 'HOME'],
       ['fk-pagedown', 'PAGEDOWN', ['ROLLUP']],
       ['fk-pageup', 'PAGEUP', ['ROLLDOWN']],
-      ['fk-hlprtn', 'HLPRTN'],
+      // Task I-68 - HLPRTN's own reverse-direction conflict check (see
+      // commitIndicatorTextRow's `conflictFn` comment): 5th element
+      // (row[4]; row[2] is altNames, row[3] is noConditioning).
+      ['fk-hlprtn', 'HLPRTN', undefined, undefined, function () { return DspfWriter.hlpdocConflictReason('HLPRTN', getKeywords()); }],
       // Task I-3: VLDCMDKEY - "Option indicators are not valid for this
       // keyword" - `noConditioning` (5th simple() arg) below.
       ['fk-vldcmdkey', 'VLDCMDKEY', undefined, true],
     ].forEach(function (row) {
-      commitIndicatorTextRow(row[0], row[1], row[2], undefined, row[3]);
+      commitIndicatorTextRow(row[0], row[1], row[2], undefined, row[3], row[4]);
     });
     // Task S36-4: HELP's response indicator is a verified S36E rule (see
     // guardedSimple's own comment, still used elsewhere) - split out of
@@ -4816,10 +4835,10 @@
     // against HLPPNLGRP/HLPRTN already being present, same alertAndRevert
     // idiom wireUsrdfnGuardedFlag uses elsewhere - only the "turning
     // HLPDOC on" direction is guarded here; the reverse (blocking
-    // HLPPNLGRP/HLPRTN while HLPDOC is already on) is now wired for
-    // HLPPNLGRP just below (HLPRTN's own file-level row goes through the
-    // shared commitIndicatorTextRow helper, which has no per-keyword
-    // conflict hook - left as-is).
+    // HLPPNLGRP/HLPRTN while HLPDOC is already on) is wired for
+    // HLPPNLGRP just below, and for HLPRTN in commitIndicatorTextRow's
+    // own optional `conflictFn` (Task I-68 - its file-level row goes
+    // through that shared helper rather than a hand-rolled commit).
     //
     // Cross-check follow-up: all three parts (label/document/folder) are
     // required by IBM's own format - unlike HLPRCD's own bracketed,

@@ -110,7 +110,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Done | v0.10.142 |
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Done | v0.10.144 |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
-| [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | In progress | — |
+| [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Done | v0.10.145 |
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Not started | — |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
@@ -140,24 +140,23 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-62](#i-62) | In progress | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
-| 2 | [I-68](#i-68) | In progress | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
-| 3 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
-| 4 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
-| 5 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 6 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
-| 7 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 8 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 9 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 10 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 11 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 12 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 13 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 14 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 15 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 16 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 17 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 18 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 19 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
+| 3 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
+| 4 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
+| 5 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
+| 6 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 7 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 8 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 9 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 10 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 11 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 12 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 13 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 14 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 15 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 16 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 17 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 18 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -165,6 +164,7 @@ Every finding logged before I-61 was opened as a task (I-61 – I-83, see the ta
 
 | Raised by | Finding |
 |-----------|---------|
+| I-68 | The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS. |
 | I-61 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
@@ -3101,7 +3101,7 @@ deferred" precedent I-5's own `HLPRCD` entry already set for that
 keyword. The reverse conflict direction (blocking `HLPPNLGRP` from
 turning on while `HLPDOC` is already present) has since been wired too
 — see the follow-up section immediately below. `HLPRTN`'s own reverse
-direction is still not wired at its checkbox commit site: `HLPRTN`'s
+direction was still not wired at its checkbox commit site when I-38 landed (**since wired by I-68**): `HLPRTN`'s
 file-level row goes through the shared `commitIndicatorTextRow` helper
 (also used for `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`VLDCMDKEY`), which
 has no per-keyword conflict hook to attach one to — same "one direction
@@ -4049,11 +4049,19 @@ I-38 added `HLPDOC` at **file level** only. IBM also allows it at help-specifica
 
 ### I-68 — `HLPRTN`: reverse conflict guard
 
-> **Area:** File · **Status:** In progress · **Depends on:** I-38
+> **Area:** File · **Status:** Done (v0.10.145) · **Depends on:** I-38
 
 I-38 wired the reverse direction of the `HLPPNLGRP`/`HLPRCD`/`HLPDOC` conflict (blocking `HLPPNLGRP` while the other is present) but not for `HLPRTN`'s own checkbox: its file-level row goes through the shared `commitIndicatorTextRow` helper (also used for `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`VLDCMDKEY`), which has no per-keyword conflict hook.
 
 **Caution:** IBM says `HLPRTN` "takes priority over" `HLPRCD`/`HLPPNLGRP`/`HLPDOC` when more than one is present — a precedence rule, not a prohibition — so re-read the `HLPRTN` section first and only guard what is genuinely prohibited. The likely shape is an optional per-keyword guard argument on `commitIndicatorTextRow`.
+
+**Implemented.** Re-read `HLPRTN`'s and `HLPDOC`'s own DDS Reference sections first, as the caution above asked. The prohibition is one sentence, in `HLPDOC`'s section only: "You cannot specify HLPDOC with HLPBDY, HLPPNLGRP, or HLPRTN." `HLPRTN`'s own section says instead that it "at either the file or record level takes priority over any HLPRCD, HLPPNLGRP, or HLPDOC keywords" — a precedence rule, and its own Example 1 shows a file-level `HLPRCD` coexisting with a record-level `HLPRTN`. So the guard covers exactly the one pair IBM prohibits and nothing else.
+
+`DspfWriter.hlpdocConflictReason('HLPRTN', keywords)` already returned the right answer for this direction (I-38 wrote it bidirectionally); the only missing piece was wiring. `commitIndicatorTextRow` gained an optional trailing `conflictFn`, checked only on the **off → on transition** of the keyword (alert, revert the checkbox, no edit) — deliberately not on every commit, so a hand-edited file that already carries both keywords can still have `HLPRTN`'s response indicator or text edited, and turning `HLPRTN` off is never blocked. Only `HLPRTN`'s row passes one; `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`VLDCMDKEY` and the S36E-guarded `HELP` are unchanged. The stale comment at `HLPDOC`'s wiring that described this direction as "left as-is" is updated.
+
+New `src/test/i68HlprtnReverseGuard.test.js` (29 checks, real generated webview): blocked with an alert naming both keywords, checkbox reverted and nothing posted; the five neighbouring rows unaffected with `HLPDOC` present; an already-present pair stays editable and can be turned off; no-`HLPDOC` behaviour unchanged; `HLPRCD` and `HLPPNLGRP` coexisting with `HLPRTN` still allowed; I-38's forward direction still works. Confirmed to fail against pre-fix code (5 checks).
+
+Not addressed here: this covers the **file-level** `HLPRTN` row only. `HLPRTN` is also a record-level keyword (the repeatable indicator instances), and IBM's "cannot specify HLPDOC with HLPRTN" doesn't say which levels it means — see the Deferred findings row.
 
 *Raised by I-38. Size (estimate): Small.*
 
