@@ -111,7 +111,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Done | v0.10.144 |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Done | v0.10.145 |
-| [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | In progress | — |
+| [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Done | v0.10.148 |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Not started | — |
@@ -139,22 +139,21 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-69](#i-69) | In progress | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
-| 2 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 3 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
-| 4 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 5 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 6 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 7 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 8 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 9 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 10 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 11 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 12 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 13 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 14 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 15 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 16 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
+| 2 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
+| 3 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 4 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 5 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 6 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 7 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 8 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 9 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 10 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 11 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 12 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -162,6 +161,7 @@ Every finding logged before I-61 was opened as a task (I-61 – I-83, see the ta
 
 | Raised by | Finding |
 |-----------|---------|
+| I-69 | `CHKMSGID`'s optional `&message-data-field` parameter must name a field that **exists in the same record format** and is defined as a **character field (data type `A`) with usage `P`** (per its DDS Reference section). The CHKMSGID panel takes any text there and nothing checks it; also not checked when the named field is later renamed, deleted or has its type/usage changed. Needs a record-aware check like the `SFLMSGID`/`SFLPGMQ` field-name validations. |
 | I-68 | The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS. |
 | I-61, I-62 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
 | I-81 | `PSHBTNFLD`/`PSHBTNCHC` have the same removal-direction gap I-81 closed for `SFLRTNSEL`. The DDS Reference says "A field containing the PSHBTNFLD keyword must also contain one or more PSHBTNCHC keywords" and that `PSHBTNCHC` needs `PSHBTNFLD`, but `pshbtnfldConflictReason`/`pshbtnfldNewConflictReason` (I-57/I-64) only check what is being *added*: removing `PSHBTNFLD` while a `PSHBTNCHC` stays, or removing the last `PSHBTNCHC` while `PSHBTNFLD` stays, is not checked (verified by calling `pshbtnfldNewConflictReason` on both edits - it returns null). Reachable at least through the raw keyword editor. Same fix shape as I-81 (a diff-based check in the `commitEdit` backstop). |
@@ -4078,9 +4078,21 @@ Not addressed here: this covers the **file-level** `HLPRTN` row only. `HLPRTN` i
 
 ### I-69 — `CHKMSGID`: validity-check dependency guard
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-30
+> **Area:** Field · **Status:** Done (v0.10.148) · **Depends on:** I-30
 
 IBM: "CHKMSGID is allowed only on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword." iSDA has no guard ensuring that. Same shape as I-8's `USRDFN` guard. Consider both directions: adding `CHKMSGID` without one of those, and removing the last of those while `CHKMSGID` is present. Re-verify the exact wording against `DDS_Keyword_V7r6.txt` first.
+
+**Implemented.** Re-read `CHKMSGID`'s own section first, as asked. It states two rules in one place, not one: the dependency ("allowed only on fields which also contain a `CHECK(M10)`, `CHECK(M11)`, `CHECK(VN)`, `CHECK(VNE)`, `CMP`, `COMP`, `RANGE`, or `VALUES` keyword") **and** "the field must be input-capable (usage `B` or `I`)". Both are enforced; the wording of the note above was accurate.
+
+- **Dependency, both directions, at the existing `commitEdit` choke point** (the one I-58 and I-64 already use for every field-level panel that writes keywords): new diff-based `DspfWriter.chkmsgidNewConflictReason(oldKeywords, newKeywords)`. *Forward:* an edit that introduces `CHKMSGID` while no qualifier is present. *Reverse:* an edit that removes the **last** qualifier while `CHKMSGID` stays — blocked with "Remove CHKMSGID first" rather than silently cascading, so the user's message id/file are never deleted behind their back (the opposite choice to I-57's turn-off cascade, because there the orphaned choices were meaningless and here they are user-entered data). Because it sits at the choke point it covers the `CHKMSGID` Apply, Keying options' `CHECK` codes, the `RANGE`/`COMP`/`VALUES` editors and the raw editor's remove button with no per-panel wiring.
+- **What qualifies:** `CMP`/`COMP`/`RANGE`/`VALUES`, and `CHECK` only when one of `M10`/`M11`/`VN`/`VNE` is among its codes (matched by token, so `CHECK(ME VN)` qualifies but `CHECK(ME)`, `CHECK(AB)` etc. do not — those aren't message-producing checks).
+- **Never blocks what it shouldn't:** diff-based, so a hand-written field that is *already* invalid (`CHKMSGID` with no qualifier) can still have its message id edited or unrelated keywords changed; removing `CHKMSGID` itself, removing one of several qualifiers, and swapping one qualifier for another in a single edit are all allowed.
+- **The `CHKMSGID` Apply also pre-checks locally** so a refusal keeps what the user typed instead of re-rendering the panel blank.
+- **Usage rule:** the raw editor's add guard (`chkmsgidFieldAddReason`, chained after the existing three) refuses `CHKMSGID` on a field whose usage is explicitly `O`/`H`/`M`/`P` (blank usage — still being drafted — is never blocked), and the Basic tab's Apply (I-61's idiom, `chkmsgidBasicEditConflictReason`) refuses changing a `CHKMSGID` field's usage to one of those.
+
+New `src/test/i69ChkmsgidDependencyGuard.test.js` (83 checks): the qualifier matrix, both directions of the diff check, the raw-editor and Basic-tab guards, and the real generated webview (Apply blocked/allowed, input kept on refusal, removal via the validity editor and the raw editor, an already-invalid field left editable, output-only field refused, Basic-tab `B`→`O` refused / `B`→`I` and an unrelated edit allowed). Confirmed to fail against pre-fix code: 10 webview-level checks fail with the wiring removed.
+
+Not addressed here: `CHKMSGID`'s third rule — the optional `&message-data-field` must name a field that exists in the record and is character (`A`) with usage `P` — see the Deferred findings row.
 
 *Raised by I-30. Size (estimate): Small.*
 

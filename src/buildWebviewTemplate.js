@@ -4654,6 +4654,14 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(pshbtnfldEditReason);
           return;
         }
+        // Task I-69: CHKMSGID also requires an input-capable field (usage B
+        // or I) - blocks a usage CHANGE to O/H/M/P on a field that already
+        // carries it. Same diff-based idiom as the WRDWRAP check above.
+        const chkmsgidEditReason = DspfWriter.chkmsgidBasicEditConflictReason(field.keywords, field.usage, updates.usage);
+        if (chkmsgidEditReason) {
+          window.alert(chkmsgidEditReason);
+          return;
+        }
       }
       commitEdit(ownerRecordName, field, updates);
     });
@@ -4664,7 +4672,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
@@ -6383,6 +6391,20 @@ const htmlTemplate = `<!DOCTYPE html>
       const pshbtnfldReason = DspfWriter.pshbtnfldNewConflictReason(field.keywords, updates.keywords);
       if (pshbtnfldReason) {
         window.alert(pshbtnfldReason);
+        render();
+        return;
+      }
+      // Task I-69: same choke point again, for CHKMSGID's own dependency
+      // ("allowed only on fields which also contain a CHECK(M10)/(M11)/
+      // (VN)/(VNE), CMP, COMP, RANGE, or VALUES keyword"), both
+      // directions - introducing CHKMSGID with no qualifier, or removing
+      // the last qualifier while CHKMSGID stays. Every panel that writes
+      // keywords (the CHKMSGID Apply, Keying options' CHECK codes, the
+      // RANGE/COMP/VALUES editors, the raw editor's remove button, ...)
+      // is covered without wiring each one.
+      const chkmsgidReason = DspfWriter.chkmsgidNewConflictReason(field.keywords, updates.keywords);
+      if (chkmsgidReason) {
+        window.alert(chkmsgidReason);
         render();
         return;
       }

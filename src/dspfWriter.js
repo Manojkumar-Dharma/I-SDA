@@ -1392,6 +1392,95 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task I-69 - CHKMSGID's own dependency and usage rules. Its DDS
+  // Reference section states both in one place: "CHKMSGID is allowed only
+  // on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN),
+  // CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword. The field must be
+  // input-capable (usage B or I)." (It also says it takes no option
+  // indicators, which setCheckMsgId above already honours.) I-30 found the
+  // gap: nothing enforced either rule.
+  //
+  // Unlike the mutual-exclusion guards this is a *dependency*, so it has
+  // two directions, both diff-based (same shape as I-58's
+  // wrdwrapNewConflictReason, the same commitEdit choke point) so a
+  // hand-written file that is already invalid never blocks an unrelated
+  // edit:
+  //   forward  - an edit that INTRODUCES CHKMSGID while no qualifying
+  //              keyword is present;
+  //   reverse  - an edit that removes the LAST qualifying keyword while
+  //              CHKMSGID stays (blocked rather than silently cascading,
+  //              so the user's message id/file are never deleted behind
+  //              their back - remove CHKMSGID first).
+  // -----------------------------------------------------------------------
+  var CHKMSGID_QUALIFYING_NAMES = ['CMP', 'COMP', 'RANGE', 'VALUES'];
+  var CHKMSGID_QUALIFYING_CHECK_CODES = ['M10', 'M11', 'VN', 'VNE'];
+  var CHKMSGID_LIST_TEXT = 'CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, RANGE, or VALUES';
+
+  /** True when `keywords` carries a keyword CHKMSGID may accompany. CHECK
+   *  only qualifies with one of its four message-producing codes (so
+   *  CHECK(ME) or CHECK(AB) alone do not); the sub-parameters are matched
+   *  by token, so CHECK(ME VN) does. */
+  function hasChkmsgidQualifier(keywords) {
+    return (keywords || []).some(function (k) {
+      if (CHKMSGID_QUALIFYING_NAMES.indexOf(k.name) >= 0) return true;
+      if (k.name !== 'CHECK') return false;
+      var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
+      return tokens.some(function (t) { return CHKMSGID_QUALIFYING_CHECK_CODES.indexOf(t) >= 0; });
+    });
+  }
+
+  function chkmsgidUsageReason(usage) {
+    var u = String(usage == null ? '' : usage).trim().toUpperCase();
+    if (u && u !== 'I' && u !== 'B') {
+      return 'CHKMSGID can only be specified on an input-capable field (usage B or I, per the DDS Reference).';
+    }
+    return null;
+  }
+
+  var CHKMSGID_NEEDS_QUALIFIER_TEXT = 'CHKMSGID is allowed only on fields which also contain a ' + CHKMSGID_LIST_TEXT + ' keyword (per the DDS Reference). Add one of those first.';
+
+  /** Diff-based check for EVERY field-level panel (the commitEdit choke
+   *  point): given the field's keywords before and after an edit, returns
+   *  a reason when the edit introduces CHKMSGID with no qualifier (forward)
+   *  or removes the last qualifier while CHKMSGID remains (reverse), else
+   *  null. */
+  function chkmsgidNewConflictReason(oldKeywords, newKeywords) {
+    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'CHKMSGID'; }); };
+    if (!has(newKeywords)) return null;
+    var newQual = hasChkmsgidQualifier(newKeywords);
+    if (!has(oldKeywords)) {
+      return newQual ? null : CHKMSGID_NEEDS_QUALIFIER_TEXT;
+    }
+    if (hasChkmsgidQualifier(oldKeywords) && !newQual) {
+      return 'This would remove the last of ' + CHKMSGID_LIST_TEXT + ' from a field that still has CHKMSGID, which is only allowed alongside one of them (per the DDS Reference). Remove CHKMSGID first.';
+    }
+    return null;
+  }
+
+  /** Raw keyword editor's "add" guard for CHKMSGID: the dependency plus the
+   *  input-capable usage rule (blank usage = still being drafted, never
+   *  blocked). Returns null for any other keyword name. */
+  function chkmsgidFieldAddReason(keywordName, fieldKeywords, usage) {
+    if (keywordName !== 'CHKMSGID') return null;
+    var usageReason = chkmsgidUsageReason(usage);
+    if (usageReason) return usageReason;
+    return hasChkmsgidQualifier(fieldKeywords) ? null : CHKMSGID_NEEDS_QUALIFIER_TEXT;
+  }
+
+  /** Basic tab Apply guard (same idiom and blank-usage handling as I-61's
+   *  wrdwrapBasicEditConflictReason): a usage CHANGE to a non-input-capable
+   *  value on a field that already carries CHKMSGID. Diff-based, so an
+   *  unrelated Apply on an already-invalid field still goes through. */
+  function chkmsgidBasicEditConflictReason(fieldKeywords, oldUsage, newUsage) {
+    if (!(fieldKeywords || []).some(function (k) { return k.name === 'CHKMSGID'; })) return null;
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var oldU = norm(oldUsage) || 'O';
+    var newU = norm(newUsage) || 'O';
+    if (newU === oldU) return null;
+    return chkmsgidUsageReason(newU);
+  }
+
+  // -----------------------------------------------------------------------
   // Field-level keyword pickers modeled on real SDA's "Select Field
   // Keywords" screens (see docs/sda-reference/, task D1) - CHECK(...)
   // (shared by SDA's "Keying options" and part of "Validity check"
@@ -7131,6 +7220,10 @@
     wrdwrapReverseConflictReason: wrdwrapReverseConflictReason,
     wrdwrapNewConflictReason: wrdwrapNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
+    hasChkmsgidQualifier: hasChkmsgidQualifier,
+    chkmsgidNewConflictReason: chkmsgidNewConflictReason,
+    chkmsgidFieldAddReason: chkmsgidFieldAddReason,
+    chkmsgidBasicEditConflictReason: chkmsgidBasicEditConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,

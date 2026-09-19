@@ -1501,7 +1501,14 @@
           var msgFile = document.getElementById(ownerKey + '-cm-msgfile').value;
           var library = document.getElementById(ownerKey + '-cm-library').value;
           var msgDataField = document.getElementById(ownerKey + '-cm-msgdata').value;
-          onChange(DspfWriter.setCheckMsgId(keywords, msgId, library, msgFile, msgDataField));
+          var nextKeywords = DspfWriter.setCheckMsgId(keywords, msgId, library, msgFile, msgDataField);
+          // Task I-69: check here too (not only in commitEdit's own choke
+          // point) so a refusal keeps what the user typed instead of
+          // re-rendering the panel blank - CHKMSGID needs a qualifying
+          // validity-check keyword already on the field.
+          var cmReason = DspfWriter.chkmsgidNewConflictReason(keywords, nextKeywords);
+          if (cmReason) { window.alert(cmReason); return; }
+          onChange(nextKeywords);
         });
       }
     }
