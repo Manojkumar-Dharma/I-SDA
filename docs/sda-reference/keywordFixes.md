@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-57 of 60 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.137**.
+59 of 83 tasks done; 24 open (see [Open work](#open-work)). Current version: **v0.10.139**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -317,8 +317,8 @@ section below.)
 
 ## Task details
 
-Strict ID order. Tasks I-44 – I-60 were previously kept only as table rows; their full
-text now lives here.
+Strict ID order. Every task has a section here, whether or not it has landed; the
+[status table](#status-at-a-glance) is the summary.
 
 <a id="i-1"></a>
 
@@ -3860,7 +3860,7 @@ New `src/test/i57PshbtnFieldKind.test.js` (123 checks): the model and IBM's own 
 
 Landed after I-58, I-59 and I-60; the rebase conflicted only on the field-level raw editor's `addGuardFn` line (now a three-way chain) and the `package.json` test script.
 
-Not addressed here: see the three I-57 rows under Deferred findings.
+Not addressed here: opened as follow-up tasks I-62 – I-66 (each marked "Raised by I-57").
 
 ---
 
@@ -3942,11 +3942,11 @@ I-58 blocked adding `WRDWRAP`'s conflicting *keywords* to a `WRDWRAP` field, but
 
 ### I-62 — `PSHBTNFLD`: guard the Basic tab against breaking its required definition
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-57 (shares the Basic-tab Apply handler with I-61 — pick them together or in order to avoid conflicts)
+> **Area:** Field · **Status:** Not started · **Depends on:** I-57
 
 `PSHBTNFLD` requires "an input-capable field with data type Y, length equal to 2, and decimal positions of 0". I-57 enforces this when the toggle is turned on (it rewrites the field), but the Basic tab's Apply is unguarded. **Confirmed by probe (jsdom) on a `2Y 0B` push-button field:** changing data type to `A`, length to `10`, or usage to `O` each applied with no alert and no edit blocked, leaving a field that still carries `PSHBTNFLD` but is invalid DDS. (Decimals were not probed; expected to behave the same.)
 
-**Suggested fix:** in the same Apply handler as I-61, when the field carries `PSHBTNFLD`, refuse a data type other than `Y`, a length other than 2, decimals other than 0, or a usage other than `I`/`B`. `DspfWriter.pshbtnfldDefinitionUpdates` already encodes the rule and can drive the check.
+**Suggested fix:** in the same Apply handler as I-61, when the field carries `PSHBTNFLD`, refuse a data type other than `Y`, a length other than 2, decimals other than 0, or a usage other than `I`/`B`. `DspfWriter.pshbtnfldDefinitionUpdates` already encodes the rule and can drive the check. This shares the Basic-tab Apply handler with I-61 — pick the two together, or in order, to avoid merge conflicts.
 
 *Raised by I-57. Size (estimate): Small.*
 
