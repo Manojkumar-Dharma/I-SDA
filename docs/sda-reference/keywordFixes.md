@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-56 of 60 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.136**.
+57 of 60 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.137**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -100,7 +100,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-55](#i-55) | Record | Whitelist guards on the repeatable-instance editor | I-53 | Done | v0.10.134 |
 | [I-56](#i-56) | Record | `RTNCSRLOC` record-level guard | I-54 | Done | v0.10.134 |
 | [I-57](#i-57) | Field | `PSHBTNFLD` / `PSHBTNCHC` (push-button field) | I-41 | In progress | — |
-| [I-58](#i-58) | Field | Reverse `WRDWRAP` mutual-exclusion guards | I-42 | In progress | — |
+| [I-58](#i-58) | Field | Reverse `WRDWRAP` mutual-exclusion guards | I-42 | Done | v0.10.137 |
 | [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | In progress | — |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
 
@@ -115,11 +115,10 @@ keyword index under `docs/sda-reference/keyword-index/`.
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-57](#i-57) | In progress | `PSHBTNFLD` / `PSHBTNCHC`; claimed 2026-09-18, split off from I-41. Changes the keyword set, so it must land before I-40. |
-| 2 | [I-58](#i-58) | In progress | Reverse `WRDWRAP` mutual-exclusion guards; claimed 2026-09-18. Independent of the others. |
-| 3 | [I-59](#i-59) | In progress | Shared `ENTFLDATR` editor: bare form and `*CURSOR`/`*NOCURSOR`; claimed 2026-09-18. Independent of the others. |
-| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration. **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-59](#i-59) | In progress | Shared `ENTFLDATR` editor: bare form and `*CURSOR`/`*NOCURSOR`; claimed 2026-09-18. Independent of the others. |
+| 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration. **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
-I-58 and I-59 can run in any order or in parallel; neither changes the keyword set.
+I-59 does not change the keyword set, so it can run in parallel with I-57.
 
 ## Deferred findings (not yet tasks)
 
@@ -134,6 +133,7 @@ started; any of them is a reasonable next task to open (own `Claim I-N` commit, 
 | I-35 | Usage `P` fields have no reachable selection path in the current UI, so the fixed-keyword-list scoping I-35 added for Usage `P` cannot be exercised yet. |
 | I-11 / I-15 / I-23 | Whether SFLMSG's General/Indicator categories (which reuse I-9's SFL set verbatim) deserve distinct `KEYWORD-INDEX.json` categories of their own — an index-completeness question raised during I-16 and never researched. |
 | I-56 / I-60 | I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing I-8's audit (no incompatibility statement found). But `RTNCSRLOC` is not on `USRDFN`'s closed whitelist either, so that reasoning is worth re-checking as its own task. |
+| I-58 | Reverse-direction WRDWRAP guard covers KEYWORDS added to a WRDWRAP field, but not a DATA TYPE or USAGE change on one: applying data type `Y` (or any of S/D/M/F/J/O/E/G) or usage `O`/`H`/`P` via the Basic tab's Apply on a field that already carries `WRDWRAP` is not blocked (confirmed via jsdom), though `wrdwrapFieldConflictReason`'s own forward check treats both as invalid. The same one-hop fix as I-58 (a check in the Apply handler, reusing that function's own data-type/usage branches) should close it. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -3495,6 +3495,7 @@ pre-fix code.
   field that already carries `WRDWRAP` isn't blocked. Needs a sweep of each
   keyword's own field-level panel plus the field-level raw keyword editor
   (which has no `addGuardFn` yet).
+  **Fixed in v0.10.137 - see I-58's own table row above.**
 - **I-59** - pre-existing limitation of the shared `ENTFLDATR` editor
   (`entFldAtrHtml`, built on `getChoiceColorState`), now reachable at
   field level where IBM's own examples use both affected forms: a bare
@@ -3816,9 +3817,21 @@ Split off from I-41's own scoping investigation: implement `PSHBTNFLD`/`PSHBTNCH
 
 ### I-58 — Reverse `WRDWRAP` mutual-exclusion guards
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-42
+> **Area:** Field · **Status:** Done (v0.10.137) · **Depends on:** I-42
 
-Follow-up from I-42: reverse direction of `WRDWRAP`'s mutual-exclusion rule - `AUTO(RAZ/RAB)`, `CHECK(MF/M10F/M11F/RB/RZ/RL/RLTB)`, `CHGINPDFT(MF)`, `DSPATR(OID/SP)`, `DUP`, `FLTFIXDEC`, `IGCALTTYP` can still be added to a field that already carries `WRDWRAP`. Needs a sweep of each keyword's own field-level panel plus a guard hook on the field-level raw keyword editor.
+**Fixed.** Follow-up from I-42: I-42 blocked turning `WRDWRAP` on while a conflicting keyword was already on the field, but nothing blocked the reverse - adding one of `WRDWRAP`'s own conflicting keywords to a field that already carried it.
+
+Re-verified against `DDS_Keyword_V7r6.txt` rather than trusting the follow-up's list: `WRDWRAP`'s own section names exactly `AUTO(RAZ, RAB)`, `CHECK(MF, M10F, M11F, RB, RZ, RL, RLTB)`, `CHGINPDFT(MF)`, `DSPATR(OID, SP)`, `DUP`, `FLTFIXDEC`, `IGCALTTYP` - no false positives, no omissions - and the `CHECK` and `CHGINPDFT` sections independently state the same restriction from their own side.
+
+Reachability sweep: `AUTO` has no structured panel of its own (raw editor only); `DUP`, `CHGINPDFT`, `IGCALTTYP`, `DSPATR` (Color & attributes) and `CHECK` (Keying options, Validity check) each have one; `FLTFIXDEC` only renders for floating-point data, which `WRDWRAP` itself forbids, so it can never coexist through the UI but is covered anyway.
+
+Fix, two layers: (1) `DspfWriter.wrdwrapReverseConflictReason(name, params, fieldKeywords)` wired into the field-level raw keyword editor's `addGuardFn` chain (alongside I-41's `htmlConflictReason`) - the only path to `AUTO`; (2) `DspfWriter.wrdwrapNewConflictReason(oldKeywords, newKeywords)`, a diff-based backstop at the top of `commitEdit`, so every field-level panel - present and future - is covered at one choke point instead of a hand-rolled guard per panel (alert, then `render()` reverts the panel to the model's real state). Both share one token-matching helper with I-42's forward check (`CHECK(AB)`/`CHECK(VN)` are not substring-matched against `M10F` etc.). The diff-based design means a hand-written file that already has both keywords is not re-reported, so unrelated edits to it are never blocked, and removing a conflicting keyword is always allowed.
+
+New `i58WrdwrapReverseGuards.test.js` (79 checks): pure unit checks of both functions, the raw editor across all ten conflicting keyword/parameter shapes plus no-regression cases, each panel (DUP, IGCALTTYP, CHGINPDFT(MF), DSPATR(SP), CHECK(RB) via Keying options) driven through the real generated webview script in jsdom, and a pre-existing-conflict field. Confirmed via stash to fail (30 DOM checks) against pre-fix code.
+
+Not addressed here: a DATA TYPE or USAGE change on a field that already carries `WRDWRAP` - see Deferred findings.
+
+Full suite: zero failures.
 
 ---
 

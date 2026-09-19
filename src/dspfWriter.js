@@ -1571,8 +1571,9 @@
    *  every other name), and to the FORWARD direction only - turning
    *  WRDWRAP on while a conflicting keyword is already on the field. The
    *  reverse direction (adding AUTO/CHECK/DUP/etc. to a field that
-   *  already carries WRDWRAP) needs a separate sweep of each of those
-   *  keywords' own field-level panels and is logged as its own follow-up.
+   *  already carries WRDWRAP) is Task I-58's wrdwrapReverseConflictReason
+   *  (raw editor) and wrdwrapNewConflictReason (commitEdit backstop for
+   *  every panel), defined just above.
    *  Usage/data type are checked here even though the field-level row is
    *  already hidden for them (see generalFieldKeywordRowMatchesDataType/
    *  ...MatchesUsage), so this function is correct on its own for any
@@ -1590,6 +1591,66 @@
     FLTFIXDEC: null,
     IGCALTTYP: null,
   };
+  /** Task I-58 - shared by both directions: the label ("CHECK(RB)", "DUP")
+   *  when ONE keyword instance is on WRDWRAP's own conflict list, else
+   *  null. Token-matched (split on whitespace/commas/parens) rather than
+   *  substring-matched, so e.g. CHECK(RB) hits but CHECK(AB) doesn't. */
+  function wrdwrapKeywordHit(k) {
+    if (!k || !Object.prototype.hasOwnProperty.call(WRDWRAP_KEYWORD_CONFLICTS, k.name)) return null;
+    var bad = WRDWRAP_KEYWORD_CONFLICTS[k.name];
+    if (bad === null) return k.name;
+    var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
+    var matched = bad.filter(function (b) { return tokens.indexOf(b) >= 0; });
+    return matched.length ? k.name + '(' + matched.join(', ') + ')' : null;
+  }
+  function wrdwrapKeywordHits(keywords) {
+    var hits = [];
+    (keywords || []).forEach(function (k) {
+      var h = wrdwrapKeywordHit(k);
+      if (h) hits.push(h);
+    });
+    return hits;
+  }
+
+  /** Task I-58 - the REVERSE direction of wrdwrapFieldConflictReason:
+   *  adding one keyword (name + parameters, as typed into the field-level
+   *  raw keyword editor's "+ Add keyword") to a field that ALREADY carries
+   *  WRDWRAP. Returns a reason string, or null when it's fine to add.
+   *  Deliberately a no-op when the field has no WRDWRAP, and for any
+   *  keyword not on WRDWRAP's own list. */
+  function wrdwrapReverseConflictReason(keywordName, parameters, fieldKeywords) {
+    var hasWrdwrap = (fieldKeywords || []).some(function (k) { return k.name === 'WRDWRAP'; });
+    if (!hasWrdwrap) return null;
+    var hit = wrdwrapKeywordHit({ name: String(keywordName || '').toUpperCase(), parameters: parameters });
+    if (!hit) return null;
+    return hit + ' cannot be specified on a field that already has WRDWRAP (per the DDS Reference).';
+  }
+
+  /** Task I-58 - diff-based backstop for EVERY field-level panel (CHECK's
+   *  Keying/Validity codes, CHGINPDFT, DUP, DSPATR's OID/SP, FLTFIXDEC,
+   *  IGCALTTYP, the raw editor - all commit through commitEdit's own
+   *  keywords update): given the field's keyword list before and after
+   *  an edit, returns a reason when the edit INTRODUCES a WRDWRAP
+   *  conflict on a field that carries WRDWRAP after the edit. Conflicts
+   *  already present before the edit (a hand-written file that was
+   *  already invalid) are not re-reported, so unrelated edits to such a
+   *  field are never blocked, and turning WRDWRAP itself on is left to
+   *  the forward-direction wrdwrapFieldConflictReason. */
+  function wrdwrapNewConflictReason(oldKeywords, newKeywords) {
+    var hasWrdwrap = (newKeywords || []).some(function (k) { return k.name === 'WRDWRAP'; });
+    if (!hasWrdwrap) return null;
+    var hadWrdwrap = (oldKeywords || []).some(function (k) { return k.name === 'WRDWRAP'; });
+    if (!hadWrdwrap) return null;
+    var before = wrdwrapKeywordHits(oldKeywords);
+    var added = wrdwrapKeywordHits(newKeywords).filter(function (h) {
+      var i = before.indexOf(h);
+      if (i >= 0) { before.splice(i, 1); return false; }
+      return true;
+    });
+    if (!added.length) return null;
+    return added.join(', ') + ' cannot be specified on a field that already has WRDWRAP (per the DDS Reference).';
+  }
+
   function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
     if (keywordName !== 'WRDWRAP') return null;
     var u = (usage || '').toUpperCase();
@@ -1603,15 +1664,7 @@
     if ((recordKeywords || []).some(function (k) { return k.name === 'SFL'; })) {
       return 'WRDWRAP is not supported on subfile (SFL) record fields (per the DDS Reference).';
     }
-    var hits = [];
-    (fieldKeywords || []).forEach(function (k) {
-      if (!Object.prototype.hasOwnProperty.call(WRDWRAP_KEYWORD_CONFLICTS, k.name)) return;
-      var bad = WRDWRAP_KEYWORD_CONFLICTS[k.name];
-      if (bad === null) { hits.push(k.name); return; }
-      var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
-      var matched = bad.filter(function (b) { return tokens.indexOf(b) >= 0; });
-      if (matched.length) hits.push(k.name + '(' + matched.join(', ') + ')');
-    });
+    var hits = wrdwrapKeywordHits(fieldKeywords);
     if (hits.length) {
       return 'WRDWRAP cannot be specified together with ' + hits.join(', ') + ' on the same field (per the DDS Reference).';
     }
@@ -6476,6 +6529,8 @@
     setGeneralFieldKeywords: setGeneralFieldKeywords,
     dftGroupConflictReason: dftGroupConflictReason,
     wrdwrapFieldConflictReason: wrdwrapFieldConflictReason,
+    wrdwrapReverseConflictReason: wrdwrapReverseConflictReason,
+    wrdwrapNewConflictReason: wrdwrapNewConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,

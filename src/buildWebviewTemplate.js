@@ -4612,7 +4612,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
@@ -6248,6 +6248,21 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function commitEdit(recordName, field, updates) {
+    // Task I-58: reverse-direction WRDWRAP guard, ONE choke point for every
+    // field-level panel that writes keywords (CHECK Keying/Validity codes,
+    // CHGINPDFT, DUP, DSPATR OID/SP, FLTFIXDEC, IGCALTTYP, the raw editor -
+    // AUTO(RAZ/RAB) has no panel of its own and is only reachable via the
+    // raw editor). Blocks an edit that would INTRODUCE one of WRDWRAP's
+    // own conflicting keywords onto a field that already carries WRDWRAP;
+    // render() puts the panel back to the model's real state.
+    if (updates && updates.keywords) {
+      const wrdwrapReason = DspfWriter.wrdwrapNewConflictReason(field.keywords, updates.keywords);
+      if (wrdwrapReason) {
+        window.alert(wrdwrapReason);
+        render();
+        return;
+      }
+    }
     commitSourceChange(
       (lines) => DspfWriter.applyFieldUpdate(field, lines, updates),
       () => {
