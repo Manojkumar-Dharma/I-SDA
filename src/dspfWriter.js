@@ -6480,6 +6480,77 @@
     return '';
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-80 - SFLCSRPRG vs SFLLIN. SFLCSRPRG's own DDS Reference section
+  // ends: "The SFLLIN keyword is not allowed in a record that contains the
+  // SFLCSRPRG." Read literally that is unsatisfiable - SFLCSRPRG is a
+  // FIELD-level keyword on a field of the subfile (SFL) record, while
+  // SFLLIN is a RECORD-level keyword that its own section says goes "on the
+  // subfile-control record format" - so no valid file can put both on one
+  // record. The only reading with any effect is through the association
+  // the two records already have (the control record's SFLCTL(sfl-record)
+  // parameter): a subfile record with a SFLCSRPRG field cannot be shown by
+  // a control record that carries SFLLIN (a horizontal, multi-column
+  // subfile, where "the same field in the NEXT subfile record" has no
+  // single next). That is what is enforced here, in both directions; see
+  // the I-80 section of keywordFixes.md for the interpretation note.
+  // Both functions are diff-based (same shape as I-58/I-64/I-81's
+  // backstops, for the same commitEdit/commitRecordEdit choke points): an
+  // edit is only blamed for a violation it INTRODUCES, so a hand-written
+  // file that is already invalid never blocks an unrelated edit, and
+  // fixing it is always allowed.
+  // -----------------------------------------------------------------------
+
+  /** The name of the subfile record a control record's SFLCTL(name) points
+   *  at, or '' when it has none. */
+  function sflctlTargetName(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'SFLCTL'; });
+    return k ? String(k.parameters || '').trim().replace(/^\(|\)$/g, '') : '';
+  }
+
+  function sfllinAssociatedViolation(keywords, records) {
+    if (!(keywords || []).some(function (kw) { return kw.name === 'SFLLIN'; })) return null;
+    var target = sflctlTargetName(keywords);
+    if (!target) return null;
+    var sflRec = (records || []).find(function (r) { return r.name === target; });
+    if (!sflRec) return null;
+    var f = (sflRec.fields || []).find(function (fld) {
+      return (fld.keywords || []).some(function (kw) { return kw.name === 'SFLCSRPRG'; });
+    });
+    return f ? { recordName: target, fieldName: f.name || '' } : null;
+  }
+
+  /** Record-level side (commitRecordEdit): `rec` is the record being
+   *  edited, `newKeywords` its keyword list after the edit, `records` the
+   *  model's records. Blocks an edit that introduces SFLLIN on a control
+   *  record - or points a control record that already has SFLLIN at a
+   *  subfile record via SFLCTL - when that subfile record has a field with
+   *  SFLCSRPRG. Returns a reason or null. */
+  function sfllinRecordEditConflictReason(rec, newKeywords, records) {
+    var after = sfllinAssociatedViolation(newKeywords, records);
+    if (!after) return null;
+    if (sfllinAssociatedViolation(rec && rec.keywords, records)) return null;
+    return 'SFLLIN cannot be used with subfile record ' + after.recordName + ', which has ' +
+      (after.fieldName ? 'field ' + after.fieldName + ' with ' : 'a field with ') +
+      'SFLCSRPRG - the DDS Reference does not allow SFLLIN together with SFLCSRPRG. Remove SFLCSRPRG first.';
+  }
+
+  /** Field-level side (commitEdit): `subfileRecordName` is the record that
+   *  owns the field being edited, `oldKeywords`/`newKeywords` the field's
+   *  own keywords around the edit. Blocks an edit that introduces
+   *  SFLCSRPRG on the field while a control record pointing at this record
+   *  (SFLCTL(subfileRecordName)) carries SFLLIN. Returns a reason or null. */
+  function sflcsrprgFieldEditConflictReason(subfileRecordName, oldKeywords, newKeywords, records) {
+    var has = function (kws) { return (kws || []).some(function (kw) { return kw.name === 'SFLCSRPRG'; }); };
+    if (!has(newKeywords) || has(oldKeywords)) return null;
+    var ctl = (records || []).find(function (r) {
+      return sflctlTargetName(r.keywords) === subfileRecordName && (r.keywords || []).some(function (kw) { return kw.name === 'SFLLIN'; });
+    });
+    if (!ctl) return null;
+    return 'SFLCSRPRG cannot be specified on a field of subfile record ' + subfileRecordName + ' because its control record ' + ctl.name +
+      ' carries SFLLIN - the DDS Reference does not allow SFLLIN together with SFLCSRPRG. Remove SFLLIN first.';
+  }
+
   /** Task I-81 - SFLRTNSEL's own DDS Reference section says "If this keyword
    *  is specified then SFLMLTCHC or SFLSNGCHC must be specified". I-39 added
    *  SFLRTNSEL with only a hint when neither is selected; this is the hard
@@ -7403,6 +7474,8 @@
     setSflMltChcKeyword: setSflMltChcKeyword,
     sflChoiceListConflictReason: sflChoiceListConflictReason,
     sflrtnselNewConflictReason: sflrtnselNewConflictReason,
+    sfllinRecordEditConflictReason: sfllinRecordEditConflictReason,
+    sflcsrprgFieldEditConflictReason: sflcsrprgFieldEditConflictReason,
     sflScrollFieldConflictReason: sflScrollFieldConflictReason,
     sflchcctlDefinitionUpdates: sflchcctlDefinitionUpdates,
     sflchcctlFieldConflictReason: sflchcctlFieldConflictReason,

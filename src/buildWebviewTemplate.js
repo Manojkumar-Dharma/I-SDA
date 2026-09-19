@@ -6424,6 +6424,16 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
+      // Task I-80: the field-level side of SFLCSRPRG vs SFLLIN (see
+      // commitRecordEdit for the record-level side): introducing
+      // SFLCSRPRG on a field of a subfile record whose control record
+      // already carries SFLLIN.
+      const sflcsrprgReason = DspfWriter.sflcsrprgFieldEditConflictReason(recordName, field.keywords, updates.keywords, model.records);
+      if (sflcsrprgReason) {
+        window.alert(sflcsrprgReason);
+        render();
+        return;
+      }
     }
     commitSourceChange(
       (lines) => DspfWriter.applyFieldUpdate(field, lines, updates),
@@ -6480,6 +6490,18 @@ const htmlTemplate = `<!DOCTYPE html>
       const sflrtnselReason = DspfWriter.sflrtnselNewConflictReason(rec.keywords, updates.keywords);
       if (sflrtnselReason) {
         window.alert(sflrtnselReason);
+        renderRecordProps(recordName);
+        return;
+      }
+      // Task I-80: SFLLIN is not allowed with SFLCSRPRG. This is the
+      // record-level side (introducing SFLLIN on a control record, or
+      // pointing one that has it at a subfile record via SFLCTL, when that
+      // subfile record has a SFLCSRPRG field); the field-level side is in
+      // commitEdit. Same choke point, same diff-based shape as SFLRTNSEL
+      // just above.
+      const sfllinReason = DspfWriter.sfllinRecordEditConflictReason(rec, updates.keywords, model.records);
+      if (sfllinReason) {
+        window.alert(sfllinReason);
         renderRecordProps(recordName);
         return;
       }

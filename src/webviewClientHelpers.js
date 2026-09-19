@@ -2798,7 +2798,7 @@
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflchcctl" ' + (chcctl.present ? 'checked' : '') + '/>Choice control field for a selection list (SFLCHCCTL)</label>';
     html += '<div class="hint-small">Must be the first field in the subfile record: length 1, data type Y (zoned numeric), 0 decimal positions, usage H (hidden). Only one field per record can carry this.</div>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflcsrprg" ' + (csrprg.present ? 'checked' : '') + '/>Cursor progresses to same field in next subfile record (SFLCSRPRG)</label>';
-    html += '<div class="hint-small">Ignored on displays not attached to a controller with an enhanced data stream. Not allowed in a record that also carries SFLLIN.</div>';
+    html += '<div class="hint-small">Ignored on displays not attached to a controller with an enhanced data stream. Not allowed when the subfile control record carries SFLLIN (a horizontal subfile) - the checkbox is refused while it does.</div>';
     return html;
   }
 

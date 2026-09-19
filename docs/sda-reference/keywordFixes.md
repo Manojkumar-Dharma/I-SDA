@@ -122,7 +122,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Not started | — |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Done | v0.10.149 |
-| [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | In progress | — |
+| [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | Done | v0.10.150 |
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Not started | — |
@@ -139,20 +139,19 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-80](#i-80) | In progress | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 3 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 4 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 5 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 6 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 7 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 8 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 9 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 10 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 11 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 12 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 2 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 3 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 4 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 5 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 6 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 7 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 8 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 11 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 12 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 13 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4279,9 +4278,21 @@ carrying the keyword).
 
 ### I-80 — `SFLCSRPRG` vs `SFLLIN`
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-39
+> **Area:** Field · **Status:** Done (v0.10.150) · **Depends on:** I-39
 
 I-39 added `SFLCSRPRG` with hint text only; its incompatibility with `SFLLIN` is not hard-blocked. Decide the direction(s) (`SFLCSRPRG` is field-level, `SFLLIN` record-level) from the DDS Reference, then guard.
+
+**Implemented.** Re-read both keywords' sections first, as asked. `SFLCSRPRG` (field-level) ends: "The SFLLIN keyword is not allowed in a record that contains the SFLCSRPRG." `SFLLIN` (record-level, "on the subfile-control record format") says nothing back about `SFLCSRPRG`.
+
+**Interpretation decision — please review.** Read literally the sentence is unsatisfiable: `SFLCSRPRG` lives on a *field of the subfile record*, `SFLLIN` on the *control record*, so no valid file has both in one record. The only reading with any effect goes through the association the two records already have, the control record's `SFLCTL(sfl-record)` parameter: **a subfile record with a `SFLCSRPRG` field cannot be shown by a control record that carries `SFLLIN`** (a horizontal, multi-column subfile, where "the same field in the *next* subfile record" has no single next). That is what is enforced. It is an interpretation, not a quotation; IBM's `SFLCSRPRG` example uses `SFL01`/`CTL01` with no `SFLLIN`, which fits it but doesn't prove it. If real `CRTDSPF` turns out not to enforce this across records, the guard would refuse valid DDS and should be relaxed to the hint I-39 shipped. I-39's hint text ("not allowed in a record that also carries SFLLIN") is reworded to say what is actually enforced.
+
+Both directions, at the two existing choke points, diff-based like I-58/I-64/I-81 (an edit is only blamed for a violation it *introduces*, so an already-invalid hand-written pair never blocks an unrelated edit, and fixing it is always allowed):
+- **Field side** (`commitEdit`, new `DspfWriter.sflcsrprgFieldEditConflictReason`): introducing `SFLCSRPRG` on a field of a subfile record whose control record (`SFLCTL(that-record)`) carries `SFLLIN` — any instance, including display-size-conditioned ones. Alert names both records; "Remove SFLLIN first"; the re-render puts the checkbox back.
+- **Record side** (`commitRecordEdit`, new `DspfWriter.sfllinRecordEditConflictReason`): introducing `SFLLIN` on a control record — or pointing a control record that already has it at a different subfile record through `SFLCTL` — when the target subfile record has a `SFLCSRPRG` field. Alert names the subfile record and the offending field; "Remove SFLCSRPRG first". Covers the Display Layout row and the raw keyword editor without wiring either.
+- Not blocked: `SFLLIN` on a record with no `SFLCTL`, a `SFLCTL` naming a record that doesn't exist, a control record for a *different* subfile record, unticking `SFLCSRPRG`, changing `SFLLIN`'s spacing, and unrelated edits on an already-invalid pair.
+- Deliberately not covered: renaming a subfile record, or deleting a `SFLCSRPRG` field, cannot introduce the violation, so they need no check; a pair that becomes invalid because a *new* `SFLCTL(x)` record is added by hand-editing the source is outside the designer's edit paths.
+
+New `src/test/i80SflcsrprgSfllinGuard.test.js` (31 checks): both pure functions (including retargeting via `SFLCTL`, display-size-conditioned `SFLLIN`, null-safety) and the real generated webview — field side blocked/allowed, record side blocked/allowed via the raw editor, and an already-invalid `DTLD`/`CTLD` pair that stays editable (unrelated add allowed, unticking allowed, ticking a second field still blocked). Confirmed to fail against pre-fix code: 4 webview-level checks fail with the wiring removed. Also wires `i79SflchcctlStructuralRules.test.js` (I-79) into the `npm test` script — that commit had added the test file but not the script entry, so it was not being run (it passes, 42 checks, on the merged tree).
 
 *Raised by I-39. Size (estimate): Small.*
 
