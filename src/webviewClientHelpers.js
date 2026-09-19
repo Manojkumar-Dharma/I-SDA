@@ -6231,8 +6231,21 @@
     // (turningOn), unlike the SFL/MNUBAR checks I-56 left as-is: a
     // hand-edited USRDFN record that already carries RTNCSRLOC must still
     // be able to have it removed.
+    // Task I-84: that left the SFL/MNUBAR checks running on EVERY commit, so
+    // on an SFL or MNUBAR record with a hand-edited RTNCSRLOC, un-ticking
+    // the box (or just editing its parameters) was refused with a
+    // misleading "cannot be added" alert. All three checks are now gated on
+    // turningOn, and turningOn is the real TRANSITION for the variant being
+    // edited (its box is now ticked AND that variant was not already
+    // present), computed in each commit() below - the same diff-based
+    // posture as I-58/I-61/I-62/I-81: only an edit that INTRODUCES the
+    // conflict is blocked, a record that was already invalid is never
+    // re-reported, and removing the keyword is always allowed. The two
+    // variants are independent, so turning the OTHER one on is still an
+    // addition and is still blocked.
     function rtncsrlocConflictReason(turningOn) {
-      return (turningOn && DspfWriter.usrdfnWhitelistConflictReason('RTNCSRLOC', getKeywords())) ||
+      if (!turningOn) return null;
+      return DspfWriter.usrdfnWhitelistConflictReason('RTNCSRLOC', getKeywords()) ||
         DspfWriter.sflWhitelistConflictReason('RTNCSRLOC', getKeywords()) ||
         DspfWriter.mnubarWhitelistConflictReason('RTNCSRLOC', getKeywords());
     }
@@ -6242,10 +6255,10 @@
       var fldEl = document.getElementById(p + '-rtncsrloc-rn-fld');
       var posEl = document.getElementById(p + '-rtncsrloc-rn-pos');
       function commit() {
-        var reason = rtncsrlocConflictReason(!!(onEl && onEl.checked));
+        var current = DspfWriter.getRtncsrlocRecNameFields(getKeywords());
+        var reason = rtncsrlocConflictReason(!!(onEl && onEl.checked) && !current.present);
         if (reason) {
           window.alert(reason);
-          var current = DspfWriter.getRtncsrlocRecNameFields(getKeywords());
           if (onEl) onEl.checked = current.present;
           if (recEl) recEl.value = current.cursorRecord;
           if (fldEl) fldEl.value = current.cursorField;
@@ -6267,10 +6280,10 @@
       var row2El = document.getElementById(p + '-rtncsrloc-wm-row2');
       var col2El = document.getElementById(p + '-rtncsrloc-wm-col2');
       function commit() {
-        var reason = rtncsrlocConflictReason(!!(onEl && onEl.checked));
+        var current = DspfWriter.getRtncsrlocWindowMouseFields(getKeywords());
+        var reason = rtncsrlocConflictReason(!!(onEl && onEl.checked) && !current.present);
         if (reason) {
           window.alert(reason);
-          var current = DspfWriter.getRtncsrlocWindowMouseFields(getKeywords());
           if (onEl) onEl.checked = current.present;
           if (typeEl) typeEl.value = current.type;
           if (row1El) row1El.value = current.cursorRow;

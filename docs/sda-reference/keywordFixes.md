@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-72 of 90 tasks done; 18 open (see [Open work](#open-work)). Current version: **v0.10.151**.
+73 of 90 tasks done; 17 open (see [Open work](#open-work)). Current version: **v0.10.152**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -126,7 +126,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Done | v0.10.151 |
-| [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | In progress | — |
+| [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | Done | v0.10.152 |
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Not started | — |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Not started | — |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
@@ -146,31 +146,31 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-84](#i-84) | In progress | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert). Size (estimate): Small. Raised by I-77. Confirmed by probe; the fix is to pass the on-transition flag to all three checks. |
-| 2 | [I-85](#i-85) | Not started | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays. Size (estimate): Small. Raised by I-81. Verified: both removals return no conflict today; same fix shape as I-81. |
-| 3 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
-| 4 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 5 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 6 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 7 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 8 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 9 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 10 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 11 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 12 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 13 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 14 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 15 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 16 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 17 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 18 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-85](#i-85) | Not started | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays. Size (estimate): Small. Raised by I-81. Verified: both removals return no conflict today; same fix shape as I-81. |
+| 2 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
+| 3 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 4 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 5 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 6 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 7 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 8 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 9 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 10 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 11 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 12 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 13 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 14 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 15 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 16 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 17 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-None open. Every finding logged so far has been opened as a task (I-61 – I-90, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every earlier finding has been opened as a task (I-61 – I-90, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
+| I-84 | The same "box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` exists in `ENTFLDATR`'s guard (I-53/I-54/I-60: the `addGuardFn` in `wireEntFldAtrEditor`, which fires whenever the checkbox is ticked at Apply). Confirmed by probe on the record-level panel: on an `SFL`, `MNUBAR` or `USRDFN` record that already carries a hand-edited `ENTFLDATR`, changing its colour and pressing Apply is refused with "ENTFLDATR cannot be *added* to …" and the keyword is left unchanged, while un-ticking it works and a plain record edits normally. Same fix shape as I-84: gate on the real transition (the keyword was not already present) rather than on the checkbox state. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4370,11 +4370,17 @@ New `src/test/i83HtmlConstantAttributesGate.test.js` (43 checks, real generated 
 
 ### I-84 — `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert)
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-56, I-77
+> **Area:** Record · **Status:** Done (v0.10.152) · **Depends on:** I-56, I-77
 
-I-56's `SFL`/`MNUBAR` checks in `rtncsrlocConflictReason` run on **every** commit, not just the on-transition (unlike `USRDFN`'s, added by I-77). So on an `SFL` or `MNUBAR` record that already carries a hand-edited `RTNCSRLOC`, unticking the box is blocked with a misleading "cannot be *added*" alert (confirmed by probe); the only way out is the raw keyword editor's chip. Fix is small: pass `turningOn` to all three checks.
+**Fixed.** Follow-up from I-77: `rtncsrlocConflictReason` was `(turningOn && USRDFN check) || SFL check || MNUBAR check`, so only USRDFN's check (added by I-77) was on-transition-only; I-56's `SFL` and `MNUBAR` checks ran on **every** commit. On an `SFL` or `MNUBAR` record that already carried a hand-edited `RTNCSRLOC`, un-ticking the box was refused with a misleading "cannot be *added*" alert, and the only way out was the raw keyword editor's chip. Reproduced in jsdom for both `RTNCSRLOC` variants (`*RECNAME` and `*WINDOW`/`*MOUSE`) on both record types. Writing the test also showed the same alert on merely *editing the parameters* of an existing `RTNCSRLOC`, which the filing had not mentioned.
 
-*Raised by I-77. Size (estimate): Small.*
+Fix: all three checks are now gated on `turningOn`, and `turningOn` is defined as the real **transition** for the variant being edited - its box is now ticked **and** that variant was not already present - computed per commit from `getRtncsrlocRecNameFields`/`getRtncsrlocWindowMouseFields`. The filing suggested just passing `turningOn` to all three checks, but with `turningOn` meaning the checkbox state, editing an existing keyword's parameters (box still ticked) would still have been refused with the same wrong "added" message. The transition definition is the same diff-based posture as I-58, I-61, I-62 and I-81: only an edit that *introduces* the conflict is blocked; a record that was already invalid is never re-reported, and removing the keyword is always allowed. The two variants are independent, so turning the *other* variant on is still an addition and is still blocked (tested).
+
+Effect on I-77's `USRDFN` check, which shares the function: it now also fires only on a real turn-on, so editing the parameters of an existing hand-edited `RTNCSRLOC` on a `USRDFN` record is no longer refused either (it is not an addition). Turning it on and removing it behave exactly as before; I-77's 31 checks and I-56's 17 pass unchanged.
+
+New `i84RtncsrlocOnTransitionOnly.test.js` (59 checks, same lightweight jsdom harness as I-77's test): un-ticking a hand-edited `RTNCSRLOC` on `SFL` and on `MNUBAR`, for both variants (no alert, keyword removed, record type kept); editing an existing keyword's parameters on `SFL`, `MNUBAR` and `USRDFN` (no alert, keyword updated, still exactly one); turning either variant on is still blocked on `SFL`, `MNUBAR` and `USRDFN` with the right record-type wording, no keyword added and the checkbox reverted; the other-variant case; and a plain record committing both variants and removing one while keeping the other. Confirmed via `git stash` to fail (14 checks) against pre-fix code. Full suite: 6187/6187 assertions, zero failures.
+
+Not addressed here: `ENTFLDATR`'s guard has the same flaw - see Deferred findings.
 
 ---
 
