@@ -82,7 +82,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-37](#i-37) | Record | `ALWROL` / `CLRL` / `SLNO` vs `ASSUME` / `SFL` / `SFLCTL` / `USRDFN` | I-28 | Done | v0.10.111 |
 | [I-38](#i-38) | File | `HLPDOC` missing at file level | I-1 | Done | v0.10.116 |
 | [I-39](#i-39) | Cross-level | 8 keywords missing from iSDA (full-text audit) | — | Done | v0.10.118 |
-| [I-40](#i-40) | Tooling | Keyword index regeneration #2 (level labels, stale entries) | I-16; run last (after I-41, I-42, I-57) | Not started (claimed) | — |
+| [I-40](#i-40) | Tooling | Keyword index regeneration #2 (level labels, stale entries) | I-16; run last (after I-41, I-42, I-57, I-67, I-76) | Not started (claimed) | — |
 | [I-41](#i-41) | Field | Add missing field-level keyword `HTML` | I-1 | Done | v0.10.133 |
 | [I-42](#i-42) | Cross-level | Extend level scope: `MOUBTN` / `VALNUM` / `WRDWRAP` / `ENTFLDATR` | I-1, I-5 | Done | v0.10.135 |
 | [I-43](#i-43) | File | `HLPRCD` / `HLPDOC` checkbox catch-22 | I-38 | Done | v0.10.121 |
@@ -103,6 +103,29 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-58](#i-58) | Field | Reverse `WRDWRAP` mutual-exclusion guards | I-42 | Done | v0.10.137 |
 | [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | Done | v0.10.138 |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
+| [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | Not started | — |
+| [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | Not started | — |
+| [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Not started | — |
+| [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Not started | — |
+| [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Not started | — |
+| [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Not started | — |
+| [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
+| [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Not started | — |
+| [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Not started | — |
+| [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
+| [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
+| [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Not started | — |
+| [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Not started | — |
+| [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
+| [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
+| [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
+| [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Not started | — |
+| [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
+| [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Not started | — |
+| [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | Not started | — |
+| [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Not started | — |
+| [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
+| [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -112,27 +135,41 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 ## Open work
 
+Suggested pickup order - roughly smallest and safest first; **not binding** (any task can be picked independently, and the sizes are estimates, not measurements). I-40 stays last, on purpose.
+
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration. **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-61](#i-61) | Not started | `WRDWRAP`: guard a data type / usage change on a field that already carries it. Size (estimate): Small. Raised by I-58. |
+| 2 | [I-62](#i-62) | Not started | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
+| 3 | [I-63](#i-63) | Not started | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape. Size (estimate): Small–medium. Raised by I-57. |
+| 4 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
+| 5 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
+| 6 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
+| 7 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
+| 8 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
+| 9 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 10 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 11 | [I-64](#i-64) | Not started | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
+| 12 | [I-65](#i-65) | Not started | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
+| 13 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
+| 14 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 15 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 16 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 17 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 18 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 19 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 20 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 21 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 22 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 23 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 24 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-Real, sourced gaps that individual tasks logged but deliberately did not fix. None is
-started; any of them is a reasonable next task to open (own `Claim I-N` commit, own ID).
+None open. Every finding previously listed here has been opened as a task (I-61 – I-83, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-38 | The help-specification-level form of `HLPDOC` (inside an H specification, alongside `HLPARA`) is not modelled; only file level was added. The reverse conflict direction against `HLPPNLGRP` is wired; `HLPRTN`'s reverse direction is not (its file-level row uses the shared `commitIndicatorTextRow`, which has no per-keyword conflict hook). |
-| I-30 | `CHKMSGID` missing its validity-check dependency guard; `CHRID` / `IGCALTTYP` mutual-exclusion lists; `DUP` floating-point restriction; `MSGID` position-dependent mandatory/forbidden conditioning rule. |
-| I-32 | `REF` / `REFFLD` should copy `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`/`TEXT`/`ALIAS`/`CCSID`/`FLTPCN`/editing keywords from the referenced database field per the DDS Reference, but iSDA's REF resolution only pulls length, data type and decimal positions. |
-| I-35 | Usage `P` fields have no reachable selection path in the current UI, so the fixed-keyword-list scoping I-35 added for Usage `P` cannot be exercised yet. |
-| I-11 / I-15 / I-23 | Whether SFLMSG's General/Indicator categories (which reuse I-9's SFL set verbatim) deserve distinct `KEYWORD-INDEX.json` categories of their own — an index-completeness question raised during I-16 and never researched. |
-| I-56 / I-60 | I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing I-8's audit (no incompatibility statement found). But `RTNCSRLOC` is not on `USRDFN`'s closed whitelist either, so that reasoning is worth re-checking as its own task. |
-| I-58 | Reverse-direction WRDWRAP guard covers KEYWORDS added to a WRDWRAP field, but not a DATA TYPE or USAGE change on one: applying data type `Y` (or any of S/D/M/F/J/O/E/G) or usage `O`/`H`/`P` via the Basic tab's Apply on a field that already carries `WRDWRAP` is not blocked (confirmed via jsdom), though `wrdwrapFieldConflictReason`'s own forward check treats both as invalid. The same one-hop fix as I-58 (a check in the Apply handler, reusing that function's own data-type/usage branches) should close it. |
-| I-57 | `SNGCHCFLD`/`MLTCHCFLD`'s `*NUMCOL`/`*NUMROW`/`*GUTTER` use the wrong shape. IBM's format string is `[(*NUMCOL nbr-of-cols) \| (*NUMROW nbr-of-rows)] [(*GUTTER gutter-width)]` (parenthesized groups with a space), but `DspfWriter.setChoiceSelectionType` writes `SNGCHCFLD(*NUMCOL(3) *GUTTER(2))` — invalid DDS — and `getChoiceSelectionType` cannot read IBM's own `(*NUMCOL 3)` form (confirmed: it returns blanks), so Apply on a hand-written or SDA-written field silently drops them. `getPshbtnfld`/`setPshbtnfld` (I-57) already do this correctly and can be reused. |
-| I-57 | `PSHBTNFLD`'s ten-keyword whitelist is enforced on the raw keyword editor, on turning `PSHBTNFLD` on, and on Choice selection type — but the many structured field panels (Color & attributes, Keying options, Edit code/word, validity checks, Reference, etc.) can still add a non-whitelisted keyword to a push-button field; needs a sweep like I-53/I-54. Also `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` are allowed on a push-button field, but their editors (Choice keywords, Choice colors & attributes) only appear for `SNGCHCFLD`/`MLTCHCFLD` fields, so they are reachable only through the raw editor. |
-| I-57 | Not validated for `PSHBTNCHC` text: at most one mnemonic per choice, a mnemonic character must be non-blank and should be unique across choices, and the text must fit the smallest display size. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -3255,7 +3292,7 @@ and `SFLRTNSEL` vs missing `SFLMLTCHC`/`SFLSNGCHC`.
 
 ### I-40 — `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries
 
-> **Area:** Tooling · **Status:** Not started (claimed) · **Depends on:** I-16; run last (after I-41, I-42, I-57)
+> **Area:** Tooling · **Status:** Not started (claimed) · **Depends on:** I-16; run last (after I-41, I-42, I-57, I-67, I-76)
 
 **Claimed.** Independent full-text audit of `DDS_Keyword_V7r6.txt` against
 current `src/*.js` (see
@@ -3884,5 +3921,295 @@ Fixed by ORing `DspfWriter.usrdfnWhitelistConflictReason` (I-49) into `wireEntFl
 New `i60EntfldatrUsrdfnGuard.test.js` (15 checks: blocked on USRDFN with no `applyEdit` posted, removal still allowed on a hand-edited USRDFN record, whitelisted `PRINT` still commits, plain-record `ENTFLDATR` unaffected), confirmed via pre-fix run to genuinely fail (3 checks) against unfixed code.
 
 Not addressed here: `RTNCSRLOC`'s own record-level guard (I-56) deliberately omits USRDFN, citing I-8's audit finding no incompatibility statement - but `RTNCSRLOC` is also absent from USRDFN's whitelist, so that reasoning is worth re-checking as its own task.
+
+---
+
+<a id="i-61"></a>
+
+### I-61 — `WRDWRAP`: guard a data type / usage change on a field that already carries it
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-58
+
+I-58 blocked adding `WRDWRAP`'s conflicting *keywords* to a `WRDWRAP` field, but not a **data type or usage change** on one. Applying data type `Y` (or any of `S`/`D`/`M`/`F`/`J`/`O`/`E`/`G`), or usage `O`/`H`/`P`, through the Basic tab's Apply on a field that already carries `WRDWRAP` is not blocked (confirmed via jsdom during I-58), although `DspfWriter.wrdwrapFieldConflictReason`'s own forward check treats both as invalid.
+
+**Suggested fix:** one check in the Basic tab's Apply handler (`buildWebviewTemplate.js`, the `p-apply` handler), reusing `wrdwrapFieldConflictReason`'s own data-type/usage branches — alert and no edit, same idiom as every other guard. Do this before I-62, which needs the same handler.
+
+*Raised by I-58. Size (estimate): Small.*
+
+---
+
+<a id="i-62"></a>
+
+### I-62 — `PSHBTNFLD`: guard the Basic tab against breaking its required definition
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-57 (shares the Basic-tab Apply handler with I-61 — pick them together or in order to avoid conflicts)
+
+`PSHBTNFLD` requires "an input-capable field with data type Y, length equal to 2, and decimal positions of 0". I-57 enforces this when the toggle is turned on (it rewrites the field), but the Basic tab's Apply is unguarded. **Confirmed by probe (jsdom) on a `2Y 0B` push-button field:** changing data type to `A`, length to `10`, or usage to `O` each applied with no alert and no edit blocked, leaving a field that still carries `PSHBTNFLD` but is invalid DDS. (Decimals were not probed; expected to behave the same.)
+
+**Suggested fix:** in the same Apply handler as I-61, when the field carries `PSHBTNFLD`, refuse a data type other than `Y`, a length other than 2, decimals other than 0, or a usage other than `I`/`B`. `DspfWriter.pshbtnfldDefinitionUpdates` already encodes the rule and can drive the check.
+
+*Raised by I-57. Size (estimate): Small.*
+
+---
+
+<a id="i-63"></a>
+
+### I-63 — `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-34, I-57
+
+IBM's format string is `[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] [(*GUTTER gutter-width)]` — parenthesized groups with a space. `DspfWriter.setChoiceSelectionType` writes `SNGCHCFLD(*NUMCOL(3) *GUTTER(2))`, which is **invalid DDS**, and `getChoiceSelectionType` cannot read IBM's own `(*NUMCOL 3)` form (confirmed: it returns blanks), so Apply on a hand-written or SDA-written field silently drops the parameters.
+
+**Suggested fix:** reuse the grammar `getPshbtnfld`/`setPshbtnfld` (I-57) already implement correctly. Keep reading the old `*NUMCOL(3)` shape leniently so existing sources written by earlier iSDA versions still load. The engine's radio/checkbox preview reads no layout parameters at all today (only `PSHBTNFLD`'s does), so previewing the columns is a separate, optional step.
+
+*Raised by I-57. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-64"></a>
+
+### I-64 — `PSHBTNFLD` whitelist: structured field panels
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-57
+
+`PSHBTNFLD`'s ten-keyword whitelist (`ALIAS`/`CHANGE`/`CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL`/`INDTXT`/`NOCCSID`/`PSHBTNCHC`/`DSPATR(PC)`/`TEXT`) is enforced on the raw keyword editor, on turning `PSHBTNFLD` on, and on Choice selection type (via `DspfWriter.pshbtnfldConflictReason`). The many structured field panels — Color & attributes, Keying options, Edit code/word, validity checks, Reference, date/time, the General keyword rows, etc. — can still add a non-whitelisted keyword to a push-button field.
+
+**Suggested approach:** a reachability sweep in the style of I-53/I-54 — enumerate each panel's commit path, wire `pshbtnfldConflictReason` into each, and cover them with a test per panel. Alternatively hide the inapplicable categories for a push-button field, the way a `USRDFN` record's tabs are hidden (I-49/R2).
+
+*Raised by I-57. Size (estimate): Medium.*
+
+---
+
+<a id="i-65"></a>
+
+### I-65 — `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-57
+
+All three are allowed on a `PSHBTNFLD` field, but their editors (Choice keywords, Choice colors & attributes) only appear for `SNGCHCFLD`/`MLTCHCFLD` fields, so on a push-button field they are reachable only through the raw keyword editor.
+
+**Suggested fix:** show the existing per-choice control/availability editors for a push-button field too (`CHCCTL` and the `CHCAVAIL`/`CHCUNAVAIL` color states are keyed by choice number, which `PSHBTNCHC` also has). Do not show the `CHOICE`/`CHCACCEL` parts, which the whitelist forbids.
+
+*Raised by I-57. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-66"></a>
+
+### I-66 — `PSHBTNCHC` choice-text validation (mnemonics, fit)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-57
+
+Not validated for `PSHBTNCHC` text: at most **one** mnemonic (`>`) per choice; the mnemonic character must be non-blank and must not be `>` itself; the same mnemonic should not be used by more than one choice (the first wins); and the text must fit on one line of the smallest display size given the field position, gutter, columns and window width. The editor only checks the choice number and that the text is non-blank.
+
+*Raised by I-57. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-67"></a>
+
+### I-67 — `HLPDOC`: help-specification-level form
+
+> **Area:** File · **Status:** Not started · **Depends on:** I-38
+
+I-38 added `HLPDOC` at **file level** only. IBM also allows it at help-specification level (inside an H specification, alongside `HLPARA`) — the same "file-level only, H-spec level deferred" precedent I-5's `HLPRCD` set. Not modelled.
+
+**Note for I-40:** this adds a level for an existing index entry, so the keyword-index regeneration (I-40) should run after this task.
+
+*Raised by I-38. Size (estimate): Medium.*
+
+---
+
+<a id="i-68"></a>
+
+### I-68 — `HLPRTN`: reverse conflict guard
+
+> **Area:** File · **Status:** Not started · **Depends on:** I-38
+
+I-38 wired the reverse direction of the `HLPPNLGRP`/`HLPRCD`/`HLPDOC` conflict (blocking `HLPPNLGRP` while the other is present) but not for `HLPRTN`'s own checkbox: its file-level row goes through the shared `commitIndicatorTextRow` helper (also used for `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`VLDCMDKEY`), which has no per-keyword conflict hook.
+
+**Caution:** IBM says `HLPRTN` "takes priority over" `HLPRCD`/`HLPPNLGRP`/`HLPDOC` when more than one is present — a precedence rule, not a prohibition — so re-read the `HLPRTN` section first and only guard what is genuinely prohibited. The likely shape is an optional per-keyword guard argument on `commitIndicatorTextRow`.
+
+*Raised by I-38. Size (estimate): Small.*
+
+---
+
+<a id="i-69"></a>
+
+### I-69 — `CHKMSGID`: validity-check dependency guard
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+
+IBM: "CHKMSGID is allowed only on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword." iSDA has no guard ensuring that. Same shape as I-8's `USRDFN` guard. Consider both directions: adding `CHKMSGID` without one of those, and removing the last of those while `CHKMSGID` is present. Re-verify the exact wording against `DDS_Keyword_V7r6.txt` first.
+
+*Raised by I-30. Size (estimate): Small.*
+
+---
+
+<a id="i-70"></a>
+
+### I-70 — `CHRID`: mutual-exclusion and eligibility rules
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+
+Per I-30's finding, `CHRID` is mutually exclusive with `DUP` and invalid on constant, numeric, and `M`/`H`/`P`-usage fields — unenforced. Re-verify against `DDS_Keyword_V7r6.txt` before implementing.
+
+*Raised by I-30. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-71"></a>
+
+### I-71 — `IGCALTTYP`: mutual-exclusion list
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+
+`IGCALTTYP` carries a long exclusion list (`AUTO(RAZ)`, `BLKFOLD`, several `CHECK` codes, the `CMP`/`COMP` variants, `DUP`, `RANGE`, `VALUES`) — a niche DBCS feature, unenforced. Note I-58's `wrdwrapReverseConflictReason` already covers the `IGCALTTYP`-vs-`WRDWRAP` pair. Re-verify the full list against `DDS_Keyword_V7r6.txt`; expect a bidirectional check in the style of `htmlConflictReason`.
+
+*Raised by I-30. Size (estimate): Medium (low priority).*
+
+---
+
+<a id="i-72"></a>
+
+### I-72 — `DUP`: floating-point restriction
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+
+Logged in the deferred-findings table as "`DUP` floating-point restriction" but the I-30 section itself doesn't spell it out — start by re-reading the `DUP` section of `DDS_Keyword_V7r6.txt` (and its "restrictions on validity checking with DUP" index entry) to confirm exactly what is forbidden, then enforce it. Likely a data-type gate like the `dtScope` rows I-39 added.
+
+*Raised by I-30. Size (estimate): Small.*
+
+---
+
+<a id="i-73"></a>
+
+### I-73 — `MSGID`: position-dependent mandatory/forbidden conditioning rule
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+
+Logged from I-30: `MSGID` has a rule about whether option-indicator conditioning is mandatory or forbidden depending on the keyword's position among its siblings on the field. Not enforced. The details are not written up in the I-30 section, so re-read the `MSGID` section of `DDS_Keyword_V7r6.txt` first and record the exact rule here before implementing.
+
+*Raised by I-30. Size (estimate): Medium.*
+
+---
+
+<a id="i-74"></a>
+
+### I-74 — `REF`/`REFFLD`: copy the other keywords from the referenced database field
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-32
+
+Per the DDS Reference, a field defined by reference should also inherit `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`/`TEXT`/`ALIAS`/`CCSID`/`FLTPCN` and the editing keywords from the referenced database field. iSDA's reference resolution only pulls **length, data type and decimal positions**. Touches the reference-resolution path, so it needs the most care; decide first whether the inherited keywords are shown read-only in the field's keyword lists or copied into the source.
+
+*Raised by I-32. Size (estimate): Large.*
+
+---
+
+<a id="i-75"></a>
+
+### I-75 — Usage `P` fields: reachable selection path
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-35
+
+Usage `P` (program-to-system) fields are not drawn on the design surface, so there is no reachable way to select one in the current UI; the fixed-keyword-list scoping I-35 added for usage `P` therefore cannot be exercised interactively. Needs a way to list/select hidden and `P` fields (e.g. a field list in the record panel).
+
+*Raised by I-35. Size (estimate): Medium.*
+
+---
+
+<a id="i-76"></a>
+
+### I-76 — Research: do SFLMSG's General/Indicator categories need their own index categories?
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-16
+
+SFLMSG's General and Indicator categories reuse I-9's `SFL` set verbatim. Whether they deserve distinct `KEYWORD-INDEX.json` categories of their own is an index-completeness question raised during I-16 and never researched. Research first, then either fold the answer into I-40 or record why not. **I-40 should run after this.**
+
+*Raised by I-11, I-15, I-23. Size (estimate): Small (research).*
+
+---
+
+<a id="i-77"></a>
+
+### I-77 — `RTNCSRLOC`: re-check the `USRDFN` exclusion
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-56, I-60
+
+I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing I-8's audit (no incompatibility statement found). But `RTNCSRLOC` is **not on `USRDFN`'s closed whitelist** either (see I-44/I-49), so that reasoning is worth re-checking: if the whitelist is authoritative, `RTNCSRLOC` should be blocked on a `USRDFN` record the same way I-60 now blocks `ENTFLDATR`.
+
+*Raised by I-56, I-60. Size (estimate): Small.*
+
+---
+
+<a id="i-78"></a>
+
+### I-78 — `EDTCDE`: dedicated widget for the optional second parameter
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-31
+
+`EDTCDE`'s optional second parameter (`*` or a floating currency symbol appended after the edit-code letter) is reachable only as free text in the same parameters box as the letter. Real SDA's own "Select Editing Keywords" screen (`docs/sda-reference/screens/field-level/numeric/editing-keywords/image182.png`) shows a distinct "Replace leading zeros with" prompt. Nothing is blocked (a user can type `J*`), so this is a discoverability/UX gap, not a correctness bug.
+
+*Raised by I-31. Size (estimate): Small.*
+
+---
+
+<a id="i-79"></a>
+
+### I-79 — `SFLCHCCTL`: field-shape, first-field and one-per-record rules
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-39
+
+I-39 added `SFLCHCCTL` with hint text only. Its documented rules are not hard-blocked: it must be the **first** field of the subfile record, length 1, data type `Y`, 0 decimals, usage `H`, and only one per record. Re-verify against `DDS_Keyword_V7r6.txt`, then enforce.
+
+*Raised by I-39. Size (estimate): Medium.*
+
+---
+
+<a id="i-80"></a>
+
+### I-80 — `SFLCSRPRG` vs `SFLLIN`
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-39
+
+I-39 added `SFLCSRPRG` with hint text only; its incompatibility with `SFLLIN` is not hard-blocked. Decide the direction(s) (`SFLCSRPRG` is field-level, `SFLLIN` record-level) from the DDS Reference, then guard.
+
+*Raised by I-39. Size (estimate): Small.*
+
+---
+
+<a id="i-81"></a>
+
+### I-81 — `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-39
+
+I-39 added `SFLRTNSEL` on the `SFLCTL` record with a hint shown when neither `SFLMLTCHC` nor `SFLSNGCHC` is selected, but nothing hard-blocks it. Consider both directions: adding `SFLRTNSEL` without one, and removing the last of them while `SFLRTNSEL` is present.
+
+*Raised by I-39. Size (estimate): Small.*
+
+---
+
+<a id="i-82"></a>
+
+### I-82 — `BLKFOLD` vs floating-point (belt and suspenders)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-39
+
+`BLKFOLD` is not valid on floating-point fields. I-39's `dtScope` gating already keeps the row from showing on a float field, so this only matters for a field whose data type is changed *after* `BLKFOLD` is set, or a keyword typed into the raw editor. Same shape as I-61.
+
+*Raised by I-39. Size (estimate): Small (low priority).*
+
+---
+
+<a id="i-83"></a>
+
+### I-83 — `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-41
+
+The Attributes tab's `DSPATR`/`COLOR` checkboxes (`wireColorAttrStatesEditor`) are rendered for every constant type and are not gated against `HTML`'s wider exclusion list (`COLOR`/`DATE`/`DFT`/`DSPATR`/`EDTCDE`/`EDTWRD`/`HLPID`/`MSGCON`/`NOCCSID`/`OVRATR`/`PUTRETAIN`/`SYSNAME`/`TIME`/`USER`). Only reachable by creating an `HTML` constant and then visiting the Attributes tab; the raw editor's guard already covers the likelier path. A disclosed, narrow gap from I-41.
+
+*Raised by I-41. Size (estimate): Small.*
 
 ---
