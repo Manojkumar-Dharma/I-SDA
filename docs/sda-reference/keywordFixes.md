@@ -99,7 +99,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-54](#i-54) | Record | `MNUBAR` whitelist: structured-checkbox sweep | I-48 | Done | v0.10.132 |
 | [I-55](#i-55) | Record | Whitelist guards on the repeatable-instance editor | I-53 | Done | v0.10.134 |
 | [I-56](#i-56) | Record | `RTNCSRLOC` record-level guard | I-54 | Done | v0.10.134 |
-| [I-57](#i-57) | Field | `PSHBTNFLD` / `PSHBTNCHC` (push-button field) | I-41 | In progress | — |
+| [I-57](#i-57) | Field | `PSHBTNFLD` / `PSHBTNCHC` (push-button field) | I-41 | Done | v0.10.139 |
 | [I-58](#i-58) | Field | Reverse `WRDWRAP` mutual-exclusion guards | I-42 | Done | v0.10.137 |
 | [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | Done | v0.10.138 |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
@@ -114,8 +114,7 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-57](#i-57) | In progress | `PSHBTNFLD` / `PSHBTNCHC`; claimed 2026-09-18, split off from I-41. Changes the keyword set, so it must land before I-40. |
-| 2 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration. **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration. **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -131,6 +130,9 @@ started; any of them is a reasonable next task to open (own `Claim I-N` commit, 
 | I-11 / I-15 / I-23 | Whether SFLMSG's General/Indicator categories (which reuse I-9's SFL set verbatim) deserve distinct `KEYWORD-INDEX.json` categories of their own — an index-completeness question raised during I-16 and never researched. |
 | I-56 / I-60 | I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing I-8's audit (no incompatibility statement found). But `RTNCSRLOC` is not on `USRDFN`'s closed whitelist either, so that reasoning is worth re-checking as its own task. |
 | I-58 | Reverse-direction WRDWRAP guard covers KEYWORDS added to a WRDWRAP field, but not a DATA TYPE or USAGE change on one: applying data type `Y` (or any of S/D/M/F/J/O/E/G) or usage `O`/`H`/`P` via the Basic tab's Apply on a field that already carries `WRDWRAP` is not blocked (confirmed via jsdom), though `wrdwrapFieldConflictReason`'s own forward check treats both as invalid. The same one-hop fix as I-58 (a check in the Apply handler, reusing that function's own data-type/usage branches) should close it. |
+| I-57 | `SNGCHCFLD`/`MLTCHCFLD`'s `*NUMCOL`/`*NUMROW`/`*GUTTER` use the wrong shape. IBM's format string is `[(*NUMCOL nbr-of-cols) \| (*NUMROW nbr-of-rows)] [(*GUTTER gutter-width)]` (parenthesized groups with a space), but `DspfWriter.setChoiceSelectionType` writes `SNGCHCFLD(*NUMCOL(3) *GUTTER(2))` — invalid DDS — and `getChoiceSelectionType` cannot read IBM's own `(*NUMCOL 3)` form (confirmed: it returns blanks), so Apply on a hand-written or SDA-written field silently drops them. `getPshbtnfld`/`setPshbtnfld` (I-57) already do this correctly and can be reused. |
+| I-57 | `PSHBTNFLD`'s ten-keyword whitelist is enforced on the raw keyword editor, on turning `PSHBTNFLD` on, and on Choice selection type — but the many structured field panels (Color & attributes, Keying options, Edit code/word, validity checks, Reference, etc.) can still add a non-whitelisted keyword to a push-button field; needs a sweep like I-53/I-54. Also `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` are allowed on a push-button field, but their editors (Choice keywords, Choice colors & attributes) only appear for `SNGCHCFLD`/`MLTCHCFLD` fields, so they are reachable only through the raw editor. |
+| I-57 | Not validated for `PSHBTNCHC` text: at most one mnemonic per choice, a mnemonic character must be non-blank and should be unique across choices, and the text must fit the smallest display size. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -3805,9 +3807,23 @@ Full suite: zero failures.
 
 ### I-57 — `PSHBTNFLD` / `PSHBTNCHC` (push-button field)
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-41
+> **Area:** Field · **Status:** Done (v0.10.139) · **Depends on:** I-41
 
 Split off from I-41's own scoping investigation: implement `PSHBTNFLD`/`PSHBTNCHC` (push-button field), the second half of I-41's original scope. Structurally near-identical to the already-implemented `SNGCHCFLD`/`CHOICE` pair - `PSHBTNFLD` maps to `SNGCHCFLD`'s own selection-field flag (own distinct param list: `*NORSTCSR`/`*RSTCSR`, `*NUMCOL nbr`/`*NUMROW nbr`, `*GUTTER width`), `PSHBTNCHC(choice-number choice-text [command-key] [*SPACEB])` maps to `CHOICE`'s own per-choice repeatable keyword (with one addition: an optional command-key parameter valid values `CA01`-`CA24`/`CF01`-`CF24`/`PRINT`/`HELP`/`CLEAR`/`ENTER`/`HOME`/`ROLLUP`/`ROLLDOWN`, defaulting to `ENTER` when omitted). The field containing `PSHBTNFLD` must be input-capable, type Y, length 2, decimals 0 (same shape DDS enforces on other selection-field types already modeled). `PSHBTNFLD`'s own DDS Reference text also lists its own small allowed-keyword whitelist for the field carrying it (`ALIAS`/`CHANGE`/`CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL`/`INDTXT`/`NOCCSID`/`PSHBTNCHC`/`DSPATR(PC)`/`TEXT`) - worth a guard analogous to `htmlConflictReason` (I-41) once the field kind itself exists. Not yet started, logged for later pickup - a genuinely separate, larger UI undertaking (new field-kind selector option, new choice-list editor panel, new param-parsing functions) than I-41's own HTML fix, which is why it was split out rather than attempted in the same task.
+
+**Implemented.** Re-read `PSHBTNFLD`/`PSHBTNCHC`'s own DDS Reference sections fresh before implementing (same method as I-42/I-44). The scoping above held, with three corrections and additions found on the way:
+
+1. **The design-time preview was already half-wired, and wrong.** `DspfEngine.widgetFromKeywords` treated `PSHBTNCHC` as "just the button text, with no leading choice-id", so `PSHBTNCHC(1 '>Help' HELP)` rendered as ONE button labelled with the raw parameter string, and only the first choice was ever drawn. Replaced with a real parser (`parsePshbtnchc`) and a new `pshbtn` widget that draws every choice as its own button: choice-number order; the mnemonic `>` stripped and `>>` collapsed per IBM's own table (`'X >>>= 1'` shows `X >= 1`); choices whose option indicators are off compressed out ("the list of choices is compressed"); `*NUMCOL`/`*NUMROW`/`*GUTTER`/`*SPACEB` laid out on a `ch`-sized CSS grid; the command key exposed as the button title. A `PSHBTNFLD` with no choices keeps the old single placeholder button. `fixtures/generateWidgetFixture.js` was emitting invalid DDS for this (a `1A` field and a number-less `PSHBTNCHC('Submit Order')`) and is fixed.
+2. **Grammar.** IBM writes the three numeric parameters as `(*NUMCOL n)`/`(*NUMROW n)`/`(*GUTTER n)`, so the new `DspfWriter.getPshbtnfld`/`setPshbtnfld` use that shape (and read the `*NUMCOL(n)` shape leniently) instead of reusing `getChoiceSelectionType`/`setChoiceSelectionType` — which turned out to use the *wrong* shape for `SNGCHCFLD`/`MLTCHCFLD` (see Deferred findings). `*NUMCOL` and `*NUMROW` are alternatives (the UI refuses both; the writer backstop keeps `*NUMCOL`); `*GUTTER` must be greater than one; option indicators are not valid, so `PSHBTNFLD` never carries conditions.
+3. **UI.** A "Push button field (PSHBTNFLD/PSHBTNCHC)" accordion in the field-level Attributes tab: a toggle, cursor restriction, columns/rows/gutter with an Apply, and the choices as `MOUBTN`-style repeatable, independently conditioned instances (not the batch table `CHOICE` uses, since `PSHBTNCHC` is documented "Option indicators are valid"): number 1–99 (unique — duplicates refused), text (literal or `&field`, quoted and doubled automatically), a command-key dropdown (`CA01`–`CA24`, `CF01`–`CF24`, `PRINT`/`HELP`/`CLEAR`/`ENTER`/`HOME`/`ROLLUP`/`ROLLDOWN`; blank = the default `ENTER`), and `*SPACEB`. Turning `PSHBTNFLD` on rewrites the field to the required input-capable / type `Y` / length 2 / decimals 0 definition **and** seeds a valid `PSHBTNCHC(1 'Enter')` in the *same* edit (`DspfWriter.pshbtnfldDefinitionUpdates`), so the DDS is never written half-converted; turning it off removes the now-orphaned `PSHBTNCHC` too. The add-field panel gained a "Field kind" selector (Standard / Push button) that creates a ready-made push-button field.
+
+The ten-keyword whitelist (`ALIAS`/`CHANGE`/`CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL`/`INDTXT`/`NOCCSID`/`PSHBTNCHC`/`DSPATR(PC)`/`TEXT`) is enforced in both directions by new `DspfWriter.pshbtnfldConflictReason` (also "`PSHBTNCHC` needs `PSHBTNFLD`"; `DSPATR` allowed only as `PC`). It is chained after I-41's `htmlConflictReason` and I-58's `wrdwrapReverseConflictReason` on the field-level raw keyword editor, checked when turning `PSHBTNFLD` on, and hooked into Choice selection type's Apply through a new optional `addGuardFn` on `wireChoiceSelectionTypeEditor` (so `SNGCHCFLD`/`MLTCHCFLD` can't be put on a push-button field).
+
+New `src/test/i57PshbtnFieldKind.test.js` (123 checks): the model and IBM's own examples, the whitelist matrix, the engine preview and layouts, and the real generated webview end to end — including the duplicate-number, blank-text, gutter and `*NUMCOL`+`*NUMROW` refusals and the add-field flow. Confirmed to fail against pre-fix code.
+
+Landed after I-58, I-59 and I-60; the rebase conflicted only on the field-level raw editor's `addGuardFn` line (now a three-way chain) and the `package.json` test script.
+
+Not addressed here: see the three I-57 rows under Deferred findings.
 
 ---
 

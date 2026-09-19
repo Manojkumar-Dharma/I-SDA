@@ -37,8 +37,12 @@ lines.push(buildLine({ seq: '00411', func: "CHOICE(1 'Cheese')" }));
 lines.push(buildLine({ seq: '00412', func: "CHOICE(2 'Pepperoni')" }));
 
 // --- Push button ---
-lines.push(buildLine({ seq: '00420', name: 'SUBMIT', length: '1', dataType: 'A', usage: 'B', line: '12', col: '5', func: 'PSHBTNFLD' }));
-lines.push(buildLine({ seq: '00421', func: "PSHBTNCHC('Submit Order')" }));
+// Task I-57: PSHBTNFLD must be an input-capable Y/2/0 field, and every
+// PSHBTNCHC needs a leading choice number (the previous fixture used a 1A
+// field and a number-less PSHBTNCHC('Submit Order'), neither valid DDS).
+lines.push(buildLine({ seq: '00420', name: 'SUBMIT', length: '2', dataType: 'Y', decimals: '0', usage: 'B', line: '12', col: '5', func: 'PSHBTNFLD' }));
+lines.push(buildLine({ seq: '00421', func: "PSHBTNCHC(1 'Submit Order' ENTER)" }));
+lines.push(buildLine({ seq: '00422', func: "PSHBTNCHC(2 '>Cancel' CA12)" }));
 
 fs.writeFileSync(path.join(__dirname, 'sample-widgets.dspf'), lines.join('\n') + '\n');
 console.log('Wrote sample-widgets.dspf with', lines.length, 'lines');

@@ -3088,11 +3088,19 @@
     return html;
   }
 
-  function wireChoiceSelectionTypeEditor(keywords, onChange, ownerKey) {
+  // Task I-57 - optional trailing `addGuardFn(kind) -> reason|null`,
+  // checked when Apply would turn a field INTO a SNGCHCFLD/MLTCHCFLD
+  // (kind non-blank). Used to keep those two selection-field kinds off a
+  // PSHBTNFLD field, whose own DDS Reference whitelist excludes them.
+  function wireChoiceSelectionTypeEditor(keywords, onChange, ownerKey, addGuardFn) {
     var applyBtn = document.querySelector('.' + ownerKey + '-cst-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
       var kind = document.getElementById(ownerKey + '-cst-kind').value;
+      if (kind && addGuardFn) {
+        var guardReason = addGuardFn(kind);
+        if (guardReason) { window.alert(guardReason); return; }
+      }
       var flags = [];
       CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
         // Task I-34: re-check kind here too, not just by omitting the
@@ -3112,6 +3120,156 @@
         gutter: document.getElementById(ownerKey + '-cst-gutter').value,
       }));
     });
+  }
+
+  // -----------------------------------------------------------------------
+  // Task I-57 - push-button field (PSHBTNFLD + repeatable PSHBTNCHC). See
+  // the DspfWriter block of the same task for the model and the three ways
+  // it differs from SNGCHCFLD/CHOICE. PSHBTNCHC is an ordinary repeatable,
+  // independently option-indicator-conditioned keyword ("Option indicators
+  // are valid for this keyword") - so the choices reuse the generic
+  // repeatable-instance editor MOUBTN uses rather than the batch
+  // "Apply choice keywords" table CHOICE uses. PSHBTNFLD itself takes no
+  // indicators ("Option indicators are not valid for this keyword").
+  // -----------------------------------------------------------------------
+
+  function pshbtnchcInstanceRowHtml(inst, p) {
+    var f = DspfWriter.parsePshbtnchcParams(inst.parameters);
+    var html = '<div style="margin-bottom:4px;">';
+    html += '<div class="two-col">';
+    html += '<input type="number" min="1" max="99" class="' + p + '-id" placeholder="Choice no. (1-99)" value="' + escapeHtml(f.id) + '" />';
+    html += '<input type="text" class="' + p + '-text" placeholder="Button text or &FIELD (use &gt; before the mnemonic letter)" value="' + escapeHtml(f.text) + '" />';
+    html += '</div>';
+    html += '<div class="two-col" style="margin-top:4px;">';
+    html += '<select class="' + p + '-key"><option value=""' + (f.commandKey === '' ? ' selected' : '') + '>(command key: default ENTER)</option>' +
+      DspfWriter.PSHBTNCHC_COMMAND_KEYS.map(function (k) {
+        return '<option value="' + k + '"' + (f.commandKey === k ? ' selected' : '') + '>' + k + '</option>';
+      }).join('') + '</select>';
+    html += '<label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" class="' + p + '-spaceb"' + (f.spaceBefore ? ' checked' : '') + ' /> *SPACEB (gap before this button)</label>';
+    html += '</div></div>';
+    return html;
+  }
+
+  /** Smallest unused choice number 1..99, or '' when all 99 are taken. */
+  function nextFreePshbtnchcId(instances) {
+    var used = {};
+    (instances || []).forEach(function (inst) { used[DspfWriter.parsePshbtnchcParams(inst.parameters).id] = true; });
+    for (var i = 1; i <= 99; i++) { if (!used[String(i)]) return String(i); }
+    return '';
+  }
+
+  /** `field` is { dataType, length, decimalPositions, usage } of the field
+   *  being edited (only used for the requirements hint). */
+  function pshbtnfldPanelHtml(keywords, ownerKey, expandedSet, field) {
+    var st = DspfWriter.getPshbtnfld(keywords);
+    var html = '<div class="section-label">Push button field (PSHBTNFLD)</div>';
+    html += '<div class="field-row"><label><input type="checkbox" id="' + ownerKey + '-pb-on"' + (st.present ? ' checked' : '') + ' /> Define this field as a push-button field</label></div>';
+    html += '<div class="hint-small">Must be an input-capable field of type Y, length 2, decimals 0 (it returns the number of the chosen button, or 0). Turning this on sets those, and only ALIAS, CHANGE, CHCAVAIL, CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC) and TEXT may share the field. Option indicators are not valid for this keyword.</div>';
+    if (!st.present) return dataKwWrap(['PSHBTNFLD', 'PSHBTNCHC'], html);
+    html += '<div class="field-row"><label>Cursor restriction</label><select id="' + ownerKey + '-pb-rstcsr">' +
+      [['', '(not specified - *NORSTCSR)'], ['*NORSTCSR', '*NORSTCSR - arrow keys may leave the field'], ['*RSTCSR', '*RSTCSR - keep the cursor in the field']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (st.restrict === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') + '</select></div>';
+    html += '<div class="two-col">';
+    html += '<div class="field-row"><label>Columns (*NUMCOL)</label><input type="number" min="1" id="' + ownerKey + '-pb-numcol" value="' + escapeHtml(st.numCol) + '" /></div>';
+    html += '<div class="field-row"><label>Rows (*NUMROW)</label><input type="number" min="1" id="' + ownerKey + '-pb-numrow" value="' + escapeHtml(st.numRow) + '" /></div>';
+    html += '</div>';
+    html += '<div class="field-row"><label>Gutter (*GUTTER, default 3)</label><input type="number" min="2" id="' + ownerKey + '-pb-gutter" value="' + escapeHtml(st.gutter) + '" /></div>';
+    html += '<div class="hint-small">Columns and Rows are alternatives - specify one or neither.</div>';
+    html += '<button class="secondary ' + ownerKey + '-pb-apply" style="width:100%;margin-top:8px;">Apply push button field</button>';
+    html += '<div class="section-label" style="margin-top:12px;">Push-button choices (PSHBTNCHC)</div>';
+    var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['PSHBTNCHC']);
+    if (instances.length === 0) html += '<div class="hint-small" style="color:var(--warn);">A push-button field needs at least one PSHBTNCHC choice.</div>';
+    html += repeatableConditionedInstancesHtml(
+      instances,
+      ownerKey + '-pbc-rep',
+      function renderPayload(inst, instIdPrefix) { return pshbtnchcInstanceRowHtml(inst, instIdPrefix); },
+      expandedSet,
+      '+ Add push-button choice'
+    );
+    return dataKwWrap(['PSHBTNFLD', 'PSHBTNCHC'], html);
+  }
+
+  /** `commit(newKeywords, fieldUpdates)` - fieldUpdates is only ever
+   *  non-null when turning PSHBTNFLD on requires bringing the field's own
+   *  data type/length/decimals/usage into line (see
+   *  DspfWriter.pshbtnfldDefinitionUpdates); both go in ONE edit so the
+   *  DDS is never written half-converted. `getField()` returns the live
+   *  { dataType, length, decimalPositions, usage }. */
+  function wirePshbtnfldPanel(getKeywords, commit, ownerKey, expandedSet, rerender, getField) {
+    var onEl = document.getElementById(ownerKey + '-pb-on');
+    if (!onEl) return;
+    onEl.addEventListener('change', function () {
+      var keywords = getKeywords();
+      if (onEl.checked) {
+        var reason = DspfWriter.pshbtnfldConflictReason('PSHBTNFLD', '', keywords);
+        if (reason) { window.alert(reason); onEl.checked = false; return; }
+        var next = DspfWriter.setPshbtnfld(keywords, { present: true });
+        // IBM: a PSHBTNFLD field "must also contain one or more PSHBTNCHC" -
+        // seed one so what gets written is valid DDS (same reasoning
+        // MOUBTN's makeDefaultInstance gives for its own placeholder).
+        if (DspfWriter.getRepeatableKeywordInstances(next, ['PSHBTNCHC']).length === 0) {
+          next = next.concat([{ name: 'PSHBTNCHC', parameters: "1 'Enter'", conditions: [], raw: '', sourceLines: [] }]);
+        }
+        commit(next, DspfWriter.pshbtnfldDefinitionUpdates(getField ? getField() : null));
+      } else {
+        // Orphaned PSHBTNCHC is invalid DDS ("PSHBTNFLD must also be
+        // specified"), so the choices go with the field kind.
+        var off = DspfWriter.setPshbtnfld(keywords, { present: false }).filter(function (k) { return k.name !== 'PSHBTNCHC'; });
+        commit(off, null);
+      }
+    });
+
+    var applyBtn = document.querySelector('.' + ownerKey + '-pb-apply');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function () {
+        var numCol = document.getElementById(ownerKey + '-pb-numcol').value;
+        var numRow = document.getElementById(ownerKey + '-pb-numrow').value;
+        var gutter = document.getElementById(ownerKey + '-pb-gutter').value;
+        if (numCol && numRow) { window.alert('Specify either Columns (*NUMCOL) or Rows (*NUMROW), not both (per the DDS Reference).'); return; }
+        if (gutter && !(parseInt(gutter, 10) > 1)) { window.alert('The gutter (*GUTTER) must be a number greater than one (per the DDS Reference).'); return; }
+        commit(DspfWriter.setPshbtnfld(getKeywords(), {
+          present: true,
+          restrict: document.getElementById(ownerKey + '-pb-rstcsr').value,
+          numCol: numCol,
+          numRow: numRow,
+          gutter: gutter,
+        }), null);
+      });
+    }
+
+    var instances = DspfWriter.getRepeatableKeywordInstances(getKeywords(), ['PSHBTNCHC']);
+    wireRepeatableConditionedInstances(
+      ownerKey + '-pbc-rep',
+      instances,
+      function (next) { commit(DspfWriter.setRepeatableKeywordInstances(getKeywords(), ['PSHBTNCHC'], next), null); },
+      function wirePayload(instIdPrefix, inst, updatePayload) {
+        var idEl = document.querySelector('.' + instIdPrefix + '-id');
+        var textEl = document.querySelector('.' + instIdPrefix + '-text');
+        var keyEl = document.querySelector('.' + instIdPrefix + '-key');
+        var spacebEl = document.querySelector('.' + instIdPrefix + '-spaceb');
+        function commitRow() {
+          var id = (idEl.value || '').trim();
+          var text = (textEl.value || '').trim();
+          var n = parseInt(id, 10);
+          var others = instances.filter(function (o) { return o !== inst; }).map(function (o) { return DspfWriter.parsePshbtnchcParams(o.parameters).id; });
+          var problem = null;
+          if (!/^\d+$/.test(id) || n < 1 || n > 99) problem = 'The choice number must be a whole number from 1 to 99 (per the DDS Reference).';
+          else if (others.indexOf(String(n)) >= 0) problem = 'Choice number ' + n + ' is already used by another PSHBTNCHC on this field - duplicates are not allowed (per the DDS Reference).';
+          else if (!text) problem = 'The choice text is required.';
+          if (problem) { window.alert(problem); if (rerender) rerender(); return; }
+          updatePayload({ name: 'PSHBTNCHC', parameters: DspfWriter.composePshbtnchcParams({ id: String(n), text: text, commandKey: keyEl.value, spaceBefore: spacebEl.checked }) });
+        }
+        [idEl, textEl, keyEl, spacebEl].forEach(function (el) { if (el) el.addEventListener('change', commitRow); });
+      },
+      expandedSet,
+      rerender,
+      function makeDefaultInstance() {
+        var id = nextFreePshbtnchcId(instances);
+        if (!id) { window.alert('A push-button field can have at most 99 choices (per the DDS Reference).'); return null; }
+        return { name: 'PSHBTNCHC', conditions: [], parameters: id + " 'Choice " + id + "'" };
+      }
+    );
   }
 
   /** CHOICE + CHCCTL + CHCACCEL - one row per choice number, all three
@@ -7555,6 +7713,8 @@
     wireMenuBarSeparatorEditor: wireMenuBarSeparatorEditor,
     choiceSelectionTypeHtml: choiceSelectionTypeHtml,
     wireChoiceSelectionTypeEditor: wireChoiceSelectionTypeEditor,
+    pshbtnfldPanelHtml: pshbtnfldPanelHtml,
+    wirePshbtnfldPanel: wirePshbtnfldPanel,
     choiceKeywordsListHtml: choiceKeywordsListHtml,
     wireChoiceKeywordsListEditor: wireChoiceKeywordsListEditor,
     choiceColorStatesHtml: choiceColorStatesHtml,

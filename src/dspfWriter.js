@@ -2107,6 +2107,193 @@
     return null;
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-57 - PSHBTNFLD / PSHBTNCHC (push-button field). Both are
+  // field-level keywords; a field carrying PSHBTNFLD must also carry one or
+  // more PSHBTNCHC (the choices), and the two are structurally a sibling of
+  // the SNGCHCFLD/CHOICE pair above - but with three real differences that
+  // stop it from simply reusing getChoiceSelectionType/getChoices:
+  //  1. Grammar. PSHBTNFLD[([*NORSTCSR|*RSTCSR] [(*NUMCOL n)|(*NUMROW n)]
+  //     [(*GUTTER n)])] - each of the three numeric parameters is its own
+  //     parenthesized `(*NAME value)` group, exactly as IBM writes it.
+  //     (getChoiceSelectionType above reads/writes the different, un-
+  //     IBM-like `*NUMCOL(n)` shape for SNGCHCFLD/MLTCHCFLD - see the
+  //     I-61 follow-up in keywordFixes.md; nothing here depends on it.)
+  //  2. PSHBTNCHC(choice-number choice-text [command-key] [*SPACEB]) adds
+  //     a command-key parameter CHOICE has no equivalent of.
+  //  3. The field itself is tightly constrained: input-capable, data type
+  //     Y, length 2, decimal positions 0 (the field receives the number of
+  //     the chosen button, or 0), and only ten keywords may share it.
+  // -----------------------------------------------------------------------
+
+  /** PSHBTNCHC's own documented command-key list: "CA01 to CA24, CF01 to
+   *  CF24, PRINT, HELP, CLEAR, ENTER, HOME, ROLLUP, and ROLLDOWN"; omitted
+   *  means ENTER. */
+  var PSHBTNCHC_COMMAND_KEYS = (function () {
+    var keys = [];
+    var i;
+    for (i = 1; i <= 24; i++) keys.push('CA' + (i < 10 ? '0' : '') + i);
+    for (i = 1; i <= 24; i++) keys.push('CF' + (i < 10 ? '0' : '') + i);
+    return keys.concat(['PRINT', 'HELP', 'CLEAR', 'ENTER', 'HOME', 'ROLLUP', 'ROLLDOWN']);
+  })();
+
+  /** Parses PSHBTNCHC's `choice-number choice-text [command-key] [*SPACEB]`
+   *  parameter text. `text` is the unquoted literal (doubled apostrophes
+   *  collapsed) or the raw `&field-name`; `textIsField` says which.
+   *  Anything unparseable comes back with blank fields rather than
+   *  throwing, so a hand-edited malformed instance still renders in the
+   *  editor and can be fixed. */
+  function parsePshbtnchcParams(parameters) {
+    var rest = (parameters || '').trim();
+    var result = { id: '', text: '', textIsField: false, commandKey: '', spaceBefore: false };
+    var idM = /^(\d+)\s*([\s\S]*)$/.exec(rest);
+    if (!idM) return result;
+    result.id = idM[1];
+    rest = idM[2];
+    var litM = /^'((?:[^']|'')*)'\s*([\s\S]*)$/.exec(rest);
+    var fldM = !litM && /^(&\S+)\s*([\s\S]*)$/.exec(rest);
+    if (litM) {
+      result.text = litM[1].replace(/''/g, "'");
+      rest = litM[2];
+    } else if (fldM) {
+      result.text = fldM[1];
+      result.textIsField = true;
+      rest = fldM[2];
+    }
+    rest.split(/\s+/).filter(Boolean).forEach(function (tok) {
+      var upper = tok.toUpperCase();
+      if (upper === '*SPACEB') { result.spaceBefore = true; return; }
+      if (PSHBTNCHC_COMMAND_KEYS.indexOf(upper) >= 0) result.commandKey = upper;
+    });
+    return result;
+  }
+
+  /** Inverse of parsePshbtnchcParams. A blank command key is omitted
+   *  (IBM: "If a parameter is not defined then ENTER will be used"). */
+  function composePshbtnchcParams(state) {
+    var s = state || {};
+    var params = String(s.id || '').trim() + ' ' + formatChoiceText(s.text);
+    var key = String(s.commandKey || '').trim().toUpperCase();
+    if (key) params += ' ' + key;
+    if (s.spaceBefore) params += ' *SPACEB';
+    return params;
+  }
+
+  /** Reads PSHBTNFLD's parameters: { present, restrict: ''|'*RSTCSR'|
+   *  '*NORSTCSR', numCol, numRow, gutter } (numeric ones as digit strings,
+   *  '' when unspecified). Accepts IBM's `(*NUMCOL 3)` shape and, leniently,
+   *  the `*NUMCOL(3)` shape this codebase's own SNGCHCFLD writer emits. */
+  function getPshbtnfld(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'PSHBTNFLD'; });
+    var result = { present: false, restrict: '', numCol: '', numRow: '', gutter: '' };
+    if (!k) return result;
+    result.present = true;
+    var params = k.parameters || '';
+    if (/\*NORSTCSR\b/i.test(params)) result.restrict = '*NORSTCSR';
+    else if (/\*RSTCSR\b/i.test(params)) result.restrict = '*RSTCSR';
+    function num(name) {
+      var m = new RegExp('\\(\\s*\\*' + name + '\\s+(\\d+)\\s*\\)', 'i').exec(params) ||
+        new RegExp('\\*' + name + '\\((\\d+)\\)', 'i').exec(params);
+      return m ? m[1] : '';
+    }
+    result.numCol = num('NUMCOL');
+    result.numRow = num('NUMROW');
+    result.gutter = num('GUTTER');
+    return result;
+  }
+
+  /** Returns a NEW keywords array with PSHBTNFLD replaced by one built from
+   *  `state` (same shape getPshbtnfld returns) - removed entirely when
+   *  `state.present` is falsy. PSHBTNCHC instances are never touched here.
+   *  IBM lets a field specify *NUMCOL OR *NUMROW, never both; if a caller
+   *  passes both, *NUMCOL wins (the UI blocks that combination before it
+   *  gets here, so this is only a backstop against invalid DDS). Option
+   *  indicators are "not valid" for PSHBTNFLD, so conditions are always
+   *  cleared. */
+  function setPshbtnfld(keywords, state) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== 'PSHBTNFLD'; });
+    if (!state || !state.present) return next;
+    var parts = [];
+    if (state.restrict === '*RSTCSR' || state.restrict === '*NORSTCSR') parts.push(state.restrict);
+    var numCol = parseInt(state.numCol, 10);
+    var numRow = parseInt(state.numRow, 10);
+    var gutter = parseInt(state.gutter, 10);
+    if (numCol > 0) parts.push('(*NUMCOL ' + numCol + ')');
+    else if (numRow > 0) parts.push('(*NUMROW ' + numRow + ')');
+    if (gutter > 0) parts.push('(*GUTTER ' + gutter + ')');
+    return next.concat([{ name: 'PSHBTNFLD', parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
+  }
+
+  /** PSHBTNFLD's own list: "The following keywords can be specified on a
+   *  field with the PSHBTNFLD keyword: ALIAS, CHANGE, CHCAVAIL,
+   *  CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC), TEXT" -
+   *  a closed whitelist, the same shape as USRDFN's/SFL's/MNUBAR's
+   *  record-level ones (I-49/I-46/I-48), just at field level. DSPATR is
+   *  allowed ONLY with the PC parameter. PSHBTNFLD itself is implicitly
+   *  allowed. */
+  var PSHBTNFLD_ALLOWED_KEYWORDS = ['ALIAS', 'CHANGE', 'CHCAVAIL', 'CHCUNAVAIL', 'CHCCTL', 'INDTXT', 'NOCCSID', 'PSHBTNCHC', 'DSPATR', 'TEXT', 'PSHBTNFLD'];
+
+  function pshbtnfldKeywordAllowed(name, parameters) {
+    if (PSHBTNFLD_ALLOWED_KEYWORDS.indexOf(name) < 0) return false;
+    if (name !== 'DSPATR') return true;
+    var tokens = String(parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
+    return tokens.length > 0 && tokens.every(function (t) { return t === 'PC'; });
+  }
+
+  /** Task I-57 - the three field-level PSHBTNFLD rules, in one
+   *  bidirectional check (same shape as htmlConflictReason above; safe to
+   *  call for any keyword name - returns null when none applies):
+   *   1. turning PSHBTNFLD ON while the field already carries a keyword
+   *      outside the whitelist above;
+   *   2. adding a non-whitelisted keyword to a field that already carries
+   *      PSHBTNFLD;
+   *   3. adding PSHBTNCHC to a field with no PSHBTNFLD ("When the
+   *      PSHBTNCHC keyword is specified on a field, the PSHBTNFLD keyword
+   *      must also be specified").
+   *  `parameters` matters only for DSPATR (allowed solely as DSPATR(PC)).
+   *  Removing a keyword is never checked, only adding one. */
+  function pshbtnfldConflictReason(keywordName, parameters, fieldKeywords) {
+    var kws = fieldKeywords || [];
+    var hasPshbtnfld = kws.some(function (k) { return k.name === 'PSHBTNFLD'; });
+    if (keywordName === 'PSHBTNFLD') {
+      var offenders = [];
+      kws.forEach(function (k) {
+        if (!pshbtnfldKeywordAllowed(k.name, k.parameters)) offenders.push(k.name === 'DSPATR' ? 'DSPATR(' + (k.parameters || '') + ')' : k.name);
+      });
+      if (offenders.length) {
+        return 'PSHBTNFLD cannot be specified on a field that also carries ' + offenders.join(', ') +
+          ' (per the DDS Reference, only ALIAS, CHANGE, CHCAVAIL, CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC) and TEXT are allowed on a push-button field).';
+      }
+      return null;
+    }
+    if (keywordName === 'PSHBTNCHC') {
+      return hasPshbtnfld ? null : 'PSHBTNCHC can only be specified on a field that also has PSHBTNFLD (per the DDS Reference).';
+    }
+    if (hasPshbtnfld && !pshbtnfldKeywordAllowed(keywordName, parameters)) {
+      return keywordName + (keywordName === 'DSPATR' ? '(' + (parameters || '') + ')' : '') +
+        ' cannot be specified on a push-button (PSHBTNFLD) field (per the DDS Reference, only ALIAS, CHANGE, CHCAVAIL, CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC) and TEXT are allowed).';
+    }
+    return null;
+  }
+
+  /** PSHBTNFLD's own definition rule: "must be defined as an input-capable
+   *  field with data type Y, length equal to 2, and decimal positions of
+   *  0". Returns the field-property updates ({ dataType, length,
+   *  decimalPositions, usage }, only the keys that need to change) that
+   *  bring a field into line, or null when it already conforms. An
+   *  already-input-capable usage (I/B) is kept; anything else becomes B
+   *  (matching every one of IBM's own examples). */
+  function pshbtnfldDefinitionUpdates(field) {
+    var f = field || {};
+    var updates = {};
+    if ((f.dataType || '').toUpperCase() !== 'Y') updates.dataType = 'Y';
+    if (Number(f.length) !== 2) updates.length = 2;
+    if (Number(f.decimalPositions) !== 0 || f.decimalPositions == null) updates.decimalPositions = 0;
+    var u = (f.usage || '').toUpperCase();
+    if (u !== 'I' && u !== 'B') updates.usage = 'B';
+    return Object.keys(updates).length ? updates : null;
+  }
+
   /** Task I-24 - WINDOW's own DDS Reference section also states "WINDOW
    *  cannot be specified for the record format specified by the PASSRCD
    *  keyword" - flagged, not fixed, by I-12 (see that task's own
@@ -6594,6 +6781,13 @@
     windowMutexConflictReason: windowMutexConflictReason,
     mnubarWhitelistConflictReason: mnubarWhitelistConflictReason,
     htmlConflictReason: htmlConflictReason,
+    PSHBTNCHC_COMMAND_KEYS: PSHBTNCHC_COMMAND_KEYS,
+    parsePshbtnchcParams: parsePshbtnchcParams,
+    composePshbtnchcParams: composePshbtnchcParams,
+    getPshbtnfld: getPshbtnfld,
+    setPshbtnfld: setPshbtnfld,
+    pshbtnfldConflictReason: pshbtnfldConflictReason,
+    pshbtnfldDefinitionUpdates: pshbtnfldDefinitionUpdates,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     keepMutexConflictReason: keepMutexConflictReason,

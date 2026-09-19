@@ -305,6 +305,16 @@ const htmlTemplate = `<!DOCTYPE html>
     border: 1px solid #3a5a45; border-radius: 3px; font-family: var(--mono);
     font-size: 12px; cursor: grab; padding: 2px 8px;
   }
+  /* Task I-57 - PSHBTNFLD with PSHBTNCHC choices: a grid of buttons whose
+   * column widths/gutter are set inline (in ch units) by widgetInnerHtml. */
+  .dspf-field.dspf-widget-pshbtn { background: transparent; z-index: 1; }
+  .dspf-pshbtn-grid { display: grid; height: 100%; align-items: stretch; }
+  .dspf-pshbtn {
+    background: #14261c; color: var(--chrome-accent); border: 1px solid #3a5a45;
+    border-radius: 3px; font-family: var(--mono); font-size: 12px; cursor: grab;
+    padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: clip;
+  }
+  .dspf-pshbtn-gap { display: block; }
   .dspf-field.dspf-widget-menubar { display: flex; align-items: center; white-space: nowrap; background: #10231a; z-index: 1; }
   .dspf-menubar-choice {
     display: inline-block; padding: 0 4px; cursor: pointer; color: var(--ink);
@@ -4519,6 +4529,11 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::menubar-separator', 'Menu-bar separator (MNUBARSEP)', WebviewClientHelpers.menuBarSeparatorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (!isConstant) {
+      // Task I-57 - push-button field (PSHBTNFLD + PSHBTNCHC). Always
+      // offered for a named field (same opt-in entry-point reasoning as
+      // Choice selection type just below); the choices editor only
+      // appears once the field IS a PSHBTNFLD (pshbtnfldPanelHtml decides).
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::push-button-field', 'Push button field (PSHBTNFLD/PSHBTNCHC)', WebviewClientHelpers.pshbtnfldPanelHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field), false);
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-selection-type', 'Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
       const isChoiceField = DspfWriter.getChoiceSelectionType(field.keywords).kind !== '';
       if (isChoiceField) {
@@ -4612,7 +4627,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {
@@ -4650,7 +4665,18 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireMenuBarSeparatorEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     if (!isConstant) {
-      WebviewClientHelpers.wireChoiceSelectionTypeEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine);
+      // Task I-57 - one edit carries both the keywords and, when turning
+      // PSHBTNFLD on requires it, the field's own Y/2/0/input-capable
+      // definition (see DspfWriter.pshbtnfldDefinitionUpdates).
+      WebviewClientHelpers.wirePshbtnfldPanel(
+        () => field.keywords,
+        (newKeywords, fieldUpdates) => commitEdit(ownerRecordName, field, Object.assign({ keywords: newKeywords }, fieldUpdates || {})),
+        'field-' + field.sourceLine,
+        expandedKeywordConditioning,
+        () => renderFieldProps(recordName),
+        () => field
+      );
+      WebviewClientHelpers.wireChoiceSelectionTypeEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, (kind) => DspfWriter.pshbtnfldConflictReason(kind, '', field.keywords));
       if (DspfWriter.getChoiceSelectionType(field.keywords).kind !== '') {
         WebviewClientHelpers.wireChoiceKeywordsListEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
         WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
@@ -5011,12 +5037,25 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<div id="p-place-html-wrap" class="field-row" style="display:none;"><label>HTML tag</label><input type="text" id="p-place-html-text" placeholder="&lt;TITLE&gt;" /></div>';
     } else {
       html += '<div class="field-row"><label>Name</label><input type="text" id="p-place-name" maxlength="10" placeholder="FIELD1" /></div>';
+      // Task I-57 - a "Field kind" selector: a push-button field (PSHBTNFLD +
+      // PSHBTNCHC) has a fixed definition (input-capable, type Y, length 2,
+      // decimals 0 - see DspfWriter.pshbtnfldDefinitionUpdates), so choosing
+      // it swaps the free Length/Decimals/Type/Usage inputs for the one thing
+      // actually left to choose, the first button.
+      html += '<div class="field-row"><label>Field kind</label><select id="p-place-field-kind"><option value="std">Standard field</option><option value="pshbtn">Push button (PSHBTNFLD)</option></select></div>';
+      html += '<div id="p-place-pb-wrap" style="display:none;">';
+      html += '<div class="field-row"><label>First button text</label><input type="text" id="p-place-pb-text" value="Enter" /></div>';
+      html += '<div class="field-row"><label>Command key</label><select id="p-place-pb-key"><option value="">(default ENTER)</option>' + DspfWriter.PSHBTNCHC_COMMAND_KEYS.map((k) => '<option value="' + k + '">' + k + '</option>').join('') + '</select></div>';
+      html += '<div class="hint-small">Creates an input/output field of type Y, length 2, decimals 0 with PSHBTNFLD and one PSHBTNCHC choice; add more buttons afterwards under Push button field.</div>';
+      html += '</div>';
+      html += '<div id="p-place-std-wrap">';
       html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-place-length" min="1" value="10" /></div>';
       html += '<div class="field-row"><label>Decimals</label><input type="number" id="p-place-decimals" min="0" placeholder="(none)" /></div></div>';
       html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-place-type">' +
         ['A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>';
       html += '<div class="field-row"><label>Usage</label><select id="p-place-usage">' +
         ['B', 'I', 'O', 'H', 'M', 'P'].map((u) => '<option value="' + u + '">' + u + '</option>').join('') + '</select></div></div>';
+      html += '</div>';
     }
     html += '<div class="rename-error" id="p-place-error"></div>';
     html += '<button id="p-place-add" style="width:100%;margin-top:8px;">' + (kind === 'CONSTANT' ? 'Add constant' : 'Add field') + '</button>';
@@ -5024,6 +5063,14 @@ const htmlTemplate = `<!DOCTYPE html>
     propsBody.innerHTML = html;
 
     document.getElementById('p-place-cancel').addEventListener('click', () => { pendingPlacement = null; render(); });
+    const fieldKindSelect = document.getElementById('p-place-field-kind');
+    if (fieldKindSelect) {
+      fieldKindSelect.addEventListener('change', () => {
+        const isPb = fieldKindSelect.value === 'pshbtn';
+        document.getElementById('p-place-pb-wrap').style.display = isPb ? '' : 'none';
+        document.getElementById('p-place-std-wrap').style.display = isPb ? 'none' : '';
+      });
+    }
     const constKindSelect = document.getElementById('p-place-const-kind');
     if (constKindSelect) {
       constKindSelect.addEventListener('change', () => {
@@ -5079,6 +5126,26 @@ const htmlTemplate = `<!DOCTYPE html>
         if (!name) { errorEl.textContent = 'Enter a name for the new field.'; return; }
         if (!WebviewClientHelpers.isValidDdsName(name)) { errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
         if (rec.fields.some((f) => f.name === name)) { errorEl.textContent = 'A field named "' + name + '" already exists in this record.'; return; }
+        if (fieldKindSelect && fieldKindSelect.value === 'pshbtn') {
+          // Task I-57 - fixed PSHBTNFLD definition; see the Field kind
+          // selector's comment above. A brand-new field carries no other
+          // keywords, so pshbtnfldConflictReason has nothing to object to.
+          const pbText = document.getElementById('p-place-pb-text').value.trim();
+          if (!pbText) { errorEl.textContent = "Enter the first button's text."; return; }
+          newFieldSpec = {
+            nameType: 'FIELD',
+            name: name,
+            length: 2,
+            decimalPositions: 0,
+            dataType: 'Y',
+            usage: 'B',
+            keywords: [
+              { name: 'PSHBTNFLD', parameters: '', conditions: [], raw: '', sourceLines: [] },
+              { name: 'PSHBTNCHC', parameters: DspfWriter.composePshbtnchcParams({ id: '1', text: pbText, commandKey: document.getElementById('p-place-pb-key').value, spaceBefore: false }), conditions: [], raw: '', sourceLines: [] },
+            ],
+            location: { line: line, column: column },
+          };
+        } else {
         const length = Math.max(1, parseInt(document.getElementById('p-place-length').value, 10) || 1);
         const decimalsRaw = document.getElementById('p-place-decimals').value;
         const decimals = decimalsRaw !== '' ? Math.max(0, parseInt(decimalsRaw, 10) || 0) : null;
@@ -5091,6 +5158,7 @@ const htmlTemplate = `<!DOCTYPE html>
           usage: document.getElementById('p-place-usage').value,
           location: { line: line, column: column },
         };
+        }
       }
 
       commitSourceChange(

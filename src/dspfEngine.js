@@ -510,10 +510,70 @@
     return { id: parameters.trim(), text: parameters.trim() };
   }
 
-  /** PSHBTNCHC's parameter is just the button text (optionally quoted), with no leading choice-id - unlike CHOICE. */
-  function parseQuotedOrRaw(parameters) {
-    var m = parameters.trim().match(/^'((?:[^']|'')*)'/);
-    return m ? m[1].replace(/''/g, "'") : parameters.trim();
+  /** Task I-57 - PSHBTNCHC(choice-number choice-text [command-key] [*SPACEB]).
+   *  The previous parser here assumed "just the button text, with no
+   *  leading choice-id - unlike CHOICE", which is wrong per IBM's own
+   *  format (choice-number is REQUIRED, e.g. PSHBTNCHC(1 '>Help' HELP)) and
+   *  made every button render as its own raw parameter string ("1 '>Help'
+   *  HELP"). `text` is the unquoted literal or the raw &field token. */
+  var PSHBTNCHC_KEY_RE = /^(?:CA\d\d|CF\d\d|PRINT|HELP|CLEAR|ENTER|HOME|ROLLUP|ROLLDOWN)$/i;
+  function parsePshbtnchc(parameters) {
+    var rest = (parameters || '').trim();
+    var out = { id: '', text: '', commandKey: '', spaceBefore: false };
+    var idM = /^(\d+)\s*([\s\S]*)$/.exec(rest);
+    if (!idM) { out.text = rest; return out; }
+    out.id = idM[1];
+    rest = idM[2];
+    var lit = /^'((?:[^']|'')*)'\s*([\s\S]*)$/.exec(rest);
+    var fld = !lit && /^(&\S+)\s*([\s\S]*)$/.exec(rest);
+    if (lit) { out.text = lit[1].replace(/''/g, "'"); rest = lit[2]; }
+    else if (fld) { out.text = fld[1]; rest = fld[2]; }
+    rest.split(/\s+/).filter(Boolean).forEach(function (t) {
+      if (t.toUpperCase() === '*SPACEB') out.spaceBefore = true;
+      else if (PSHBTNCHC_KEY_RE.test(t)) out.commandKey = t.toUpperCase();
+    });
+    return out;
+  }
+
+  /** Choice text as it APPEARS: the mnemonic marker '>' is removed and '>>'
+   *  collapses to a literal '>' (IBM: 'F2=>File' shows F2=File; 'X >>= 1'
+   *  shows X >= 1). Left-to-right, so 'X >>>= 1' -> 'X >= 1' as documented. */
+  function pshbtnDisplayText(text) {
+    return String(text || '').replace(/>>|>/g, function (m) { return m === '>>' ? '>' : ''; });
+  }
+
+  /** Reads PSHBTNFLD's own (*NUMCOL n)/(*NUMROW n)/(*GUTTER n) groups,
+   *  tolerating the *NUMCOL(n) shape this codebase's SNGCHCFLD writer
+   *  emits. Returns positive integers or 0 when unspecified. */
+  function pshbtnfldLayoutParams(parameters) {
+    function num(name) {
+      var m = new RegExp('\\(\\s*\\*' + name + '\\s+(\\d+)\\s*\\)', 'i').exec(parameters || '') ||
+        new RegExp('\\*' + name + '\\((\\d+)\\)', 'i').exec(parameters || '');
+      return m ? parseInt(m[1], 10) : 0;
+    }
+    return { numCol: num('NUMCOL'), numRow: num('NUMROW'), gutter: num('GUTTER') };
+  }
+
+  /** Lays the visible push-button choices out on a grid. IBM: with no
+   *  parameters the choices run horizontally (gutter defaults to 3 blanks);
+   *  *NUMCOL n arranges them across n columns filling row by row; *NUMROW n
+   *  uses n rows, filling column by column. *SPACEB inserts one blank slot
+   *  before its choice. Returns { cols, rows, gutter, cellWidth, slots }
+   *  where slots[i] is a choice or null (a blank spacer). */
+  function layoutPshbtn(choices, params) {
+    var slots = [];
+    choices.forEach(function (c) {
+      if (c.spaceBefore && slots.length > 0) slots.push(null);
+      slots.push(c);
+    });
+    var n = slots.length;
+    var cols, rows;
+    if (params.numCol > 0) { cols = params.numCol; rows = Math.max(1, Math.ceil(n / cols)); }
+    else if (params.numRow > 0) { rows = params.numRow; cols = Math.max(1, Math.ceil(n / rows)); }
+    else { cols = Math.max(1, n); rows = 1; }
+    var cellWidth = 1;
+    choices.forEach(function (c) { cellWidth = Math.max(cellWidth, c.label.length + 2); });
+    return { cols: cols, rows: rows, gutter: params.gutter > 0 ? params.gutter : 3, cellWidth: cellWidth, slots: slots, byColumn: params.numCol <= 0 && params.numRow > 0 };
   }
 
   /** MNUBARCHC(choice-id pulldown-record-name ['text' | &text-field] [&return-field])
@@ -538,7 +598,7 @@
     return { id: parameters.trim(), pulldownRecord: null, text: parameters.trim(), returnField: null };
   }
 
-  function widgetFromKeywords(field) {
+  function widgetFromKeywords(field, activeIndicators, activeSizeName) {
     var names = field.keywords.map(function (k) { return k.name; });
     if (names.indexOf('MNUBARCHC') !== -1) {
       var menuChoices = field.keywords
@@ -555,11 +615,26 @@
       return { type: kind, choices: choices };
     }
     if (names.indexOf('PSHBTNFLD') !== -1) {
+      // Task I-57 - only PSHBTNCHC instances whose own option indicators
+      // are currently satisfied are shown ("When a PSHBTNCHC keyword is
+      // off, the list of choices is compressed"), sorted by choice number.
       var btnChoices = field.keywords
-        .filter(function (k) { return k.name === 'PSHBTNCHC'; })
-        .map(function (k) { return parseQuotedOrRaw(k.parameters); });
-      var label = btnChoices.length > 0 ? btnChoices[0] : field.constantValue || field.name || 'Button';
-      return { type: 'button', label: label };
+        .filter(function (k) { return k.name === 'PSHBTNCHC' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName); })
+        .map(function (k) {
+          var c = parsePshbtnchc(k.parameters);
+          c.label = pshbtnDisplayText(c.text);
+          return c;
+        })
+        .sort(function (a, b) { return (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0); });
+      if (btnChoices.length === 0) {
+        // Nothing to lay out yet (no PSHBTNCHC, or all conditioned off) -
+        // keep the pre-I-57 single placeholder button rather than an
+        // invisible widget the person can't click to select.
+        return { type: 'button', label: field.constantValue || field.name || 'Button' };
+      }
+      var pfld = field.keywords.find(function (k) { return k.name === 'PSHBTNFLD'; });
+      var layout = layoutPshbtn(btnChoices, pshbtnfldLayoutParams(pfld ? pfld.parameters : ''));
+      return { type: 'pshbtn', choices: btnChoices, layout: layout };
     }
     return null;
   }
@@ -868,7 +943,7 @@
       if (!conditionsSatisfied(field.conditions, activeIndicators, activeSizeName)) return;
       if (field.usage === 'H' || field.usage === 'P') return; // hidden / program-to-system: not drawn
 
-      var widget = widgetFromKeywords(field);
+      var widget = widgetFromKeywords(field, activeIndicators, activeSizeName);
       var len = displayLength(field, record, dspfFile);
       // A bare CONSTANT has no declared DDS LENGTH column - displayLength()
       // falls through to 0 for one, since that column simply isn't there to
@@ -930,6 +1005,12 @@
             renderLength = Math.max(renderLength, c.text.length + choicePrefixLen);
           });
         }
+      } else if (widget && widget.type === 'pshbtn') {
+        // Task I-57 - the preview occupies the whole grid the buttons lay
+        // out on, not the field's own 2-column DDS length: cols * cellWidth
+        // plus the gutter between columns, rows tall.
+        renderLength = Math.max(1, widget.layout.cols * widget.layout.cellWidth + (widget.layout.cols - 1) * widget.layout.gutter);
+        renderHeight = widget.layout.rows;
       } else if (widget && widget.type === 'button') {
         renderLength = Math.max(len, widget.label.length + 2);
       } else if (cntfld) {
@@ -1556,6 +1637,23 @@
     var w = f.widget;
     if (w.type === 'button') {
       return '<button type="button" class="dspf-widget-button" tabindex="-1">' + escapeHtml(w.label) + '</button>';
+    }
+    if (w.type === 'pshbtn') {
+      // Task I-57 - a CSS grid sized in `ch` units so each button lines up
+      // with the character grid the rest of the screen is drawn on. A
+      // column-major layout (*NUMROW) needs explicit row/column placement;
+      // row-major (default/*NUMCOL) can just flow. A null slot is a
+      // *SPACEB blank spot.
+      var L = w.layout;
+      var cells = L.slots.map(function (c, i) {
+        var pos = L.byColumn
+          ? 'grid-row:' + ((i % L.rows) + 1) + ';grid-column:' + (Math.floor(i / L.rows) + 1) + ';'
+          : '';
+        if (!c) return '<span class="dspf-pshbtn-gap" style="' + pos + '"></span>';
+        return '<button type="button" class="dspf-pshbtn" tabindex="-1" style="' + pos + '" data-choice-id="' + escapeHtml(c.id) + '"' +
+          (c.commandKey ? ' title="' + escapeHtml(c.commandKey) + '"' : '') + '>' + escapeHtml(c.label) + '</button>';
+      }).join('');
+      return '<div class="dspf-pshbtn-grid" style="grid-template-columns:repeat(' + L.cols + ',' + L.cellWidth + 'ch);column-gap:' + L.gutter + 'ch;">' + cells + '</div>';
     }
     if (w.type === 'menubar') {
       return w.choices
