@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-73 of 90 tasks done; 17 open (see [Open work](#open-work)). Current version: **v0.10.152**.
+74 of 90 tasks done; 16 open (see [Open work](#open-work)). Current version: **v0.10.153**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -127,7 +127,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Done | v0.10.151 |
 | [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | Done | v0.10.152 |
-| [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | In progress | — |
+| [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Done | v0.10.153 |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Not started | — |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check | I-61, I-62 | Not started | — |
@@ -146,23 +146,22 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-85](#i-85) | In progress | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays. Size (estimate): Small. Raised by I-81. Verified: both removals return no conflict today; same fix shape as I-81. |
-| 2 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
-| 3 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 4 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 5 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 6 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 7 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 8 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 9 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 10 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 11 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 12 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 13 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 14 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 15 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 16 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 17 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
+| 2 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 3 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 4 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 5 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 6 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 7 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 8 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 9 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 10 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 11 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 12 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 13 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 14 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 15 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 16 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4388,9 +4387,19 @@ Not addressed here: `ENTFLDATR`'s guard has the same flaw - see Deferred finding
 
 ### I-85 — `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-57, I-64, I-81
+> **Area:** Field · **Status:** Done (v0.10.153) · **Depends on:** I-57, I-64, I-81
 
 `PSHBTNFLD`/`PSHBTNCHC` have the same removal-direction gap I-81 closed for `SFLRTNSEL`. The DDS Reference says "A field containing the PSHBTNFLD keyword must also contain one or more PSHBTNCHC keywords" and that `PSHBTNCHC` needs `PSHBTNFLD`, but `pshbtnfldConflictReason`/`pshbtnfldNewConflictReason` (I-57/I-64) only check what is being *added*: removing `PSHBTNFLD` while a `PSHBTNCHC` stays, or removing the last `PSHBTNCHC` while `PSHBTNFLD` stays, is not checked (verified by calling `pshbtnfldNewConflictReason` on both edits - it returns null). Reachable at least through the raw keyword editor. Same fix shape as I-81 (a diff-based check in the `commitEdit` backstop).
+
+**Fixed.** Re-read `PSHBTNFLD`/`PSHBTNCHC` in `DDS_Keyword_V7r6.txt`: "A field containing the PSHBTNFLD keyword must also contain one or more PSHBTNCHC keywords", and `PSHBTNCHC` needs `PSHBTNFLD`. I-57's `pshbtnfldConflictReason` and I-64's `pshbtnfldNewConflictReason` only check what an edit *adds*, so two removal edits left the field invalid: **A.** removing `PSHBTNFLD` while a `PSHBTNCHC` stays, and **B.** removing the last `PSHBTNCHC` while `PSHBTNFLD` stays.
+
+Reachability sweep: the raw keyword editor's chip remove button (no guard hook of its own), and the `PSHBTNFLD` panel's choice-row remove button. The panel's own toggle-off already removes `PSHBTNFLD` together with every `PSHBTNCHC` in one edit, and turning it on seeds a choice, so neither is affected.
+
+Design: a new diff-based backstop, `DspfWriter.pshbtnfldRemovalConflictReason(oldKeywords, newKeywords)`, called from `commitEdit` straight after I-64's check - the same one choke point, and the same shape as I-81's `sflrtnselNewConflictReason` at record level. It returns one of two messages (*remove the push-button choices too / turn the push-button field off* for A; *the last PSHBTNCHC cannot be removed, turn the push-button field off instead* for B). It is a separate function rather than an extension of `pshbtnfldNewConflictReason`, whose early returns and I-64 tests are about the add direction.
+
+The check is **diff-based**: it blames an edit only if it *introduces* the violation. B requires the field to have carried both keywords before the edit, so a hand-written `PSHBTNFLD` with no `PSHBTNCHC` (or an orphan `PSHBTNCHC`) is never re-reported, and fixing it - adding a choice, removing `PSHBTNFLD`, removing the orphan - is always allowed. Removing one of several `PSHBTNCHC`, replacing the only one, and removing `PSHBTNFLD` together with every `PSHBTNCHC` are all allowed. The add direction stays with I-57/I-64.
+
+New `i85PshbtnfldRemovalGuard.test.js` (53 checks: unit checks on the function, then the real generated script in jsdom through the raw editor and the panel). Confirmed via `git stash` to fail (14 checks) against pre-fix code. The webview applies an edit to its local model at once, so each committing scenario uses its own field. Full suite: 107 test files run in parallel plus this one, zero failures.
 
 *Raised by I-81. Size (estimate): Small.*
 

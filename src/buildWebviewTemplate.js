@@ -6412,6 +6412,15 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
+      // Task I-85: the removal direction of the same pairing - removing
+      // PSHBTNFLD while a PSHBTNCHC stays, or the last PSHBTNCHC while
+      // PSHBTNFLD stays (I-57/I-64 above only check what an edit ADDS).
+      const pshbtnfldRemovalReason = DspfWriter.pshbtnfldRemovalConflictReason(field.keywords, updates.keywords);
+      if (pshbtnfldRemovalReason) {
+        window.alert(pshbtnfldRemovalReason);
+        render();
+        return;
+      }
       // Task I-69: same choke point again, for CHKMSGID's own dependency
       // ("allowed only on fields which also contain a CHECK(M10)/(M11)/
       // (VN)/(VNE), CMP, COMP, RANGE, or VALUES keyword"), both

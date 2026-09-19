@@ -2623,6 +2623,44 @@
     return added.join(', ') + ' cannot be specified on a push-button (PSHBTNFLD) field (per the DDS Reference, only ALIAS, CHANGE, CHCAVAIL, CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC) and TEXT are allowed).';
   }
 
+  /** Task I-85 - the REMOVAL direction of the PSHBTNFLD / PSHBTNCHC pairing,
+   *  which I-57 (pshbtnfldConflictReason) and I-64 (pshbtnfldNewConflictReason)
+   *  left open because both only look at what an edit ADDS. The DDS Reference
+   *  says "A field containing the PSHBTNFLD keyword must also contain one or
+   *  more PSHBTNCHC keywords" and that PSHBTNCHC needs PSHBTNFLD, so two
+   *  edits leave the field invalid:
+   *   A. removing PSHBTNFLD while a PSHBTNCHC stays (orphaned choices);
+   *   B. removing the LAST PSHBTNCHC while PSHBTNFLD stays (a push-button
+   *      field with no buttons).
+   *  Given the field's keyword list before and after an edit, returns a reason
+   *  string when the edit INTRODUCES either violation, else null.
+   *
+   *  Same diff-based shape as I-81's sflrtnselNewConflictReason, for the same
+   *  ONE choke point (commitEdit): the PSHBTNFLD panel's choice rows, the raw
+   *  keyword editor's Remove, and every other path that writes keywords are
+   *  covered at once. A field that was already invalid before the edit (a
+   *  hand-written PSHBTNFLD with no PSHBTNCHC, or PSHBTNCHC with no PSHBTNFLD)
+   *  is never re-reported, and fixing it is always allowed. Removing PSHBTNFLD
+   *  together with every PSHBTNCHC (which is what the panel's own toggle-off
+   *  does) and removing one of several PSHBTNCHC are both fine. */
+  function pshbtnfldRemovalConflictReason(oldKeywords, newKeywords) {
+    var has = function (kws, n) { return (kws || []).some(function (k) { return k.name === n; }); };
+    var hadFld = has(oldKeywords, 'PSHBTNFLD');
+    var hadChc = has(oldKeywords, 'PSHBTNCHC');
+    var hasFld = has(newKeywords, 'PSHBTNFLD');
+    var hasChc = has(newKeywords, 'PSHBTNCHC');
+    // A: PSHBTNFLD removed while a PSHBTNCHC is left behind.
+    if (hadFld && !hasFld && hasChc) {
+      return 'PSHBTNFLD cannot be removed while the field still carries PSHBTNCHC, which requires it (per the DDS Reference) - remove the push-button choices too (turning the push-button field off does both).';
+    }
+    // B: the last PSHBTNCHC removed while PSHBTNFLD stays. Only when the field
+    // was valid before (had at least one PSHBTNCHC).
+    if (hadFld && hasFld && hadChc && !hasChc) {
+      return 'The last PSHBTNCHC cannot be removed from a push-button (PSHBTNFLD) field, which must contain one or more of them (per the DDS Reference) - turn the push-button field off instead.';
+    }
+    return null;
+  }
+
   /** PSHBTNFLD's own definition rule: "must be defined as an input-capable
    *  field with data type Y, length equal to 2, and decimal positions of
    *  0". Returns the field-property updates ({ dataType, length,
@@ -7407,6 +7445,7 @@
     setPshbtnfld: setPshbtnfld,
     pshbtnfldConflictReason: pshbtnfldConflictReason,
     pshbtnfldNewConflictReason: pshbtnfldNewConflictReason,
+    pshbtnfldRemovalConflictReason: pshbtnfldRemovalConflictReason,
     pshbtnfldDefinitionUpdates: pshbtnfldDefinitionUpdates,
     pshbtnfldBasicEditConflictReason: pshbtnfldBasicEditConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
