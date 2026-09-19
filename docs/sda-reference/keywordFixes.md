@@ -103,7 +103,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-58](#i-58) | Field | Reverse `WRDWRAP` mutual-exclusion guards | I-42 | Done | v0.10.137 |
 | [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | Done | v0.10.138 |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
-| [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | Not started | — |
+| [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | In progress | — |
 | [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | Not started | — |
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Not started | — |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Not started | — |
@@ -139,7 +139,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-61](#i-61) | Not started | `WRDWRAP`: guard a data type / usage change on a field that already carries it. Size (estimate): Small. Raised by I-58. |
+| 1 | [I-61](#i-61) | In progress | `WRDWRAP`: guard a data type / usage change on a field that already carries it. Size (estimate): Small. Raised by I-58. |
 | 2 | [I-62](#i-62) | Not started | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
 | 3 | [I-63](#i-63) | Not started | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape. Size (estimate): Small–medium. Raised by I-57. |
 | 4 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
@@ -3928,7 +3928,7 @@ Not addressed here: `RTNCSRLOC`'s own record-level guard (I-56) deliberately omi
 
 ### I-61 — `WRDWRAP`: guard a data type / usage change on a field that already carries it
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-58
+> **Area:** Field · **Status:** In progress · **Depends on:** I-58
 
 I-58 blocked adding `WRDWRAP`'s conflicting *keywords* to a `WRDWRAP` field, but not a **data type or usage change** on one. Applying data type `Y` (or any of `S`/`D`/`M`/`F`/`J`/`O`/`E`/`G`), or usage `O`/`H`/`P`, through the Basic tab's Apply on a field that already carries `WRDWRAP` is not blocked (confirmed via jsdom during I-58), although `DspfWriter.wrdwrapFieldConflictReason`'s own forward check treats both as invalid.
 
