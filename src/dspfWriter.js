@@ -2552,6 +2552,65 @@
     return Object.keys(updates).length ? updates : null;
   }
 
+  /** Task I-62 - a data type, length, decimals or usage CHANGE on a field
+   *  that ALREADY carries PSHBTNFLD (the Basic tab's Apply changes). I-57
+   *  enforces PSHBTNFLD's own definition rule - "an input-capable field
+   *  with data type Y, length equal to 2, and decimal positions of 0" -
+   *  when the toggle is turned ON (it rewrites the field with
+   *  pshbtnfldDefinitionUpdates), but not afterwards; this closes that.
+   *  Returns a reason string, or null. It is driven by
+   *  pshbtnfldDefinitionUpdates: the field as it WOULD be after the edit is
+   *  handed to that function, and whatever it says still needs correcting
+   *  is a violation.
+   *
+   *  oldField is the field as stored ({ dataType, length, decimalPositions,
+   *  usage }); updates carries only the properties being written (a key that
+   *  is absent counts as unchanged; the Basic tab always sends all four).
+   *
+   *  Diff-based, like I-61's wrdwrapBasicEditConflictReason and I-58's
+   *  wrdwrapNewConflictReason: only a change TO a non-conforming value is
+   *  blocked, so an unrelated edit (rename, position) on a hand-written
+   *  field that is already invalid is never blocked. Changing between two
+   *  different invalid values is still blocked (the edit fixes nothing);
+   *  changing to a conforming value, or leaving a value alone, never is.
+   *  A blank usage is the DDS default, output (O) - the Usage select has no
+   *  blank option and shows O for it - so blank counts as O on BOTH sides.
+   *  A field without PSHBTNFLD is never affected. */
+  function pshbtnfldBasicEditConflictReason(fieldKeywords, oldField, updates) {
+    var hasPshbtnfld = (fieldKeywords || []).some(function (k) { return k.name === 'PSHBTNFLD'; });
+    if (!hasPshbtnfld) return null;
+    var oldF = oldField || {};
+    var upd = updates || {};
+    var has = function (key) { return Object.prototype.hasOwnProperty.call(upd, key); };
+    var str = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var num = function (v) {
+      if (v == null || v === '') return null;
+      var n = Number(v);
+      return isNaN(n) ? null : n;
+    };
+    var before = {
+      dataType: str(oldF.dataType),
+      length: num(oldF.length),
+      decimalPositions: num(oldF.decimalPositions),
+      usage: str(oldF.usage) || 'O'
+    };
+    var after = {
+      dataType: has('dataType') ? str(upd.dataType) : before.dataType,
+      length: has('length') ? num(upd.length) : before.length,
+      decimalPositions: has('decimalPositions') ? num(upd.decimalPositions) : before.decimalPositions,
+      usage: has('usage') ? (str(upd.usage) || 'O') : before.usage
+    };
+    var stillWrong = pshbtnfldDefinitionUpdates(after) || {};
+    var shown = function (v) { return v == null || v === '' ? 'blank' : v; };
+    var problems = [];
+    if (stillWrong.dataType !== undefined && after.dataType !== before.dataType) problems.push('data type ' + shown(after.dataType) + ' (must be Y)');
+    if (stillWrong.length !== undefined && after.length !== before.length) problems.push('length ' + shown(after.length) + ' (must be 2)');
+    if (stillWrong.decimalPositions !== undefined && after.decimalPositions !== before.decimalPositions) problems.push('decimal positions ' + shown(after.decimalPositions) + ' (must be 0)');
+    if (stillWrong.usage !== undefined && after.usage !== before.usage) problems.push('usage ' + after.usage + ' (must be I or B)');
+    if (!problems.length) return null;
+    return 'PSHBTNFLD requires an input-capable field (usage I or B) with data type Y, length 2 and decimal positions 0 (per the DDS Reference) - cannot set ' + problems.join(', ') + '.';
+  }
+
   /** Task I-24 - WINDOW's own DDS Reference section also states "WINDOW
    *  cannot be specified for the record format specified by the PASSRCD
    *  keyword" - flagged, not fixed, by I-12 (see that task's own
@@ -7064,6 +7123,7 @@
     pshbtnfldConflictReason: pshbtnfldConflictReason,
     pshbtnfldNewConflictReason: pshbtnfldNewConflictReason,
     pshbtnfldDefinitionUpdates: pshbtnfldDefinitionUpdates,
+    pshbtnfldBasicEditConflictReason: pshbtnfldBasicEditConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     keepMutexConflictReason: keepMutexConflictReason,

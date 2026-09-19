@@ -4641,6 +4641,19 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(wrdwrapEditReason);
           return;
         }
+        // Task I-62: a PSHBTNFLD field must stay an input-capable field
+        // with data type Y, length 2 and decimal positions 0 (DDS
+        // Reference). I-57 enforces that when the toggle is turned on;
+        // this blocks a data type, length, decimals or usage CHANGE that
+        // would break it afterwards. Same posture as the I-61 check above:
+        // diff-based (an unrelated Apply on an already-invalid
+        // hand-written field still goes through) and an early return, so
+        // the panel keeps the user's other pending edits.
+        const pshbtnfldEditReason = DspfWriter.pshbtnfldBasicEditConflictReason(field.keywords, field, updates);
+        if (pshbtnfldEditReason) {
+          window.alert(pshbtnfldEditReason);
+          return;
+        }
       }
       commitEdit(ownerRecordName, field, updates);
     });

@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-64 of 83 tasks done; 19 open (see [Open work](#open-work)). Current version: **v0.10.144**.
+66 of 83 tasks done; 17 open (see [Open work](#open-work)). Current version: **v0.10.146**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -104,7 +104,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | Done | v0.10.138 |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
 | [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | Done | v0.10.140 |
-| [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | In progress | — |
+| [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | Done | v0.10.146 |
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Done | v0.10.141 |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Done | v0.10.143 |
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Done | v0.10.142 |
@@ -139,24 +139,23 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-62](#i-62) | In progress | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
-| 2 | [I-69](#i-69) | In progress | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
-| 3 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
-| 4 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 5 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
-| 6 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 7 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 8 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 9 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 10 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 11 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 12 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 13 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 14 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 15 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 16 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 17 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 18 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-69](#i-69) | In progress | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
+| 2 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
+| 3 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
+| 4 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
+| 5 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 6 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 7 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 8 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 9 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 10 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 11 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 12 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 13 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 14 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 15 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 16 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 17 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -165,7 +164,7 @@ Every finding logged before I-61 was opened as a task (I-61 – I-83, see the ta
 | Raised by | Finding |
 |-----------|---------|
 | I-68 | The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS. |
-| I-61 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
+| I-61, I-62 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -3946,13 +3945,21 @@ Not addressed here: Resolve Referenced Field (extension host) also rewrites a fi
 
 ### I-62 — `PSHBTNFLD`: guard the Basic tab against breaking its required definition
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-57
+> **Area:** Field · **Status:** Done (v0.10.146) · **Depends on:** I-57
 
-`PSHBTNFLD` requires "an input-capable field with data type Y, length equal to 2, and decimal positions of 0". I-57 enforces this when the toggle is turned on (it rewrites the field), but the Basic tab's Apply is unguarded. **Confirmed by probe (jsdom) on a `2Y 0B` push-button field:** changing data type to `A`, length to `10`, or usage to `O` each applied with no alert and no edit blocked, leaving a field that still carries `PSHBTNFLD` but is invalid DDS. (Decimals were not probed; expected to behave the same.)
+**Fixed.** Follow-up from I-57: I-57 enforces `PSHBTNFLD`'s definition rule when the toggle is turned *on* (it rewrites the field via `pshbtnfldDefinitionUpdates`), but the Basic tab's Apply on a field that already carried `PSHBTNFLD` was unguarded. Confirmed by probe (jsdom) on a `2Y 0B` push-button field: changing data type to `A`, length to `10`, or usage to `O` each applied with no alert, leaving a field that still carried `PSHBTNFLD` but was invalid DDS. Decimals, not probed at filing, behave the same and are now covered.
 
-**Suggested fix:** in the same Apply handler as I-61, when the field carries `PSHBTNFLD`, refuse a data type other than `Y`, a length other than 2, decimals other than 0, or a usage other than `I`/`B`. `DspfWriter.pshbtnfldDefinitionUpdates` already encodes the rule and can drive the check. This shares the Basic-tab Apply handler with I-61 — pick the two together, or in order, to avoid merge conflicts.
+Re-read `PSHBTNFLD`'s own section in `DDS_Keyword_V7r6.txt` first: "The field containing the PSHBTNFLD keyword must be defined as an input-capable field with data type Y, length equal to 2, and decimal positions of 0." That is the whole rule. "Input-capable" is read as usage `I` or `B`, the same reading I-57's `pshbtnfldDefinitionUpdates` uses (`H`, `O`, `M` and `P` are not input-capable).
 
-*Raised by I-57. Size (estimate): Small.*
+Reachability sweep: the Basic tab's Apply (`p-apply`, named-field branch) is the only place in the webview that commits a data type, length, decimals or usage change to an *existing* field through `commitEdit` (the same sweep I-61 did). Resolve Referenced Field, handled in the extension host, is a second route - see Deferred findings.
+
+Fix: new `DspfWriter.pshbtnfldBasicEditConflictReason(fieldKeywords, oldField, updates)`, **driven by `pshbtnfldDefinitionUpdates`**: the field as it *would* be after the edit is handed to that function, and whatever it says still needs correcting is a violation. It is called from the Basic tab's Apply handler right after I-61's `WRDWRAP` check, as an early return before `commitEdit` (alert, no edit), so the panel keeps the user's other pending edits and they can fix the field and click Apply again. The message names every offending property with the value it needs (data type `Y`, length 2, decimal positions 0, usage `I` or `B`).
+
+The check is **diff-based**, like I-61's and I-58's: only a change *to* a non-conforming value is blocked, so an unrelated Apply (rename, position) on a hand-written `PSHBTNFLD` field that is already invalid is never blocked. Changing between two different invalid values (length 5 to 8) is still blocked, since the edit fixes nothing; fixing one property at a time is allowed. A blank usage is the DDS default (output), the Usage select has no blank option and shows `O` for it, so a blank usage counts as `O` on both sides of the comparison, exactly as in I-61. Clearing decimals to blank is treated as a change away from `0`, consistent with `pshbtnfldDefinitionUpdates` requiring an explicit `0`.
+
+New `i62PshbtnfldBasicTabDefinitionGuard.test.js` (92 checks): pure unit checks of the new function, including a grid cross-check that it agrees with `pshbtnfldDefinitionUpdates` on all 144 type/length/decimals/usage combinations from a valid field and that I-57's own function is unchanged; then the real generated webview in jsdom - every reachable bad data type, length, decimals value and usage blocked with an alert and no `applyEdit`, a blocked Apply leaving the typed name in the form, allowed edits committing with `PSHBTNFLD` and its `PSHBTNCHC` choices kept, an ordinary field unaffected, and two hand-written already-invalid fields (`5A` with blank decimals; blank usage) where unrelated edits go through, another bad value is blocked, and the fix is accepted. Confirmed via `git stash` to fail (59 checks) against pre-fix code. Full suite: 5847/5847 assertions, zero failures (on top of I-63 through I-68, which landed while this task was in progress).
+
+Not addressed here: Resolve Referenced Field (extension host) also rewrites a field's length, data type and decimals from the database file with no `PSHBTNFLD` definition check - added to the existing Deferred findings row for I-61.
 
 ---
 
