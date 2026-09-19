@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-66 of 83 tasks done; 17 open (see [Open work](#open-work)). Current version: **v0.10.146**.
+67 of 83 tasks done; 16 open (see [Open work](#open-work)). Current version: **v0.10.147**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -123,7 +123,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Not started | — |
 | [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | Not started | — |
-| [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | In progress | — |
+| [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Not started | — |
 
@@ -140,22 +140,21 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-69](#i-69) | In progress | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
-| 2 | [I-81](#i-81) | In progress | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
-| 3 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 4 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
-| 5 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 6 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 7 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 8 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 9 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 10 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 11 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 12 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 13 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 14 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 15 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 16 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 17 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
+| 3 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
+| 4 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 5 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 6 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 7 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 8 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 9 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 10 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 11 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 12 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 13 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 14 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 15 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 16 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -165,6 +164,7 @@ Every finding logged before I-61 was opened as a task (I-61 – I-83, see the ta
 |-----------|---------|
 | I-68 | The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS. |
 | I-61, I-62 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
+| I-81 | `PSHBTNFLD`/`PSHBTNCHC` have the same removal-direction gap I-81 closed for `SFLRTNSEL`. The DDS Reference says "A field containing the PSHBTNFLD keyword must also contain one or more PSHBTNCHC keywords" and that `PSHBTNCHC` needs `PSHBTNFLD`, but `pshbtnfldConflictReason`/`pshbtnfldNewConflictReason` (I-57/I-64) only check what is being *added*: removing `PSHBTNFLD` while a `PSHBTNCHC` stays, or removing the last `PSHBTNCHC` while `PSHBTNFLD` stays, is not checked (verified by calling `pshbtnfldNewConflictReason` on both edits - it returns null). Reachable at least through the raw keyword editor. Same fix shape as I-81 (a diff-based check in the `commitEdit` backstop). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4222,11 +4222,23 @@ I-39 added `SFLCSRPRG` with hint text only; its incompatibility with `SFLLIN` is
 
 ### I-81 — `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-39
+> **Area:** Record · **Status:** Done (v0.10.147) · **Depends on:** I-39
 
-I-39 added `SFLRTNSEL` on the `SFLCTL` record with a hint shown when neither `SFLMLTCHC` nor `SFLSNGCHC` is selected, but nothing hard-blocks it. Consider both directions: adding `SFLRTNSEL` without one, and removing the last of them while `SFLRTNSEL` is present.
+**Fixed.** Follow-up from I-39: I-39 added `SFLRTNSEL` on the `SFLCTL` record with only a hint when neither `SFLMLTCHC` nor `SFLSNGCHC` is selected; nothing hard-blocked it, in either direction: **A.** adding `SFLRTNSEL` to a record that has neither, and **B.** removing the last of `SFLSNGCHC`/`SFLMLTCHC` while `SFLRTNSEL` is present.
 
-*Raised by I-39. Size (estimate): Small.*
+Re-read `SFLRTNSEL`'s own section in `DDS_Keyword_V7r6.txt` first: "If this keyword is specified then SFLMLTCHC or SFLSNGCHC must be specified." (record-level, no parameters, option indicators not valid - the last two were already handled by I-39). IBM's own example is a `SFLCTL` record carrying `SFLMLTCHC` and `SFLRTNSEL`.
+
+Reachability sweep, since a guard has to cover every route: the `SFLCTL` panel's `SFLRTNSEL` checkbox (adds it), the panel's type selector set to "(none)" (removes the type), and the record-level raw keyword editor (both "+ Add keyword" and the chip's remove button). `setSflSngChcKeyword`/`setSflMltChcKeyword` are called only from that one panel's wiring, and no record template or wizard writes `SFLRTNSEL`, so those are all the routes.
+
+Design: a single diff-based backstop, `DspfWriter.sflrtnselNewConflictReason(oldKeywords, newKeywords)`, called from `commitRecordEdit` - the one choke point every record-level keyword write goes through - rather than a guard per route. It is the record-level counterpart of I-58's and I-64's field-level backstops in `commitEdit`, and it is the only way to cover direction B in the raw editor, whose remove button deliberately has no guard hook (`wireKeywordEditor`'s `addGuardFn` only fires on add). It returns one of two messages, so the user is told which direction they hit: *choose a selection-list type first* when adding, or *turn `SFLRTNSEL` off first* when removing. On a block the panel is re-rendered from the model, which puts the checkbox or selector back.
+
+The check is **diff-based**: it blames an edit only if it *introduces* the violation. A hand-written record that already has `SFLRTNSEL` and no choice keyword is not re-reported, so unrelated edits on it are never blocked, and fixing it (adding a choice keyword, or removing `SFLRTNSEL`) is always allowed. Switching `SFLSNGCHC` and `SFLMLTCHC` for each other with `SFLRTNSEL` kept is allowed (one always remains), as is removing `SFLRTNSEL` and the choice keyword together.
+
+The panel's I-39 hint was reworded to match: it now says to choose a type first, and for the already-invalid hand-written case says the record is invalid DDS and what to do about it.
+
+New `i81SflrtnselRequiresChoiceList.test.js` (51 checks): pure unit checks of both directions, of the allowed cases and of the diff-based behaviour; then the real generated webview in jsdom on four records (valid, no keywords, `SFLMLTCHC` only, hand-written invalid) - checkbox, selector and raw editor add/remove all blocked with the right alert and no `applyEdit`, the checkbox and selector put back by the re-render, allowed edits committing with the right keywords written, the right-order path (type first, then `SFLRTNSEL`), and the hand-written case where an unrelated edit goes through and the fix is accepted. Confirmed via `git stash` to fail (19 checks) against pre-fix code. Full suite: 5898/5898 assertions, zero failures.
+
+Not addressed here: the same removal-direction gap exists for the `PSHBTNFLD`/`PSHBTNCHC` "must also contain" pair - see Deferred findings.
 
 ---
 

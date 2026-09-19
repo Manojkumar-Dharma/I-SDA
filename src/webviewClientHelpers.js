@@ -7233,14 +7233,21 @@
     // DDS_Keyword_V7r6.txt against actual code. Record-level flag on the
     // SFLCTL record, no parameters, not conditionable ("Option indicators
     // are not valid for this keyword"). IBM's own DDS Reference: "If this
-    // keyword is specified then SFLMLTCHC or SFLSNGCHC must be specified" -
-    // surfaced as a hint rather than a hard block for this first pass
-    // (same "close the entirely-missing gap first" scope noted elsewhere
-    // in this task), so it's placed right here alongside the selector that
-    // drives both.
+    // keyword is specified then SFLMLTCHC or SFLSNGCHC must be specified".
+    // I-39 only surfaced that as a hint; Task I-81 hard-blocks it in both
+    // directions (DspfWriter.sflrtnselNewConflictReason, checked in
+    // commitRecordEdit - adding SFLRTNSEL with no choice keyword, or
+    // removing the last one while SFLRTNSEL stays). The hint below stays to
+    // say WHY the checkbox will be refused until a type is chosen, and to
+    // flag a hand-written record that is already invalid. Placed right here
+    // alongside the selector that drives both.
     var fSflrtnsel = DspfWriter.getFileFlagKeyword(kw, 'SFLRTNSEL');
     html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;"><input type="checkbox" id="' + p + '-sflrtnsel" ' + (fSflrtnsel.present ? 'checked' : '') + ' /> Return all selected choices, including unchanged defaults (SFLRTNSEL)</label>';
-    if (!current) html += '<div class="hint-small" style="margin-bottom:8px;">Requires SFLSNGCHC or SFLMLTCHC (selected above) to have any effect.</div>';
+    if (!current) {
+      html += '<div class="hint-small" style="margin-bottom:8px;">' + (fSflrtnsel.present
+        ? 'SFLRTNSEL is present without SFLSNGCHC or SFLMLTCHC, which is invalid DDS - choose a type above, or turn SFLRTNSEL off.'
+        : 'SFLRTNSEL requires SFLSNGCHC or SFLMLTCHC - choose one above first.') + '</div>';
+    }
 
     function rstcsrSelect(idBase, value) {
       return '<select id="' + idBase + '-rstcsr" style="margin-top:4px;">' +

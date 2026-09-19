@@ -6391,6 +6391,41 @@
     return '';
   }
 
+  /** Task I-81 - SFLRTNSEL's own DDS Reference section says "If this keyword
+   *  is specified then SFLMLTCHC or SFLSNGCHC must be specified". I-39 added
+   *  SFLRTNSEL with only a hint when neither is selected; this is the hard
+   *  block, for BOTH directions:
+   *   A. adding SFLRTNSEL to a record that has neither SFLSNGCHC nor
+   *      SFLMLTCHC (after the edit);
+   *   B. removing the LAST of SFLSNGCHC / SFLMLTCHC while SFLRTNSEL is
+   *      still present (switching one for the other is fine - one remains).
+   *  Given the record's keyword list before and after an edit, returns a
+   *  reason string when the edit INTRODUCES the violation, else null.
+   *
+   *  Diff-based backstop, same shape as I-58's wrdwrapNewConflictReason and
+   *  I-64's pshbtnfldNewConflictReason, for ONE choke point (commitRecordEdit)
+   *  that covers every record-level path at once - the SFLCTL panel's
+   *  SFLRTNSEL checkbox, its type selector, and the raw keyword editor
+   *  (whose Remove has no guard hook of its own). A record that was already
+   *  invalid before the edit (a hand-written file with SFLRTNSEL and no
+   *  choice keyword) is not re-reported, so unrelated edits to it are never
+   *  blocked, and fixing it (adding a choice keyword or removing SFLRTNSEL)
+   *  is always allowed. */
+  function sflrtnselNewConflictReason(oldKeywords, newKeywords) {
+    var has = function (kws, n) { return (kws || []).some(function (kw) { return kw.name === n; }); };
+    var hasChoice = function (kws) { return has(kws, 'SFLSNGCHC') || has(kws, 'SFLMLTCHC'); };
+    if (!has(newKeywords, 'SFLRTNSEL')) return null;
+    if (hasChoice(newKeywords)) return null;
+    // The record ends up invalid; only blame this edit if it introduced that.
+    if (!has(oldKeywords, 'SFLRTNSEL')) {
+      return 'SFLRTNSEL requires SFLSNGCHC or SFLMLTCHC to be specified on the record (per the DDS Reference) - choose a selection-list type first.';
+    }
+    if (hasChoice(oldKeywords)) {
+      return 'SFLSNGCHC or SFLMLTCHC cannot be removed while the record carries SFLRTNSEL, which requires one of them (per the DDS Reference) - turn SFLRTNSEL off first.';
+    }
+    return null;
+  }
+
   /** Whether turning SFLSCROLL ON on this field would conflict with
    *  something already there. Per SFLSCROLL's own DDS Reference text,
    *  "You cannot specify the SFLROLVAL, the SFLSCROLL and the SFLRCDNBR
@@ -7188,6 +7223,7 @@
     getSflMltChcKeyword: getSflMltChcKeyword,
     setSflMltChcKeyword: setSflMltChcKeyword,
     sflChoiceListConflictReason: sflChoiceListConflictReason,
+    sflrtnselNewConflictReason: sflrtnselNewConflictReason,
     sflScrollFieldConflictReason: sflScrollFieldConflictReason,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,

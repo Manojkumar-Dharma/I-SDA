@@ -6428,6 +6428,24 @@ const htmlTemplate = `<!DOCTYPE html>
   function commitRecordEdit(recordName, updates) {
     const rec = model.records.find((r) => r.name === recordName);
     if (!rec) return;
+    // Task I-81: SFLRTNSEL requires SFLMLTCHC or SFLSNGCHC (DDS Reference).
+    // ONE choke point for every record-level path that writes keywords -
+    // the SFLCTL panel's SFLRTNSEL checkbox and type selector AND the raw
+    // keyword editor (whose Remove has no guard hook of its own) - the same
+    // shape as I-58's and I-64's field-level backstops in commitEdit. Blocks
+    // an edit that would INTRODUCE the violation, in either direction
+    // (adding SFLRTNSEL with no choice keyword, or removing the last choice
+    // keyword while SFLRTNSEL stays); a record that was already invalid is
+    // not re-reported. renderRecordProps puts the checkbox / selector back
+    // to the model's real state.
+    if (updates && updates.keywords) {
+      const sflrtnselReason = DspfWriter.sflrtnselNewConflictReason(rec.keywords, updates.keywords);
+      if (sflrtnselReason) {
+        window.alert(sflrtnselReason);
+        renderRecordProps(recordName);
+        return;
+      }
+    }
     commitSourceChange((lines) => DspfWriter.applyRecordUpdate(rec, lines, updates));
   }
 
