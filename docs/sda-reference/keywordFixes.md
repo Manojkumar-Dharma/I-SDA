@@ -127,7 +127,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Done | v0.10.151 |
 | [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | Done | v0.10.152 |
-| [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Not started | — |
+| [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | In progress | — |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Not started | — |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check | I-61, I-62 | Not started | — |
@@ -146,7 +146,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-85](#i-85) | Not started | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays. Size (estimate): Small. Raised by I-81. Verified: both removals return no conflict today; same fix shape as I-81. |
+| 1 | [I-85](#i-85) | In progress | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays. Size (estimate): Small. Raised by I-81. Verified: both removals return no conflict today; same fix shape as I-81. |
 | 2 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
 | 3 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
 | 4 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
@@ -4388,7 +4388,7 @@ Not addressed here: `ENTFLDATR`'s guard has the same flaw - see Deferred finding
 
 ### I-85 — `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-57, I-64, I-81
+> **Area:** Field · **Status:** In progress · **Depends on:** I-57, I-64, I-81
 
 `PSHBTNFLD`/`PSHBTNCHC` have the same removal-direction gap I-81 closed for `SFLRTNSEL`. The DDS Reference says "A field containing the PSHBTNFLD keyword must also contain one or more PSHBTNCHC keywords" and that `PSHBTNCHC` needs `PSHBTNFLD`, but `pshbtnfldConflictReason`/`pshbtnfldNewConflictReason` (I-57/I-64) only check what is being *added*: removing `PSHBTNFLD` while a `PSHBTNCHC` stays, or removing the last `PSHBTNCHC` while `PSHBTNFLD` stays, is not checked (verified by calling `pshbtnfldNewConflictReason` on both edits - it returns null). Reachable at least through the raw keyword editor. Same fix shape as I-81 (a diff-based check in the `commitEdit` backstop).
 
