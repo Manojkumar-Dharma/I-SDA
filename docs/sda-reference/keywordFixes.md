@@ -119,13 +119,13 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
-| [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Not started | — |
+| [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | In progress | — |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Done | v0.10.149 |
 | [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | Done | v0.10.150 |
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
-| [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Not started | — |
+| [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -139,8 +139,8 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 2 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 1 | [I-77](#i-77) | In progress | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 2 | [I-83](#i-83) | In progress | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
 | 3 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
 | 4 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
 | 5 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
@@ -4186,7 +4186,7 @@ SFLMSG's General and Indicator categories reuse I-9's `SFL` set verbatim. Whethe
 
 ### I-77 — `RTNCSRLOC`: re-check the `USRDFN` exclusion
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-56, I-60
+> **Area:** Record · **Status:** In progress · **Depends on:** I-56, I-60
 
 I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing I-8's audit (no incompatibility statement found). But `RTNCSRLOC` is **not on `USRDFN`'s closed whitelist** either (see I-44/I-49), so that reasoning is worth re-checking: if the whitelist is authoritative, `RTNCSRLOC` should be blocked on a `USRDFN` record the same way I-60 now blocks `ENTFLDATR`.
 
@@ -4338,7 +4338,7 @@ Not addressed here: the same removal-direction gap exists for the `PSHBTNFLD`/`P
 
 ### I-83 — `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-41
+> **Area:** Field · **Status:** In progress · **Depends on:** I-41
 
 The Attributes tab's `DSPATR`/`COLOR` checkboxes (`wireColorAttrStatesEditor`) are rendered for every constant type and are not gated against `HTML`'s wider exclusion list (`COLOR`/`DATE`/`DFT`/`DSPATR`/`EDTCDE`/`EDTWRD`/`HLPID`/`MSGCON`/`NOCCSID`/`OVRATR`/`PUTRETAIN`/`SYSNAME`/`TIME`/`USER`). Only reachable by creating an `HTML` constant and then visiting the Attributes tab; the raw editor's guard already covers the likelier path. A disclosed, narrow gap from I-41.
 
