@@ -111,7 +111,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Done | v0.10.144 |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Done | v0.10.145 |
-| [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Not started | — |
+| [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | In progress | — |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Not started | — |
@@ -140,7 +140,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-62](#i-62) | In progress | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
-| 2 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
+| 2 | [I-69](#i-69) | In progress | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
 | 3 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
 | 4 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
 | 5 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
@@ -4071,7 +4071,7 @@ Not addressed here: this covers the **file-level** `HLPRTN` row only. `HLPRTN` i
 
 ### I-69 — `CHKMSGID`: validity-check dependency guard
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+> **Area:** Field · **Status:** In progress · **Depends on:** I-30
 
 IBM: "CHKMSGID is allowed only on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword." iSDA has no guard ensuring that. Same shape as I-8's `USRDFN` guard. Consider both directions: adding `CHKMSGID` without one of those, and removing the last of those while `CHKMSGID` is present. Re-verify the exact wording against `DDS_Keyword_V7r6.txt` first.
 
