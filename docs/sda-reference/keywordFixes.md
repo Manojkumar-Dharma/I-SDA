@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-74 of 90 tasks done; 16 open (see [Open work](#open-work)). Current version: **v0.10.153**.
+75 of 90 tasks done; 15 open (see [Open work](#open-work)). Current version: **v0.10.154**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -113,7 +113,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Done | v0.10.145 |
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Done | v0.10.148 |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
-| [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | In progress | — |
+| [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Done | v0.10.154 |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | In progress | — |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | In progress | — |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
@@ -150,18 +150,17 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | 2 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
 | 3 | [I-73](#i-73) | In progress | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
 | 4 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 5 | [I-71](#i-71) | In progress | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 6 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 7 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 8 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 9 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 10 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 11 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 12 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 13 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 14 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 15 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 16 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 5 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 6 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 7 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 8 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 9 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 10 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 11 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 12 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -170,6 +169,8 @@ Every earlier finding has been opened as a task (I-61 – I-90, see the tables a
 | Raised by | Finding |
 |-----------|---------|
 | I-84 | The same "box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` exists in `ENTFLDATR`'s guard (I-53/I-54/I-60: the `addGuardFn` in `wireEntFldAtrEditor`, which fires whenever the checkbox is ticked at Apply). Confirmed by probe on the record-level panel: on an `SFL`, `MNUBAR` or `USRDFN` record that already carries a hand-edited `ENTFLDATR`, changing its colour and pressing Apply is refused with "ENTFLDATR cannot be *added* to …" and the keyword is left unchanged, while un-ticking it works and a plain record edits normally. Same fix shape as I-84: gate on the real transition (the keyword was not already present) rather than on the checkbox state. |
+| I-71 | `IGCALTTYP` eligibility (same DDS section, first rule): "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." (and the DBCS chapter: not on DBCS-graphic fields, `G` in position 35). The General row's `IGCALTTYP` entry has no usage or data-type gating today, so it is offered on output-only / input-only fields and on `J`/`E`/`O`/`G` fields. Expect the WRDWRAP-style usage + shift-type gating (I-42 / I-61), with usage `B` only. |
+| I-71 | "Option indicators are not allowed with `IGCALTTYP`" (same section). I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle is not gated by keyword, so an indicator can still be put on a raw-added `IGCALTTYP` (and a hand-written one is not flagged). Check whether a generic "no option indicators" keyword list already exists for the other no-indicator keywords before adding one just for this. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4119,9 +4120,21 @@ Per I-30's finding, `CHRID` is mutually exclusive with `DUP` and invalid on cons
 
 ### I-71 — `IGCALTTYP`: mutual-exclusion list
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-30
+> **Area:** Field · **Status:** Done (v0.10.154) · **Depends on:** I-30
 
 `IGCALTTYP` carries a long exclusion list (`AUTO(RAZ)`, `BLKFOLD`, several `CHECK` codes, the `CMP`/`COMP` variants, `DUP`, `RANGE`, `VALUES`) — a niche DBCS feature, unenforced. Note I-58's `wrdwrapReverseConflictReason` already covers the `IGCALTTYP`-vs-`WRDWRAP` pair. Re-verify the full list against `DDS_Keyword_V7r6.txt`; expect a bidirectional check in the style of `htmlConflictReason`.
+
+**Fixed.** Re-verified the list against `DDS_Keyword_V7r6.txt` (`IGCALTTYP` section): "The following keywords are not allowed with the IGCALTTYP keyword: AUTO(RAZ), BLKFOLD, CHECK(M10 M11 M10F M11F RL RZ VN VNE), CMP(EQ GE GT LE LT NE NG NL), COMP(EQ GE GT LE LT NE NG NL), DUP, RANGE, VALUES." `CMP`/`COMP` list every operator they can take, so any use of them is excluded; `AUTO` is excluded only with `RAZ` (`AUTO(RAB)` is fine) and `CHECK` only with the eight listed codes (`CHECK(ME)`, `AB`, `FE`, `MF`, `LC` ... are fine). Matching is by parameter token, never substring, like I-58. The `IGCALTTYP`-vs-`WRDWRAP` pair stays with I-58's `wrdwrapReverseConflictReason` and is not repeated.
+
+Two functions in `dspfWriter.js`, in the shape of `htmlConflictReason` and I-58's WRDWRAP pair:
+- `igcalttypConflictReason(name, params, fieldKeywords)` - the add-time check for **both** directions (adding `IGCALTTYP` to a field that carries an excluded keyword; adding an excluded keyword to a field that carries `IGCALTTYP`), with a different message for each. Wired to the raw keyword editor's "+ Add keyword" and to the General rows' catch-all add guard (I-83's `withAddGuard`; the guard is called with the keyword name and no parameters there, which is enough for every excluded keyword a General row can add).
+- `igcalttypNewConflictReason(oldKeywords, newKeywords)` - a **diff-based backstop** at `commitEdit`, straight after I-85's check, covering every other panel that writes keywords without wiring each one: Keying options' `DUP` checkbox and `CHECK` codes, the validity-check editors, and so on. If `IGCALTTYP` is introduced by the edit, any excluded keyword now on the field counts; if it was already there, only an excluded keyword the edit *added* counts. A hand-written field that was already invalid is not re-reported on unrelated edits, and removing either keyword is always allowed.
+
+The colour/attribute-state editor also uses the HTML add guard, but none of its keywords are on `IGCALTTYP`'s list, so it is left alone. A `CHECK` panel note: on an alphanumeric field the Keying options panel only offers `ME ER MF FE RB RZ RL LC`, so `RL` and `RZ` are the excluded codes reachable there (`M10`/`M11`/`VN`/... are numeric-only, and `IGCALTTYP` does not apply to numeric fields).
+
+New `i71IgcalttypMutualExclusion.test.js` (124 checks: unit checks on both functions, then the real generated script in jsdom through the raw editor, the General rows, the `DUP` checkbox, the `CHECK` codes and a pre-existing invalid field). Confirmed via `git stash` to fail (81 checks) against pre-fix code. Full suite: 109 test files run in parallel, zero failures.
+
+The other two rules in the same section - eligibility, and option indicators - are recorded in [Deferred findings](#deferred-findings-not-yet-tasks).
 
 *Raised by I-30. Size (estimate): Medium (low priority).*
 

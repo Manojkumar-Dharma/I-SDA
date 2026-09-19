@@ -1687,8 +1687,15 @@
    *  null. Token-matched (split on whitespace/commas/parens) rather than
    *  substring-matched, so e.g. CHECK(RB) hits but CHECK(AB) doesn't. */
   function wrdwrapKeywordHit(k) {
-    if (!k || !Object.prototype.hasOwnProperty.call(WRDWRAP_KEYWORD_CONFLICTS, k.name)) return null;
-    var bad = WRDWRAP_KEYWORD_CONFLICTS[k.name];
+    return exclusionListHit(WRDWRAP_KEYWORD_CONFLICTS, k);
+  }
+  /** Task I-71 - the token-matching core of wrdwrapKeywordHit, made generic
+   *  so IGCALTTYP's own exclusion list (below) shares it. `list` maps a
+   *  keyword NAME to null (any use of it is excluded) or to the array of
+   *  parameter tokens that are (a use with none of them is fine). */
+  function exclusionListHit(list, k) {
+    if (!k || !Object.prototype.hasOwnProperty.call(list, k.name)) return null;
+    var bad = list[k.name];
     if (bad === null) return k.name;
     var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
     var matched = bad.filter(function (b) { return tokens.indexOf(b) >= 0; });
@@ -1740,6 +1747,90 @@
     });
     if (!added.length) return null;
     return added.join(', ') + ' cannot be specified on a field that already has WRDWRAP (per the DDS Reference).';
+  }
+
+  /** Task I-71 - IGCALTTYP's own DDS Reference section: "The following
+   *  keywords are not allowed with the IGCALTTYP keyword: AUTO(RAZ), BLKFOLD,
+   *  CHECK(M10 M11 M10F M11F RL RZ VN VNE), CMP(EQ GE GT LE LT NE NG NL),
+   *  COMP(EQ GE GT LE LT NE NG NL), DUP, RANGE, VALUES." A bidirectional
+   *  mutual exclusion on the SAME field, same shape as htmlConflictReason
+   *  and I-58's WRDWRAP pair (which already covers IGCALTTYP-vs-WRDWRAP from
+   *  WRDWRAP's side - that pair is NOT repeated here).
+   *
+   *  CMP/COMP list every comparison operator they can take (EQ GE GT LE LT NE
+   *  NG NL is the whole set), so any use of them is excluded (null). AUTO is
+   *  only excluded with RAZ (AUTO(RAB) is fine) and CHECK only with the eight
+   *  codes listed (CHECK(ME), CHECK(AB), CHECK(FE)... are fine). Token-matched,
+   *  never substring-matched, exactly as wrdwrapKeywordHit does. */
+  var IGCALTTYP_KEYWORD_CONFLICTS = {
+    AUTO: ['RAZ'],
+    BLKFOLD: null,
+    CHECK: ['M10', 'M11', 'M10F', 'M11F', 'RL', 'RZ', 'VN', 'VNE'],
+    CMP: null,
+    COMP: null,
+    DUP: null,
+    RANGE: null,
+    VALUES: null,
+  };
+  function igcalttypKeywordHits(keywords) {
+    var hits = [];
+    (keywords || []).forEach(function (k) {
+      var h = exclusionListHit(IGCALTTYP_KEYWORD_CONFLICTS, k);
+      if (h) hits.push(h);
+    });
+    return hits;
+  }
+  function igcalttypForwardReason(hits) {
+    return 'IGCALTTYP is not allowed with ' + hits.join(', ') + ' on the same field (per the DDS Reference).';
+  }
+  function igcalttypReverseReason(hits) {
+    return hits.join(', ') + ' cannot be specified on a field that already has IGCALTTYP (per the DDS Reference).';
+  }
+
+  /** Task I-71 - add-time check, BOTH directions, for one keyword being
+   *  added (name + parameters, as typed into the raw keyword editor's "+ Add
+   *  keyword" or as a General-row checkbox being ticked):
+   *   - adding IGCALTTYP to a field that already carries an excluded keyword;
+   *   - adding an excluded keyword to a field that already carries IGCALTTYP.
+   *  Returns a reason string, or null. A no-op for every other keyword. */
+  function igcalttypConflictReason(keywordName, parameters, fieldKeywords) {
+    var name = String(keywordName || '').toUpperCase();
+    var kws = fieldKeywords || [];
+    if (name === 'IGCALTTYP') {
+      var hits = igcalttypKeywordHits(kws);
+      return hits.length ? igcalttypForwardReason(hits) : null;
+    }
+    if (!kws.some(function (k) { return k.name === 'IGCALTTYP'; })) return null;
+    var hit = exclusionListHit(IGCALTTYP_KEYWORD_CONFLICTS, { name: name, parameters: parameters });
+    return hit ? igcalttypReverseReason([hit]) : null;
+  }
+
+  /** Task I-71 - diff-based backstop for EVERY field-level panel (Keying
+   *  options' CHECK codes, the RANGE/VALUES/CMP/COMP editors, DUP, BLKFOLD,
+   *  AUTO, the General rows, the raw editor - all commit through commitEdit's
+   *  own keywords update), same shape as wrdwrapNewConflictReason. Given the
+   *  field's keyword list before and after an edit, returns a reason when
+   *  the edit INTRODUCES a conflict on a field that carries IGCALTTYP after
+   *  it:
+   *   - IGCALTTYP was not there before: any excluded keyword now on the field
+   *     is a conflict this edit created (forward message);
+   *   - IGCALTTYP was already there: only an excluded keyword the edit
+   *     ADDED counts (reverse message). Conflicts already present before
+   *     the edit (a hand-written file that was already invalid) are not
+   *     re-reported, so unrelated edits to such a field are never blocked,
+   *     and removing IGCALTTYP or the excluded keyword is always allowed. */
+  function igcalttypNewConflictReason(oldKeywords, newKeywords) {
+    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'IGCALTTYP'; }); };
+    if (!has(newKeywords)) return null;
+    var nowHits = igcalttypKeywordHits(newKeywords);
+    if (!has(oldKeywords)) return nowHits.length ? igcalttypForwardReason(nowHits) : null;
+    var before = igcalttypKeywordHits(oldKeywords);
+    var added = nowHits.filter(function (h) {
+      var i = before.indexOf(h);
+      if (i >= 0) { before.splice(i, 1); return false; }
+      return true;
+    });
+    return added.length ? igcalttypReverseReason(added) : null;
   }
 
   /** Task I-61 - the usage and data-type branches of
@@ -7414,6 +7505,8 @@
     wrdwrapFieldConflictReason: wrdwrapFieldConflictReason,
     wrdwrapReverseConflictReason: wrdwrapReverseConflictReason,
     wrdwrapNewConflictReason: wrdwrapNewConflictReason,
+    igcalttypConflictReason: igcalttypConflictReason,
+    igcalttypNewConflictReason: igcalttypNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,

@@ -4682,7 +4682,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
@@ -4705,7 +4705,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     // Task I-83: HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to these rows too.
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords));
     if (!isConstant && catVis.inputKeywords) {
       WebviewClientHelpers.wireEntFldAtrEditor(() => field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
@@ -6418,6 +6418,18 @@ const htmlTemplate = `<!DOCTYPE html>
       const pshbtnfldRemovalReason = DspfWriter.pshbtnfldRemovalConflictReason(field.keywords, updates.keywords);
       if (pshbtnfldRemovalReason) {
         window.alert(pshbtnfldRemovalReason);
+        render();
+        return;
+      }
+      // Task I-71: same choke point again, for IGCALTTYP's own mutual-
+      // exclusion list (AUTO(RAZ), BLKFOLD, CHECK(M10 M11 M10F M11F RL RZ VN
+      // VNE), CMP, COMP, DUP, RANGE, VALUES), both directions - introducing
+      // IGCALTTYP on a field that carries one of them, or one of them onto a
+      // field that carries IGCALTTYP. Covers every panel that writes keywords
+      // without wiring each one.
+      const igcalttypReason = DspfWriter.igcalttypNewConflictReason(field.keywords, updates.keywords);
+      if (igcalttypReason) {
+        window.alert(igcalttypReason);
         render();
         return;
       }
