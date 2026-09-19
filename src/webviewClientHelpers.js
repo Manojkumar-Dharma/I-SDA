@@ -5801,7 +5801,15 @@
     // whitelist, and (like PRINT below) bypasses wireUsrdfnGuardedFlag/
     // wirePulldownGuardedFlag/wireUsrdfnGuardedTwoField entirely via its
     // own bespoke Apply-button commit - checked directly here.
-    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender, function (name) { return DspfWriter.sflWhitelistConflictReason(name, getKeywords()) || DspfWriter.mnubarWhitelistConflictReason(name, getKeywords()); });
+    // Task I-60: USRDFN's own whitelist (INVITE/KEEP/PASSRCD/HLPRTN/HELP/
+    // HLPCLR/PRINT/OPENPRT/TEXT) doesn't include ENTFLDATR either, and
+    // I-53/I-54 only ORed the SFL and MNUBAR checks here - so ENTFLDATR
+    // could still be applied to a USRDFN record via the General tab (R2's
+    // USRDFN tab-narrowing only hides the Indicator/Output/Input/Overlay
+    // categories, not General). Same three-way OR I-42 already uses for
+    // MOUBTN's own record-level Add button above; each check is a no-op
+    // unless the record is that type.
+    wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender, function (name) { return DspfWriter.usrdfnWhitelistConflictReason(name, getKeywords()) || DspfWriter.sflWhitelistConflictReason(name, getKeywords()) || DspfWriter.mnubarWhitelistConflictReason(name, getKeywords()); });
     // Task L77 - hand-wired (like MNUBARDSP above) since RTNCSRLOC's two
     // independent variants each need their own "present" checkbox + name
     // fields, not a single wireTwoField pair. The two IIFEs are
