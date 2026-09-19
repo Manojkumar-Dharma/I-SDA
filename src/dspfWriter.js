@@ -2347,6 +2347,43 @@
     return null;
   }
 
+  /** Task I-64 - diff-based backstop for EVERY field-level panel (Color &
+   *  attributes, Keying options, Edit code/word, validity checks,
+   *  Reference, date/time, the General keyword rows, CHECK, CHGINPDFT,
+   *  DUP, DSPATR, etc. - all commit through commitEdit's own keywords
+   *  update, the exact same choke point I-58's own wrdwrapNewConflictReason
+   *  already uses), same shape as that function: given the field's
+   *  keyword list before and after an edit, returns a reason when the
+   *  edit INTRODUCES a non-whitelisted keyword onto a field that carries
+   *  PSHBTNFLD both before and after the edit. Conflicts already present
+   *  before the edit (a hand-written file that was already invalid) are
+   *  not re-reported, so unrelated edits to such a field are never
+   *  blocked, and turning PSHBTNFLD itself on is left to the
+   *  forward-direction pshbtnfldConflictReason (already wired at I-57's
+   *  own on/off toggle call site) - this function only fires when
+   *  PSHBTNFLD was ALREADY present both before and after, exactly
+   *  mirroring wrdwrapNewConflictReason's own hadWrdwrap/hasWrdwrap
+   *  double-check. */
+  function pshbtnfldNewConflictReason(oldKeywords, newKeywords) {
+    var hasPshbtnfld = (newKeywords || []).some(function (k) { return k.name === 'PSHBTNFLD'; });
+    if (!hasPshbtnfld) return null;
+    var hadPshbtnfld = (oldKeywords || []).some(function (k) { return k.name === 'PSHBTNFLD'; });
+    if (!hadPshbtnfld) return null;
+    function offenders(kws) {
+      return (kws || []).filter(function (k) {
+        return k.name !== 'PSHBTNFLD' && !pshbtnfldKeywordAllowed(k.name, k.parameters);
+      }).map(function (k) { return k.name === 'DSPATR' ? 'DSPATR(' + (k.parameters || '') + ')' : k.name; });
+    }
+    var before = offenders(oldKeywords);
+    var added = offenders(newKeywords).filter(function (h) {
+      var i = before.indexOf(h);
+      if (i >= 0) { before.splice(i, 1); return false; }
+      return true;
+    });
+    if (!added.length) return null;
+    return added.join(', ') + ' cannot be specified on a push-button (PSHBTNFLD) field (per the DDS Reference, only ALIAS, CHANGE, CHCAVAIL, CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC) and TEXT are allowed).';
+  }
+
   /** PSHBTNFLD's own definition rule: "must be defined as an input-capable
    *  field with data type Y, length equal to 2, and decimal positions of
    *  0". Returns the field-property updates ({ dataType, length,
@@ -6870,6 +6907,7 @@
     getPshbtnfld: getPshbtnfld,
     setPshbtnfld: setPshbtnfld,
     pshbtnfldConflictReason: pshbtnfldConflictReason,
+    pshbtnfldNewConflictReason: pshbtnfldNewConflictReason,
     pshbtnfldDefinitionUpdates: pshbtnfldDefinitionUpdates,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,

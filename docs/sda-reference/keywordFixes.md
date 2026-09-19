@@ -106,7 +106,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | Done | v0.10.140 |
 | [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | In progress | — |
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Done | v0.10.141 |
-| [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | In progress | — |
+| [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Done | v0.10.143 |
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Done | v0.10.142 |
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Not started | — |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
@@ -147,19 +147,18 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | 6 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
 | 7 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
 | 8 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 9 | [I-64](#i-64) | In progress | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
-| 10 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
-| 11 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 12 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 13 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 14 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 15 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 16 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 17 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 18 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 19 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 20 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 21 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 9 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
+| 10 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 11 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 12 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 13 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 14 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 15 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 16 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 17 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 18 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 19 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 20 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -3980,13 +3979,15 @@ Full suite: zero failures.
 
 ### I-64 — `PSHBTNFLD` whitelist: structured field panels
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-57
+> **Area:** Field · **Status:** Done (v0.10.143) · **Depends on:** I-57
 
-`PSHBTNFLD`'s ten-keyword whitelist (`ALIAS`/`CHANGE`/`CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL`/`INDTXT`/`NOCCSID`/`PSHBTNCHC`/`DSPATR(PC)`/`TEXT`) is enforced on the raw keyword editor, on turning `PSHBTNFLD` on, and on Choice selection type (via `DspfWriter.pshbtnfldConflictReason`). The many structured field panels — Color & attributes, Keying options, Edit code/word, validity checks, Reference, date/time, the General keyword rows, etc. — can still add a non-whitelisted keyword to a push-button field.
+**Fixed.** `PSHBTNFLD`'s ten-keyword whitelist (`ALIAS`/`CHANGE`/`CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL`/`INDTXT`/`NOCCSID`/`PSHBTNCHC`/`DSPATR(PC)`/`TEXT`) was only enforced on the raw keyword editor, on turning `PSHBTNFLD` on, and on Choice selection type (via `DspfWriter.pshbtnfldConflictReason`). Every other structured field panel - Color & attributes, Keying options, Edit code/word, validity checks, Reference, the General keyword rows, etc. - could still add a non-whitelisted keyword to a push-button field.
 
-**Suggested approach:** a reachability sweep in the style of I-53/I-54 — enumerate each panel's commit path, wire `pshbtnfldConflictReason` into each, and cover them with a test per panel. Alternatively hide the inapplicable categories for a push-button field, the way a `USRDFN` record's tabs are hidden (I-49/R2).
+Took the "alternatively" approach this task's own note suggested, rather than a per-panel reachability sweep: new `DspfWriter.pshbtnfldNewConflictReason`, a diff-based backstop with the exact same shape as I-58's own `wrdwrapNewConflictReason` (given `oldKeywords`/`newKeywords`, returns a reason only when the edit introduces a newly-disallowed keyword onto a field that carries `PSHBTNFLD` both before and after), wired into `commitEdit` right alongside `wrdwrapNewConflictReason` - the single choke point every field-level panel already commits keyword changes through (I-58 already established this same choke point covers CHECK Keying/Validity codes, CHGINPDFT, DUP, DSPATR, FLTFIXDEC, IGCALTTYP; this reuses it rather than re-deriving it). One diff function at one call site closes the gap for every panel at once, rather than one hand-wired `addGuardFn` per panel. Conflicts already present before the edit (a hand-written field that was already invalid) are not re-reported, so unrelated edits to such a field are never blocked; turning `PSHBTNFLD` itself on is left entirely to the pre-existing forward-direction `pshbtnfldConflictReason`.
 
-*Raised by I-57. Size (estimate): Medium.*
+New `src/test/i64PshbtnfldPanelWhitelist.test.js`: 17 direct unit checks on `pshbtnfldNewConflictReason` (additions blocked/allowed per the whitelist, `DSPATR(PC)` allowed vs. any other `DSPATR` attribute blocked, pre-existing conflicts not re-reported, removal always fine, `PSHBTNFLD` itself being turned on left to the forward guard, null-safety), plus real end-to-end DOM scenarios against a genuine push-button field (usage `B`, data type `Y`, length 2, decimal positions 0): the Editing keywords panel (`EDTCDE`) blocked, the Color & attributes panel blocked for `DSPATR(HI)` but still allows `DSPATR(PC)` (round-tripping correctly with `PSHBTNFLD` intact), the Keying options panel (`CHECK`) blocked, the General keywords panel (`ALIAS`) unaffected, the same panels working normally on a non-`PSHBTNFLD` field, and a hand-written already-invalid field (`PSHBTNFLD` + `COLOR`) where an unrelated edit is not blocked by the pre-existing conflict. Full suite: zero failures.
+
+Landed after I-65's own new CHCCTL/CHCAVAIL/CHCUNAVAIL editors (v0.10.142); no interaction between the two - I-65's editors only ever write keywords already on PSHBTNFLD's own whitelist, so `pshbtnfldNewConflictReason` is a correct no-op against them.
 
 ---
 

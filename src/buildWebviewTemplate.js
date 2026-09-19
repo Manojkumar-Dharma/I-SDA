@@ -6351,10 +6351,25 @@ const htmlTemplate = `<!DOCTYPE html>
     // raw editor). Blocks an edit that would INTRODUCE one of WRDWRAP's
     // own conflicting keywords onto a field that already carries WRDWRAP;
     // render() puts the panel back to the model's real state.
+    // Task I-64 reuses this exact same choke point for PSHBTNFLD's own
+    // closed whitelist, right below.
     if (updates && updates.keywords) {
       const wrdwrapReason = DspfWriter.wrdwrapNewConflictReason(field.keywords, updates.keywords);
       if (wrdwrapReason) {
         window.alert(wrdwrapReason);
+        render();
+        return;
+      }
+      // Task I-64: same choke point, same shape, for PSHBTNFLD's own
+      // closed whitelist - covers every field-level panel that writes
+      // keywords (Color & attributes, Keying options, Edit code/word,
+      // validity checks, Reference, date/time, the General keyword rows,
+      // CHECK, CHGINPDFT, DUP, DSPATR, etc.), none of which previously
+      // had any PSHBTNFLD guard at all (only the raw keyword editor and
+      // the Choice Selection Type editor did, from I-57).
+      const pshbtnfldReason = DspfWriter.pshbtnfldNewConflictReason(field.keywords, updates.keywords);
+      if (pshbtnfldReason) {
+        window.alert(pshbtnfldReason);
         render();
         return;
       }
