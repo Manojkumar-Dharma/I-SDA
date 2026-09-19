@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-59 of 83 tasks done; 24 open (see [Open work](#open-work)). Current version: **v0.10.139**.
+60 of 83 tasks done; 23 open (see [Open work](#open-work)). Current version: **v0.10.140**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -103,7 +103,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-58](#i-58) | Field | Reverse `WRDWRAP` mutual-exclusion guards | I-42 | Done | v0.10.137 |
 | [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | Done | v0.10.138 |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
-| [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | In progress | — |
+| [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | Done | v0.10.140 |
 | [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | Not started | — |
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Not started | — |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Not started | — |
@@ -139,37 +139,37 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-61](#i-61) | In progress | `WRDWRAP`: guard a data type / usage change on a field that already carries it. Size (estimate): Small. Raised by I-58. |
-| 2 | [I-62](#i-62) | Not started | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
-| 3 | [I-63](#i-63) | Not started | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape. Size (estimate): Small–medium. Raised by I-57. |
-| 4 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
-| 5 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
-| 6 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
-| 7 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 8 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
-| 9 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 10 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 11 | [I-64](#i-64) | Not started | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
-| 12 | [I-65](#i-65) | Not started | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
-| 13 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
-| 14 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 15 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 16 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 17 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 18 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 19 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 20 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 21 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 22 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 23 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 24 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-62](#i-62) | Not started | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
+| 2 | [I-63](#i-63) | Not started | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape. Size (estimate): Small–medium. Raised by I-57. |
+| 3 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
+| 4 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
+| 5 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
+| 6 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
+| 7 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
+| 8 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 9 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 10 | [I-64](#i-64) | Not started | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
+| 11 | [I-65](#i-65) | Not started | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
+| 12 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
+| 13 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 14 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 15 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 16 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 17 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 18 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 19 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 20 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 21 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 22 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 23 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-None open. Every finding previously listed here has been opened as a task (I-61 – I-83, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding logged before I-61 was opened as a task (I-61 – I-83, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
+| I-61 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -3928,13 +3928,21 @@ Not addressed here: `RTNCSRLOC`'s own record-level guard (I-56) deliberately omi
 
 ### I-61 — `WRDWRAP`: guard a data type / usage change on a field that already carries it
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-58
+> **Area:** Field · **Status:** Done (v0.10.140) · **Depends on:** I-58
 
-I-58 blocked adding `WRDWRAP`'s conflicting *keywords* to a `WRDWRAP` field, but not a **data type or usage change** on one. Applying data type `Y` (or any of `S`/`D`/`M`/`F`/`J`/`O`/`E`/`G`), or usage `O`/`H`/`P`, through the Basic tab's Apply on a field that already carries `WRDWRAP` is not blocked (confirmed via jsdom during I-58), although `DspfWriter.wrdwrapFieldConflictReason`'s own forward check treats both as invalid.
+**Fixed.** Follow-up from I-58: I-58 blocked adding `WRDWRAP`'s conflicting *keywords* to a `WRDWRAP` field, but not a **data type or usage change** on one. Applying data type `S`/`Y`/`D`/`M`/`F` (the Data type select offers no `J`/`O`/`E`/`G`), or usage `O`/`H`/`M`/`P`, through the Basic tab's Apply on a field that already carried `WRDWRAP` was not blocked, although `DspfWriter.wrdwrapFieldConflictReason`'s own forward check (turning `WRDWRAP` on) already treats both as invalid.
 
-**Suggested fix:** one check in the Basic tab's Apply handler (`buildWebviewTemplate.js`, the `p-apply` handler), reusing `wrdwrapFieldConflictReason`'s own data-type/usage branches — alert and no edit, same idiom as every other guard. Do this before I-62, which needs the same handler.
+Re-read `WRDWRAP`'s own section in `DDS_Keyword_V7r6.txt` first: "This keyword can only be specified on fields that have a usage of input-only (I) or input/output (B)", and it cannot be specified on the keyboard shifts Signed Numeric (`S`), Numeric Only (`Y`), Digits Only (`D`), Numeric Only Character (`M`), Floating Point (`F`), DBCS Only (`J`), DBCS Open (`O`), DBCS Either (`E`) or Graphic (`G`). That matches the two branches `wrdwrapFieldConflictReason` already had; nothing to add or remove.
 
-*Raised by I-58. Size (estimate): Small.*
+Reachability sweep: the Basic tab's Apply (`p-apply`, named-field branch) is the only place in the webview that commits a data type or usage change to an *existing* field through `commitEdit`; the other `usage:` sites create new fields.
+
+Fix: the usage and data-type branches of `wrdwrapFieldConflictReason` were pulled out unchanged into `wrdwrapUsageReason`/`wrdwrapDataTypeReason` (the forward check now calls them, behaviour identical), and new `DspfWriter.wrdwrapBasicEditConflictReason(fieldKeywords, oldDataType, oldUsage, newDataType, newUsage)` uses the same two helpers, so both directions share one wording. It is called from the Basic tab's Apply handler right after I-31's `dateTimeUsageConflictReason`, as an early return before `commitEdit` (alert, no edit) - not from `commitEdit` itself - so the panel keeps the user's other pending edits and they can fix the select and click Apply again.
+
+The check is **diff-based**, like I-58's `wrdwrapNewConflictReason`: only a change *to* an invalid value is blocked, so an unrelated Apply (rename, length) on a hand-written field that is already invalid is never blocked. One subtlety: the Usage select has no blank option and shows `O` for a blank stored usage (the DDS default is output), so a blank usage counts as `O` on both sides of the comparison; otherwise every Apply on a blank-usage `WRDWRAP` field would have been read as a change to `O` and blocked. Changing between two different invalid values (`S` to `Y`) is still blocked; changing to a valid value, or leaving a value alone, never is.
+
+New `i61WrdwrapBasicTabTypeUsageGuard.test.js` (81 checks): pure unit checks of the new function and of the unchanged forward check, then the real generated webview in jsdom - every reachable bad data type and usage blocked with an alert and no `applyEdit`, a blocked Apply leaving the typed length in the form, allowed edits committing with `WRDWRAP` kept, a non-`WRDWRAP` field unaffected, and two hand-written already-invalid fields (blank usage; data type `S`) where unrelated edits go through, an explicit bad choice is blocked, and the fix is accepted. Confirmed via `git stash` to fail (44 checks) against pre-fix code. Full suite: 5532/5532 assertions, zero failures.
+
+Not addressed here: Resolve Referenced Field (extension host) also rewrites a field's data type, from the database file's definition, with no `WRDWRAP` check - see Deferred findings. I-62 (`PSHBTNFLD`) needs the same Apply handler and can now add its own check next to this one.
 
 ---
 

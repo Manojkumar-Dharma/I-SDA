@@ -1573,7 +1573,9 @@
    *  reverse direction (adding AUTO/CHECK/DUP/etc. to a field that
    *  already carries WRDWRAP) is Task I-58's wrdwrapReverseConflictReason
    *  (raw editor) and wrdwrapNewConflictReason (commitEdit backstop for
-   *  every panel), defined just above.
+   *  every panel), defined just above. Changing the data type or usage of
+   *  a field that already carries WRDWRAP (Basic tab Apply) is Task I-61's
+   *  wrdwrapBasicEditConflictReason, which shares this function's wording.
    *  Usage/data type are checked here even though the field-level row is
    *  already hidden for them (see generalFieldKeywordRowMatchesDataType/
    *  ...MatchesUsage), so this function is correct on its own for any
@@ -1651,16 +1653,67 @@
     return added.join(', ') + ' cannot be specified on a field that already has WRDWRAP (per the DDS Reference).';
   }
 
-  function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
-    if (keywordName !== 'WRDWRAP') return null;
+  /** Task I-61 - the usage and data-type branches of
+   *  wrdwrapFieldConflictReason, pulled out unchanged so the forward check
+   *  (turning WRDWRAP on) and wrdwrapBasicEditConflictReason (changing the
+   *  type or usage of a field that already carries WRDWRAP) share one
+   *  wording. A blank value returns null here (fail-open, "not yet set"). */
+  function wrdwrapUsageReason(usage) {
     var u = (usage || '').toUpperCase();
     if (u && u !== 'I' && u !== 'B') {
       return 'WRDWRAP can only be specified on input-only (I) or input/output (B) fields (per the DDS Reference).';
     }
+    return null;
+  }
+  function wrdwrapDataTypeReason(dataType) {
     var dt = (dataType || '').toUpperCase();
     if (dt && WRDWRAP_BLOCKED_SHIFTS.indexOf(dt) >= 0) {
       return 'WRDWRAP cannot be specified on a field with keyboard shift/data type ' + dt + ' (per the DDS Reference: not valid on S, Y, D, M, F, J, O, E, or G).';
     }
+    return null;
+  }
+
+  /** Task I-61 - a data type or usage CHANGE on a field that ALREADY carries
+   *  WRDWRAP (the Basic tab's Apply changes). I-58 covered adding WRDWRAP's
+   *  conflicting keywords to such a field; this covers the two other
+   *  things the DDS Reference rules out for WRDWRAP - usage other than I/B,
+   *  and data type S/Y/D/M/F/J/O/E/G. Returns a reason string, or null.
+   *
+   *  Diff-based, like I-58's wrdwrapNewConflictReason: only a change TO an
+   *  invalid value is blocked, so an unrelated edit (rename, length) on a
+   *  hand-written field that is already invalid is never blocked. A blank
+   *  usage is the DDS default, which is output (O) - the Basic tab's Usage
+   *  select has no blank option and shows O for it - so a blank usage
+   *  counts as O on BOTH sides of the comparison. Changing between two
+   *  different invalid values is still blocked (the edit does not fix
+   *  anything); changing to a valid one, or leaving a value alone, is
+   *  never blocked. A field without WRDWRAP is never affected. */
+  function wrdwrapBasicEditConflictReason(fieldKeywords, oldDataType, oldUsage, newDataType, newUsage) {
+    var hasWrdwrap = (fieldKeywords || []).some(function (k) { return k.name === 'WRDWRAP'; });
+    if (!hasWrdwrap) return null;
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var oldU = norm(oldUsage) || 'O';
+    var newU = norm(newUsage) || 'O';
+    var oldT = norm(oldDataType);
+    var newT = norm(newDataType);
+    var reason;
+    if (newU !== oldU) {
+      reason = wrdwrapUsageReason(newU);
+      if (reason) return reason;
+    }
+    if (newT !== oldT) {
+      reason = wrdwrapDataTypeReason(newT);
+      if (reason) return reason;
+    }
+    return null;
+  }
+
+  function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
+    if (keywordName !== 'WRDWRAP') return null;
+    var usageReason = wrdwrapUsageReason(usage);
+    if (usageReason) return usageReason;
+    var dataTypeReason = wrdwrapDataTypeReason(dataType);
+    if (dataTypeReason) return dataTypeReason;
     if ((recordKeywords || []).some(function (k) { return k.name === 'SFL'; })) {
       return 'WRDWRAP is not supported on subfile (SFL) record fields (per the DDS Reference).';
     }
@@ -6767,6 +6820,7 @@
     wrdwrapFieldConflictReason: wrdwrapFieldConflictReason,
     wrdwrapReverseConflictReason: wrdwrapReverseConflictReason,
     wrdwrapNewConflictReason: wrdwrapNewConflictReason,
+    wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,

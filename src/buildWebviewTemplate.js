@@ -4617,6 +4617,20 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(dateTimeUsageReason);
           return;
         }
+        // Task I-61: WRDWRAP is valid only on input-only (I) or
+        // input/output (B) fields and not on data types S, Y, D, M, F, J,
+        // O, E or G. I-58 blocked adding WRDWRAP's conflicting KEYWORDS to
+        // a WRDWRAP field; this blocks a data type or usage CHANGE on one.
+        // Diff-based (see wrdwrapBasicEditConflictReason), so an unrelated
+        // Apply on an already-invalid hand-written field still goes
+        // through. Early return, same as the date/time check above: the
+        // panel keeps the user's other pending edits and they can fix the
+        // select and click Apply again.
+        const wrdwrapEditReason = DspfWriter.wrdwrapBasicEditConflictReason(field.keywords, field.dataType, field.usage, updates.dataType, updates.usage);
+        if (wrdwrapEditReason) {
+          window.alert(wrdwrapEditReason);
+          return;
+        }
       }
       commitEdit(ownerRecordName, field, updates);
     });

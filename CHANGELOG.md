@@ -13,6 +13,7 @@ Task prefixes: **I** keyword-compliance audit · **L**/**M** designer fixes and 
 ## 0.10.79 – 0.10.139 — Keyword-compliance audit (I-series) and follow-ups
 
 - Docs (no version): `keywordFixes.md` restructured — one status table for I-1 – I-83, one `### I-N` section per task, versions reconciled with this file; `README.md` rewritten; this changelog condensed and 0.10.121 restored.
+- **0.10.140** — I-61: the Basic tab's Apply now blocks changing a `WRDWRAP` field to a data type (`S`/`Y`/`D`/`M`/`F`/`J`/`O`/`E`/`G`) or usage (not `I`/`B`) the DDS Reference forbids for it. Diff-based, so unrelated edits on an already-invalid field still work.
 - **0.10.139** — I-57: implemented `PSHBTNFLD`/`PSHBTNCHC` (push-button field) — field-level accordion, new add-field kind, ten-keyword whitelist via `pshbtnfldConflictReason`; preview now draws each choice as its own button. Follow-ups opened as I-62 – I-66.
 - **0.10.138** — I-59: the shared `ENTFLDATR` editor now round-trips a bare `ENTFLDATR` and `*NOCURSOR` (both were silently dropped on every Apply); non-blocking hint for `*NOCURSOR` on a non-`I` field. `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT` callers unaffected.
 - **0.10.137** — I-58: reverse direction of `WRDWRAP`'s mutual exclusion — its conflicting keywords (`AUTO(RAZ/RAB)`, `CHECK`, `CHGINPDFT(MF)`, `DSPATR(OID/SP)`, `DUP`, `FLTFIXDEC`, `IGCALTTYP`) can no longer be added to a `WRDWRAP` field.
