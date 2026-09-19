@@ -4662,6 +4662,16 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(chkmsgidEditReason);
           return;
         }
+        // Task I-79: SFLCHCCTL requires the field to stay length 1, data
+        // type Y, 0 decimals, usage H. I-79's own checkbox handler brings
+        // a field into that shape when the keyword is turned ON; this
+        // blocks a later Apply that would break it. Same diff-based,
+        // early-return posture as the checks just above.
+        const sflchcctlEditReason = DspfWriter.sflchcctlBasicEditConflictReason(field.keywords, field, updates);
+        if (sflchcctlEditReason) {
+          window.alert(sflchcctlEditReason);
+          return;
+        }
       }
       commitEdit(ownerRecordName, field, updates);
     });
@@ -4703,7 +4713,13 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (isSflOrSflCtlRecord) {
       const siblingFieldsKeywords = (found.record.fields || []).filter((f) => f.sourceLine !== field.sourceLine).map((f) => f.keywords);
-      WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, siblingFieldsKeywords);
+      // Task I-79 - "first field" is the first NAMED field in the owning
+      // record (constants don't count as fields per the DDS Reference's
+      // own terminology - see DspfWriter.sflchcctlFieldConflictReason's
+      // own doc comment).
+      const firstNamedField = (found.record.fields || []).find((f) => f.nameType !== 'CONSTANT');
+      const isFirstField = !!firstNamedField && firstNamedField.sourceLine === field.sourceLine;
+      WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords, fieldUpdates) => commitEdit(ownerRecordName, field, Object.assign({ keywords: newKeywords }, fieldUpdates || {})), 'field-' + field.sourceLine, siblingFieldsKeywords, isFirstField, () => field);
     }
     if (isMenuBarRecord) {
       WebviewClientHelpers.wireMenuBarChoicesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));

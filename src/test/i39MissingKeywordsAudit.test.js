@@ -178,7 +178,12 @@ console.log('\nsubfileFieldKeywordsHtml/wireSubfileFieldKeywords - SFLCHCCTL/SFL
   check('sflcsrprg checkbox present', html.indexOf('sflfk-sflcsrprg') >= 0);
   document.getElementById('root').innerHTML = html;
   let committed = null;
-  Helpers.wireSubfileFieldKeywords(keywords, function (next) { committed = next; }, 'sflfk', []);
+  // Task I-79 added two new params: isFirstField (true here - this test is
+  // only about the row existing and wiring through, not the new structural
+  // guards, which have their own dedicated test) and getField (an
+  // already-correctly-shaped field, so the I-79 rewrite is a no-op and
+  // this test's original "commits SFLCHCCTL" assertion still holds as-is).
+  Helpers.wireSubfileFieldKeywords(keywords, function (next) { committed = next; }, 'sflfk', [], true, function () { return { dataType: 'Y', length: 1, decimalPositions: 0, usage: 'H' }; });
   const chcctlEl = document.getElementById('sflfk-sflchcctl');
   check('SFLCHCCTL checkbox exists', !!chcctlEl);
   if (chcctlEl) {

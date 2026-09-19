@@ -6536,6 +6536,92 @@
     return '';
   }
 
+  /** Task I-79 - SFLCHCCTL's own DDS Reference section: "That field must be
+   *  the first field defined in the subfile record. That field must have a
+   *  length of 1, data type of Y, decimal positions of zero, and have a
+   *  usage of H... Only one SFLCHCCTL keyword can be used in one subfile
+   *  record." I-39 added the keyword itself with hint text only - none of
+   *  the three rules were hard-blocked.
+   *
+   *  Same split I-57/I-62 used for PSHBTNFLD: the field-shape rule (length/
+   *  type/decimals/usage) is the field's OWN definition, so it is silently
+   *  REWRITTEN to the required Y/1/0/H shape when the checkbox is turned on
+   *  (sflchcctlDefinitionUpdates, mirroring pshbtnfldDefinitionUpdates) -
+   *  there is nothing else that shape could sensibly mean once a field is
+   *  turned into a bare control flag. The other two rules are structural
+   *  facts ABOUT THE RECORD that this one edit cannot silently fix (moving
+   *  the field to be first, or freeing up the record's only SFLCHCCTL
+   *  slot), so those are hard-blocked instead by
+   *  sflchcctlFieldConflictReason below, called BEFORE the checkbox commits
+   *  - same '' (not null) / isFirstField+siblingFieldsKeywords convention
+   *  sflScrollFieldConflictReason just above uses for its own one-per-
+   *  record rule. "First field" is read as the first NAMED field in the
+   *  record (nameType !== 'CONSTANT') - DDS's own terminology throughout
+   *  this Reference calls constants out separately from fields, and IBM's
+   *  own SFLCHCCTL example places the control field before any other
+   *  field with no constant in between. */
+  function sflchcctlDefinitionUpdates(field) {
+    var f = field || {};
+    var updates = {};
+    if ((f.dataType || '').toUpperCase() !== 'Y') updates.dataType = 'Y';
+    if (Number(f.length) !== 1) updates.length = 1;
+    if (Number(f.decimalPositions) !== 0 || f.decimalPositions == null) updates.decimalPositions = 0;
+    if ((f.usage || '').toUpperCase() !== 'H') updates.usage = 'H';
+    return Object.keys(updates).length ? updates : null;
+  }
+
+  function sflchcctlFieldConflictReason(isFirstField, siblingFieldsKeywords) {
+    if (!isFirstField) return 'SFLCHCCTL must be on the first field defined in the subfile record (per the DDS Reference).';
+    var alreadyElsewhere = (siblingFieldsKeywords || []).some(function (fk) {
+      return (fk || []).some(function (kw) { return kw.name === 'SFLCHCCTL'; });
+    });
+    if (alreadyElsewhere) return 'Only one SFLCHCCTL keyword is allowed in the subfile record - another field already has it.';
+    return '';
+  }
+
+  /** Task I-79 - a data type, length, decimals or usage CHANGE (the Basic
+   *  tab's Apply changes) on a field that ALREADY carries SFLCHCCTL.
+   *  Turning the keyword ON brings the field into the required Y/1/0/H
+   *  shape automatically (see sflchcctlDefinitionUpdates); this closes the
+   *  other direction, same shape as I-62's pshbtnfldBasicEditConflictReason.
+   *  Diff-based: only a CHANGE away from the required shape is blocked, so
+   *  an unrelated Apply on an already-invalid hand-written field still goes
+   *  through. Returns a reason string, or null. */
+  function sflchcctlBasicEditConflictReason(fieldKeywords, oldField, updates) {
+    var hasChcctl = (fieldKeywords || []).some(function (k) { return k.name === 'SFLCHCCTL'; });
+    if (!hasChcctl) return null;
+    var oldF = oldField || {};
+    var upd = updates || {};
+    var has = function (key) { return Object.prototype.hasOwnProperty.call(upd, key); };
+    var str = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var num = function (v) {
+      if (v == null || v === '') return null;
+      var n = Number(v);
+      return isNaN(n) ? null : n;
+    };
+    var before = {
+      dataType: str(oldF.dataType),
+      length: num(oldF.length),
+      decimalPositions: num(oldF.decimalPositions),
+      usage: str(oldF.usage)
+    };
+    var after = {
+      dataType: has('dataType') ? str(upd.dataType) : before.dataType,
+      length: has('length') ? num(upd.length) : before.length,
+      decimalPositions: has('decimalPositions') ? num(upd.decimalPositions) : before.decimalPositions,
+      usage: has('usage') ? str(upd.usage) : before.usage
+    };
+    var stillWrong = sflchcctlDefinitionUpdates(after) || {};
+    var shown = function (v) { return v == null || v === '' ? 'blank' : v; };
+    var problems = [];
+    if (stillWrong.dataType !== undefined && after.dataType !== before.dataType) problems.push('data type ' + shown(after.dataType) + ' (must be Y)');
+    if (stillWrong.length !== undefined && after.length !== before.length) problems.push('length ' + shown(after.length) + ' (must be 1)');
+    if (stillWrong.decimalPositions !== undefined && after.decimalPositions !== before.decimalPositions) problems.push('decimal positions ' + shown(after.decimalPositions) + ' (must be 0)');
+    if (stillWrong.usage !== undefined && after.usage !== before.usage) problems.push('usage ' + shown(after.usage) + ' (must be H)');
+    if (!problems.length) return null;
+    return 'SFLCHCCTL requires a length-1, data type Y, 0-decimal, usage H field (per the DDS Reference) - cannot set ' + problems.join(', ') + '.';
+  }
+
   // ---------------------------------------------------------------------
   // Task R4 - SFLCTL-specific picker (Subfile Control menu: General/
   // Display Layout/Subfile Messages - see docs/sda-reference/screens/
@@ -7318,6 +7404,9 @@
     sflChoiceListConflictReason: sflChoiceListConflictReason,
     sflrtnselNewConflictReason: sflrtnselNewConflictReason,
     sflScrollFieldConflictReason: sflScrollFieldConflictReason,
+    sflchcctlDefinitionUpdates: sflchcctlDefinitionUpdates,
+    sflchcctlFieldConflictReason: sflchcctlFieldConflictReason,
+    sflchcctlBasicEditConflictReason: sflchcctlBasicEditConflictReason,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,
     getFileMsgLocLines: getFileMsgLocLines,

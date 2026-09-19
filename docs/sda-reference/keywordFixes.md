@@ -121,7 +121,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Not started | — |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
-| [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | In progress | — |
+| [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Done | v0.10.149 |
 | [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | In progress | — |
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
@@ -140,7 +140,6 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-80](#i-80) | In progress | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 2 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
 | 3 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
 | 4 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
 | 5 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
@@ -164,6 +163,8 @@ Every finding logged before I-61 was opened as a task (I-61 – I-83, see the ta
 | I-69 | `CHKMSGID`'s optional `&message-data-field` parameter must name a field that **exists in the same record format** and is defined as a **character field (data type `A`) with usage `P`** (per its DDS Reference section). The CHKMSGID panel takes any text there and nothing checks it; also not checked when the named field is later renamed, deleted or has its type/usage changed. Needs a record-aware check like the `SFLMSGID`/`SFLPGMQ` field-name validations. |
 | I-68 | The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS. |
 | I-61, I-62 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
+| I-79 | Reordering fields (Structure tab's Up/Down buttons, `DspfWriter.reorderFields`, called from `moveField`) can move a field that carries `SFLCHCCTL` out of first place, or move another field ahead of it, with no guard - `sflchcctlFieldConflictReason`'s first-field check only runs when the checkbox itself is toggled. Needs its own diff-based backstop at the `moveField`/`reorderFields` choke point, which has no existing guard precedent to follow (unlike `commitEdit`, which several tasks already hook). |
+| I-79 | `SFLCHCCTL`'s own DDS Reference section separately states "SFLNXTCHC keyword cannot be specified in a record that contains a field with the SFLCHCCTL keyword" - a fourth, cross-keyword rule distinct from the field-shape/first-field/one-per-record trio I-79 closed. Not yet guarded in either direction (adding `SFLNXTCHC` to a record with an `SFLCHCCTL` field, or vice versa). |
 | I-81 | `PSHBTNFLD`/`PSHBTNCHC` have the same removal-direction gap I-81 closed for `SFLRTNSEL`. The DDS Reference says "A field containing the PSHBTNFLD keyword must also contain one or more PSHBTNCHC keywords" and that `PSHBTNCHC` needs `PSHBTNFLD`, but `pshbtnfldConflictReason`/`pshbtnfldNewConflictReason` (I-57/I-64) only check what is being *added*: removing `PSHBTNFLD` while a `PSHBTNCHC` stays, or removing the last `PSHBTNCHC` while `PSHBTNFLD` stays, is not checked (verified by calling `pshbtnfldNewConflictReason` on both edits - it returns null). Reachable at least through the raw keyword editor. Same fix shape as I-81 (a diff-based check in the `commitEdit` backstop). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
@@ -4210,9 +4211,65 @@ I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing 
 
 ### I-79 — `SFLCHCCTL`: field-shape, first-field and one-per-record rules
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-39
+> **Area:** Field · **Status:** Done (v0.10.149) · **Depends on:** I-39
 
-I-39 added `SFLCHCCTL` with hint text only. Its documented rules are not hard-blocked: it must be the **first** field of the subfile record, length 1, data type `Y`, 0 decimals, usage `H`, and only one per record. Re-verify against `DDS_Keyword_V7r6.txt`, then enforce.
+**Fixed.** I-39 added `SFLCHCCTL` with hint text only. Its own DDS Reference
+section (`DDS_Keyword_V7r6.txt`) states three rules, none hard-blocked: the
+control field "must be the first field defined in the subfile record", must
+have "a length of 1, data type of Y, decimal positions of zero, and have a
+usage of H", and "Only one SFLCHCCTL keyword can be used in one subfile
+record."
+
+Same split I-57/I-62 used for `PSHBTNFLD`'s own definition rule:
+
+- **Field-shape** (length/type/decimals/usage) is the field's OWN
+  definition, so it is silently rewritten to the required `1`/`Y`/`0`/`H`
+  shape in the SAME edit when the checkbox is turned on
+  (`DspfWriter.sflchcctlDefinitionUpdates`) - there's nothing else that
+  shape could sensibly mean once a field becomes a bare control flag. A
+  later Basic-tab Apply that would break the shape on a field that already
+  carries `SFLCHCCTL` is blocked (`DspfWriter.sflchcctlBasicEditConflictReason`,
+  diff-based - an already-invalid hand-written field is never re-reported
+  for an unrelated edit).
+- **First-field** and **one-per-record** are structural facts ABOUT THE
+  RECORD this one edit cannot silently fix (moving the field to be first,
+  or freeing up the record's only slot), so turning the checkbox ON is
+  hard-BLOCKED instead when either is violated
+  (`DspfWriter.sflchcctlFieldConflictReason`, called from
+  `wireSubfileFieldKeywords`'s checkbox handler before anything commits,
+  checkbox reverted on block - same pattern I-26's `SFLSCROLL` one-per-
+  record guard already used). "First field" is read as the first NAMED
+  field in the record (`nameType !== 'CONSTANT'`) - constants are called
+  out separately from fields throughout this Reference, and IBM's own
+  `SFLCHCCTL` example places the control field before any other field with
+  no constant in between.
+
+`wireSubfileFieldKeywords`'s and `buildWebviewTemplate.js`'s call site
+signatures both grew two params to support this: `isFirstField` (computed
+from the owning record's field list) and `getField` (so the checkbox
+handler can hand back a `fieldUpdates` object alongside `newKeywords`, the
+same `commit(newKeywords, fieldUpdates)` shape `wirePshbtnfldPanel` already
+uses) - `i39MissingKeywordsAudit.test.js`'s own `wireSubfileFieldKeywords`
+call was updated to pass an already-correctly-shaped field so its original
+"commits SFLCHCCTL" assertion still holds unchanged.
+
+**Deliberately out of scope:** reordering fields (the Structure tab's
+Up/Down buttons, `DspfWriter.reorderFields`) can move a field that already
+carries `SFLCHCCTL` out of first place, or move another field ahead of it,
+with no guard - logged below in Deferred findings rather than folded into
+this task, since it's a different commit choke point (`moveField`, not
+`commitEdit`) with no existing precedent in this codebase to follow. The
+DDS Reference's separate note "SFLNXTCHC keyword cannot be specified in a
+record that contains a field with the SFLCHCCTL keyword" is a fourth,
+distinct rule (cross-keyword, not field-shape/first-field/one-per-record)
+and is also logged there rather than folded in here.
+
+Regression coverage: new
+`src/test/i79SflchcctlStructuralRules.test.js` - pure unit checks for all
+three new `DspfWriter` functions, plus DOM scenarios covering the
+auto-rewrite (wrong-shape first field), the first-field block (second
+field), and the one-per-record block (hand-written second field already
+carrying the keyword).
 
 *Raised by I-39. Size (estimate): Medium.*
 

@@ -2773,11 +2773,12 @@
     // Reference entry) that only make sense on a field within an SFL/
     // SFLCTL record - same shape and same panel as SFLRCDNBR/SFLROLVAL/
     // SFLSCROLL just above, so they're added here rather than as a new
-    // accordion. SFLCHCCTL has real structural requirements this first
-    // pass doesn't hard-block (must be the record's first field, length 1,
-    // data type Y, decimal positions 0, usage H) - surfaced as a hint
-    // rather than a guard, same "close the entirely-missing gap first"
-    // scope I-39's own claim comment in keywordFixes.md documents.
+    // accordion. SFLCHCCTL has real structural requirements (must be the
+    // record's first field, length 1, data type Y, decimal positions 0,
+    // usage H, only one per record) - I-39 only surfaced them as a hint;
+    // I-79 hard-enforces all of them (see wireSubfileFieldKeywords's own
+    // I-79 comment below). The hint text stays, since it's still useful
+    // up front, but it no longer describes an unenforced rule.
     var chcctl = DspfWriter.getFileFlagKeyword(keywords, 'SFLCHCCTL');
     var csrprg = DspfWriter.getFileFlagKeyword(keywords, 'SFLCSRPRG');
     var html = '<div class="status" style="margin-bottom:8px;">For a field within a subfile (SFL) or subfile control (SFLCTL) record that lets the operator type a record number or roll value directly.</div>';
@@ -2801,7 +2802,7 @@
     return html;
   }
 
-  function wireSubfileFieldKeywords(keywords, onChange, ownerKey, siblingFieldsKeywords) {
+  function wireSubfileFieldKeywords(keywords, onChange, ownerKey, siblingFieldsKeywords, isFirstField, getField) {
     var rcdnbrEl = document.getElementById(ownerKey + '-sflrcdnbr');
     if (rcdnbrEl) {
       rcdnbrEl.addEventListener('change', function () {
@@ -2830,13 +2831,31 @@
     }
     // Task I-39 - SFLCHCCTL/SFLCSRPRG (see subfileFieldKeywordsHtml's own
     // I-39 comment above). Neither is conditionable per IBM's own DDS
-    // Reference, and neither has real structural guards wired here yet
-    // (see the same comment for why) - a plain present/absent toggle,
-    // same as SFLROLVAL just above.
+    // Reference. I-79 closed SFLCHCCTL's own structural gaps: turning it
+    // on is blocked (checkbox reverted, same pattern as SFLSCROLL just
+    // above) when this isn't the record's first field or another field
+    // already carries it (DspfWriter.sflchcctlFieldConflictReason);
+    // otherwise the field's own length/type/decimals/usage are silently
+    // brought into the required 1/Y/0/H shape in the SAME edit
+    // (DspfWriter.sflchcctlDefinitionUpdates, mirroring PSHBTNFLD's own
+    // I-57 rewrite-on-enable) - `onChange(newKeywords, fieldUpdates)` lets
+    // the caller fold both into one commit, same signature
+    // wirePshbtnfldPanel's `commit` uses.
     var chcctlEl = document.getElementById(ownerKey + '-sflchcctl');
     if (chcctlEl) {
       chcctlEl.addEventListener('change', function () {
-        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLCHCCTL', chcctlEl.checked));
+        if (chcctlEl.checked) {
+          var reason = DspfWriter.sflchcctlFieldConflictReason(isFirstField, siblingFieldsKeywords);
+          if (reason) {
+            window.alert(reason);
+            chcctlEl.checked = false;
+            return;
+          }
+          var next = DspfWriter.setFileFlagKeyword(keywords, 'SFLCHCCTL', true);
+          onChange(next, DspfWriter.sflchcctlDefinitionUpdates(getField ? getField() : null));
+        } else {
+          onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLCHCCTL', false), null);
+        }
       });
     }
     var csrprgEl = document.getElementById(ownerKey + '-sflcsrprg');
