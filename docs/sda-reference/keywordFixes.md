@@ -113,7 +113,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Done | v0.10.145 |
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Done | v0.10.148 |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
-| [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
+| [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | In progress | — |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | In progress | — |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | In progress | — |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
@@ -150,7 +150,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | 2 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
 | 3 | [I-73](#i-73) | In progress | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
 | 4 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 5 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 5 | [I-71](#i-71) | In progress | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
 | 6 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
 | 7 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
 | 8 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
@@ -4119,7 +4119,7 @@ Per I-30's finding, `CHRID` is mutually exclusive with `DUP` and invalid on cons
 
 ### I-71 — `IGCALTTYP`: mutual-exclusion list
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+> **Area:** Field · **Status:** In progress · **Depends on:** I-30
 
 `IGCALTTYP` carries a long exclusion list (`AUTO(RAZ)`, `BLKFOLD`, several `CHECK` codes, the `CMP`/`COMP` variants, `DUP`, `RANGE`, `VALUES`) — a niche DBCS feature, unenforced. Note I-58's `wrdwrapReverseConflictReason` already covers the `IGCALTTYP`-vs-`WRDWRAP` pair. Re-verify the full list against `DDS_Keyword_V7r6.txt`; expect a bidirectional check in the style of `htmlConflictReason`.
 
