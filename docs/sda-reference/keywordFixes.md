@@ -114,7 +114,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Done | v0.10.148 |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
-| [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Not started | — |
+| [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | In progress | — |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | In progress | — |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
@@ -149,7 +149,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | 1 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
 | 2 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
 | 3 | [I-73](#i-73) | In progress | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 4 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 4 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
 | 5 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
 | 6 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
 | 7 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
@@ -4131,7 +4131,7 @@ Per I-30's finding, `CHRID` is mutually exclusive with `DUP` and invalid on cons
 
 ### I-72 — `DUP`: floating-point restriction
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+> **Area:** Field · **Status:** In progress · **Depends on:** I-30
 
 Logged in the deferred-findings table as "`DUP` floating-point restriction" but the I-30 section itself doesn't spell it out — start by re-reading the `DUP` section of `DDS_Keyword_V7r6.txt` (and its "restrictions on validity checking with DUP" index entry) to confirm exactly what is forbidden, then enforce it. Likely a data-type gate like the `dtScope` rows I-39 added.
 
