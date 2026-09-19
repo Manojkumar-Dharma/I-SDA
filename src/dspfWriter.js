@@ -2232,6 +2232,29 @@
     return params;
   }
 
+  /** Task I-63 - reads one of the layout parameters *NUMCOL / *NUMROW /
+   *  *GUTTER out of a SNGCHCFLD/MLTCHCFLD/PSHBTNFLD parameter string, as a
+   *  digit string ('' when absent). IBM's own format string is
+   *  `[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] [(*GUTTER
+   *  gutter-width)]` - each a PARENTHESIZED GROUP with a space, e.g.
+   *  `(*NUMCOL 3)`. Also reads, leniently, the `*NUMCOL(3)` shape earlier
+   *  iSDA versions wrote for SNGCHCFLD/MLTCHCFLD (invalid DDS) so sources
+   *  written by them still load; the next Apply rewrites it correctly. */
+  function readChoiceLayoutNumber(params, name) {
+    var m = new RegExp('\\(\\s*\\*' + name + '\\s+(\\d+)\\s*\\)', 'i').exec(params || '') ||
+      new RegExp('\\*' + name + '\\((\\d+)\\)', 'i').exec(params || '');
+    return m ? m[1] : '';
+  }
+
+  /** Task I-63 - the parameter string with every layout group (either
+   *  shape) removed, so what's left tokenizes cleanly on whitespace into
+   *  the bare *flags. */
+  function stripChoiceLayoutParams(params) {
+    return String(params || '')
+      .replace(/\(\s*\*(?:NUMCOL|NUMROW|GUTTER)\s+\d+\s*\)/gi, ' ')
+      .replace(/\*(?:NUMCOL|NUMROW|GUTTER)\(\d+\)/gi, ' ');
+  }
+
   /** Reads PSHBTNFLD's parameters: { present, restrict: ''|'*RSTCSR'|
    *  '*NORSTCSR', numCol, numRow, gutter } (numeric ones as digit strings,
    *  '' when unspecified). Accepts IBM's `(*NUMCOL 3)` shape and, leniently,
@@ -2244,14 +2267,9 @@
     var params = k.parameters || '';
     if (/\*NORSTCSR\b/i.test(params)) result.restrict = '*NORSTCSR';
     else if (/\*RSTCSR\b/i.test(params)) result.restrict = '*RSTCSR';
-    function num(name) {
-      var m = new RegExp('\\(\\s*\\*' + name + '\\s+(\\d+)\\s*\\)', 'i').exec(params) ||
-        new RegExp('\\*' + name + '\\((\\d+)\\)', 'i').exec(params);
-      return m ? m[1] : '';
-    }
-    result.numCol = num('NUMCOL');
-    result.numRow = num('NUMROW');
-    result.gutter = num('GUTTER');
+    result.numCol = readChoiceLayoutNumber(params, 'NUMCOL');
+    result.numRow = readChoiceLayoutNumber(params, 'NUMROW');
+    result.gutter = readChoiceLayoutNumber(params, 'GUTTER');
     return result;
   }
 
@@ -3205,16 +3223,17 @@
     var result = { kind: '', flags: [], numCol: '', numRow: '', gutter: '' };
     if (!k) return result;
     result.kind = k.name;
-    var tokens = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
+    // Task I-63: the layout parameters are IBM's parenthesized groups
+    // `(*NUMCOL 3)` (a space INSIDE the parens), which whitespace
+    // tokenizing would split into `(*NUMCOL` / `3)` - so read them first
+    // with the shared reader, then tokenize only what's left for the flags.
+    result.numCol = readChoiceLayoutNumber(k.parameters, 'NUMCOL');
+    result.numRow = readChoiceLayoutNumber(k.parameters, 'NUMROW');
+    result.gutter = readChoiceLayoutNumber(k.parameters, 'GUTTER');
+    var tokens = stripChoiceLayoutParams(k.parameters).trim().split(/\s+/).filter(Boolean);
     tokens.forEach(function (t) {
       var upper = t.toUpperCase();
-      if (CHOICE_SELECTION_FLAGS.indexOf(upper) >= 0) { result.flags.push(upper); return; }
-      var numColM = /^\*NUMCOL\((\d+)\)$/i.exec(t);
-      if (numColM) { result.numCol = numColM[1]; return; }
-      var numRowM = /^\*NUMROW\((\d+)\)$/i.exec(t);
-      if (numRowM) { result.numRow = numRowM[1]; return; }
-      var gutterM = /^\*GUTTER\((\d+)\)$/i.exec(t);
-      if (gutterM) { result.gutter = gutterM[1]; return; }
+      if (CHOICE_SELECTION_FLAGS.indexOf(upper) >= 0) result.flags.push(upper);
     });
     return result;
   }
@@ -3242,9 +3261,19 @@
     if (state.kind === 'MLTCHCFLD') {
       parts = parts.filter(function (f) { return SNGCHCFLD_ONLY_FLAGS.indexOf(f) < 0; });
     }
-    if (state.numCol) parts.push('*NUMCOL(' + state.numCol + ')');
-    if (state.numRow) parts.push('*NUMROW(' + state.numRow + ')');
-    if (state.gutter) parts.push('*GUTTER(' + state.gutter + ')');
+    // Task I-63: IBM's shape is `(*NUMCOL n)` / `(*NUMROW n)` / `(*GUTTER
+    // n)` - parenthesized groups with a space, not `*NUMCOL(n)`. A field
+    // takes *NUMCOL OR *NUMROW, never both (*NUMCOL wins if a caller
+    // passes both - the editor blocks that before it gets here), and
+    // *GUTTER "can only be specified if either *NUMCOL or *NUMROW has
+    // been specified", so it's dropped without one. Same backstop
+    // semantics as setPshbtnfld.
+    var numCol = parseInt(state.numCol, 10);
+    var numRow = parseInt(state.numRow, 10);
+    var gutter = parseInt(state.gutter, 10);
+    if (numCol > 0) parts.push('(*NUMCOL ' + numCol + ')');
+    else if (numRow > 0) parts.push('(*NUMROW ' + numRow + ')');
+    if (gutter > 0 && (numCol > 0 || numRow > 0)) parts.push('(*GUTTER ' + gutter + ')');
     next = next.concat([{ name: state.kind, parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
     return next;
   }

@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-60 of 83 tasks done; 23 open (see [Open work](#open-work)). Current version: **v0.10.140**.
+61 of 83 tasks done; 22 open (see [Open work](#open-work)). Current version: **v0.10.141**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -105,7 +105,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
 | [I-61](#i-61) | Field | `WRDWRAP`: guard a data type / usage change on a field that already carries it | I-58 | Done | v0.10.140 |
 | [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | In progress | — |
-| [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | In progress | — |
+| [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Done | v0.10.141 |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Not started | — |
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Not started | — |
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Not started | — |
@@ -140,28 +140,27 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-62](#i-62) | In progress | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
-| 2 | [I-63](#i-63) | In progress | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape. Size (estimate): Small–medium. Raised by I-57. |
-| 3 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
-| 4 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
-| 5 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
-| 6 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
-| 7 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
-| 8 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 9 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 10 | [I-64](#i-64) | Not started | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
-| 11 | [I-65](#i-65) | Not started | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
-| 12 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
-| 13 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 14 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 15 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 16 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 17 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 18 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 19 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 20 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 21 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 22 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 23 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
+| 3 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
+| 4 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
+| 5 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
+| 6 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
+| 7 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
+| 8 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
+| 9 | [I-64](#i-64) | Not started | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
+| 10 | [I-65](#i-65) | Not started | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
+| 11 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
+| 12 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 13 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 14 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 15 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 16 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 17 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 18 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 19 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 20 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 21 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 22 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -3964,13 +3963,17 @@ Not addressed here: Resolve Referenced Field (extension host) also rewrites a fi
 
 ### I-63 — `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-34, I-57
+> **Area:** Field · **Status:** Done (v0.10.141) · **Depends on:** I-34, I-57
 
-IBM's format string is `[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] [(*GUTTER gutter-width)]` — parenthesized groups with a space. `DspfWriter.setChoiceSelectionType` writes `SNGCHCFLD(*NUMCOL(3) *GUTTER(2))`, which is **invalid DDS**, and `getChoiceSelectionType` cannot read IBM's own `(*NUMCOL 3)` form (confirmed: it returns blanks), so Apply on a hand-written or SDA-written field silently drops the parameters.
+**Fixed.** Raised by I-57. IBM's format string is `[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] [(*GUTTER gutter-width)]` — parenthesized groups with a space (checked again in `DDS_Keyword_V7r6.txt` for both `SNGCHCFLD` and `MLTCHCFLD`; the two format strings are identical for these three parameters). `DspfWriter.setChoiceSelectionType` wrote `*NUMCOL(3) *GUTTER(2)` (invalid DDS) and `getChoiceSelectionType` tokenized on whitespace, which split IBM's own `(*NUMCOL 3)` into `(*NUMCOL` / `3)` and read blanks — so the Columns/Rows/Gutter boxes showed empty for a hand-written field and Apply silently dropped the parameters.
 
-**Suggested fix:** reuse the grammar `getPshbtnfld`/`setPshbtnfld` (I-57) already implement correctly. Keep reading the old `*NUMCOL(3)` shape leniently so existing sources written by earlier iSDA versions still load. The engine's radio/checkbox preview reads no layout parameters at all today (only `PSHBTNFLD`'s does), so previewing the columns is a separate, optional step.
+Fix: two small shared helpers, `readChoiceLayoutNumber` (reads either shape, case-insensitive, whitespace-tolerant) and `stripChoiceLayoutParams`, now used by `getChoiceSelectionType` and by `getPshbtnfld` (I-57's own reader, refactored onto the shared helper with identical behaviour). `setChoiceSelectionType` writes IBM's shape, takes `*NUMCOL` **or** `*NUMROW` (never both — `*NUMCOL` wins as a backstop, the same semantics as `setPshbtnfld`), and writes `*GUTTER` only alongside one of them (IBM: it "can only be specified if either `*NUMCOL` or `*NUMROW` has been specified"). The old `*NUMCOL(3)` shape is still **read**, so sources written by earlier iSDA versions load with their values and are corrected to IBM's shape on the next Apply. I-34's behaviour (an `MLTCHCFLD` never gets the `SNGCHCFLD`-only `*AUTOSLT`/`*AUTOENT` family) is untouched.
 
-*Raised by I-57. Size (estimate): Small–medium.*
+The Choice selection type editor's Apply (`wireChoiceSelectionTypeEditor`) now also blocks the three invalid layout combinations before writing anything, with the same wording as the `PSHBTNFLD` editor: both Columns and Rows set; a gutter below 2; a gutter with neither Columns nor Rows. They are skipped when the type is being switched to "(not a choice field)". The engine's radio/checkbox preview still reads no layout parameters (only `PSHBTNFLD`'s does) — previewing the columns remains a separate, optional step.
+
+New `i63ChoiceLayoutParamsShape.test.js` (42 checks): reader (IBM shape, legacy shape, case, whitespace, blanks), writer (shape, NUMCOL-or-NUMROW, gutter rule, `MLTCHCFLD` flag stripping), `getPshbtnfld` unchanged, a parse → get → set → `applyFieldUpdate` → reparse round trip, and the editor driven through the real webview script in jsdom (pre-fill of a hand-written IBM-shaped field, a legacy-shaped field rewritten on Apply, a new layout, and the three blocked combinations). Confirmed via a stash run to fail (25 checks) against the unfixed code. The assertions read the *reparsed* parameters rather than raw text, because the writer wraps a long keyword across lines with a `-` continuation (valid DDS, even mid-token).
+
+Full suite: zero failures.
 
 ---
 

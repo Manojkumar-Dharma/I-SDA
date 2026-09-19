@@ -3101,6 +3101,16 @@
         var guardReason = addGuardFn(kind);
         if (guardReason) { window.alert(guardReason); return; }
       }
+      // Task I-63: same three layout rules as the PSHBTNFLD editor's own
+      // Apply (per the DDS Reference), checked before anything is written.
+      var numColVal = document.getElementById(ownerKey + '-cst-numcol').value;
+      var numRowVal = document.getElementById(ownerKey + '-cst-numrow').value;
+      var gutterVal = document.getElementById(ownerKey + '-cst-gutter').value;
+      if (kind) {
+        if (numColVal && numRowVal) { window.alert('Specify either Columns (*NUMCOL) or Rows (*NUMROW), not both (per the DDS Reference).'); return; }
+        if (gutterVal && !(parseInt(gutterVal, 10) > 1)) { window.alert('The gutter (*GUTTER) must be a number greater than one (per the DDS Reference).'); return; }
+        if (gutterVal && !numColVal && !numRowVal) { window.alert('The gutter (*GUTTER) can only be specified together with Columns (*NUMCOL) or Rows (*NUMROW) (per the DDS Reference).'); return; }
+      }
       var flags = [];
       CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
         // Task I-34: re-check kind here too, not just by omitting the
