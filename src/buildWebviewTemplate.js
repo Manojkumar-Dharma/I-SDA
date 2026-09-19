@@ -4533,7 +4533,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // offered for a named field (same opt-in entry-point reasoning as
       // Choice selection type just below); the choices editor only
       // appears once the field IS a PSHBTNFLD (pshbtnfldPanelHtml decides).
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::push-button-field', 'Push button field (PSHBTNFLD/PSHBTNCHC)', WebviewClientHelpers.pshbtnfldPanelHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::push-button-field', 'Push button field (PSHBTNFLD/PSHBTNCHC)', WebviewClientHelpers.pshbtnfldPanelHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field, { fileKeywords: model.fileKeywords, recordKeywords: ownerRecord.keywords }), false);
       // Task I-65 - CHCCTL and CHCAVAIL/CHCUNAVAIL are allowed on a
       // PSHBTNFLD field, but the SNGCHCFLD/MLTCHCFLD choice editors below
       // also edit CHOICE/CHCACCEL/CHCSLT (forbidden there), so a
@@ -4651,7 +4651,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     if (!isConstant) {

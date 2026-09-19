@@ -2232,6 +2232,156 @@
     return params;
   }
 
+  /** Task I-66 - splits a PSHBTNCHC LITERAL choice text into what IBM
+   *  defines: within the text a greater-than character (>) marks the
+   *  mnemonic - "the character to the right of the > is the mnemonic" -
+   *  and ">>" is a literal > (like a doubled apostrophe). Scanned left to
+   *  right, so 'X >>>= 1' is a literal > followed by a mnemonic marker on
+   *  "=" (the same pairing DspfEngine.pshbtnDisplayText already uses to
+   *  draw the button). Returns
+   *    { visible, mnemonic, markers, problem }
+   *  where `visible` is the text as it APPEARS (markers removed, >> collapsed
+   *  to >), `mnemonic` is the first mnemonic character ('' when none) and
+   *  `problem` is a reason string per the DDS Reference, or null:
+   *    - only ONE mnemonic is allowed in the choice text;
+   *    - the mnemonic character must exist (a trailing > has none), must
+   *      not be a blank, and must be a single-byte character. (Not
+   *      "the > itself": ">>" is always the literal, so a marker can never
+   *      be followed by > - IBM's "You cannot specify the > as the
+   *      mnemonic" holds by construction.)
+   *  A program-to-system field (&FIELD) is resolved at run time, so it is
+   *  never checked here (IBM: the mnemonic "must be contained in the text
+   *  supplied by the application at run time"). */
+  function analyzePshbtnchcText(text) {
+    var t = String(text == null ? '' : text);
+    var result = { visible: '', mnemonic: '', markers: 0, problem: null };
+    if (t.charAt(0) === '&') { result.visible = t; return result; }
+    var i = 0;
+    var firstProblem = null;
+    while (i < t.length) {
+      var ch = t.charAt(i);
+      if (ch !== '>') { result.visible += ch; i++; continue; }
+      if (t.charAt(i + 1) === '>') { result.visible += '>'; i += 2; continue; }
+      result.markers++;
+      if (result.markers === 1) {
+        var next = t.charAt(i + 1);
+        if (next === '') firstProblem = 'A mnemonic marker (>) must be followed by the mnemonic character - write >> for a literal > (per the DDS Reference).';
+        else if (/\s/.test(next)) firstProblem = 'The mnemonic character (the one right after >) must not be a blank (per the DDS Reference).';
+        else if (t.charCodeAt(i + 1) > 0xFF) firstProblem = 'The mnemonic character must be a single-byte character (per the DDS Reference).';
+        else result.mnemonic = next;
+      }
+      i++;
+    }
+    if (result.markers > 1) result.problem = 'The choice text can have only one mnemonic (>) - write >> for a literal > (per the DDS Reference).';
+    else result.problem = firstProblem;
+    return result;
+  }
+
+  /** Task I-66 - the reason a PSHBTNCHC literal choice text is invalid, or
+   *  null (see analyzePshbtnchcText). */
+  function pshbtnchcTextProblem(text) {
+    return analyzePshbtnchcText(text).problem;
+  }
+
+  /** Task I-66 - guard for the raw keyword editor's "+ Add keyword": a
+   *  reason when `keywordName` is PSHBTNCHC and its choice text is invalid,
+   *  null for every other keyword (a safe no-op) or a valid one. */
+  function pshbtnchcParamsProblem(keywordName, parameters) {
+    if (String(keywordName || '').toUpperCase() !== 'PSHBTNCHC') return null;
+    var f = parsePshbtnchcParams(parameters);
+    return f.textIsField ? null : pshbtnchcTextProblem(f.text);
+  }
+
+  /** Task I-66 - whole-field text review of the PSHBTNCHC choices, for the
+   *  panel to show on a hand-written source that already breaks a rule:
+   *    textProblems: [{ id, message }]   - per-choice mnemonic errors
+   *    duplicateMnemonics: [{ mnemonic, ids }] - "the same mnemonic
+   *      character should not be specified for more than one choice. If
+   *      the same mnemonic character is used more than once than the first
+   *      definition of the mnemonic is used" - a warning, not an error,
+   *      because IBM defines the fallback. Compared as the exact
+   *      character; the reference does not say the match is case-blind. */
+  function pshbtnchcFieldIssues(keywords) {
+    var out = { textProblems: [], duplicateMnemonics: [] };
+    var byMnemonic = {};
+    var order = [];
+    getRepeatableKeywordInstances(keywords, ['PSHBTNCHC']).forEach(function (inst) {
+      var f = parsePshbtnchcParams(inst.parameters);
+      if (f.textIsField) return;
+      var a = analyzePshbtnchcText(f.text);
+      if (a.problem) out.textProblems.push({ id: f.id, message: a.problem });
+      if (a.mnemonic) {
+        if (!byMnemonic[a.mnemonic]) { byMnemonic[a.mnemonic] = []; order.push(a.mnemonic); }
+        byMnemonic[a.mnemonic].push(f.id);
+      }
+    });
+    order.forEach(function (m) {
+      if (byMnemonic[m].length > 1) out.duplicateMnemonics.push({ mnemonic: m, ids: byMnemonic[m] });
+    });
+    return out;
+  }
+
+  /** Task I-66 - an ESTIMATE of whether a push-button field's choices fit
+   *  the display, or null when they do (or when there is not enough to
+   *  tell). IBM: "The choice text must fit on one line of the display for
+   *  the smallest display size specified for the file", and gives no
+   *  formula - the maximum depends on the field's position, the choice
+   *  text length, the gutter, the number of columns, the smallest display
+   *  size and the window width if it is in a window. This uses the
+   *  designer's own push-button layout (DspfEngine.layoutPshbtn): every
+   *  button is as wide as the widest visible text plus 2 for its < >
+   *  brackets, buttons are `gutter` blanks apart (default 3), *NUMCOL n
+   *  gives n buttons per row, *NUMROW n gives ceil(slots / n) columns, and
+   *  with neither the buttons wrap onto as many lines as needed so only
+   *  ONE button has to fit. Choices whose text is a &FIELD are unknown at
+   *  design time and ignored. Because it is an estimate it is only ever
+   *  shown as a warning by the caller, never used to block an edit.
+   *  opts: { column (1-based field column), fileKeywords, recordKeywords }. */
+  function pshbtnchcFitProblem(keywords, opts) {
+    var o = opts || {};
+    var column = parseInt(o.column, 10);
+    if (!(column > 0)) return null;
+    var visibleMax = 0;
+    var known = 0;
+    var slots = 0;
+    getRepeatableKeywordInstances(keywords, ['PSHBTNCHC']).forEach(function (inst) {
+      var f = parsePshbtnchcParams(inst.parameters);
+      if (f.spaceBefore && slots > 0) slots++;
+      slots++;
+      if (f.textIsField) return;
+      known++;
+      visibleMax = Math.max(visibleMax, analyzePshbtnchcText(f.text).visible.length);
+    });
+    if (known === 0) return null;
+    var cell = visibleMax + 2;
+    var layout = getPshbtnfld(keywords);
+    var gutter = parseInt(layout.gutter, 10) > 0 ? parseInt(layout.gutter, 10) : 3;
+    var numCol = parseInt(layout.numCol, 10);
+    var numRow = parseInt(layout.numRow, 10);
+    var cols = 1;
+    if (numCol > 0) cols = Math.max(1, Math.min(numCol, slots));
+    else if (numRow > 0) cols = Math.max(1, Math.ceil(slots / numRow));
+    var needed = cols * cell + (cols - 1) * gutter;
+    // Where does the line end? A window's own width when the record is a
+    // sized/positioned window, otherwise the smallest declared display
+    // width (24 x 80 when DSPSIZ is not specified at all).
+    var limit;
+    var limitLabel;
+    var win = getWindowParamsKeyword(o.recordKeywords || []);
+    if ((win.mode === 'sized' || win.mode === 'positioned') && parseInt(win.columns, 10) > 0) {
+      limit = parseInt(win.columns, 10);
+      limitLabel = 'the ' + limit + '-column window';
+    } else {
+      var sizes = getDisplaySizesList(o.fileKeywords || []);
+      limit = sizes.length ? Math.min.apply(null, sizes.map(function (sz) { return sz.columns; })) : 80;
+      limitLabel = 'the smallest display size (' + limit + ' columns)';
+    }
+    var available = limit - column + 1;
+    if (needed <= available) return null;
+    return 'The push buttons probably do not fit: about ' + needed + ' columns are needed (' + cols + ' button' + (cols === 1 ? '' : 's') + ' across, each ' + cell + ' wide including its < >, ' + (cols > 1 ? gutter + ' blanks apart) ' : ') ') +
+      'but only ' + available + ' are available from column ' + column + ' to the edge of ' + limitLabel + '. IBM requires the choice text to fit on one line for the smallest display size (this is an estimate).';
+  }
+
   /** Task I-63 - reads one of the layout parameters *NUMCOL / *NUMROW /
    *  *GUTTER out of a SNGCHCFLD/MLTCHCFLD/PSHBTNFLD parameter string, as a
    *  digit string ('' when absent). IBM's own format string is
@@ -6903,6 +7053,11 @@
     htmlConflictReason: htmlConflictReason,
     PSHBTNCHC_COMMAND_KEYS: PSHBTNCHC_COMMAND_KEYS,
     parsePshbtnchcParams: parsePshbtnchcParams,
+    analyzePshbtnchcText: analyzePshbtnchcText,
+    pshbtnchcTextProblem: pshbtnchcTextProblem,
+    pshbtnchcParamsProblem: pshbtnchcParamsProblem,
+    pshbtnchcFieldIssues: pshbtnchcFieldIssues,
+    pshbtnchcFitProblem: pshbtnchcFitProblem,
     composePshbtnchcParams: composePshbtnchcParams,
     getPshbtnfld: getPshbtnfld,
     setPshbtnfld: setPshbtnfld,

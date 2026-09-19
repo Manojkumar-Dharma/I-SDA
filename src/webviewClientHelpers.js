@@ -3170,7 +3170,7 @@
 
   /** `field` is { dataType, length, decimalPositions, usage } of the field
    *  being edited (only used for the requirements hint). */
-  function pshbtnfldPanelHtml(keywords, ownerKey, expandedSet, field) {
+  function pshbtnfldPanelHtml(keywords, ownerKey, expandedSet, field, context) {
     var st = DspfWriter.getPshbtnfld(keywords);
     var html = '<div class="section-label">Push button field (PSHBTNFLD)</div>';
     html += '<div class="field-row"><label><input type="checkbox" id="' + ownerKey + '-pb-on"' + (st.present ? ' checked' : '') + ' /> Define this field as a push-button field</label></div>';
@@ -3190,6 +3190,18 @@
     html += '<div class="section-label" style="margin-top:12px;">Push-button choices (PSHBTNCHC)</div>';
     var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['PSHBTNCHC']);
     if (instances.length === 0) html += '<div class="hint-small" style="color:var(--warn);">A push-button field needs at least one PSHBTNCHC choice.</div>';
+    // Task I-66: text rules from the DDS Reference. Shown here (not only
+    // enforced when a row is edited) so a hand-written source that already
+    // breaks one is visible; the same checks block a row edit below.
+    var issues = DspfWriter.pshbtnchcFieldIssues(keywords);
+    issues.textProblems.forEach(function (tp) {
+      html += '<div class="hint-small" style="color:var(--warn);">Choice ' + escapeHtml(tp.id) + ': ' + escapeHtml(tp.message) + '</div>';
+    });
+    issues.duplicateMnemonics.forEach(function (d) {
+      html += '<div class="hint-small" style="color:var(--warn);">Choices ' + d.ids.map(escapeHtml).join(', ') + ' all use the mnemonic ' + escapeHtml(d.mnemonic) + ' - only the first is used (per the DDS Reference).</div>';
+    });
+    var fitProblem = DspfWriter.pshbtnchcFitProblem(keywords, { column: field && field.location ? field.location.column : null, fileKeywords: context && context.fileKeywords, recordKeywords: context && context.recordKeywords });
+    if (fitProblem) html += '<div class="hint-small" style="color:var(--warn);">' + escapeHtml(fitProblem) + '</div>';
     html += repeatableConditionedInstancesHtml(
       instances,
       ownerKey + '-pbc-rep',
@@ -3267,6 +3279,9 @@
           if (!/^\d+$/.test(id) || n < 1 || n > 99) problem = 'The choice number must be a whole number from 1 to 99 (per the DDS Reference).';
           else if (others.indexOf(String(n)) >= 0) problem = 'Choice number ' + n + ' is already used by another PSHBTNCHC on this field - duplicates are not allowed (per the DDS Reference).';
           else if (!text) problem = 'The choice text is required.';
+          // Only NEW text is checked: a hand-written row that already breaks a
+          // rule must not block an unrelated edit to it (say, its command key).
+          else if (!/^&/.test(text) && text !== DspfWriter.parsePshbtnchcParams(inst.parameters).text.trim() && DspfWriter.pshbtnchcTextProblem(text)) problem = DspfWriter.pshbtnchcTextProblem(text);
           if (problem) { window.alert(problem); if (rerender) rerender(); return; }
           updatePayload({ name: 'PSHBTNCHC', parameters: DspfWriter.composePshbtnchcParams({ id: String(n), text: text, commandKey: keyEl.value, spaceBefore: spacebEl.checked }) });
         }

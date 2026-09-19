@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-62 of 83 tasks done; 21 open (see [Open work](#open-work)). Current version: **v0.10.142**.
+64 of 83 tasks done; 19 open (see [Open work](#open-work)). Current version: **v0.10.144**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -108,7 +108,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Done | v0.10.141 |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Done | v0.10.143 |
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Done | v0.10.142 |
-| [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | In progress | — |
+| [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Done | v0.10.144 |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Not started | — |
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Not started | — |
@@ -147,18 +147,17 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | 6 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
 | 7 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
 | 8 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 9 | [I-66](#i-66) | In progress | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
-| 10 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 11 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 12 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 13 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 14 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 15 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 16 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 17 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 18 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 19 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 20 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 9 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 10 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 11 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 12 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 13 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 14 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 15 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 16 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 17 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 18 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 19 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4016,11 +4015,19 @@ Full suite: zero failures.
 
 ### I-66 — `PSHBTNCHC` choice-text validation (mnemonics, fit)
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-57
+> **Area:** Field · **Status:** Done (v0.10.144) · **Depends on:** I-57
 
-Not validated for `PSHBTNCHC` text: at most **one** mnemonic (`>`) per choice; the mnemonic character must be non-blank and must not be `>` itself; the same mnemonic should not be used by more than one choice (the first wins); and the text must fit on one line of the smallest display size given the field position, gutter, columns and window width. The editor only checks the choice number and that the text is non-blank.
+**Fixed.** Raised by I-57. The row editor only checked the choice number and that the text was non-blank. Every rule below is from the `PSHBTNCHC` section of `DDS_Keyword_V7r6.txt`.
 
-*Raised by I-57. Size (estimate): Small–medium.*
+**Hard errors** (block the edit, alert with the rule): within a literal choice text a `>` marks the mnemonic and `>>` is a literal `>` (scanned left to right, the same pairing the designer's preview already uses, so IBM's own examples `'F2=>File'`, `'X >>= 1'`, `'X >>>= 1'` all come out as documented). Only **one** mnemonic is allowed; the mnemonic character must exist (a trailing `>` has none), must not be a blank, and must be a single-byte character. "You cannot specify the `>` as the mnemonic" holds by construction — `>>` is always the literal — so it needs no separate check. A `&FIELD` text is resolved at run time and is never checked. Enforced in both places a choice can be written: the PSHBTNCHC row editor and the raw keyword editor's `addGuardFn` (`DspfWriter.pshbtnchcParamsProblem`). Only *new* text is checked in the row editor, so an unrelated edit (say, the command key) to a hand-written row that already breaks a rule is not blocked.
+
+**Warnings** (shown in the Push button field panel, never blocking):
+- *Duplicate mnemonic.* IBM says the same mnemonic "should not" be used by more than one choice and defines the fallback (the first wins), so it is a warning listing the choice numbers. Compared as the exact character — the reference does not say the match is case-blind.
+- *Fit.* IBM says the text "must fit on one line of the display for the smallest display size" but gives no formula (it lists field position, text length, gutter, number of columns, smallest display size and window width as the inputs). `DspfWriter.pshbtnchcFitProblem` therefore reports an **estimate** using the designer's own push-button layout: each button is the widest visible text + 2 for its `< >`, `*NUMCOL n` puts n buttons across, `*NUMROW n` gives ceil(slots / n) columns, `*GUTTER` (default 3) separates them, `*SPACEB` adds a blank slot, and with neither parameter the buttons wrap so only one has to fit. The limit is the smallest declared `DSPSIZ` width (80 when none is declared) or, for a sized/positioned `WINDOW` record, the window width. It stays silent when it cannot tell (relative column, `&FIELD`-only choices, a window that references another record). Because it is an estimate it is only ever a warning.
+
+New `i66PshbtnchcTextValidation.test.js` (74 checks): IBM's own examples and each rule, both guards, the panel-level review, every fit case above, and the row and raw editors through the real webview script in jsdom (including that a hand-written invalid row can still have its command key changed). Confirmed via stash to fail against the unfixed code.
+
+Full suite: zero failures.
 
 ---
 
