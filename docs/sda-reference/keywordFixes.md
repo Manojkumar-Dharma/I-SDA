@@ -107,7 +107,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | In progress | — |
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Done | v0.10.141 |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | In progress | — |
-| [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Not started | — |
+| [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | In progress | — |
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Not started | — |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Not started | — |
@@ -148,7 +148,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | 7 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
 | 8 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
 | 9 | [I-64](#i-64) | In progress | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
-| 10 | [I-65](#i-65) | Not started | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
+| 10 | [I-65](#i-65) | In progress | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
 | 11 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
 | 12 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
 | 13 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
@@ -3995,7 +3995,7 @@ Full suite: zero failures.
 
 ### I-65 — `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-57
+> **Area:** Field · **Status:** In progress · **Depends on:** I-57
 
 All three are allowed on a `PSHBTNFLD` field, but their editors (Choice keywords, Choice colors & attributes) only appear for `SNGCHCFLD`/`MLTCHCFLD` fields, so on a push-button field they are reachable only through the raw keyword editor.
 
