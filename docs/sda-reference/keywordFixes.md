@@ -110,7 +110,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Done | v0.10.142 |
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Done | v0.10.144 |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
-| [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Not started | — |
+| [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | In progress | — |
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Not started | — |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
@@ -140,7 +140,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-62](#i-62) | In progress | `PSHBTNFLD`: guard the Basic tab against breaking its required definition. Size (estimate): Small. Raised by I-57. |
-| 2 | [I-68](#i-68) | Not started | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
+| 2 | [I-68](#i-68) | In progress | `HLPRTN`: reverse conflict guard. Size (estimate): Small. Raised by I-38. |
 | 3 | [I-69](#i-69) | Not started | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
 | 4 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
 | 5 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
@@ -4049,7 +4049,7 @@ I-38 added `HLPDOC` at **file level** only. IBM also allows it at help-specifica
 
 ### I-68 — `HLPRTN`: reverse conflict guard
 
-> **Area:** File · **Status:** Not started · **Depends on:** I-38
+> **Area:** File · **Status:** In progress · **Depends on:** I-38
 
 I-38 wired the reverse direction of the `HLPPNLGRP`/`HLPRCD`/`HLPDOC` conflict (blocking `HLPPNLGRP` while the other is present) but not for `HLPRTN`'s own checkbox: its file-level row goes through the shared `commitIndicatorTextRow` helper (also used for `CLEAR`/`HOME`/`PAGEDOWN`/`PAGEUP`/`VLDCMDKEY`), which has no per-keyword conflict hook.
 
