@@ -3332,11 +3332,23 @@
   // own toggle markup/id convention (`ownerKey + '-cond'` etc.) so
   // wireFlagRowConditioning can wire it unchanged, the same as every
   // flagRowHtml-based row already does.
-  function entFldAtrHtml(keywords, ownerKey, expandedSet) {
+  /** Task I-59 - `dataType` (optional, field-level call site only - see
+   *  this function's own call sites in buildWebviewTemplate.js) drives a
+   *  non-blocking advisory hint only: IBM's own DDS Reference states
+   *  "*NOCURSOR... the specified field must have an I (inhibit keyword
+   *  entry) in position 35. If the field does not have data type I, then
+   *  the default is used" - i.e. the OS silently ignores *NOCURSOR rather
+   *  than rejecting it, so (same "ignored, not blocked" precedent as
+   *  loginpLogoutSflMsgRcdIgnoredNote) this is an informational note, not
+   *  a hard-block guard. File/record-level callers omit `dataType`
+   *  entirely (no single field to check), so the hint never renders
+   *  there. */
+  function entFldAtrHtml(keywords, ownerKey, expandedSet, dataType) {
     var current = DspfWriter.getChoiceColorState(keywords, 'ENTFLDATR');
-    var enabled = !!current.color || current.attrs.length > 0;
+    var enabled = current.present;
     var html = '<div class="section-label">Entry field attribute (ENTFLDATR)</div>';
     html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-on" ' + (enabled ? 'checked' : '') + ' /> Change attributes while the cursor is in the field</label>';
+    html += '<div class="hint-small">All fields below are optional - a plain ENTFLDATR with no color, attribute, or cursor setting is valid DDS (per IBM\'s own example) and uses the documented defaults (white / high intensity / cursor visible).</div>';
     html += '<select id="' + ownerKey + '-color">' + COLOR_VALUES.map(function (c) {
       return '<option value="' + c + '"' + (current.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
     }).join('') + '</select>';
@@ -3344,6 +3356,11 @@
       var checked = current.attrs.indexOf(a) >= 0;
       return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
     }).join('') + '</div>';
+    var nocursorChecked = current.cursorVisible === 'NOCURSOR';
+    html += '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-nocursor" ' + (nocursorChecked ? 'checked' : '') + ' /> Hide the cursor while in this field (*NOCURSOR)</label>';
+    if (dataType !== undefined && dataType !== 'I') {
+      html += '<div class="hint-small warn">*NOCURSOR requires data type I (inhibit keyword entry) - per the DDS Reference, the OS silently uses the default (cursor visible) on any other data type.</div>';
+    }
     var condSummary = current.conditions.length > 0 ? ' (' + current.conditions.length + ')' : '';
     var isExpanded = !!(expandedSet && expandedSet.has(ownerKey + ':cond'));
     html += '<span class="kw-cond-toggle" data-flag-id="' + ownerKey + '" style="margin-top:4px;">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
@@ -3364,6 +3381,17 @@
   // entirely (it's built on setChoiceColorState, not
   // setFileFlagKeyword/setFileTwoFieldKeyword), so none of those
   // functions' own I-53 addition ever sees it.
+  // Task I-59: `on` alone (the checkbox) now drives whether ENTFLDATR is
+  // written at all - previously it was really only a UI convenience, since
+  // setChoiceColorState's own old "write only if color or attrs is set"
+  // rule meant checking the box with nothing else selected produced
+  // exactly the same (nothing-written) result as leaving it unchecked.
+  // `forcePresent: on` closes that gap - checked-with-nothing-else-set now
+  // genuinely writes a bare ENTFLDATR, and the *NOCURSOR checkbox's own
+  // state now round-trips instead of being silently dropped on every
+  // Apply (previously true regardless of `on`, since the old
+  // getChoiceColorState never even read it back for the checkbox to
+  // reflect in the first place).
   function wireEntFldAtrEditor(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var applyBtn = document.querySelector('.' + ownerKey + '-apply');
     if (!applyBtn) return;
@@ -3378,11 +3406,13 @@
       }
       var color = on ? document.getElementById(ownerKey + '-color').value : '';
       var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-attr:checked')).map(function (el) { return el.value; }) : [];
-      onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', color, attrs));
+      var nocursorEl = document.getElementById(ownerKey + '-nocursor');
+      var cursorVisible = on && nocursorEl && nocursorEl.checked ? 'NOCURSOR' : '';
+      onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', color, attrs, undefined, cursorVisible, on));
     });
     wireFlagRowConditioning(ownerKey, DspfWriter.getChoiceColorState(getKeywords(), 'ENTFLDATR').conditions, function (newConditions) {
       var current = DspfWriter.getChoiceColorState(getKeywords(), 'ENTFLDATR');
-      onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', current.color, current.attrs, newConditions));
+      onChange(DspfWriter.setChoiceColorState(getKeywords(), 'ENTFLDATR', current.color, current.attrs, newConditions, current.cursorVisible, current.present));
     }, expandedSet, rerender);
   }
 

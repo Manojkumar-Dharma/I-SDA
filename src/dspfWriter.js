@@ -3167,35 +3167,84 @@
    *  (see CHCCTL above), and selected. Same bracketed-groups shape as
    *  MNUBARSEP/WDWBORDER minus the *CHAR group (these three have no
    *  character sub-option on the real SDA screen). `keywordName` must be
-   *  one of CHOICE_COLOR_STATE_KEYWORDS. */
+   *  one of CHOICE_COLOR_STATE_KEYWORDS, or ENTFLDATR (see that keyword's
+   *  own call sites - shares this same "(*COLOR c) (*DSPATR a a)" shape,
+   *  plus the two extra fields below that only it uses).
+   *  Task I-59: `present` (true whenever the keyword exists at all,
+   *  regardless of color/attrs) and `cursorVisible` ('' / 'CURSOR' /
+   *  'NOCURSOR', the bare cursor-visible literal ENTFLDATR's own DDS
+   *  Reference documents - "ENTFLDATR[([color] [display attribute]
+   *  [cursor visible])]") are new - both were previously silently
+   *  unread/undiscoverable by this getter, which only ever looked for
+   *  *COLOR/*DSPATR. Harmless for CHCAVAIL/CHCUNAVAIL/CHCSLT (neither
+   *  ever appears in their own DDS Reference sections, so `cursorVisible`
+   *  is always '' for them; `present` is simply true/false exactly when
+   *  the keyword exists, same information the three existing callers
+   *  already had by checking `!!current.color || current.attrs.length`
+   *  - which is why this change doesn't alter their own behavior). */
   function getChoiceColorState(keywords, keywordName) {
     var k = (keywords || []).find(function (kw) { return kw.name === keywordName; });
-    var result = { color: '', attrs: [], conditions: k ? (k.conditions || []) : [] };
+    var result = { present: false, color: '', attrs: [], cursorVisible: '', conditions: k ? (k.conditions || []) : [] };
     if (!k) return result;
+    result.present = true;
     var text = k.parameters || '';
     var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
     if (colorM) result.color = colorM[1].toUpperCase();
     var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
     if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
+    // Task I-59: checked before *CURSOR so the two can never be confused -
+    // not that they actually could collide (a literal "*CURSOR" substring
+    // never occurs inside "*NOCURSOR" at a "*"-prefixed position), but
+    // checking the more specific token first is the clearer, safer order.
+    if (/\*NOCURSOR\b/i.test(text)) result.cursorVisible = 'NOCURSOR';
+    else if (/\*CURSOR\b/i.test(text)) result.cursorVisible = 'CURSOR';
     return result;
   }
 
   /** Returns a NEW keywords array with `keywordName` (one of
-   *  CHOICE_COLOR_STATE_KEYWORDS) built from `color`/`attrs`, removed
-   *  entirely if both are empty - same shape as setColorAttr but for a
-   *  caller-chosen keyword name instead of the fixed COLOR/DSPATR pair.
+   *  CHOICE_COLOR_STATE_KEYWORDS, or ENTFLDATR) built from `color`/
+   *  `attrs`(/`cursorVisible`, ENTFLDATR-only) - removed entirely if
+   *  nothing is set AND `forcePresent` is falsy - same shape as
+   *  setColorAttr but for a caller-chosen keyword name instead of the
+   *  fixed COLOR/DSPATR pair.
    *  `conditions` (optional, Task I-3: ENTFLDATR is documented by IBM as
    *  eligible for option-indicator conditioning - "not valid" was true for
    *  every OTHER keyword sharing this state shape, not this one) - when
    *  OMITTED, any existing conditioning is preserved, same convention as
-   *  setFileFlagKeyword's own `conditions` parameter. */
-  function setChoiceColorState(keywords, keywordName, color, attrs, conditions) {
+   *  setFileFlagKeyword's own `conditions` parameter.
+   *  Task I-59 - two new trailing params, both ENTFLDATR-only (harmless,
+   *  unused no-ops for the three existing CHCAVAIL/CHCUNAVAIL/CHCSLT call
+   *  sites, which never pass either):
+   *  `cursorVisible` ('' / 'CURSOR' / 'NOCURSOR') writes the bare
+   *  *CURSOR/*NOCURSOR literal ENTFLDATR's own DDS Reference documents
+   *  alongside the *COLOR/*DSPATR groups - previously not writable at
+   *  all, silently dropped by every prior round-trip through this editor.
+   *  `*CURSOR` is documented as the default, so is deliberately never
+   *  written even when explicitly chosen (matches this codebase's own
+   *  convention elsewhere of never writing a keyword's own documented
+   *  default value back out); only the non-default `*NOCURSOR` is ever
+   *  actually emitted.
+   *  `forcePresent` (boolean) - IBM's own `F1` example
+   *  (`ENTFLDATR` with NO parameters at all, defaults for color/attribute/
+   *  cursor-visible) is a real, documented, previously-unrepresentable
+   *  shape: the old "remove entirely unless color or attrs is set" rule
+   *  meant a bare ENTFLDATR could never survive a single Apply click, in
+   *  either direction - typing nothing and clicking Apply silently wrote
+   *  nothing, and opening a DSPF that already had a hand-written bare
+   *  ENTFLDATR then clicking Apply with the checkbox still checked would
+   *  also silently drop it (the render side already showed it as
+   *  unchecked, per I-59's own finding, so this was reachable both ways).
+   *  When true, the keyword is written (as a bare literal, if `color`/
+   *  `attrs`/`cursorVisible` are all also empty) even with nothing else
+   *  to write. */
+  function setChoiceColorState(keywords, keywordName, color, attrs, conditions, cursorVisible, forcePresent) {
     var existing = (keywords || []).find(function (kw) { return kw.name === keywordName; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== keywordName; });
     var groups = [];
     if (color) groups.push('(*COLOR ' + color + ')');
     if (attrs && attrs.length) groups.push('(*DSPATR ' + attrs.join(' ') + ')');
-    if (groups.length) {
+    if (cursorVisible === 'NOCURSOR') groups.push('*NOCURSOR');
+    if (groups.length || forcePresent) {
       var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
       next = next.concat([{ name: keywordName, parameters: groups.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
     }

@@ -101,7 +101,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-56](#i-56) | Record | `RTNCSRLOC` record-level guard | I-54 | Done | v0.10.134 |
 | [I-57](#i-57) | Field | `PSHBTNFLD` / `PSHBTNCHC` (push-button field) | I-41 | In progress | — |
 | [I-58](#i-58) | Field | Reverse `WRDWRAP` mutual-exclusion guards | I-42 | Done | v0.10.137 |
-| [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | In progress | — |
+| [I-59](#i-59) | Cross-level | Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor | I-42 | Done | v0.10.138 |
 | [I-60](#i-60) | Record | Record-level `ENTFLDATR` guard vs `USRDFN` whitelist | I-42, I-44 | Done | v0.10.136 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -115,10 +115,7 @@ keyword index under `docs/sda-reference/keyword-index/`.
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-57](#i-57) | In progress | `PSHBTNFLD` / `PSHBTNCHC`; claimed 2026-09-18, split off from I-41. Changes the keyword set, so it must land before I-40. |
-| 2 | [I-59](#i-59) | In progress | Shared `ENTFLDATR` editor: bare form and `*CURSOR`/`*NOCURSOR`; claimed 2026-09-18. Independent of the others. |
-| 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration. **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
-
-I-59 does not change the keyword set, so it can run in parallel with I-57.
+| 2 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration. **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -3503,6 +3500,7 @@ pre-fix code.
   drops it, and the cursor-visible parameter `*CURSOR`/`*NOCURSOR` (IBM's
   `F3` example; `*NOCURSOR` also requires data type `I`) is silently
   discarded on Apply. Affects file, record and field level alike.
+  **Fixed in v0.10.138 - see [I-59](#i-59).**
 - **I-60** - pre-existing gap found while checking I-42: the record-level
   `ENTFLDATR` Apply guard only checks SFL's and MNUBAR's whitelists
   (I-53/I-54), not USRDFN's, so `ENTFLDATR` can still be applied to a
@@ -3839,9 +3837,21 @@ Full suite: zero failures.
 
 ### I-59 — Bare `ENTFLDATR` and `*CURSOR`/`*NOCURSOR` in the shared editor
 
-> **Area:** Cross-level · **Status:** In progress · **Depends on:** I-42
+> **Area:** Cross-level · **Status:** Done (v0.10.138) · **Depends on:** I-42
 
-Follow-up from I-42: shared `ENTFLDATR` editor (`entFldAtrHtml`/`getChoiceColorState`) can't represent a bare `ENTFLDATR` (renders unchecked; Apply drops it) and discards the `*CURSOR`/`*NOCURSOR` parameter on Apply. Pre-existing at file/record level, newly reachable at field level.
+**Fixed.** Follow-up from I-42: shared `ENTFLDATR` editor (`entFldAtrHtml`/`getChoiceColorState`) couldn't represent a bare `ENTFLDATR` (renders unchecked; Apply dropped it) and discarded the `*CURSOR`/`*NOCURSOR` parameter on Apply. Pre-existing at file/record level, newly reachable at field level.
+
+Fix, on the shared `getChoiceColorState`/`setChoiceColorState` primitive (also used by `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT` - both new params are harmless no-ops for those three, never passed): `getChoiceColorState` gained `present` (true whenever the keyword exists at all, independent of color/attrs) and `cursorVisible` ('' / `CURSOR` / `NOCURSOR`, read via a `*NOCURSOR`-checked-before-`*CURSOR` regex pair so the two token forms can't be confused); `setChoiceColorState` gained matching trailing `cursorVisible`/`forcePresent` params - `forcePresent` writes a bare keyword when nothing else is set, `cursorVisible === 'NOCURSOR'` appends the bare `*NOCURSOR` literal. `*CURSOR`, the documented default, is deliberately never re-serialized, matching this codebase's own "never write the default back out" convention elsewhere.
+
+`entFldAtrHtml`'s own `enabled` flag now reads `current.present` instead of inferring from color/attrs; a new "Hide the cursor while in this field (*NOCURSOR)" checkbox was added. `wireEntFldAtrEditor`'s Apply handler now passes `on` as `forcePresent` and the checkbox's own state as `cursorVisible`; its conditioning-only commit path (`wireFlagRowConditioning`'s own callback) was also updated to carry `current.cursorVisible`/`current.present` forward - otherwise editing conditioning alone would have silently dropped both all over again, the same class of bug one level down.
+
+New optional trailing `dataType` param on `entFldAtrHtml` (field-level call site only, `buildWebviewTemplate.js`'s own field-properties render - file/record-level call sites correctly omit it, since there's no single field to check) drives a non-blocking advisory hint when `*NOCURSOR` is checked on anything other than data type `I`, per IBM's own "the default is used" (not rejected, not an error) wording - same "ignored, not blocked" precedent as `loginpLogoutSflMsgRcdIgnoredNote` elsewhere in this file.
+
+Landed after I-60's own record-level `wireEntFldAtrEditor` guard fix (v0.10.136) and I-58 (v0.10.137) - both merged cleanly, since I-60 only touches the record-level call site's `addGuardFn` argument and I-58 doesn't touch this editor at all.
+
+New `src/test/i59EntfldatrBareAndCursorVisible.test.js` (26 checks): bare-`ENTFLDATR` round-trip in both directions (write, and re-Apply without touching anything); the pre-existing color/attrs path unaffected; `*NOCURSOR` write and read-back, including IBM's own `F3` example's token order (cursor token BEFORE the `*DSPATR` group - confirmed order-independent); `*CURSOR` never re-serialized; the field-level-only advisory hint (data type `I` vs. not, and correctly absent when `dataType` is omitted at file/record level); a conditioning-only edit preserving the bare/`*NOCURSOR` state; and direct unit coverage confirming all three `CHCAVAIL`/`CHCUNAVAIL`/`CHCSLT` call sites are completely unaffected.
+
+Full suite: zero failures.
 
 ---
 

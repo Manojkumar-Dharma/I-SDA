@@ -4466,7 +4466,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // fails open) and never offered on constants. When defined at both
     // levels, the field-level spec wins (IBM), so no extra conflict rule.
     if (!isConstant && catVis.inputKeywords) {
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::entry-field-attribute', 'Entry field attribute', WebviewClientHelpers.entFldAtrHtml(field.keywords, 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::entry-field-attribute', 'Entry field attribute', WebviewClientHelpers.entFldAtrHtml(field.keywords, 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, field.dataType), false);
     }
     if (catVis.generalKeywords) {
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::general-keywords', 'General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType, field.usage, found.record.keywords, isConstant), false);
