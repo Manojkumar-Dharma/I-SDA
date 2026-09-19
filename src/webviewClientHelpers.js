@@ -3404,6 +3404,91 @@
     });
   }
 
+  /** Task I-65 - CHCCTL rows for a PUSH-BUTTON field: one row per existing
+   *  CHCCTL (duplicates from a hand-written source stay separate rows so
+   *  nothing is silently merged away), plus an empty row for every
+   *  PSHBTNCHC choice that has no CHCCTL yet. `hasChoice` is false for a
+   *  CHCCTL whose choice number matches no PSHBTNCHC - IBM: "When the
+   *  CHCCTL keyword is specified on a field, a CHOICE or PSHBTNCHC keyword
+   *  with the same choice number must also be specified for the field." */
+  function pshbtnChoiceControlRows(keywords) {
+    var controls = DspfWriter.getChoiceControls(keywords);
+    var choices = {};
+    DspfWriter.getRepeatableKeywordInstances(keywords, ['PSHBTNCHC']).forEach(function (inst) {
+      var p = DspfWriter.parsePshbtnchcParams(inst.parameters);
+      if (p.id) choices[p.id] = p.text;
+    });
+    var haveControl = {};
+    var rows = controls.map(function (c) {
+      haveControl[c.id] = true;
+      return { id: c.id, text: choices[c.id] || '', hasChoice: Object.prototype.hasOwnProperty.call(choices, c.id), controlField: c.controlField, messageId: c.messageId, messageFile: c.messageFile, library: c.library };
+    });
+    Object.keys(choices).forEach(function (id) {
+      if (!haveControl[id]) rows.push({ id: id, text: choices[id], hasChoice: true, controlField: '', messageId: '', messageFile: '', library: '' });
+    });
+    rows.sort(function (a, b) { return (parseInt(a.id, 10) || 0) - (parseInt(b.id, 10) || 0); });
+    return rows;
+  }
+
+  /** Task I-65 - CHCCTL editor for a push-button field. The choice editor
+   *  used for SNGCHCFLD/MLTCHCFLD also edits CHOICE and CHCACCEL, which
+   *  the PSHBTNFLD whitelist forbids, so a push-button field gets this
+   *  CHCCTL-only editor instead, keyed by the field's PSHBTNCHC numbers. */
+  function pshbtnChoiceControlHtml(keywords, ownerKey) {
+    var rows = pshbtnChoiceControlRows(keywords);
+    var html = '<div class="section-label">Push-button choice control (CHCCTL)</div>';
+    html += '<div class="hint-small">Optional. Names a hidden 1-byte numeric field (type Y, length 1, decimals 0, usage H, in this record) whose value makes a button available (0) or unavailable (2, 3 or 4) at run time. Leave a button\'s control field blank for no CHCCTL.</div>';
+    if (rows.length === 0) {
+      html += '<div class="hint-small" style="color:var(--warn);">Add a push-button choice (PSHBTNCHC) first - CHCCTL needs a choice with the same number.</div>';
+      return dataKwWrap(['CHCCTL'], html);
+    }
+    html += '<div id="' + ownerKey + '-pbctl-rows">';
+    rows.forEach(function (r) {
+      html += '<div class="pbctl-row-block" data-choice-id="' + escapeHtml(r.id) + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
+      html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;">Button ' + escapeHtml(r.id) + (r.text ? ' - ' + escapeHtml(r.text) : '') + '</div>';
+      if (!r.hasChoice) html += '<div class="hint-small" style="color:var(--warn);margin-bottom:6px;">No PSHBTNCHC has choice number ' + escapeHtml(r.id) + ' - IBM requires a matching choice. Clear the fields below to remove this CHCCTL.</div>';
+      html += '<input type="text" class="' + ownerKey + '-pbctl-ctrl" placeholder="control field, e.g. &amp;CTLOK" value="' + escapeHtml(r.controlField) + '" style="width:100%;" />';
+      html += '<div class="two-col" style="margin-top:6px;">' +
+        '<input type="text" class="' + ownerKey + '-pbctl-msgid" placeholder="message ID (optional)" value="' + escapeHtml(r.messageId) + '" />' +
+        '<input type="text" class="' + ownerKey + '-pbctl-msgfile" placeholder="message file" value="' + escapeHtml(r.messageFile) + '" />' +
+        '</div>';
+      html += '<input type="text" class="' + ownerKey + '-pbctl-lib" placeholder="message library (optional)" value="' + escapeHtml(r.library) + '" style="width:100%;margin-top:6px;" />';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<button class="secondary ' + ownerKey + '-pbctl-apply" style="width:100%;margin-top:6px;">Apply choice control</button>';
+    return dataKwWrap(['CHCCTL'], html);
+  }
+
+  function wirePshbtnChoiceControl(keywords, onChange, ownerKey) {
+    var container = document.getElementById(ownerKey + '-pbctl-rows');
+    var applyBtn = document.querySelector('.' + ownerKey + '-pbctl-apply');
+    if (!container || !applyBtn) return;
+    applyBtn.addEventListener('click', function () {
+      var controls = [];
+      var problem = null;
+      Array.prototype.slice.call(container.querySelectorAll('.pbctl-row-block')).forEach(function (row) {
+        if (problem) return;
+        var id = row.getAttribute('data-choice-id');
+        function val(cls) { return row.querySelector('.' + ownerKey + '-pbctl-' + cls).value.trim(); }
+        var ctrl = val('ctrl');
+        var msgId = val('msgid');
+        var msgFile = val('msgfile');
+        var lib = val('lib');
+        if (!ctrl && !msgId && !msgFile && !lib) return; // a blank row means no CHCCTL for this button
+        if (!ctrl) problem = 'Button ' + id + ': the control field is required for CHCCTL (per the DDS Reference).';
+        else if (msgId && !msgFile) problem = 'Button ' + id + ': the message file is required when a message ID is given (per the DDS Reference).';
+        else if (!msgId && (msgFile || lib)) problem = 'Button ' + id + ': a message file or library needs a message ID.';
+        if (problem) return;
+        // The control field is always a field reference (&name) in CHCCTL.
+        if (ctrl.charAt(0) !== '&') ctrl = '&' + ctrl;
+        controls.push({ id: id, controlField: ctrl, messageId: msgId, messageFile: msgFile, library: lib });
+      });
+      if (problem) { window.alert(problem); return; }
+      onChange(DspfWriter.setChoiceControls(keywords, controls));
+    });
+  }
+
   // CHCAVAIL/CHCUNAVAIL/CHCSLT share one row shape (label, keyword suffix
   // for element ids, and the keyword name itself DspfWriter's
   // get/setChoiceColorState expects).
@@ -3413,13 +3498,23 @@
     { key: 'slt', keyword: 'CHCSLT', label: 'Selected' },
   ];
 
+  /** Task I-65 - the subset of CHOICE_COLOR_STATES named by `stateKeys`
+   *  (an array of 'avail' / 'unavail' / 'slt'); every state when omitted.
+   *  A push-button field passes ['avail', 'unavail'] - CHCSLT is NOT on
+   *  PSHBTNFLD's list of allowed keywords, so its editor must not offer it
+   *  (and its shared Apply must never touch it). */
+  function choiceColorStatesFor(stateKeys) {
+    if (!stateKeys) return CHOICE_COLOR_STATES;
+    return CHOICE_COLOR_STATES.filter(function (state) { return stateKeys.indexOf(state.key) >= 0; });
+  }
+
   /** CHCAVAIL/CHCUNAVAIL/CHCSLT - the three whole-field color/attribute
    *  states a choice field's entries can be shown in (see DspfWriter's own
    *  getChoiceColorState doc comment). Three independent enable-checkbox +
    *  color + attrs groups side by side, one shared Apply. */
-  function choiceColorStatesHtml(keywords, ownerKey, expandedSet) {
+  function choiceColorStatesHtml(keywords, ownerKey, expandedSet, stateKeys) {
     var html = '<div class="section-label">Choice colors &amp; attributes</div>';
-    CHOICE_COLOR_STATES.forEach(function (state) {
+    choiceColorStatesFor(stateKeys).forEach(function (state) {
       var current = DspfWriter.getChoiceColorState(keywords, state.keyword);
       var enabled = !!current.color || current.attrs.length > 0;
       html += '<div style="margin-bottom:10px;">';
@@ -3450,12 +3545,13 @@
     return html;
   }
 
-  function wireChoiceColorStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+  function wireChoiceColorStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender, stateKeys) {
+    var states = choiceColorStatesFor(stateKeys);
     var applyBtn = document.querySelector('.' + ownerKey + '-ccs-apply');
     if (applyBtn) {
       applyBtn.addEventListener('click', function () {
         var next = keywords;
-        CHOICE_COLOR_STATES.forEach(function (state) {
+        states.forEach(function (state) {
           var on = document.getElementById(ownerKey + '-ccs-' + state.key + '-on').checked;
           var color = on ? document.getElementById(ownerKey + '-ccs-' + state.key + '-color').value : '';
           var attrs = on ? Array.prototype.slice.call(document.querySelectorAll('.' + ownerKey + '-ccs-' + state.key + '-attr:checked')).map(function (el) { return el.value; }) : [];
@@ -3467,7 +3563,7 @@
     // Task I-34: Conditioning commits immediately per state, independent
     // of the shared Apply button above - same split wireEntFldAtrEditor
     // already uses.
-    CHOICE_COLOR_STATES.forEach(function (state) {
+    states.forEach(function (state) {
       var condId = ownerKey + '-ccs-' + state.key;
       wireFlagRowConditioning(condId, DspfWriter.getChoiceColorState(keywords, state.keyword).conditions, function (newConditions) {
         var current = DspfWriter.getChoiceColorState(keywords, state.keyword);
@@ -7724,6 +7820,8 @@
     choiceSelectionTypeHtml: choiceSelectionTypeHtml,
     wireChoiceSelectionTypeEditor: wireChoiceSelectionTypeEditor,
     pshbtnfldPanelHtml: pshbtnfldPanelHtml,
+    pshbtnChoiceControlHtml: pshbtnChoiceControlHtml,
+    wirePshbtnChoiceControl: wirePshbtnChoiceControl,
     wirePshbtnfldPanel: wirePshbtnfldPanel,
     choiceKeywordsListHtml: choiceKeywordsListHtml,
     wireChoiceKeywordsListEditor: wireChoiceKeywordsListEditor,

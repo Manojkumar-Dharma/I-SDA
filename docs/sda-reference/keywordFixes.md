@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-61 of 83 tasks done; 22 open (see [Open work](#open-work)). Current version: **v0.10.141**.
+62 of 83 tasks done; 21 open (see [Open work](#open-work)). Current version: **v0.10.142**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -107,7 +107,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-62](#i-62) | Field | `PSHBTNFLD`: guard the Basic tab against breaking its required definition | I-57 | In progress | — |
 | [I-63](#i-63) | Field | `SNGCHCFLD`/`MLTCHCFLD`: `*NUMCOL`/`*NUMROW`/`*GUTTER` written and read in the wrong shape | I-34, I-57 | Done | v0.10.141 |
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | In progress | — |
-| [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | In progress | — |
+| [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Done | v0.10.142 |
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Not started | — |
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Not started | — |
@@ -148,19 +148,18 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | 7 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
 | 8 | [I-83](#i-83) | Not started | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
 | 9 | [I-64](#i-64) | In progress | `PSHBTNFLD` whitelist: structured field panels. Size (estimate): Medium. Raised by I-57. |
-| 10 | [I-65](#i-65) | In progress | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields. Size (estimate): Small–medium. Raised by I-57. |
-| 11 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
-| 12 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 13 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 14 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 15 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 16 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 17 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 18 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 19 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 20 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 21 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 22 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 10 | [I-66](#i-66) | Not started | `PSHBTNCHC` choice-text validation (mnemonics, fit). Size (estimate): Small–medium. Raised by I-57. |
+| 11 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 12 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 13 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 14 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 15 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 16 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 17 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 18 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 19 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 20 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 21 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -3995,13 +3994,20 @@ Full suite: zero failures.
 
 ### I-65 — `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-57
+> **Area:** Field · **Status:** Done (v0.10.142) · **Depends on:** I-57
 
-All three are allowed on a `PSHBTNFLD` field, but their editors (Choice keywords, Choice colors & attributes) only appear for `SNGCHCFLD`/`MLTCHCFLD` fields, so on a push-button field they are reachable only through the raw keyword editor.
+**Fixed.** Raised by I-57. All three keywords are on `PSHBTNFLD`'s own list of allowed keywords (`DDS_Keyword_V7r6.txt`), but the editors that write them (Choice keywords, Choice colors & attributes) only rendered for `SNGCHCFLD`/`MLTCHCFLD` fields, so on a push-button field they were reachable only through the raw keyword editor.
 
-**Suggested fix:** show the existing per-choice control/availability editors for a push-button field too (`CHCCTL` and the `CHCAVAIL`/`CHCUNAVAIL` color states are keyed by choice number, which `PSHBTNCHC` also has). Do not show the `CHOICE`/`CHCACCEL` parts, which the whitelist forbids.
+The suggested "just show the existing editors" needed two adjustments, both taken from the reference rather than guessed: the choice-keywords editor also edits `CHOICE` and `CHCACCEL`, which the `PSHBTNFLD` whitelist forbids, and the colours editor also offers `CHCSLT` (selected), which is not on `PSHBTNFLD`'s list either. So a push-button field now gets (Attributes tab, right after the "Push button field" accordion, only once the field IS a `PSHBTNFLD`):
 
-*Raised by I-57. Size (estimate): Small–medium.*
+- **Push-button choice control (CHCCTL)** — a new CHCCTL-only editor, one row per `PSHBTNCHC` choice number (control field, message ID, message file, library). It reuses `getChoiceControls`/`setChoiceControls` (so `CHCCTL`'s message-library handling is identical to the choice-field editor's). A blank row means no `CHCCTL` for that button. A `CHCCTL` whose number matches no `PSHBTNCHC` (hand-written) still gets a row, flagged with IBM's own rule — "a `CHOICE` or `PSHBTNCHC` keyword with the same choice number must also be specified" — so it can be fixed or cleared rather than silently kept or dropped; duplicates stay separate rows. Apply validates per the reference (control field required; message file required with a message ID; message ID required with a file/library), and prefixes `&` on the control field when it is omitted, since the control field is always a field reference. Options indicators are not offered: IBM says they are not valid for `CHCCTL`.
+- **Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)** — the existing colours editor, restricted to its Available/Unavailable states through a new optional `stateKeys` argument on `choiceColorStatesHtml`/`wireChoiceColorStatesEditor` (default unchanged: all three). Its shared Apply never touches `CHCSLT`, so a hand-written `CHCSLT` on a push-button field is left exactly as it was (flagging it is the whitelist guard's job, not this editor's).
+
+Both use a distinct `-pbx` owner key so element ids can never collide with the choice-field editors'. Choice fields and plain fields are unchanged (regression-checked). Not done: checking that the named control field exists in the record as type `Y`/length 1/decimals 0/usage `H` (the reference says it must) — the same is true of the choice-field editor and would be a separate cross-field check.
+
+New `i65PshbtnChoiceControlColors.test.js` (41 checks) drives the real webview script in jsdom: which editors appear (and that the choice-field ones do not), the CHCCTL rows, adding/clearing/validating, the colour states, an orphan `CHCCTL`, a hand-written `CHCSLT`, a push-button field with no choices, and the choice-field / plain-field regressions. Confirmed via stash to fail against the unfixed code.
+
+Full suite: zero failures.
 
 ---
 
