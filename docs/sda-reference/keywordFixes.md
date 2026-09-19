@@ -115,7 +115,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Not started | — |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Not started | — |
-| [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Not started | — |
+| [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | In progress | — |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
@@ -148,7 +148,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 |-------|------|--------|-------|
 | 1 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
 | 2 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 3 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 3 | [I-73](#i-73) | In progress | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
 | 4 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
 | 5 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
 | 6 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
@@ -4143,7 +4143,7 @@ Logged in the deferred-findings table as "`DUP` floating-point restriction" but 
 
 ### I-73 — `MSGID`: position-dependent mandatory/forbidden conditioning rule
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+> **Area:** Field · **Status:** In progress · **Depends on:** I-30
 
 Logged from I-30: `MSGID` has a rule about whether option-indicator conditioning is mandatory or forbidden depending on the keyword's position among its siblings on the field. Not enforced. The details are not written up in the I-30 section, so re-read the `MSGID` section of `DDS_Keyword_V7r6.txt` first and record the exact rule here before implementing.
 
