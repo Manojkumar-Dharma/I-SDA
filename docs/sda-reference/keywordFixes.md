@@ -126,7 +126,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Done | v0.10.151 |
-| [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | Not started | — |
+| [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | In progress | — |
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Not started | — |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Not started | — |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
@@ -146,7 +146,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-84](#i-84) | Not started | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert). Size (estimate): Small. Raised by I-77. Confirmed by probe; the fix is to pass the on-transition flag to all three checks. |
+| 1 | [I-84](#i-84) | In progress | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert). Size (estimate): Small. Raised by I-77. Confirmed by probe; the fix is to pass the on-transition flag to all three checks. |
 | 2 | [I-85](#i-85) | Not started | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays. Size (estimate): Small. Raised by I-81. Verified: both removals return no conflict today; same fix shape as I-81. |
 | 3 | [I-86](#i-86) | Not started | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
 | 4 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
@@ -4370,7 +4370,7 @@ New `src/test/i83HtmlConstantAttributesGate.test.js` (43 checks, real generated 
 
 ### I-84 — `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert)
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-56, I-77
+> **Area:** Record · **Status:** In progress · **Depends on:** I-56, I-77
 
 I-56's `SFL`/`MNUBAR` checks in `rtncsrlocConflictReason` run on **every** commit, not just the on-transition (unlike `USRDFN`'s, added by I-77). So on an `SFL` or `MNUBAR` record that already carries a hand-edited `RTNCSRLOC`, unticking the box is blocked with a misleading "cannot be *added*" alert (confirmed by probe); the only way out is the raw keyword editor's chip. Fix is small: pass `turningOn` to all three checks.
 
