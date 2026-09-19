@@ -1,8 +1,10 @@
 # SDA picker-screen reference
 
-Source material for the **SDA-style picker screens for keywords, attributes,
-and conditioning** planned enhancement (see the main [README](../../README.md#planned-enhancements)
-and [PICKER-SCREENS-PLAN.md](./PICKER-SCREENS-PLAN.md)).
+Source material behind iSDA's **SDA-style picker screens for keywords, attributes,
+and conditioning**. The pickers themselves are built (all 19 tasks in
+[PICKER-SCREENS-PLAN.md](./PICKER-SCREENS-PLAN.md) are `done`; see the main
+[README's Features](../../README.md#features) for what they cover) — this folder is the
+reference they were modelled on.
 
 - `source/` — the original Word doc (`SDA-Issues-and-Enhancement-Screenshots.docx`)
   as supplied, with the raw "Issues" list and every screenshot in its
@@ -91,6 +93,9 @@ context but not a new picker to build; it's the category checklist that
 routes to the other folders.
 
 ## Cross-check against what's already built
+
+*Point-in-time snapshot, from when the picker plan was written; the pickers are now all
+built. See [PICKER-SCREENS-PLAN.md](./PICKER-SCREENS-PLAN.md) for current status.*
 
 Six keyword categories already have a dedicated `getX`/`setX` pair in
 `src/dspfWriter.js` and a panel in `src/webviewClientHelpers.js`: Color &
