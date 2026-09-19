@@ -123,7 +123,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Not started | — |
 | [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | Not started | — |
-| [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Not started | — |
+| [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | In progress | — |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Not started | — |
 
@@ -140,7 +140,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-69](#i-69) | In progress | `CHKMSGID`: validity-check dependency guard. Size (estimate): Small. Raised by I-30. |
-| 2 | [I-81](#i-81) | Not started | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
+| 2 | [I-81](#i-81) | In progress | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`. Size (estimate): Small. Raised by I-39. |
 | 3 | [I-80](#i-80) | Not started | `SFLCSRPRG` vs `SFLLIN`. Size (estimate): Small. Raised by I-39. |
 | 4 | [I-79](#i-79) | Not started | `SFLCHCCTL`: field-shape, first-field and one-per-record rules. Size (estimate): Medium. Raised by I-39. |
 | 5 | [I-77](#i-77) | Not started | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
@@ -4222,7 +4222,7 @@ I-39 added `SFLCSRPRG` with hint text only; its incompatibility with `SFLLIN` is
 
 ### I-81 — `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC`
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-39
+> **Area:** Record · **Status:** In progress · **Depends on:** I-39
 
 I-39 added `SFLRTNSEL` on the `SFLCTL` record with a hint shown when neither `SFLMLTCHC` nor `SFLSNGCHC` is selected, but nothing hard-blocks it. Consider both directions: adding `SFLRTNSEL` without one, and removing the last of them while `SFLRTNSEL` is present.
 
