@@ -935,7 +935,44 @@
     return accordionWrapHtml(ownerKey + '::colorattr', 'Color &amp; attributes', dataKwWrap(['COLOR', 'DSPATR'], html), false, openState);
   }
 
-  function wireColorAttrStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+  /** Task I-83 - shared on-transition guard for structured editors that
+   *  commit a whole NEW keywords array (wireColorAttrStatesEditor,
+   *  wireGeneralFieldKeywordsEditor). Returns `onChange` wrapped so that
+   *  any keyword NAME present in the new array but not in `keywords` (the
+   *  array the editor was rendered from) is first run through
+   *  `addGuardFn(name)`; the first non-null reason is alerted, the panel
+   *  re-rendered from the unchanged keywords (which reverts whatever
+   *  checkbox/field was just touched) and the commit dropped. Keywords
+   *  already present are never re-checked and removals are never
+   *  blocked, so a hand-edited field that already violates a rule can
+   *  still be cleaned up. Same alert+revert idiom as the other guards,
+   *  but keyed off the resulting keyword set rather than one specific
+   *  keyword per call site, so every row an editor offers is covered.
+   *  A missing `addGuardFn` returns `onChange` untouched, so callers that
+   *  don't need it (menu designer, multi-select editor) are unaffected. */
+  function withAddGuard(keywords, onChange, rerender, addGuardFn) {
+    if (!addGuardFn) return onChange;
+    return function (next) {
+      var prevNames = {};
+      (keywords || []).forEach(function (k) { prevNames[k.name] = true; });
+      var checked = {};
+      for (var i = 0; i < (next || []).length; i++) {
+        var name = next[i].name;
+        if (prevNames[name] || checked[name]) continue;
+        checked[name] = true;
+        var reason = addGuardFn(name);
+        if (reason) {
+          window.alert(reason);
+          if (rerender) rerender();
+          return;
+        }
+      }
+      onChange(next);
+    };
+  }
+
+  function wireColorAttrStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
+    onChange = withAddGuard(keywords, onChange, rerender, addGuardFn);
     var states = DspfWriter.getColorAttrStates(keywords);
     wireRepeatableConditionedInstances(ownerKey + '-colorattr', states, function (newStates) {
       onChange(DspfWriter.setColorAttrStates(keywords, newStates));
@@ -2493,7 +2530,11 @@
     return html;
   }
 
-  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage, recordKeywords) {
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage, recordKeywords, addGuardFn) {
+    // Task I-83: optional catch-all on-transition guard (see withAddGuard) -
+    // HTML constants reach DFT/HLPID/PUTRETAIN/OVRATR/NOCCSID here, all of
+    // which HTML's own DDS Reference forbids on the same field.
+    onChange = withAddGuard(keywords, onChange, rerender, addGuardFn);
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
       if (scope === 'named' && isConstant) return;
@@ -6175,14 +6216,24 @@
     // (like ENTFLDATR/PRINT before I-53/I-54) bypasses all three shared
     // guarded-wiring functions via its own bespoke commit. Same
     // alert-and-no-op idiom, checked once per commit before either
-    // setRtncsrloc*Fields call. USRDFN is deliberately NOT checked -
-    // I-8's own record-level audit explicitly named RTNCSRLOC among the
-    // keywords individually checked against USRDFN's DDS Reference text
-    // with no incompatibility found ("left alone rather than guessed
-    // at"), and I-56's own keywordFixes.md row left this "unconfirmed -
-    // not verified in this pass" rather than guessing at it.
-    function rtncsrlocConflictReason() {
-      return DspfWriter.sflWhitelistConflictReason('RTNCSRLOC', getKeywords()) ||
+    // setRtncsrloc*Fields call.
+    // Task I-77: I-56 deliberately left USRDFN out, citing I-8's audit
+    // ("no incompatibility statement found"). That reasoning did not
+    // survive I-44/I-49: USRDFN's own DDS Reference text is a closed
+    // WHITELIST ("No file- or record-level keywords apply to this record
+    // except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT,
+    // and TEXT") and RTNCSRLOC is not on it - an explicit prohibition is
+    // not needed. It is also structurally meaningless there: RTNCSRLOC's
+    // parameters must be hidden (usage H) fields of the same record, and
+    // "No fields are valid for this record" (USRDFN's own text). So the
+    // USRDFN check (I-49's usrdfnWhitelistConflictReason, same one I-60
+    // ORed into ENTFLDATR) is now included - but ONLY on the on-transition
+    // (turningOn), unlike the SFL/MNUBAR checks I-56 left as-is: a
+    // hand-edited USRDFN record that already carries RTNCSRLOC must still
+    // be able to have it removed.
+    function rtncsrlocConflictReason(turningOn) {
+      return (turningOn && DspfWriter.usrdfnWhitelistConflictReason('RTNCSRLOC', getKeywords())) ||
+        DspfWriter.sflWhitelistConflictReason('RTNCSRLOC', getKeywords()) ||
         DspfWriter.mnubarWhitelistConflictReason('RTNCSRLOC', getKeywords());
     }
     (function wireRtncsrlocRecName() {
@@ -6191,7 +6242,7 @@
       var fldEl = document.getElementById(p + '-rtncsrloc-rn-fld');
       var posEl = document.getElementById(p + '-rtncsrloc-rn-pos');
       function commit() {
-        var reason = rtncsrlocConflictReason();
+        var reason = rtncsrlocConflictReason(!!(onEl && onEl.checked));
         if (reason) {
           window.alert(reason);
           var current = DspfWriter.getRtncsrlocRecNameFields(getKeywords());
@@ -6216,7 +6267,7 @@
       var row2El = document.getElementById(p + '-rtncsrloc-wm-row2');
       var col2El = document.getElementById(p + '-rtncsrloc-wm-col2');
       function commit() {
-        var reason = rtncsrlocConflictReason();
+        var reason = rtncsrlocConflictReason(!!(onEl && onEl.checked));
         if (reason) {
           window.alert(reason);
           var current = DspfWriter.getRtncsrlocWindowMouseFields(getKeywords());

@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-67 of 83 tasks done; 16 open (see [Open work](#open-work)). Current version: **v0.10.147**.
+72 of 83 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.151**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -119,13 +119,13 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
-| [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | In progress | — |
+| [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Done | v0.10.151 |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Done | v0.10.149 |
 | [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | Done | v0.10.150 |
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
 | [I-82](#i-82) | Field | `BLKFOLD` vs floating-point (belt and suspenders) | I-39 | Not started | — |
-| [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | In progress | — |
+| [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Done | v0.10.151 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -139,19 +139,17 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-77](#i-77) | In progress | `RTNCSRLOC`: re-check the `USRDFN` exclusion. Size (estimate): Small. Raised by I-56, I-60. |
-| 2 | [I-83](#i-83) | In progress | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes. Size (estimate): Small. Raised by I-41. |
-| 3 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 4 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 5 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 6 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
-| 7 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 8 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 11 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 12 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 13 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
+| 2 | [I-73](#i-73) | Not started | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 3 | [I-72](#i-72) | Not started | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 4 | [I-71](#i-71) | Not started | `IGCALTTYP`: mutual-exclusion list. Size (estimate): Medium (low priority). Raised by I-30. |
+| 5 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 6 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 7 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 8 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 9 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 10 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 11 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -159,6 +157,7 @@ Every finding logged before I-61 was opened as a task (I-61 – I-83, see the ta
 
 | Raised by | Finding |
 |-----------|---------|
+| I-77 | I-56's `SFL`/`MNUBAR` checks in `rtncsrlocConflictReason` run on **every** commit, not just the on-transition (unlike `USRDFN`'s, added by I-77). So on an `SFL` or `MNUBAR` record that already carries a hand-edited `RTNCSRLOC`, unticking the box is blocked with a misleading "cannot be *added*" alert (confirmed by probe); the only way out is the raw keyword editor's chip. Fix is small: pass `turningOn` to all three checks. |
 | I-69 | `CHKMSGID`'s optional `&message-data-field` parameter must name a field that **exists in the same record format** and is defined as a **character field (data type `A`) with usage `P`** (per its DDS Reference section). The CHKMSGID panel takes any text there and nothing checks it; also not checked when the named field is later renamed, deleted or has its type/usage changed. Needs a record-aware check like the `SFLMSGID`/`SFLPGMQ` field-name validations. |
 | I-68 | The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS. |
 | I-61, I-62 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit. |
@@ -4186,9 +4185,17 @@ SFLMSG's General and Indicator categories reuse I-9's `SFL` set verbatim. Whethe
 
 ### I-77 — `RTNCSRLOC`: re-check the `USRDFN` exclusion
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-56, I-60
+> **Area:** Record · **Status:** Done (v0.10.151) · **Depends on:** I-56, I-60
 
 I-56 deliberately left `USRDFN` out of `RTNCSRLOC`'s record-level guard, citing I-8's audit (no incompatibility statement found). But `RTNCSRLOC` is **not on `USRDFN`'s closed whitelist** either (see I-44/I-49), so that reasoning is worth re-checking: if the whitelist is authoritative, `RTNCSRLOC` should be blocked on a `USRDFN` record the same way I-60 now blocks `ENTFLDATR`.
+
+**Implemented.** Re-read `RTNCSRLOC`'s and `USRDFN`'s sections in `DDS_Keyword_V7r6.txt` first. `USRDFN`: "No fields are valid for this record because the data stream formats the display. No file- or record-level keywords apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT." `RTNCSRLOC` is not on that list — and, independently, every `RTNCSRLOC` parameter must be a hidden (usage `H`) field of the same record, which a `USRDFN` record cannot have. So I-56's reasoning ("I-8 found no incompatibility statement") did not hold once the whitelist is treated as authoritative (I-44/I-49), the same conclusion I-60 reached for `ENTFLDATR`.
+
+`rtncsrlocConflictReason` (the shared closure behind both hand-rolled commits in `wireRecordKeywordsPanels` — `*RECNAME` and `*WINDOW`/`*MOUSE`) now also ORs in `DspfWriter.usrdfnWhitelistConflictReason('RTNCSRLOC', …)` (I-49, no new writer function). It is checked **only on the on-transition** (`turningOn` = the variant's "present" box is checked), so a hand-edited `USRDFN` record that already carries `RTNCSRLOC` can still have it removed. The record-level raw editor was already covered by I-49's whitelist guard.
+
+New `src/test/i77RtncsrlocUsrdfnGuard.test.js` (31 checks): the pure whitelist function, both variants blocked on `USRDFN` (including the `*MOUSE` type select) with the box reverting, removal still allowed for both variants on a hand-edited `USRDFN` record, I-56's SFL/MNUBAR blocks unchanged, and plain records unaffected. Confirmed to fail against pre-fix code (9 checks). Wired into `npm test`.
+
+Not changed here: see the deferred finding about I-56's SFL/MNUBAR checks also blocking *removal*.
 
 *Raised by I-56, I-60. Size (estimate): Small.*
 
@@ -4338,9 +4345,15 @@ Not addressed here: the same removal-direction gap exists for the `PSHBTNFLD`/`P
 
 ### I-83 — `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-41
+> **Area:** Field · **Status:** Done (v0.10.151) · **Depends on:** I-41
 
 The Attributes tab's `DSPATR`/`COLOR` checkboxes (`wireColorAttrStatesEditor`) are rendered for every constant type and are not gated against `HTML`'s wider exclusion list (`COLOR`/`DATE`/`DFT`/`DSPATR`/`EDTCDE`/`EDTWRD`/`HLPID`/`MSGCON`/`NOCCSID`/`OVRATR`/`PUTRETAIN`/`SYSNAME`/`TIME`/`USER`). Only reachable by creating an `HTML` constant and then visiting the Attributes tab; the raw editor's guard already covers the likelier path. A disclosed, narrow gap from I-41.
+
+**Implemented — scope widened from the row's wording.** Re-read `HTML`'s section: its exclusion list is COLOR, DATE, DFT, DSPATR, EDTCDE, EDTWRD, HLPID, MSGCON, NOCCSID, OVRATR, PUTRETAIN, SYSNAME, TIME and USER. The row named only the Color & attributes checkboxes; probing the real webview on an `HTML` constant (before touching code) showed the Attributes tab exposes **six** excluded keywords through structured editors, all writing invalid DDS without any alert: `COLOR` and `DSPATR` (Color & attributes), and `DFT`, `HLPID`, `PUTRETAIN`, `OVRATR`, `NOCCSID` (General keywords, all offered for constants). The other eight are not reachable from an `HTML` constant's panel (`DATE`/`TIME`/`SYSNAME`/`USER`/`MSGCON` are value sources chosen at creation; `EDTCDE`/`EDTWRD` are only rendered for system-value constants). Same gate, same tab, same guard, so it is fixed here rather than split into a near-identical task.
+
+New shared helper `withAddGuard(keywords, onChange, rerender, addGuardFn)` in `webviewClientHelpers.js`: wraps an editor's `onChange` so every keyword **name newly present** in the array it is about to commit is run through `addGuardFn`; the first reason is alerted, the panel re-rendered from the unchanged keywords (which puts the checkbox back) and the commit dropped. It is an optional trailing parameter on `wireColorAttrStatesEditor` and `wireGeneralFieldKeywordsEditor`; callers that don't pass one (menu designer, the multi-select editor) are unchanged. The field-panel call sites pass `DspfWriter.htmlConflictReason` (I-41), which is a no-op unless the field carries `HTML`. Diff-based by construction: removals and edits to keywords already present are never blocked, so a hand-edited `HTML` constant that already carries `COLOR`/`PUTRETAIN` can still be cleaned up. Covers every row of both editors at once instead of wiring each checkbox.
+
+New `src/test/i83HtmlConstantAttributesGate.test.js` (43 checks, real generated webview in jsdom): all six keywords blocked (alert names the keyword and `HTML`, no `applyEdit` posted), `TEXT` (allowed) still commits beside `HTML`, removal of pre-existing `PUTRETAIN` and `COLOR` allowed, and a plain literal constant and a named field unaffected. Confirmed to fail against pre-fix code (14 checks). Wired into `npm test`.
 
 *Raised by I-41. Size (estimate): Small.*
 
