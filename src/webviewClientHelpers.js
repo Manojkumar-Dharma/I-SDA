@@ -2898,7 +2898,7 @@
     return html;
   }
 
-  function wireSubfileFieldKeywords(keywords, onChange, ownerKey, siblingFieldsKeywords, isFirstField, getField) {
+  function wireSubfileFieldKeywords(keywords, onChange, ownerKey, siblingFieldsKeywords, isFirstField, getField, recordKeywords) {
     var rcdnbrEl = document.getElementById(ownerKey + '-sflrcdnbr');
     if (rcdnbrEl) {
       rcdnbrEl.addEventListener('change', function () {
@@ -2941,7 +2941,7 @@
     if (chcctlEl) {
       chcctlEl.addEventListener('change', function () {
         if (chcctlEl.checked) {
-          var reason = DspfWriter.sflchcctlFieldConflictReason(isFirstField, siblingFieldsKeywords);
+          var reason = DspfWriter.sflchcctlFieldConflictReason(isFirstField, siblingFieldsKeywords, recordKeywords);
           if (reason) {
             window.alert(reason);
             chcctlEl.checked = false;
@@ -6938,14 +6938,39 @@
   }
 
   /** Wires every row across both sflKeywordsPanelsHtml() panels. */
-  function wireSflKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+  function wireSflKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFields) {
     var p = idPrefix;
     function simple(id, name, hasParams, noConditioning) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
       }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
-    simple(p + '-sflnxtchg', 'SFLNXTCHG');
+    // Task I-86 - SFLCHCCTL's own DDS Reference section states outright
+    // that SFLNXTCHG cannot be specified in a record that contains a field
+    // with SFLCHCCTL (see DspfWriter.sflNxtchgSflchcctlConflictReason's own
+    // doc comment). Same alert+revert idiom as I-11's own SFLNXTCHG guard
+    // (that one against SFLMSGRCD, in sflMsgPanelsHtml) - turning it OFF is
+    // never blocked.
+    (function () {
+      var onEl = document.getElementById(p + '-sflnxtchg-on');
+      var commit = function () {
+        var present = onEl.checked;
+        if (present) {
+          var fieldsKeywords = ((getFields ? getFields() : []) || []).map(function (f) { return f.keywords; });
+          var reason = DspfWriter.sflNxtchgSflchcctlConflictReason(fieldsKeywords);
+          if (reason) {
+            window.alert(reason);
+            onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').present;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLNXTCHG', present, ''));
+      };
+      if (onEl) onEl.addEventListener('change', commit);
+      wireFlagRowConditioning(p + '-sflnxtchg', DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLNXTCHG', onEl.checked, '', undefined, newConditions));
+      }, expandedSet, rerender);
+    })();
     simple(p + '-logout', 'LOGOUT');
     // Task I-9: LOGINP - "Option indicators are not valid for this keyword."
     simple(p + '-loginp', 'LOGINP', false, true);
@@ -7648,8 +7673,10 @@
 
   /** Wires every row across all 4 sflCtlPanelsHtml() panels. Same
    *  `getKeywords`/`onChange` contract every other dedicated picker here
-   *  uses. */
-  function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
+   *  uses. getRecords is Task I-86's own addition - see this function's
+   *  SFLNXTCHG guard below for why it needs the full record list rather
+   *  than just this record's own fields. */
+  function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, getRecords) {
     var p = idPrefix;
 
     // General
@@ -7673,7 +7700,31 @@
     wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params, undefined, conditions); }, undefined, undefined, undefined);
     // Task I-26: SFLSNGCHC/SFLMLTCHC selection list
     wireSflChoiceListPanel(p, getKeywords, onChange);
-    wireFlagRow(p + '-sflnxtchg', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLNXTCHG', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, expandedSet, rerender);
+    // Task I-86 - unlike wireSflKeywordsPanels's own SFLNXTCHG row (guarded
+    // against ITS OWN record's fields), this panel's SFLNXTCHG lives on
+    // the SFLCTL record, so the field with SFLCHCCTL to check for is on
+    // the LINKED subfile record instead - see
+    // DspfWriter.sflctlNxtchgSflchcctlConflictReason's own doc comment for
+    // why (and how it still degrades correctly to a combined record).
+    (function () {
+      var onEl = document.getElementById(p + '-sflnxtchg-on');
+      var commit = function () {
+        var present = onEl.checked;
+        if (present) {
+          var reason = DspfWriter.sflctlNxtchgSflchcctlConflictReason(getKeywords(), getRecords ? getRecords() : []);
+          if (reason) {
+            window.alert(reason);
+            onEl.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').present;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLNXTCHG', present, ''));
+      };
+      if (onEl) onEl.addEventListener('change', commit);
+      wireFlagRowConditioning(p + '-sflnxtchg', DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLNXTCHG').conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLNXTCHG', onEl.checked, '', undefined, newConditions));
+      }, expandedSet, rerender);
+    })();
     wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGOUT').conditions, expandedSet, rerender);
     // I-10: LOGINP/CHECK(AB,RL) - propagates I-9's own finding (not
     // eligible for option indicators) to this SFLCTL panel's own copy of

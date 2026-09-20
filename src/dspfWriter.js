@@ -6871,6 +6871,24 @@
     return k ? String(k.parameters || '').trim().replace(/^\(|\)$/g, '') : '';
   }
 
+  /** Task I-86 - the SFLCTL panel's own SFLNXTCHG row operates on the
+   *  SFLCTL record's OWN keywords, but SFLCHCCTL's field-level rule lives
+   *  on the LINKED subfile (SFL) record's fields - SFLCTL(subfile-record-
+   *  name) can point at a different record entirely, so the control
+   *  record's own (usually field-less) fields are the wrong thing to
+   *  check. Same target-resolution sfllinAssociatedViolation (I-80)
+   *  already established for the analogous SFLLIN/SFLCSRPRG cross-record
+   *  check just above - and it degrades correctly to the combined-record
+   *  case too (SFLCTL naming its OWN record resolves right back to itself,
+   *  same fields wireSflKeywordsPanels's own guard would see). */
+  function sflctlNxtchgSflchcctlConflictReason(keywords, records) {
+    var target = sflctlTargetName(keywords);
+    if (!target) return '';
+    var sflRec = (records || []).find(function (r) { return r.name === target; });
+    if (!sflRec) return '';
+    return sflNxtchgSflchcctlConflictReason((sflRec.fields || []).map(function (f) { return f.keywords; }));
+  }
+
   function sfllinAssociatedViolation(keywords, records) {
     if (!(keywords || []).some(function (kw) { return kw.name === 'SFLLIN'; })) return null;
     var target = sflctlTargetName(keywords);
@@ -7004,12 +7022,45 @@
     return Object.keys(updates).length ? updates : null;
   }
 
-  function sflchcctlFieldConflictReason(isFirstField, siblingFieldsKeywords) {
+  function sflchcctlFieldConflictReason(isFirstField, siblingFieldsKeywords, recordKeywords) {
     if (!isFirstField) return 'SFLCHCCTL must be on the first field defined in the subfile record (per the DDS Reference).';
     var alreadyElsewhere = (siblingFieldsKeywords || []).some(function (fk) {
       return (fk || []).some(function (kw) { return kw.name === 'SFLCHCCTL'; });
     });
     if (alreadyElsewhere) return 'Only one SFLCHCCTL keyword is allowed in the subfile record - another field already has it.';
+    // Task I-86 - the reverse direction of sflNxtchgSflchcctlConflictReason
+    // below: the same DDS Reference sentence blocks SFLCHCCTL from being
+    // added when the record already has SFLNXTCHG, just as it blocks
+    // SFLNXTCHG from being added when a field already has SFLCHCCTL.
+    var hasNxtchg = (recordKeywords || []).some(function (kw) { return kw.name === 'SFLNXTCHG'; });
+    if (hasNxtchg) return 'SFLCHCCTL cannot be added to a record that already has SFLNXTCHG (per the DDS Reference).';
+    return '';
+  }
+
+  /** Task I-86 - SFLCHCCTL's own DDS Reference section, right after its
+   *  first-field/shape/one-per-record rules, adds one more: "SFLNXTCHC
+   *  keyword cannot be specified in a record that contains a field with
+   *  the SFLCHCCTL keyword." ("SFLNXTCHC" is read as SFLNXTCHG - the only
+   *  keyword by that name anywhere in the DDS Reference; the same page
+   *  spells it SFLNXTCHG 15 other times, including its own section header
+   *  "SFLNXTCHG (Subfile Next Changed) keyword for display files" a few
+   *  hundred lines later - this one occurrence is a single dropped letter,
+   *  not a second, otherwise-undocumented keyword.)
+   *
+   *  SFLNXTCHG is itself record-level, specified "on the subfile record
+   *  format" (SFLNXTCHG's own section) - the same physical record
+   *  SFLCHCCTL's control field lives in, including the combined SFL+SFLCTL
+   *  case (see wireSflKeywordsPanels/wireSflCtlPanels's own I-86 comments
+   *  for why both call sites need this). Forward direction only (turning
+   *  SFLNXTCHG ON); the reverse direction (turning SFLCHCCTL on when
+   *  SFLNXTCHG is already present) is sflchcctlFieldConflictReason's own
+   *  recordKeywords check above. Returns a reason string, or '' - same
+   *  convention as sflchcctlFieldConflictReason/sflScrollFieldConflictReason. */
+  function sflNxtchgSflchcctlConflictReason(fieldsKeywords) {
+    var hasChcctl = (fieldsKeywords || []).some(function (fk) {
+      return (fk || []).some(function (kw) { return kw.name === 'SFLCHCCTL'; });
+    });
+    if (hasChcctl) return 'SFLNXTCHG cannot be added to a record that contains a field with the SFLCHCCTL keyword (per the DDS Reference).';
     return '';
   }
 
@@ -7853,6 +7904,8 @@
     sflchcctlDefinitionUpdates: sflchcctlDefinitionUpdates,
     sflchcctlFieldConflictReason: sflchcctlFieldConflictReason,
     sflchcctlBasicEditConflictReason: sflchcctlBasicEditConflictReason,
+    sflNxtchgSflchcctlConflictReason: sflNxtchgSflchcctlConflictReason,
+    sflctlNxtchgSflchcctlConflictReason: sflctlNxtchgSflchcctlConflictReason,
     getDisplaySizesList: getDisplaySizesList,
     setDisplaySizesList: setDisplaySizesList,
     getFileMsgLocLines: getFileMsgLocLines,

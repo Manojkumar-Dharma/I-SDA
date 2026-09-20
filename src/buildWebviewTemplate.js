@@ -4741,7 +4741,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // own doc comment).
       const firstNamedField = (found.record.fields || []).find((f) => f.nameType !== 'CONSTANT');
       const isFirstField = !!firstNamedField && firstNamedField.sourceLine === field.sourceLine;
-      WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords, fieldUpdates) => commitEdit(ownerRecordName, field, Object.assign({ keywords: newKeywords }, fieldUpdates || {})), 'field-' + field.sourceLine, siblingFieldsKeywords, isFirstField, () => field);
+      WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords, fieldUpdates) => commitEdit(ownerRecordName, field, Object.assign({ keywords: newKeywords }, fieldUpdates || {})), 'field-' + field.sourceLine, siblingFieldsKeywords, isFirstField, () => field, found.record.keywords);
     }
     if (isMenuBarRecord) {
       WebviewClientHelpers.wireMenuBarChoicesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
@@ -5894,10 +5894,10 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wirePulldownPanels(rpdPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     }
     if (isSfl) {
-      WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
+      WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.records.find((r) => r.name === recordName).fields);
     }
     if (isSflCtl) {
-      WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
+      WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords, () => model.records);
       // Task L74: SFLPGMQ is field-level even on SFLCTL (see
       // sflPgmqFieldHtml's own comment) - wired the same way L73 wired it
       // for SFLMSG, a field-level commit rather than a record-keywords one.

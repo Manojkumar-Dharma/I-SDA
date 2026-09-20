@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-78 of 92 tasks done; 14 open (see [Open work](#open-work)). Current version: **v0.10.157**.
+79 of 92 tasks done; 13 open (see [Open work](#open-work)). Current version: **v0.10.158**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -128,7 +128,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-83](#i-83) | Field | `HTML` constants: gate the Attributes tab `DSPATR`/`COLOR` checkboxes | I-41 | Done | v0.10.151 |
 | [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | Done | v0.10.152 |
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Done | v0.10.153 |
-| [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | In progress | — |
+| [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Done | v0.10.158 |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check | I-61, I-62 | Not started | — |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
@@ -148,20 +148,19 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-86](#i-86) | In progress | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
-| 2 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 3 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 4 | [I-91](#i-91) | Not started | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
-| 5 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
-| 6 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 7 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 8 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 11 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 12 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 13 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 14 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 2 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 3 | [I-91](#i-91) | Not started | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
+| 4 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 5 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 6 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 7 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 8 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 9 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 10 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 11 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 12 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 13 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4461,9 +4460,17 @@ New `i85PshbtnfldRemovalGuard.test.js` (53 checks: unit checks on the function, 
 
 ### I-86 — `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field
 
-> **Area:** Cross-level · **Status:** In progress · **Depends on:** I-79
+> **Area:** Cross-level · **Status:** Done (v0.10.158) · **Depends on:** I-79
 
-`SFLCHCCTL`'s own DDS Reference section separately states "SFLNXTCHC keyword cannot be specified in a record that contains a field with the SFLCHCCTL keyword" - a fourth, cross-keyword rule distinct from the field-shape/first-field/one-per-record trio I-79 closed. Not yet guarded in either direction (adding `SFLNXTCHC` to a record with an `SFLCHCCTL` field, or vice versa).
+**Fixed.** `SFLCHCCTL`'s own DDS Reference section separately states "SFLNXTCHC keyword cannot be specified in a record that contains a field with the SFLCHCCTL keyword" - a fourth, cross-keyword rule distinct from the field-shape/first-field/one-per-record trio I-79 closed. Confirmed the Reference's own "SFLNXTCHC" spelling here is a single dropped letter, not a second keyword: the same document spells it `SFLNXTCHG` 15 other times, including its own section header ("SFLNXTCHG (Subfile Next Changed) keyword for display files") a few hundred lines later, and `SFLNXTCHG` is the only keyword of that name anywhere in the Reference.
+
+`SFLNXTCHG` is itself record-level, "on the subfile record format" (its own section) - the same physical record `SFLCHCCTL`'s control field lives in. Guarded in both directions, at three call sites:
+
+- **`SFLCHCCTL` ON, record already has `SFLNXTCHG`:** `DspfWriter.sflchcctlFieldConflictReason` grew a third `recordKeywords` parameter (backward-compatible - a 2-arg call, like `i39MissingKeywordsAudit.test.js`'s own, simply skips this check) alongside its existing first-field/one-per-record checks.
+- **`SFLNXTCHG` ON, a field already has `SFLCHCCTL` - plain SFL record's own panel:** new `DspfWriter.sflNxtchgSflchcctlConflictReason(fieldsKeywords)`, wired into `wireSflKeywordsPanels` (which grew a `getFields` param) with the same alert+revert idiom I-11's own `SFLMSGRCD` guard already established for this exact row.
+- **`SFLNXTCHG` ON - the SFLCTL record's own panel:** this row operates on the SFLCTL record's OWN keywords, but `SFLCHCCTL` never lives on the control record's own fields - it's on the record `SFLCTL(subfile-record-name)` points at, which can be a different record entirely. New `DspfWriter.sflctlNxtchgSflchcctlConflictReason(keywords, records)` resolves that target first (same `sflctlTargetName` resolution I-80's own `sfllinAssociatedViolation` already established for the analogous SFLLIN/SFLCSRPRG cross-record check), then delegates to `sflNxtchgSflchcctlConflictReason`. `wireSflCtlPanels` grew a `getRecords` param (the full record list, not just this record's own fields) to support it. This resolution degrades correctly to a combined SFL+SFLCTL record too (`SFLCTL` naming its own record resolves right back to itself).
+
+Regression coverage: new `src/test/i86SflnxtchgSflchcctlGuard.test.js` - unit checks for all three (new/extended) `DspfWriter` functions, plus DOM scenarios covering both directions across all three call sites, including the SFLCTL-panel-to-linked-SFL-record resolution.
 
 *Raised by I-79. Size (estimate): Small–medium.*
 
