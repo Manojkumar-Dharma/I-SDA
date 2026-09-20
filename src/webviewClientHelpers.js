@@ -5428,21 +5428,18 @@
       // only be blocked outright, same alert-and-no-op idiom as every
       // other whitelist guard in this file. sflWhitelistConflictReason
       // fires for a plain SFL record (MNUBARDSP is not on SFL's own
-      // whitelist - I-46). USRDFN is deliberately NOT checked here -
-      // I-8's own record-level audit explicitly named MNUBARDSP among
-      // the keywords individually checked against USRDFN's DDS
-      // Reference text and found no incompatibility statement for it
-      // ("left alone rather than guessed at" - see usrdfnConflictReason's
-      // own doc comment), so adding a block here would reverse that
-      // already-deliberate decision, not close a gap; I-55's own
-      // keywordFixes.md row scopes this to the SFL whitelist only.
-      // mnubarWhitelistConflictReason is also NOT checked - MNUBARDSP IS
-      // on MNUBAR's own whitelist (it's the keyword this record type
-      // exists to carry), so it would always be a safe no-op anyway,
-      // same as every other already-whitelisted keyword's call sites
-      // elsewhere in this file.
+      // whitelist - I-46).
+      // Task I-110: USRDFN is checked too. I-55 left it out because I-8's
+      // per-keyword audit found no incompatibility statement for MNUBARDSP -
+      // but that predated I-49, which found that a USRDFN record's section is a
+      // CLOSED list ("No file- or record-level keywords apply to this record
+      // except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and
+      // TEXT"), so the missing statement is exactly why it is not allowed.
+      // mnubarWhitelistConflictReason is still NOT checked - MNUBARDSP IS on
+      // MNUBAR's own whitelist (the keyword that record type exists to carry).
       function addGuardFn() {
-        return DspfWriter.sflWhitelistConflictReason('MNUBARDSP', kw);
+        return DspfWriter.usrdfnWhitelistConflictReason('MNUBARDSP', kw) ||
+          DspfWriter.sflWhitelistConflictReason('MNUBARDSP', kw);
       }
     );
   }
@@ -5496,7 +5493,9 @@
     return html;
   }
 
-  function wireHlptitlePanel(getKeywords, onChange, ownerKey, expandedSet, rerender) {
+  // Task I-110: optional trailing `addGuardFn() -> reason|null`, checked once per "+ Add"
+  // click (MOUBTN's I-42 idiom). Only the record-level call site passes one.
+  function wireHlptitlePanel(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var kw = getKeywords();
     var instances = DspfWriter.getRepeatableKeywordInstances(kw, ['HLPTITLE']);
     wireRepeatableConditionedInstances(
@@ -5520,7 +5519,9 @@
         // same "give it a real, editable starting value" reasoning as
         // record-indicator's own makeDefaultInstance above.
         return { name: 'HLPTITLE', conditions: [], parameters: DspfWriter.quoteDdsLiteral('Help title') };
-      }
+      },
+      undefined,
+      addGuardFn
     );
   }
 
@@ -6624,7 +6625,14 @@
     // wired here; wireFileKeywordsPanel's own file-level HLPTITLE row - a
     // different, correctly single-instance, unconditioned keyword per
     // IBM - is untouched and still uses that same id pattern.)
-    wireHlptitlePanel(getKeywords, onChange, p, expandedSet, rerender);
+    // Task I-110: HLPTITLE is on neither USRDFN's nor SFL's closed whitelist (both lists
+    // are exclusive - I-49 / I-46), so "+ Add" is refused there, same as MOUBTN's. MNUBAR's
+    // list allows it (the check is a no-op there), and a plain record is unrestricted.
+    wireHlptitlePanel(getKeywords, onChange, p, expandedSet, rerender, function () {
+      return DspfWriter.usrdfnWhitelistConflictReason('HLPTITLE', getKeywords()) ||
+        DspfWriter.sflWhitelistConflictReason('HLPTITLE', getKeywords()) ||
+        DspfWriter.mnubarWhitelistConflictReason('HLPTITLE', getKeywords());
+    });
 
     // Output
     // Task I-13: ALARM/INVITE/ALWGPH/FRCDTA/SLNO/CLRL are each on

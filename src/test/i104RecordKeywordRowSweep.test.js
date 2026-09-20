@@ -131,7 +131,6 @@ const KNOWN_GAPS = {
   'USRDFN|kind:CLEAR': 'finding D', 'USRDFN|kind:PAGEDOWN': 'finding D', 'USRDFN|kind:PAGEUP': 'finding D',
   'USRDFN|kind:HOME': 'finding D', 'USRDFN|kind:VLDCMDKEY': 'finding D', 'USRDFN|kind:SETOF': 'finding D',
   'USRDFN|kind:CHANGE': 'finding D', 'USRDFN|kind:INDTXT': 'finding D',
-  'USRDFN|add:rec-mnubardsp-rep': 'finding E', 'USRDFN|add:rec-hlptitle-rep': 'finding E', 'SFL|add:rec-hlptitle-rep': 'finding E',
 };
 
 // ===========================================================================

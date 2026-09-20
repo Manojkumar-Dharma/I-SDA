@@ -18,12 +18,13 @@
  *     SFL/MNUBAR whitelist guard in this codebase. Wired at MNUBARDSP's
  *     own call site (wireMnubardspPanel) against sflWhitelistConflictReason
  *     (I-46's finding: MNUBARDSP is not on SFL's own whitelist).
- *     USRDFN is deliberately NOT checked - I-8's own record-level audit
- *     explicitly named MNUBARDSP among the keywords individually checked
- *     against USRDFN's DDS Reference text with no incompatibility found
- *     ("left alone rather than guessed at"), and I-55's own keywordFixes.md
- *     row scopes this to the SFL whitelist only. mnubarWhitelistConflictReason
- *     is also NOT checked there - MNUBARDSP IS on MNUBAR's own whitelist.
+ *     USRDFN was deliberately NOT checked here at first (I-8's per-keyword
+ *     audit found no incompatibility statement for it). Task I-110 reverses
+ *     that: I-49 later showed a USRDFN record's section is a CLOSED list, so
+ *     the missing statement is why MNUBARDSP is not allowed - the guard now
+ *     also runs usrdfnWhitelistConflictReason (see the USRDFN case below).
+ *     mnubarWhitelistConflictReason is still NOT checked there - MNUBARDSP IS
+ *     on MNUBAR's own whitelist.
  *  2. The record Indicator-keywords model's own per-row "kind" dropdown
  *     can change AFTER an instance already exists (unlike MNUBARDSP,
  *     whose instance identity never changes), so the addGuardFn hook
@@ -101,16 +102,17 @@ console.log('MNUBARDSP "+ Add": blocked on a plain SFL record (not on SFL\'s own
   check('no MNUBARDSP instance was added', keywords.length === before && !keywords.some((k) => k.name === 'MNUBARDSP'));
 }
 
-console.log('\nMNUBARDSP "+ Add": still commits normally on a USRDFN record (I-8\'s own audit deliberately did not find MNUBARDSP individually documented as incompatible with USRDFN - "left alone rather than guessed at" - so this is intentionally unguarded here, unlike SFL)');
+console.log('\nMNUBARDSP "+ Add": blocked on a USRDFN record (Task I-110 - a USRDFN record accepts only INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT and TEXT)');
 {
   let keywords = [{ name: 'USRDFN', parameters: '', conditions: [], raw: '', sourceLines: [] }];
   function getKeywords() { return keywords; }
   function onChange(next) { keywords = next; render(keywords); wire(getKeywords, onChange); }
   render(keywords);
   wire(getKeywords, onChange);
+  const before = keywords.length;
   const result = clickAddCapturingAlert('.repeat-inst-add[data-prefix="rk-mnubardsp-rep"]');
-  check('no alert fired for MNUBARDSP on a USRDFN record', !result.alertMessage);
-  check('MNUBARDSP instance was added', keywords.some((k) => k.name === 'MNUBARDSP'));
+  check('blocked with an alert naming the user-defined (USRDFN) record format', !!result.alertMessage && result.alertMessage.indexOf('user-defined (USRDFN)') !== -1);
+  check('no MNUBARDSP instance was added', keywords.length === before && !keywords.some((k) => k.name === 'MNUBARDSP'));
 }
 
 console.log('\nMNUBARDSP "+ Add": still commits normally on a MNUBAR record (MNUBARDSP IS on MNUBAR\'s own whitelist)');
