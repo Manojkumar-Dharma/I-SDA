@@ -116,7 +116,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Done | v0.10.154 |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Done | v0.10.157 |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Done | v0.10.156 |
-| [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
+| [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | In progress | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Done | v0.10.171 |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Done | v0.10.151 |
@@ -153,7 +153,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
 | 2 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
 | 3 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
 | 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
@@ -4200,7 +4200,7 @@ Out of scope, logged as new tasks after probing the rest of `MSGID`'s entry: I-9
 
 ### I-74 — `REF`/`REFFLD`: copy the other keywords from the referenced database field
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-32
+> **Area:** Field · **Status:** In progress · **Depends on:** I-32
 
 Per the DDS Reference, a field defined by reference should also inherit `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`/`TEXT`/`ALIAS`/`CCSID`/`FLTPCN` and the editing keywords from the referenced database field. iSDA's reference resolution only pulls **length, data type and decimal positions**. Touches the reference-resolution path, so it needs the most care; decide first whether the inherited keywords are shown read-only in the field's keyword lists or copied into the source.
 
