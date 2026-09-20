@@ -1807,6 +1807,13 @@
   function messageIdInstancesHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getMessageIdInstances(keywords);
     var html = '<div class="section-label">Message ID (MSGID)</div>';
+    // Task I-73 - position-dependent option-indicator rule (see
+    // DspfWriter.msgidConditioningNotes's own doc comment): advisory lines
+    // for the required half, and the Conditioning toggle is hidden on the
+    // last/only MSGID for the forbidden half.
+    DspfWriter.msgidConditioningNotes(keywords).forEach(function (note) {
+      html += '<div class="hint-small warn">' + escapeHtml(note) + '</div>';
+    });
     html += repeatableConditionedInstancesHtml(
       instances,
       ownerKey + '-msgid',
@@ -1817,7 +1824,11 @@
       '+ Add message ID',
       function renderStaging(stagingIdPrefix) {
         return msgIdPayloadHtml('', stagingIdPrefix);
-      }
+      },
+      function isConditionable(inst) {
+        return DspfWriter.msgidInstanceAllowsConditioning(instances, inst);
+      },
+      'Option indicators are not allowed on the last (or only) MSGID.'
     );
     return html;
   }
@@ -6746,7 +6757,7 @@
   // this only prevents ADDING new conditioning through this UI, matching
   // the same "omitted conditions preserves whatever already existed"
   // convention I-14's own MNUBAR fix already established.
-  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel, renderStaging, isConditionable) {
+  function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel, renderStaging, isConditionable, notConditionableHint) {
     var list = instances || [];
     var html = '<div id="' + idPrefix + '-instances">';
     if (list.length === 0) {
@@ -6764,7 +6775,7 @@
       if (conditionable) {
         html += '<span class="repeat-inst-cond-toggle" data-prefix="' + idPrefix + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>';
       } else {
-        html += '<span class="hint-small">Option indicators are not valid for this keyword.</span>';
+        html += '<span class="hint-small">' + escapeHtml(notConditionableHint || 'Option indicators are not valid for this keyword.') + '</span>';
       }
       html += '<button class="repeat-inst-remove" data-prefix="' + idPrefix + '" data-idx="' + idx + '">\u00d7 Remove</button>';
       html += '</div>';

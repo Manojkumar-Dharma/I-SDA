@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-75 of 90 tasks done; 15 open (see [Open work](#open-work)). Current version: **v0.10.154**.
+74 of 92 tasks done; 18 open (see [Open work](#open-work)). Current version: **v0.10.156**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -115,7 +115,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Done | v0.10.155 |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Done | v0.10.154 |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | In progress | — |
-| [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | In progress | — |
+| [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Done | v0.10.156 |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
@@ -133,6 +133,8 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check | I-61, I-62 | Not started | — |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
+| [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Not started | — |
+| [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -147,19 +149,20 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-86](#i-86) | In progress | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
-| 2 | [I-73](#i-73) | In progress | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 3 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 4 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 5 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 6 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 7 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 8 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 11 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 12 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 13 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 14 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 3 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 4 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 5 | [I-91](#i-91) | Not started | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
+| 6 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 7 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 8 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 9 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 10 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 11 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 12 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4169,9 +4172,21 @@ Logged in the deferred-findings table as "`DUP` floating-point restriction" but 
 
 ### I-73 — `MSGID`: position-dependent mandatory/forbidden conditioning rule
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-30
+> **Area:** Field · **Status:** Done (v0.10.156) · **Depends on:** I-30
 
 Logged from I-30: `MSGID` has a rule about whether option-indicator conditioning is mandatory or forbidden depending on the keyword's position among its siblings on the field. Not enforced. The details are not written up in the I-30 section, so re-read the `MSGID` section of `DDS_Keyword_V7r6.txt` first and record the exact rule here before implementing.
+
+**Implemented.** Re-read `MSGID`'s entry: "When more than one MSGID keyword is specified, option indicators are required on all except the last MSGID keyword on a field. Option indicators are not allowed on the last (or only) MSGID keyword specified on a field. If more than one MSGID keyword is in effect for a field, the first MSGID specified is used." (The last sentence is why: an unconditioned earlier `MSGID` would always win, so no later one could ever be reached.)
+
+The rule depends on an instance's position, and a field with several `MSGID`s is necessarily built one at a time (every intermediate state, e.g. two unconditioned instances just after the second is added, breaks the "required" half), so it is split by direction rather than hard-blocked:
+
+- **Forbidden half, prevented in the UI.** New `DspfWriter.msgidInstanceAllowsConditioning(instances, inst)` feeds the existing `isConditionable` hook (Task I-20) of `repeatableConditionedInstancesHtml`, so the Conditioning toggle is not rendered on the last (or only) `MSGID` — with the explanation "Option indicators are not allowed on the last (or only) MSGID." A last instance that *already* carries indicators (hand-edited) keeps its toggle so they can be cleared. `repeatableConditionedInstancesHtml` gained an optional 8th parameter for that hint text; its other callers are unchanged.
+- **Required half, advisory.** New `DspfWriter.msgidConditioningNotes(keywords)` returns reminder lines that `messageIdInstancesHtml` shows as `hint-small warn` lines above the instances, recomputed on every render (same shape as L83's `dftOutputRequirementNote`): which non-last `MSGID`s (`#1`, `#2`, …, in field order) need an option indicator, and a second line if the last/only one has any.
+- `setMessageIdInstances` preserves the instances' relative order, so "last" is stable across edits (asserted by the test).
+
+New `src/test/i73MsgidConditioningRule.test.js` (pure functions, plus the real generated webview in jsdom: lone / two-unconditioned / the DDS Reference's own conditioned-first example / hand-edited conditioned-last / add-second-MSGID-is-not-blocked / remove). Confirmed against the pre-fix code by stashing the UI change alone (7 checks fail) and both files (`msgidConditioningNotes is not a function`). Wired into `npm test`.
+
+Out of scope, logged as new tasks after probing the rest of `MSGID`'s entry: I-91 (`DFT`/`DFTVAL`/`FLTFIXDEC`/`FLTPCN` are not excluded on a `MSGID` field, in either direction) and I-92 (the Message ID panel is offered on fields of an `SFL` record). Usage is already right: the panel is not rendered for input-only fields.
 
 *Raised by I-30. Size (estimate): Medium.*
 
@@ -4488,5 +4503,25 @@ Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type a
 The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS.
 
 *Raised by I-68. Size (estimate): Small (research; may be inconclusive).*
+
+---
+
+### I-91 — `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-73
+
+Found while probing for I-73. `MSGID`'s DDS Reference entry lists five keywords that "cannot be specified on a field with the MSGID keyword": `DFT`, `DFTVAL`, `FLTFIXDEC`, `FLTPCN` and `MSGCON`. `MSGCON` is only reachable on constants, which cannot carry `MSGID` (usage `B`/`O` fields only), so it is out of practical reach. The other four are not enforced in either direction: probing the real panel, ticking `DFT` on a field that already has `MSGID` writes both with no alert. Guard both directions (adding `DFT`/`DFTVAL`/`FLTFIXDEC`/`FLTPCN` to a field with `MSGID`, and adding `MSGID` to a field carrying any of them), following I-41's `HTML` pattern (`htmlConflictReason` plus I-83's `withAddGuard`). Re-read the `MSGID` section first and check whether `DFTVAL` and `FLTPCN` are offered by any structured editor at all before wiring them.
+
+*Raised by I-73. Size (estimate): Small.*
+
+---
+
+### I-92 — `MSGID`: not valid on a field of a subfile (`SFL`) record
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-73
+
+Found while probing for I-73. `MSGID`'s entry says "You cannot specify MSGID in a subfile record format (SFL keyword)." The Message ID accordion is offered for output-capable fields of an `SFL` record (confirmed by probe: a usage `O` field under an `SFL` record renders the instances list and its "+ Add message ID" button), and nothing blocks adding one. Either hide the accordion for fields of an `SFL` record, or guard the add, the same way I-56/I-46 treat other record-shape rules; a hand-edited field that already carries `MSGID` must remain removable. Check `SFLCTL` (its own fields are not subfile detail fields) before deciding what "an SFL record" means here.
+
+*Raised by I-73. Size (estimate): Small.*
 
 ---

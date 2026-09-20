@@ -3637,6 +3637,63 @@
     return setRepeatableKeywordInstances(keywords, MESSAGE_ID_NAMES, raw);
   }
 
+  /** Task I-73 - MSGID's own position-dependent option-indicator rule,
+   *  from its DDS Reference entry: "When more than one MSGID keyword is
+   *  specified, option indicators are required on all except the last
+   *  MSGID keyword on a field. Option indicators are not allowed on the
+   *  last (or only) MSGID keyword specified on a field." (The first MSGID
+   *  in effect is used, which is why the earlier ones must be
+   *  conditioned - otherwise a later one could never be reached.)
+   *
+   *  Unlike a per-keyword exclusion this depends on an instance's
+   *  POSITION among its siblings, and "last" changes as instances are
+   *  added, removed or reordered, so it can't be a hard block on any one
+   *  commit: a field with several MSGIDs is necessarily built one at a
+   *  time, and every intermediate state (e.g. two unconditioned MSGIDs
+   *  just after the second is added) breaks the "required" half. It is
+   *  therefore split by direction:
+   *   - the FORBIDDEN half is prevented in the UI where it can be -
+   *     msgidInstanceAllowsConditioning hides the Conditioning toggle on
+   *     the last/only instance (unless it already carries some, so a
+   *     hand-edited one can still be cleared);
+   *   - the REQUIRED half is advisory - msgidConditioningNotes returns
+   *     the reminder lines for a live hint, same shape as L83's
+   *     dftOutputRequirementNote.
+   *  `instances` is getMessageIdInstances' own output, in keyword order. */
+  function msgidInstanceAllowsConditioning(instances, inst) {
+    var list = instances || [];
+    var idx = list.indexOf(inst);
+    if (idx < 0) return true; // not one of the list - don't second-guess
+    if (idx < list.length - 1) return true;
+    return (inst.conditions || []).length > 0;
+  }
+
+  /** Task I-73 - see msgidInstanceAllowsConditioning above. Returns an
+   *  array of reminder lines (empty when the field's MSGIDs satisfy the
+   *  rule): one naming every non-last MSGID that has no option indicator,
+   *  and one if the last/only MSGID has any. Instances are numbered from
+   *  1 in the order they appear on the field. */
+  function msgidConditioningNotes(keywords) {
+    var instances = getMessageIdInstances(keywords);
+    var notes = [];
+    var missing = [];
+    instances.forEach(function (inst, i) {
+      if (i < instances.length - 1 && (inst.conditions || []).length === 0) missing.push('#' + (i + 1));
+    });
+    if (missing.length) {
+      notes.push('MSGID ' + missing.join(', ') + (missing.length === 1 ? ' needs' : ' need') + ' an option indicator: when a field has more than one MSGID, every one except the last must be conditioned (the first one in effect is used).');
+    }
+    if (instances.length) {
+      var last = instances[instances.length - 1];
+      if ((last.conditions || []).length > 0) {
+        notes.push(instances.length > 1
+          ? 'The last MSGID (#' + instances.length + ') cannot have option indicators - only the earlier ones can.'
+          : "A field's only MSGID cannot have option indicators.");
+      }
+    }
+    return notes;
+  }
+
   // -----------------------------------------------------------------------
   // D5 - Menu-bar choice fields (MNB*/MNUACT): the remaining SDA "Select
   // Field Keywords"-family screens from docs/sda-reference/ task D5, all
@@ -7700,6 +7757,8 @@
     formatMsgConParams: formatMsgConParams,
     getMessageIdInstances: getMessageIdInstances,
     setMessageIdInstances: setMessageIdInstances,
+    msgidInstanceAllowsConditioning: msgidInstanceAllowsConditioning,
+    msgidConditioningNotes: msgidConditioningNotes,
     getMenubarChoices: getMenubarChoices,
     setMenubarChoices: setMenubarChoices,
     setMenubarChoiceConditions: setMenubarChoiceConditions,
