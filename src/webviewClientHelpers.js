@@ -6725,12 +6725,32 @@
     // edited, matching the fact it was never valid DDS syntax to begin
     // with.
     wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, false, true);
+    // Task I-107 (I-104 finding B): CHECK is on SFL's whitelist but on neither
+    // MNUBAR's nor USRDFN's, and these two hand-wired rows had no guard. Refused only
+    // when that variant (AB / RL) is not already on the record - the I-84 lesson, so a
+    // hand-edited record that already carries it can still remove it - while turning
+    // the OTHER variant on is still an addition and still refused.
+    function recordCheckGuard(id, variant) {
+      return function (present) {
+        if (!present) return true;
+        if (DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', variant).present) return true;
+        var reason = DspfWriter.usrdfnConflictReason('CHECK', getKeywords()) ||
+          DspfWriter.pulldownConflictReason('CHECK', getKeywords()) ||
+          DspfWriter.sflWhitelistConflictReason('CHECK', getKeywords()) ||
+          DspfWriter.mnubarWhitelistConflictReason('CHECK', getKeywords());
+        if (!reason) return true;
+        window.alert(reason);
+        var onEl = document.getElementById(id + '-on');
+        if (onEl) onEl.checked = false;
+        return false;
+      };
+    }
     // Task I-7: CHECK's AB/RL sub-flags - "Option indicators are valid
     // only for CHECK(ER) and CHECK(ME)" per IBM's own DDS Reference,
     // neither of which iSDA implements (same finding I-3 already made for
     // file-level CHECK) - no Conditioning toggle for these two rows.
-    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
-    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
+    wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined, recordCheckGuard(p + '-check-ab', 'AB'));
+    wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined, recordCheckGuard(p + '-check-rl', 'RL'));
     // Task I-13: RTNDTA is on PULLDOWN's own forbidden-keyword list.
     wirePulldownGuardedFlag(p + '-rtndta', 'RTNDTA', false);
 
