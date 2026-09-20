@@ -136,7 +136,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Done | v0.10.164 |
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
-| [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
+| [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | In progress | — |
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Done | v0.10.170 |
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Done | v0.10.165 |
 | [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
@@ -153,7 +153,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
+| 1 | [I-94](#i-94) | In progress | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
 | 2 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
 | 3 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
 | 4 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
@@ -4705,7 +4705,7 @@ New `i93EntfldatrOnTransitionOnly.test.js` (42 checks, same lightweight jsdom ha
 
 ### I-94 — `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS)
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-71
+> **Area:** Field · **Status:** In progress · **Depends on:** I-71
 
 Found while fixing I-71. `IGCALTTYP` eligibility (same DDS section, first rule): "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." (and the DBCS chapter: not on DBCS-graphic fields, `G` in position 35). The General row's `IGCALTTYP` entry has no usage or data-type gating today, so it is offered on output-only / input-only fields and on `J`/`E`/`O`/`G` fields. Expect the WRDWRAP-style usage + shift-type gating (I-42 / I-61), with usage `B` only.
 
