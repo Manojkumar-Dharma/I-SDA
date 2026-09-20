@@ -6683,7 +6683,27 @@
     var unlockOn = document.getElementById(p + '-unlock-on');
     var unlockErase = document.getElementById(p + '-unlock-erase');
     var unlockMdtoff = document.getElementById(p + '-unlock-mdtoff');
-    function commitUnlock(conditions) { onChange(DspfWriter.setUnlockKeyword(getKeywords(), unlockOn.checked, unlockErase.checked, unlockMdtoff.checked, conditions)); }
+    // Task I-106: UNLOCK is on neither SFL's nor USRDFN's whitelist (MNUBAR's list
+    // does include it), but this hand-wired row had no guard at all. Refused only on a
+    // real turn-on (UNLOCK not already present - the I-84 lesson), so a hand-edited
+    // record that already carries UNLOCK can still remove it or edit its *ERASE /
+    // *MDTOFF values. Same chain as the sibling record-level guards.
+    function commitUnlock(conditions) {
+      if (unlockOn.checked && !DspfWriter.getUnlockKeyword(getKeywords()).present) {
+        var unlockReason = DspfWriter.usrdfnConflictReason('UNLOCK', getKeywords()) ||
+          DspfWriter.pulldownConflictReason('UNLOCK', getKeywords()) ||
+          DspfWriter.sflWhitelistConflictReason('UNLOCK', getKeywords()) ||
+          DspfWriter.mnubarWhitelistConflictReason('UNLOCK', getKeywords());
+        if (unlockReason) {
+          window.alert(unlockReason);
+          unlockOn.checked = false;
+          unlockErase.checked = false;
+          unlockMdtoff.checked = false;
+          return;
+        }
+      }
+      onChange(DspfWriter.setUnlockKeyword(getKeywords(), unlockOn.checked, unlockErase.checked, unlockMdtoff.checked, conditions));
+    }
     if (unlockOn) unlockOn.addEventListener('change', function () { commitUnlock(); });
     if (unlockErase) unlockErase.addEventListener('change', function () { commitUnlock(); });
     if (unlockMdtoff) unlockMdtoff.addEventListener('change', function () { commitUnlock(); });

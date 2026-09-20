@@ -126,7 +126,6 @@ const USRDFN_VISIBLE_PANELS = ['general', 'help', 'print']; // R2's narrowing, b
 /** Rows this sweep found unguarded (see the I-104 section of keywordFixes.md).
  *  Each is asserted to STILL be a gap. */
 const KNOWN_GAPS = {
-  'USRDFN|cb:unlock': 'finding A', 'SFL|cb:unlock': 'finding A',
   'USRDFN|cb:check-ab': 'finding B', 'USRDFN|cb:check-rl': 'finding B',
   'MNUBAR|cb:check-ab': 'finding B', 'MNUBAR|cb:check-rl': 'finding B',
   'USRDFN|input:altname': 'finding C', 'SFL|input:altname': 'finding C', 'MNUBAR|input:altname': 'finding C',
