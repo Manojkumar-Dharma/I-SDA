@@ -1496,14 +1496,23 @@
   function editKeywordSectionHtml(keywords, ownerKey, openState) {
     var ec = DspfWriter.getEditKeyword(keywords);
     var em = DspfWriter.getEditMask(keywords);
+    // Task I-78: an EDTCDE's optional second parameter (asterisk fill /
+    // floating currency symbol) gets its own input, like real SDA's
+    // "Replace leading zeros with" prompt. The main box then holds only
+    // the edit-code letter for EDTCDE (EDTWRD's string is untouched).
+    var ecParts = ec.kind === 'EDTCDE' ? DspfWriter.splitEditCode(ec.parameters) : { code: ec.parameters, fill: '' };
     var html = '<div class="two-col">' +
       '<select id="' + ownerKey + '-ec-kind">' +
       ['', 'EDTCDE', 'EDTWRD'].map(function (k) {
         return '<option value="' + k + '"' + (ec.kind === k ? ' selected' : '') + '>' + (k || '(none)') + '</option>';
       }).join('') +
       '</select>' +
-      '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ec.parameters) + '" />' +
-      '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-O, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string</div>' +
+      '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ecParts.code) + '" />' +
+      '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-Q, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string</div>' +
+      '<div class="two-col" style="margin-top:6px;">' +
+      '<label for="' + ownerKey + '-ec-fill">Replace leading zeros with</label>' +
+      '<input type="text" id="' + ownerKey + '-ec-fill" maxlength="1" placeholder="* or $" value="' + escapeHtml(ecParts.fill) + '" />' +
+      '</div><div class="hint-small">EDTCDE only, optional: <b>*</b> for asterisk fill, or the floating currency symbol (must match system value QCURSYM, e.g. $). Valid with edit codes 1-4, A-D and J-Q.</div>' +
       '<input type="text" id="' + ownerKey + '-em-mask" placeholder="Edit mask (EDTMSK) - full quoted mask string, e.g. \'(999) 999-9999\'" value="' + escapeHtml(em.text) + '" style="width:100%;margin-top:6px;" />' +
       '<div class="hint-small">EDTMSK requires usage I or B and an EDTCDE or EDTWRD keyword already on the field (per the DDS Reference) - independent of the edit code/word above, not a third alternative to it.</div>' +
       '<button class="secondary ' + ownerKey + '-vc-apply" style="width:100%;margin-top:8px;">Apply edit code/word/mask</button>';
@@ -1559,14 +1568,37 @@
       // so only the edit code/word/mask fields remain here.
       var ecKind = document.getElementById(ownerKey + '-ec-kind').value;
       var ecParams = document.getElementById(ownerKey + '-ec-params').value;
+      var fillEl = document.getElementById(ownerKey + '-ec-fill');
+      var ecFill = fillEl ? fillEl.value : '';
       var emText = document.getElementById(ownerKey + '-em-mask').value;
       var prevEc = DspfWriter.getEditKeyword(keywords);
       var prevEm = DspfWriter.getEditMask(keywords);
+      var prevParts = prevEc.kind === 'EDTCDE' ? DspfWriter.splitEditCode(prevEc.parameters) : { code: prevEc.parameters, fill: '' };
       function revert() {
         document.getElementById(ownerKey + '-ec-kind').value = prevEc.kind;
-        document.getElementById(ownerKey + '-ec-params').value = prevEc.parameters;
+        document.getElementById(ownerKey + '-ec-params').value = prevParts.code;
+        if (fillEl) fillEl.value = prevParts.fill;
         document.getElementById(ownerKey + '-em-mask').value = prevEm.text;
       }
+      // Task I-78: EDTCDE's optional second parameter. A user who types
+      // "J*" into the edit-code box out of habit is understood (the
+      // symbol moves to the widget on re-render); typing it in both
+      // places is refused rather than guessed at.
+      if (ecKind === 'EDTCDE') {
+        var typed = DspfWriter.splitEditCode(ecParams);
+        if (typed.fill) {
+          if (ecFill.trim() && ecFill.trim() !== typed.fill) {
+            window.alert('Replace leading zeros with is given twice (in the edit code box and in its own field) - use only the field.');
+            revert();
+            return;
+          }
+          ecParams = typed.code;
+          ecFill = typed.fill;
+        }
+      }
+      var fillReason = DspfWriter.editCodeFillConflictReason(ecKind, ecParams, ecFill);
+      if (fillReason) { window.alert(fillReason); revert(); return; }
+      if (ecKind === 'EDTCDE') ecParams = DspfWriter.joinEditCode(ecParams, ecFill);
       // L82 - symmetric side of L81's DFT/DFTVAL guard: EDTCDE/EDTWRD
       // are blocked from being selected here while the field already
       // carries DFT or DFTVAL, using the exact same

@@ -120,7 +120,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Done | v0.10.151 |
-| [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Not started | — |
+| [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Done | v0.10.163 |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Done | v0.10.149 |
 | [I-80](#i-80) | Field | `SFLCSRPRG` vs `SFLLIN` | I-39 | Done | v0.10.150 |
 | [I-81](#i-81) | Record | `SFLRTNSEL` requires `SFLMLTCHC` or `SFLSNGCHC` | I-39 | Done | v0.10.147 |
@@ -152,19 +152,18 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 2 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
-| 3 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
-| 4 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 5 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
-| 6 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 7 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 8 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 9 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 10 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 11 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 12 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 13 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 2 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
+| 3 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
+| 4 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
+| 5 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 6 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 7 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 8 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 9 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 10 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 11 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 12 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4260,9 +4259,19 @@ Not changed here: see the deferred finding about I-56's SFL/MNUBAR checks also b
 
 ### I-78 — `EDTCDE`: dedicated widget for the optional second parameter
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-31
+> **Area:** Field · **Status:** Done (v0.10.163) · **Depends on:** I-31
 
 `EDTCDE`'s optional second parameter (`*` or a floating currency symbol appended after the edit-code letter) is reachable only as free text in the same parameters box as the letter. Real SDA's own "Select Editing Keywords" screen (`docs/sda-reference/screens/field-level/numeric/editing-keywords/image182.png`) shows a distinct "Replace leading zeros with" prompt. Nothing is blocked (a user can type `J*`), so this is a discoverability/UX gap, not a correctness bug.
+
+**Done.** Re-read `EDTCDE` in `DDS_Keyword_V7r6.txt`: the format is `EDTCDE(edit-code [* |floating-currency-symbol])`; "When you specify asterisk fill, an asterisk (*) is printed for each zero that is suppressed", a floating currency symbol "must match the system value for the currency symbol (QCURSYM)", and "You can optionally specify asterisk fill or floating currency symbol with edit codes 1 through 4, A through D, and J through Q." Real SDA's screen labels it "Replace leading zeros with" (`*, $`).
+
+- **Widget:** the Edit code / word / mask panel gains a single-character "Replace leading zeros with" input under the kind/code row (`editKeywordSectionHtml`, hint text explaining `*` vs the currency symbol). The main box now holds only the edit-code letter for `EDTCDE`; `EDTWRD`'s string is untouched.
+- **Data model unchanged:** the keyword's parameters stay one string. New `DspfWriter.splitEditCode` / `joinEditCode` / `getEditCodeParts` split and rejoin it; the canonical written form has a space, as in the reference's own format line (`EDTCDE(J *)`). A hand-written `J*` (no space) reads back the same and is normalised to `J *` only if the user Applies. A parameter string that does not look like `<code> [<char>]` (e.g. hand-written `J * extra`) is shown whole in the main box and written back unchanged - nothing is ever dropped.
+- **One rule enforced, only because IBM states it outright:** `editCodeFillConflictReason` refuses a fill with edit codes W, X, Y, Z (the IBM codes not in the "1-4, A-D, J-Q" sentence), with `EDTWRD` or no keyword selected, with no edit code, or when the fill is not a single character (or is a quote/bracket). User-defined codes 5-9 are not mentioned by IBM either way and are left alone, as is any currency symbol (it only has to match QCURSYM at create time). A refusal alerts and puts both inputs back to the saved state, same idiom as the DFT and `EDTMSK` checks in the same Apply.
+- **Habit-typing "J*" into the code box** is understood (the symbol moves to the widget on re-render); the same symbol in both places is fine, two different ones are refused rather than guessed at.
+- **Small correction found on the way:** the panel's hint listed the IBM edit codes as "J-O", but IBM says "J through Q" (the reference's own code list and the engine's `[1-4A-DJ-QWXYZ]` regex already agree). The hint now says J-Q. Nothing else read the hint.
+
+New `i78EdtcdeFillWidget.test.js` (73 checks): split/join/round-trip, the fill rule for every code, and the panel itself (rendering and pre-population from `J`, `J *`, `J*`, `1 $`, `EDTWRD` and an unrecognisable string; Apply writing, changing and clearing the fill; habit-typing; refusals leaving the field unchanged with inputs restored; a hand-written second parameter surviving an unrelated edit).
 
 *Raised by I-31. Size (estimate): Small.*
 

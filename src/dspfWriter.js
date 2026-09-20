@@ -1135,6 +1135,77 @@
     return next;
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-78 - EDTCDE's optional second parameter. The DDS Reference gives
+  // the format as `EDTCDE(edit-code [* |floating-currency-symbol])`: after
+  // the edit-code letter, an optional `*` (asterisk fill - "an asterisk is
+  // printed for each zero that is suppressed") or a floating currency
+  // symbol (which "must match the system value for the currency symbol
+  // (QCURSYM)"). Real SDA's own "Select Editing Keywords" screen shows it
+  // as its own prompt, "Replace leading zeros with". Until now it was only
+  // reachable by typing it into the same box as the letter.
+  //
+  // The keyword's parameters stay ONE string ("J *"); these helpers split
+  // it for the widget and join it back. The canonical joined form has a
+  // space, as in the reference's own format line, though "J*" (no space)
+  // is read back just as well.
+  //
+  // One rule is enforced, and only because IBM states it outright: "You
+  // can optionally specify asterisk fill or floating currency symbol with
+  // edit codes 1 through 4, A through D, and J through Q." - so W, X, Y
+  // and Z (the other IBM edit codes) cannot take one. User-defined codes
+  // (5-9) are not mentioned either way and are left alone, as is any
+  // parameter string that does not look like `<code> [<char>]` at all.
+  // -----------------------------------------------------------------------
+  var EDTCDE_NO_FILL_CODES = ['W', 'X', 'Y', 'Z'];
+
+  /** Splits an EDTCDE parameter string into { code, fill }. A string that
+   *  is not `<one character>` optionally followed by `<one character>`
+   *  (e.g. hand-written oddities) comes back whole as `code` with an empty
+   *  `fill`, so nothing is ever dropped by the widget. */
+  function splitEditCode(parameters) {
+    var text = String(parameters == null ? '' : parameters);
+    var m = /^\s*(\S)\s*(\S)?\s*$/.exec(text);
+    if (!m) return { code: text.trim(), fill: '' };
+    return { code: m[1], fill: m[2] || '' };
+  }
+
+  /** The inverse: `code` plus, when `fill` is non-blank, a space and the
+   *  fill character. */
+  function joinEditCode(code, fill) {
+    var c = String(code == null ? '' : code).trim();
+    var f = String(fill == null ? '' : fill).trim();
+    return f ? (c + ' ' + f).trim() : c;
+  }
+
+  /** { code, fill } for the field's EDTCDE, or empty strings when it has
+   *  none (an EDTWRD field also reports empty - its parameters are not an
+   *  edit code). */
+  function getEditCodeParts(keywords) {
+    var k = (keywords || []).find(function (kw) { return kw.name === 'EDTCDE'; });
+    return k ? splitEditCode(k.parameters) : { code: '', fill: '' };
+  }
+
+  /** Why an EDTCDE edit code / "Replace leading zeros with" pair cannot be
+   *  applied, or null. `kind` is the Apply's selected keyword ('' /
+   *  'EDTCDE' / 'EDTWRD'). Nothing is reported for a blank fill. */
+  function editCodeFillConflictReason(kind, code, fill) {
+    var f = String(fill == null ? '' : fill).trim();
+    if (!f) return null;
+    if (kind !== 'EDTCDE') {
+      return '"Replace leading zeros with" applies only to an EDTCDE edit code.';
+    }
+    if (f.length !== 1 || /['"()]/.test(f)) {
+      return 'Replace leading zeros with must be a single character: * for asterisk fill, or the floating currency symbol (e.g. $).';
+    }
+    var c = String(code == null ? '' : code).trim().toUpperCase();
+    if (!c) return 'Enter an edit code before choosing what replaces leading zeros.';
+    if (EDTCDE_NO_FILL_CODES.indexOf(c) >= 0) {
+      return 'Asterisk fill or a floating currency symbol can be specified only with edit codes 1-4, A-D and J-Q, not ' + c + ' (per the DDS Reference).';
+    }
+    return null;
+  }
+
   /** Task I-31 - EDTMSK (Edit Mask), independent of getEditKeyword/
    *  setEditKeyword above. { text: string } - the full quoted mask
    *  string, e.g. "'(999) 999-9999'" (caller supplies quoting, same
@@ -7907,6 +7978,10 @@
     setValidityCheckInstances: setValidityCheckInstances,
     getEditKeyword: getEditKeyword,
     setEditKeyword: setEditKeyword,
+    splitEditCode: splitEditCode,
+    joinEditCode: joinEditCode,
+    getEditCodeParts: getEditCodeParts,
+    editCodeFillConflictReason: editCodeFillConflictReason,
     getEditMask: getEditMask,
     setEditMask: setEditMask,
     editMaskConflictReason: editMaskConflictReason,
