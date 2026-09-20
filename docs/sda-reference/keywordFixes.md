@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-88 of 96 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.167**.
+89 of 96 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.168**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -132,7 +132,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Done | v0.10.166 |
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | Done | v0.10.161 |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Done | v0.10.167 |
-| [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | In progress | — |
+| [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Done | v0.10.168 |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Done | v0.10.164 |
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
@@ -156,10 +156,9 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
 | 3 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
 | 4 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 5 | [I-90](#i-90) | In progress | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 6 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 7 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 8 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 5 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
+| 6 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 7 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4049,6 +4048,8 @@ Full suite: zero failures.
 
 I-38 added `HLPDOC` at **file level** only. IBM also allows it at help-specification level (inside an H specification, alongside `HLPARA`) — the same "file-level only, H-spec level deferred" precedent I-5's `HLPRCD` set. Not modelled.
 
+**Note from I-90 (research):** add no `HLPRTN` check at the help-specification level - the DDS Reference does not establish that `HLPDOC` conflicts with `HLPRTN` across levels, and an optioned record-level `HLPRTN` alongside H-spec help is the documented usage. Only the exclusions that exist at this level apply: `HLPBDY` (same H spec) and `HLPPNLGRP` (whose own statement is file-wide - decide whether an H-spec `HLPDOC` also conflicts with a file-level `HLPPNLGRP` and with an H-spec `HLPPNLGRP` elsewhere in the file). See I-90.
+
 **Note for I-40:** this adds a level for an existing index entry, so the keyword-index regeneration (I-40) should run after this task.
 
 *Raised by I-38. Size (estimate): Medium.*
@@ -4555,9 +4556,76 @@ New `i89ChkmsgidDataFieldValidation.test.js` (63 checks): the field check across
 
 ### I-90 — Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification)
 
-> **Area:** Cross-level · **Status:** In progress · **Depends on:** I-38, I-68
+> **Area:** Cross-level · **Status:** Done (v0.10.168) · **Depends on:** I-38, I-68
 
 The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is unstated. `HLPRTN` is file- **or record**-level and `HLPDOC` is file- **or help-specification**-level, but I-38's forward check and I-68's reverse check compare only the two *file-level* keywords. Whether a file-level `HLPDOC` plus a record-level (or H-spec-level) `HLPRTN`/`HLPDOC` is also invalid is not answerable from the DDS Reference text alone (`HLPRTN`'s own "takes priority over" wording and its Example 1 point towards cross-level coexistence being normal). Research against `CRTDSPF` behaviour or a more authoritative source before guarding; guessing would block valid DDS.
+
+**Researched (v0.10.168) - result: the DDS Reference alone cannot settle it, and no cross-level guard should be added.** Sources: the local `DDS_Keyword_V7r6.txt` (`HLPDOC`, `HLPRTN`, `HLPPNLGRP`, `HELP`, `HLPARA`, `HLPBDY` sections) and IBM's public IBM i 7.1 - 7.4 pages for the same text (the wording is identical on every release; no `CRTDSPF` message documentation naming the pair was found, and no IBM i was available to compile against).
+
+**What points towards blocking**
+- `HLPDOC`'s section: "You cannot specify HLPDOC with HLPBDY, HLPPNLGRP, or HLPRTN." No level is stated.
+- `HLPPNLGRP`'s section is explicitly file-wide for its own pairs: "a display file cannot contain both HLPPNLGRP and HLPRCD keywords, nor HLPPNLGRP and HLPDOC keywords."
+
+**What points towards coexistence being normal**
+- `HLPRTN`'s section: it "at either the file or record level takes priority over any HLPRCD, HLPPNLGRP, or HLPDOC keywords. Any HLPRTN keyword found in the file is processed before any other applicable help keyword." A priority rule between keywords only makes sense if they can be in the same file.
+- With an option indicator, "control returns to your program if the option indicator is on at the time the record is displayed. The H specifications are used if the option indicator is off." Every help specification must contain `HLPARA` and one of `HLPRCD`, `HLPDOC` or `HLPPNLGRP`, so an optioned record-level `HLPRTN` alongside H-spec help is the documented usage.
+- Without an option indicator, `HLPRTN` on a file or record containing H specifications is only a **warning** at creation time - not an error.
+- `HELP`'s section: "The HLPRTN keyword allows you to use option indicators to select when online help information is displayed, and when control is returned to the program."
+- `HLPRTN` Example 2 shows a **file-level** `HLPRTN(01)` together with a file-level `HLPRCD`. `HLPRCD` and `HLPDOC` fill the same slot in `HLPRTN`'s own priority sentence, so the same coexistence would be expected for `HLPDOC`. Nothing in the Reference contains a worked `HLPDOC` + `HLPRTN` example either way.
+
+**Which levels each keyword really has.** `HLPDOC`: file and help specification. `HLPRTN`: file and record. `HLPBDY`: help specification only. So an H-spec-level `HLPDOC` can never share a *level* with `HLPRTN` at all; the only same-level pair is file + file (which I-38 / I-68 already block). Every other combination is cross-level.
+
+**Recommendation (a guard that blocks valid DDS is worse than one that misses an invalid combination, and `CRTDSPF` reports a real conflict at compile time anyway)**
+1. **No cross-level guard.** File-level `HLPDOC` + record-level `HLPRTN`, and H-spec `HLPDOC` + record-level `HLPRTN`, stay unguarded.
+2. **Keep I-38 / I-68's file-level guard** - it is the literal reading of the one explicit sentence. The residual doubt is Example 2 (file-level `HLPRTN` + file-level `HLPRCD` valid); only a real compile settles it (below).
+3. **I-67** (the help-specification form of `HLPDOC`) should add no `HLPRTN` check. It only needs the exclusions that exist at that level: `HLPBDY` (same H spec) and `HLPPNLGRP`. `HLPPNLGRP`'s statement is file-wide, so decide there whether an H-spec `HLPDOC` also conflicts with a *file-level* `HLPPNLGRP` and with an H-spec `HLPPNLGRP` elsewhere in the file.
+4. A soft warning for an **unoptioned** `HLPRTN` on a file or record that has H specifications would be a separate, optional feature (IBM only warns on it). Not opened as a task.
+
+**To settle it for good - a compile experiment** for anyone with IBM i access: create each member below as a `QDDSSRC` source member and run `CRTDSPF FILE(QTEMP/HLPTn) SRCFILE(...) SRCMBR(HLPTn)`; the job log says whether each is accepted, warned, or rejected. If HLPT1 compiles cleanly, I-38 / I-68's file-level guard should be relaxed; if HLPT2 - HLPT3 are rejected, the cross-level guard becomes worth building, with the exact message text to match. (Column alignment was checked against iSDA's own parser: each keyword lands at the intended level.)
+
+- **HLPT1** - file-level `HLPDOC` + file-level `HLPRTN(01)`: the pair I-38 / I-68 block. If `CRTDSPF` accepts it, those two guards are false positives.
+
+```
+     A                                      HELP
+     A                                      HLPDOC(START GENERAL.HLP HELP.F1)
+     A                                      HLPRTN(01 'Return')
+     A          R REC1
+     A                                  1  2'Test'
+```
+
+- **HLPT2** - file-level `HLPDOC` + record-level `HLPRTN` with option indicator 01: the cross-level case iSDA currently lets through. Expected valid (the `HLPRTN` "takes priority" wording; Example 1's file-level `HLPRCD` + record-level `HLPRTN`).
+
+```
+     A                                      HELP
+     A                                      HLPDOC(START GENERAL.HLP HELP.F1)
+     A          R REC1
+     A 01                                   HLPRTN
+     A                                  1  2'Test'
+```
+
+- **HLPT3** - help-specification-level `HLPDOC` + record-level `HLPRTN` with option indicator 01: the documented use of an optioned `HLPRTN` ("the H specifications are used if the option indicator is off"). Expected valid.
+
+```
+     A                                      HELP
+     A          R REC1
+     A 01                                   HLPRTN
+     A          H                           HLPARA(1 2 1 10)
+     A                                      HLPDOC(LBL1 HELP#1 HELP.F1)
+     A                                  1  2'Test'
+```
+
+- **HLPT4** - the same as HLPT3 but with an **unoptioned** `HLPRTN`: IBM documents a *warning* at creation time for an unoptioned `HLPRTN` on a record containing H specifications. Expected: created, with a warning.
+
+```
+     A                                      HELP
+     A          R REC1
+     A                                      HLPRTN
+     A          H                           HLPARA(1 2 1 10)
+     A                                      HLPDOC(LBL1 HELP#1 HELP.F1)
+     A                                  1  2'Test'
+```
+
+No code was changed for this task.
 
 *Raised by I-68. Size (estimate): Small (research; may be inconclusive).*
 
