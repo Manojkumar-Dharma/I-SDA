@@ -142,6 +142,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
 | [I-98](#i-98) | Record | SFLMSG record's General panel: drop the option-indicator Conditioning on `LOGINP` and `CHECK(AB)`/`CHECK(RL)` (I-9's fix never reached it) | I-9, I-76 | Done | v0.10.174 |
 | [I-99](#i-99) | Record | `SFLMSGID` panel reads and writes the wrong grammar (`library` as a 3rd token; response indicator / `&msg-data` dropped) | I-97 | Done | v0.10.175 |
+| [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -165,7 +166,6 @@ Every finding logged before I-97 has been opened as a task (I-61 – I-97, see t
 
 | Raised by | Finding |
 |-----------|---------|
-| I-99 | The **SFLMSG panel drops a hand-written response indicator on edit**, same failure shape as I-99's SFLMSGID one. `SFLMSG('message-text' [response-indicator])` is the documented form, but the panel's text box is wired as `updatePayload({ parameters: quoteDdsLiteral(input.value) })` (`wireSflMsgPanels`' and `wireSflCtlPanels`' SFLMSG instances), so editing the text of `SFLMSG('No records' 30)` rewrites it as `SFLMSG('new text')`. Reading is fine (`unquoteDdsLiteral` takes the quoted part) and probed directly; the panel has no response-indicator input at all. ERRMSG's row in `getErrorMessageInstances`/`setErrorMessageInstances` already carries `responseIndicator` and is the model. Fix shape: same as I-99 - a `parseSflMsgParams`/`formatSflMsgParams` pair plus a response-indicator box using `sflMsgIdResponseIndicatorProblem`, and a test that editing the text keeps a hand-written indicator. Size (estimate): Small. |
 | I-95 | The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`NO_OPTION_INDICATOR_KEYWORDS`, seeded with that one keyword). Scanning `DDS_Keyword_V7r6.txt` finds **93** keyword sections with an "Option indicators are not valid/allowed" sentence, so the same hole exists for the other ~92: **81** worded plainly (ALIAS, ALTHELP, ALTNAME, ALWROL, ASSUME, BLANKS, BLKFOLD, CHANGE, CHCACCEL, CHCCTL, CHECK, CHGINPDFT, CHKMSGID, CLRL, CNTFLD, COMP, DLTCHK, DLTEDT, DSPRL, DSPSIZ, EDTCDE, EDTWRD, ERRSFL, FLDCSRPRG, FLTFIXDEC, GETRETAIN, GRDCLR, HLPARA, HLPCMDKEY, HLPFULL, HLPID, HLPSCHIDX, HLPTITLE, HOME, INDARA, INDTXT, INZRCD, LOGINP, MLTCHCFLD, MSGCON, MSGID, MSGLOC, OPENPRT, PASSRCD, PSHBTNFLD, PULLDOWN, RANGE, REF, REFFLD, RTNCSRLOC, RTNDTA, SETOF, SFL, SFLCHCCTL, SFLCSRPRG, SFLCTL, SFLENTER, SFLLIN, SFLMLTCHC, SFLMODE, SFLMSGKEY, SFLMSGRCD, SFLPAG, SFLRCDNBR, SFLRNA, SFLROLVAL, SFLRTNSEL, SFLSCROLL, SFLSIZ, SFLSNGCHC, SLNO, SNGCHCFLD, TEXT, USRDFN, USRDSPMGT, VALNUM, VALUES, VLDCMDKEY, WDWTITLE, WRDWRAP) and **12** worded "...although option indicators can be used to condition the field" (CHOICE, DATE, DATFMT, DATSEP, DFT, EDTMSK, MAPVAL, SYSNAME, TIME, TIMFMT, TIMSEP, USER). These lists are a *starting point extracted by a scan, not verified per keyword*: the sentence is sometimes conditional (`MSGID` allows indicators except on the last one, I-73; `CHECK` only for some codes, I-30), and several of these keywords are legitimately conditioned by iSDA's own structured editors, so each one has to be read, and checked against the panel that conditions it, before it goes into the table. Size (estimate): Large - an audit, best done in batches by level. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
@@ -4853,5 +4853,19 @@ The record-level **SFLMSGID panel reads and writes the wrong grammar** (found wh
 Existing `dspfWebview.test.js` had one check asserting the old wrong output (`MSG0001 MYMSGF MYLIB`); it now asserts `MSG0001 MYLIB/MYMSGF`. New `src/test/i99SflmsgidGrammar.test.js` (74 checks): the pure functions (IBM's shapes, the finding's exact string, legacy repair, round trip for eight shapes, the indicator check, agreement with I-97's `&msg-data` reader), then the real generated webview in jsdom (all five boxes read from a hand-written keyword; message id change keeps the rest; a library is written as `LIB/FILE`; indicator written, refused and reverted; `&msg-data` accepted, refused for a missing and for a non-P field; all five together read back the same; a legacy file repaired on the next edit; "+ Add" still seeds a valid placeholder). Confirmed to fail against the pre-fix code (20 checks, then a crash on the missing function). Wired into `npm test`.
 
 *Raised by I-97. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-100"></a>
+
+### I-100 — `SFLMSG` panel drops a hand-written response indicator when its text is edited
+
+> **Area:** Record · **Status:** In progress · **Depends on:** I-99
+
+Opened from I-99's deferred finding (the one call-site correction: the text box is wired only in `wireSflCtlPanels`, on the subfile-control record's Subfile Messages panel):
+
+The **SFLMSG panel drops a hand-written response indicator on edit**, same failure shape as I-99's SFLMSGID one. `SFLMSG('message-text' [response-indicator])` is the documented form, but the panel's text box is wired as `updatePayload({ parameters: quoteDdsLiteral(input.value) })` (`wireSflCtlPanels`' SFLMSG instances - the Subfile Messages panel of the subfile-control record; `SFLMSG` is not on the message-subfile record type's own tab), so editing the text of `SFLMSG('No records' 30)` rewrites it as `SFLMSG('new text')`. Reading is fine (`unquoteDdsLiteral` takes the quoted part) and probed directly; the panel has no response-indicator input at all. ERRMSG's row in `getErrorMessageInstances`/`setErrorMessageInstances` already carries `responseIndicator` and is the model. Fix shape: same as I-99 - a `parseSflMsgParams`/`formatSflMsgParams` pair plus a response-indicator box using `sflMsgIdResponseIndicatorProblem`, and a test that editing the text keeps a hand-written indicator. Size (estimate): Small.
+
+*Raised by I-99. Size (estimate): Small.*
 
 ---
