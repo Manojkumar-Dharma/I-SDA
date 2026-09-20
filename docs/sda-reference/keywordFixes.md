@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-90 of 97 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.172**.
+97 of 105 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.176**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -144,6 +144,10 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-99](#i-99) | Record | `SFLMSGID` panel reads and writes the wrong grammar (`library` as a 3rd token; response indicator / `&msg-data` dropped) | I-97 | Done | v0.10.175 |
 | [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | Done | v0.10.176 |
 | [I-101](#i-101) | Tooling / all levels | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none | I-95 | In progress | — |
+| [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | Not started | — |
+| [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | Not started | — |
+| [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Not started | — |
+| [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -158,9 +162,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 2 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
-| 3 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-102](#i-102) | Not started | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard. Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 3 | [I-103](#i-103) | Not started | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 4 | [I-104](#i-104) | Not started | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`). Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 5 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 6 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
+| 7 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 8 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4901,5 +4909,73 @@ The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`N
 - Do it in batches by level (file, record, field, help entry), one version per batch, each batch with its own test, following I-3 / I-9 / I-10.
 
 *Raised by I-95. Size (estimate): Large - an audit, best done in batches by level.*
+
+---
+
+<a id="i-102"></a>
+
+### I-102 — `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-44, I-51
+
+**Bug.** Ticking `HLPCLR` on a `USRDFN` record is refused with "HLPCLR cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference)", although `USRDFN`'s own DDS Reference text lists it as one of the few keywords that *do* apply: "No file- or record-level keywords apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT." `INVITE` behaves the same. On a plain record both are accepted. Verified on v0.10.176 in the real designer (`HLPCLR`'s row is in the Help subtab, which a `USRDFN` record keeps, so a user cannot turn a valid keyword on) and by driving every record panel directly with R2's tab narrowing bypassed (both refused). `INVITE`'s row is in the `output` panel, which R2 hides on a `USRDFN` record, so it is not reachable through the structured UI today; it would be refused if it were (see I-105).
+
+**Cause (read from the code).** I-44 added its `USRDFN` check *inside* `wirePulldownGuardedFlag`, which runs for every caller, by calling `DspfWriter.usrdfnConflictReason`. I-44's own write-up describes that function as "fully generic (works correctly for ANY keyword name)": it refuses every keyword on a `USRDFN` record and has no whitelist check. It was meant for the callers I-44 had individually confirmed as *not* whitelisted (`INZRCD`, `ALARM`, `ALWGPH`, `FRCDTA`, `SLNO`, `CLRL`, `RTNDTA`, `OVERLAY`, `PUTRETAIN`, `PUTOVR`, `OVRDTA`, `OVRATR`, `MDTOFF`, `ERASEINP`, `ERASE`); neither `HLPCLR` nor `INVITE` is in that list. I-51 later put both through the same function to wire their Conditioning toggles, so they inherited the unconditional refusal.
+
+**Suggested fix.** Make the `USRDFN` check in `wirePulldownGuardedFlag` whitelist-aware: `DspfWriter.usrdfnWhitelistConflictReason` (I-49) already returns null for a whitelisted keyword and a reason otherwise, so it can replace the unconditional call. Check the other `USRDFN` guard sites for the same pattern (`wireUsrdfnGuardedFlag`, `wireUsrdfnGuardedTwoField`), and note the two functions word the refusal differently ("cannot be specified on" versus "cannot be added to ... only INVITE, KEEP, ..."), so existing tests that assert the wording (`i44UsrdfnRecordLevelAudit.test.js`, `i8UsrdfnConflictAudit.test.js`) may need a matching update. New test: `HLPCLR` (and `INVITE`, driving the panel directly) is accepted on a `USRDFN` record, and every keyword I-44 meant to guard is still refused. I-104 is the general safety net for this class of bug.
+
+*Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176), after I-95. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-103"></a>
+
+### I-103 — `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-44, I-54
+
+**Bug.** Ticking the record-level `CHGINPDFT` checkbox on a `USRDFN` record is **accepted**: the keyword is added with no alert, although it is not on `USRDFN`'s whitelist (`INVITE`, `KEEP`, `PASSRCD`, `HLPRTN`, `HELP`, `HLPCLR`, `PRINT`, `OPENPRT`, `TEXT`). Verified on v0.10.176 in the real designer and with the record panels driven directly. The row is in the General subtab, which a `USRDFN` record keeps, so it is reachable. Every other non-whitelisted row I ticked on that record was refused (`INZRCD`, `ASSUME`, `ALWROL`, `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `VALNUM`, `WRDWRAP`, `HLPCMDKEY`), and `ENTFLDATR` and `RTNCSRLOC` are refused by I-60 and I-77.
+
+The same holds on an **`MNUBAR`** record: `DspfWriter.mnubarWhitelistConflictReason('CHGINPDFT', ...)` says it is not valid there, yet the row accepts it. `SFL` is fine (its list allows `CHGINPDFT`), which is why a sweep of `SFL` alone would not have shown it.
+
+**Cause.** The record-level row is wired with `wireChgInpDftFlag`, which takes no guard parameter at all, unlike its siblings that go through the `USRDFN`-, `SFL`- and `MNUBAR`-aware wiring functions. It is not among the 29 keywords I-44 wired, and I-44's "false positives" list does not name it. I-53 and I-54 swept the `SFL` and `MNUBAR` records by hand but, by their own descriptions, covered the three shared guarded-wiring functions, `PRINT`'s commit and `ENTFLDATR`'s Apply, not this row.
+
+**Suggested fix.** Give `wireChgInpDftFlag` an optional guard for its record-level call only, the same opt-in shape as I-53 and I-54 used, because the row builder is shared with the field, file and `SFLMSG` levels and those must not change. The guard should fire only on a real turn-on (the I-84 lesson: gate on the transition, not on the checkbox state), so a hand-edited record that already carries `CHGINPDFT` can still have it removed and its parameters edited. Test on `USRDFN` and `MNUBAR` (blocked, box reverted, nothing added), `SFL` and a plain record (still accepted), removal and a parameter edit on an already-invalid record (allowed).
+
+*Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176), after I-95. Size (estimate): Small.*
+
+---
+
+<a id="i-104"></a>
+
+### I-104 — Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`)
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-102, I-103
+
+I-44 assumed which rows a `USRDFN` record shows and wired the guards by name. I-53 and I-54 then swept the `SFL` and `MNUBAR` records row by row, by hand. Nobody did that for `USRDFN`, which is how `CHGINPDFT` (accepted although not allowed, I-103) and `HLPCLR` (refused although allowed, I-102) went unnoticed for so long. A test that walks the rows instead of naming them would have caught both, and would catch the next row someone adds without a guard.
+
+Add one test that renders **every** panel that `recordKeywordsPanelsHtml` (in `webviewClientHelpers.js`) returns (`general`, `indicatorKeywords`, `help`, `output`, `input`, `overlay`, `print`) with R2's tab narrowing bypassed, enumerates the keyword checkboxes it actually finds (`rk-<name>-on`, so a new row is picked up automatically and fails the test until it is classified), ticks each one on a `USRDFN` record, and asserts it is refused **if and only if** the keyword is not in `USRDFN_WHITELIST_KEYWORDS`. Do the same for an `SFL` record against `sflWhitelistConflictReason` and an `MNUBAR` record against `mnubarWhitelistConflictReason`, and a plain record as the control (nothing refused for whitelist reasons). Rows that commit through an Apply button or extra inputs (`ENTFLDATR`, `RTNCSRLOC`) need their own small driver; list them explicitly and assert the driver ran, so a skipped row is a failure and not a silent pass. Land it after I-102 and I-103 so it starts green, or land it first with those two rows marked as known failures and remove the marks as they are fixed.
+
+*Suggested by the investigation behind I-102 and I-103. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-105"></a>
+
+### I-105 — `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first)
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-44, I-102
+
+A `USRDFN` record presents "this keyword does not apply" in two different ways, depending only on which panel the row lives in. Observed on v0.10.176:
+
+- A plain record shows 44 keyword rows and a `USRDFN` record shows 16. The other 28 are **hidden outright**: R2's `isUsrDfnRecord` narrowing keeps only the General, Help and Print subtabs (`renderRecordProps` in `buildWebviewTemplate.js`), so the `indicatorKeywords`, `output`, `input` and `overlay` panels never render.
+- Of the 16 that remain, **13 are not on `USRDFN`'s whitelist** (`INZRCD`, `ASSUME`, `ALWROL`, `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `CHGINPDFT`, `VALNUM`, `WRDWRAP`, `ENTFLDATR`, both `RTNCSRLOC` variants, `HLPCMDKEY`). They are **shown and enabled** (no checkbox is disabled); ticking one is refused with an alert and the box reverts. (Except `CHGINPDFT`, which is accepted: I-103.)
+- `INVITE` is on the whitelist but its row is in the `output` panel, so it is hidden with it. It is reachable only through the raw keyword editor, which the whitelist allows (I-49).
+
+So the user sees a mix: some inapplicable keywords vanish, others are offered and refused, and one applicable keyword (`INVITE`) is missing.
+
+**Decide first**, then build: (a) hide every non-applicable row on a `USRDFN` record, consistent with R2, but then a hand-written invalid keyword can no longer be un-ticked in the panel (the same hazard I-72 recorded for `dtScope`-style gating); (b) show them **disabled** with the reason, which needs the row builders to accept a disabled state and a reason; (c) keep refuse-on-tick and stop hiding the whitelisted ones (`INVITE`). R2's own comment above `isUsrDfnRecord` says the narrowing follows what real SDA's `USRDFN` menu shows, so check the options against the screenshots under `docs/sda-reference/screens` before choosing. Also decide whether `SFL` and `MNUBAR` records, which have their own whitelists, follow the same rule.
+
+*Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176), after I-95. Size (estimate): Medium.*
 
 ---
