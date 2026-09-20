@@ -143,6 +143,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-98](#i-98) | Record | SFLMSG record's General panel: drop the option-indicator Conditioning on `LOGINP` and `CHECK(AB)`/`CHECK(RL)` (I-9's fix never reached it) | I-9, I-76 | Done | v0.10.174 |
 | [I-99](#i-99) | Record | `SFLMSGID` panel reads and writes the wrong grammar (`library` as a 3rd token; response indicator / `&msg-data` dropped) | I-97 | Done | v0.10.175 |
 | [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | Done | v0.10.176 |
+| [I-101](#i-101) | Tooling / all levels | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none | I-95 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -158,15 +159,16 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
 | 2 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
-| 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 3 | [I-101](#i-101) | Not started | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-Every finding logged before I-97 has been opened as a task (I-61 – I-97, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding logged so far has been opened as a task (I-61 – I-101, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-95 | The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`NO_OPTION_INDICATOR_KEYWORDS`, seeded with that one keyword). Scanning `DDS_Keyword_V7r6.txt` finds **93** keyword sections with an "Option indicators are not valid/allowed" sentence, so the same hole exists for the other ~92: **81** worded plainly (ALIAS, ALTHELP, ALTNAME, ALWROL, ASSUME, BLANKS, BLKFOLD, CHANGE, CHCACCEL, CHCCTL, CHECK, CHGINPDFT, CHKMSGID, CLRL, CNTFLD, COMP, DLTCHK, DLTEDT, DSPRL, DSPSIZ, EDTCDE, EDTWRD, ERRSFL, FLDCSRPRG, FLTFIXDEC, GETRETAIN, GRDCLR, HLPARA, HLPCMDKEY, HLPFULL, HLPID, HLPSCHIDX, HLPTITLE, HOME, INDARA, INDTXT, INZRCD, LOGINP, MLTCHCFLD, MSGCON, MSGID, MSGLOC, OPENPRT, PASSRCD, PSHBTNFLD, PULLDOWN, RANGE, REF, REFFLD, RTNCSRLOC, RTNDTA, SETOF, SFL, SFLCHCCTL, SFLCSRPRG, SFLCTL, SFLENTER, SFLLIN, SFLMLTCHC, SFLMODE, SFLMSGKEY, SFLMSGRCD, SFLPAG, SFLRCDNBR, SFLRNA, SFLROLVAL, SFLRTNSEL, SFLSCROLL, SFLSIZ, SFLSNGCHC, SLNO, SNGCHCFLD, TEXT, USRDFN, USRDSPMGT, VALNUM, VALUES, VLDCMDKEY, WDWTITLE, WRDWRAP) and **12** worded "...although option indicators can be used to condition the field" (CHOICE, DATE, DATFMT, DATSEP, DFT, EDTMSK, MAPVAL, SYSNAME, TIME, TIMFMT, TIMSEP, USER). These lists are a *starting point extracted by a scan, not verified per keyword*: the sentence is sometimes conditional (`MSGID` allows indicators except on the last one, I-73; `CHECK` only for some codes, I-30), and several of these keywords are legitimately conditioned by iSDA's own structured editors, so each one has to be read, and checked against the panel that conditions it, before it goes into the table. Size (estimate): Large - an audit, best done in batches by level. |
+| - | None at the moment. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4876,5 +4878,28 @@ The **SFLMSG panel drops a hand-written response indicator on edit**, same failu
 New `src/test/i100SflmsgResponseIndicator.test.js` (47 checks): the pure functions (the finding's string, a doubled quote, a number inside the text, ERRMSG agreement, byte-for-byte parity with `quoteDdsLiteral` when there is no indicator, round trip, the generalised check), then the real generated webview in jsdom (both boxes read from a hand-written keyword, a text edit keeps the indicator, the indicator changed / cleared / refused and reverted, an apostrophe, two independent instances, an indicator-free file unchanged, "+ Add" then an indicator). Confirmed to fail against the pre-fix code (a crash on the missing functions; run alone, the webview half fails on the reported data loss). Wired into `npm test`.
 
 *Raised by I-99. Size (estimate): Small.*
+
+---
+
+<a id="i-101"></a>
+
+### I-101 — Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none
+
+> **Area:** Tooling / all levels (file, record, field, help entry) · **Status:** Not started · **Depends on:** I-95
+
+Opened from I-95's deferred finding, verbatim:
+
+The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`NO_OPTION_INDICATOR_KEYWORDS`, seeded with that one keyword). Scanning `DDS_Keyword_V7r6.txt` finds **93** keyword sections with an "Option indicators are not valid/allowed" sentence, so the same hole exists for the other ~92: **81** worded plainly (ALIAS, ALTHELP, ALTNAME, ALWROL, ASSUME, BLANKS, BLKFOLD, CHANGE, CHCACCEL, CHCCTL, CHECK, CHGINPDFT, CHKMSGID, CLRL, CNTFLD, COMP, DLTCHK, DLTEDT, DSPRL, DSPSIZ, EDTCDE, EDTWRD, ERRSFL, FLDCSRPRG, FLTFIXDEC, GETRETAIN, GRDCLR, HLPARA, HLPCMDKEY, HLPFULL, HLPID, HLPSCHIDX, HLPTITLE, HOME, INDARA, INDTXT, INZRCD, LOGINP, MLTCHCFLD, MSGCON, MSGID, MSGLOC, OPENPRT, PASSRCD, PSHBTNFLD, PULLDOWN, RANGE, REF, REFFLD, RTNCSRLOC, RTNDTA, SETOF, SFL, SFLCHCCTL, SFLCSRPRG, SFLCTL, SFLENTER, SFLLIN, SFLMLTCHC, SFLMODE, SFLMSGKEY, SFLMSGRCD, SFLPAG, SFLRCDNBR, SFLRNA, SFLROLVAL, SFLRTNSEL, SFLSCROLL, SFLSIZ, SFLSNGCHC, SLNO, SNGCHCFLD, TEXT, USRDFN, USRDSPMGT, VALNUM, VALUES, VLDCMDKEY, WDWTITLE, WRDWRAP) and **12** worded "...although option indicators can be used to condition the field" (CHOICE, DATE, DATFMT, DATSEP, DFT, EDTMSK, MAPVAL, SYSNAME, TIME, TIMFMT, TIMSEP, USER). These lists are a *starting point extracted by a scan, not verified per keyword*: the sentence is sometimes conditional (`MSGID` allows indicators except on the last one, I-73; `CHECK` only for some codes, I-30), and several of these keywords are legitimately conditioned by iSDA's own structured editors, so each one has to be read, and checked against the panel that conditions it, before it goes into the table. Size (estimate): Large - an audit, best done in batches by level.
+
+**Where the code stands.** `DspfWriter.NO_OPTION_INDICATOR_KEYWORDS` (name -> the message to show) is the guard I-95 added; `noOptionIndicatorsReason` / `noOptionIndicatorsNewConflictReason` are its lookup and its diff-based check (an edit that *adds* option indicators is refused, removing or leaving them alone never is, and keywords not in the table are never affected). Its own comment sets the rule for this task: **only keywords whose exclusion has been read in the reference belong in the table - it is deliberately not populated from a guess**, and the reference words the rule two ways ("cannot be conditioned itself" on a field that can be, vs. an outright "not allowed with"), so each keyword must be read to see which it is.
+
+**Working notes (proposed, not decided).**
+
+- Read each keyword's own section before it goes into the table; the scan list above is only a starting point.
+- Keywords whose rule is conditional do not fit a plain name -> message table and need their own check, as `MSGID` (I-73, indicators allowed except on the last one) and `CHECK` (I-30, only `CHECK(ER)`/`CHECK(ME)`) already have.
+- Several keywords are legitimately conditioned by iSDA's own structured editors, so each must also be checked against the *panel* that conditions it, not only the raw editor. I-98 was exactly that hole in a structured panel (`LOGINP` and `CHECK(AB)`/`CHECK(RL)` on the SFLMSG General tab), so other panels may have it too.
+- Do it in batches by level (file, record, field, help entry), one version per batch, each batch with its own test, following I-3 / I-9 / I-10.
+
+*Raised by I-95. Size (estimate): Large - an audit, best done in batches by level.*
 
 ---
