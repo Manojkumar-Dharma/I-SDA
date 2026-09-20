@@ -3798,7 +3798,18 @@
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
       var on = document.getElementById(ownerKey + '-on').checked;
-      if (on && addGuardFn) {
+      // Task I-93: the guard is an ADD guard, so it must fire only on the
+      // real transition - the box ticked AND ENTFLDATR not already on the
+      // record - not on every Apply while the box happens to be ticked.
+      // Before this, on an SFL/MNUBAR/USRDFN record that already carried a
+      // hand-edited ENTFLDATR, changing its colour and pressing Apply was
+      // refused with "cannot be added" and the keyword left unchanged
+      // (I-84 fixed the same flaw for RTNCSRLOC). Removing it (box
+      // unticked) was never guarded and still isn't. Diff-based, same
+      // posture as I-58/I-84: only an edit that INTRODUCES the conflict is
+      // blocked; an already-invalid record stays editable.
+      var wasPresent = DspfWriter.getChoiceColorState(getKeywords(), 'ENTFLDATR').present;
+      if (on && !wasPresent && addGuardFn) {
         var reason = addGuardFn('ENTFLDATR');
         if (reason) {
           window.alert(reason);

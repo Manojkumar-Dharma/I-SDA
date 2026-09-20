@@ -135,7 +135,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Not started | — |
-| [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Not started | — |
+| [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
 | [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Not started | — |
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Not started | — |
@@ -152,20 +152,19 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-93](#i-93) | Not started | `ENTFLDATR`: the `wireEntFldAtrEditor` add-guard fires whenever the checkbox is ticked at Apply, so on an `SFL`/`MNUBAR`/`USRDFN` record that already carries a hand-edited `ENTFLDATR` a colour change is refused with a misleading "cannot be *added*" alert. A real bug with a proven fix shape (I-84's transition gate). Size (estimate): Small. Raised by I-84. |
-| 2 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 3 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
-| 4 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
-| 5 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 6 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
-| 7 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 8 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 11 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 12 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 13 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 14 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 2 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 3 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
+| 4 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
+| 5 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
+| 6 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 7 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 8 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 9 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 10 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 11 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 12 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 13 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4580,9 +4579,15 @@ Found while probing for I-73. `MSGID`'s entry says "You cannot specify MSGID in 
 
 ### I-93 — `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record)
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-84
+> **Area:** Record · **Status:** Done (v0.10.162) · **Depends on:** I-84
 
 Found while fixing I-84. The same "box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` exists in `ENTFLDATR`'s guard (I-53/I-54/I-60: the `addGuardFn` in `wireEntFldAtrEditor`, which fires whenever the checkbox is ticked at Apply). Confirmed by probe on the record-level panel: on an `SFL`, `MNUBAR` or `USRDFN` record that already carries a hand-edited `ENTFLDATR`, changing its colour and pressing Apply is refused with "ENTFLDATR cannot be *added* to …" and the keyword is left unchanged, while un-ticking it works and a plain record edits normally. Same fix shape as I-84: gate on the real transition (the keyword was not already present) rather than on the checkbox state.
+
+**Fixed.** Reproduced first in jsdom on all three record types (`SFL`, `MNUBAR`, `USRDFN`): with a hand-edited `ENTFLDATR((*COLOR RED))` on the record, changing the colour to BLU and pressing Apply raised "ENTFLDATR cannot be added to …" and left RED in place. Cause: `wireEntFldAtrEditor`'s Apply handler ran `addGuardFn('ENTFLDATR')` whenever the box was ticked (`on && addGuardFn`), and the three whitelist checks it is wired to (I-53/I-54/I-60) are pure record-type checks with no notion of "already present".
+
+Fix, in the shared `wireEntFldAtrEditor` only: the guard now runs on the real transition - the box is ticked **and** `getChoiceColorState(getKeywords(), 'ENTFLDATR').present` is false. Same diff-based posture as I-84/I-58: only an Apply that *introduces* `ENTFLDATR` is checked; editing an existing one is not an addition, and a record that was already invalid is never re-reported. Removing it (box unticked) was never guarded and is unchanged, and adding it to an `SFL`/`MNUBAR`/`USRDFN` record without one is still blocked with the same alert. No call-site changes: the file-level panel passes no guard and the field-level call passes none, so neither is affected.
+
+New `i93EntfldatrOnTransitionOnly.test.js` (42 checks, same lightweight jsdom harness as I-84's test): for each of `SFL`/`MNUBAR`/`USRDFN`, changing the colour of a hand-edited `ENTFLDATR` (no alert, keyword updated, exactly one), un-ticking it (removed, record type kept), and adding it to a record without one (still blocked, alert names `ENTFLDATR` and the record type, nothing added); plus a plain record adding, editing and removing it. Confirmed to fail (6 checks) against the pre-fix `webviewClientHelpers.js`.
 
 *Raised by I-84. Size (estimate): Small.*
 
