@@ -5773,23 +5773,23 @@ const htmlTemplate = `<!DOCTYPE html>
     // categories (see WebviewClientHelpers.isUsrDfnRecord's doc comment) -
     // narrow the subtabs to that subset for USRDFN records specifically.
     const rkPrefix = 'rk-' + rec.name;
-    const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix, expandedKeywordConditioning);
-    const isUsrDfn = WebviewClientHelpers.isUsrDfnRecord(rec);
-    const rkTabs = isUsrDfn
-      ? [
-          { id: 'general', label: 'General', content: rkPanels.general },
-          { id: 'help', label: 'Help', content: rkPanels.help },
-          { id: 'print', label: 'Print', content: rkPanels.print },
-        ]
-      : [
-          { id: 'general', label: 'General', content: rkPanels.general },
-          { id: 'indicator', label: 'Indicator', content: rkPanels.indicatorKeywords },
-          { id: 'help', label: 'Help', content: rkPanels.help },
-          { id: 'output', label: 'Output', content: rkPanels.output },
-          { id: 'input', label: 'Input', content: rkPanels.input },
-          { id: 'overlay', label: 'Overlay', content: rkPanels.overlay },
-          { id: 'print', label: 'Print', content: rkPanels.print },
-        ];
+    // Task I-105: a USRDFN, SFL or MNUBAR record's Keywords subtabs carry only
+    // the rows on that record type's closed whitelist - every non-applicable
+    // row is hidden, not shown-and-refused - and a subtab with no applicable
+    // row is dropped (USRDFN: General/Help/Print, the R2 subset; SFL: General/
+    // Indicator/Output/Input; MNUBAR: all seven).
+    const rkRestriction = WebviewClientHelpers.recordKeywordsRestriction(rec);
+    const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix, expandedKeywordConditioning, rkRestriction);
+    const rkAllTabs = [
+      { id: 'general', label: 'General', content: rkPanels.general },
+      { id: 'indicator', label: 'Indicator', content: rkPanels.indicatorKeywords },
+      { id: 'help', label: 'Help', content: rkPanels.help },
+      { id: 'output', label: 'Output', content: rkPanels.output },
+      { id: 'input', label: 'Input', content: rkPanels.input },
+      { id: 'overlay', label: 'Overlay', content: rkPanels.overlay },
+      { id: 'print', label: 'Print', content: rkPanels.print },
+    ];
+    const rkTabs = rkRestriction ? rkAllTabs.filter((t) => t.content !== '') : rkAllTabs;
     const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
     let keywordsHtml = subtabsHtml(rkTabs, rkActiveTab);
     keywordsHtml += accordionHtml('record-' + rec.name + '::raw', 'Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);

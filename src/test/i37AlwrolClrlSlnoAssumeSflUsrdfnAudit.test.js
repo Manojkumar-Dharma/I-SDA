@@ -115,12 +115,11 @@ setTimeout(() => {
   // --- Part 1: ALWROL/CLRL/SLNO blocked on USRDFN/SFL/SFLCTL records ---
   console.log('\nALWROL/CLRL/SLNO are each blocked from turning on on USRDFN/SFL/SFLCTL record types');
   [
-    // USRDFN records only show General/Help/Print tabs (see I-8's own
-    // "Task R2" comment in buildWebviewTemplate.js) - CLRL/SLNO live on
-    // the Overlay tab, which USRDFN records never render, so only ALWROL
-    // (General tab) is a reachable transition there through this UI.
-    { record: 'USRREC', named: 'USRDFN', suffixes: ['alwrol'] },
-    { record: 'SFLREC', named: 'SFL', suffixes: ['alwrol', 'clrl', 'slno'] },
+    // USRDFN: Task I-105 hides every non-whitelisted row on a USRDFN record
+    // (ALWROL included), so there is no toggle to refuse there any more -
+    // asserted separately just below. The refusal is still covered on the
+    // full row set by i102/i104.
+    // SFL: likewise hidden (Task I-105) - see the SFLREC block just below.
     { record: 'SFLCTLREC', named: 'SFLCTL', suffixes: ['alwrol', 'clrl', 'slno'] },
   ].forEach(function (target) {
     target.suffixes.forEach(function (suffix) {
@@ -132,6 +131,15 @@ setTimeout(() => {
       check(name + ' on ' + target.record + ': checkbox reverted back to unchecked', box.checked === false);
       check(name + ' on ' + target.record + ': no edit was posted', !posted.some((m) => m.type === 'applyEdit'));
     });
+  });
+
+  console.log('\nUSRDFN record (Task I-105): the ALWROL row is hidden, not shown-and-refused');
+  selectRecord('USRREC');
+  check('ALWROL checkbox is not rendered on USRREC', !doc.getElementById('rk-USRREC-alwrol-on'));
+  console.log('\nSFL record (Task I-105): ALWROL / CLRL / SLNO rows are hidden, not shown-and-refused');
+  selectRecord('SFLREC');
+  ['alwrol', 'clrl', 'slno'].forEach(function (suffix) {
+    check(suffix.toUpperCase() + ' checkbox is not rendered on SFLREC', !doc.getElementById('rk-SFLREC-' + suffix + '-on'));
   });
 
   // --- Part 2: ALWROL <-> ASSUME mutual exclusion, both directions ---

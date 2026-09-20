@@ -78,7 +78,7 @@ const DSPSIZ_BOTH = '     A                                      DSPSIZ(24 80 *D
 
 // === Scenario A: plain SFL (detail) record - DSPMOD is blocked ===
 runScenario(
-  'Plain SFL record: DSPMOD is blocked',
+  'Plain SFL record: DSPMOD row is hidden (Task I-105)',
   [
     DSPSIZ_BOTH,
     '     A          R SFLREC                    SFL',
@@ -87,20 +87,11 @@ runScenario(
   ({ doc, Event, dom, posted, resetPosted, selectRecord }) => {
     selectRecord('SFLREC');
     const p = 'rk-SFLREC';
-    const box = doc.getElementById(p + '-dspmod-on');
-    check('setup: DSPMOD checkbox is present on the SFL record', !!box);
-    const paramsEl = doc.getElementById(p + '-dspmod-params');
-    if (paramsEl) paramsEl.value = '*DSP4';
-    resetPosted();
-    let alertMessage = null;
-    const originalAlert = dom.window.alert;
-    dom.window.alert = (msg) => { alertMessage = msg; };
-    box.checked = true;
-    box.dispatchEvent(new Event('change', { bubbles: true }));
-    dom.window.alert = originalAlert;
-    check('DSPMOD blocked with an alert naming SFL', !!alertMessage && alertMessage.indexOf('SFL') !== -1);
-    check('DSPMOD checkbox reverted back off', box.checked === false);
-    check('no applyEdit was posted for the blocked DSPMOD attempt', !posted.some((m) => m.type === 'applyEdit'));
+    // Task I-105: DSPMOD is not on a plain SFL record's closed whitelist, so its
+    // row is no longer rendered there at all (it used to be shown and refused).
+    // The refusal itself (dspmodSflConflictReason / sflWhitelistConflictReason)
+    // is unchanged and still exercised on the full row set by i104's sweep.
+    check('DSPMOD row is not rendered on a plain SFL record', !doc.getElementById(p + '-dspmod-on') && !doc.getElementById(p + '-dspmod-params'));
 
     finishOne();
   }

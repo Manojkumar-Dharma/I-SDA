@@ -88,53 +88,21 @@ setTimeout(() => {
     return alertMessage;
   }
 
-  // --- USRDFN record: the four guarded keywords must be hard-blocked ---
+  // --- USRDFN record: the four inapplicable keywords are no longer offered ---
+  // Task I-105 (option (a)): a USRDFN record hides every row that is not on
+  // its closed whitelist instead of showing it and refusing the tick. The
+  // refusal itself (usrdfnConflictReason / usrdfnWhitelistConflictReason) is
+  // still in place for the raw editor and any full-row-set caller, and is
+  // exercised there by i102/i104/i111 and dspfWriter.test.js; what this test
+  // now pins is that the row is simply not there.
   selectRecord('USRREC');
   const uP = 'rk-USRREC';
 
-  console.log('\nUSRDFN record: General-tab keywords ALWROL/ASSUME are blocked from being turned on');
-  ['alwrol', 'assume'].forEach(function (suffix) {
-    const name = suffix.toUpperCase();
-    const box = doc.getElementById(uP + '-' + suffix + '-on');
-    check('setup: ' + name + ' checkbox is present', !!box);
-    posted.length = 0;
-    const alertMessage = withAlertCapture(function () {
-      box.checked = true;
-      box.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    check(name + ' blocked with an alert naming USRDFN', /USRDFN/.test(alertMessage || ''));
-    check(name + ' checkbox reverted back off', doc.getElementById(uP + '-' + suffix + '-on').checked === false);
-    check('no applyEdit was posted for the blocked ' + name + ' attempt', !posted.some((m) => m.type === 'applyEdit'));
+  console.log('\nUSRDFN record (Task I-105): ALWROL / ASSUME / HLPCMDKEY / HLPSEQ rows are hidden, not shown-and-refused');
+  ['alwrol', 'assume', 'hlpcmdkey'].forEach(function (suffix) {
+    check(suffix.toUpperCase() + ' checkbox is not rendered on a USRDFN record', !doc.getElementById(uP + '-' + suffix + '-on'));
   });
-
-  console.log('\nUSRDFN record: Help-tab HLPCMDKEY is blocked from being turned on');
-  {
-    const box = doc.getElementById(uP + '-hlpcmdkey-on');
-    check('setup: HLPCMDKEY checkbox is present', !!box);
-    posted.length = 0;
-    const alertMessage = withAlertCapture(function () {
-      box.checked = true;
-      box.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    check('HLPCMDKEY blocked with an alert naming USRDFN', /USRDFN/.test(alertMessage || ''));
-    check('HLPCMDKEY checkbox reverted back off', doc.getElementById(uP + '-hlpcmdkey-on').checked === false);
-    check('no applyEdit was posted for the blocked HLPCMDKEY attempt', !posted.some((m) => m.type === 'applyEdit'));
-  }
-
-  console.log('\nUSRDFN record: Help-tab HLPSEQ is blocked from being set (no on/off checkbox - presence is either box being non-blank)');
-  {
-    const groupEl = doc.getElementById(uP + '-hlpseq-group');
-    const numEl = doc.getElementById(uP + '-hlpseq-num');
-    check('setup: HLPSEQ group/number boxes are present', !!groupEl && !!numEl);
-    posted.length = 0;
-    const alertMessage = withAlertCapture(function () {
-      groupEl.value = 'HGROUP1';
-      groupEl.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    check('HLPSEQ blocked with an alert naming USRDFN', /USRDFN/.test(alertMessage || ''));
-    check('HLPSEQ group box reverted back blank', doc.getElementById(uP + '-hlpseq-group').value === '');
-    check('no applyEdit was posted for the blocked HLPSEQ attempt', !posted.some((m) => m.type === 'applyEdit'));
-  }
+  check('HLPSEQ group/number boxes are not rendered on a USRDFN record', !doc.getElementById(uP + '-hlpseq-group') && !doc.getElementById(uP + '-hlpseq-num'));
 
   console.log('\nUSRDFN record: a keyword genuinely on USRDFN\'s own whitelist still commits normally (I-44 note: RETKEY used to be this test\'s "unrelated, still-valid" example, back when the guard was scoped to just four keywords by name rather than USRDFN\'s own blanket whitelist rule - RETKEY is correctly guarded now too, see i44UsrdfnRecordLevelAudit.test.js, so KEEP - one of the nine keywords USRDFN\'s own DDS Reference text explicitly excepts, and still on the General tab USRDFN records keep - replaces it here)');
   {

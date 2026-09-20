@@ -147,7 +147,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | Done | v0.10.177 |
 | [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | Done | v0.10.182 |
 | [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Done (test only) | v0.10.181 |
-| [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | In progress | — |
+| [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Done | v0.10.191 |
 | [I-106](#i-106) | Record | `UNLOCK`: not guarded on `SFL` / `USRDFN` records | I-104 | Done | v0.10.183 |
 | [I-107](#i-107) | Record | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records | I-104 | Done | v0.10.184 |
 | [I-108](#i-108) | Record | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records | I-104 | Done | v0.10.189 |
@@ -169,9 +169,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-105](#i-105) | In progress | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 2 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 2 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -179,6 +178,8 @@ Every finding so far has been opened as a task (I-61 – I-113, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
+| I-105 | **`HELP` / `HLPRTN` on a `USRDFN` record.** Both are on `USRDFN`'s whitelist and live in the record-indicator list, but R2 keeps the Indicator subtab out of a `USRDFN` record, so they are reachable only through the raw keyword editor - the same gap `INVITE` had. Decide whether to show an Indicator subtab limited to those two kinds (R2 recorded that real SDA's own `USRDFN` menu has none). |
+| I-105 | **`SFLMSG` records' Keywords tab is still the full row set.** The whitelist for a message subfile is `SFLMSGRCD` only, so every row on that tab is refused; the same hide-the-rows rule would leave the tab empty. Decide whether to drop the tab for `SFLMSG` records (the SFLMSG tab already covers what applies). |
 | I-112 | **Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API** (`FILD0200`, per-field `Qdb_Qddfvchk` section) so the inherited panel can list `CHECK` / `COMP` / `RANGE` / `VALUES` / `CHKMSGID` instead of just stating the limit. Needs a real IBM i to confirm the structure layout and whether `FLTPCN` is reachable. Also worth confirming there: whether newer `QWHDRFFD` releases carry message-id columns and what `WHVCNE` counts. Size: Medium (unverified). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
@@ -5046,7 +5047,7 @@ A-E are logged under Deferred findings. Everything else on the four records beha
 
 ### I-105 — `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first)
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-44, I-102
+> **Area:** Record · **Status:** Done (v0.10.191) · **Depends on:** I-44, I-102
 
 A `USRDFN` record presents "this keyword does not apply" in two different ways, depending only on which panel the row lives in. Observed on v0.10.176:
 
@@ -5057,6 +5058,17 @@ A `USRDFN` record presents "this keyword does not apply" in two different ways, 
 So the user sees a mix: some inapplicable keywords vanish, others are offered and refused, and one applicable keyword (`INVITE`) is missing.
 
 **Decide first**, then build: (a) hide every non-applicable row on a `USRDFN` record, consistent with R2, but then a hand-written invalid keyword can no longer be un-ticked in the panel (the same hazard I-72 recorded for `dtScope`-style gating); (b) show them **disabled** with the reason, which needs the row builders to accept a disabled state and a reason; (c) keep refuse-on-tick and stop hiding the whitelisted ones (`INVITE`). R2's own comment above `isUsrDfnRecord` says the narrowing follows what real SDA's `USRDFN` menu shows, so check the options against the screenshots under `docs/sda-reference/screens` before choosing. Also decide whether `SFL` and `MNUBAR` records, which have their own whitelists, follow the same rule.
+
+**Done.** Decision made first, with the user: **Option (a)** - hide every non-applicable row. Applied to `SFL` and `MNUBAR` records too, at the user's direction (the task left that open).
+
+- **The rule.** `recordKeywordsPanelsHtml(keywords, idPrefix, expandedSet, restrictTo)` takes a new optional `restrictTo` (`'USRDFN'`, `'SFL'` or `'MNUBAR'`). With it, a row is built only when the record type's own whitelist allows its keyword - `recordRestrictionAllows` calls `DspfWriter.usrdfnWhitelistConflictReason` / `sflWhitelistConflictReason` / `mnubarWhitelistConflictReason`, the same functions the guards use, so the rows shown and the rows accepted cannot disagree. `recordKeywordsRestriction(rec)` picks the type (`USRDFN`, then plain `SFL`, then `MNUBAR`); `renderRecordProps` passes it and drops any subtab with no applicable row. Without `restrictTo` the output is unchanged, so every existing guard test that mounts the full row set still does.
+- **`USRDFN`.** General: `KEEP`, `TEXT` and `INVITE` (its row is in the Output panel, which R2 hides, so it is folded into General - it used to be unreachable). Help: `HLPCLR`. Print: `PRINT`. Still no Indicator subtab (R2). The 13 shown-and-refused rows and the 28 hidden ones are all gone.
+- **`SFL`** (plain, not `SFLMSG`). General: `KEEP`, `CHGINPDFT`, `TEXT`. Indicator: the kind selector offers `CHANGE`, `SETOF`, `INDTXT`. Output: `LOGOUT`. Input: `LOGINP`, `CHECK(AB)`, `CHECK(RL)`. Help, Overlay and Print are dropped.
+- **`MNUBAR`.** All seven subtabs remain, each with only its whitelisted rows (for example `KEEP`, `TEXT`, `MNUBARDSP`, `HLPCLR`, `HLPCMDKEY`, `HLPTITLE`, `LOCK`, `INVITE`, `DSPMOD`, `CSRLOC`, `CLRL`, `UNLOCK`, `OVERLAY`, `PROTECT`, `PRINT`). The Indicator kind selector offers `CLEAR`, `HOME`, `PAGEDOWN`, `PAGEUP`, `HELP`, `HLPRTN`, `VLDCMDKEY`, `INDTXT`.
+- **Indicator kind selector.** On all three it lists only the allowed kinds, plus the kind of an instance that already exists, so a hand-written row still renders truthfully. The "+ Add" default was already whitelist-aware (I-55, I-109).
+- **Accepted hazard of (a).** A hand-written keyword that is not on the whitelist can no longer be un-ticked in the panel. It stays listed, and removable, in the Advanced / raw keywords list (I-49, I-46, I-48). Existing record-indicator instances of a disallowed kind also stay visible in their list.
+- **Not changed.** The guards themselves (refuse-on-tick, the raw-editor whitelists) are untouched and remain the backstop. `SFLMSG` records (whitelist: `SFLMSGRCD` only) and `SFLCTL` (no whitelist) keep their existing Keywords tab.
+- **Tests.** New `src/test/i105UsrdfnRecordRows.test.js` (45 checks, wired into `npm test`): for each of the three types, the applicable rows are present, none of the non-applicable ones is, the kind selector lists exactly the allowed kinds, applicable rows commit (including `INVITE` on `USRDFN`), a hand-written invalid keyword is hidden in the panel but kept and listed in the raw editor, and the other record types are untouched. Five checks fail against the pre-change `webviewClientHelpers.js`. The real-template tests that used to tick a non-applicable row and expect the alert (`i8`, `i37`, `i44`, `i52`, `i53`, `i54`, `i60`, `i102`) now assert the row is absent; the refusal itself stays covered on the full row set by `i102`, `i104` and `i111`. `dspfWebview.test.js`'s R2 scenario gained checks for the new `USRDFN` rows.
 
 *Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176), after I-95. Size (estimate): Medium.*
 

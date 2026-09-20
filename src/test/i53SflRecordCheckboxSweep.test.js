@@ -122,54 +122,18 @@ setTimeout(() => {
   // are now blocked on a plain SFL record ===
   selectRecord('SFLREC');
   const sP = 'rk-SFLREC';
-  console.log('\nSFL record: plain flag/two-field keywords are blocked from being turned on');
-  ['retkey', 'blink', 'msgalarm', 'lock', 'protect', 'overlay', 'putretain'].forEach(function (suffix) {
-    const result = toggleFlag(sP, suffix, true);
-    check('setup: ' + suffix + ' checkbox is present', !result.missing);
-    if (!result.missing) {
-      check(suffix.toUpperCase() + ' blocked with an alert naming subfile (SFL)', !!result.alertMessage && result.alertMessage.indexOf('subfile (SFL)') !== -1);
-      check('no applyEdit was posted for the blocked ' + suffix + ' attempt', !result.applyEdit);
-      check(suffix.toUpperCase() + ' checkbox reverted to unchecked', result.box.checked === false);
-    }
+  // Task I-105 (option (a)): a plain SFL record's Keywords tab now hides every
+  // row that is not on SFL's closed whitelist instead of showing it and
+  // refusing the tick, so there is no toggle left to refuse. The refusal
+  // itself (sflWhitelistConflictReason in the three guarded-wiring functions,
+  // wireEntFldAtrEditor and PRINT's bespoke commit) is unchanged and is still
+  // exercised on the full row set by i104's sweep and i53's helper-level use.
+  console.log('\nSFL record (Task I-105): non-whitelisted rows are hidden, not shown-and-refused');
+  ['retkey', 'blink', 'msgalarm', 'lock', 'protect', 'overlay', 'putretain', 'print', 'entfldatr'].forEach(function (suffix) {
+    check(suffix.toUpperCase() + ' checkbox is not rendered on a plain SFL record', !doc.getElementById(sP + '-' + suffix + '-on'));
   });
-
-  console.log('\nSFL record: two-field keywords (CSRLOC, HLPSEQ) are blocked');
-  {
-    const result = fillTwoField(sP, 'csrloc-row', 'csrloc-col', '5', '10');
-    check('CSRLOC blocked with an alert naming subfile (SFL)', !!result.alertMessage && result.alertMessage.indexOf('subfile (SFL)') !== -1);
-    check('no applyEdit was posted for the blocked CSRLOC attempt', !result.applyEdit);
-  }
-  {
-    const result = fillTwoField(sP, 'hlpseq-group', 'hlpseq-num', 'GRP1', '1');
-    check('HLPSEQ blocked with an alert naming subfile (SFL)', !!result.alertMessage && result.alertMessage.indexOf('subfile (SFL)') !== -1);
-    check('no applyEdit was posted for the blocked HLPSEQ attempt', !result.applyEdit);
-  }
-
-  console.log('\nSFL record: PRINT (bespoke commit) is blocked');
-  {
-    const result = toggleFlag(sP, 'print', true);
-    check('setup: print checkbox is present', !result.missing);
-    check('PRINT blocked with an alert naming subfile (SFL)', !!result.alertMessage && result.alertMessage.indexOf('subfile (SFL)') !== -1);
-    check('no applyEdit was posted for the blocked PRINT attempt', !result.applyEdit);
-  }
-
-  console.log('\nSFL record: ENTFLDATR (bespoke Apply-button commit) is blocked');
-  {
-    const onEl = doc.getElementById(sP + '-entfldatr-on');
-    const applyBtn = doc.querySelector('.' + sP + '-entfldatr-apply');
-    check('setup: ENTFLDATR checkbox and Apply button are present', !!onEl && !!applyBtn);
-    if (onEl && applyBtn) {
-      onEl.checked = true;
-      posted.length = 0;
-      let alertMessage = null;
-      const originalAlert = dom.window.alert;
-      dom.window.alert = (msg) => { alertMessage = msg; };
-      applyBtn.dispatchEvent(new Event('click', { bubbles: true }));
-      dom.window.alert = originalAlert;
-      check('ENTFLDATR blocked with an alert naming subfile (SFL)', !!alertMessage && alertMessage.indexOf('subfile (SFL)') !== -1);
-      check('no applyEdit was posted for the blocked ENTFLDATR attempt', !posted.find((m) => m.type === 'applyEdit'));
-    }
-  }
+  check('CSRLOC row is not rendered on a plain SFL record', !doc.getElementById(sP + '-csrloc-row') && !doc.getElementById(sP + '-csrloc-col'));
+  check('HLPSEQ boxes are not rendered on a plain SFL record', !doc.getElementById(sP + '-hlpseq-group') && !doc.getElementById(sP + '-hlpseq-num'));
 
   // === Group B: keywords already on SFL's own whitelist still commit
   // normally through the newly-guarded shared functions (no regression) ===

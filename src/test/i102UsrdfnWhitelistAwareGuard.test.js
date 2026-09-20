@@ -219,10 +219,12 @@ setTimeout(() => {
     const off = setBox('rk-USRREC-hlpclr-on', false);
     check('un-ticking it fires no alert and removes it', !off.alertMessage && !!off.applyEdit && !recordKeywords(off.applyEdit.text).includes('HLPCLR'));
   }
-  console.log('\nreal designer, USRDFN record: a non-whitelisted General row is still refused');
+  console.log('\nreal designer, USRDFN record: a non-whitelisted General row is not offered (Task I-105 hides it; Part 2 above still pins the refusal itself)');
   {
-    const r = setBox('rk-USRREC-assume-on', true);
-    check('ASSUME is refused with the USRDFN alert and no edit', !!r.alertMessage && /USRDFN/.test(r.alertMessage) && !r.applyEdit);
+    check('ASSUME row is not rendered on the USRDFN record', !d.getElementById('rk-USRREC-assume-on'));
+    check('INVITE (whitelisted, previously hidden with the Output panel) is now reachable', !!d.getElementById('rk-USRREC-invite-on'));
+    const r = setBox('rk-USRREC-invite-on', true);
+    check('ticking INVITE fires no alert and commits an edit', !r.alertMessage && !!r.applyEdit && recordKeywords(r.applyEdit.text).includes('INVITE'));
   }
 
   check('no uncaught errors', errors.length === 0);

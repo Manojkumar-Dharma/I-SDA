@@ -1305,11 +1305,15 @@
     return RECORD_INDICATOR_NO_CONDITIONING_KINDS.indexOf(inst.kind) < 0;
   }
 
-  function recordIndicatorInstanceRowHtml(inst, p) {
+  function recordIndicatorInstanceRowHtml(inst, p, restrictTo) {
     var kind = inst.kind || 'CLEAR';
     var html = '<div class="two-col" style="margin-bottom:4px;">';
     html += '<select class="' + p + '-kind">' +
-      RECORD_INDICATOR_INSTANCE_KEYWORDS.map(function (pair) {
+      RECORD_INDICATOR_INSTANCE_KEYWORDS.filter(function (pair) {
+        // Task I-105: only the kinds this record type allows are offered (an
+        // existing instance keeps its own kind so it still renders truthfully).
+        return pair[0] === kind || recordRestrictionAllows(restrictTo, pair[0]);
+      }).map(function (pair) {
         return '<option value="' + pair[0] + '"' + (kind === pair[0] ? ' selected' : '') + '>' + pair[1] + ' (' + pair[0] + ')</option>';
       }).join('') +
       '</select>';
@@ -1322,12 +1326,12 @@
   }
 
   /** Record-level Indicator/screen-control keywords panel (Task L5d). */
-  function recordIndicatorInstancesHtml(keywords, ownerKey, expandedSet) {
+  function recordIndicatorInstancesHtml(keywords, ownerKey, expandedSet, restrictTo) {
     var instances = DspfWriter.getRecordIndicatorInstances(keywords);
     return dataKwWrap(['CLEAR', 'PAGEDOWN', 'PAGEUP', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'], repeatableConditionedInstancesHtml(
       instances,
       ownerKey + '-rep',
-      function renderPayload(inst, instIdPrefix) { return recordIndicatorInstanceRowHtml(inst, instIdPrefix); },
+      function renderPayload(inst, instIdPrefix) { return recordIndicatorInstanceRowHtml(inst, instIdPrefix, restrictTo); },
       expandedSet,
       '+ Add indicator keyword',
       undefined,
@@ -5494,6 +5498,19 @@
     return '<input type="text" class="' + p + '-text" placeholder="Help title text" value="' + escapeHtml(DspfWriter.unquoteDdsLiteral(inst.parameters)) + '" style="width:100%;" />';
   }
 
+  /** Record-level Print panel (PRINT row + "System handles print" file/
+   *  library form). Shared by recordKeywordsPanelsHtml and the USRDFN view
+   *  (Task I-105) so the two cannot drift. */
+  function recordPrintPanelHtml(kw, p, expandedSet) {
+    var print = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
+    var printFileForm = DspfWriter.getFilePrintFileForm(kw);
+    var pr = flagRowHtml(p + '-print', 'Enable Print key (PRINT)', print.present, print.parameters, 'response indicator (if program handles it)', print.conditions, expandedSet);
+    pr += '<div class="section-label">System handles print</div>';
+    pr += '<div class="two-col"><input type="text" id="' + p + '-print-file" placeholder="Print file (name or *PGM)" value="' + escapeHtml(printFileForm.isPgm ? '*PGM' : printFileForm.printFile) + '" />' +
+      '<input type="text" id="' + p + '-print-library" placeholder="Library" value="' + escapeHtml(printFileForm.library) + '" /></div>';
+    return pr;
+  }
+
   /** Record-level HLPTITLE panel (Task I-27) - shared verbatim across
    *  every record type via recordKeywordsPanelsHtml's own Help tab, same
    *  as the single-instance version it replaces. */
@@ -5544,25 +5561,45 @@
   }
 
 
-  function recordKeywordsPanelsHtml(keywords, idPrefix, expandedSet) {
+  function recordKeywordsPanelsHtml(keywords, idPrefix, expandedSet, restrictTo) {
     var kw = keywords || [];
     var p = idPrefix;
     var panels = {};
 
+    // Task I-105: `restrictTo` ('USRDFN' | 'SFL' | 'MNUBAR', or true for
+    // USRDFN) renders ONLY the rows on that record type's closed whitelist
+    // (DspfWriter.usrdfnWhitelistConflictReason / sflWhitelistConflictReason /
+    // mnubarWhitelistConflictReason); every other row is not built at all -
+    // hidden, not shown-and-refused. Omitted (every other record type, and
+    // every guard test that mounts the full row set against a USRDFN/SFL/
+    // MNUBAR keyword array) the output is unchanged. A panel with no
+    // applicable row comes back as '' so the caller can drop its subtab.
+    // Element ids are identical in both views, so wireRecordKeywordsPanels
+    // wires either unchanged (its lookups already tolerate absent elements).
+    if (restrictTo === true) restrictTo = 'USRDFN';
+    function ok(keywordName) { return recordRestrictionAllows(restrictTo, keywordName); }
+    // Row-id stem -> the DDS keyword the row writes (only used to gate).
+    var ROW_KEYWORD = { 'check-ab': 'CHECK', 'check-rl': 'CHECK' };
+    function gatedFlagRow(id) {
+      var stem = id.slice(p.length + 1);
+      if (!ok(ROW_KEYWORD[stem] || stem.toUpperCase())) return '';
+      return flagRowHtml.apply(null, arguments);
+    }
+
     // --- General ---
     var g = '';
     var fInzrcd = DspfWriter.getFileFlagKeyword(kw, 'INZRCD');
-    g += flagRowHtml(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    g += gatedFlagRow(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += flagRowHtml(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // I-28: option and response indicators not valid
+    g += gatedFlagRow(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // I-28: option and response indicators not valid
     var fAssume = DspfWriter.getFileFlagKeyword(kw, 'ASSUME');
-    g += flagRowHtml(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    g += gatedFlagRow(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fAlwrol = DspfWriter.getFileFlagKeyword(kw, 'ALWROL');
-    g += flagRowHtml(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    g += gatedFlagRow(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fRetkey = DspfWriter.getFileFlagKeyword(kw, 'RETKEY');
-    g += flagRowHtml(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, fRetkey.conditions, expandedSet);
+    g += gatedFlagRow(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, fRetkey.conditions, expandedSet);
     var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
-    g += flagRowHtml(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, fRetcmdkey.conditions, expandedSet);
+    g += gatedFlagRow(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, fRetcmdkey.conditions, expandedSet);
     // Task I-39 - CSRINPONLY was confirmed entirely missing from iSDA (no
     // getter/setter, no row, no mention anywhere) by a full-text audit of
     // DDS_Keyword_V7r6.txt against actual code. This is the record-level
@@ -5572,17 +5609,17 @@
     // states "Option indicators are valid for this keyword", so this row
     // keeps its Conditioning toggle same as RETKEY/RETCMDKEY just above.
     var fCsrinponly = DspfWriter.getFileFlagKeyword(kw, 'CSRINPONLY');
-    g += flagRowHtml(p + '-csrinponly', 'Restrict cursor to input-capable positions (CSRINPONLY)', fCsrinponly.present, undefined, undefined, fCsrinponly.conditions, expandedSet);
-    g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
+    g += gatedFlagRow(p + '-csrinponly', 'Restrict cursor to input-capable positions (CSRINPONLY)', fCsrinponly.present, undefined, undefined, fCsrinponly.conditions, expandedSet);
+    if (ok('CHGINPDFT')) g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     // Task I-42 - VALNUM/WRDWRAP are each documented "file-level, record-
     // level, or field-level"; these are the record-level rows (see
     // fileKeywordsPanelsHtml's own fk-valnum/fk-wrdwrap rows for the
     // file-level ones). Both "have no parameters" and "Option indicators
     // are not valid", so no params box and no Conditioning toggle.
     var fRecValnum = DspfWriter.getFileFlagKeyword(kw, 'VALNUM');
-    g += flagRowHtml(p + '-valnum', 'Enhanced numeric error checking (VALNUM)', fRecValnum.present, undefined, undefined, undefined, undefined);
+    g += gatedFlagRow(p + '-valnum', 'Enhanced numeric error checking (VALNUM)', fRecValnum.present, undefined, undefined, undefined, undefined);
     var fRecWrdwrap = DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP');
-    g += flagRowHtml(p + '-wrdwrap', 'Word wrap for continued-entry fields (WRDWRAP)', fRecWrdwrap.present, undefined, undefined, undefined, undefined);
+    g += gatedFlagRow(p + '-wrdwrap', 'Word wrap for continued-entry fields (WRDWRAP)', fRecWrdwrap.present, undefined, undefined, undefined, undefined);
     // Bug fix (Task L76 - real SDA's "Define Menu-Bar Display Keywords"
     // screenshot, docs/sda-reference/screens/record-level/menu-bar-record-
     // mnubar/menu-bar-display-keywords/image151.png) superseded by
@@ -5597,9 +5634,11 @@
     // on the same generic primitive moubtnPanelHtml already uses for
     // MOUBTN, rather than the single getFileFlagKeyword/
     // getMnubardspFields pair this replaces.
-    g += '<div class="section-label">Menu-Bar display (MNUBARDSP)</div>';
-    g += mnubardspPanelHtml(kw, p, expandedSet);
-    g += entFldAtrHtml(kw, p + '-entfldatr', expandedSet);
+    if (ok('MNUBARDSP')) {
+      g += '<div class="section-label">Menu-Bar display (MNUBARDSP)</div>';
+      g += mnubardspPanelHtml(kw, p, expandedSet);
+    }
+    if (ok('ENTFLDATR')) g += entFldAtrHtml(kw, p + '-entfldatr', expandedSet);
     // Bug fix + feature (Task L77): the old row here used
     // DspfWriter.getFileTwoFieldKeyword (CSRLOC's own plain row/col pair
     // shape) and labeled the two boxes "Row field name"/"Column field
@@ -5611,38 +5650,44 @@
     // instances on the same record (see findRtncsrlocInstance's own
     // comment in dspfWriter.js for the confirming DDS citations), so this
     // is now 2 independent rows rather than one.
-    var rtncsrlocRec = DspfWriter.getRtncsrlocRecNameFields(kw);
-    g += '<div class="section-label">Return cursor location - record/field (RTNCSRLOC *RECNAME)</div>';
-    g += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
-      '<input type="checkbox" id="' + p + '-rtncsrloc-rn-on" ' + (rtncsrlocRec.present ? 'checked' : '') + ' /> *RECNAME</label>';
-    g += '<div class="three-col" style="margin-top:4px;">' +
-      '<input type="text" id="' + p + '-rtncsrloc-rn-rec" placeholder="Cursor record field (name)" value="' + escapeHtml(rtncsrlocRec.cursorRecord) + '" />' +
-      '<input type="text" id="' + p + '-rtncsrloc-rn-fld" placeholder="Cursor field field (name)" value="' + escapeHtml(rtncsrlocRec.cursorField) + '" />' +
-      '<input type="text" id="' + p + '-rtncsrloc-rn-pos" placeholder="Cursor position field (name, optional)" value="' + escapeHtml(rtncsrlocRec.cursorPosition) + '" />' +
-      '</div>';
+    if (ok('RTNCSRLOC')) {
+      var rtncsrlocRec = DspfWriter.getRtncsrlocRecNameFields(kw);
+      g += '<div class="section-label">Return cursor location - record/field (RTNCSRLOC *RECNAME)</div>';
+      g += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
+        '<input type="checkbox" id="' + p + '-rtncsrloc-rn-on" ' + (rtncsrlocRec.present ? 'checked' : '') + ' /> *RECNAME</label>';
+      g += '<div class="three-col" style="margin-top:4px;">' +
+        '<input type="text" id="' + p + '-rtncsrloc-rn-rec" placeholder="Cursor record field (name)" value="' + escapeHtml(rtncsrlocRec.cursorRecord) + '" />' +
+        '<input type="text" id="' + p + '-rtncsrloc-rn-fld" placeholder="Cursor field field (name)" value="' + escapeHtml(rtncsrlocRec.cursorField) + '" />' +
+        '<input type="text" id="' + p + '-rtncsrloc-rn-pos" placeholder="Cursor position field (name, optional)" value="' + escapeHtml(rtncsrlocRec.cursorPosition) + '" />' +
+        '</div>';
+    }
 
-    var rtncsrlocWm = DspfWriter.getRtncsrlocWindowMouseFields(kw);
-    g += '<div class="section-label" style="margin-top:10px;">Return cursor location - position (RTNCSRLOC *WINDOW/*MOUSE)</div>';
-    g += '<div style="display:flex;align-items:center;gap:10px;">';
-    g += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
-      '<input type="checkbox" id="' + p + '-rtncsrloc-wm-on" ' + (rtncsrlocWm.present ? 'checked' : '') + ' /> Enabled</label>';
-    g += '<select id="' + p + '-rtncsrloc-wm-type">' +
-      '<option value="WINDOW"' + (rtncsrlocWm.type === 'WINDOW' ? ' selected' : '') + '>*WINDOW</option>' +
-      '<option value="MOUSE"' + (rtncsrlocWm.type === 'MOUSE' ? ' selected' : '') + '>*MOUSE</option>' +
-      '</select>';
-    g += '</div>';
-    g += '<div class="two-col" style="margin-top:4px;">' +
-      '<input type="text" id="' + p + '-rtncsrloc-wm-row1" placeholder="Cursor row 1 field (name)" value="' + escapeHtml(rtncsrlocWm.cursorRow) + '" />' +
-      '<input type="text" id="' + p + '-rtncsrloc-wm-col1" placeholder="Cursor column 1 field (name)" value="' + escapeHtml(rtncsrlocWm.cursorColumn) + '" />' +
-      '</div>';
-    g += '<div class="two-col" style="margin-top:4px;">' +
-      '<input type="text" id="' + p + '-rtncsrloc-wm-row2" placeholder="Cursor row 2 field (name, optional)" value="' + escapeHtml(rtncsrlocWm.cursorRow2) + '" />' +
-      '<input type="text" id="' + p + '-rtncsrloc-wm-col2" placeholder="Cursor column 2 field (name, optional - needs row 2)" value="' + escapeHtml(rtncsrlocWm.cursorColumn2) + '" />' +
-      '</div>';
+    if (ok('RTNCSRLOC')) {
+      var rtncsrlocWm = DspfWriter.getRtncsrlocWindowMouseFields(kw);
+      g += '<div class="section-label" style="margin-top:10px;">Return cursor location - position (RTNCSRLOC *WINDOW/*MOUSE)</div>';
+      g += '<div style="display:flex;align-items:center;gap:10px;">';
+      g += '<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;color:var(--ink);">' +
+        '<input type="checkbox" id="' + p + '-rtncsrloc-wm-on" ' + (rtncsrlocWm.present ? 'checked' : '') + ' /> Enabled</label>';
+      g += '<select id="' + p + '-rtncsrloc-wm-type">' +
+        '<option value="WINDOW"' + (rtncsrlocWm.type === 'WINDOW' ? ' selected' : '') + '>*WINDOW</option>' +
+        '<option value="MOUSE"' + (rtncsrlocWm.type === 'MOUSE' ? ' selected' : '') + '>*MOUSE</option>' +
+        '</select>';
+      g += '</div>';
+      g += '<div class="two-col" style="margin-top:4px;">' +
+        '<input type="text" id="' + p + '-rtncsrloc-wm-row1" placeholder="Cursor row 1 field (name)" value="' + escapeHtml(rtncsrlocWm.cursorRow) + '" />' +
+        '<input type="text" id="' + p + '-rtncsrloc-wm-col1" placeholder="Cursor column 1 field (name)" value="' + escapeHtml(rtncsrlocWm.cursorColumn) + '" />' +
+        '</div>';
+      g += '<div class="two-col" style="margin-top:4px;">' +
+        '<input type="text" id="' + p + '-rtncsrloc-wm-row2" placeholder="Cursor row 2 field (name, optional)" value="' + escapeHtml(rtncsrlocWm.cursorRow2) + '" />' +
+        '<input type="text" id="' + p + '-rtncsrloc-wm-col2" placeholder="Cursor column 2 field (name, optional - needs row 2)" value="' + escapeHtml(rtncsrlocWm.cursorColumn2) + '" />' +
+        '</div>';
+    }
     // Bug fix (L22 keyword-inventory audit): TEXT (record-level) - see
     // the file-level TEXT row's own comment above for the full rationale.
-    g += '<div class="section-label">Record text (TEXT)</div>';
-    g += '<input type="text" id="' + p + '-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
+    if (ok('TEXT')) {
+      g += '<div class="section-label">Record text (TEXT)</div>';
+      g += '<input type="text" id="' + p + '-text" placeholder="Documentation text - no effect on the compiled object" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'TEXT')) + '" style="width:100%;" />';
+    }
     // Bug fix (Task A1 - SDA screenshot keyword-inventory audit): ALTNAME
     // (Alternative Record Name - ALTNAME('alternative-name')) sits right
     // beside TEXT on real SDA's "Select Record Keywords" screen for every
@@ -5656,25 +5701,33 @@
     // HLPTITLE/WDWTITLE already use, so this reuses
     // DspfWriter.getFileQuotedText/setFileQuotedText directly rather than
     // adding a new getX/setX pair.
-    g += '<div class="section-label">Alternative record name (ALTNAME)</div>';
-    g += '<input type="text" id="' + p + '-altname" placeholder="Alternative name for program-described-file I/O" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'ALTNAME')) + '" style="width:100%;" />';
+    if (ok('ALTNAME')) {
+      g += '<div class="section-label">Alternative record name (ALTNAME)</div>';
+      g += '<input type="text" id="' + p + '-altname" placeholder="Alternative name for program-described-file I/O" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'ALTNAME')) + '" style="width:100%;" />';
+    }
     panels.general = g;
 
     // --- Indicator / screen-control keywords (Task L5d - repeatable,
     // independently-conditioned instances; see
     // DspfWriter.getRecordIndicatorInstances' own doc comment for why
     // this replaced the old one-flagRowHtml-per-keyword treatment) ---
-    var ind = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords. Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>';
-    ind += recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet);
+    var ind = '';
+    var indStatus = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords. Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>';
+    // Task I-105: the kind selector lists only the kinds the record type allows.
+    var indKindsAllowed = RECORD_INDICATOR_INSTANCE_KEYWORDS.some(function (pair) { return ok(pair[0]); });
+    if (indKindsAllowed) ind += indStatus + recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet, restrictTo);
     // Task I-42 - MOUBTN is documented "file-level or record-level"; the
     // record-level form reuses the file-level panel verbatim (same
     // repeatable, independently-conditioned instances - "Option indicators
     // are valid for this keyword"). Lives on this Indicator tab, matching
     // its file-level placement in fileKeywordsPanelsHtml's own
     // indicatorKeywords panel.
-    ind += '<div class="section-label">Mouse buttons (MOUBTN)</div>';
-    ind += moubtnPanelHtml(kw, p, expandedSet);
-    panels.indicatorKeywords = ind;
+    if (ok('MOUBTN')) {
+      ind += '<div class="section-label">Mouse buttons (MOUBTN)</div>';
+      ind += moubtnPanelHtml(kw, p, expandedSet);
+    }
+    // Task R2 (unchanged): a USRDFN record has no Indicator subtab.
+    panels.indicatorKeywords = restrictTo === 'USRDFN' ? '' : ind;
 
     // --- Application help ---
     // Task L5d-ii: HLPPNLGRP/HLPEXCLD/HLPBDY/HLPARA do NOT belong here.
@@ -5704,78 +5757,86 @@
 
     // --- Help ---
     var fHlpclr = DspfWriter.getFileFlagKeyword(kw, 'HLPCLR');
-    var help = flagRowHtml(p + '-hlpclr', 'Clear previous help text records (HLPCLR)', fHlpclr.present, undefined, undefined, fHlpclr.conditions, expandedSet);
-    var hlpseq = DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ');
-    help += '<div class="section-label">Sequence of help text records (HLPSEQ)</div>';
-    help += '<div class="two-col"><input type="text" id="' + p + '-hlpseq-group" placeholder="Help group name" value="' + escapeHtml(hlpseq.a) + '" />' +
-      '<input type="text" id="' + p + '-hlpseq-num" placeholder="Sequence number 0-99" value="' + escapeHtml(hlpseq.b) + '" /></div>';
+    var help = gatedFlagRow(p + '-hlpclr', 'Clear previous help text records (HLPCLR)', fHlpclr.present, undefined, undefined, fHlpclr.conditions, expandedSet);
+    if (ok('HLPSEQ')) {
+      var hlpseq = DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ');
+      help += '<div class="section-label">Sequence of help text records (HLPSEQ)</div>';
+      help += '<div class="two-col"><input type="text" id="' + p + '-hlpseq-group" placeholder="Help group name" value="' + escapeHtml(hlpseq.a) + '" />' +
+        '<input type="text" id="' + p + '-hlpseq-num" placeholder="Sequence number 0-99" value="' + escapeHtml(hlpseq.b) + '" /></div>';
+    }
     var fHlpcmdkey = DspfWriter.getFileFlagKeyword(kw, 'HLPCMDKEY');
-    help += flagRowHtml(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
-    help += '<div class="section-label">Define help title (HLPTITLE)</div>';
-    // Task I-27: record-level HLPTITLE rebuilt as a genuine repeatable,
-    // independently-conditioned instance list (see hlptitlePanelHtml's
-    // own doc comment above for the full IBM citation and why) -
-    // replaces I-21's own single-instance row (a plain text input plus
-    // one shared Conditioning toggle), which correctly let ONE
-    // record-level HLPTITLE be conditioned but couldn't represent a
-    // second one at all.
-    help += hlptitlePanelHtml(kw, p, expandedSet);
+    help += gatedFlagRow(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    if (ok('HLPTITLE')) {
+      help += '<div class="section-label">Define help title (HLPTITLE)</div>';
+      // Task I-27: record-level HLPTITLE rebuilt as a genuine repeatable,
+      // independently-conditioned instance list (see hlptitlePanelHtml's
+      // own doc comment above for the full IBM citation and why) -
+      // replaces I-21's own single-instance row (a plain text input plus
+      // one shared Conditioning toggle), which correctly let ONE
+      // record-level HLPTITLE be conditioned but couldn't represent a
+      // second one at all.
+      help += hlptitlePanelHtml(kw, p, expandedSet);
+    }
     panels.help = help;
 
     // --- Output ---
     var fBlink = DspfWriter.getFileFlagKeyword(kw, 'BLINK');
-    var out = flagRowHtml(p + '-blink', 'Blink cursor (BLINK)', fBlink.present, undefined, undefined, fBlink.conditions, expandedSet);
+    var out = gatedFlagRow(p + '-blink', 'Blink cursor (BLINK)', fBlink.present, undefined, undefined, fBlink.conditions, expandedSet);
     var fAlarm = DspfWriter.getFileFlagKeyword(kw, 'ALARM');
-    out += flagRowHtml(p + '-alarm', 'Sound the alarm (ALARM)', fAlarm.present, undefined, undefined, fAlarm.conditions, expandedSet);
+    out += gatedFlagRow(p + '-alarm', 'Sound the alarm (ALARM)', fAlarm.present, undefined, undefined, fAlarm.conditions, expandedSet);
     var fMsgalarm = DspfWriter.getFileFlagKeyword(kw, 'MSGALARM');
-    out += flagRowHtml(p + '-msgalarm', 'Sound alarm on messages (MSGALARM)', fMsgalarm.present, undefined, undefined, fMsgalarm.conditions, expandedSet);
+    out += gatedFlagRow(p + '-msgalarm', 'Sound alarm on messages (MSGALARM)', fMsgalarm.present, undefined, undefined, fMsgalarm.conditions, expandedSet);
     var fLock = DspfWriter.getFileFlagKeyword(kw, 'LOCK');
-    out += flagRowHtml(p + '-lock', 'Do not unlock keyboard (LOCK)', fLock.present, undefined, undefined, fLock.conditions, expandedSet);
+    out += gatedFlagRow(p + '-lock', 'Do not unlock keyboard (LOCK)', fLock.present, undefined, undefined, fLock.conditions, expandedSet);
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
-    out += flagRowHtml(p + '-logout', 'Write record to job log (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    out += gatedFlagRow(p + '-logout', 'Write record to job log (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
     var fInvite = DspfWriter.getFileFlagKeyword(kw, 'INVITE');
-    out += flagRowHtml(p + '-invite', 'Invite devices for later read (INVITE)', fInvite.present, undefined, undefined, fInvite.conditions, expandedSet);
+    out += gatedFlagRow(p + '-invite', 'Invite devices for later read (INVITE)', fInvite.present, undefined, undefined, fInvite.conditions, expandedSet);
     var fAlwgph = DspfWriter.getFileFlagKeyword(kw, 'ALWGPH');
-    out += flagRowHtml(p + '-alwgph', 'Allow graphics (ALWGPH)', fAlwgph.present, undefined, undefined, fAlwgph.conditions, expandedSet);
+    out += gatedFlagRow(p + '-alwgph', 'Allow graphics (ALWGPH)', fAlwgph.present, undefined, undefined, fAlwgph.conditions, expandedSet);
     var fFrcdta = DspfWriter.getFileFlagKeyword(kw, 'FRCDTA');
-    out += flagRowHtml(p + '-frcdta', 'Put data before buffer is full (FRCDTA)', fFrcdta.present, undefined, undefined, fFrcdta.conditions, expandedSet);
+    out += gatedFlagRow(p + '-frcdta', 'Put data before buffer is full (FRCDTA)', fFrcdta.present, undefined, undefined, fFrcdta.conditions, expandedSet);
     var dspmod = DspfWriter.getFileFlagKeyword(kw, 'DSPMOD');
-    out += flagRowHtml(p + '-dspmod', 'Use alternate display mode (DSPMOD)', dspmod.present, dspmod.parameters, 'display name, e.g. *DS3', dspmod.conditions, expandedSet);
-    var csrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC');
-    out += '<div class="section-label">Hidden fields with cursor position for output (CSRLOC)</div>';
-    out += '<div class="two-col"><input type="text" id="' + p + '-csrloc-row" placeholder="Row field name" value="' + escapeHtml(csrloc.a) + '" />' +
-      '<input type="text" id="' + p + '-csrloc-col" placeholder="Column field name" value="' + escapeHtml(csrloc.b) + '" /></div>';
-    // Task I-21: CSRLOC is individually documented by IBM as "Option
-    // indicators are valid for this keyword" (display size condition
-    // names are NOT valid) - getFileTwoFieldKeyword/setFileTwoFieldKeyword
-    // didn't carry a conditions parameter at all until this task, so no
-    // Conditioning UI was ever offered here even though real DDS allows
-    // it. Reuses flagRowHtml's own toggle markup/id convention
-    // (ownerKey + '-cond' etc.) so wireFlagRowConditioning can wire it
-    // unchanged - the same hand-rolled-row shape entFldAtrHtml already
-    // established for ENTFLDATR above.
-    var csrlocCondSummary = csrloc.conditions.length > 0 ? ' (' + csrloc.conditions.length + ')' : '';
-    var csrlocExpanded = !!(expandedSet && expandedSet.has(p + '-csrloc:cond'));
-    out += '<span class="kw-cond-toggle" data-flag-id="' + p + '-csrloc" style="margin-top:4px;">Conditioning' + csrlocCondSummary + (csrlocExpanded ? ' \u25b4' : ' \u25be') + '</span>';
-    if (csrlocExpanded) {
-      out += '<div class="kw-cond-body">' + conditionsEditorHtml(csrloc.conditions, p + '-csrloc-cond', expandedSet) + '</div>';
+    out += gatedFlagRow(p + '-dspmod', 'Use alternate display mode (DSPMOD)', dspmod.present, dspmod.parameters, 'display name, e.g. *DS3', dspmod.conditions, expandedSet);
+    if (ok('CSRLOC')) {
+      var csrloc = DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC');
+      out += '<div class="section-label">Hidden fields with cursor position for output (CSRLOC)</div>';
+      out += '<div class="two-col"><input type="text" id="' + p + '-csrloc-row" placeholder="Row field name" value="' + escapeHtml(csrloc.a) + '" />' +
+        '<input type="text" id="' + p + '-csrloc-col" placeholder="Column field name" value="' + escapeHtml(csrloc.b) + '" /></div>';
+      // Task I-21: CSRLOC is individually documented by IBM as "Option
+      // indicators are valid for this keyword" (display size condition
+      // names are NOT valid) - getFileTwoFieldKeyword/setFileTwoFieldKeyword
+      // didn't carry a conditions parameter at all until this task, so no
+      // Conditioning UI was ever offered here even though real DDS allows
+      // it. Reuses flagRowHtml's own toggle markup/id convention
+      // (ownerKey + '-cond' etc.) so wireFlagRowConditioning can wire it
+      // unchanged - the same hand-rolled-row shape entFldAtrHtml already
+      // established for ENTFLDATR above.
+      var csrlocCondSummary = csrloc.conditions.length > 0 ? ' (' + csrloc.conditions.length + ')' : '';
+      var csrlocExpanded = !!(expandedSet && expandedSet.has(p + '-csrloc:cond'));
+      out += '<span class="kw-cond-toggle" data-flag-id="' + p + '-csrloc" style="margin-top:4px;">Conditioning' + csrlocCondSummary + (csrlocExpanded ? ' \u25b4' : ' \u25be') + '</span>';
+      if (csrlocExpanded) {
+        out += '<div class="kw-cond-body">' + conditionsEditorHtml(csrloc.conditions, p + '-csrloc-cond', expandedSet) + '</div>';
+      }
     }
     var slno = DspfWriter.getFileFlagKeyword(kw, 'SLNO');
-    out += flagRowHtml(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', undefined, undefined); // I-7: option indicators not valid
+    out += gatedFlagRow(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', undefined, undefined); // I-7: option indicators not valid
     var clrl = DspfWriter.getFileFlagKeyword(kw, 'CLRL');
-    out += flagRowHtml(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...', undefined, undefined); // I-7: option indicators not valid
+    out += gatedFlagRow(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...', undefined, undefined); // I-7: option indicators not valid
     panels.output = out;
 
     // --- Input ---
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
-    var inp = flagRowHtml(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    var inp = gatedFlagRow(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var unlock = DspfWriter.getUnlockKeyword(kw);
-    inp += flagRowHtml(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
-    inp += '<div style="display:flex;gap:14px;margin-bottom:10px;">' +
-      '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-erase" ' + (unlock.erase ? 'checked' : '') + '/>Erase input capable fields (*ERASE)</label>' +
-      '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-mdtoff" ' + (unlock.mdtoff ? 'checked' : '') + '/>Reset all modified data tags (*MDTOFF)</label></div>';
+    inp += gatedFlagRow(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    if (ok('UNLOCK')) {
+      inp += '<div style="display:flex;gap:14px;margin-bottom:10px;">' +
+        '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-erase" ' + (unlock.erase ? 'checked' : '') + '/>Erase input capable fields (*ERASE)</label>' +
+        '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-mdtoff" ' + (unlock.mdtoff ? 'checked' : '') + '/>Reset all modified data tags (*MDTOFF)</label></div>';
+    }
     var fGetretain = DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN');
-    inp += flagRowHtml(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    inp += gatedFlagRow(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var retlcksts = DspfWriter.getFileFlagKeyword(kw, 'RETLCKSTS');
     // Task I-50: RETLCKSTS's own DDS Reference text states "This keyword
     // has no parameters" - the params box (previously rendered here
@@ -5783,49 +5844,51 @@
     // was a pre-existing bug, not real DDS syntax. Dropped both
     // paramsValue and paramsPlaceholder so flagRowHtml renders this as a
     // plain flag+conditioning row, same shape as LOGOUT/BLINK/etc. above.
-    inp += flagRowHtml(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, undefined, undefined, retlcksts.conditions, expandedSet);
+    inp += gatedFlagRow(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, undefined, undefined, retlcksts.conditions, expandedSet);
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    inp += flagRowHtml(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
+    inp += gatedFlagRow(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    inp += flagRowHtml(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
+    inp += gatedFlagRow(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
     var fRtndta = DspfWriter.getFileFlagKeyword(kw, 'RTNDTA');
-    inp += flagRowHtml(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    inp += gatedFlagRow(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     panels.input = inp;
 
     // --- Overlay ---
     var fOverlay = DspfWriter.getFileFlagKeyword(kw, 'OVERLAY');
-    var ov = flagRowHtml(p + '-overlay', 'Overlay without erasing (OVERLAY)', fOverlay.present, undefined, undefined, fOverlay.conditions, expandedSet);
+    var ov = gatedFlagRow(p + '-overlay', 'Overlay without erasing (OVERLAY)', fOverlay.present, undefined, undefined, fOverlay.conditions, expandedSet);
     var fPutretain = DspfWriter.getFileFlagKeyword(kw, 'PUTRETAIN');
-    ov += flagRowHtml(p + '-putretain', 'Retain data on re-display (PUTRETAIN)', fPutretain.present, undefined, undefined, fPutretain.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-putretain', 'Retain data on re-display (PUTRETAIN)', fPutretain.present, undefined, undefined, fPutretain.conditions, expandedSet);
     var fProtect = DspfWriter.getFileFlagKeyword(kw, 'PROTECT');
-    ov += flagRowHtml(p + '-protect', 'Protect all input fields (PROTECT)', fProtect.present, undefined, undefined, fProtect.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-protect', 'Protect all input fields (PROTECT)', fProtect.present, undefined, undefined, fProtect.conditions, expandedSet);
     var fPutovr = DspfWriter.getFileFlagKeyword(kw, 'PUTOVR');
-    ov += flagRowHtml(p + '-putovr', 'Activate OVRDTA and OVRATR (PUTOVR)', fPutovr.present, undefined, undefined, fPutovr.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-putovr', 'Activate OVRDTA and OVRATR (PUTOVR)', fPutovr.present, undefined, undefined, fPutovr.conditions, expandedSet);
     var fOvrdta = DspfWriter.getFileFlagKeyword(kw, 'OVRDTA');
-    ov += flagRowHtml(p + '-ovrdta', 'Override Data (OVRDTA)', fOvrdta.present, undefined, undefined, fOvrdta.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-ovrdta', 'Override Data (OVRDTA)', fOvrdta.present, undefined, undefined, fOvrdta.conditions, expandedSet);
     var fOvratr = DspfWriter.getFileFlagKeyword(kw, 'OVRATR');
-    ov += flagRowHtml(p + '-ovratr', 'Override Attribute (OVRATR)', fOvratr.present, undefined, undefined, fOvratr.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-ovratr', 'Override Attribute (OVRATR)', fOvratr.present, undefined, undefined, fOvratr.conditions, expandedSet);
     var fInzinp = DspfWriter.getFileFlagKeyword(kw, 'INZINP');
-    ov += flagRowHtml(p + '-inzinp', 'Initialize input fields (INZINP)', fInzinp.present, undefined, undefined, fInzinp.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-inzinp', 'Initialize input fields (INZINP)', fInzinp.present, undefined, undefined, fInzinp.conditions, expandedSet);
     var mdtoff = DspfWriter.getFileFlagKeyword(kw, 'MDTOFF');
-    ov += flagRowHtml(p + '-mdtoff', 'Reset all modified data tags (MDTOFF)', mdtoff.present, mdtoff.parameters, '*UNPR or *ALL (optional)', mdtoff.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-mdtoff', 'Reset all modified data tags (MDTOFF)', mdtoff.present, mdtoff.parameters, '*UNPR or *ALL (optional)', mdtoff.conditions, expandedSet);
     var eraseinp = DspfWriter.getFileFlagKeyword(kw, 'ERASEINP');
-    ov += flagRowHtml(p + '-eraseinp', 'Erase all input fields (ERASEINP)', eraseinp.present, eraseinp.parameters, '*MDTON or *ALL (optional)', eraseinp.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-eraseinp', 'Erase all input fields (ERASEINP)', eraseinp.present, eraseinp.parameters, '*MDTON or *ALL (optional)', eraseinp.conditions, expandedSet);
     var fErase = DspfWriter.getFileFlagKeyword(kw, 'ERASE');
-    ov += flagRowHtml(p + '-erase', 'Erase all records below (ERASE)', fErase.present, undefined, undefined, fErase.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-erase', 'Erase all records below (ERASE)', fErase.present, undefined, undefined, fErase.conditions, expandedSet);
     panels.overlay = ov;
 
     // --- Print ---
     // Task I-2 (keywordFixes.md): see file-level Print's own comment -
     // "System handles print" writes PRINT's own parameter form, not a
     // separate (non-existent) PRTFILE keyword.
-    var print = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
-    var printFileForm = DspfWriter.getFilePrintFileForm(kw);
-    var pr = flagRowHtml(p + '-print', 'Enable Print key (PRINT)', print.present, print.parameters, 'response indicator (if program handles it)', print.conditions, expandedSet);
-    pr += '<div class="section-label">System handles print</div>';
-    pr += '<div class="two-col"><input type="text" id="' + p + '-print-file" placeholder="Print file (name or *PGM)" value="' + escapeHtml(printFileForm.isPgm ? '*PGM' : printFileForm.printFile) + '" />' +
-      '<input type="text" id="' + p + '-print-library" placeholder="Library" value="' + escapeHtml(printFileForm.library) + '" /></div>';
-    panels.print = pr;
+    panels.print = ok('PRINT') ? recordPrintPanelHtml(kw, p, expandedSet) : '';
+
+    // A USRDFN record has no Output subtab (Task R2); its one applicable
+    // Output row, INVITE, is folded into General so it is not lost.
+    if (restrictTo === 'USRDFN' && panels.output) {
+      panels.general += panels.output;
+      panels.output = '';
+    }
+
 
     return panels;
   }
@@ -5899,6 +5962,32 @@
    *  R1 Keywords subtabs to USRDFN's own 4-of-8 subset. */
   function isUsrDfnRecord(rec) {
     return (rec.keywords || []).some(function (k) { return k.name === 'USRDFN'; });
+  }
+
+  /** Task I-105 - whether the closed whitelist of `restrictTo` ('USRDFN' |
+   *  'SFL' | 'MNUBAR', or a falsy value for "no restriction") allows
+   *  `keywordName` on a record of that type. Delegates to the same
+   *  DspfWriter whitelist functions the guards use, so the rows shown and
+   *  the rows accepted can never disagree. */
+  function recordRestrictionAllows(restrictTo, keywordName) {
+    if (!restrictTo) return true;
+    var marker = [{ name: restrictTo }];
+    var reason = restrictTo === 'USRDFN' ? DspfWriter.usrdfnWhitelistConflictReason(keywordName, marker)
+      : restrictTo === 'SFL' ? DspfWriter.sflWhitelistConflictReason(keywordName, marker)
+      : restrictTo === 'MNUBAR' ? DspfWriter.mnubarWhitelistConflictReason(keywordName, marker)
+      : null;
+    return !reason;
+  }
+
+  /** Task I-105 - which closed whitelist governs `rec`'s Keywords tab, or
+   *  null when none does. USRDFN first, then plain SFL (not SFLMSG, whose
+   *  own tab covers it), then MNUBAR. Passed as recordKeywordsPanelsHtml's
+   *  `restrictTo`. */
+  function recordKeywordsRestriction(rec) {
+    if (isUsrDfnRecord(rec)) return 'USRDFN';
+    if (isSflRecord(rec)) return 'SFL';
+    if (isMnuBarRecord(rec)) return 'MNUBAR';
+    return null;
   }
 
   /**
@@ -8540,6 +8629,8 @@
     wireChoiceColorStatesEditor: wireChoiceColorStatesEditor,
     isSflMsgRecord: isSflMsgRecord,
     isUsrDfnRecord: isUsrDfnRecord,
+    recordKeywordsRestriction: recordKeywordsRestriction,
+    recordRestrictionAllows: recordRestrictionAllows,
     sflMsgPanelsHtml: sflMsgPanelsHtml,
     wireSflMsgPanels: wireSflMsgPanels,
     wireSflMsgFieldRefs: wireSflMsgFieldRefs,

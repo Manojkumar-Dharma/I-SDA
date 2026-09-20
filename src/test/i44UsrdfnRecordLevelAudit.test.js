@@ -122,7 +122,8 @@ setTimeout(() => {
     return DspfParser.parseDspf(text).records.find((r) => r.name === recordName);
   }
 
-  // === Group A: General-tab keywords, still shown for a USRDFN record ===
+  // === Group A: General-tab keywords - shown-and-refused for a USRDFN record
+  // when this task landed, hidden outright since Task I-105 (see below) ===
   // (RETKEY, RETCMDKEY, CSRINPONLY have no params and their own DDS
   // Reference text doesn't say either way on option indicators, so their
   // pre-existing Conditioning toggle is left as-is; INZRCD was already
@@ -130,21 +131,9 @@ setTimeout(() => {
   selectRecord('USRREC');
   let uP = 'rk-USRREC';
 
-  console.log('\nUSRDFN record: Group A (General tab) keywords are blocked from being turned on');
+  console.log('\nUSRDFN record (Task I-105): Group A (General tab) rows are hidden, not shown-and-refused');
   ['retkey', 'retcmdkey', 'csrinponly', 'inzrcd'].forEach(function (suffix) {
-    const name = suffix.toUpperCase();
-    const box = doc.getElementById(uP + '-' + suffix + '-on');
-    check('setup: ' + name + ' checkbox is present', !!box);
-    posted.length = 0;
-    let alertMessage = null;
-    const originalAlert = dom.window.alert;
-    dom.window.alert = (msg) => { alertMessage = msg; };
-    box.checked = true;
-    box.dispatchEvent(new Event('change', { bubbles: true }));
-    dom.window.alert = originalAlert;
-    check(name + ' blocked with an alert naming USRDFN', !!alertMessage && alertMessage.indexOf('USRDFN') !== -1);
-    check(name + ' checkbox reverted back off', box.checked === false);
-    check('no applyEdit was posted for the blocked ' + name + ' attempt', !posted.some((m) => m.type === 'applyEdit'));
+    check(suffix.toUpperCase() + ' checkbox is not rendered on a USRDFN record', !doc.getElementById(uP + '-' + suffix + '-on'));
   });
 
   console.log('\nnon-USRDFN record: Group A keywords still turn on normally (no regression)');

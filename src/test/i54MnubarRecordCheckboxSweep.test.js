@@ -120,41 +120,17 @@ setTimeout(() => {
   // guarded-wiring functions - are now blocked on a MNUBAR record ===
   selectRecord('MNUBARREC');
   const mP = 'rk-MNUBARREC';
-  console.log('\nMNUBAR record: non-whitelisted plain flag keywords are blocked from being turned on');
-  ['retkey', 'blink', 'msgalarm', 'logout', 'putretain', 'inzinp'].forEach(function (suffix) {
-    const result = toggleFlag(mP, suffix, true);
-    check('setup: ' + suffix + ' checkbox is present', !result.missing);
-    if (!result.missing) {
-      check(suffix.toUpperCase() + ' blocked with an alert naming menu-bar (MNUBAR)', !!result.alertMessage && result.alertMessage.indexOf('menu-bar (MNUBAR)') !== -1);
-      check('no applyEdit was posted for the blocked ' + suffix + ' attempt', !result.applyEdit);
-      check(suffix.toUpperCase() + ' checkbox reverted to unchecked', result.box.checked === false);
-    }
+  // Task I-105 (option (a)): a MNUBAR record's Keywords tab now hides every row
+  // that is not on MNUBAR's closed whitelist instead of showing it and
+  // refusing the tick, so there is no toggle left to refuse. The refusal
+  // itself (mnubarWhitelistConflictReason in the three guarded-wiring
+  // functions and wireEntFldAtrEditor) is unchanged and is still exercised on
+  // the full row set by i104's sweep.
+  console.log('\nMNUBAR record (Task I-105): non-whitelisted rows are hidden, not shown-and-refused');
+  ['retkey', 'blink', 'msgalarm', 'logout', 'putretain', 'inzinp', 'entfldatr'].forEach(function (suffix) {
+    check(suffix.toUpperCase() + ' checkbox is not rendered on a MNUBAR record', !doc.getElementById(mP + '-' + suffix + '-on'));
   });
-
-  console.log('\nMNUBAR record: HLPSEQ (two-field, not on the whitelist) is blocked');
-  {
-    const result = fillTwoField(mP, 'hlpseq-group', 'hlpseq-num', 'GRP1', '1');
-    check('HLPSEQ blocked with an alert naming menu-bar (MNUBAR)', !!result.alertMessage && result.alertMessage.indexOf('menu-bar (MNUBAR)') !== -1);
-    check('no applyEdit was posted for the blocked HLPSEQ attempt', !result.applyEdit);
-  }
-
-  console.log('\nMNUBAR record: ENTFLDATR (bespoke Apply-button commit, not on the whitelist) is blocked');
-  {
-    const onEl = doc.getElementById(mP + '-entfldatr-on');
-    const applyBtn = doc.querySelector('.' + mP + '-entfldatr-apply');
-    check('setup: ENTFLDATR checkbox and Apply button are present', !!onEl && !!applyBtn);
-    if (onEl && applyBtn) {
-      onEl.checked = true;
-      posted.length = 0;
-      let alertMessage = null;
-      const originalAlert = dom.window.alert;
-      dom.window.alert = (msg) => { alertMessage = msg; };
-      applyBtn.dispatchEvent(new Event('click', { bubbles: true }));
-      dom.window.alert = originalAlert;
-      check('ENTFLDATR blocked with an alert naming menu-bar (MNUBAR)', !!alertMessage && alertMessage.indexOf('menu-bar (MNUBAR)') !== -1);
-      check('no applyEdit was posted for the blocked ENTFLDATR attempt', !posted.find((m) => m.type === 'applyEdit'));
-    }
-  }
+  check('HLPSEQ boxes are not rendered on a MNUBAR record', !doc.getElementById(mP + '-hlpseq-group') && !doc.getElementById(mP + '-hlpseq-num'));
 
   // === Group B: keywords already on MNUBAR's own whitelist still commit
   // normally through the newly-guarded shared functions (no regression) ===

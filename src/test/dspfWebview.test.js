@@ -5018,6 +5018,7 @@ function runUsrDfnPickerScenario() {
     const plainLabels = keywordsSubtabLabels();
     check('all 7 category subtabs present', ['General', 'Indicator', 'Help', 'Output', 'Input', 'Overlay', 'Print'].every((l) => plainLabels.includes(l)));
     check('App help is NOT one of them', !plainLabels.includes('App help'));
+    check('Task I-105: a plain record still shows INZRCD and INVITE rows', !!doc.getElementById('rk-PLAIN-inzrcd-on') && !!doc.getElementById('rk-PLAIN-invite-on'));
 
     console.log('  Bug fix (Find keyword feature request): searching a record-level indicator keyword\'s real code (VLDCMDKEY) finds its panel even though PLAIN has none of these set - previously only a <select><option> buried the code, never matched by the finder');
     const keywordFinderInput = doc.getElementById('keywordFinderInput');
@@ -5037,6 +5038,13 @@ function runUsrDfnPickerScenario() {
     check('General present', usrdfnLabels.includes('General'));
     check('Help present', usrdfnLabels.includes('Help'));
     check('Print present', usrdfnLabels.includes('Print'));
+    console.log('  Task I-105: only rows on USRDFN\'s closed whitelist are rendered - the rest are hidden, not shown-and-refused');
+    check('KEEP, INVITE (previously hidden with the Output panel), HLPCLR and PRINT rows are present',
+      ['keep', 'invite', 'hlpclr', 'print'].every((s) => !!doc.getElementById('rk-USERDEFN-' + s + '-on')));
+    check('TEXT row is present', !!doc.getElementById('rk-USERDEFN-text'));
+    check('non-applicable rows are absent (INZRCD, ASSUME, RETKEY, CHGINPDFT, VALNUM, WRDWRAP, ENTFLDATR, HLPCMDKEY, ALTNAME)',
+      ['inzrcd', 'assume', 'retkey', 'chginpdft', 'valnum', 'wrdwrap', 'hlpcmdkey'].every((s) => !doc.getElementById('rk-USERDEFN-' + s + '-on')) &&
+      !doc.getElementById('rk-USERDEFN-entfldatr-on') && !doc.getElementById('rk-USERDEFN-altname'));
     check('Indicator absent', !usrdfnLabels.includes('Indicator'));
     check('Output absent', !usrdfnLabels.includes('Output'));
     check('Input absent', !usrdfnLabels.includes('Input'));

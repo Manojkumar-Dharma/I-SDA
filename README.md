@@ -85,6 +85,8 @@ conditioning rules are checked against IBM's DDS Reference (see
   starter templates.
 - Record-type restrictions IBM documents (for example `USRDFN`, `SFL` and `MNUBAR` each
   allow only a closed keyword list) are enforced in the pickers and the raw keyword editor.
+  On those three record types the Keywords tab shows only the rows that list allows; the
+  rest are not offered at all (a hand-written one stays listed in Advanced / raw keywords).
 
 ### Field level
 

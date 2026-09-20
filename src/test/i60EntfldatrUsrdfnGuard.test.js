@@ -106,35 +106,27 @@ setTimeout(() => {
     return { alertMessage, applyEdit: posted.find((m) => m.type === 'applyEdit') };
   }
 
-  // === Group A: ENTFLDATR (not on USRDFN's whitelist) is blocked ===
+  // === Group A: ENTFLDATR (not on USRDFN's whitelist) is not offered ===
+  // Task I-105 (option (a)): a USRDFN record hides every row that is not on
+  // its closed whitelist, so the ENTFLDATR editor (checkbox + Apply) is not
+  // rendered at all any more. The refusal itself (usrdfnWhitelistConflictReason
+  // in wireEntFldAtrEditor's guard) is still in place and is exercised on the
+  // full row set by i104's sweep.
   selectRecord('USRREC');
   const uP = 'rk-USRREC';
-  console.log('\nUSRDFN record: ENTFLDATR Apply (not on the whitelist) is blocked');
-  {
-    const result = clickEntFldAtrApply(uP, true);
-    check('setup: ENTFLDATR checkbox and Apply button are present on a USRDFN record', !result.missing);
-    if (!result.missing) {
-      check('ENTFLDATR blocked with an alert naming user-defined (USRDFN)', !!result.alertMessage && result.alertMessage.indexOf('user-defined (USRDFN)') !== -1);
-      check('alert names ENTFLDATR itself', !!result.alertMessage && result.alertMessage.indexOf('ENTFLDATR') !== -1);
-      check('no applyEdit was posted for the blocked ENTFLDATR attempt', !result.applyEdit);
-    }
-  }
+  console.log('\nUSRDFN record (Task I-105): the ENTFLDATR editor is hidden, not shown-and-refused');
+  check('ENTFLDATR checkbox and Apply button are not rendered on a USRDFN record', clickEntFldAtrApply(uP, true).missing === true);
 
-  // === Group B: a hand-edited USRDFN record that ALREADY carries ENTFLDATR
-  // can still have it removed (turning off is never blocked) ===
+  // === Group B: a hand-edited USRDFN record that ALREADY carries ENTFLDATR ===
+  // The panel row is hidden too (accepted hazard of option (a)); the keyword
+  // stays visible and removable in the Advanced/raw keywords list (I-49).
   selectRecord('USRLEGACY');
   const lP = 'rk-USRLEGACY';
-  console.log('\nUSRDFN record with pre-existing (hand-edited) ENTFLDATR: turning it OFF is not blocked');
+  console.log('\nUSRDFN record with pre-existing (hand-edited) ENTFLDATR: no panel row, still listed in the raw keyword editor');
   {
-    const result = clickEntFldAtrApply(lP, false);
-    check('setup: ENTFLDATR checkbox and Apply button are present', !result.missing);
-    if (!result.missing) {
-      check('no alert fired when turning ENTFLDATR off', !result.alertMessage);
-      check('applyEdit posted when turning ENTFLDATR off', !!result.applyEdit);
-      const reparsed = result.applyEdit && reparsedRecord(result.applyEdit.text, 'USRLEGACY');
-      check('ENTFLDATR actually removed from the rewritten DDS', !!reparsed && !reparsed.keywords.some((k) => k.name === 'ENTFLDATR'));
-      check('USRDFN itself still present after the removal', !!reparsed && reparsed.keywords.some((k) => k.name === 'USRDFN'));
-    }
+    check('ENTFLDATR editor is not rendered on the hand-edited USRDFN record', clickEntFldAtrApply(lP, false).missing === true);
+    const chips = Array.from(doc.querySelectorAll('.keyword-chip')).filter((el) => /ENTFLDATR/.test(el.textContent));
+    check('the raw keyword editor still lists ENTFLDATR (so it can be removed there)', chips.length > 0);
   }
 
   // === Group C: no regression - whitelisted PRINT (bespoke commit) still
