@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-74 of 92 tasks done; 18 open (see [Open work](#open-work)). Current version: **v0.10.156**.
+78 of 92 tasks done; 14 open (see [Open work](#open-work)). Current version: **v0.10.157**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -114,7 +114,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Done | v0.10.148 |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Done | v0.10.155 |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Done | v0.10.154 |
-| [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | In progress | — |
+| [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Done | v0.10.157 |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Done | v0.10.156 |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
@@ -149,20 +149,19 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-86](#i-86) | In progress | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
-| 2 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 3 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 4 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 5 | [I-91](#i-91) | Not started | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
-| 6 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
-| 7 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 8 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 9 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 10 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 11 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 12 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 3 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 4 | [I-91](#i-91) | Not started | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
+| 5 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 6 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 7 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 8 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 11 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 12 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 13 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 14 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -174,6 +173,8 @@ Every earlier finding has been opened as a task (I-61 – I-90, see the tables a
 | I-84 | The same "box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` exists in `ENTFLDATR`'s guard (I-53/I-54/I-60: the `addGuardFn` in `wireEntFldAtrEditor`, which fires whenever the checkbox is ticked at Apply). Confirmed by probe on the record-level panel: on an `SFL`, `MNUBAR` or `USRDFN` record that already carries a hand-edited `ENTFLDATR`, changing its colour and pressing Apply is refused with "ENTFLDATR cannot be *added* to …" and the keyword is left unchanged, while un-ticking it works and a plain record edits normally. Same fix shape as I-84: gate on the real transition (the keyword was not already present) rather than on the checkbox state. |
 | I-71 | `IGCALTTYP` eligibility (same DDS section, first rule): "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." (and the DBCS chapter: not on DBCS-graphic fields, `G` in position 35). The General row's `IGCALTTYP` entry has no usage or data-type gating today, so it is offered on output-only / input-only fields and on `J`/`E`/`O`/`G` fields. Expect the WRDWRAP-style usage + shift-type gating (I-42 / I-61), with usage `B` only. |
 | I-71 | "Option indicators are not allowed with `IGCALTTYP`" (same section). I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle is not gated by keyword, so an indicator can still be put on a raw-added `IGCALTTYP` (and a hand-written one is not flagged). Check whether a generic "no option indicators" keyword list already exists for the other no-indicator keywords before adding one just for this. |
+| I-72 | Resolve Referenced Field (`extension.ts`) rewrites a field's data type from the database definition through `applyFieldUpdate`, so it can turn a `DUP` field into a floating-point (`F`) field, which `DUP` forbids, with no check - the same gap I-61, I-62 and I-70 logged, tracked as I-88. I-88 should cover `DUP` too, using `DspfWriter.dupFloatNewConflictReason`. |
+| I-72 | The Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Hiding it needs a data-type argument on `inputKeywordsHtml`/`wireInputKeywordsEditor` (neither takes one) and a decision about a hand-written float field that already has `DUP`: `generalFieldKeywordsHtml`'s `dtScope` gating hides a mismatching row even when the keyword is present, which would make it impossible to un-tick in the panel. Cosmetic - the block is already enforced. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4160,11 +4161,21 @@ The other two rules in the same section - eligibility, and option indicators - a
 
 ### I-72 — `DUP`: floating-point restriction
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-30
+> **Area:** Field · **Status:** Done (v0.10.157) · **Depends on:** I-30
 
-Logged in the deferred-findings table as "`DUP` floating-point restriction" but the I-30 section itself doesn't spell it out — start by re-reading the `DUP` section of `DDS_Keyword_V7r6.txt` (and its "restrictions on validity checking with DUP" index entry) to confirm exactly what is forbidden, then enforce it. Likely a data-type gate like the `dtScope` rows I-39 added.
+**Fixed.** Follow-up from I-30, which logged "`DUP` floating-point restriction" as deferred without spelling the rule out. Re-read `DUP`'s own section in `DDS_Keyword_V7r6.txt` first, as the filing said: "You cannot specify the DUP keyword on a floating-point field (F in position 35)." That is the whole exclusion. The "Restrictions on validity checking" paragraph says `CHECK`, `COMP`, `RANGE` and `VALUES` "can be specified with the DUP keyword" but have no effect once the Dup key is pressed, so that is *not* an exclusion and nothing is blocked for it. (`DUP`'s other exclusions - `WRDWRAP` and `CHRID` - are I-58 and I-70.)
 
-*Raised by I-30. Size (estimate): Small.*
+Nothing enforced it, in either direction: **A.** adding `DUP` to a field whose data type is `F`, and **B.** changing the data type of a field that already carries `DUP` to `F`. Confirmed by probe: the Input keywords panel renders the `DUP` checkbox on a float field, the raw keyword editor accepts it, and the Basic tab changes a `DUP` field to `F` without a word.
+
+Why not the "data-type gate like the `dtScope` rows I-39 added" the filing guessed: `DUP` is not a General row. It lives in the Input keywords panel, whose builder (`inputKeywordsHtml`/`wireInputKeywordsEditor`) takes no data type, and a `dtScope` gate hides a mismatching row even when the keyword is *present*, so an existing `DUP` on a hand-written float field could no longer be un-ticked in the panel. A hidden row would also not stop the raw editor or a data-type change. A hard block is the one mechanism that covers every route, so that is what was built; hiding the row is left as a deferred finding.
+
+Fix: new `DspfWriter.dupFloatNewConflictReason(oldField, updates)`, a **diff-based** check with one message per direction (*change the data type first* / *remove `DUP` first*). It is called from `commitEdit`, the one choke point every field-level write goes through, and it sits **outside** the `updates.keywords` block there because direction B is a data-type change that carries no keywords. It is called a second time from the Basic tab's Apply as an early return, so a blocked data-type change does not re-render the panel and wipe the user's other pending edits (the same split as I-61 and I-62). It blames an edit only if it *introduces* the violation: a hand-written field that is already floating-point with `DUP` is not re-reported, so unrelated edits on it are never blocked, and fixing it (removing `DUP`, or changing the data type) is always allowed. Removing `DUP` and changing to `F` in one edit is allowed.
+
+This was rebased across I-70 (`CHRID` vs `DUP`, which uses the same `DUP` field and the same `commitEdit` choke point), I-71 and I-73 while in progress; the rules are different and coexist, and I-70's 118 checks and I-58's 79 pass alongside.
+
+New `i72DupFloatingPointGuard.test.js` (62 checks): pure unit checks of both directions, of every non-float data type being allowed, of both-at-once and of the diff-based behaviour; then the real generated webview in jsdom on five fields (float; character with `DUP`; two hand-written float + `DUP`; plain) - the Input keywords checkbox (put back by the re-render), the raw keyword editor and the Basic tab (the typed length kept) all blocked with the right alert and no `applyEdit`; allowed edits committing with `DUP` kept; one field walked through both states; and the hand-written fields where unrelated edits go through and both fixes are accepted. Confirmed via `git stash` to fail (33 checks) against pre-fix code. Full suite: 6591/6591 assertions, zero failures.
+
+Not addressed here: Resolve Referenced Field can still give a `DUP` field data type `F`, and the panel still offers the checkbox on a float field (it is refused with an alert) - both are logged in the Deferred findings table. I-82 (`BLKFOLD` vs floating-point) has the same shape and can reuse this function's structure.
 
 ---
 

@@ -4654,6 +4654,16 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(pshbtnfldEditReason);
           return;
         }
+        // Task I-72: DUP cannot be specified on a floating-point field. The
+        // commitEdit backstop covers this too; it is repeated here as an
+        // early return, like the I-61 / I-62 checks above, so a blocked data
+        // type change does not re-render the panel and wipe the user's
+        // other pending edits.
+        const dupFloatEditReason = DspfWriter.dupFloatNewConflictReason(field, updates);
+        if (dupFloatEditReason) {
+          window.alert(dupFloatEditReason);
+          return;
+        }
         // Task I-69: CHKMSGID also requires an input-capable field (usage B
         // or I) - blocks a usage CHANGE to O/H/M/P on a field that already
         // carries it. Same diff-based idiom as the WRDWRAP check above.
@@ -6393,6 +6403,21 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function commitEdit(recordName, field, updates) {
+    // Task I-72: DUP cannot be specified on a floating-point field (DDS
+    // Reference). Same choke point as the keyword backstops below, but kept
+    // OUTSIDE their updates.keywords block because one of the two directions
+    // is a data type change (the Basic tab) that carries no keywords at
+    // all. Blocks an edit that would INTRODUCE the violation - adding DUP
+    // to an F field (Input keywords checkbox, raw keyword editor) or
+    // changing a DUP field to data type F; a field that was already
+    // floating-point with DUP is not re-reported. render() puts the panel
+    // back to the model's real state.
+    const dupFloatReason = DspfWriter.dupFloatNewConflictReason(field, updates);
+    if (dupFloatReason) {
+      window.alert(dupFloatReason);
+      render();
+      return;
+    }
     // Task I-58: reverse-direction WRDWRAP guard, ONE choke point for every
     // field-level panel that writes keywords (CHECK Keying/Validity codes,
     // CHGINPDFT, DUP, DSPATR OID/SP, FLTFIXDEC, IGCALTTYP, the raw editor -

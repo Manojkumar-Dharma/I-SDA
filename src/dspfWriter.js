@@ -2024,6 +2024,47 @@
     return null;
   }
 
+  /** Task I-72 - DUP's own DDS Reference section says "You cannot specify the
+   *  DUP keyword on a floating-point field (F in position 35)." Both
+   *  directions:
+   *   A. adding DUP to a field whose data type is F;
+   *   B. changing the data type of a field that already carries DUP to F.
+   *  (DUP's "Restrictions on validity checking" paragraph says CHECK, COMP,
+   *  RANGE and VALUES "can be specified with the DUP keyword" but have no
+   *  effect once the Dup key is pressed - that is NOT an exclusion, so
+   *  nothing is blocked for it.)
+   *
+   *  oldField is the field as stored ({ dataType, keywords }); updates
+   *  carries only what is being written ({ dataType, keywords } - a key that
+   *  is absent counts as unchanged). Returns a reason string when the edit
+   *  INTRODUCES the violation, else null.
+   *
+   *  Diff-based, like I-58's wrdwrapNewConflictReason and I-61 / I-62's Basic
+   *  tab checks, and meant for the same two call sites: commitEdit, the one
+   *  choke point every field-level write goes through (the Input keywords
+   *  checkbox, the raw keyword editor, the Basic tab), plus the Basic tab's
+   *  Apply handler as an early return so the panel keeps the user's other
+   *  pending edits. A field that was ALREADY floating-point with DUP (a
+   *  hand-written file) is not re-reported, so unrelated edits to it are
+   *  never blocked, and fixing it (removing DUP, or changing the data type)
+   *  is always allowed. */
+  function dupFloatNewConflictReason(oldField, updates) {
+    var o = oldField || {};
+    var u = updates || {};
+    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'DUP'; }); };
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
+    var newDataType = owns('dataType') ? norm(u.dataType) : norm(o.dataType);
+    var newKeywords = owns('keywords') ? u.keywords : o.keywords;
+    if (newDataType !== 'F' || !has(newKeywords)) return null;
+    // The field ends up floating-point with DUP; only blame this edit if it introduced that.
+    if (norm(o.dataType) === 'F' && has(o.keywords)) return null;
+    if (!has(o.keywords)) {
+      return 'DUP cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
+    }
+    return 'The data type cannot be changed to F (floating point) while the field carries DUP - DUP cannot be specified on a floating-point field (per the DDS Reference). Remove DUP first.';
+  }
+
   function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
     if (keywordName !== 'WRDWRAP') return null;
     var usageReason = wrdwrapUsageReason(usage);
@@ -7700,6 +7741,7 @@
     wrdwrapNewConflictReason: wrdwrapNewConflictReason,
     igcalttypConflictReason: igcalttypConflictReason,
     igcalttypNewConflictReason: igcalttypNewConflictReason,
+    dupFloatNewConflictReason: dupFloatNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,
