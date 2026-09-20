@@ -1782,7 +1782,7 @@
     );
   }
 
-  function wireErrorMessageInstances(keywords, onChange, ownerKey, expandedSet, rerender) {
+  function wireErrorMessageInstances(keywords, onChange, ownerKey, expandedSet, rerender, recordFields) {
     var instances = DspfWriter.getErrorMessageInstances(keywords);
     wireRepeatableConditionedInstances(
       ownerKey + '-errmsg',
@@ -1815,7 +1815,26 @@
         var libraryEl = document.querySelector('.' + instIdPrefix + '-library');
         if (libraryEl) libraryEl.addEventListener('change', function () { updatePayload({ library: libraryEl.value }); });
         var msgDataEl = document.querySelector('.' + instIdPrefix + '-msgdata');
-        if (msgDataEl) msgDataEl.addEventListener('change', function () { updatePayload({ msgDataField: msgDataEl.value }); });
+        if (msgDataEl) msgDataEl.addEventListener('change', function () {
+          // Task I-97: ERRMSGID's &msg-data must name a character (A) field
+          // with usage P in this record (same rule as CHKMSGID's, I-89).
+          // Checked here, ahead of the commit, so a refusal puts the box
+          // back and the row is not re-rendered blank. Only a new or
+          // different name is checked, and `recordFields` is optional
+          // (absent = not checked).
+          var typed = msgDataEl.value;
+          var prev = (inst.msgDataField || '').replace(/^&/, '').trim().toUpperCase();
+          var next = typed.replace(/^&/, '').trim().toUpperCase();
+          if (next && next !== prev && Array.isArray(recordFields)) {
+            var reason = DspfWriter.messageDataFieldProblem('ERRMSGID', next, recordFields);
+            if (reason) {
+              window.alert(reason);
+              msgDataEl.value = inst.msgDataField || '';
+              return;
+            }
+          }
+          updatePayload({ msgDataField: typed });
+        });
       },
       expandedSet,
       rerender,

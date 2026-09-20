@@ -1590,14 +1590,15 @@
     }) || null;
   }
 
-  /** null when `name` is a valid message data field for CHKMSGID in this
-   *  record, else the reason it is not. */
-  function chkmsgidMsgDataFieldProblem(name, recordFields) {
+  /** null when `name` is a valid message data field for `keywordName`
+   *  (CHKMSGID, ERRMSGID or SFLMSGID - the DDS Reference states the same
+   *  rule for all three) in this record, else the reason it is not. */
+  function messageDataFieldProblem(keywordName, name, recordFields) {
     var shown = '&' + String(name || '').replace(/^&/, '').trim().toUpperCase();
     if (shown === '&') return null;
     var f = msgDataFieldFind(recordFields, name);
     if (!f) {
-      return 'CHKMSGID message data field ' + shown + ' does not exist in this record format - the field name must exist in the record format (per the DDS Reference).';
+      return keywordName + ' message data field ' + shown + ' does not exist in this record format - the field name must exist in the record format (per the DDS Reference).';
     }
     var issues = [];
     if (!f.isReference) {
@@ -1608,7 +1609,11 @@
     var usage = String(f.usage == null ? '' : f.usage).trim().toUpperCase();
     if (usage !== 'P') issues.push('its usage is ' + (usage || 'blank (output)'));
     if (!issues.length) return null;
-    return 'CHKMSGID message data field ' + shown + ' must be a character field (data type A) with usage P (per the DDS Reference), but ' + issues.join(' and ') + '.';
+    return keywordName + ' message data field ' + shown + ' must be a character field (data type A) with usage P (per the DDS Reference), but ' + issues.join(' and ') + '.';
+  }
+
+  function chkmsgidMsgDataFieldProblem(name, recordFields) {
+    return messageDataFieldProblem('CHKMSGID', name, recordFields);
   }
 
   /** commitEdit choke point and the CHKMSGID panel's Apply: blocks an edit
@@ -1630,6 +1635,72 @@
     if (String(keywordName || '').toUpperCase() !== 'CHKMSGID' || !Array.isArray(recordFields)) return null;
     var name = msgDataFieldName([{ name: 'CHKMSGID', parameters: params || '' }]);
     return name ? chkmsgidMsgDataFieldProblem(name, recordFields) : null;
+  }
+
+  // -----------------------------------------------------------------------
+  // Task I-97 (opened from I-89's deferred finding) - the same rule for
+  // ERRMSGID's and SFLMSGID's optional `&msg-data` parameter. Their DDS
+  // Reference text is the same sentence as CHKMSGID's: "The field must
+  // exist in the record format [, and] the field must be defined as a
+  // character field (data type A) with usage P." Both keywords share the
+  // grammar `msgid [library-name/]msg-file [response-indicator]
+  // [&msg-data]`, and a msg-data token always starts with `&` (the other
+  // optional token is a bare number), so the names are read straight off
+  // the raw parameter text of every instance of the keyword - no dependence
+  // on either keyword's own structured getter.
+  //
+  // Same posture as I-89: checked on the way IN only (the ERRMSGID panel's
+  // &field input, the raw keyword editor's add, and the commitEdit /
+  // commitRecordEdit choke points), diff-based per name (an unchanged
+  // hand-written bad name is never re-reported; a name is checked only if
+  // it was not already one of that keyword's msg-data names before the
+  // edit), fail-open when the record's field list is absent. ERRMSGID is
+  // field-level and SFLMSGID is record-level (on the subfile-control
+  // record), so "the record format" is the field's own record / the
+  // control record itself.
+  // -----------------------------------------------------------------------
+  var MSGID_MSGDATA_KEYWORDS = ['ERRMSGID', 'SFLMSGID'];
+
+  /** The `&msg-data` names (upper case, no &) across every instance of
+   *  `keywordName` in `keywords`, in order. */
+  function messageIdMsgDataNames(keywords, keywordName) {
+    var out = [];
+    (keywords || []).forEach(function (k) {
+      if (k.name !== keywordName) return;
+      (k.parameters || '').trim().split(/\s+/).slice(2).forEach(function (t) {
+        if (t.charAt(0) === '&' && t.length > 1) out.push(t.slice(1).toUpperCase());
+      });
+    });
+    return out;
+  }
+
+  /** commitEdit / commitRecordEdit choke point: blocks an edit that adds a
+   *  msg-data name (to any instance of `keywordName`) that was not already
+   *  one before, when that name is not a valid message data field. */
+  function messageIdMsgDataNewConflictReason(keywordName, oldKeywords, newKeywords, recordFields) {
+    if (!Array.isArray(recordFields)) return null;
+    var before = messageIdMsgDataNames(oldKeywords, keywordName);
+    var names = messageIdMsgDataNames(newKeywords, keywordName);
+    for (var i = 0; i < names.length; i++) {
+      if (before.indexOf(names[i]) >= 0) continue;
+      var problem = messageDataFieldProblem(keywordName, names[i], recordFields);
+      if (problem) return problem;
+    }
+    return null;
+  }
+
+  /** The raw keyword editor's add guard for ERRMSGID / SFLMSGID: `params`
+   *  is the text typed for the new keyword. Returns null for any other
+   *  keyword name. */
+  function messageIdMsgDataAddReason(keywordName, params, recordFields) {
+    var name = String(keywordName || '').toUpperCase();
+    if (MSGID_MSGDATA_KEYWORDS.indexOf(name) < 0 || !Array.isArray(recordFields)) return null;
+    var names = messageIdMsgDataNames([{ name: name, parameters: params || '' }], name);
+    for (var i = 0; i < names.length; i++) {
+      var problem = messageDataFieldProblem(name, names[i], recordFields);
+      if (problem) return problem;
+    }
+    return null;
   }
 
   // -----------------------------------------------------------------------
@@ -8207,6 +8278,10 @@
     chkmsgidFieldAddReason: chkmsgidFieldAddReason,
     chkmsgidBasicEditConflictReason: chkmsgidBasicEditConflictReason,
     chkmsgidMsgDataFieldProblem: chkmsgidMsgDataFieldProblem,
+    messageDataFieldProblem: messageDataFieldProblem,
+    messageIdMsgDataNames: messageIdMsgDataNames,
+    messageIdMsgDataNewConflictReason: messageIdMsgDataNewConflictReason,
+    messageIdMsgDataAddReason: messageIdMsgDataAddReason,
     chkmsgidMsgDataNewConflictReason: chkmsgidMsgDataNewConflictReason,
     chkmsgidMsgDataAddReason: chkmsgidMsgDataAddReason,
     chridEligibilityReason: chridEligibilityReason,

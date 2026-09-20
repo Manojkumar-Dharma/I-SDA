@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-89 of 96 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.168**.
+90 of 97 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.169**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -139,6 +139,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | In progress | — |
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Done | v0.10.165 |
+| [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -162,11 +163,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding logged before I-89 has been opened as a task (I-61 – I-96, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding logged before I-97 has been opened as a task (I-61 – I-97, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-89 | `ERRMSGID` and `SFLMSGID` carry the same rule for their optional `&msg-data` parameter ("the field must exist in the record format and ... be defined as a character field (data type A) with usage P"); their panels take any text there and nothing checks it. The helper `DspfWriter.chkmsgidMsgDataFieldProblem(name, recordFields)` is generic and can be reused. `SFLMSGID` is record-level, so the record's fields must be passed to its wiring. Same entry-point-only scope as I-89 (usage-`P` fields cannot be selected in the designer, so later-change guards would be unreachable). |
+| I-97 | The record-level **SFLMSGID panel reads and writes the wrong grammar** (found while checking how `&msg-data` could reach it). IBM's format is `SFLMSGID(msgid [library-name/]msg-file [response-indicator] [&msg-data])`, but `parseSflMsgIdParams`/`formatSflMsgIdParams` treat the *third space-separated token* as the library and write it that way (`A F QGPL`), where a bare third token is a response indicator - so a library entered in the panel produces invalid DDS. Reading goes wrong the other way: hand-written `SFLMSGID(USR1234 QGPL/USRMSGS 30 &FLD)` shows message file `QGPL/USRMSGS` and library `30`, and changing the message id in the panel rewrites it as `NEW0001 QGPL/USRMSGS 30`, silently **dropping `&FLD`**. Probed with the two functions directly. The panel also has no response-indicator or `&msg-data` input. ERRMSGID's own parser (`getErrorMessageInstances`) already does this correctly and is the model to copy. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4735,5 +4736,27 @@ The open question in the filing was a hand-written float field that already has 
 I-72's own test asserted the checkbox *exists* on its float field and ticked it; those two spots were adapted (the checkbox is now asserted absent, and the "blocked again once floating-point" step goes through the raw editor instead). Its check count is unchanged (62). New `i96DupCheckboxFloatField.test.js` (41 checks: the pure functions, then the real generated webview in jsdom on float / character / hand-written float + `DUP` fields, the Basic tab round trip and I-72's raw-editor block). Confirmed against pre-fix code by `git stash`: with only the wiring stashed 4 checks fail; with everything stashed it fails outright. Wired into `npm test`.
 
 *Raised by I-72. Size (estimate): Small (cosmetic).*
+
+---
+
+<a id="i-97"></a>
+
+### I-97 — `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s)
+
+> **Area:** Field / Record · **Status:** Done (v0.10.169) · **Depends on:** I-89
+
+Opened from I-89's deferred finding. `ERRMSGID`'s and `SFLMSGID`'s DDS Reference sections carry the same sentence as `CHKMSGID`'s: "The field must exist in the record format, and the field must be defined as a character field (data type A) with usage P." Their panels took any text there and nothing checked it.
+
+**Done.** Same posture and scope as I-89 - checked on the way in, diff-based, fail-open when the record's field list is absent - with the helper generalised rather than copied:
+
+- `DspfWriter.messageDataFieldProblem(keywordName, name, recordFields)` is I-89's field check with the keyword name in the message; `chkmsgidMsgDataFieldProblem` is now a one-line wrapper, so I-89's messages and 63 checks are unchanged.
+- Both keywords share `msgid [library-name/]msg-file [response-indicator] [&msg-data]`, and a msg-data token always starts with `&` (the other optional token is a bare number), so `messageIdMsgDataNames(keywords, keywordName)` reads the names straight off the raw parameters of every instance. `messageIdMsgDataNewConflictReason` blocks an edit that adds a name that was not already one of that keyword's names; `messageIdMsgDataAddReason` is the raw editor's add guard.
+- **ERRMSGID (field level):** the panel's `&field` box (`wireErrorMessageInstances` takes the record's fields as an optional trailing parameter; a refusal alerts and puts the box back to its saved value), the field raw editor's add guard, and the `commitEdit` choke point. "The record format" is the field's own record.
+- **SFLMSGID (record level, on the subfile-control record):** the record raw editor's add guard (its guard now receives `(name, params)`) and the `commitRecordEdit` choke point, both against the control record's own fields - a field that exists only in the subfile record or another record is refused (tested). The SFLMSGID panel has no `&msg-data` input, so the raw editor is the only way to enter one (see Deferred findings for that panel's grammar problem).
+- **Not enforced on the way the named field changes underneath it**, for the reason recorded in I-89: usage-`P` fields cannot be selected in the designer.
+
+New `i97ErrmsgidSflmsgidDataFieldValidation.test.js` (70 checks): the shared check for all three keywords, the name reader (response-indicator token skipped, several instances, the first two tokens never taken for names), the diff (unchanged/bad, bad-to-bad, bad-to-valid, cleared, second instance), the raw add check, and the real webview (ERRMSGID box valid / case-insensitive / missing / usage O / the field itself / hand-written bad name unchanged, changed and cleared; field raw editor; record raw editor on `SFLCTL` including "exists only in another record" and an unrelated add on a record whose hand-written `SFLMSGID` is bad). Confirmed to fail (11 checks) with the webview wiring reverted, and to *still* pass with the panel and raw-editor guards removed, i.e. the two choke points enforce the rule on their own.
+
+*Raised by I-89. Size (estimate): Small–medium.*
 
 ---
