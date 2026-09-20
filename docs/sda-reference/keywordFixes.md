@@ -4517,6 +4517,8 @@ The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is un
 
 ---
 
+<a id="i-91"></a>
+
 ### I-91 — `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field
 
 > **Area:** Field · **Status:** Not started · **Depends on:** I-73
@@ -4526,6 +4528,8 @@ Found while probing for I-73. `MSGID`'s DDS Reference entry lists five keywords 
 *Raised by I-73. Size (estimate): Small.*
 
 ---
+
+<a id="i-92"></a>
 
 ### I-92 — `MSGID`: not valid on a field of a subfile (`SFL`) record
 
