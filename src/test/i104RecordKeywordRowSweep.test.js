@@ -124,10 +124,9 @@ const PANELS = ['general', 'indicatorKeywords', 'help', 'output', 'input', 'over
 const USRDFN_VISIBLE_PANELS = ['general', 'help', 'print']; // R2's narrowing, buildWebviewTemplate.js
 
 /** Rows this sweep found unguarded (see the I-104 section of keywordFixes.md).
- *  Each is asserted to STILL be a gap. */
-const KNOWN_GAPS = {
-  'USRDFN|input:altname': 'finding C', 'SFL|input:altname': 'finding C', 'MNUBAR|input:altname': 'finding C',
-};
+ *  Each is asserted to STILL be a gap. Empty as of I-108 - the last
+ *  remaining gap (finding C, ALTNAME on USRDFN/SFL/MNUBAR) is now fixed. */
+const KNOWN_GAPS = {};
 
 // ===========================================================================
 // Harness - the exported helpers in a plain jsdom document

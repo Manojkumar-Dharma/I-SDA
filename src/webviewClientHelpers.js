@@ -6621,11 +6621,25 @@
     // same alert+revert guard as wirePulldownGuardedFlag above, but
     // ALTNAME is a plain text keyword (setFileQuotedText), not a
     // checkbox, so "present" here means the box just became non-blank.
+    // Task I-108 (raised by I-104 finding C): this row was also missing
+    // the USRDFN/SFL/MNUBAR whitelist checks entirely - IBM's own DDS
+    // Reference lists ALTNAME on none of the three ("ALTNAME is not
+    // allowed on subfile records (SFL keyword)" is explicit; it's simply
+    // absent from USRDFN's and MNUBAR's own closed keyword lists), but
+    // this commit only ever checked PULLDOWN. Same
+    // usrdfnConflictReason/sflWhitelistConflictReason/
+    // mnubarWhitelistConflictReason chain wireUsrdfnGuardedTwoField uses
+    // for HLPSEQ/CSRLOC just above - and, per I-111 (landed after this
+    // guard was first written), gated on a real turn-on only: the box
+    // just became non-blank AND ALTNAME was not already on the record,
+    // same "editing an already-present keyword is not an addition"
+    // reasoning as wireUsrdfnGuardedTwoField's own I-111 fix.
     var pAltname = document.getElementById(p + '-altname');
     if (pAltname) pAltname.addEventListener('change', function () {
       var val = pAltname.value;
-      if ((val || '').trim()) {
-        var reason = DspfWriter.pulldownConflictReason('ALTNAME', getKeywords());
+      var alreadyThere = getKeywords().some(function (k) { return k.name === 'ALTNAME'; });
+      if ((val || '').trim() && !alreadyThere) {
+        var reason = DspfWriter.usrdfnConflictReason('ALTNAME', getKeywords()) || DspfWriter.pulldownConflictReason('ALTNAME', getKeywords()) || DspfWriter.sflWhitelistConflictReason('ALTNAME', getKeywords()) || DspfWriter.mnubarWhitelistConflictReason('ALTNAME', getKeywords());
         if (reason) {
           window.alert(reason);
           pAltname.value = DspfWriter.getFileQuotedText(getKeywords(), 'ALTNAME');

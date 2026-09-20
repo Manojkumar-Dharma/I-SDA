@@ -150,7 +150,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Not started | — |
 | [I-106](#i-106) | Record | `UNLOCK`: not guarded on `SFL` / `USRDFN` records | I-104 | Done | v0.10.183 |
 | [I-107](#i-107) | Record | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records | I-104 | Done | v0.10.184 |
-| [I-108](#i-108) | Record | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records | I-104 | Not started | — |
+| [I-108](#i-108) | Record | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records | I-104 | Done | v0.10.189 |
 | [I-109](#i-109) | Record | Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch) | I-104 | Done | v0.10.186 |
 | [I-110](#i-110) | Record | "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted | I-104 | Done | v0.10.185 |
 | [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Done | v0.10.187 |
@@ -169,11 +169,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-108](#i-108) | Not started | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records. Size (estimate): Small. Raised by I-104. |
-| 2 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
-| 3 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 4 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
+| 2 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 3 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -5108,11 +5107,18 @@ Opened from a deferred finding raised by I-104 (finding B), verbatim:
 
 ### I-108 — `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-104
+> **Area:** Record · **Status:** Done (v0.10.189) · **Depends on:** I-104
 
 Opened from a deferred finding raised by I-104 (finding C), verbatim:
 
 **The `ALTNAME` text row is accepted on `USRDFN`, `SFL` and `MNUBAR` records.** It is on none of the three whitelists (and the DDS Reference says "ALTNAME is not allowed on subfile records (SFL keyword)"), but `rec-altname` (General tab) commits without any whitelist check. Reachable on all three. Fix shape: an add guard on the input row; `KNOWN_GAPS` entries `USRDFN|input:altname`, `SFL|input:altname`, `MNUBAR|input:altname`. Size: Small.
+
+**Done.** The `rec-altname` commit handler only ever checked `pulldownConflictReason` (I-13); it now also chains `usrdfnConflictReason`/`sflWhitelistConflictReason`/`mnubarWhitelistConflictReason` - the exact same four-function chain `wireUsrdfnGuardedTwoField` already uses for HLPSEQ/CSRLOC just above it in the same panel, applied here for the first time to a plain single-text-field keyword.
+
+- **I-111 applied here too:** by the time this task was picked up, I-111 had landed the "guards only fire on a real turn-on, not on every edit of an already-present keyword" fix for the three shared wirers. ALTNAME's guard is hand-rolled inline (not through one of those three shared functions), so it needed the same fix applied by hand: the whitelist chain now only runs when the box just became non-blank **and** ALTNAME was not already on the record - editing or removing an already-present (e.g. hand-written, already-invalid) ALTNAME is never blocked.
+- **`KNOWN_GAPS` closed:** the three `USRDFN|input:altname` / `SFL|input:altname` / `MNUBAR|input:altname` entries are removed from `i104RecordKeywordRowSweep.test.js`'s `KNOWN_GAPS` table (now empty - this was the last remaining gap that sweep found).
+
+New `src/test/i108AltnameWhitelistGuard.test.js` (24 checks): refused with an alert naming `ALTNAME` on `USRDFN`/`SFL`/`MNUBAR` (box reverted, record untouched), accepted on a plain record and still refused on `PULLDOWN` (I-13's pre-existing guard, unregressed), and the I-111 turn-on-only behavior - editing/removing an already-present `ALTNAME` on an otherwise-invalid `USRDFN`/`SFL` record is accepted, while turning it on fresh on that same record is still refused.
 
 *Raised by I-104 (finding C). Size (estimate): Small.*
 
