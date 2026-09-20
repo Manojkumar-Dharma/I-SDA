@@ -217,7 +217,12 @@ console.log('\nread-only panel HTML');
   check('lists the inherited keyword as a read-only chip (no input, no button)', /class="keyword-chip inherited-keyword"/.test(html) && !/<input|<button/.test(html));
   check('escapes keyword text', /&lt;b&gt;&amp;&lt;\/b&gt;/.test(html) && !/<b>/.test(html));
   check('shows the drop notes', /Editing keywords \.\.\. not inherited/.test(html));
-  check('says when nothing is inherited', /No keywords are inherited/.test(WebviewClientHelpers.referenceInheritedHtml({ field: { isReference: true }, definition: def, inherited: { keywords: [], notes: [] } })));
+  const emptyHtml = WebviewClientHelpers.referenceInheritedHtml({ field: { isReference: true }, definition: def, inherited: { keywords: [], notes: [] } });
+  check('says when nothing is listed as inherited', /No keywords are listed as inherited/.test(emptyHtml));
+  // Task I-112: the documented limit is stated whether or not anything is listed, and only when resolved.
+  check('I-112: states the validity-checking / FLTPCN limit when nothing is listed', /reference-inherited-limit/.test(emptyHtml) && /CHECK, COMP, RANGE, VALUES, CHKMSGID/.test(emptyHtml) && /FLTPCN/.test(emptyHtml));
+  check('I-112: states the limit alongside listed keywords too', /reference-inherited-limit/.test(html));
+  check('I-112: no limit note on the unresolved panel', !/reference-inherited-limit/.test(WebviewClientHelpers.referenceInheritedHtml({ field: { isReference: true }, definition: null, inherited: { keywords: [], notes: [] } })));
 }
 
 // ---------------------------------------------------------------------------

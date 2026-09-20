@@ -1472,7 +1472,11 @@
    * else WHALIS), CCSID (WHCSID, character fields only, 0/65535 = none), EDTCDE
    * (WHECDE), EDTWRD (WHEWRD), DATFMT/DATSEP (WHFMT/WHSEP on a date field),
    * TIMFMT/TIMSEP (on a time field). Not in the outfile, so never produced here:
-   * the validity-checking keywords (only a count, WHVCNE) and FLTPCN.
+   * the validity-checking keywords (only a count, WHVCNE) and FLTPCN. Task I-112
+   * researched this: a published QWHDRFFD layout has WHVCNE but no per-entry
+   * columns and no FLTPCN column, so it is a documented limit (the panel says
+   * so); the per-field validity section of the QDBRTVFD API is the only other
+   * source found and is logged as a deferred finding (needs a real IBM i).
    */
   function inheritableKeywordsFromDspffdRow(row) {
     var out = [];

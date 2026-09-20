@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-107 of 113 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.187**.
+108 of 113 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.188**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -154,7 +154,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-109](#i-109) | Record | Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch) | I-104 | Done | v0.10.186 |
 | [I-110](#i-110) | Record | "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted | I-104 | Done | v0.10.185 |
 | [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Done | v0.10.187 |
-| [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | In progress | — |
+| [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Done (research; documented limit) | v0.10.188 |
 | [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -170,11 +170,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-108](#i-108) | Not started | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records. Size (estimate): Small. Raised by I-104. |
-| 2 | [I-112](#i-112) | In progress | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
-| 3 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
-| 4 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 5 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 6 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
+| 3 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 4 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -182,7 +181,7 @@ Every finding so far has been opened as a task (I-61 – I-113, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| - | None at the moment. |
+| I-112 | **Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API** (`FILD0200`, per-field `Qdb_Qddfvchk` section) so the inherited panel can list `CHECK` / `COMP` / `RANGE` / `VALUES` / `CHKMSGID` instead of just stating the limit. Needs a real IBM i to confirm the structure layout and whether `FLTPCN` is reachable. Also worth confirming there: whether newer `QWHDRFFD` releases carry message-id columns and what `WHVCNE` counts. Size: Medium (unverified). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5185,13 +5184,21 @@ The "the box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLO
 
 ### I-112 — `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first)
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-74
+> **Area:** Field · **Status:** Done (v0.10.188) · **Depends on:** I-74
 
 Opened from a deferred finding raised by I-74, verbatim:
 
 Validity-checking keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` are inherited from a referenced field per the DDS Reference, but the DSPFFD outfile (`QWHDRFFD`) carries only a count of validity checks (`WHVCNE`) and no `FLTPCN` column, so the read-only inherited list cannot show them. Needs a research step first: another source for them (a catalog view, or DSPFFD `OUTPUT(*PRINT)`), or document it as a limit.
 
 *Raised by I-74. Size (estimate): Small (research).*
+
+**Done (v0.10.188) - research finished; outcome: a documented limit, plus one deferred finding.** Nothing here could be tested against a real IBM i (no system access from this environment), so what follows says what was and was not confirmed.
+
+- **DSPFFD `OUTFILE` (`QADSPFFD` / `QWHDRFFD`) - no.** A published listing of the format (96 fields, from a 2004 release, so newer releases may have added columns) has `WHVCNE` ("Number of validity ...", a count) and no per-entry columns for `CHECK` / `COMP` / `RANGE` / `VALUES`, no message-id / message-file / library columns for `CHKMSGID`, and no `FLTPCN` column. IBM's own `DSPFFD` page does say the command reports a validity-check message identifier, message file and library, but that 2004 listing shows no matching columns, so that could not be reconciled without a real system. `WHVCNE`'s exact meaning (entries vs fields) is also unconfirmed, which is why it is not surfaced as a count.
+- **`DSPFFD OUTPUT(*PRINT)` - not pursued.** Its spool layout is not documented anywhere found, so parsing it would be guesswork and fragile.
+- **Catalog views (`QSYS2.SYSCOLUMNS` etc.) - nothing found.** They describe SQL objects; nothing turned up for DDS validity checking. Not verified on a system.
+- **`QDBRTVFD` API - the one real candidate.** IBM documents a per-field validity-checking section (`Qdb_Qddfvchk`, reached through `Qddfvckd` in the field header, entries starting at `Qddfvcen`) in the `FILD0200` format. The exact layout could not be fetched (IBM Documentation blocks automated requests), and whether it covers `FLTPCN` is unknown. Reading it means calling the API and parsing a binary receiver, which needs a real IBM i to verify. Logged as a deferred finding below.
+- **What changed (v0.10.188).** Documented as a limit in the product: the read-only "Inherited from referenced field" panel now always says the validity-checking keywords and `FLTPCN` are not listed and may still be passed on, and the empty-panel wording changed from "No keywords are inherited" to "No keywords are listed as inherited" (which was misleading for exactly this reason). `i74ReferenceInheritedKeywords.test.js` gained 3 checks (all 3 fail against the pre-change panel) and its old wording check was updated. The comment on `inheritableKeywordsFromDspffdRow` records the research.
 
 ---
 
