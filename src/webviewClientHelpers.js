@@ -1471,7 +1471,7 @@
       '</div><div class="two-col" style="margin-top:4px;">' +
       '<input type="text" id="' + ownerKey + '-cm-library" placeholder="Library (optional, *LIBL if blank)" value="' + escapeHtml(cm.library) + '" />' +
       '<input type="text" id="' + ownerKey + '-cm-msgdata" placeholder="Message data field (optional)" value="' + escapeHtml(cm.msgDataField) + '" />' +
-      '</div><div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed.</div>' +
+      '</div><div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed. The message data field, if given, must be a character (A) field with usage P in this same record.</div>' +
       '<button class="secondary ' + ownerKey + '-cm-apply" style="width:100%;margin-top:8px;">Apply CHKMSGID</button>';
     return accordionWrapHtml(ownerKey + '::check-msgid', 'Check message identifier', html, false, openState);
   }
@@ -1534,7 +1534,7 @@
     return html;
   }
 
-  function wireValidityAndEdit(keywords, onChange, ownerKey, options, expandedSet, rerender, dataType, usage) {
+  function wireValidityAndEdit(keywords, onChange, ownerKey, options, expandedSet, rerender, dataType, usage, recordFields) {
     var includeValidity = !options || options.includeValidity !== false;
     var includeEditKeyword = !options || options.includeEditKeyword !== false;
     if (includeValidity) {
@@ -1554,6 +1554,12 @@
           // validity-check keyword already on the field.
           var cmReason = DspfWriter.chkmsgidNewConflictReason(keywords, nextKeywords);
           if (cmReason) { window.alert(cmReason); return; }
+          // Task I-89: a NEW or changed message data field must name a
+          // character (A) field with usage P in this record. Checked here
+          // as well so the typed values survive a refusal. `recordFields`
+          // is optional - absent means not checked.
+          var cmDataReason = DspfWriter.chkmsgidMsgDataNewConflictReason(keywords, nextKeywords, recordFields);
+          if (cmDataReason) { window.alert(cmDataReason); return; }
           onChange(nextKeywords);
         });
       }

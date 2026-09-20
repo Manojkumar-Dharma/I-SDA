@@ -1552,6 +1552,87 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task I-89 - CHKMSGID's optional &message-data-field parameter. Its DDS
+  // Reference section: "The field name must exist in the record format, and
+  // the field must be defined as a character field (data type A) with usage
+  // P." (ERRMSGID's and SFLMSGID's msg-data parameters carry the same
+  // sentence - see Deferred findings; only CHKMSGID is covered here.)
+  //
+  // Enforced on the way IN: the name typed into the CHKMSGID panel, added
+  // through the raw editor, or written by any panel via the commitEdit
+  // choke point. Diff-based: a hand-written CHKMSGID that already names a
+  // bad field stays editable, and nothing is blamed for an unchanged name.
+  //
+  // NOT enforced on the way the named field changes underneath it (rename,
+  // type/usage change, delete): a valid message data field has usage P, and
+  // the designer has no way to select a usage-P field at all (they are not
+  // on the canvas, and the Hidden tab lists only usage H), so those edits
+  // cannot be made from the designer. Deleting a field that looks
+  // referenced already gets the existing "likely reference" confirmation.
+  //
+  // "Character (data type A)": a blank data type with no decimal positions
+  // is A by default; a blank data type WITH decimal positions is numeric.
+  // A field defined by reference (R in position 29) takes its data type
+  // from the referenced field, which the designer cannot see, so the data
+  // type of such a field is not judged (fail open) - its usage still is.
+  // `recordFields` is the record's fields; an absent list fails open.
+  // -----------------------------------------------------------------------
+  function msgDataFieldName(keywords) {
+    if (!chridHas(keywords, 'CHKMSGID')) return '';
+    return getCheckMsgId(keywords).msgDataField.trim();
+  }
+
+  function msgDataFieldFind(recordFields, name) {
+    var target = String(name || '').replace(/^&/, '').trim().toUpperCase();
+    if (!target) return null;
+    return (recordFields || []).find(function (f) {
+      return f && f.name && f.nameType !== 'CONSTANT' && String(f.name).toUpperCase() === target;
+    }) || null;
+  }
+
+  /** null when `name` is a valid message data field for CHKMSGID in this
+   *  record, else the reason it is not. */
+  function chkmsgidMsgDataFieldProblem(name, recordFields) {
+    var shown = '&' + String(name || '').replace(/^&/, '').trim().toUpperCase();
+    if (shown === '&') return null;
+    var f = msgDataFieldFind(recordFields, name);
+    if (!f) {
+      return 'CHKMSGID message data field ' + shown + ' does not exist in this record format - the field name must exist in the record format (per the DDS Reference).';
+    }
+    var issues = [];
+    if (!f.isReference) {
+      var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
+      var numeric = dt === '' && chridDecimalsSpecified(f.decimalPositions);
+      if ((dt !== '' && dt !== 'A') || numeric) issues.push('it is ' + (numeric ? 'a numeric field' : 'data type ' + dt));
+    }
+    var usage = String(f.usage == null ? '' : f.usage).trim().toUpperCase();
+    if (usage !== 'P') issues.push('its usage is ' + (usage || 'blank (output)'));
+    if (!issues.length) return null;
+    return 'CHKMSGID message data field ' + shown + ' must be a character field (data type A) with usage P (per the DDS Reference), but ' + issues.join(' and ') + '.';
+  }
+
+  /** commitEdit choke point and the CHKMSGID panel's Apply: blocks an edit
+   *  that NAMES a new or different message data field which is not a valid
+   *  one. An unchanged name (including a hand-written bad one) is never
+   *  re-reported. */
+  function chkmsgidMsgDataNewConflictReason(oldKeywords, newKeywords, recordFields) {
+    if (!Array.isArray(recordFields)) return null;
+    var next = msgDataFieldName(newKeywords);
+    if (!next) return null;
+    var prev = msgDataFieldName(oldKeywords);
+    if (prev.replace(/^&/, '').toUpperCase() === next.replace(/^&/, '').toUpperCase()) return null;
+    return chkmsgidMsgDataFieldProblem(next, recordFields);
+  }
+
+  /** The raw keyword editor's add guard: `params` is the text typed for a
+   *  new CHKMSGID. Returns null for any other keyword. */
+  function chkmsgidMsgDataAddReason(keywordName, params, recordFields) {
+    if (String(keywordName || '').toUpperCase() !== 'CHKMSGID' || !Array.isArray(recordFields)) return null;
+    var name = msgDataFieldName([{ name: 'CHKMSGID', parameters: params || '' }]);
+    return name ? chkmsgidMsgDataFieldProblem(name, recordFields) : null;
+  }
+
+  // -----------------------------------------------------------------------
   // Task I-70 - CHRID's own eligibility and mutual-exclusion rules. Its DDS
   // Reference section states them in three sentences: "The CHRID keyword
   // is not valid on constant fields, numeric fields (fields with decimal
@@ -8125,6 +8206,9 @@
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,
     chkmsgidFieldAddReason: chkmsgidFieldAddReason,
     chkmsgidBasicEditConflictReason: chkmsgidBasicEditConflictReason,
+    chkmsgidMsgDataFieldProblem: chkmsgidMsgDataFieldProblem,
+    chkmsgidMsgDataNewConflictReason: chkmsgidMsgDataNewConflictReason,
+    chkmsgidMsgDataAddReason: chkmsgidMsgDataAddReason,
     chridEligibilityReason: chridEligibilityReason,
     chridFieldAddReason: chridFieldAddReason,
     chridNewConflictReason: chridNewConflictReason,

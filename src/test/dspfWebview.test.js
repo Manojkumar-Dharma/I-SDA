@@ -1683,6 +1683,10 @@ function runFieldPropertyHelpersScenario() {
       '     A            AMOUNT         7Y 2B  5  5',
       '     A            FLTFLD         9F 0B  6  5',
       '     A            PLAINFLD      10A  B  7  5',
+      // Task I-89: CHKMSGID's message data field must exist in the record as
+      // a character (A) field with usage P - the CHKMSGID scenario below
+      // names MSGFLD1.
+      '     A            MSGFLD1       12A  P',
     ].join('\n') + '\n';
   const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'PROPHELP.DSPF').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,

@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-87 of 96 tasks done; 9 open (see [Open work](#open-work)). Current version: **v0.10.166**.
+88 of 96 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.167**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -131,7 +131,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Done | v0.10.158 |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Done | v0.10.166 |
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | Done | v0.10.161 |
-| [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
+| [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Done | v0.10.167 |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Done | v0.10.164 |
@@ -154,20 +154,20 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-95](#i-95) | In progress | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 3 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 4 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 5 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 6 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 7 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 8 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 9 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 3 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 4 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 5 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 6 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 7 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 8 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-None open. Every finding logged so far has been opened as a task (I-61 – I-96, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding logged before I-89 has been opened as a task (I-61 – I-96, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
+| I-89 | `ERRMSGID` and `SFLMSGID` carry the same rule for their optional `&msg-data` parameter ("the field must exist in the record format and ... be defined as a character field (data type A) with usage P"); their panels take any text there and nothing checks it. The helper `DspfWriter.chkmsgidMsgDataFieldProblem(name, recordFields)` is generic and can be reused. `SFLMSGID` is record-level, so the record's fields must be passed to its wiring. Same entry-point-only scope as I-89 (usage-`P` fields cannot be selected in the designer, so later-change guards would be unreachable). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4535,9 +4535,17 @@ New `i88ResolveReferencedFieldDefinitionCheck.test.js` (76 checks: unit checks o
 
 ### I-89 — `CHKMSGID`: validate its `&message-data-field` parameter
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-69
+> **Area:** Field · **Status:** Done (v0.10.167) · **Depends on:** I-69
 
 `CHKMSGID`'s optional `&message-data-field` parameter must name a field that **exists in the same record format** and is defined as a **character field (data type `A`) with usage `P`** (per its DDS Reference section). The CHKMSGID panel takes any text there and nothing checks it; also not checked when the named field is later renamed, deleted or has its type/usage changed. Needs a record-aware check like the `SFLMSGID`/`SFLPGMQ` field-name validations.
+
+**Done - the entry checks; the "later changes" checks turned out to be unreachable.** Re-read `CHKMSGID`: "The field name must exist in the record format, and the field must be defined as a character field (data type A) with usage P." (The note above that `SFLMSGID`/`SFLPGMQ` already have such a validation was wrong - nothing record-aware existed to copy, so this is new code.)
+
+- **The rule:** `DspfWriter.chkmsgidMsgDataFieldProblem(name, recordFields)` finds the named, non-constant field (case-insensitive, leading `&` ignored) and reports: not in the record; not data type A (a blank data type with no decimal positions is A by default, a blank one *with* decimals is numeric, decimals 0 count); usage not P (blank usage reported as blank/output). Both problems are reported together. A field defined by reference (`R` in position 29) takes its type from the referenced database field, which the designer cannot see, so its data type is not judged (fail open) - its usage still is. An absent field list fails open.
+- **Three entry points, all diff-based:** the CHKMSGID panel's Apply (checked in the panel so a refusal keeps what was typed, like I-69's check beside it); the raw keyword editor's add guard (`chkmsgidMsgDataAddReason`); and the `commitEdit` choke point (`chkmsgidMsgDataNewConflictReason`) for every other panel, including the raw editor's parameter edit. A name is checked only when it is new or different, so a hand-written CHKMSGID that already names a bad field stays editable - changing only its message id, or clearing the data field, is allowed - and changing it to another bad name is refused. `wireValidityAndEdit` takes the record's fields as an optional trailing parameter (absent = not checked); the panel hint now states the rule.
+- **Not done, on purpose: guarding the named field being renamed, retyped, re-usaged or deleted.** The filing asked for it, and a first version of it was written and then removed: a *valid* message data field has usage `P`, and the designer cannot select a usage-`P` field at all - `P` fields are not drawn on the canvas, the Hidden tab lists only usage `H` fields, and nothing else lists them (probed in jsdom). So none of those edits can be made from the designer to a valid target; a guard would fire only on already-invalid hand-written targets, where blocking would contradict the diff-based posture. Deleting a *visible* field that looks referenced already gets the existing "likely reference" confirmation. Worth revisiting only if `P` fields ever become selectable (see Deferred findings).
+
+New `i89ChkmsgidDataFieldValidation.test.js` (63 checks): the field check across every case above, the diff (including unchanged/bad and bad-to-valid), the raw add check, and the real webview (panel Apply valid / missing / usage O / numeric P / itself / case-insensitive / no data field, typed text kept after a refusal; hand-written bad name: message id change allowed, change to another bad name refused, change to valid allowed, cleared; raw editor add valid / missing / non-P / no data field). Confirmed to fail (8 checks) with the webview wiring reverted.
 
 *Raised by I-69. Size (estimate): Medium.*
 

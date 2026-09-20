@@ -4716,12 +4716,12 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
     if (!isConstant) {
-      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage);
+      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage, found.record.fields);
       WebviewClientHelpers.wireDateTimeFormat(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, field.dataType);
     } else if (isSystemValueConstant) {
       // Constants have no Usage of their own (I-31: DspfWriter.
@@ -4729,7 +4729,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // undefined/blank usage as neither I nor B, so EDTMSK stays
       // blocked here - matching real DDS, which has no usage position
       // for a constant field at all).
-      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage);
+      WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: false }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage, found.record.fields);
     }
     if (!isConstant && catVis.errorMessages) {
       WebviewClientHelpers.wireErrorMessageInstances(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
@@ -6529,6 +6529,16 @@ const htmlTemplate = `<!DOCTYPE html>
       const chkmsgidReason = DspfWriter.chkmsgidNewConflictReason(field.keywords, updates.keywords);
       if (chkmsgidReason) {
         window.alert(chkmsgidReason);
+        render();
+        return;
+      }
+      // Task I-89: and CHKMSGID's message data field - a NEW or changed
+      // &field must name a character (A) field with usage P in this same
+      // record. Covers every panel that writes keywords (the raw editor's
+      // parameter edit included).
+      const chkmsgidDataReason = DspfWriter.chkmsgidMsgDataNewConflictReason(field.keywords, updates.keywords, (model.records.find((r) => r.name === recordName) || {}).fields);
+      if (chkmsgidDataReason) {
+        window.alert(chkmsgidDataReason);
         render();
         return;
       }
