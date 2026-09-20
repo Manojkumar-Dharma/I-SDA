@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-108 of 113 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.188**.
+111 of 116 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.191**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -156,6 +156,9 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Done | v0.10.187 |
 | [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Done (research; documented limit) | v0.10.188 |
 | [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Done | v0.10.190 |
+| [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Not started | — |
+| [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Not started | — |
+| [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API (needs a real IBM i) | I-112 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -169,18 +172,19 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 2 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-115](#i-115) | Not started | `SFLMSG` records' Keywords tab is still the full row set (decision first). Size (estimate): Small. Raised by I-105. |
+| 2 | [I-114](#i-114) | Not started | `HELP` / `HLPRTN` on a `USRDFN` record are reachable only through the raw keyword editor (decision first). Size (estimate): Small–medium. Raised by I-105. |
+| 3 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 4 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
+| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-113, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-116, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-105 | **`HELP` / `HLPRTN` on a `USRDFN` record.** Both are on `USRDFN`'s whitelist and live in the record-indicator list, but R2 keeps the Indicator subtab out of a `USRDFN` record, so they are reachable only through the raw keyword editor - the same gap `INVITE` had. Decide whether to show an Indicator subtab limited to those two kinds (R2 recorded that real SDA's own `USRDFN` menu has none). |
-| I-105 | **`SFLMSG` records' Keywords tab is still the full row set.** The whitelist for a message subfile is `SFLMSGRCD` only, so every row on that tab is refused; the same hide-the-rows rule would leave the tab empty. Decide whether to drop the tab for `SFLMSG` records (the SFLMSG tab already covers what applies). |
-| I-112 | **Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API** (`FILD0200`, per-field `Qdb_Qddfvchk` section) so the inherited panel can list `CHECK` / `COMP` / `RANGE` / `VALUES` / `CHKMSGID` instead of just stating the limit. Needs a real IBM i to confirm the structure layout and whether `FLTPCN` is reachable. Also worth confirming there: whether newer `QWHDRFFD` releases carry message-id columns and what `WHVCNE` counts. Size: Medium (unverified). |
+| - | None at the moment. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5240,5 +5244,47 @@ Opened from a deferred finding raised by I-74, verbatim:
 New `src/test/i113AddFieldsBareReference.test.js` (31 checks, added to the `test` script): the list query and the keywords on each listed field; the written source (position 29 `R`, columns 30-37 blank, no `P` in position 35, only `REFFLD` as a keyword, usage `B`); the `referencesResolved` message (one entry per field, exact key, definition contents); the designer side (effective length, zoned type, inherited `EDTCDE` kept, the old explicit shape contrast, `+2` -> 8); the collision-renamed key; an older webview's field list with no `keywords`; and an empty selection posting nothing. **18 of the 31 fail against the pre-change code** (verified by running the new file against the previously compiled `dist/` before the change; the other 13 describe behavior that did not change, e.g. `REFFLD` naming and the existing field being untouched). The existing L14 tests in `extension.test.js` / `dspfWebview.test.js` pass unchanged.
 
 *Raised by I-74. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-114"></a>
+
+### I-114 — `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first)
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-105
+
+Opened from a deferred finding raised by I-105, verbatim:
+
+**`HELP` / `HLPRTN` on a `USRDFN` record.** Both are on `USRDFN`'s whitelist and live in the record-indicator list, but R2 keeps the Indicator subtab out of a `USRDFN` record, so they are reachable only through the raw keyword editor - the same gap `INVITE` had. Decide whether to show an Indicator subtab limited to those two kinds (R2 recorded that real SDA's own `USRDFN` menu has none).
+
+*Raised by I-105. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-115"></a>
+
+### I-115 — `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first)
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-105
+
+Opened from a deferred finding raised by I-105, verbatim:
+
+**`SFLMSG` records' Keywords tab is still the full row set.** The whitelist for a message subfile is `SFLMSGRCD` only, so every row on that tab is refused; the same hide-the-rows rule would leave the tab empty. Decide whether to drop the tab for `SFLMSG` records (the SFLMSG tab already covers what applies).
+
+*Raised by I-105. Size (estimate): Small.*
+
+---
+
+<a id="i-116"></a>
+
+### I-116 — Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API (needs a real IBM i)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-112
+
+Opened from a deferred finding raised by I-112, verbatim:
+
+**Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API** (`FILD0200`, per-field `Qdb_Qddfvchk` section) so the inherited panel can list `CHECK` / `COMP` / `RANGE` / `VALUES` / `CHKMSGID` instead of just stating the limit. Needs a real IBM i to confirm the structure layout and whether `FLTPCN` is reachable. Also worth confirming there: whether newer `QWHDRFFD` releases carry message-id columns and what `WHVCNE` counts. Size: Medium (unverified).
+
+*Raised by I-112. Size (estimate): Medium (unverified).*
 
 ---
