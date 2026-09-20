@@ -133,7 +133,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check | I-61, I-62 | Not started | — |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
-| [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Not started | — |
+| [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | In progress | — |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -149,7 +149,7 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 2 | [I-91](#i-91) | Not started | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
+| 2 | [I-91](#i-91) | In progress | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
 | 3 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
 | 4 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
 | 5 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
@@ -4531,7 +4531,7 @@ The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is un
 
 ### I-91 — `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-73
+> **Area:** Field · **Status:** In progress · **Depends on:** I-73
 
 Found while probing for I-73. `MSGID`'s DDS Reference entry lists five keywords that "cannot be specified on a field with the MSGID keyword": `DFT`, `DFTVAL`, `FLTFIXDEC`, `FLTPCN` and `MSGCON`. `MSGCON` is only reachable on constants, which cannot carry `MSGID` (usage `B`/`O` fields only), so it is out of practical reach. The other four are not enforced in either direction: probing the real panel, ticking `DFT` on a field that already has `MSGID` writes both with no alert. Guard both directions (adding `DFT`/`DFTVAL`/`FLTFIXDEC`/`FLTPCN` to a field with `MSGID`, and adding `MSGID` to a field carrying any of them), following I-41's `HTML` pattern (`htmlConflictReason` plus I-83's `withAddGuard`). Re-read the `MSGID` section first and check whether `DFTVAL` and `FLTPCN` are offered by any structured editor at all before wiring them.
 
