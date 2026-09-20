@@ -141,6 +141,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Done | v0.10.165 |
 | [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
 | [I-98](#i-98) | Record | SFLMSG record's General panel: drop the option-indicator Conditioning on `LOGINP` and `CHECK(AB)`/`CHECK(RL)` (I-9's fix never reached it) | I-9, I-76 | Done | v0.10.174 |
+| [I-99](#i-99) | Record | `SFLMSGID` panel reads and writes the wrong grammar (`library` as a 3rd token; response indicator / `&msg-data` dropped) | I-97 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -164,7 +165,6 @@ Every finding logged before I-97 has been opened as a task (I-61 – I-97, see t
 
 | Raised by | Finding |
 |-----------|---------|
-| I-97 | The record-level **SFLMSGID panel reads and writes the wrong grammar** (found while checking how `&msg-data` could reach it). IBM's format is `SFLMSGID(msgid [library-name/]msg-file [response-indicator] [&msg-data])`, but `parseSflMsgIdParams`/`formatSflMsgIdParams` treat the *third space-separated token* as the library and write it that way (`A F QGPL`), where a bare third token is a response indicator - so a library entered in the panel produces invalid DDS. Reading goes wrong the other way: hand-written `SFLMSGID(USR1234 QGPL/USRMSGS 30 &FLD)` shows message file `QGPL/USRMSGS` and library `30`, and changing the message id in the panel rewrites it as `NEW0001 QGPL/USRMSGS 30`, silently **dropping `&FLD`**. Probed with the two functions directly. The panel also has no response-indicator or `&msg-data` input. ERRMSGID's own parser (`getErrorMessageInstances`) already does this correctly and is the model to copy. |
 | I-95 | The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`NO_OPTION_INDICATOR_KEYWORDS`, seeded with that one keyword). Scanning `DDS_Keyword_V7r6.txt` finds **93** keyword sections with an "Option indicators are not valid/allowed" sentence, so the same hole exists for the other ~92: **81** worded plainly (ALIAS, ALTHELP, ALTNAME, ALWROL, ASSUME, BLANKS, BLKFOLD, CHANGE, CHCACCEL, CHCCTL, CHECK, CHGINPDFT, CHKMSGID, CLRL, CNTFLD, COMP, DLTCHK, DLTEDT, DSPRL, DSPSIZ, EDTCDE, EDTWRD, ERRSFL, FLDCSRPRG, FLTFIXDEC, GETRETAIN, GRDCLR, HLPARA, HLPCMDKEY, HLPFULL, HLPID, HLPSCHIDX, HLPTITLE, HOME, INDARA, INDTXT, INZRCD, LOGINP, MLTCHCFLD, MSGCON, MSGID, MSGLOC, OPENPRT, PASSRCD, PSHBTNFLD, PULLDOWN, RANGE, REF, REFFLD, RTNCSRLOC, RTNDTA, SETOF, SFL, SFLCHCCTL, SFLCSRPRG, SFLCTL, SFLENTER, SFLLIN, SFLMLTCHC, SFLMODE, SFLMSGKEY, SFLMSGRCD, SFLPAG, SFLRCDNBR, SFLRNA, SFLROLVAL, SFLRTNSEL, SFLSCROLL, SFLSIZ, SFLSNGCHC, SLNO, SNGCHCFLD, TEXT, USRDFN, USRDSPMGT, VALNUM, VALUES, VLDCMDKEY, WDWTITLE, WRDWRAP) and **12** worded "...although option indicators can be used to condition the field" (CHOICE, DATE, DATFMT, DATSEP, DFT, EDTMSK, MAPVAL, SYSNAME, TIME, TIMFMT, TIMSEP, USER). These lists are a *starting point extracted by a scan, not verified per keyword*: the sentence is sometimes conditional (`MSGID` allows indicators except on the last one, I-73; `CHECK` only for some codes, I-30), and several of these keywords are legitimately conditioned by iSDA's own structured editors, so each one has to be read, and checked against the panel that conditions it, before it goes into the table. Size (estimate): Large - an audit, best done in batches by level. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
@@ -4829,5 +4829,19 @@ Opened from I-76's deferred finding. `sflMsgPanelsHtml` / `wireSflMsgPanels` (th
 New `src/test/i98SflmsgGeneralConditioning.test.js` (19 checks, run in jsdom against the real generated webview): no toggle on `sm-loginp`/`sm-check-ab`/`sm-check-rl`, `sm-sflnxtchg`/`sm-logout` still have theirs, the three rows still commit as plain checkboxes with no indicators written, and a hand-edited record carrying `LOGINP`/`CHECK(AB)` with indicators keeps them across an unrelated edit. Confirmed to fail against the pre-fix code (4 checks). Wired into `npm test`.
 
 *Raised by I-76. Size (estimate): Small.*
+
+---
+
+<a id="i-99"></a>
+
+### I-99 — `SFLMSGID` panel reads and writes the wrong grammar
+
+> **Area:** Record · **Status:** In progress · **Depends on:** I-97
+
+Opened from I-97's deferred finding, verbatim:
+
+The record-level **SFLMSGID panel reads and writes the wrong grammar** (found while checking how `&msg-data` could reach it). IBM's format is `SFLMSGID(msgid [library-name/]msg-file [response-indicator] [&msg-data])`, but `parseSflMsgIdParams`/`formatSflMsgIdParams` treat the *third space-separated token* as the library and write it that way (`A F QGPL`), where a bare third token is a response indicator - so a library entered in the panel produces invalid DDS. Reading goes wrong the other way: hand-written `SFLMSGID(USR1234 QGPL/USRMSGS 30 &FLD)` shows message file `QGPL/USRMSGS` and library `30`, and changing the message id in the panel rewrites it as `NEW0001 QGPL/USRMSGS 30`, silently **dropping `&FLD`**. Probed with the two functions directly. The panel also has no response-indicator or `&msg-data` input. ERRMSGID's own parser (`getErrorMessageInstances`) already does this correctly and is the model to copy.
+
+*Raised by I-97. Size (estimate): Small–medium.*
 
 ---
