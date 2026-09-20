@@ -129,7 +129,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | Done | v0.10.152 |
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Done | v0.10.153 |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Done | v0.10.158 |
-| [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
+| [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | In progress | — |
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | Done | v0.10.161 |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
@@ -154,7 +154,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-95](#i-95) | In progress | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 3 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 3 | [I-87](#i-87) | In progress | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
 | 4 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
 | 5 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
 | 6 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
@@ -4489,7 +4489,7 @@ Regression coverage: new `src/test/i86SflnxtchgSflchcctlGuard.test.js` - unit ch
 
 ### I-87 — `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-79
+> **Area:** Field · **Status:** In progress · **Depends on:** I-79
 
 Reordering fields (Structure tab's Up/Down buttons, `DspfWriter.reorderFields`, called from `moveField`) can move a field that carries `SFLCHCCTL` out of first place, or move another field ahead of it, with no guard - `sflchcctlFieldConflictReason`'s first-field check only runs when the checkbox itself is toggled. Needs its own diff-based backstop at the `moveField`/`reorderFields` choke point, which has no existing guard precedent to follow (unlike `commitEdit`, which several tasks already hook).
 
