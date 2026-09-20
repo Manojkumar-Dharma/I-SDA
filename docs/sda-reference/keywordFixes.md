@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-83 of 96 tasks done; 13 open (see [Open work](#open-work)). Current version: **v0.10.165**.
+87 of 96 tasks done; 9 open (see [Open work](#open-work)). Current version: **v0.10.166**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -129,7 +129,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-84](#i-84) | Record | `RTNCSRLOC`: SFL/MNUBAR checks should fire only when turning on (misleading un-tick alert) | I-56, I-77 | Done | v0.10.152 |
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Done | v0.10.153 |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Done | v0.10.158 |
-| [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | In progress | — |
+| [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Done | v0.10.166 |
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | Done | v0.10.161 |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
@@ -154,14 +154,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-95](#i-95) | In progress | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 3 | [I-87](#i-87) | In progress | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 4 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 5 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 6 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 7 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 8 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 9 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 10 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 3 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 4 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 5 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 6 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 7 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 8 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 9 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4489,9 +4488,17 @@ Regression coverage: new `src/test/i86SflnxtchgSflchcctlGuard.test.js` - unit ch
 
 ### I-87 — `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-79
+> **Area:** Field · **Status:** Done (v0.10.166) · **Depends on:** I-79
 
 Reordering fields (Structure tab's Up/Down buttons, `DspfWriter.reorderFields`, called from `moveField`) can move a field that carries `SFLCHCCTL` out of first place, or move another field ahead of it, with no guard - `sflchcctlFieldConflictReason`'s first-field check only runs when the checkbox itself is toggled. Needs its own diff-based backstop at the `moveField`/`reorderFields` choke point, which has no existing guard precedent to follow (unlike `commitEdit`, which several tasks already hook).
+
+**Fixed.** New `DspfWriter.sflchcctlReorderConflictReason(record, orderedSourceLines)` in `dspfWriter.js`, called from `moveField` (`buildWebviewTemplate.js`) before it commits, so a reorder that would break the rule shows an alert ("SFLCHCCTL must be on the first field defined in the subfile record (per the DDS Reference) - this move would put F2 ahead of CHG.") and writes nothing. `moveField` is the only caller of `reorderFields`, so the guard lives there rather than making the writer function throw: `reorderFields` stays a pure transformation and the alert matches every other guard in the series.
+
+**Diff-based**, like every other backstop here: a reorder is blocked only if it *introduces* the violation - a field carrying `SFLCHCCTL` is the first named field before the move and is not afterwards. "First field" is the first **named** field (constants do not count - the same reading as I-79's `isFirstField`), so moving `CHG` up past a leading constant, or a constant past `CHG`, is allowed. A hand-written record where `SFLCHCCTL` is already not first is never re-reported (unrelated moves stay possible), moving the `SFLCHCCTL` field towards the front is always allowed, and records with no `SFLCHCCTL` are untouched. If two fields illegally both carry `SFLCHCCTL`, only a move that leaves a plain field first is blocked.
+
+Other paths that could disturb the order were checked: `insertField` ("+ Field", copy, paste) appends at the bottom of the record and deleting a field only ever promotes the next one, so neither can move `SFLCHCCTL` out of first place; the Up/Down buttons are the only reorder path.
+
+New `i87SflchcctlReorderGuard.test.js` (41 checks: unit checks on the pure function, then the real generated script in jsdom pressing the real Field order Up/Down buttons - blocked moves, allowed moves, a leading constant, an already-invalid record, and a record with no `SFLCHCCTL`). Confirmed via `git stash` to fail (14 checks) against pre-fix code. Full suite: 121 test files run in parallel, zero failures.
 
 *Raised by I-79. Size (estimate): Medium.*
 

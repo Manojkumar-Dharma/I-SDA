@@ -5074,6 +5074,14 @@ const htmlTemplate = `<!DOCTYPE html>
     const tmp = order[idx];
     order[idx] = order[newIdx];
     order[newIdx] = tmp;
+    // Task I-87: SFLCHCCTL must stay on the first (named) field of its record;
+    // sflchcctlFieldConflictReason only checks that when the checkbox is
+    // toggled, so a reorder needs its own diff-based check here.
+    const reorderReason = DspfWriter.sflchcctlReorderConflictReason(rec, order);
+    if (reorderReason) {
+      window.alert(reorderReason);
+      return;
+    }
     commitSourceChange((lines) => DspfWriter.reorderFields(rec, lines, order));
   }
 

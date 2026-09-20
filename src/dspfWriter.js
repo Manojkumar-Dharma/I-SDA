@@ -7287,6 +7287,47 @@
     return '';
   }
 
+  /** Task I-87 - the REORDER direction of SFLCHCCTL's first-field rule.
+   *  sflchcctlFieldConflictReason only checks it when the SFLCHCCTL checkbox
+   *  is toggled, but the Structure tab's Up/Down buttons (moveField ->
+   *  reorderFields) can move the SFLCHCCTL field out of first place, or move
+   *  another field ahead of it, with no check at all. DDS Reference: SFLCHCCTL
+   *  "must be on the first field defined in the subfile record" - "first
+   *  field" being the first NAMED field, constants not counting (the same
+   *  reading as sflchcctlFieldConflictReason's own isFirstField).
+   *
+   *  `record` is the parsed record (fields in their current source order, each
+   *  with sourceLine, name, nameType and keywords); `orderedSourceLines` is the
+   *  proposed new order of its fields' source lines, exactly what moveField
+   *  hands reorderFields. Diff-based, like every other backstop in this series:
+   *  a reorder is blocked only if it INTRODUCES the violation - a field
+   *  carrying SFLCHCCTL is first (of the named fields) before the move and
+   *  is not afterwards. A record that was already invalid (SFLCHCCTL not on
+   *  the first field, hand-written) is never re-reported, so moves within it
+   *  stay possible, and a move that puts the SFLCHCCTL field FIRST is always
+   *  allowed. Moving a constant past the SFLCHCCTL field, or reordering fields
+   *  that carry no SFLCHCCTL, is never blocked. Returns a reason string, or
+   *  null. */
+  function sflchcctlReorderConflictReason(record, orderedSourceLines) {
+    var fields = (record && record.fields) || [];
+    if (!fields.length) return null;
+    var hasChcctl = function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLCHCCTL'; }); };
+    var chcctlField = fields.find(hasChcctl);
+    if (!chcctlField) return null;
+    var firstNamed = function (list) { return list.find(function (f) { return f.nameType !== 'CONSTANT'; }); };
+    var byLine = {};
+    fields.forEach(function (f) { byLine[f.sourceLine] = f; });
+    var reordered = (orderedSourceLines || []).map(function (ln) { return byLine[ln]; });
+    if (reordered.length !== fields.length || reordered.some(function (f) { return !f; })) return null;
+    var okBefore = firstNamed(fields);
+    var okAfter = firstNamed(reordered);
+    var validBefore = !!okBefore && hasChcctl(okBefore);
+    var validAfter = !!okAfter && hasChcctl(okAfter);
+    if (!validBefore || validAfter) return null;
+    var shown = function (f) { return f && f.name ? f.name : 'another field'; };
+    return 'SFLCHCCTL must be on the first field defined in the subfile record (per the DDS Reference) - this move would put ' + shown(okAfter) + ' ahead of ' + shown(chcctlField) + '.';
+  }
+
   /** Task I-79 - a data type, length, decimals or usage CHANGE (the Basic
    *  tab's Apply changes) on a field that ALREADY carries SFLCHCCTL.
    *  Turning the keyword ON brings the field into the required Y/1/0/H
@@ -8074,6 +8115,7 @@
     msgidSflRecordReason: msgidSflRecordReason,
     msgidSflNewConflictReason: msgidSflNewConflictReason,
     referencedFieldResolveConflictReason: referencedFieldResolveConflictReason,
+    sflchcctlReorderConflictReason: sflchcctlReorderConflictReason,
     dupFloatNewConflictReason: dupFloatNewConflictReason,
     dupCheckboxOffered: dupCheckboxOffered,
     dupFloatFieldNote: dupFloatFieldNote,
