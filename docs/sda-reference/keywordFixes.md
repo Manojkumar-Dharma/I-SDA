@@ -145,7 +145,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | Done | v0.10.176 |
 | [I-101](#i-101) | Tooling / all levels | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none | I-95 | In progress | — |
 | [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | Done | v0.10.177 |
-| [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | Not started | — |
+| [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | In progress | — |
 | [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Not started | — |
 | [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Not started | — |
 
@@ -162,7 +162,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 2 | [I-103](#i-103) | Not started | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 2 | [I-103](#i-103) | In progress | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 3 | [I-104](#i-104) | Not started | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`). Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 4 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 5 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
@@ -4936,7 +4936,7 @@ Not addressed here: `INVITE`'s row is still hidden on a `USRDFN` record because 
 
 ### I-103 — `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-44, I-54
+> **Area:** Record · **Status:** In progress · **Depends on:** I-44, I-54
 
 **Bug.** Ticking the record-level `CHGINPDFT` checkbox on a `USRDFN` record is **accepted**: the keyword is added with no alert, although it is not on `USRDFN`'s whitelist (`INVITE`, `KEEP`, `PASSRCD`, `HLPRTN`, `HELP`, `HLPCLR`, `PRINT`, `OPENPRT`, `TEXT`). Verified on v0.10.176 in the real designer and with the record panels driven directly. The row is in the General subtab, which a `USRDFN` record keeps, so it is reachable. Every other non-whitelisted row I ticked on that record was refused (`INZRCD`, `ASSUME`, `ALWROL`, `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `VALNUM`, `WRDWRAP`, `HLPCMDKEY`), and `ENTFLDATR` and `RTNCSRLOC` are refused by I-60 and I-77.
 
