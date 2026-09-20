@@ -4954,46 +4954,121 @@ const htmlTemplate = `<!DOCTYPE html>
    * position to click).
    */
   function hiddenFieldsSectionHtml(rec) {
-    const hiddenFields = (rec.fields || []).filter((f) => f.usage === 'H');
-    let html = '<div class="status" style="margin-bottom:12px;">Hidden (usage H) fields have no on-screen position, so they are managed here instead of by clicking the canvas.</div>';
-    if (hiddenFields.length === 0) {
-      html += '<div class="empty-state">No hidden fields in this record yet.</div>';
+    return noOnScreenFieldsSectionHtml(rec, {
+      usage: 'H',
+      idPrefix: 'p-add-hidden',
+      deleteClass: 'hidden-field-delete',
+      addButtonLabel: '+ Add hidden field',
+      banner: 'Hidden (usage H) fields have no on-screen position, so they are managed here instead of by clicking the canvas.',
+      emptyState: 'No hidden fields in this record yet.',
+      nameNoun: 'hidden field',
+    });
+  }
+
+  function wireHiddenFieldsSection(recordName, rec) {
+    wireNoOnScreenFieldsSection(recordName, rec, {
+      usage: 'H',
+      idPrefix: 'p-add-hidden',
+      deleteClass: 'hidden-field-delete',
+      panelId: 'hidden',
+    });
+  }
+
+  /**
+   * I-75: Usage P (program-to-system) fields, like Hidden (usage H)
+   * ones above, are excluded from canvas drawing (dspfEngine.js), so they
+   * need the exact same kind of list/select/add/delete surface - I-35
+   * found this gap (a P-usage field could exist in the DDS source with
+   * no click-to-select path anywhere in iSDA's own UI) but didn't fix it.
+   * Per the DDS Reference's own P section: "Program-to-system fields are
+   * always named" and "Locations are not valid for program-to-system
+   * fields" - same two constraints Hidden fields already have, so this
+   * reuses noOnScreenFieldsSectionHtml/wireNoOnScreenFieldsSection wholesale
+   * rather than duplicating the list/add/delete logic; only the labels, the
+   * usage code threaded into DspfWriter.insertField, and the element-id/
+   * class prefixes (so this tab's DOM never collides with the Hidden tab's)
+   * differ.
+   */
+  function programFieldsSectionHtml(rec) {
+    return noOnScreenFieldsSectionHtml(rec, {
+      usage: 'P',
+      idPrefix: 'p-add-program',
+      deleteClass: 'program-field-delete',
+      addButtonLabel: '+ Add program-to-system field',
+      banner: 'Program-to-system (usage P) fields pass data from your program to the system without ever appearing on the display, so - like Hidden fields - they have no on-screen position and are managed here instead of by clicking the canvas.',
+      emptyState: 'No program-to-system fields in this record yet.',
+      nameNoun: 'program-to-system field',
+    });
+  }
+
+  function wireProgramFieldsSection(recordName, rec) {
+    wireNoOnScreenFieldsSection(recordName, rec, {
+      usage: 'P',
+      idPrefix: 'p-add-program',
+      deleteClass: 'program-field-delete',
+      panelId: 'program',
+    });
+  }
+
+  /**
+   * Shared list/add-form markup behind the Hidden (H) and Program (P)
+   * tabs - both usages are excluded from canvas drawing and therefore need
+   * the identical list-with-delete-button-plus-inline-add-form surface;
+   * only copy and element-id/class prefixes differ between them (see the
+   * two thin wrappers above).
+   */
+  function noOnScreenFieldsSectionHtml(rec, opts) {
+    const fields = (rec.fields || []).filter((f) => f.usage === opts.usage);
+    let html = '<div class="status" style="margin-bottom:12px;">' + opts.banner + '</div>';
+    if (fields.length === 0) {
+      html += '<div class="empty-state">' + opts.emptyState + '</div>';
     } else {
-      hiddenFields.forEach((f) => {
+      fields.forEach((f) => {
         const kwSummary = (f.keywords || []).map((k) => k.name).join(', ') || '(no keywords)';
         const typeSummary = (f.length != null ? f.length : '?') + (f.dataType || '');
         html += '<div class="field-order-row" data-source-line="' + f.sourceLine + '">' +
           '<span class="field-order-label" title="' + DspfEngine.escapeHtml(kwSummary) + '">' + DspfEngine.escapeHtml(f.name || '(unnamed)') + ' - ' + DspfEngine.escapeHtml(typeSummary) + ' - ' + DspfEngine.escapeHtml(kwSummary) + '</span>' +
-          '<button class="hidden-field-delete" data-source-line="' + f.sourceLine + '" title="Delete this hidden field">&times;</button>' +
+          '<button class="' + opts.deleteClass + '" data-source-line="' + f.sourceLine + '" title="Delete this ' + opts.nameNoun + '">&times;</button>' +
           '</div>';
       });
     }
-    html += '<button id="p-add-hidden" class="secondary" style="width:100%;margin-top:12px;">+ Add hidden field</button>';
-    html += '<div class="hidden" id="p-add-hidden-form" style="margin-top:8px;">' +
-      '<div class="field-row"><label>Name</label><input type="text" id="p-add-hidden-name" maxlength="10" placeholder="FIELD1" /></div>' +
-      '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-add-hidden-length" min="1" value="10" /></div>' +
-      '<div class="field-row"><label>Decimals</label><input type="number" id="p-add-hidden-decimals" min="0" placeholder="(none)" /></div></div>' +
-      '<div class="field-row"><label>Data type</label><select id="p-add-hidden-type">' +
+    html += '<button id="' + opts.idPrefix + '" class="secondary" style="width:100%;margin-top:12px;">' + opts.addButtonLabel + '</button>';
+    html += '<div class="hidden" id="' + opts.idPrefix + '-form" style="margin-top:8px;">' +
+      '<div class="field-row"><label>Name</label><input type="text" id="' + opts.idPrefix + '-name" maxlength="10" placeholder="FIELD1" /></div>' +
+      '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="' + opts.idPrefix + '-length" min="1" value="10" /></div>' +
+      '<div class="field-row"><label>Decimals</label><input type="number" id="' + opts.idPrefix + '-decimals" min="0" placeholder="(none)" /></div></div>' +
+      '<div class="field-row"><label>Data type</label><select id="' + opts.idPrefix + '-type">' +
       ['A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>' +
-      '<div class="rename-error" id="p-add-hidden-error"></div>' +
-      '<button id="p-add-hidden-confirm" style="width:100%;margin-top:8px;">Add</button>' +
-      '<button id="p-add-hidden-cancel" class="secondary" style="width:100%;margin-top:8px;">Cancel</button>' +
+      '<div class="rename-error" id="' + opts.idPrefix + '-error"></div>' +
+      '<button id="' + opts.idPrefix + '-confirm" style="width:100%;margin-top:8px;">Add</button>' +
+      '<button id="' + opts.idPrefix + '-cancel" class="secondary" style="width:100%;margin-top:8px;">Cancel</button>' +
       '</div>';
     return html;
   }
 
-  function wireHiddenFieldsSection(recordName, rec) {
-    propsBody.querySelectorAll('.field-order-row[data-source-line]').forEach((el) => {
-      // Only the Hidden tab's own rows carry data-source-line (the Structure
-      // tab's field-order-row reuse of the same class carries data-idx
-      // instead) - clicking one selects it into the normal field props panel.
+  /**
+   * Shared wiring behind noOnScreenFieldsSectionHtml - see its own comment.
+   * tabsHtml() renders every tab's panel into the DOM at once (only toggling
+   * an "active" class, not swapping content), so with both the Hidden and
+   * Program tabs now present together, querying propsBody directly would
+   * find and double-bind BOTH tabs' rows from either wire call. opts.panelId
+   * scopes every query to this call's own '[data-tab-panel="..."]' element.
+   */
+  function wireNoOnScreenFieldsSection(recordName, rec, opts) {
+    const panel = propsBody.querySelector('[data-tab-panel="' + opts.panelId + '"]');
+    if (!panel) return;
+    panel.querySelectorAll('.field-order-row[data-source-line]').forEach((el) => {
+      // Only the Hidden/Program tabs' own rows carry data-source-line (the
+      // Structure tab's field-order-row reuse of the same class carries
+      // data-idx instead) - clicking one selects it into the normal field
+      // props panel.
       el.addEventListener('click', (e) => {
-        if (e.target && e.target.classList.contains('hidden-field-delete')) return;
+        if (e.target && e.target.classList.contains(opts.deleteClass)) return;
         setSingleSelection(parseInt(el.getAttribute('data-source-line'), 10));
         render();
       });
     });
-    propsBody.querySelectorAll('.hidden-field-delete').forEach((el) => {
+    panel.querySelectorAll('.' + opts.deleteClass).forEach((el) => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const sourceLine = parseInt(el.getAttribute('data-source-line'), 10);
@@ -5002,22 +5077,22 @@ const htmlTemplate = `<!DOCTYPE html>
       });
     });
 
-    const addBtn = document.getElementById('p-add-hidden');
-    const addForm = document.getElementById('p-add-hidden-form');
+    const addBtn = document.getElementById(opts.idPrefix);
+    const addForm = document.getElementById(opts.idPrefix + '-form');
     if (!addBtn || !addForm) return;
     addBtn.addEventListener('click', () => { addForm.classList.remove('hidden'); addBtn.classList.add('hidden'); });
-    document.getElementById('p-add-hidden-cancel').addEventListener('click', () => { addForm.classList.add('hidden'); addBtn.classList.remove('hidden'); });
-    document.getElementById('p-add-hidden-confirm').addEventListener('click', () => {
-      const errorEl = document.getElementById('p-add-hidden-error');
+    document.getElementById(opts.idPrefix + '-cancel').addEventListener('click', () => { addForm.classList.add('hidden'); addBtn.classList.remove('hidden'); });
+    document.getElementById(opts.idPrefix + '-confirm').addEventListener('click', () => {
+      const errorEl = document.getElementById(opts.idPrefix + '-error');
       errorEl.textContent = '';
-      const name = document.getElementById('p-add-hidden-name').value.trim().toUpperCase();
-      if (!name) { errorEl.textContent = 'Enter a name for the new hidden field.'; return; }
+      const name = document.getElementById(opts.idPrefix + '-name').value.trim().toUpperCase();
+      if (!name) { errorEl.textContent = 'Enter a name for the new ' + opts.nameNoun + '.'; return; }
       if (!WebviewClientHelpers.isValidDdsName(name)) { errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
       if (rec.fields.some((f) => f.name === name)) { errorEl.textContent = 'A field named "' + name + '" already exists in this record.'; return; }
-      const length = Math.max(1, parseInt(document.getElementById('p-add-hidden-length').value, 10) || 1);
-      const decimalsRaw = document.getElementById('p-add-hidden-decimals').value;
+      const length = Math.max(1, parseInt(document.getElementById(opts.idPrefix + '-length').value, 10) || 1);
+      const decimalsRaw = document.getElementById(opts.idPrefix + '-decimals').value;
       const decimals = decimalsRaw !== '' ? Math.max(0, parseInt(decimalsRaw, 10) || 0) : null;
-      const dataType = document.getElementById('p-add-hidden-type').value;
+      const dataType = document.getElementById(opts.idPrefix + '-type').value;
       commitSourceChange(
         (lines) => DspfWriter.insertField(rec, lines, {
           nameType: 'FIELD',
@@ -5025,7 +5100,7 @@ const htmlTemplate = `<!DOCTYPE html>
           length: length,
           decimalPositions: decimals,
           dataType: dataType,
-          usage: 'H',
+          usage: opts.usage,
           location: { line: null, column: null },
         }),
         () => {
@@ -5715,6 +5790,11 @@ const htmlTemplate = `<!DOCTYPE html>
     // canvas-click flow every other field/constant uses.
     const hiddenHtml = hiddenFieldsSectionHtml(rec);
 
+    // --- Program tab (I-75): usage=P (program-to-system) fields have the
+    // same no-on-screen-footprint problem as Hidden fields above, and were
+    // left with no reachable selection path at all when I-35 found the gap.
+    const programHtml = programFieldsSectionHtml(rec);
+
     // --- SFLMSG tab: only for message-subfile records (Task R5) - Message
     // Record/General/Indicator stacked as accordions within one tab, same
     // "several accordions in one tab" shape the Keywords tab above already
@@ -5786,6 +5866,7 @@ const htmlTemplate = `<!DOCTYPE html>
       { id: 'commandkeys', label: 'Cmd keys', content: commandKeysHtml },
       { id: 'structure', label: 'Structure', content: structureHtml },
       { id: 'hidden', label: 'Hidden', content: hiddenHtml },
+      { id: 'program', label: 'Program', content: programHtml },
     ];
     if (isSflMsg) {
       const sflMsgHtml =
@@ -5843,6 +5924,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
 
     wireHiddenFieldsSection(recordName, rec);
+    wireProgramFieldsSection(recordName, rec);
 
     // Task L13 - record-level comments. fallbackAfterLine is the record's
     // own header/keyword end line (getRecordLineRange, not

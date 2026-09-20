@@ -1667,6 +1667,99 @@ function runHiddenFieldsScenario() {
     last = posted[posted.length - 1];
     check('posts applyEdit with NEWHID removed', last && last.type === 'applyEdit' && !/NEWHID\b/.test(last.text));
 
+    runProgramFieldsScenario();
+  }, 0);
+}
+
+/**
+ * I-75: usage=P (program-to-system) fields have the same no-on-screen-
+ * position problem as usage=H (Hidden) fields above - dspfEngine.js
+ * excludes both from canvas drawing - but had NO tab of their own at all,
+ * so an existing P-usage field (hand-written or otherwise imported) had no
+ * click-to-select path anywhere in iSDA's UI. Mirrors
+ * runHiddenFieldsScenario() above almost exactly, since both tabs share the
+ * same noOnScreenFieldsSectionHtml/wireNoOnScreenFieldsSection
+ * implementation - only the tab id ('program' not 'hidden') and element
+ * id/class prefixes ('p-add-program'/'program-field-delete' not
+ * 'p-add-hidden'/'hidden-field-delete') differ.
+ */
+function runProgramFieldsScenario() {
+  console.log('\nProgram tab: add/select/delete usage=P (program-to-system) fields that have no on-screen position to click');
+  const src =
+    [
+      buildLine({ seq: '00010', nameType: 'R', name: 'FMT1' }),
+      buildLine({ seq: '00020', name: 'NAME', dataType: 'A', length: '10', usage: 'O', line: '1', col: '1' }),
+      buildLine({ seq: '00030', name: 'EXISTP', dataType: 'A', length: '4', usage: 'P' }),
+      buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
+    ].join('\n') + '\n';
+  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'PROGRAM.DSPF').replace(
+    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
+    ''
+  );
+  const posted = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+    },
+  });
+
+  setTimeout(() => {
+    const doc = dom.window.document;
+    const Event = dom.window.Event;
+
+    // Land on the Program tab of the record props panel.
+    const programTabBtn = Array.from(doc.querySelectorAll('.props-tab')).find((b) => b.getAttribute('data-tab') === 'program');
+    check('a Program tab exists on the record props panel', !!programTabBtn);
+    programTabBtn.dispatchEvent(new Event('click', { bubbles: true }));
+
+    console.log('  Lists the existing program-to-system field (EXISTP) even though it has no on-screen presence');
+    let rows = doc.querySelectorAll('#p-add-program-form');
+    check('the add-program form exists (collapsed by default)', rows.length === 1 && rows[0].classList.contains('hidden'));
+    const existingRow = Array.from(doc.querySelectorAll('.field-order-row[data-source-line]')).find((el) => el.textContent.indexOf('EXISTP') !== -1);
+    check('EXISTP is listed in the Program tab', !!existingRow);
+    check('the Hidden tab\'s own panel does not also list EXISTP (tabs are scoped, not cross-wired)', !Array.from(doc.querySelectorAll('[data-tab-panel="hidden"] .field-order-row[data-source-line]')).some((el) => el.textContent.indexOf('EXISTP') !== -1));
+
+    console.log('  Clicking a program-to-system field row selects it into the normal field props panel (Basic/Position/Attributes/Keywords) - this is I-75\'s own fix, reaching the field so I-35\'s usage=P keyword scoping can actually be exercised');
+    existingRow.dispatchEvent(new Event('click', { bubbles: true }));
+    const nameField = doc.getElementById('p-name');
+    check('selecting EXISTP opens the normal field props panel showing its name', nameField && nameField.value === 'EXISTP');
+    const usageSelect = doc.getElementById('p-usage');
+    check('its Basic tab confirms usage P', usageSelect && usageSelect.value === 'P');
+
+    console.log('  "+ Add program-to-system field" opens an inline form (no canvas click needed) and creates a new usage=P field');
+    // Back to the record, then the Program tab again.
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelectorAll('.props-tab').forEach((b) => { if (b.getAttribute('data-tab') === 'program') b.dispatchEvent(new Event('click', { bubbles: true })); });
+    doc.getElementById('p-add-program').dispatchEvent(new Event('click', { bubbles: true }));
+    check('the add-program form is now visible', !doc.getElementById('p-add-program-form').classList.contains('hidden'));
+    doc.getElementById('p-add-program-name').value = 'NEWPGM';
+    doc.getElementById('p-add-program-length').value = '8';
+    doc.getElementById('p-add-program-confirm').dispatchEvent(new Event('click', { bubbles: true }));
+    let last = posted[posted.length - 1];
+    check('posts applyEdit with a new program-to-system (usage P) field NEWPGM', last && last.type === 'applyEdit' && /NEWPGM[\s\S]{0,15}8A\s+P\b/.test(last.text));
+
+    console.log('  Refuses to add a program-to-system field with a name that already exists in the record');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelectorAll('.props-tab').forEach((b) => { if (b.getAttribute('data-tab') === 'program') b.dispatchEvent(new Event('click', { bubbles: true })); });
+    doc.getElementById('p-add-program').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.getElementById('p-add-program-name').value = 'EXISTP';
+    const postedBefore = posted.length;
+    doc.getElementById('p-add-program-confirm').dispatchEvent(new Event('click', { bubbles: true }));
+    check('shows a name-collision error', /already exists/i.test(doc.getElementById('p-add-program-error').textContent));
+    check('nothing new was posted', posted.length === postedBefore);
+
+    console.log('  Delete button on a program-field row removes it without needing to select it first');
+    doc.getElementById('crumb-record').dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelectorAll('.props-tab').forEach((b) => { if (b.getAttribute('data-tab') === 'program') b.dispatchEvent(new Event('click', { bubbles: true })); });
+    const newpgmRow = Array.from(doc.querySelectorAll('.field-order-row[data-source-line]')).find((el) => el.textContent.indexOf('NEWPGM') !== -1);
+    check('NEWPGM is listed before deleting it', !!newpgmRow);
+    newpgmRow.querySelector('.program-field-delete').dispatchEvent(new Event('click', { bubbles: true }));
+    last = posted[posted.length - 1];
+    check('posts applyEdit with NEWPGM removed', last && last.type === 'applyEdit' && !/NEWPGM\b/.test(last.text));
+
     runFieldPropertyHelpersScenario();
   }, 0);
 }
