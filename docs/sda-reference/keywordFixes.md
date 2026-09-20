@@ -142,7 +142,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
 | [I-98](#i-98) | Record | SFLMSG record's General panel: drop the option-indicator Conditioning on `LOGINP` and `CHECK(AB)`/`CHECK(RL)` (I-9's fix never reached it) | I-9, I-76 | Done | v0.10.174 |
 | [I-99](#i-99) | Record | `SFLMSGID` panel reads and writes the wrong grammar (`library` as a 3rd token; response indicator / `&msg-data` dropped) | I-97 | Done | v0.10.175 |
-| [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | In progress | — |
+| [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | Done | v0.10.176 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -4860,11 +4860,20 @@ Existing `dspfWebview.test.js` had one check asserting the old wrong output (`MS
 
 ### I-100 — `SFLMSG` panel drops a hand-written response indicator when its text is edited
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-99
+> **Area:** Record · **Status:** Done (v0.10.176) · **Depends on:** I-99
 
 Opened from I-99's deferred finding (the one call-site correction: the text box is wired only in `wireSflCtlPanels`, on the subfile-control record's Subfile Messages panel):
 
 The **SFLMSG panel drops a hand-written response indicator on edit**, same failure shape as I-99's SFLMSGID one. `SFLMSG('message-text' [response-indicator])` is the documented form, but the panel's text box is wired as `updatePayload({ parameters: quoteDdsLiteral(input.value) })` (`wireSflCtlPanels`' SFLMSG instances - the Subfile Messages panel of the subfile-control record; `SFLMSG` is not on the message-subfile record type's own tab), so editing the text of `SFLMSG('No records' 30)` rewrites it as `SFLMSG('new text')`. Reading is fine (`unquoteDdsLiteral` takes the quoted part) and probed directly; the panel has no response-indicator input at all. ERRMSG's row in `getErrorMessageInstances`/`setErrorMessageInstances` already carries `responseIndicator` and is the model. Fix shape: same as I-99 - a `parseSflMsgParams`/`formatSflMsgParams` pair plus a response-indicator box using `sflMsgIdResponseIndicatorProblem`, and a test that editing the text keeps a hand-written indicator. Size (estimate): Small.
+
+**Done.** IBM's format is `SFLMSG('message-text' [response-indicator])`, the same shape as `ERRMSG`'s.
+
+- New `DspfWriter.parseSflMsgParams` (read the way `getErrorMessageInstances` reads `ERRMSG`: quoted text with `''` undone, then an optional bare number; a number inside the text stays text) and `formatSflMsgParams` (`'text' [indicator]`). With no indicator the output is byte-for-byte what `quoteDdsLiteral` alone produced before, so existing files do not change. Blank text still gives an empty payload, exactly as before (a bare `SFLMSG` from a blanked box is a pre-existing wart, left alone).
+- The Subfile Messages panel's `SFLMSG` row gained a **response indicator** box (`-resp`), and the text and indicator commit together, so editing either keeps the other: `SFLMSG('No records' 30)` with the text changed is now `'New text' 30`. An indicator that is not two digits 01-99 alerts (naming `SFLMSG`), puts the box back and posts no edit.
+- I-99's check is generalised to `messageResponseIndicatorProblem(keywordName, value)`; `sflMsgIdResponseIndicatorProblem` is now a one-line wrapper over it, so `SFLMSGID`'s behaviour and message are unchanged. The panel hint now says a response indicator applies to both keywords.
+- One correction to the finding as filed: the text box is wired only in `wireSflCtlPanels`. `wireSflMsgPanels` (the message-subfile record type's own tab) has no `SFLMSG` box.
+
+New `src/test/i100SflmsgResponseIndicator.test.js` (47 checks): the pure functions (the finding's string, a doubled quote, a number inside the text, ERRMSG agreement, byte-for-byte parity with `quoteDdsLiteral` when there is no indicator, round trip, the generalised check), then the real generated webview in jsdom (both boxes read from a hand-written keyword, a text edit keeps the indicator, the indicator changed / cleared / refused and reverted, an apostrophe, two independent instances, an indicator-free file unchanged, "+ Add" then an indicator). Confirmed to fail against the pre-fix code (a crash on the missing functions; run alone, the webview half fails on the reported data loss). Wired into `npm test`.
 
 *Raised by I-99. Size (estimate): Small.*
 

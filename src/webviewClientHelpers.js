@@ -7783,7 +7783,12 @@
     var sflMsgIdInstances = DspfWriter.getRepeatableKeywordInstances(kw, ['SFLMSGID']);
     var sm = '<div class="section-label">Message text (SFLMSG)</div>';
     sm += repeatableConditionedInstancesHtml(sflMsgInstances, p + '-sflmsg-rep', function (inst, instIdPrefix) {
-      return '<input type="text" id="' + instIdPrefix + '-text" placeholder="message text" value="' + escapeHtml(DspfWriter.unquoteDdsLiteral(inst.parameters)) + '" style="width:100%;" />';
+      // Task I-100: SFLMSG('message-text' [response-indicator]) - the
+      // optional indicator now has its own box (it used to be dropped the
+      // moment the text was edited).
+      var parsedMsg = DspfWriter.parseSflMsgParams(inst.parameters);
+      return '<input type="text" id="' + instIdPrefix + '-text" placeholder="message text" value="' + escapeHtml(parsedMsg.text) + '" style="width:100%;" />'
+        + '<input type="text" id="' + instIdPrefix + '-resp" placeholder="response indicator 01-99 (optional)" value="' + escapeHtml(parsedMsg.responseIndicator) + '" style="width:100%;margin-top:4px;" />';
     }, expandedSet, '+ Add SFLMSG instance');
     sm += '<div class="section-label" style="margin-top:14px;">Message ID (SFLMSGID)</div>';
     sm += repeatableConditionedInstancesHtml(sflMsgIdInstances, p + '-sflmsgid-rep', function (inst, instIdPrefix) {
@@ -7801,7 +7806,7 @@
       html += '</div>';
       return html;
     }, expandedSet, '+ Add SFLMSGID instance');
-    sm += '<div class="hint-small">Each instance above is independently conditioned (its own Conditioning toggle) - add as many as needed for different messages/message-IDs under different indicators. The response indicator is turned off again by the system on the next input operation, and the message data field must be a character (A) field with usage P in this record.</div>';
+    sm += '<div class="hint-small">Each instance above is independently conditioned (its own Conditioning toggle) - add as many as needed for different messages/message-IDs under different indicators. A response indicator (SFLMSG and SFLMSGID) is turned off again by the system on the next input operation, and SFLMSGID\'s message data field must be a character (A) field with usage P in this record.</div>';
     panels.subfileMessages = sm;
 
     return panels;
@@ -7950,10 +7955,22 @@
       onChange(DspfWriter.setRepeatableKeywordInstances(getKeywords(), ['SFLMSG'], nextInstances));
     }, function (instIdPrefix, inst, updatePayload) {
       var input = document.getElementById(instIdPrefix + '-text');
-      if (!input) return;
-      input.addEventListener('change', function () {
-        updatePayload({ parameters: DspfWriter.quoteDdsLiteral(input.value) });
-      });
+      var respInput = document.getElementById(instIdPrefix + '-resp');
+      if (!input || !respInput) return;
+      // Task I-100: text and response indicator commit together, so editing
+      // either one keeps the other. An indicator that is not two digits
+      // 01-99 is refused (alert, box put back, no edit posted).
+      function commitSflMsg() {
+        var respProblem = DspfWriter.messageResponseIndicatorProblem('SFLMSG', respInput.value);
+        if (respProblem) {
+          window.alert(respProblem);
+          respInput.value = DspfWriter.parseSflMsgParams(inst.parameters).responseIndicator;
+          return;
+        }
+        updatePayload({ parameters: DspfWriter.formatSflMsgParams({ text: input.value, responseIndicator: respInput.value }) });
+      }
+      input.addEventListener('change', commitSflMsg);
+      respInput.addEventListener('change', commitSflMsg);
     }, expandedSet, rerender, function makeDefaultSflMsg() {
       // Non-blank placeholder text, not '' - unlike Error messages (Task
       // L1b, see makeDefaultInstance's own comment above), a blank SFLMSG

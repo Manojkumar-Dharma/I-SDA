@@ -7959,16 +7959,46 @@
     return parts.join(' ');
   }
 
-  /** Task I-99: null when `value` is blank or a valid response indicator
-   *  (2 digits, 01-99, the range the DDS Reference gives for indicators),
-   *  otherwise the message the SFLMSGID panel alerts with. A bare
-   *  non-numeric token here would be written into the response-indicator
-   *  slot verbatim and read back as something else. */
-  function sflMsgIdResponseIndicatorProblem(value) {
+  /** Task I-99 / I-100: null when `value` is blank or a valid response
+   *  indicator (2 digits, 01-99, the range the DDS Reference gives for
+   *  indicators), otherwise the message the panel alerts with, naming
+   *  `keywordName` (SFLMSGID, SFLMSG). A bare non-numeric token here would
+   *  be written into the response-indicator slot verbatim and read back as
+   *  something else. */
+  function messageResponseIndicatorProblem(keywordName, value) {
     var v = String(value == null ? '' : value).trim();
     if (!v) return null;
     if (/^(0[1-9]|[1-9][0-9])$/.test(v)) return null;
-    return 'SFLMSGID\u2019s response indicator must be a two-digit indicator from 01 to 99 (got \u201c' + v + '\u201d).';
+    return String(keywordName) + '\u2019s response indicator must be a two-digit indicator from 01 to 99 (got \u201c' + v + '\u201d).';
+  }
+
+  /** SFLMSGID's own name for messageResponseIndicatorProblem (Task I-99). */
+  function sflMsgIdResponseIndicatorProblem(value) {
+    return messageResponseIndicatorProblem('SFLMSGID', value);
+  }
+
+  /**
+   * Task I-100: parses a raw SFLMSG parameter string. IBM's format is
+   * `SFLMSG('message-text' [response-indicator])` (DDS Reference, SFLMSG
+   * keyword) - the same shape as ERRMSG's, and read the same way
+   * getErrorMessageInstances reads ERRMSG. Returns { text, responseIndicator }
+   * with the quoting undone (`''` -> `'`). Anything after the quoted text
+   * that is not a bare number is ignored, as for ERRMSG.
+   */
+  function parseSflMsgParams(parameters) {
+    var m = /^'((?:[^']|'')*)'(?:\s+(\d+))?/.exec((parameters || '').trim());
+    return { text: m ? m[1].replace(/''/g, "'") : '', responseIndicator: (m && m[2]) || '' };
+  }
+
+  /** Inverse of parseSflMsgParams: `'message text' [response-indicator]`.
+   *  Blank text gives '' (an instance with a blank payload), exactly as
+   *  quoteDdsLiteral alone did before I-100 - the caller decides what that
+   *  means - so the indicator is only ever written next to real text. */
+  function formatSflMsgParams(state) {
+    var quoted = quoteDdsLiteral(state && state.text);
+    if (!quoted) return '';
+    var responseIndicator = ((state && state.responseIndicator) || '').trim();
+    return responseIndicator ? quoted + ' ' + responseIndicator : quoted;
   }
 
   // ---------------------------------------------------------------------
@@ -8619,6 +8649,9 @@
     parseSflMsgIdParams: parseSflMsgIdParams,
     formatSflMsgIdParams: formatSflMsgIdParams,
     sflMsgIdResponseIndicatorProblem: sflMsgIdResponseIndicatorProblem,
+    messageResponseIndicatorProblem: messageResponseIndicatorProblem,
+    parseSflMsgParams: parseSflMsgParams,
+    formatSflMsgParams: formatSflMsgParams,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
     serializeDisplaySizes: serializeDisplaySizes,
     getS36ERestriction: getS36ERestriction,
