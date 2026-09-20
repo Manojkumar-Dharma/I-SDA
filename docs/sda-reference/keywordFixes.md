@@ -148,6 +148,14 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | In progress (re-claimed; earlier claim had no follow-up commit) | — |
 | [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Done (test only) | v0.10.181 |
 | [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Not started | — |
+| [I-106](#i-106) | Record | `UNLOCK`: not guarded on `SFL` / `USRDFN` records | I-104 | Not started | — |
+| [I-107](#i-107) | Record | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records | I-104 | Not started | — |
+| [I-108](#i-108) | Record | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records | I-104 | Not started | — |
+| [I-109](#i-109) | Record | Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch) | I-104 | Not started | — |
+| [I-110](#i-110) | Record | "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted | I-104 | Not started | — |
+| [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Not started | — |
+| [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Not started | — |
+| [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -162,25 +170,25 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-103](#i-103) | In progress | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 2 | [I-104](#i-104) | Not started | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`). Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 3 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 4 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-106](#i-106) | Not started | `UNLOCK`: not guarded on `SFL` / `USRDFN` records. Size (estimate): Small. Raised by I-104. |
+| 3 | [I-107](#i-107) | Not started | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records. Size (estimate): Small. Raised by I-104. |
+| 4 | [I-108](#i-108) | Not started | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records. Size (estimate): Small. Raised by I-104. |
+| 5 | [I-110](#i-110) | Not started | "+ Add" `HLPTITLE` / `MNUBARDSP`: accepted although not whitelisted. Size (estimate): Small. Raised by I-104. |
+| 6 | [I-109](#i-109) | Not started | Record Indicator row: no `USRDFN` whitelist. Size (estimate): Small. Raised by I-104. |
+| 7 | [I-111](#i-111) | Not started | Guards run on every edit while the box is ticked, not on a real turn-on. Size (estimate): Small–medium. Raised by I-102. |
+| 8 | [I-112](#i-112) | Not started | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
+| 9 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
+| 10 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 11 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 12 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-Every earlier finding has been opened as a task (I-61 – I-105, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-113, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-104 (finding A) | **`UNLOCK` is not guarded on an `SFL` record** (and, latent, a `USRDFN` one). `UNLOCK` is not in SFL's "also valid" list (`SFL_RECORD_WHITELIST_KEYWORDS`) nor USRDFN's whitelist, but ticking `rec-unlock-on` (Input tab) is accepted; the row is not wired through the SFL/USRDFN whitelist guards. Reachable on SFL (all seven tabs shown), latent on USRDFN (R2 hides the Input tab). Fix shape: wire it through `sflWhitelistConflictReason` / `usrdfnWhitelistConflictReason` like its neighbours; then remove `SFL|cb:unlock` and `USRDFN|cb:unlock` from `KNOWN_GAPS` in `i104RecordKeywordRowSweep.test.js`. Size: Small. |
-| I-104 (finding B) | **`CHECK(AB)` / `CHECK(RL)` are not guarded on a `MNUBAR` record** (and, latent, a `USRDFN` one). `CHECK` is on SFL's whitelist but not on MNUBAR's or USRDFN's; the two Input-tab rows (`rec-check-ab-on`, `rec-check-rl-on`) accept it on both. Same fix shape and `KNOWN_GAPS` entries (`MNUBAR|cb:check-ab`, `MNUBAR|cb:check-rl`, `USRDFN|cb:check-ab`, `USRDFN|cb:check-rl`). Size: Small. |
-| I-104 (finding C) | **The `ALTNAME` text row is accepted on `USRDFN`, `SFL` and `MNUBAR` records.** It is on none of the three whitelists (and the DDS Reference says "ALTNAME is not allowed on subfile records (SFL keyword)"), but `rec-altname` (General tab) commits without any whitelist check. Reachable on all three. Fix shape: an add guard on the input row; `KNOWN_GAPS` entries `USRDFN|input:altname`, `SFL|input:altname`, `MNUBAR|input:altname`. Size: Small. |
-| I-104 (finding D) | **The record-level Indicator row has no `USRDFN` whitelist.** `recordIndicatorKindConflictReason` runs the SFL and MNUBAR whitelists and PULLDOWN's `CLEAR` check, but never `usrdfnWhitelistConflictReason`; so on a USRDFN record both "+ Add indicator keyword" (which creates `CLEAR`) and switching an instance's kind to `CLEAR`, `PAGEDOWN`, `PAGEUP`, `HOME`, `VLDCMDKEY`, `SETOF`, `CHANGE` or `INDTXT` are accepted; only `HELP` and `HLPRTN` are on USRDFN's list. Latent (R2 hides the Indicator tab), but the guards exist for hand-edited files and for R2 changing. Fix shape: add the USRDFN check to `recordIndicatorKindConflictReason` and the Add path (which must also stop defaulting to `CLEAR` on a USRDFN record); nine `USRDFN|kind:*` / `USRDFN|add:rec-recind-rep` entries come out of `KNOWN_GAPS`. Size: Small. |
-| I-104 (finding E) | **"+ Add" for `HLPTITLE` is accepted on `USRDFN` and `SFL` records and for `MNUBARDSP` on a `USRDFN` record** - none is on that record type's whitelist. `MOUBTN`'s Add is guarded correctly and is the model. Reachable (Help and General tabs). `KNOWN_GAPS` entries `USRDFN|add:rec-hlptitle-rep`, `SFL|add:rec-hlptitle-rep`, `USRDFN|add:rec-mnubardsp-rep`. Size: Small. |
-| I-102 | The "the box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` also exists in `wirePulldownGuardedFlag` (and, by the same `present`-gated pattern read from the code but **not probed**, in `wireUsrdfnGuardedFlag` and `wireUsrdfnGuardedTwoField`): its `USRDFN`/`SFL`/`MNUBAR` checks run whenever the keyword's box is ticked, not on a real turn-on. Confirmed by probe on the record panels: on a hand-written `USRDFN` record that already carries `MDTOFF(1)` or `SLNO(3)`, editing the keyword's parameter is refused with "... cannot be specified on a user-defined (USRDFN) record format", and on an `SFL` record with `MDTOFF(1)` with "... cannot be added to a subfile (SFL) record format"; un-ticking works and a plain record edits normally. The message is wrong for an edit and it blocks tidying an already-invalid record. Same fix shape as I-84: gate on the real transition (the keyword was not already present), in each of the three functions, with a test per function. Size (estimate): Small–medium. |
-| I-74 | Validity-checking keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` are inherited from a referenced field per the DDS Reference, but the DSPFFD outfile (`QWHDRFFD`) carries only a count of validity checks (`WHVCNE`) and no `FLTPCN` column, so the read-only inherited list cannot show them. Needs a research step first: another source for them (a catalog view, or DSPFFD `OUTPUT(*PRINT)`), or document it as a limit. |
-| I-74 | **+ Fields from database file** (L14) still writes an explicit length, data type and decimals next to `REFFLD`. By the same IBM rule (position 29) a field that specifies them does not inherit the referenced field's editing or validity checking. Decide whether it should write a bare `R` field with `REFFLD` only (then resolve for the preview), which would also stop it writing packed/binary types into position 35 of a display file. |
+| - | None at the moment. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5053,5 +5061,117 @@ So the user sees a mix: some inapplicable keywords vanish, others are offered an
 **Decide first**, then build: (a) hide every non-applicable row on a `USRDFN` record, consistent with R2, but then a hand-written invalid keyword can no longer be un-ticked in the panel (the same hazard I-72 recorded for `dtScope`-style gating); (b) show them **disabled** with the reason, which needs the row builders to accept a disabled state and a reason; (c) keep refuse-on-tick and stop hiding the whitelisted ones (`INVITE`). R2's own comment above `isUsrDfnRecord` says the narrowing follows what real SDA's `USRDFN` menu shows, so check the options against the screenshots under `docs/sda-reference/screens` before choosing. Also decide whether `SFL` and `MNUBAR` records, which have their own whitelists, follow the same rule.
 
 *Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176), after I-95. Size (estimate): Medium.*
+
+---
+
+<a id="i-106"></a>
+
+### I-106 — `UNLOCK`: not guarded on `SFL` / `USRDFN` records
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-104
+
+Opened from a deferred finding raised by I-104 (finding A), verbatim:
+
+**`UNLOCK` is not guarded on an `SFL` record** (and, latent, a `USRDFN` one). `UNLOCK` is not in SFL's "also valid" list (`SFL_RECORD_WHITELIST_KEYWORDS`) nor USRDFN's whitelist, but ticking `rec-unlock-on` (Input tab) is accepted; the row is not wired through the SFL/USRDFN whitelist guards. Reachable on SFL (all seven tabs shown), latent on USRDFN (R2 hides the Input tab). Fix shape: wire it through `sflWhitelistConflictReason` / `usrdfnWhitelistConflictReason` like its neighbours; then remove `SFL|cb:unlock` and `USRDFN|cb:unlock` from `KNOWN_GAPS` in `i104RecordKeywordRowSweep.test.js`. Size: Small.
+
+*Raised by I-104 (finding A). Size (estimate): Small.*
+
+---
+
+<a id="i-107"></a>
+
+### I-107 — `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-104
+
+Opened from a deferred finding raised by I-104 (finding B), verbatim:
+
+**`CHECK(AB)` / `CHECK(RL)` are not guarded on a `MNUBAR` record** (and, latent, a `USRDFN` one). `CHECK` is on SFL's whitelist but not on MNUBAR's or USRDFN's; the two Input-tab rows (`rec-check-ab-on`, `rec-check-rl-on`) accept it on both. Same fix shape and `KNOWN_GAPS` entries (`MNUBAR|cb:check-ab`, `MNUBAR|cb:check-rl`, `USRDFN|cb:check-ab`, `USRDFN|cb:check-rl`). Size: Small.
+
+*Raised by I-104 (finding B). Size (estimate): Small.*
+
+---
+
+<a id="i-108"></a>
+
+### I-108 — `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-104
+
+Opened from a deferred finding raised by I-104 (finding C), verbatim:
+
+**The `ALTNAME` text row is accepted on `USRDFN`, `SFL` and `MNUBAR` records.** It is on none of the three whitelists (and the DDS Reference says "ALTNAME is not allowed on subfile records (SFL keyword)"), but `rec-altname` (General tab) commits without any whitelist check. Reachable on all three. Fix shape: an add guard on the input row; `KNOWN_GAPS` entries `USRDFN|input:altname`, `SFL|input:altname`, `MNUBAR|input:altname`. Size: Small.
+
+*Raised by I-104 (finding C). Size (estimate): Small.*
+
+---
+
+<a id="i-109"></a>
+
+### I-109 — Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch)
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-104
+
+Opened from a deferred finding raised by I-104 (finding D), verbatim:
+
+**The record-level Indicator row has no `USRDFN` whitelist.** `recordIndicatorKindConflictReason` runs the SFL and MNUBAR whitelists and PULLDOWN's `CLEAR` check, but never `usrdfnWhitelistConflictReason`; so on a USRDFN record both "+ Add indicator keyword" (which creates `CLEAR`) and switching an instance's kind to `CLEAR`, `PAGEDOWN`, `PAGEUP`, `HOME`, `VLDCMDKEY`, `SETOF`, `CHANGE` or `INDTXT` are accepted; only `HELP` and `HLPRTN` are on USRDFN's list. Latent (R2 hides the Indicator tab), but the guards exist for hand-edited files and for R2 changing. Fix shape: add the USRDFN check to `recordIndicatorKindConflictReason` and the Add path (which must also stop defaulting to `CLEAR` on a USRDFN record); nine `USRDFN|kind:*` / `USRDFN|add:rec-recind-rep` entries come out of `KNOWN_GAPS`. Size: Small.
+
+*Raised by I-104 (finding D). Size (estimate): Small.*
+
+---
+
+<a id="i-110"></a>
+
+### I-110 — "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-104
+
+Opened from a deferred finding raised by I-104 (finding E), verbatim:
+
+**"+ Add" for `HLPTITLE` is accepted on `USRDFN` and `SFL` records and for `MNUBARDSP` on a `USRDFN` record** - none is on that record type's whitelist. `MOUBTN`'s Add is guarded correctly and is the model. Reachable (Help and General tabs). `KNOWN_GAPS` entries `USRDFN|add:rec-hlptitle-rep`, `SFL|add:rec-hlptitle-rep`, `USRDFN|add:rec-mnubardsp-rep`. Size: Small.
+
+*Raised by I-104 (finding E). Size (estimate): Small.*
+
+---
+
+<a id="i-111"></a>
+
+### I-111 — `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-84, I-102
+
+Opened from a deferred finding raised by I-102, verbatim:
+
+The "the box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` also exists in `wirePulldownGuardedFlag` (and, by the same `present`-gated pattern read from the code but **not probed**, in `wireUsrdfnGuardedFlag` and `wireUsrdfnGuardedTwoField`): its `USRDFN`/`SFL`/`MNUBAR` checks run whenever the keyword's box is ticked, not on a real turn-on. Confirmed by probe on the record panels: on a hand-written `USRDFN` record that already carries `MDTOFF(1)` or `SLNO(3)`, editing the keyword's parameter is refused with "... cannot be specified on a user-defined (USRDFN) record format", and on an `SFL` record with `MDTOFF(1)` with "... cannot be added to a subfile (SFL) record format"; un-ticking works and a plain record edits normally. The message is wrong for an edit and it blocks tidying an already-invalid record. Same fix shape as I-84: gate on the real transition (the keyword was not already present), in each of the three functions, with a test per function. Size (estimate): Small–medium.
+
+*Raised by I-102. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-112"></a>
+
+### I-112 — `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-74
+
+Opened from a deferred finding raised by I-74, verbatim:
+
+Validity-checking keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` are inherited from a referenced field per the DDS Reference, but the DSPFFD outfile (`QWHDRFFD`) carries only a count of validity checks (`WHVCNE`) and no `FLTPCN` column, so the read-only inherited list cannot show them. Needs a research step first: another source for them (a catalog view, or DSPFFD `OUTPUT(*PRINT)`), or document it as a limit.
+
+*Raised by I-74. Size (estimate): Small (research).*
+
+---
+
+<a id="i-113"></a>
+
+### I-113 — "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-74
+
+Opened from a deferred finding raised by I-74, verbatim:
+
+**+ Fields from database file** (L14) still writes an explicit length, data type and decimals next to `REFFLD`. By the same IBM rule (position 29) a field that specifies them does not inherit the referenced field's editing or validity checking. Decide whether it should write a bare `R` field with `REFFLD` only (then resolve for the preview), which would also stop it writing packed/binary types into position 35 of a display file.
+
+*Raised by I-74. Size (estimate): Small–medium.*
 
 ---
