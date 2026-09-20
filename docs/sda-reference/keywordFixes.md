@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-82 of 96 tasks done; 14 open (see [Open work](#open-work)). Current version: **v0.10.164**.
+85 of 96 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.164**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -137,7 +137,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Done | v0.10.164 |
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
 | [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
-| [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Not started | — |
+| [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | In progress | — |
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -152,7 +152,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
+| 1 | [I-95](#i-95) | In progress | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
 | 3 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
 | 4 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
@@ -4626,7 +4626,7 @@ Found while fixing I-71. `IGCALTTYP` eligibility (same DDS section, first rule):
 
 ### I-95 — `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle)
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-71
+> **Area:** Field · **Status:** In progress · **Depends on:** I-71
 
 Found while fixing I-71. "Option indicators are not allowed with `IGCALTTYP`" (same section). I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle is not gated by keyword, so an indicator can still be put on a raw-added `IGCALTTYP` (and a hand-written one is not flagged). Check whether a generic "no option indicators" keyword list already exists for the other no-indicator keywords before adding one just for this.
 
