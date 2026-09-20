@@ -1151,6 +1151,11 @@ const htmlTemplate = `<!DOCTYPE html>
 
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
   let model = DspfParser.parseDspf(sourceText);
+  // Task I-74: resolved definitions of referenced database fields (Resolve
+  // Referenced Field), keyed by DspfEngine.referenceKey(). Held here in memory
+  // only - never written into the DDS source - and re-attached to the model in
+  // render() (the model is re-parsed on every edit).
+  let resolvedReferences = {};
   let selectedKey = null;
   // Task L10: multi-field select, block move/copy/delete/style - real SDA's Design
   // Image screen convention (block-select via '- -'/'= =' line commands) generalized
@@ -3153,6 +3158,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function render() {
+    model.resolvedReferences = resolvedReferences;
     hideCrosshair();
     clearCanvasMessage();
     mainHint.classList.remove('hint-readonly');
@@ -4403,7 +4409,14 @@ const htmlTemplate = `<!DOCTYPE html>
       basicHtml += '<button id="p-fill" class="secondary" style="width:100%;margin-bottom:12px;">Fill</button>';
     } else {
       basicHtml += '<div class="field-row"><label>Name</label><input type="text" id="p-name" value="' + (field.name || '') + '" /></div>';
-      basicHtml += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-length" value="' + (field.length != null ? field.length : '') + '" /></div>';
+      // Task I-74: a reference field's length may be blank (use the referenced
+      // field's), absolute, or +n/-n (increase/decrease it) - so it is a text box
+      // there; a number box everywhere else.
+      if (field.isReference) {
+        basicHtml += '<div class="two-col"><div class="field-row"><label>Length</label><input type="text" id="p-length" placeholder="blank, n, +n or -n" title="Blank uses the length of the referenced field; +n / -n increases / decreases it." value="' + (field.lengthAdjust != null ? (field.lengthAdjust < 0 ? '-' : '+') + Math.abs(field.lengthAdjust) : (field.length != null ? field.length : '')) + '" /></div>';
+      } else {
+        basicHtml += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-length" value="' + (field.length != null ? field.length : '') + '" /></div>';
+      }
       basicHtml += '<div class="field-row"><label>Decimals</label><input type="number" id="p-dec" value="' + (field.decimalPositions != null ? field.decimalPositions : '') + '" /></div></div>';
       basicHtml += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
         ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
@@ -4440,6 +4453,16 @@ const htmlTemplate = `<!DOCTYPE html>
       // you type R and press Enter - see extension.ts's
       // handleResolveReferencedField for the Code for i round-trip itself.
       attrsHtml += '<button id="p-resolve-ref" class="secondary" style="width:100%;margin-bottom:12px;">Resolve Referenced Field (Code for i)</button>';
+      // Task I-74: the referenced field's other keywords (TEXT, ALIAS, CCSID,
+      // editing, date/time formats) are listed read-only - inherited, not copied
+      // into the source, so a +n/-n length keeps working.
+      const refDefinition = DspfEngine.lookupResolvedReference(model, found.record, field);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::reference-inherited', 'Inherited from referenced field', WebviewClientHelpers.referenceInheritedHtml({
+        field: field,
+        definition: refDefinition,
+        inherited: refDefinition ? DspfEngine.inheritedReferenceKeywords(field, refDefinition) : null,
+        effectiveLength: refDefinition ? DspfEngine.effectiveReferenceLength(field, refDefinition) : null,
+      }), true);
     }
     if (!isConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, accordionOpenState);
@@ -4483,7 +4506,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!isConstant && catVis.databaseReference) {
       let dbRefBody = '';
-      if (field.isReference) dbRefBody += '<div class="hint-small">Tip: the \u201cResolve Referenced Field\u201d button above can fill in length/type/decimals from a live IBM i connection once REFFLD/REF point somewhere real.</div>';
+      if (field.isReference) dbRefBody += '<div class="hint-small">Tip: the \u201cResolve Referenced Field\u201d button above loads length/type/decimals and the inherited keywords from a live IBM i connection once REFFLD/REF point somewhere real. They are held in the designer and shown in the preview - the DDS source is not changed.</div>';
       dbRefBody += WebviewClientHelpers.databaseReferenceHtml(field, 'field-' + field.sourceLine, expandedKeywordConditioning);
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::database-reference', 'Database reference', dbRefBody, false);
     }
@@ -4615,7 +4638,12 @@ const htmlTemplate = `<!DOCTYPE html>
         updates.constantValue = document.getElementById('p-const-text').value;
       } else {
         updates.name = document.getElementById('p-name').value.trim().toUpperCase();
-        updates.length = document.getElementById('p-length').value === '' ? null : parseInt(document.getElementById('p-length').value, 10);
+        const lengthText = document.getElementById('p-length').value.trim();
+        if (field.isReference && /^[+-]\\d+$/.test(lengthText)) {
+          updates.lengthAdjust = parseInt(lengthText, 10); // Task I-74: +n / -n against the referenced field
+        } else {
+          updates.length = lengthText === '' ? null : parseInt(lengthText, 10);
+        }
         updates.decimalPositions = document.getElementById('p-dec').value === '' ? null : parseInt(document.getElementById('p-dec').value, 10);
         updates.dataType = document.getElementById('p-type').value || null;
         updates.usage = document.getElementById('p-usage').value || null;
@@ -6964,6 +6992,10 @@ const htmlTemplate = `<!DOCTYPE html>
       sourceText = msg.text;
       model = DspfParser.parseDspf(sourceText);
       clearSelection();
+      render();
+    } else if (msg.type === 'referencesResolved') {
+      // Task I-74 - see resolvedReferences' own comment.
+      (msg.entries || []).forEach((entry) => { resolvedReferences[entry.key] = entry.definition; });
       render();
     } else if (msg.type === 'databaseFieldsResult') {
       // Task L14 - see showDatabaseFieldsPicker's own comment for why this

@@ -175,10 +175,11 @@ async function run() {
         cspSource: 'x', options: null,
         set html(v) {}, get html() { return ''; },
         onDidReceiveMessage: (h) => { refMessageHandler = h; return { dispose: () => {} }; },
-        postMessage: () => {},
+        postMessage: (m) => refPosted.push(m),
       },
       onDidDispose: () => {},
     };
+    const refPosted = [];
     providerEntry.provider.resolveCustomTextEditor(refDoc, refPanel, {});
 
     console.log('  Code for i not installed');
@@ -201,17 +202,24 @@ async function run() {
             },
             runSQL: async (sql) => {
               runSqlCalls.push(sql);
-              return [{ WHFLDT: 'A', WHFLDB: 25, WHFLDD: 0, WHFLDP: 0 }];
+              return [{ WHFLDT: 'A', WHFLDB: 25, WHFLDD: 0, WHFLDP: 0, WHFTXT: 'Customer number' }];
             },
           }),
         },
       },
     });
-    vscodeMock.__lastAppliedEdit = undefined;
     vscodeMock.__lastInformation = undefined;
+    const editBeforeResolve = vscodeMock.__lastAppliedEdit; // getter-only on the mock - compare by reference (see the L14 test below)
     await refMessageHandler({ type: 'resolveReferencedField', recordName: 'SCR1', fieldSourceLine: 3 });
-    const appliedEdit = vscodeMock.__lastAppliedEdit;
-    check('applies a WorkspaceEdit with the resolved length written into the source', !!appliedEdit && /CUSTNO\s+R\s+25\s+B/.test(appliedEdit.edits[0].newText.split('\n')[2]));
+    const appliedEdit = vscodeMock.__lastAppliedEdit !== editBeforeResolve ? vscodeMock.__lastAppliedEdit : undefined;
+    // Task I-74: nothing is written into the source any more - the resolved
+    // definition (and the keywords it passes on) goes back to the webview.
+    check('Task I-74: does NOT edit the document (no WorkspaceEdit)', !appliedEdit);
+    const resolvedMsg = refPosted.find((m) => m.type === 'referencesResolved');
+    check('Task I-74: posts a referencesResolved message to the webview', !!resolvedMsg && resolvedMsg.entries.length === 1);
+    check('Task I-74: keyed by library/file/field', !!resolvedMsg && resolvedMsg.entries[0].key === 'MYLIB/CUSMSTP/CUSTNO');
+    check('Task I-74: carries the resolved length (25)', !!resolvedMsg && resolvedMsg.entries[0].definition.length === 25);
+    check('Task I-74: carries the inheritable keywords (TEXT from WHFTXT)', !!resolvedMsg && resolvedMsg.entries[0].definition.keywords.some((k) => k.name === 'TEXT' && k.parameters === "'Customer number'"));
     check('confirms success to the user', /Resolved 1 referenced field/.test(vscodeMock.__lastInformationMessage || ''));
     check('queried the reference file field by name (CUSTNO)', runSqlCalls.some((sql) => sql.includes("WHFLDI = 'CUSTNO'")));
 

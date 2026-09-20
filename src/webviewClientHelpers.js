@@ -2831,6 +2831,47 @@
     });
   }
 
+  /**
+   * Task I-74 - the read-only "Inherited from referenced field" panel of a
+   * reference field ("R" in position 29). Lists the keywords the field inherits
+   * from the resolved database field (TEXT, ALIAS, CCSID, editing, date/time
+   * formats) as non-editable chips - they are applied by the system at compile
+   * time and are NOT written into the source, which is what keeps a "+n"/"-n"
+   * length adjustment intact. `opts`: { field, definition (resolved definition or
+   * null), inherited ({keywords, notes} from DspfEngine.inheritedReferenceKeywords),
+   * effectiveLength }.
+   */
+  function referenceInheritedHtml(opts) {
+    var field = opts.field || {};
+    var def = opts.definition;
+    if (!def) {
+      return '<div class="hint-small reference-inherited-unresolved">Not resolved yet. Use \u201cResolve Referenced Field\u201d to load the referenced field\u2019s length, type and the keywords it passes on. They are shown here and in the preview only - nothing is written into the DDS source.</div>';
+    }
+    var html = '<div class="reference-inherited">';
+    html += '<div class="hint-small reference-inherited-def">Referenced field: length ' + escapeHtml(String(def.length)) +
+      ', data type ' + escapeHtml(def.dataType || 'A') +
+      ', decimals ' + escapeHtml(String(def.decimalPositions == null ? 0 : def.decimalPositions)) + '.</div>';
+    if (field.lengthAdjust != null) {
+      html += '<div class="hint-small reference-inherited-length">Length ' + (field.lengthAdjust < 0 ? '-' : '+') + Math.abs(field.lengthAdjust) +
+        ' gives an effective length of ' + escapeHtml(String(opts.effectiveLength)) + '.</div>';
+    }
+    var kws = (opts.inherited && opts.inherited.keywords) || [];
+    if (kws.length === 0) {
+      html += '<div class="hint-small">No keywords are inherited from the referenced field.</div>';
+    } else {
+      html += '<div class="hint-small">Inherited keywords (read-only - copied by the system, not written into the source):</div><div class="reference-inherited-keywords">';
+      kws.forEach(function (k) {
+        html += '<span class="keyword-chip inherited-keyword" title="Inherited from the referenced field">' + escapeHtml(k.name) +
+          (k.parameters ? '(' + escapeHtml(k.parameters) + ')' : '') + '</span>';
+      });
+      html += '</div>';
+    }
+    ((opts.inherited && opts.inherited.notes) || []).forEach(function (n) {
+      html += '<div class="hint-small reference-inherited-note">' + escapeHtml(n) + '</div>';
+    });
+    return html + '</div>';
+  }
+
   /** L79 - "Define Database Reference", now covering REFFLD itself (see
    *  DspfWriter.getReffldState/applyReffldState's own doc comments for
    *  REFFLD's exact grammar), alongside (not replacing) DLTCHK/DLTEDT
@@ -8350,6 +8391,7 @@
     referenceOverridesHtml: referenceOverridesHtml,
     wireReferenceOverridesEditor: wireReferenceOverridesEditor,
     databaseReferenceHtml: databaseReferenceHtml,
+    referenceInheritedHtml: referenceInheritedHtml,
     wireDatabaseReferenceEditor: wireDatabaseReferenceEditor,
     messageIdInstancesHtml: messageIdInstancesHtml,
     wireMessageIdInstancesEditor: wireMessageIdInstancesEditor,

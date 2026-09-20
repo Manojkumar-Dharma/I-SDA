@@ -28,6 +28,8 @@ const MnuCmdEngine: {
 // onDidChangeTextDocument -> 'externalUpdate' plumbing already in place below).
 const DspfEngine: {
   resolveReferenceTarget(dspfFile: any, record: any, field: any): { fieldName: string; library: string | null; file: string } | null;
+  referenceKey(target: { fieldName: string; library: string | null; file: string }): string | null;
+  inheritableKeywordsFromDspffdRow(row: any): Array<{ name: string; parameters: string }>;
 } = require('./dspfEngine.js');
 const DspfWriter: {
   applyFieldUpdate(field: any, sourceLines: string[], updates: any): string[];
@@ -627,6 +629,14 @@ async function openInDesigner(uri: vscode.Uri, viewType: string): Promise<void> 
 type ReferencedFieldAttributes = { length: number; dataType: string; decimalPositions: number | null };
 
 /**
+ * Task I-74: what a resolve returns for one referenced field - its length/type/
+ * decimals plus the keywords it lets a referencing field inherit (TEXT, ALIAS,
+ * CCSID, editing, date/time formats - see DspfEngine.inheritableKeywordsFromDspffdRow).
+ * Held in memory by the webview, never written into the DDS source.
+ */
+type ResolvedReference = ReferencedFieldAttributes & { keywords: Array<{ name: string; parameters: string }> };
+
+/**
  * Interprets one DSPFFD OUTFILE row (QADSPFFD/QWHDRFFD format) into DDS's
  * own length/type/decimals shape - shared by fetchReferencedFieldAttributes
  * (one named field) and fetchDatabaseFileFields (Task L14 - every field in
@@ -669,7 +679,7 @@ function mapDspffdRowToAttributes(row: any): ReferencedFieldAttributes {
  */
 async function fetchReferencedFieldAttributes(
   target: { fieldName: string; library: string | null; file: string }
-): Promise<ReferencedFieldAttributes | { error: string }> {
+): Promise<ResolvedReference | { error: string }> {
   const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
   if (!ext) {
     return { error: 'Resolve Referenced Field requires the Code for IBM i extension (halcyontechltd.code-for-ibmi), installed and connected.' };
@@ -712,7 +722,10 @@ async function fetchReferencedFieldAttributes(
   }
 
   const escapedField = target.fieldName.toUpperCase().replace(/'/g, "''");
-  const sql = `SELECT WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} WHERE WHFLDI = '${escapedField}' FETCH FIRST 1 ROW ONLY`;
+  // Task I-74: SELECT * (not a column list) - the keyword columns (WHFTXT, WHALIS/WHALI2,
+  // WHCSID, WHECDE, WHEWRD, WHFMT, WHSEP) are read by name from the row, so a release
+  // that lacks one of them (e.g. WHALI2) just yields no keyword instead of failing the whole resolve.
+  const sql = `SELECT * FROM QTEMP.${tempMember} WHERE WHFLDI = '${escapedField}' FETCH FIRST 1 ROW ONLY`;
   let rows: any[];
   try {
     rows = await connection.runSQL(sql);
@@ -723,7 +736,7 @@ async function fetchReferencedFieldAttributes(
     return { error: `Field "${target.fieldName}" was not found in ${qualifiedFile}.` };
   }
 
-  return mapDspffdRowToAttributes(rows[0]);
+  return { ...mapDspffdRowToAttributes(rows[0]), keywords: DspfEngine.inheritableKeywordsFromDspffdRow(rows[0]) };
 }
 
 /**
@@ -855,32 +868,36 @@ async function fetchDatabaseFileFields(
 
 /**
  * Handles a 'resolveReferencedField'/'resolveAllReferencedFields' message
- * from either designer's webview: re-parses the CURRENT document (not
- * whatever model the webview last had - a network round-trip means the
- * document could have changed underneath this by the time results come
- * back), resolves each target field's real attributes over Code for i, and
- * applies every successful one as a single WorkspaceEdit. Re-parses again
- * after EACH field when resolving several at once, same "never trust a
- * stale sourceLine after an edit" discipline the webview's own multi-step
- * edits (e.g. menu option swap) already follow - one field's edit can never
- * change how many lines an unrelated field spans (only its own positional
- * columns), but re-parsing defensively costs little and rules that out for
- * good rather than relying on that invariant staying true forever.
+ * from the DSPF designer's webview: parses the CURRENT document, resolves each
+ * target field's real attributes over Code for i, and posts every successful
+ * one back to the webview as a 'referencesResolved' message.
+ *
+ * Task I-74: nothing is written into the document any more. A resolved
+ * definition (length/type/decimals plus the keywords the field inherits) lives in
+ * the webview's memory, keyed by DspfEngine.referenceKey(), and is applied on top
+ * of the reference field when the screen is drawn. Writing the database's
+ * absolute length/type/decimals into columns 30-37 both erased a "+n"/"-n" length
+ * adjustment and, per the DDS Reference (position 29), stopped the referenced
+ * field's editing and validity-checking keywords from being copied at all.
  */
-async function handleResolveReferencedField(document: vscode.TextDocument, msg: { type: string; recordName: string; fieldSourceLine?: number }): Promise<void> {
-  const initialModel = parseDspf(document.getText());
-  const initialRecord = initialModel.records.find((r) => r.name === msg.recordName);
-  if (!initialRecord) {
+async function handleResolveReferencedField(
+  document: vscode.TextDocument,
+  webview: vscode.Webview,
+  msg: { type: string; recordName: string; fieldSourceLine?: number }
+): Promise<void> {
+  const model = parseDspf(document.getText());
+  const record = model.records.find((r) => r.name === msg.recordName);
+  if (!record) {
     vscode.window.showErrorMessage('iSDA: record not found.');
     return;
   }
 
-  const targetFieldNames: string[] =
+  const targetFields: any[] =
     msg.type === 'resolveAllReferencedFields'
-      ? initialRecord.fields.filter((f: any) => f.isReference).map((f: any) => f.name)
-      : initialRecord.fields.filter((f: any) => f.sourceLine === msg.fieldSourceLine).map((f: any) => f.name);
+      ? record.fields.filter((f: any) => f.isReference)
+      : record.fields.filter((f: any) => f.sourceLine === msg.fieldSourceLine);
 
-  if (targetFieldNames.length === 0) {
+  if (targetFields.length === 0) {
     vscode.window.showInformationMessage('iSDA: no reference fields (position 29 "R") to resolve on this record.');
     return;
   }
@@ -888,63 +905,53 @@ async function handleResolveReferencedField(document: vscode.TextDocument, msg: 
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: 'iSDA: Resolving referenced field(s) via Code for IBM i' },
     async (progress) => {
-      let text = document.getText();
-      let currentModel = parseDspf(text);
       const failures: string[] = [];
-      let resolvedCount = 0;
+      const entries: Array<{ key: string; definition: ResolvedReference }> = [];
+      const fetched = new Set<string>();
 
-      for (const fieldName of targetFieldNames) {
-        const rec = currentModel.records.find((r) => r.name === msg.recordName);
-        const field = rec && rec.fields.find((f: any) => f.name === fieldName);
-        const target = field ? DspfEngine.resolveReferenceTarget(currentModel, rec, field) : null;
-        if (!field || !target) {
-          failures.push(`${fieldName || '(field)'}: no REF/REFFLD file to resolve against.`);
+      for (const field of targetFields) {
+        const target = DspfEngine.resolveReferenceTarget(model, record, field);
+        const key = target ? DspfEngine.referenceKey(target) : null;
+        if (!target || !key) {
+          failures.push(`${field.name || '(field)'}: no REF/REFFLD file to resolve against.`);
           continue;
         }
+        if (fetched.has(key)) continue; // several fields can point at the same database field
+        fetched.add(key);
 
         progress.report({ message: `${target.fieldName} from ${target.library ? target.library + '/' : ''}${target.file}...` });
         const outcome = await fetchReferencedFieldAttributes(target);
         if ('error' in outcome) {
-          failures.push(`${fieldName}: ${outcome.error}`);
+          failures.push(`${field.name}: ${outcome.error}`);
           continue;
         }
 
-        // Task I-88: the database's definition is applied through the same
-        // definition checks the Basic tab's Apply runs (WRDWRAP, PSHBTNFLD,
-        // CHRID, DUP, BLKFOLD, SFLCHCCTL), so a resolve can never leave a
-        // field in a state the panels themselves refuse. A field that would
-        // end up invalid is left as it is and reported; the others still resolve.
-        const definition = { length: outcome.length, dataType: outcome.dataType, decimalPositions: outcome.decimalPositions };
-        const conflict = DspfWriter.referencedFieldResolveConflictReason(field, definition);
+        // Task I-88: the database's definition is checked against the keywords the
+        // field carries (WRDWRAP, PSHBTNFLD, CHRID, DUP, BLKFOLD, SFLCHCCTL), so a
+        // resolve can never leave a field in a state the panels themselves refuse.
+        // A field that would end up invalid is left unresolved and reported.
+        const conflict = DspfWriter.referencedFieldResolveConflictReason(field, {
+          length: outcome.length,
+          dataType: outcome.dataType,
+          decimalPositions: outcome.decimalPositions,
+        });
         if (conflict) {
           const shown = `${outcome.dataType || 'A'}, length ${outcome.length}, decimals ${outcome.decimalPositions == null ? 0 : outcome.decimalPositions}`;
-          failures.push(`${fieldName}: left unresolved - the database definition (data type ${shown}) conflicts with a keyword on this field. ${conflict}`);
+          failures.push(`${field.name}: left unresolved - the database definition (data type ${shown}) conflicts with a keyword on this field. ${conflict}`);
+          fetched.delete(key);
           continue;
         }
-
-        let lines = text.split(/\r\n|\r|\n/);
-        lines = DspfWriter.applyFieldUpdate(field, lines, definition);
-        text = lines.join('\n');
-        currentModel = parseDspf(text);
-        resolvedCount++;
+        entries.push({ key, definition: outcome });
       }
 
-      if (resolvedCount > 0) {
-        const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
-        const edit = new vscode.WorkspaceEdit();
-        edit.replace(document.uri, fullRange, text);
-        // Deliberately NOT wrapped in the 'applyingFromWebview' suppression flag the
-        // 'applyEdit' message handler below uses: this edit originates from the HOST
-        // (a button click plus an async network round-trip), and the webview needs
-        // the resolved attributes pushed back to it via the normal onDidChangeTextDocument
-        // -> 'externalUpdate' path, not silently swallowed like a webview-originated edit.
-        await vscode.workspace.applyEdit(edit);
+      if (entries.length > 0) {
+        webview.postMessage({ type: 'referencesResolved', entries });
       }
 
       if (failures.length > 0) {
         vscode.window.showErrorMessage('iSDA: ' + failures.join(' | '));
-      } else if (resolvedCount > 0) {
-        vscode.window.showInformationMessage(`iSDA: Resolved ${resolvedCount} referenced field${resolvedCount === 1 ? '' : 's'}.`);
+      } else if (entries.length > 0) {
+        vscode.window.showInformationMessage(`iSDA: Resolved ${entries.length} referenced field${entries.length === 1 ? '' : 's'} (held in the designer - the DDS source is not changed).`);
       }
     }
   );
@@ -1236,7 +1243,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       } else if (msg.type === 'error') {
         vscode.window.showErrorMessage('iSDA: ' + msg.message);
       } else if (msg.type === 'resolveReferencedField' || msg.type === 'resolveAllReferencedFields') {
-        await handleResolveReferencedField(document, msg);
+        await handleResolveReferencedField(document, webviewPanel.webview, msg);
         await sendCodeForIStatus();
       } else if (msg.type === 'listDatabaseFields') {
         await handleListDatabaseFields(webviewPanel.webview, msg);

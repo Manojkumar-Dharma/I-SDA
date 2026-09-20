@@ -103,6 +103,20 @@ function parseNumericField(raw: string): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+/**
+ * Task I-74: a length written as "+n" or "-n" is an increase/decrease relative to
+ * the referenced field's length, not an absolute length - IBM: "To increase the
+ * length, specify +n ... To decrease the length, specify -n". Returned as a signed
+ * number ("+2" -> 2, "-1" -> -1); null for blank or an absolute length. (The engine
+ * needs the referenced field's own length before it can turn this into a width.)
+ */
+function parseLengthAdjust(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^[+-]\d+$/.test(trimmed)) return null;
+  const n = parseInt(trimmed, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
 function parseUsage(raw: string): DdsUsage | null {
   const t = raw.trim().toUpperCase();
   if (t === '') return null;
@@ -362,7 +376,8 @@ function buildFieldBase(entry: LogicalEntry, nameType: DdsNameType, conditions: 
     name,
     isReference,
     lengthRaw: isBlank(lengthRaw) ? null : lengthRaw.trim(),
-    length: parseNumericField(lengthRaw),
+    length: parseLengthAdjust(lengthRaw) != null ? null : parseNumericField(lengthRaw),
+    lengthAdjust: parseLengthAdjust(lengthRaw),
     dataType: isBlank(dataTypeRaw) ? null : dataTypeRaw,
     decimalPositionsRaw: isBlank(decimalRaw) ? null : decimalRaw.trim(),
     decimalPositions: parseNumericField(decimalRaw),

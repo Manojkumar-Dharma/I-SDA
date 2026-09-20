@@ -6367,6 +6367,14 @@
     if (updates.length !== undefined) {
       updated.length = updates.length;
       updated.lengthRaw = updates.length == null ? null : String(updates.length);
+      updated.lengthAdjust = null; // an absolute (or blank) length replaces any +n/-n adjustment
+    }
+    // Task I-74: a signed +n/-n length adjustment against the referenced field -
+    // written back as "+n"/"-n" in the length columns, never as an absolute length.
+    if (updates.lengthAdjust !== undefined) {
+      updated.lengthAdjust = updates.lengthAdjust;
+      updated.length = null;
+      updated.lengthRaw = updates.lengthAdjust == null ? null : (updates.lengthAdjust < 0 ? '-' : '+') + String(Math.abs(updates.lengthAdjust));
     }
     if (updates.dataType !== undefined) updated.dataType = updates.dataType;
     if (updates.decimalPositions !== undefined) {
@@ -6438,6 +6446,7 @@
       constantValue: newField.constantValue != null ? newField.constantValue : null,
       length: newField.length != null ? newField.length : null,
       lengthRaw: newField.length != null ? String(newField.length) : null,
+      lengthAdjust: null,
       dataType: newField.dataType || null,
       decimalPositions: newField.decimalPositions != null ? newField.decimalPositions : null,
       decimalPositionsRaw: newField.decimalPositions != null ? String(newField.decimalPositions) : null,

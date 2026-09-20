@@ -939,7 +939,11 @@
     var candidates = [];
     var previousColumnEnd = 1;
 
-    record.fields.forEach(function (field) {
+    record.fields.forEach(function (rawField) {
+      // Task I-74: a reference field's real length/type/decimals (and the
+      // keywords it inherits) come from the resolved database field, held in
+      // dspfFile.resolvedReferences - never from anything written into the source.
+      var field = effectiveReferenceField(rawField, dspfFile, record);
       if (!conditionsSatisfied(field.conditions, activeIndicators, activeSizeName)) return;
       if (field.usage === 'H' || field.usage === 'P') return; // hidden / program-to-system: not drawn
 
@@ -1316,6 +1320,197 @@
     if (!file) return null;
 
     return { fieldName: fieldName, library: library, file: file };
+  }
+
+  // ---------------------------------------------------------------------
+  // Task I-74 - what a reference field ("R" in position 29) inherits from the
+  // referenced database field, and how a "+n"/"-n" length is applied to it.
+  //
+  // Per the DDS Reference (Reference for display files, position 29), a
+  // referenced field supplies its length, data type and decimal positions plus
+  // ALIAS, CCSID, FLTPCN, TEXT, DATFMT, DATSEP, TIMFMT, TIMSEP, and the editing
+  // and validity-checking keywords. iSDA never writes any of that into the
+  // source: a resolved definition is held in memory (dspfFile.resolvedReferences,
+  // keyed by referenceKey()) and applied on top of the field when the screen is
+  // drawn and when the properties panel lists the inherited keywords read-only.
+  // Keeping the source untouched is what lets a "+n"/"-n" length survive, and
+  // what keeps editing/validity inheritance meaningful (see
+  // referenceSpecifiesOwnShape).
+  // ---------------------------------------------------------------------
+
+  var REFERENCE_EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD'];
+  var REFERENCE_VALIDITY_KEYWORDS = ['CHECK', 'COMP', 'RANGE', 'VALUES', 'CHKMSGID'];
+
+  /** Lookup key for one referenced database field (see resolveReferenceTarget). */
+  function referenceKey(target) {
+    if (!target || !target.file || !target.fieldName) return null;
+    return ((target.library || '') + '/' + target.file + '/' + target.fieldName).toUpperCase();
+  }
+
+  /** The resolved definition held for this reference field, or null. */
+  function lookupResolvedReference(dspfFile, record, field) {
+    if (!dspfFile || !dspfFile.resolvedReferences || !field || !field.isReference) return null;
+    var key = referenceKey(resolveReferenceTarget(dspfFile, record, field));
+    return key && dspfFile.resolvedReferences[key] ? dspfFile.resolvedReferences[key] : null;
+  }
+
+  function fieldOwnsKeyword(field, names) {
+    return (field.keywords || []).some(function (k) { return names.indexOf(String(k.name).toUpperCase()) >= 0; });
+  }
+
+  /**
+   * IBM: "If you specify keyboard shift attribute, field length, or decimal
+   * positions for the field you are defining, neither editing nor validity
+   * checking keywords are copied from the referenced field." A "+n"/"-n" length
+   * is a length specification, so it counts too.
+   */
+  function referenceSpecifiesOwnShape(field) {
+    var raw = field.lengthRaw == null ? '' : String(field.lengthRaw).trim();
+    var dec = field.decimalPositionsRaw == null ? '' : String(field.decimalPositionsRaw).trim();
+    var type = field.dataType == null ? '' : String(field.dataType).trim();
+    return raw !== '' || field.length != null || field.lengthAdjust != null || dec !== '' || field.decimalPositions != null || type !== '';
+  }
+
+  /** The data type the field ends up with: its own if it names one, else the referenced field's (packed/binary become zoned - not supported in display files). */
+  function effectiveReferenceDataType(field, definition) {
+    var own = field.dataType == null ? '' : String(field.dataType).trim().toUpperCase();
+    if (own !== '') return own;
+    var t = definition && definition.dataType ? String(definition.dataType).trim().toUpperCase() : '';
+    return t === 'P' || t === 'B' ? 'S' : t;
+  }
+
+  /** Own absolute length, else referenced length +/- the field's own +n/-n adjustment; null when it cannot be worked out. */
+  function effectiveReferenceLength(field, definition) {
+    var base = definition && definition.length != null ? Number(definition.length) : null;
+    if (field.lengthAdjust != null) return base == null ? null : Math.max(1, base + field.lengthAdjust);
+    if (field.length != null) return field.length;
+    return base;
+  }
+
+  /** Own decimals, else the referenced field's - unless the field overrides the type to character (IBM: M, A, X or W). */
+  function effectiveReferenceDecimals(field, definition, effectiveType) {
+    if (field.decimalPositions != null) return field.decimalPositions;
+    if (!definition || definition.decimalPositions == null) return null;
+    if (['A', 'X', 'M', 'W'].indexOf(effectiveType) >= 0) return null;
+    return definition.decimalPositions;
+  }
+
+  /**
+   * The keywords this reference field inherits from `definition.keywords`
+   * ([{name, parameters}]), applying IBM's override rules:
+   *  - an own EDTCDE/EDTWRD replaces inherited editing; DLTEDT removes it;
+   *  - any own validity keyword replaces ALL inherited validity checking;
+   *    DLTCHK removes it;
+   *  - own shift/length/decimals (incl. +n/-n) means neither editing nor
+   *    validity checking is inherited;
+   *  - DATFMT/DATSEP only for a date (L) field, TIMFMT/TIMSEP only for time (T);
+   *  - any other keyword (ALIAS, CCSID, FLTPCN, TEXT) is dropped when the field
+   *    specifies it itself.
+   * @returns {{keywords: Array, notes: string[]}} keywords are flagged `inherited: true`.
+   */
+  function inheritedReferenceKeywords(field, definition) {
+    var result = { keywords: [], notes: [] };
+    if (!field || !field.isReference || !definition || !Array.isArray(definition.keywords)) return result;
+    var effectiveType = effectiveReferenceDataType(field, definition);
+    var shapeOverridden = referenceSpecifiesOwnShape(field);
+    var editingReplaced = fieldOwnsKeyword(field, REFERENCE_EDIT_KEYWORDS.concat(['DLTEDT']));
+    var validityReplaced = fieldOwnsKeyword(field, REFERENCE_VALIDITY_KEYWORDS.concat(['DLTCHK']));
+    var editingDropped = false;
+    var validityDropped = false;
+
+    definition.keywords.forEach(function (k) {
+      var name = String(k.name || '').toUpperCase();
+      if (!name) return;
+      if (REFERENCE_EDIT_KEYWORDS.indexOf(name) >= 0) {
+        if (editingReplaced) return;
+        if (shapeOverridden) { editingDropped = true; return; }
+      } else if (REFERENCE_VALIDITY_KEYWORDS.indexOf(name) >= 0) {
+        if (validityReplaced) return;
+        if (shapeOverridden) { validityDropped = true; return; }
+      } else {
+        if ((name === 'DATFMT' || name === 'DATSEP') && effectiveType !== 'L') return;
+        if ((name === 'TIMFMT' || name === 'TIMSEP') && effectiveType !== 'T') return;
+        if (fieldOwnsKeyword(field, [name])) return;
+      }
+      var params = k.parameters == null ? '' : String(k.parameters);
+      result.keywords.push({ name: name, parameters: params, conditions: [], raw: name + (params ? '(' + params + ')' : ''), sourceLines: [], inherited: true });
+    });
+
+    if (editingDropped) result.notes.push('Editing keywords of the referenced field are not inherited because this field specifies its own length, data type/keyboard shift or decimal positions (IBM DDS Reference, position 29).');
+    if (validityDropped) result.notes.push('Validity-checking keywords of the referenced field are not inherited because this field specifies its own length, data type/keyboard shift or decimal positions (IBM DDS Reference, position 29).');
+    return result;
+  }
+
+  /**
+   * A copy of a reference field with the resolved definition applied (length
+   * incl. +n/-n, data type, decimals, inherited keywords appended) - what the
+   * screen preview sizes the field from. The field itself, and the source, are
+   * never changed. Returns the field untouched when nothing is resolved for it.
+   */
+  function effectiveReferenceField(field, dspfFile, record) {
+    var definition = lookupResolvedReference(dspfFile, record, field);
+    if (!definition) return field;
+    var copy = {};
+    Object.keys(field).forEach(function (key) { copy[key] = field[key]; });
+    var effectiveType = effectiveReferenceDataType(field, definition);
+    if (effectiveType !== '') copy.dataType = effectiveType;
+    var length = effectiveReferenceLength(field, definition);
+    if (length != null) copy.length = length;
+    var decimals = effectiveReferenceDecimals(field, definition, effectiveType);
+    if (decimals != null) copy.decimalPositions = decimals;
+    copy.keywords = (field.keywords || []).concat(inheritedReferenceKeywords(field, definition).keywords);
+    return copy;
+  }
+
+  function quoteDdsText(text) {
+    return "'" + String(text).replace(/'/g, "''") + "'";
+  }
+
+  /**
+   * The inheritable keywords one DSPFFD OUTFILE row (QADSPFFD, record format
+   * QWHDRFFD) carries, as [{name, parameters}]: TEXT (WHFTXT), ALIAS (WHALI2,
+   * else WHALIS), CCSID (WHCSID, character fields only, 0/65535 = none), EDTCDE
+   * (WHECDE), EDTWRD (WHEWRD), DATFMT/DATSEP (WHFMT/WHSEP on a date field),
+   * TIMFMT/TIMSEP (on a time field). Not in the outfile, so never produced here:
+   * the validity-checking keywords (only a count, WHVCNE) and FLTPCN.
+   */
+  function inheritableKeywordsFromDspffdRow(row) {
+    var out = [];
+    if (!row) return out;
+    function val(key) {
+      var v = row[key] !== undefined ? row[key] : row[key.toLowerCase()];
+      return v == null ? '' : v;
+    }
+    function rtrim(key) { return String(val(key)).replace(/\s+$/, ''); }
+    var type = rtrim('WHFLDT').trim().toUpperCase();
+
+    var text = rtrim('WHFTXT').trim();
+    if (text) out.push({ name: 'TEXT', parameters: quoteDdsText(text) });
+
+    var alias = rtrim('WHALI2').trim() || rtrim('WHALIS').trim();
+    if (alias) out.push({ name: 'ALIAS', parameters: alias });
+
+    var ccsid = Number(val('WHCSID'));
+    if (type === 'A' && ccsid > 0 && ccsid !== 65535) out.push({ name: 'CCSID', parameters: String(ccsid) });
+
+    var editCode = rtrim('WHECDE');
+    var code = editCode.charAt(0).trim();
+    var fill = editCode.charAt(1).trim();
+    if (code) out.push({ name: 'EDTCDE', parameters: code + (fill ? ' ' + fill : '') });
+    var editWord = rtrim('WHEWRD');
+    if (editWord.trim()) out.push({ name: 'EDTWRD', parameters: quoteDdsText(editWord) });
+
+    var fmt = rtrim('WHFMT').trim();
+    var sep = rtrim('WHSEP').trim();
+    if (fmt && fmt.charAt(0) !== '*') fmt = '*' + fmt;
+    if (type === 'L') {
+      if (fmt) out.push({ name: 'DATFMT', parameters: fmt });
+      if (sep) out.push({ name: 'DATSEP', parameters: quoteDdsText(sep) });
+    } else if (type === 'T') {
+      if (fmt) out.push({ name: 'TIMFMT', parameters: fmt });
+      if (sep) out.push({ name: 'TIMSEP', parameters: quoteDdsText(sep) });
+    }
+    return out;
   }
 
   function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex) {
@@ -2057,6 +2252,12 @@
     resolveScreen: resolveScreen,
     resolveMultiScreen: resolveMultiScreen,
     resolveReferenceTarget: resolveReferenceTarget,
+    referenceKey: referenceKey,
+    lookupResolvedReference: lookupResolvedReference,
+    effectiveReferenceField: effectiveReferenceField,
+    effectiveReferenceLength: effectiveReferenceLength,
+    inheritedReferenceKeywords: inheritedReferenceKeywords,
+    inheritableKeywordsFromDspffdRow: inheritableKeywordsFromDspffdRow,
     renderScreenHtml: renderScreenHtml,
     renderRulerColumnsHtml: renderRulerColumnsHtml,
     renderRulerRowsHtml: renderRulerRowsHtml,

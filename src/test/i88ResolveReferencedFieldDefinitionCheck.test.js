@@ -16,6 +16,10 @@
  * it before applyFieldUpdate: a field that would end up invalid is LEFT AS IT
  * IS and reported ("left unresolved"), the other fields still resolve.
  *
+ * Task I-74 update: Resolve no longer writes anything into the document - a
+ * definition that passes the check is posted to the webview ('referencesResolved')
+ * and held there; a refused one is still reported and NOT posted.
+ *
  * Part 1 unit-tests the pure function; part 2 runs the real extension host
  * handler against the vscode mock, with a stubbed Code for IBM i.
  * Run with: node src/test/i88ResolveReferencedFieldDefinitionCheck.test.js
@@ -138,6 +142,7 @@ const DB = {
   OLDDUP: { WHFLDT: 'F', WHFLDB: 8, WHFLDD: 9, WHFLDP: 2 },
 };
 
+const posted = []; // messages the handler posted back to the webview (Task I-74)
 function panelFor(doc) {
   let handler = null;
   const panel = {
@@ -145,7 +150,7 @@ function panelFor(doc) {
       cspSource: 'x', options: null,
       set html(v) {}, get html() { return ''; },
       onDidReceiveMessage: (h) => { handler = h; return { dispose: () => {} }; },
-      postMessage: () => {},
+      postMessage: (m) => posted.push(m),
     },
     onDidDispose: () => {},
   };
@@ -198,12 +203,14 @@ async function run() {
   async function resolveOne(name) {
     const doc = vscodeMock.__mockDocument(src);
     const send = panelFor(doc);
-    vscodeMock.__lastAppliedEdit = undefined;
+    posted.length = 0;
     vscodeMock.__lastError = undefined;
     vscodeMock.__lastInformationMessage = undefined;
+    const editBefore = vscodeMock.__lastAppliedEdit; // getter-only on the mock - compare by reference
     await send({ type: 'resolveReferencedField', recordName: 'SCR1', fieldSourceLine: sourceLineOf(name) });
-    const edit = vscodeMock.__lastAppliedEdit;
-    return { applied: !!edit, text: edit ? edit.edits[0].newText : null, error: vscodeMock.__lastError || '', info: vscodeMock.__lastInformationMessage || '' };
+    const edit = vscodeMock.__lastAppliedEdit !== editBefore ? vscodeMock.__lastAppliedEdit : undefined;
+    const msg = posted.find((m) => m.type === 'referencesResolved');
+    return { applied: !!edit, resolved: msg ? msg.entries : [], error: vscodeMock.__lastError || '', info: vscodeMock.__lastInformationMessage || '' };
   }
 
   console.log('\nResolve Referenced Field: a definition that would break a keyword is refused (single field)');
@@ -211,6 +218,7 @@ async function run() {
   for (const [name, keyword] of refused) {
     const r = await resolveOne(name);
     check(name + ' (' + keyword + '): NO edit is applied to the document', !r.applied);
+    check(name + ': nothing is posted to the webview either (left unresolved)', r.resolved.length === 0);
     check(name + ': the error names the field and says it was left unresolved', r.error.indexOf(name) !== -1 && /left unresolved/.test(r.error));
     check(name + ': the error names ' + keyword, r.error.indexOf(keyword) !== -1);
     check(name + ': no "Resolved" success message', !/Resolved/.test(r.info));
@@ -219,30 +227,30 @@ async function run() {
   console.log('\nResolve Referenced Field: a definition the keyword allows still resolves (no regression)');
   {
     let r = await resolveOne('PLAIN');
-    check('plain field: resolved (length 40 written)', r.applied && /PLAIN\s+R\s+40/.test(fieldLineIn(r.text, 'PLAIN') || '') && /Resolved 1 referenced field/.test(r.info) && r.error === '');
+    check('plain field: resolved (length 40 sent to the designer, document untouched)', !r.applied && r.resolved.length === 1 && r.resolved[0].key === 'MYLIB/CUSMSTP/PLAIN' && r.resolved[0].definition.length === 40 && /Resolved 1 referenced field/.test(r.info) && r.error === '');
     r = await resolveOne('CHROK');
-    check('CHRID + a character definition: resolved (length 30 written)', r.applied && /CHROK\s+R\s+30/.test(fieldLineIn(r.text, 'CHROK') || '') && r.error === '');
+    check('CHRID + a character definition: resolved (length 30 sent to the designer)', !r.applied && r.resolved.length === 1 && r.resolved[0].definition.length === 30 && r.error === '');
     r = await resolveOne('DUPOK');
-    check('DUP + a character definition: resolved (length 30 written)', r.applied && /DUPOK\s+R\s+30/.test(fieldLineIn(r.text, 'DUPOK') || '') && r.error === '');
+    check('DUP + a character definition: resolved (length 30 sent to the designer)', !r.applied && r.resolved.length === 1 && r.resolved[0].definition.length === 30 && r.error === '');
     r = await resolveOne('OLDDUP');
-    check('an ALREADY invalid hand-written DUP-on-float field, resolved to float again: not re-reported, still resolves', r.applied && r.error === '');
+    check('an ALREADY invalid hand-written DUP-on-float field, resolved to float again: not re-reported, still resolves', r.resolved.length === 1 && r.error === '');
   }
 
   console.log('\nResolve all: the blocked field is left as it is, the others still resolve');
   {
     const doc = vscodeMock.__mockDocument(src);
     const send = panelFor(doc);
-    vscodeMock.__lastAppliedEdit = undefined;
+    posted.length = 0;
     vscodeMock.__lastError = undefined;
+    const editBeforeAll = vscodeMock.__lastAppliedEdit;
     await send({ type: 'resolveAllReferencedFields', recordName: 'SCR1' });
-    const edit = vscodeMock.__lastAppliedEdit;
-    const text = edit ? edit.edits[0].newText : '';
-    check('an edit IS applied (the fields that could resolve did)', !!edit);
-    check('PLAIN was resolved (length 40)', /PLAIN\s+R\s+40/.test(fieldLineIn(text, 'PLAIN') || ''));
-    check('CHROK was resolved (length 30)', /CHROK\s+R\s+30/.test(fieldLineIn(text, 'CHROK') || ''));
-    const before = (n) => fieldLineIn(src, n);
+    const msg = posted.find((m) => m.type === 'referencesResolved');
+    const keys = msg ? msg.entries.map((e) => e.key) : [];
+    check('the document is not edited at all (Task I-74)', vscodeMock.__lastAppliedEdit === editBeforeAll);
+    check('PLAIN was resolved (length 40)', !!msg && msg.entries.some((e) => e.key === 'MYLIB/CUSMSTP/PLAIN' && e.definition.length === 40));
+    check('CHROK was resolved (length 30)', !!msg && msg.entries.some((e) => e.key === 'MYLIB/CUSMSTP/CHROK' && e.definition.length === 30));
     ['WRAP', 'PUSH', 'CHR', 'DUPF', 'BLK', 'SFLC'].forEach((n) => {
-      check(n + ' is byte-for-byte unchanged in the document', fieldLineIn(text, n) === before(n));
+      check(n + ' is NOT among the resolved definitions sent to the designer', keys.indexOf('MYLIB/CUSMSTP/' + n) === -1);
     });
     check('the error lists every blocked field', ['WRAP', 'PUSH', 'CHR', 'DUPF', 'BLK', 'SFLC'].every((n) => (vscodeMock.__lastError || '').indexOf(n + ': left unresolved') !== -1));
     check('and does not list the ones that resolved', (vscodeMock.__lastError || '').indexOf('PLAIN: left') === -1 && (vscodeMock.__lastError || '').indexOf('CHROK: left') === -1);

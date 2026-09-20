@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-98 of 105 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.177**.
+100 of 105 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.179**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -116,7 +116,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Done | v0.10.154 |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Done | v0.10.157 |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Done | v0.10.156 |
-| [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | In progress | — |
+| [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Done | v0.10.179 |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Done | v0.10.171 |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Done (no code change) | v0.10.173 |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Done | v0.10.151 |
@@ -161,12 +161,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 2 | [I-103](#i-103) | In progress | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 3 | [I-104](#i-104) | Not started | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`). Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 4 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 5 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 6 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-103](#i-103) | In progress | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 2 | [I-104](#i-104) | Not started | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`). Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 3 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 4 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -175,6 +174,8 @@ Every earlier finding has been opened as a task (I-61 – I-105, see the tables 
 | Raised by | Finding |
 |-----------|---------|
 | I-102 | The "the box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` also exists in `wirePulldownGuardedFlag` (and, by the same `present`-gated pattern read from the code but **not probed**, in `wireUsrdfnGuardedFlag` and `wireUsrdfnGuardedTwoField`): its `USRDFN`/`SFL`/`MNUBAR` checks run whenever the keyword's box is ticked, not on a real turn-on. Confirmed by probe on the record panels: on a hand-written `USRDFN` record that already carries `MDTOFF(1)` or `SLNO(3)`, editing the keyword's parameter is refused with "... cannot be specified on a user-defined (USRDFN) record format", and on an `SFL` record with `MDTOFF(1)` with "... cannot be added to a subfile (SFL) record format"; un-ticking works and a plain record edits normally. The message is wrong for an edit and it blocks tidying an already-invalid record. Same fix shape as I-84: gate on the real transition (the keyword was not already present), in each of the three functions, with a test per function. Size (estimate): Small–medium. |
+| I-74 | Validity-checking keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` are inherited from a referenced field per the DDS Reference, but the DSPFFD outfile (`QWHDRFFD`) carries only a count of validity checks (`WHVCNE`) and no `FLTPCN` column, so the read-only inherited list cannot show them. Needs a research step first: another source for them (a catalog view, or DSPFFD `OUTPUT(*PRINT)`), or document it as a limit. |
+| I-74 | **+ Fields from database file** (L14) still writes an explicit length, data type and decimals next to `REFFLD`. By the same IBM rule (position 29) a field that specifies them does not inherit the referenced field's editing or validity checking. Decide whether it should write a bare `R` field with `REFFLD` only (then resolve for the preview), which would also stop it writing packed/binary types into position 35 of a display file. |
 | - | None at the moment. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
@@ -4228,9 +4229,29 @@ Out of scope, logged as new tasks after probing the rest of `MSGID`'s entry: I-9
 
 ### I-74 — `REF`/`REFFLD`: copy the other keywords from the referenced database field
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-32
+> **Area:** Field · **Status:** Done (v0.10.179) · **Depends on:** I-32
 
 Per the DDS Reference, a field defined by reference should also inherit `DATFMT`/`DATSEP`/`TIMFMT`/`TIMSEP`/`TEXT`/`ALIAS`/`CCSID`/`FLTPCN` and the editing keywords from the referenced database field. iSDA's reference resolution only pulls **length, data type and decimal positions**. Touches the reference-resolution path, so it needs the most care; decide first whether the inherited keywords are shown read-only in the field's keyword lists or copied into the source.
+
+**Done.** Design decided first, as the task asked, with the user: the inherited keywords are **shown read-only and never copied into the source**, so the `+n` / `-n` length adjustment IBM allows on a referenced field keeps working. Re-read the DDS Reference (position 29 and the length section) before coding:
+- **What is inherited:** length, data type, decimal positions, plus `ALIAS`, `CCSID`, `FLTPCN`, `TEXT`, `DATFMT`, `DATSEP`, `TIMFMT`, `TIMSEP`, `REFSHIFT`, and the editing and validity-checking keywords.
+- **Overrides:** an own `EDTCDE`/`EDTWRD` replaces the inherited editing (`DLTEDT` removes it); any own validity keyword replaces *all* inherited validity checking (`DLTCHK` removes it); if the field specifies keyboard shift, length or decimal positions, **neither editing nor validity checking is copied**; a type override to character (`M`, `A`, `X`, `W`) means the decimals are not copied; packed and binary become zoned in a display file.
+- **Interpretation to confirm:** a `+n` / `-n` length is treated as "specifying length" for the editing/validity rule (IBM's text says "length" without excluding it). The panel says so when it drops them.
+
+**Found while tracing it - three real defects in the old Resolve path, all fixed by the same change:**
+- **`+n` / `-n` was not supported.** The parser turned `+2` into the number 2 (so the field drew 2 wide) and `-1` into -1, and Resolve overwrote the length with the database's absolute value, erasing the adjustment. Confirmed with a probe before any change.
+- **Resolve defeated inheritance itself.** Writing the absolute length/type/decimals into columns 30-37 is exactly what stops IBM copying the editing and validity keywords.
+- **The Basic tab's Apply rewrote `+2` as `2`** (a `type="number"` box cannot hold `+2`).
+
+**Implemented.**
+- **Parser/model:** new `lengthAdjust` (signed number, or null); `length` is null for a `+n`/`-n` field, `lengthRaw` keeps the typed text. Writer: `applyFieldUpdate` takes `lengthAdjust` (written back as `+n`/`-n`) and an absolute `length` clears it; unrelated edits leave `+2` alone.
+- **Engine (`dspfEngine.js`):** `referenceKey`, `lookupResolvedReference`, `effectiveReferenceField` (referenced length +/- adjustment, resolved type/decimals, inherited keywords appended - so an inherited `EDTCDE` now widens the drawn field correctly), `inheritedReferenceKeywords` (the override rules above, with a note for each drop) and `inheritableKeywordsFromDspffdRow`. The screen preview draws a reference field from the effective definition; the source model is never modified.
+- **Resolve Referenced Field / Resolve All (`extension.ts`):** no longer edits the document. It fetches the DSPFFD row (`SELECT *`, so a release without one of the keyword columns just yields no keyword) and posts a `referencesResolved` message; the webview holds the definitions in memory, keyed by library/file/field, for the session. I-88's conflict check is kept: a definition that would break `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` / `BLKFOLD` / `SFLCHCCTL` on the field is still refused, reported and not posted.
+- **Panel:** a new read-only **Inherited from referenced field** section (referenced length/type/decimals, the effective length when a `+n`/`-n` is present, the inherited keywords as non-editable chips, and the drop notes; "Not resolved yet" before Resolve). The Basic tab's Length box on a reference field is now text (blank, `n`, `+n`, `-n`).
+- **DSPFFD columns used** (from the published `QWHDRFFD` layout; **not verified on a live IBM i**): `WHFTXT` -> `TEXT`, `WHALI2`/`WHALIS` -> `ALIAS`, `WHCSID` -> `CCSID` (character fields; 0 and 65535 skipped), `WHECDE` -> `EDTCDE`, `WHEWRD` -> `EDTWRD`, `WHFMT`/`WHSEP` -> `DATFMT`/`DATSEP` (date) or `TIMFMT`/`TIMSEP` (time).
+- **Tests:** new `i74ReferenceInheritedKeywords.test.js` (92 checks: parser, writer round trip, effective lengths, every override rule, the DSPFFD mapping, the panel HTML, and the real webview script in jsdom - panel, drawn width 1 -> 32, Apply keeps `+2`). `extension.test.js` and `i88ResolveReferencedFieldDefinitionCheck.test.js` were updated from "the document is edited" to "nothing is written; the definition is posted".
+
+**Not done, raised as findings** (see Deferred findings): the validity-checking keywords and `FLTPCN` have no column in the DSPFFD outfile, so they cannot be shown as inherited; and **+ Fields from database file** still writes explicit length/type/decimals, which by the same IBM rule stops those fields inheriting editing/validity.
 
 *Raised by I-32. Size (estimate): Large.*
 

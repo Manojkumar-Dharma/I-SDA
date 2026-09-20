@@ -103,7 +103,10 @@ conditioning rules are checked against IBM's DDS Reference (see
   field kind in the add-field panel and a layout-accurate preview).
 - Constants with system values (`*DATE`, `*TIME`, `*USER`, `*SYSTEM`) and `MSGCON`.
 - **Resolve Referenced Field** (and **Resolve All**) and bulk **+ Fields from database
-  file** — real SDA's F10 key — both through Code for i.
+  file** — real SDA's F10 key — both through Code for i. Resolve loads the referenced
+  field's length, type, decimals and inherited keywords (`TEXT`, `ALIAS`, `CCSID`, editing,
+  date/time formats) into the designer as a read-only view without changing the DDS source,
+  so a `+n` / `-n` length on a reference field keeps working.
 
 ### Canvas and editing
 
