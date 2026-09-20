@@ -130,7 +130,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Done | v0.10.153 |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Done | v0.10.158 |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
-| [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | Not started | — |
+| [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | In progress | — |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
@@ -158,7 +158,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 5 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
 | 6 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
-| 7 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check. Size (estimate): Small–medium (needs a decision first; four keywords now share it). Raised by I-61, I-62, I-70, I-72. |
+| 7 | [I-88](#i-88) | In progress | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check. Size (estimate): Small–medium (needs a decision first; four keywords now share it). Raised by I-61, I-62, I-70, I-72. |
 | 8 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
 | 9 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
 | 10 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
@@ -4496,7 +4496,7 @@ Reordering fields (Structure tab's Up/Down buttons, `DspfWriter.reorderFields`, 
 
 ### I-88 — Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-61, I-62, I-70, I-72
+> **Area:** Field · **Status:** In progress · **Depends on:** I-61, I-62, I-70, I-72
 
 Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit.
 
