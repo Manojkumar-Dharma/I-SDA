@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-100 of 105 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.179**.
+102 of 113 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.182**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -145,7 +145,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | Done | v0.10.176 |
 | [I-101](#i-101) | Tooling / all levels | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none | I-95 | In progress (batch 1 done) | v0.10.180 (batch 1) |
 | [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | Done | v0.10.177 |
-| [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | In progress (re-claimed; earlier claim had no follow-up commit) | — |
+| [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | Done | v0.10.182 |
 | [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Done (test only) | v0.10.181 |
 | [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Not started | — |
 | [I-106](#i-106) | Record | `UNLOCK`: not guarded on `SFL` / `USRDFN` records | I-104 | Not started | — |
@@ -169,18 +169,17 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-103](#i-103) | In progress | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 2 | [I-106](#i-106) | Not started | `UNLOCK`: not guarded on `SFL` / `USRDFN` records. Size (estimate): Small. Raised by I-104. |
-| 3 | [I-107](#i-107) | Not started | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records. Size (estimate): Small. Raised by I-104. |
-| 4 | [I-108](#i-108) | Not started | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records. Size (estimate): Small. Raised by I-104. |
-| 5 | [I-110](#i-110) | Not started | "+ Add" `HLPTITLE` / `MNUBARDSP`: accepted although not whitelisted. Size (estimate): Small. Raised by I-104. |
-| 6 | [I-109](#i-109) | Not started | Record Indicator row: no `USRDFN` whitelist. Size (estimate): Small. Raised by I-104. |
-| 7 | [I-111](#i-111) | Not started | Guards run on every edit while the box is ticked, not on a real turn-on. Size (estimate): Small–medium. Raised by I-102. |
-| 8 | [I-112](#i-112) | Not started | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
-| 9 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
-| 10 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 11 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 12 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-106](#i-106) | Not started | `UNLOCK`: not guarded on `SFL` / `USRDFN` records. Size (estimate): Small. Raised by I-104. |
+| 2 | [I-107](#i-107) | Not started | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records. Size (estimate): Small. Raised by I-104. |
+| 3 | [I-108](#i-108) | Not started | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records. Size (estimate): Small. Raised by I-104. |
+| 4 | [I-110](#i-110) | Not started | "+ Add" `HLPTITLE` / `MNUBARDSP`: accepted although not whitelisted. Size (estimate): Small. Raised by I-104. |
+| 5 | [I-109](#i-109) | Not started | Record Indicator row: no `USRDFN` whitelist. Size (estimate): Small. Raised by I-104. |
+| 6 | [I-111](#i-111) | Not started | Guards run on every edit while the box is ticked, not on a real turn-on. Size (estimate): Small–medium. Raised by I-102. |
+| 7 | [I-112](#i-112) | Not started | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
+| 8 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
+| 9 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 10 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 11 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4995,7 +4994,7 @@ Not addressed here: `INVITE`'s row is still hidden on a `USRDFN` record because 
 
 ### I-103 — `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-44, I-54
+> **Area:** Record · **Status:** Done (v0.10.182) · **Depends on:** I-44, I-54
 
 **Bug.** Ticking the record-level `CHGINPDFT` checkbox on a `USRDFN` record is **accepted**: the keyword is added with no alert, although it is not on `USRDFN`'s whitelist (`INVITE`, `KEEP`, `PASSRCD`, `HLPRTN`, `HELP`, `HLPCLR`, `PRINT`, `OPENPRT`, `TEXT`). Verified on v0.10.176 in the real designer and with the record panels driven directly. The row is in the General subtab, which a `USRDFN` record keeps, so it is reachable. Every other non-whitelisted row I ticked on that record was refused (`INZRCD`, `ASSUME`, `ALWROL`, `RETKEY`, `RETCMDKEY`, `CSRINPONLY`, `VALNUM`, `WRDWRAP`, `HLPCMDKEY`), and `ENTFLDATR` and `RTNCSRLOC` are refused by I-60 and I-77.
 
@@ -5006,6 +5005,13 @@ The same holds on an **`MNUBAR`** record: `DspfWriter.mnubarWhitelistConflictRea
 **Suggested fix.** Give `wireChgInpDftFlag` an optional guard for its record-level call only, the same opt-in shape as I-53 and I-54 used, because the row builder is shared with the field, file and `SFLMSG` levels and those must not change. The guard should fire only on a real turn-on (the I-84 lesson: gate on the transition, not on the checkbox state), so a hand-edited record that already carries `CHGINPDFT` can still have it removed and its parameters edited. Test on `USRDFN` and `MNUBAR` (blocked, box reverted, nothing added), `SFL` and a plain record (still accepted), removal and a parameter edit on an already-invalid record (allowed).
 
 *Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176), after I-95. Size (estimate): Small.*
+
+**Done (v0.10.182).** `wireChgInpDftFlag` and `wireFlagRow` take an optional trailing guard; only the record-level call in `wireRecordKeywordsPanels` passes one, so the field, file and `SFLMSG` call sites are unchanged.
+
+- **Guard.** `usrdfnConflictReason || pulldownConflictReason || sflWhitelistConflictReason || mnubarWhitelistConflictReason` for `CHGINPDFT`. In practice it refuses on `USRDFN` and `MNUBAR` records; `SFL` and plain records still accept it.
+- **Turn-on only.** It fires only when `CHGINPDFT` is not already present (the I-84 lesson), so a hand-edited invalid record can still have the keyword removed or its codes edited.
+- **Sub-codes.** Ticking one of the nine sub-code boxes (`HI`, `RI`, ...) force-checks the main box and dispatches through the same commit, so it is refused too; on refusal the main box, every sub-code box and the hidden params input are all reverted.
+- **Tests.** New `src/test/i103ChginpdftRecordGuard.test.js` (21 checks, wired into `npm test`): `USRDFN` / `MNUBAR` refused (main box and sub-code), already-invalid record editable and removable, `SFL` / plain accepted. Confirmed failing (8 failures) against the pre-fix `webviewClientHelpers.js`. The two `CHGINPDFT` entries were removed from I-104's `KNOWN_GAPS`; the sweep passes with them gone.
 
 ---
 

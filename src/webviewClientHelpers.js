@@ -4087,12 +4087,15 @@
    *  the conditions editor - `apply` MUST accept a 4th `conditions` param
    *  and forward it (see sflCtlPanelsHtml's apply functions for the
    *  pattern) for a caller that passes these. */
-  function wireFlagRow(id, getKeywords, onChange, apply, conditions, expandedSet, rerender) {
+  function wireFlagRow(id, getKeywords, onChange, apply, conditions, expandedSet, rerender, guard) {
     var onEl = document.getElementById(id + '-on');
     var paramsEl = document.getElementById(id + '-params');
     function commit() {
       var present = onEl.checked;
       var params = paramsEl ? paramsEl.value : '';
+      // Task I-103: optional guard (only wireChgInpDftFlag's record-level call
+      // passes one) - it alerts and reverts the row itself when it refuses.
+      if (guard && !guard(present)) return;
       onChange(apply(getKeywords(), present, params));
     }
     if (onEl) onEl.addEventListener('change', commit);
@@ -4101,6 +4104,7 @@
     wireFlagRowConditioning(id, conditions, function (newConditions) {
       var present = onEl.checked;
       var params = paramsEl ? paramsEl.value : '';
+      if (guard && !guard(present)) return;
       onChange(apply(getKeywords(), present, params, newConditions));
     }, expandedSet, rerender);
   }
@@ -4161,7 +4165,26 @@
    *  plain array, so a commit always reflects whatever else has already
    *  been committed on this same render - callers with only a captured
    *  array in scope just wrap it as `function () { return keywords; }`. */
-  function wireChgInpDftFlag(getKeywords, onChange, id, expandedSet, rerender) {
+  function wireChgInpDftFlag(getKeywords, onChange, id, expandedSet, rerender, guardFn) {
+    // Task I-103: `guardFn(keywords)` (optional, record-level call only - the
+    // row builder is shared with the field, file and SFLMSG levels, which
+    // must not change) returns a refusal reason or null. It is consulted only
+    // on a real turn-on (CHGINPDFT not already present), so a hand-edited
+    // record that already carries CHGINPDFT can still remove it and edit its
+    // parameters (the I-84 lesson: gate on the transition, not the checkbox).
+    var guard = guardFn ? function (present) {
+      if (!present) return true;
+      if (DspfWriter.getFileFlagKeyword(getKeywords(), 'CHGINPDFT').present) return true;
+      var reason = guardFn(getKeywords());
+      if (!reason) return true;
+      window.alert(reason);
+      var onElG = document.getElementById(id + '-on');
+      var paramsElG = document.getElementById(id + '-params');
+      if (onElG) onElG.checked = false;
+      if (paramsElG) paramsElG.value = '';
+      document.querySelectorAll('.' + id + '-code').forEach(function (e) { e.checked = false; });
+      return false;
+    } : undefined;
     // Task I-3: CHGINPDFT - "Option indicators are not valid for this
     // keyword" - no Conditioning toggle wired (matches
     // chgInpDftFlagHtml's own conditions:undefined for this row).
@@ -4172,7 +4195,8 @@
       function (kws, present, params, conditions) { return DspfWriter.setFileFlagKeyword(kws, 'CHGINPDFT', present, params, undefined, conditions); },
       undefined,
       undefined,
-      undefined
+      undefined,
+      guard
     );
     document.querySelectorAll('.' + id + '-code').forEach(function (el) {
       el.addEventListener('change', function () {
@@ -6437,7 +6461,14 @@
         DspfWriter.sflWhitelistConflictReason('MOUBTN', getKeywords()) ||
         DspfWriter.mnubarWhitelistConflictReason('MOUBTN', getKeywords());
     });
-    wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender);
+    // Task I-103: record-level CHGINPDFT is refused on USRDFN and MNUBAR records
+    // (not on either closed whitelist); SFL's list allows it, so that stays accepted.
+    wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender, function (kws) {
+      return DspfWriter.usrdfnConflictReason('CHGINPDFT', kws) ||
+        DspfWriter.pulldownConflictReason('CHGINPDFT', kws) ||
+        DspfWriter.sflWhitelistConflictReason('CHGINPDFT', kws) ||
+        DspfWriter.mnubarWhitelistConflictReason('CHGINPDFT', kws);
+    });
     // Task L76 (superseded by Task I-17 below) - hand-wired panel/wire
     // pair rather than the generic wireFlagRow/simple() helpers above,
     // now further replaced by mnubardspPanelHtml/wireMnubardspPanel's own
