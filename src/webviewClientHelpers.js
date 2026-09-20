@@ -6238,10 +6238,15 @@
     // file- or record-level keywords apply to this record except
     // INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and
     // TEXT"), not a short per-keyword exclusion list, so usrdfnConflictReason
-    // correctly returns null for every one of this function's 15 I-44
+    // correctly returns a reason for every one of this function's 15 I-44
     // call sites regardless (none is on that whitelist), making this a
     // safe, uniform addition rather than something needing per-caller
     // opt-in like alsoCheckKeep/alsoCheckPassrcd above.
+    // Task I-102: that premise stopped being true once HLPCLR and INVITE
+    // (both ON the whitelist) were routed through this function too, and
+    // they were refused on a USRDFN record. usrdfnConflictReason itself now
+    // returns null for a whitelisted keyword, so the unconditional call is
+    // safe for ANY caller again, including a whitelisted one added later.
     // Task I-51: `withConditioning` (new trailing param, defaulting to the
     // exact prior behavior - no toggle wired - so every EXISTING caller
     // that doesn't pass it is unaffected) wires the same live Conditioning

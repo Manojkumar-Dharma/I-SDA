@@ -2699,10 +2699,26 @@
    *  the rule, or null if fine. Same alert+revert idiom as L81/I-11 -
    *  turning any of these four OFF is never blocked, only the
    *  on-transition (covers the edge case of hand-edited DDS that already
-   *  has one of them set on a USRDFN record before iSDA opened it). */
+   *  has one of them set on a USRDFN record before iSDA opened it).
+   *
+   *  Task I-102 - this used to refuse EVERY keyword name on a USRDFN
+   *  record. I-44 called it unconditionally from wirePulldownGuardedFlag on
+   *  the stated premise that none of its 15 call sites is on USRDFN's
+   *  whitelist; HLPCLR and INVITE were routed through that same function
+   *  afterwards (I-51 wired their Conditioning toggles there), so ticking
+   *  either on a USRDFN record was refused although both are on the
+   *  whitelist. It now consults USRDFN_WHITELIST_KEYWORDS itself: a
+   *  whitelisted keyword returns null. That closes the gap for every
+   *  caller by construction (wireUsrdfnGuardedFlag,
+   *  wireUsrdfnGuardedTwoField and wirePulldownGuardedFlag) instead of
+   *  depending on which keywords happen to be wired where, and the refusal
+   *  wording for everything else is unchanged. It now agrees with
+   *  usrdfnWhitelistConflictReason (below) on WHICH keywords are refused;
+   *  the two differ only in wording. */
   function usrdfnConflictReason(keywordName, recordKeywords) {
     var hasUsrdfn = (recordKeywords || []).some(function (k) { return k.name === 'USRDFN'; });
     if (!hasUsrdfn) return null;
+    if (USRDFN_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
     return keywordName + ' cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference).';
   }
 
