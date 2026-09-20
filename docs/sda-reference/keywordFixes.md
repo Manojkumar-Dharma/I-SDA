@@ -118,7 +118,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Done | v0.10.156 |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | In progress | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Done | v0.10.171 |
-| [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
+| [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | In progress | — |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Done | v0.10.151 |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Done | v0.10.163 |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Done | v0.10.149 |
@@ -155,7 +155,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
 | 2 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
-| 3 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 3 | [I-76](#i-76) | In progress | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
 | 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
@@ -4233,7 +4233,7 @@ New scenario in `src/test/dspfWebview.test.js` (`runProgramFieldsScenario`, 12 c
 
 ### I-76 — Research: do SFLMSG's General/Indicator categories need their own index categories?
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-16
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-16
 
 SFLMSG's General and Indicator categories reuse I-9's `SFL` set verbatim. Whether they deserve distinct `KEYWORD-INDEX.json` categories of their own is an index-completeness question raised during I-16 and never researched. Research first, then either fold the answer into I-40 or record why not. **I-40 should run after this.**
 
