@@ -2309,6 +2309,25 @@
   var NO_OPTION_INDICATOR_KEYWORDS = {
     IGCALTTYP: 'Option indicators are not allowed with IGCALTTYP (per the DDS Reference).'
   };
+  /** Task I-101, batch 1 - the file-level-only keywords. Each of these was
+   *  read in DDS_Keyword_V7r6.txt and its own section says, plainly and with
+   *  no conditional wording, "Option indicators are not valid for this
+   *  keyword" (ALTPAGEDWN/ALTPAGEUP share one section and say "these
+   *  keywords"). A file-level-only keyword cannot appear at any other level,
+   *  so a name-keyed entry is exactly right for them. The structured File
+   *  Properties rows were already audited by I-3 - this is the raw keyword
+   *  editor's Conditioning toggle, which I-95 found is drawn on every chip.
+   *  A keyword that exists at more than one level, or whose rule is
+   *  conditional, does NOT belong in this list (later batches). */
+  var NOT_VALID_FILE_LEVEL_KEYWORDS = ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP', 'DSPRL', 'DSPSIZ', 'ERRSFL', 'HLPFULL', 'HLPSCHIDX', 'INDARA', 'MSGLOC', 'OPENPRT', 'PASSRCD', 'REF', 'USRDSPMGT'];
+  NOT_VALID_FILE_LEVEL_KEYWORDS.forEach(function (name) {
+    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
+  });
+  /** The names in NO_OPTION_INDICATOR_KEYWORDS (a copy - the table itself is
+   *  not exposed), for tests and audits. */
+  function noOptionIndicatorKeywordNames() {
+    return Object.keys(NO_OPTION_INDICATOR_KEYWORDS);
+  }
   function noOptionIndicatorsReason(keywordName) {
     var name = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
     if (!name) return null;
@@ -8579,6 +8598,7 @@
     igcalttypEligibilityReason: igcalttypEligibilityReason,
     igcalttypBasicEditConflictReason: igcalttypBasicEditConflictReason,
     noOptionIndicatorsReason: noOptionIndicatorsReason,
+    noOptionIndicatorKeywordNames: noOptionIndicatorKeywordNames,
     optionIndicatorCount: optionIndicatorCount,
     noOptionIndicatorsNewConflictReason: noOptionIndicatorsNewConflictReason,
     msgidExclusionConflictReason: msgidExclusionConflictReason,

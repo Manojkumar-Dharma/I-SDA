@@ -567,13 +567,17 @@
       var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
       var isExpanded = !!(expandedSet && expandedSet.has(ownerKey + ':' + idx));
       // Task I-95: a keyword the DDS Reference says takes no option indicators
-      // (DspfWriter.noOptionIndicatorsReason - IGCALTTYP so far) gets no
-      // Conditioning toggle at all while it carries none. One that already
-      // carries some (a hand-written file) keeps the toggle so they can be
+      // (DspfWriter.noOptionIndicatorsReason) gets no Conditioning toggle at
+      // all while it carries no condition. One that already carries option
+      // indicators (a hand-written file) keeps the toggle so they can be
       // removed, and is flagged; adding one is refused in wireKeywordEditor.
+      // Task I-101: one that carries only a display-size condition (MSGLOC
+      // legitimately takes *DS3/*DS4 ones) keeps the toggle too, so that
+      // condition stays visible and removable - the toggle is only ever
+      // hidden when there is nothing at all to show.
       var noIndReason = DspfWriter.noOptionIndicatorsReason(k.name);
       var hasIndicators = DspfWriter.optionIndicatorCount(conditions) > 0;
-      var hideToggle = !!noIndReason && !hasIndicators;
+      var hideToggle = !!noIndReason && conditions.length === 0;
       html += '<div class="kw-row">';
       html += '<div class="kw-row-main"><span class="keyword-chip">' + escapeHtml(k.name) +
         (k.parameters ? '(' + escapeHtml(k.parameters) + ')' : '') +
