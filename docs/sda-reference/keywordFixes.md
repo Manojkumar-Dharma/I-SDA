@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-81 of 92 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.160**.
+81 of 96 tasks done; 15 open (see [Open work](#open-work)). Current version: **v0.10.160**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -130,11 +130,15 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Done | v0.10.153 |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Done | v0.10.158 |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
-| [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check | I-61, I-62 | Not started | — |
+| [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | Not started | — |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Not started | — |
+| [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Not started | — |
+| [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
+| [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Not started | — |
+| [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -144,34 +148,32 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 ## Open work
 
-Suggested pickup order - roughly smallest and safest first; **not binding** (any task can be picked independently, and the sizes are estimates, not measurements). I-40 stays last, on purpose.
+Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of cosmetic or decision-dependent work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements). I-40 stays last, on purpose.
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 2 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
-| 3 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 4 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 5 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 6 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 7 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 8 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 9 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 10 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 11 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-93](#i-93) | Not started | `ENTFLDATR`: the `wireEntFldAtrEditor` add-guard fires whenever the checkbox is ticked at Apply, so on an `SFL`/`MNUBAR`/`USRDFN` record that already carries a hand-edited `ENTFLDATR` a colour change is refused with a misleading "cannot be *added*" alert. A real bug with a proven fix shape (I-84's transition gate). Size (estimate): Small. Raised by I-84. |
+| 2 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 3 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 4 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
+| 5 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
+| 6 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
+| 7 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check. Size (estimate): Small–medium (needs a decision first; four keywords now share it). Raised by I-61, I-62, I-70, I-72. |
+| 8 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 9 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 10 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 11 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 12 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-Every earlier finding has been opened as a task (I-61 – I-90, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+None open. Every finding logged so far has been opened as a task (I-61 – I-96, see the tables above); a new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-70 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database definition through `applyFieldUpdate`, so it can give a `CHRID` field decimal positions (making it numeric, which `CHRID` forbids) with no check - the same gap I-61/I-62 logged for `WRDWRAP`/`PSHBTNFLD`, now tracked as I-88. I-88 should cover `CHRID` too, using `DspfWriter.chridBasicEditConflictReason`'s decimals rule. |
-| I-84 | The same "box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` exists in `ENTFLDATR`'s guard (I-53/I-54/I-60: the `addGuardFn` in `wireEntFldAtrEditor`, which fires whenever the checkbox is ticked at Apply). Confirmed by probe on the record-level panel: on an `SFL`, `MNUBAR` or `USRDFN` record that already carries a hand-edited `ENTFLDATR`, changing its colour and pressing Apply is refused with "ENTFLDATR cannot be *added* to …" and the keyword is left unchanged, while un-ticking it works and a plain record edits normally. Same fix shape as I-84: gate on the real transition (the keyword was not already present) rather than on the checkbox state. |
-| I-71 | `IGCALTTYP` eligibility (same DDS section, first rule): "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." (and the DBCS chapter: not on DBCS-graphic fields, `G` in position 35). The General row's `IGCALTTYP` entry has no usage or data-type gating today, so it is offered on output-only / input-only fields and on `J`/`E`/`O`/`G` fields. Expect the WRDWRAP-style usage + shift-type gating (I-42 / I-61), with usage `B` only. |
-| I-71 | "Option indicators are not allowed with `IGCALTTYP`" (same section). I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle is not gated by keyword, so an indicator can still be put on a raw-added `IGCALTTYP` (and a hand-written one is not flagged). Check whether a generic "no option indicators" keyword list already exists for the other no-indicator keywords before adding one just for this. |
-| I-72 | Resolve Referenced Field (`extension.ts`) rewrites a field's data type from the database definition through `applyFieldUpdate`, so it can turn a `DUP` field into a floating-point (`F`) field, which `DUP` forbids, with no check - the same gap I-61, I-62 and I-70 logged, tracked as I-88. I-88 should cover `DUP` too, using `DspfWriter.dupFloatNewConflictReason`. |
-| I-72 | The Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Hiding it needs a data-type argument on `inputKeywordsHtml`/`wireInputKeywordsEditor` (neither takes one) and a decision about a hand-written float field that already has `DUP`: `generalFieldKeywordsHtml`'s `dtScope` gating hides a mismatching row even when the keyword is present, which would make it impossible to un-tick in the panel. Cosmetic - the block is already enforced. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4492,13 +4494,18 @@ Reordering fields (Structure tab's Up/Down buttons, `DspfWriter.reorderFields`, 
 
 <a id="i-88"></a>
 
-### I-88 — Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check
+### I-88 — Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-61, I-62
+> **Area:** Field · **Status:** Not started · **Depends on:** I-61, I-62, I-70, I-72
 
 Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit.
 
-*Raised by I-61, I-62. Size (estimate): Small–medium (needs a decision first).*
+**Scope added (from I-70 and I-72's own findings, verbatim):**
+
+- *`CHRID` (I-70):* Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database definition through `applyFieldUpdate`, so it can give a `CHRID` field decimal positions (making it numeric, which `CHRID` forbids) with no check - the same gap I-61/I-62 logged for `WRDWRAP`/`PSHBTNFLD`, now tracked as I-88. I-88 should cover `CHRID` too, using `DspfWriter.chridBasicEditConflictReason`'s decimals rule.
+- *`DUP` (I-72):* Resolve Referenced Field (`extension.ts`) rewrites a field's data type from the database definition through `applyFieldUpdate`, so it can turn a `DUP` field into a floating-point (`F`) field, which `DUP` forbids, with no check - the same gap I-61, I-62 and I-70 logged, tracked as I-88. I-88 should cover `DUP` too, using `DspfWriter.dupFloatNewConflictReason`.
+
+*Raised by I-61, I-62, I-70, I-72. Size (estimate): Small–medium (needs a decision first; four keywords now share it).*
 
 ---
 
@@ -4557,5 +4564,53 @@ New `i91MsgidExclusionGuard.test.js` (81 checks: unit checks on both functions, 
 Found while probing for I-73. `MSGID`'s entry says "You cannot specify MSGID in a subfile record format (SFL keyword)." The Message ID accordion is offered for output-capable fields of an `SFL` record (confirmed by probe: a usage `O` field under an `SFL` record renders the instances list and its "+ Add message ID" button), and nothing blocks adding one. Either hide the accordion for fields of an `SFL` record, or guard the add, the same way I-56/I-46 treat other record-shape rules; a hand-edited field that already carries `MSGID` must remain removable. Check `SFLCTL` (its own fields are not subfile detail fields) before deciding what "an SFL record" means here.
 
 *Raised by I-73. Size (estimate): Small.*
+
+---
+
+<a id="i-93"></a>
+
+### I-93 — `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record)
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-84
+
+Found while fixing I-84. The same "box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` exists in `ENTFLDATR`'s guard (I-53/I-54/I-60: the `addGuardFn` in `wireEntFldAtrEditor`, which fires whenever the checkbox is ticked at Apply). Confirmed by probe on the record-level panel: on an `SFL`, `MNUBAR` or `USRDFN` record that already carries a hand-edited `ENTFLDATR`, changing its colour and pressing Apply is refused with "ENTFLDATR cannot be *added* to …" and the keyword is left unchanged, while un-ticking it works and a plain record edits normally. Same fix shape as I-84: gate on the real transition (the keyword was not already present) rather than on the checkbox state.
+
+*Raised by I-84. Size (estimate): Small.*
+
+---
+
+<a id="i-94"></a>
+
+### I-94 — `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-71
+
+Found while fixing I-71. `IGCALTTYP` eligibility (same DDS section, first rule): "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." (and the DBCS chapter: not on DBCS-graphic fields, `G` in position 35). The General row's `IGCALTTYP` entry has no usage or data-type gating today, so it is offered on output-only / input-only fields and on `J`/`E`/`O`/`G` fields. Expect the WRDWRAP-style usage + shift-type gating (I-42 / I-61), with usage `B` only.
+
+*Raised by I-71. Size (estimate): Small–medium.*
+
+---
+
+<a id="i-95"></a>
+
+### I-95 — `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-71
+
+Found while fixing I-71. "Option indicators are not allowed with `IGCALTTYP`" (same section). I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle is not gated by keyword, so an indicator can still be put on a raw-added `IGCALTTYP` (and a hand-written one is not flagged). Check whether a generic "no option indicators" keyword list already exists for the other no-indicator keywords before adding one just for this.
+
+*Raised by I-71. Size (estimate): Small.*
+
+---
+
+<a id="i-96"></a>
+
+### I-96 — Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic)
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-72
+
+Found while fixing I-72. The Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Hiding it needs a data-type argument on `inputKeywordsHtml`/`wireInputKeywordsEditor` (neither takes one) and a decision about a hand-written float field that already has `DUP`: `generalFieldKeywordsHtml`'s `dtScope` gating hides a mismatching row even when the keyword is present, which would make it impossible to un-tick in the panel. Cosmetic - the block is already enforced.
+
+*Raised by I-72. Size (estimate): Small (cosmetic).*
 
 ---
