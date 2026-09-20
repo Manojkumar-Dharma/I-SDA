@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-80 of 92 tasks done; 12 open (see [Open work](#open-work)). Current version: **v0.10.159**.
+81 of 92 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.160**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -133,7 +133,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check | I-61, I-62 | Not started | — |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
-| [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | In progress | — |
+| [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -149,17 +149,16 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 2 | [I-91](#i-91) | In progress | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field. Size (estimate): Small. Raised by I-73. |
-| 3 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
-| 4 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 5 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 6 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 7 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 8 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 9 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 10 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 11 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 12 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 3 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 4 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 5 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 6 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 7 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 8 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 9 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 10 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 11 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4531,9 +4530,19 @@ The scope of "You cannot specify `HLPDOC` with … `HLPRTN`" across levels is un
 
 ### I-91 — `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-73
+> **Area:** Field · **Status:** Done (v0.10.160) · **Depends on:** I-73
 
 Found while probing for I-73. `MSGID`'s DDS Reference entry lists five keywords that "cannot be specified on a field with the MSGID keyword": `DFT`, `DFTVAL`, `FLTFIXDEC`, `FLTPCN` and `MSGCON`. `MSGCON` is only reachable on constants, which cannot carry `MSGID` (usage `B`/`O` fields only), so it is out of practical reach. The other four are not enforced in either direction: probing the real panel, ticking `DFT` on a field that already has `MSGID` writes both with no alert. Guard both directions (adding `DFT`/`DFTVAL`/`FLTFIXDEC`/`FLTPCN` to a field with `MSGID`, and adding `MSGID` to a field carrying any of them), following I-41's `HTML` pattern (`htmlConflictReason` plus I-83's `withAddGuard`). Re-read the `MSGID` section first and check whether `DFTVAL` and `FLTPCN` are offered by any structured editor at all before wiring them.
+
+**Fixed.** Re-read the `MSGID` section of `DDS_Keyword_V7r6.txt`: "The following keywords cannot be specified on a field with the MSGID keyword: DFT, DFTVAL, FLTFIXDEC, FLTPCN, MSGCON." None of the five takes a parameter qualifier, so any use is excluded (a plain name set, not I-71's token list). `MSGCON` is only reachable on constants, which cannot carry `MSGID`, but it is on IBM's list and costs nothing to include. `MSGID` may be specified several times on a field; one of them is enough to exclude.
+
+*Whether `DFTVAL`/`FLTPCN` are offered by a structured editor* (the task's own check): yes - `DFT` and `DFTVAL` both have General rows, and `FLTFIXDEC` and `FLTPCN` have float-only General rows (I-39), so all four are wired, not just `DFT`.
+
+Two functions in `dspfWriter.js`, in the shape of I-71's `IGCALTTYP` pair and `htmlConflictReason`:
+- `msgidExclusionConflictReason(name, fieldKeywords)` - the add-time check for **both** directions (adding `MSGID` to a field that carries an excluded keyword; adding an excluded keyword to a field that carries `MSGID`), with a different message for each. Wired to the raw keyword editor's "+ Add keyword" and to the General rows' catch-all add guard (I-83's `withAddGuard`).
+- `msgidExclusionNewConflictReason(oldKeywords, newKeywords)` - a **diff-based backstop** at `commitEdit`, straight after I-71's check, covering every other panel that writes keywords, the Message ID panel itself included. If `MSGID` is introduced by the edit, any excluded keyword now on the field counts; if it was already there, only an excluded keyword the edit *added* counts. A hand-written field that was already invalid is not re-reported on unrelated edits (including editing its `MSGID` in place), and removing either keyword is always allowed. `ERRMSGID`, `SFLMSGID` and `CHKMSGID` are different keywords and are matched by exact name, so they are unaffected.
+
+New `i91MsgidExclusionGuard.test.js` (81 checks: unit checks on both functions, then the real generated script in jsdom through the raw editor, the General rows' `DFT`/`DFTVAL` checkboxes, the Message ID panel's "+ Add message ID", and a pre-existing invalid field). Confirmed via `git stash` to fail (45 checks) against pre-fix code. The float-only rows (`FLTFIXDEC`, `FLTPCN`) are covered by the unit and raw-editor checks rather than a General-row click-through. Full suite: 115 test files run in parallel, zero failures.
 
 *Raised by I-73. Size (estimate): Small.*
 

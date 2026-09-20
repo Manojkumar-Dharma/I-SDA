@@ -1969,6 +1969,73 @@
     return added.length ? igcalttypReverseReason(added) : null;
   }
 
+  /** Task I-91 - MSGID's own DDS Reference section: "The following keywords
+   *  cannot be specified on a field with the MSGID keyword: DFT, DFTVAL,
+   *  FLTFIXDEC, FLTPCN, MSGCON." A bidirectional mutual exclusion on the SAME
+   *  field, same shape as I-71's IGCALTTYP pair and htmlConflictReason. None
+   *  of the five takes a "which parameters" qualifier - any use of them is
+   *  excluded - so this is a plain name set, not a token list. MSGCON only
+   *  applies to constants, which cannot carry MSGID, so it is out of practical
+   *  reach, but it is on IBM's list and costs nothing here. MSGID may be
+   *  specified several times on a field; ONE of them is enough to exclude. */
+  var MSGID_EXCLUDED_KEYWORDS = ['DFT', 'DFTVAL', 'FLTFIXDEC', 'FLTPCN', 'MSGCON'];
+  function msgidExcludedHits(keywords) {
+    var hits = [];
+    (keywords || []).forEach(function (k) {
+      if (k && MSGID_EXCLUDED_KEYWORDS.indexOf(k.name) >= 0) hits.push(k.name);
+    });
+    return hits;
+  }
+  function msgidHasMsgid(keywords) {
+    return (keywords || []).some(function (k) { return k && k.name === 'MSGID'; });
+  }
+  function msgidExclusionForwardReason(hits) {
+    return 'MSGID cannot be specified on a field with ' + hits.join(', ') + ' (per the DDS Reference).';
+  }
+  function msgidExclusionReverseReason(hits) {
+    return hits.join(', ') + ' cannot be specified on a field that already has MSGID (per the DDS Reference).';
+  }
+
+  /** Task I-91 - add-time check, BOTH directions, for one keyword being added
+   *  (as typed into the raw keyword editor's "+ Add keyword" or ticked as a
+   *  General row): adding MSGID to a field that carries DFT / DFTVAL /
+   *  FLTFIXDEC / FLTPCN / MSGCON, or adding one of those to a field that
+   *  already carries MSGID. Returns a reason string, or null. A no-op for
+   *  every other keyword. */
+  function msgidExclusionConflictReason(keywordName, fieldKeywords) {
+    var name = String(keywordName || '').toUpperCase();
+    if (name === 'MSGID') {
+      var hits = msgidExcludedHits(fieldKeywords);
+      return hits.length ? msgidExclusionForwardReason(hits) : null;
+    }
+    if (MSGID_EXCLUDED_KEYWORDS.indexOf(name) < 0) return null;
+    return msgidHasMsgid(fieldKeywords) ? msgidExclusionReverseReason([name]) : null;
+  }
+
+  /** Task I-91 - diff-based backstop for every field-level panel (the MSGID
+   *  panel itself, the Default value editors, the General rows, the raw
+   *  editor - all commit through commitEdit), same shape as I-71's
+   *  igcalttypNewConflictReason. If MSGID is on the field after the edit:
+   *   - it was NOT there before: any excluded keyword now on the field is a
+   *     conflict this edit created (forward message);
+   *   - it was already there: only an excluded keyword the edit ADDED counts
+   *     (reverse message).
+   *  Conflicts already present before the edit (a hand-written field that was
+   *  already invalid) are not re-reported, and removing either keyword is
+   *  always allowed. */
+  function msgidExclusionNewConflictReason(oldKeywords, newKeywords) {
+    if (!msgidHasMsgid(newKeywords)) return null;
+    var nowHits = msgidExcludedHits(newKeywords);
+    if (!msgidHasMsgid(oldKeywords)) return nowHits.length ? msgidExclusionForwardReason(nowHits) : null;
+    var before = msgidExcludedHits(oldKeywords);
+    var added = nowHits.filter(function (h) {
+      var i = before.indexOf(h);
+      if (i >= 0) { before.splice(i, 1); return false; }
+      return true;
+    });
+    return added.length ? msgidExclusionReverseReason(added) : null;
+  }
+
   /** Task I-61 - the usage and data-type branches of
    *  wrdwrapFieldConflictReason, pulled out unchanged so the forward check
    *  (turning WRDWRAP on) and wrdwrapBasicEditConflictReason (changing the
@@ -7821,6 +7888,8 @@
     wrdwrapNewConflictReason: wrdwrapNewConflictReason,
     igcalttypConflictReason: igcalttypConflictReason,
     igcalttypNewConflictReason: igcalttypNewConflictReason,
+    msgidExclusionConflictReason: msgidExclusionConflictReason,
+    msgidExclusionNewConflictReason: msgidExclusionNewConflictReason,
     dupFloatNewConflictReason: dupFloatNewConflictReason,
     blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
