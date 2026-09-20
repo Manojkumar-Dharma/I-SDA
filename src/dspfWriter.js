@@ -2146,16 +2146,106 @@
     return hits.join(', ') + ' cannot be specified on a field that already has IGCALTTYP (per the DDS Reference).';
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-94 - IGCALTTYP eligibility. Its own DDS Reference section: "Specify
+  // this keyword only for input- and output-capable fields whose keyboard shift
+  // type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." and,
+  // in the DBCS chapter, "Do not use the IGCALTTYP, IGCANKCNV, CHECK(LC), and
+  // LOWER keywords on DBCS-graphic fields (G specified in position 35)." The
+  // keyword's own opening sentence says what it does: it changes "alphanumeric
+  // character fields that are capable of input and output to DBCS fields with
+  // data type O".
+  //
+  // So two field-kind rules (I-71 already enforced the keyword-vs-keyword ones
+  // and I-95 the option-indicator one):
+  //   - usage B only ("input- and output-capable"): not I, O, H, M or P, and
+  //     not a constant (a constant has no usage at all);
+  //   - keyboard shift / data type (position 35) one of A, N, X, W, I: every
+  //     other value is rejected, which covers the DBCS types J, E, O, G that
+  //     the text names AND the numeric / date / time ones (S, Y, D, M, P, B, F,
+  //     L, T, Z), since it is "alphanumeric character fields" it converts.
+  // A blank usage or data type is "not yet set" and fails open, the same
+  // posture WRDWRAP's checks take (a blank data type is the DDS default, A).
+  //
+  // Enforced the way I-70 enforces CHRID's eligibility, all diff-based so a
+  // hand-written file that is already invalid never blocks an unrelated edit:
+  // the General row is hidden on an ineligible field (unless the keyword is
+  // already there, so it can be un-ticked), the add guards (raw editor,
+  // General row) and the commitEdit choke point take the field's kind, and
+  // the Basic tab's Apply refuses a usage / data type change that would leave
+  // a field carrying IGCALTTYP ineligible.
+  // -----------------------------------------------------------------------
+  var IGCALTTYP_ALLOWED_SHIFTS = ['A', 'N', 'X', 'W', 'I'];
+  function igcalttypUsageReason(usage) {
+    var u = String(usage == null ? '' : usage).trim().toUpperCase();
+    if (u && u !== 'B') {
+      return 'IGCALTTYP can only be specified on input- and output-capable (usage B) fields (per the DDS Reference).';
+    }
+    return null;
+  }
+  function igcalttypDataTypeReason(dataType) {
+    var dt = String(dataType == null ? '' : dataType).trim().toUpperCase();
+    if (dt && IGCALTTYP_ALLOWED_SHIFTS.indexOf(dt) < 0) {
+      return 'IGCALTTYP can only be specified on a field whose keyboard shift type is A, N, X, W or I, not ' + dt +
+        ' (per the DDS Reference; DBCS fields J, E, O and G are not allowed either).';
+    }
+    return null;
+  }
+  /** Why IGCALTTYP cannot be on a field of this kind, or null when it is
+   *  eligible (or the kind is not yet known). `isConstant` fields are never
+   *  eligible. */
+  function igcalttypEligibilityReason(usage, dataType, isConstant) {
+    if (isConstant) return 'IGCALTTYP is not valid on constant fields (per the DDS Reference: input- and output-capable fields only).';
+    return igcalttypUsageReason(usage) || igcalttypDataTypeReason(dataType);
+  }
+
+  /** Task I-94 - Basic tab Apply guard: a usage change to anything but B, or
+   *  a data type change to anything outside A/N/X/W/I, on a field that
+   *  ALREADY carries IGCALTTYP. `field` is the field before the edit,
+   *  `updates` the Apply's changes (only keys present in `updates` count as
+   *  changed). Diff-based like wrdwrapBasicEditConflictReason: a blank usage
+   *  is O on BOTH sides of the comparison (the Basic tab shows O for it),
+   *  and a blank data type fails open, so unrelated edits on an
+   *  already-invalid hand-written field, and changes TO a valid value, are
+   *  never blocked. Returns a reason string or null. */
+  function igcalttypBasicEditConflictReason(fieldKeywords, field, updates) {
+    if (!(fieldKeywords || []).some(function (k) { return k.name === 'IGCALTTYP'; })) return null;
+    var f = field || {};
+    var u = updates || {};
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
+    var reason;
+    if (owns('usage')) {
+      var oldU = norm(f.usage) || 'O';
+      var newU = norm(u.usage) || 'O';
+      if (newU !== oldU) {
+        reason = igcalttypUsageReason(newU);
+        if (reason) return reason + ' Remove IGCALTTYP first.';
+      }
+    }
+    if (owns('dataType') && norm(u.dataType) !== norm(f.dataType)) {
+      reason = igcalttypDataTypeReason(u.dataType);
+      if (reason) return reason + ' Remove IGCALTTYP first.';
+    }
+    return null;
+  }
+
   /** Task I-71 - add-time check, BOTH directions, for one keyword being
    *  added (name + parameters, as typed into the raw keyword editor's "+ Add
    *  keyword" or as a General-row checkbox being ticked):
    *   - adding IGCALTTYP to a field that already carries an excluded keyword;
    *   - adding an excluded keyword to a field that already carries IGCALTTYP.
    *  Returns a reason string, or null. A no-op for every other keyword. */
-  function igcalttypConflictReason(keywordName, parameters, fieldKeywords) {
+  function igcalttypConflictReason(keywordName, parameters, fieldKeywords, fieldKind) {
     var name = String(keywordName || '').toUpperCase();
     var kws = fieldKeywords || [];
     if (name === 'IGCALTTYP') {
+      // Task I-94: `fieldKind` ({ usage, dataType, isConstant }) is optional;
+      // omitted, only the keyword-vs-keyword rules apply (I-71's behaviour).
+      if (fieldKind) {
+        var eligibility = igcalttypEligibilityReason(fieldKind.usage, fieldKind.dataType, fieldKind.isConstant);
+        if (eligibility) return eligibility;
+      }
       var hits = igcalttypKeywordHits(kws);
       return hits.length ? igcalttypForwardReason(hits) : null;
     }
@@ -2178,9 +2268,17 @@
    *     the edit (a hand-written file that was already invalid) are not
    *     re-reported, so unrelated edits to such a field are never blocked,
    *     and removing IGCALTTYP or the excluded keyword is always allowed. */
-  function igcalttypNewConflictReason(oldKeywords, newKeywords) {
+  function igcalttypNewConflictReason(oldKeywords, newKeywords, fieldKind) {
     var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'IGCALTTYP'; }); };
     if (!has(newKeywords)) return null;
+    // Task I-94: `fieldKind` ({ usage, dataType, isConstant } as they will be
+    // AFTER this edit) is optional. Only an edit that INTRODUCES IGCALTTYP
+    // is blamed for the field's kind; one that was already there is left
+    // alone (an already-ineligible hand-written field stays editable).
+    if (!has(oldKeywords) && fieldKind) {
+      var eligibility = igcalttypEligibilityReason(fieldKind.usage, fieldKind.dataType, fieldKind.isConstant);
+      if (eligibility) return eligibility;
+    }
     var nowHits = igcalttypKeywordHits(newKeywords);
     if (!has(oldKeywords)) return nowHits.length ? igcalttypForwardReason(nowHits) : null;
     var before = igcalttypKeywordHits(oldKeywords);
@@ -7576,7 +7674,8 @@
    *  WRDWRAP (I-61) with a data type it forbids, PSHBTNFLD (I-62) with
    *  anything but Y / length 2 / 0 decimals, CHRID (I-70) with decimal
    *  positions (which make it numeric), DUP (I-72) or BLKFOLD (I-82) on a
-   *  floating-point field, SFLCHCCTL (I-79) with anything but Y / 1 / 0.
+   *  floating-point field, SFLCHCCTL (I-79) with anything but Y / 1 / 0,
+   *  IGCALTTYP (I-94) with a data type outside A / N / X / W / I.
    *
    *  This runs, for the definition properties a resolve writes (length,
    *  dataType, decimalPositions - never usage, so CHKMSGID's usage-only rule
@@ -7613,6 +7712,7 @@
       dupFloatNewConflictReason(f, u) ||
       blkfoldFloatNewConflictReason(f, u) ||
       chridBasicEditConflictReason(kws, f, u) ||
+      igcalttypBasicEditConflictReason(kws, f, u) ||
       sflchcctlBasicEditConflictReason(kws, f, u) ||
       null;
   }
@@ -8306,6 +8406,8 @@
     wrdwrapNewConflictReason: wrdwrapNewConflictReason,
     igcalttypConflictReason: igcalttypConflictReason,
     igcalttypNewConflictReason: igcalttypNewConflictReason,
+    igcalttypEligibilityReason: igcalttypEligibilityReason,
+    igcalttypBasicEditConflictReason: igcalttypBasicEditConflictReason,
     noOptionIndicatorsReason: noOptionIndicatorsReason,
     optionIndicatorCount: optionIndicatorCount,
     noOptionIndicatorsNewConflictReason: noOptionIndicatorsNewConflictReason,

@@ -6986,7 +6986,9 @@ function runGeneralKeywordsConstantGatingScenario() {
     [
       '     A          R RECORD1',
       "     A                                  1  5'Hello'",
-      '     A            NAMEFLD       10A  I  2  5',
+      // Task I-94: usage B, not I - IGCALTTYP is only offered on input- AND
+      // output-capable fields, and this scenario is about constant vs. named.
+      '     A            NAMEFLD       10A  B  2  5',
     ].join('\n') + '\n';
   const html = getWebviewHtml('vscode-webview://fake', 'testnonce23', src, 'GATING.DSPF').replace(
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,

@@ -120,9 +120,13 @@ console.log('\ngeneralFieldKeywordsHtml - usage P shows only ALIAS/INDTXT/TEXT (
 console.log('\ngeneralFieldKeywordsHtml - no regression: usage O still shows every row');
 {
   const html = Helpers.generalFieldKeywordsHtml([], 'genO', new Set(), 'A', 'O', [], false);
-  ['alias', 'indtxt', 'dft', 'dftval', 'cntfld', 'text', 'fldcsrprg', 'putretain', 'ovrdta', 'ovratr', 'chrid', 'igcalttyp', 'noccsid'].forEach(function (key) {
+  ['alias', 'indtxt', 'dft', 'dftval', 'cntfld', 'text', 'fldcsrprg', 'putretain', 'ovrdta', 'ovratr', 'chrid', 'noccsid'].forEach(function (key) {
     check('gen-' + key + ' row present for usage O', html.indexOf('genO-gen-' + key + '-on') >= 0);
   });
+  // Task I-94: IGCALTTYP is the one General row that is NOT offered on an
+  // output-only field - "input- and output-capable fields" only (usage B).
+  check('gen-igcalttyp row absent for usage O (I-94: needs usage B)', html.indexOf('genO-gen-igcalttyp-on') === -1);
+  check('gen-igcalttyp row present for usage B', Helpers.generalFieldKeywordsHtml([], 'genB', new Set(), 'A', 'B', [], false).indexOf('genB-gen-igcalttyp-on') >= 0);
 }
 
 console.log('\nwireGeneralFieldKeywordsEditor - runs cleanly against M/P-filtered HTML with no crash (rows simply aren\'t there to wire)');

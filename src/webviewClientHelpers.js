@@ -2619,6 +2619,18 @@
     return !!DspfWriter.chridEligibilityReason(usage, decimalPositions, isConstant);
   }
 
+  /** Task I-94 - IGCALTTYP is only valid on input- and output-capable (usage B)
+   *  fields whose keyboard shift is A/N/X/W/I (DspfWriter.igcalttypEligibilityReason).
+   *  Like CHRID's row (I-70) it is hidden only while IGCALTTYP is NOT already on
+   *  the field, so a hand-written field that already carries it (an invalid
+   *  state) still shows the ticked checkbox and it can be un-ticked. Blank
+   *  usage / data type fail open. Shared by generalFieldKeywordsHtml and
+   *  wireGeneralFieldKeywordsEditor so the two can never disagree. */
+  function igcalttypRowHidden(keywords, usage, dataType, isConstant) {
+    if (DspfWriter.getFileFlagKeyword(keywords, 'IGCALTTYP').present) return false;
+    return !!DspfWriter.igcalttypEligibilityReason(usage, dataType, isConstant);
+  }
+
   function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant, decimalPositions) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
@@ -2639,6 +2651,7 @@
       if (!generalFieldKeywordRowMatchesUsage(usageScope, usage)) return;
       // Task I-70 - CHRID is not valid on hidden or numeric fields.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
+      if (key === 'igcalttyp' && igcalttypRowHidden(keywords, usage, dataType, isConstant)) return;
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
@@ -2675,6 +2688,7 @@
       // Task I-70 - must match generalFieldKeywordsHtml's own CHRID skip
       // exactly, same reasoning as the mpScope/dtScope/usageScope comments.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
+      if (key === 'igcalttyp' && igcalttypRowHidden(keywords, usage, dataType, isConstant)) return;
       var id = ownerKey + '-gen-' + key;
       if (key === 'chrid') {
         // Task I-70 - guarded wiring (alert + revert, same idiom as the

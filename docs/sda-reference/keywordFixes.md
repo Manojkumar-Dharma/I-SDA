@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-91 of 97 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.170**.
+90 of 97 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.172**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -136,7 +136,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Done | v0.10.164 |
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
-| [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | In progress | — |
+| [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Done | v0.10.172 |
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Done | v0.10.170 |
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Done | v0.10.165 |
 | [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
@@ -153,11 +153,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-94](#i-94) | In progress | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 2 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 3 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
-| 4 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 2 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
+| 3 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4705,9 +4704,28 @@ New `i93EntfldatrOnTransitionOnly.test.js` (42 checks, same lightweight jsdom ha
 
 ### I-94 — `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS)
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-71
+> **Area:** Field · **Status:** Done (v0.10.172) · **Depends on:** I-71
 
 Found while fixing I-71. `IGCALTTYP` eligibility (same DDS section, first rule): "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." (and the DBCS chapter: not on DBCS-graphic fields, `G` in position 35). The General row's `IGCALTTYP` entry has no usage or data-type gating today, so it is offered on output-only / input-only fields and on `J`/`E`/`O`/`G` fields. Expect the WRDWRAP-style usage + shift-type gating (I-42 / I-61), with usage `B` only.
+
+**Implemented.** Re-read `IGCALTTYP`'s section first: "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields", plus the DBCS chapter's "Do not use the IGCALTTYP, IGCANKCNV, CHECK(LC), and LOWER keywords on DBCS-graphic fields (G specified in position 35)". The keyword's opening sentence says what it does (it changes "alphanumeric character fields that are capable of input and output to DBCS fields with data type O"), which is why the allowed set is the five character shifts rather than "anything but DBCS". I-71 covered its keyword-vs-keyword exclusions and I-95 its no-option-indicators rule; nothing covered *where* it may be used. The filing's premise was right: the General row was offered on output-only / input-only / hidden fields and on `J`/`E`/`O`/`G` and numeric ones, and the raw editor accepted it anywhere.
+
+Two rules, built like I-70's `CHRID` eligibility (the four routes, all diff-based):
+- **Usage `B` only** (not `I`, `O`, `H`, `M`, `P`), and **not a constant** (it has no usage at all).
+- **Data type / keyboard shift `A`, `N`, `X`, `W` or `I`.** Everything else is refused: the DBCS types `J`/`E`/`O`/`G` the text names, and also the numeric/date/time ones (`S`, `Y`, `D`, `M`, `P`, `B`, `F`, `L`, `T`, `Z`), since it converts *alphanumeric character* fields. A blank usage or data type is "not yet set" and fails open, as for `WRDWRAP` (I-61), where a blank data type is the DDS default `A`.
+
+In `dspfWriter.js`: `igcalttypEligibilityReason(usage, dataType, isConstant)` (with `igcalttypUsageReason`/`igcalttypDataTypeReason`), `igcalttypBasicEditConflictReason(fieldKeywords, field, updates)`, and two existing I-71 functions gained an optional trailing field-kind argument (`igcalttypConflictReason`, `igcalttypNewConflictReason`; omitted, they behave exactly as under I-71). Routes:
+- **General row:** hidden on an ineligible field **unless `IGCALTTYP` is already there** (same choice as I-70, so a hand-written invalid field keeps a ticked checkbox that can be un-ticked); `igcalttypRowHidden` is shared by `generalFieldKeywordsHtml` and `wireGeneralFieldKeywordsEditor`.
+- **Add guards:** the raw keyword editor's "+ Add keyword" and the General rows' catch-all guard (I-83) pass the field's usage, data type and constant-ness.
+- **`commitEdit` choke point:** an edit that *introduces* `IGCALTTYP` is judged on the field's kind as it will be after the edit; one already present is not re-reported.
+- **Basic tab Apply:** a usage change to anything but `B` (blank counts as `O` on both sides, like `WRDWRAP`), or a data type change outside A/N/X/W/I, on a field that already carries it is refused with "Remove IGCALTTYP first", as an early return so the panel keeps the user's other pending edits. Changing to a valid value, and unrelated edits on an already-invalid field, are never blocked.
+- **Resolve Referenced Field (I-88):** `referencedFieldResolveConflictReason` composes the new check, in the same relative position as the Basic tab, so a resolve cannot give an `IGCALTTYP` field a type the Basic tab would refuse. A resolved character field (blank over `A`) is not a change.
+
+Three existing tests asserted the old ungated behaviour and were updated to the new rule, keeping each one's intent: `dspfWebview.test.js` (the constant-vs-named scenario's `NAMEFLD` was usage `I`; now `B`), `i35UsageMpFailOpenAudit.test.js` (the "usage O still shows every row" list no longer includes `IGCALTTYP`, with explicit absent-for-`O` / present-for-`B` checks), and `i70ChridEligibilityGuard.test.js` (its "siblings unaffected on a hidden field" check no longer expects `IGCALTTYP`, which is now hidden there by its own rule).
+
+New `i94IgcalttypEligibility.test.js` (91 checks): the eligibility matrix (every usage and data type), both add guards with and without the field kind, the choke-point diff, the Basic-tab diff (every direction, incl. fixing a field and changing between two invalid values) and the I-88 composition; then the real generated webview in jsdom on ten fields (eligible; usage `O` / `I`; numeric; already valid; two hand-written invalid ones; plain; a literal constant): row visibility, the raw editor, the Basic tab, and un-ticking on an ineligible field. Confirmed against pre-fix code by `git stash`: with only the wiring stashed 9 checks fail; with everything stashed it fails outright. Wired into `npm test`.
+
+Not covered: hidden (`H`) fields are only reachable through the Hidden tab, so the usage-`H` case is asserted in the pure functions and through the row-visibility helper, not through the webview. The Basic tab's data type dropdown does not offer `W`/`J`/`E`/`O`/`G`, so those can only arrive by hand-written DDS (covered by the pure functions).
 
 *Raised by I-71. Size (estimate): Small–medium.*
 

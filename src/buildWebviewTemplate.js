@@ -4696,6 +4696,15 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(chridEditReason);
           return;
         }
+        // Task I-94: IGCALTTYP needs an input- and output-capable (B) field
+        // with keyboard shift A/N/X/W/I - blocks a usage or data type CHANGE
+        // that would leave a field carrying it ineligible. Same diff-based,
+        // early-return idiom as the checks just above.
+        const igcalttypEditReason = DspfWriter.igcalttypBasicEditConflictReason(field.keywords, field, updates);
+        if (igcalttypEditReason) {
+          window.alert(igcalttypEditReason);
+          return;
+        }
         // Task I-79: SFLCHCCTL requires the field to stay length 1, data
         // type Y, 0 decimals, usage H. I-79's own checkbox handler brings
         // a field into that shape when the keyword is turned ON; this
@@ -4716,7 +4725,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.messageIdMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.messageIdMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
@@ -4739,7 +4748,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType);
     }
     // Task I-83: HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to these rows too.
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords), field.decimalPositions);
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords), field.decimalPositions);
     if (!isConstant && catVis.inputKeywords) {
       WebviewClientHelpers.wireEntFldAtrEditor(() => field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
@@ -6575,7 +6584,14 @@ const htmlTemplate = `<!DOCTYPE html>
       // IGCALTTYP on a field that carries one of them, or one of them onto a
       // field that carries IGCALTTYP. Covers every panel that writes keywords
       // without wiring each one.
-      const igcalttypReason = DspfWriter.igcalttypNewConflictReason(field.keywords, updates.keywords);
+      // Task I-94: also IGCALTTYP's eligibility (usage B only, keyboard shift
+      // A/N/X/W/I, not a constant) for an edit that INTRODUCES it, judged on
+      // the field's kind as it will be AFTER the edit.
+      const igcalttypReason = DspfWriter.igcalttypNewConflictReason(field.keywords, updates.keywords, {
+        usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
+        dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
+        isConstant: field.nameType === 'CONSTANT',
+      });
       if (igcalttypReason) {
         window.alert(igcalttypReason);
         render();

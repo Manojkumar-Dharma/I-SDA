@@ -149,7 +149,7 @@ console.log('\nB1. generalFieldKeywordsHtml - the CHRID row');
   check('hidden on a constant (unchanged from I-33)', !row([], 'O', null, true));
   check('STILL shown on a hidden field that already carries CHRID, so the user can untick it', row([kwd('CHRID')], 'H', null));
   check('STILL shown on a numeric field that already carries CHRID', row([kwd('CHRID')], 'B', 2));
-  check('the sibling rows are unaffected on a hidden field (DFT/PUTRETAIN/IGCALTTYP still there)', (() => { const h = Helpers.generalFieldKeywordsHtml([], 'g', new Set(), 'A', 'H', [], false, null); return h.indexOf('g-gen-putretain-on') >= 0 && h.indexOf('g-gen-igcalttyp-on') >= 0; })());
+  check('the sibling rows are unaffected on a hidden field (DFT/PUTRETAIN still there; IGCALTTYP is hidden by its own I-94 rule, usage B only)', (() => { const h = Helpers.generalFieldKeywordsHtml([], 'g', new Set(), 'A', 'H', [], false, null); return h.indexOf('g-gen-putretain-on') >= 0 && h.indexOf('g-gen-dft-on') >= 0 && h.indexOf('g-gen-igcalttyp-on') === -1; })());
 }
 
 // ===========================================================================
