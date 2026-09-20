@@ -4479,7 +4479,7 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::entry-field-attribute', 'Entry field attribute', WebviewClientHelpers.entFldAtrHtml(field.keywords, 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, field.dataType), false);
     }
     if (catVis.generalKeywords) {
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::general-keywords', 'General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType, field.usage, found.record.keywords, isConstant), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::general-keywords', 'General keywords', WebviewClientHelpers.generalFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType, field.usage, found.record.keywords, isConstant, field.decimalPositions), false);
     }
     if (!isConstant && catVis.databaseReference) {
       let dbRefBody = '';
@@ -4662,6 +4662,16 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(chkmsgidEditReason);
           return;
         }
+        // Task I-70: CHRID is not valid on hidden (H), message (M) or
+        // program-to-system (P) fields, nor on numeric fields (decimal
+        // positions specified) - blocks a usage or decimals CHANGE on a
+        // field that already carries it. Same diff-based, early-return
+        // idiom as the checks just above.
+        const chridEditReason = DspfWriter.chridBasicEditConflictReason(field.keywords, field, updates);
+        if (chridEditReason) {
+          window.alert(chridEditReason);
+          return;
+        }
         // Task I-79: SFLCHCCTL requires the field to stay length 1, data
         // type Y, 0 decimals, usage H. I-79's own checkbox handler brings
         // a field into that shape when the keyword is turned ON; this
@@ -4682,7 +4692,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
@@ -4705,7 +4715,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     // Task I-83: HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to these rows too.
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords));
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords), field.decimalPositions);
     if (!isConstant && catVis.inputKeywords) {
       WebviewClientHelpers.wireEntFldAtrEditor(() => field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
@@ -6444,6 +6454,23 @@ const htmlTemplate = `<!DOCTYPE html>
       const chkmsgidReason = DspfWriter.chkmsgidNewConflictReason(field.keywords, updates.keywords);
       if (chkmsgidReason) {
         window.alert(chkmsgidReason);
+        render();
+        return;
+      }
+      // Task I-70: same choke point once more, for CHRID's own rules -
+      // introducing it on a constant/hidden/message/program-to-system/
+      // numeric field or together with DUP, and adding DUP to a field
+      // that already has CHRID (the Input keywords panel's DUP checkbox
+      // has no guard of its own, so this is what covers it). The field's
+      // kind is taken as it will be AFTER this edit, in case an update
+      // carries usage/decimals alongside the keywords.
+      const chridReason = DspfWriter.chridNewConflictReason(field.keywords, updates.keywords, {
+        usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
+        decimalPositions: Object.prototype.hasOwnProperty.call(updates, 'decimalPositions') ? updates.decimalPositions : field.decimalPositions,
+        isConstant: field.nameType === 'CONSTANT',
+      });
+      if (chridReason) {
+        window.alert(chridReason);
         render();
         return;
       }

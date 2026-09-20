@@ -1481,6 +1481,142 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task I-70 - CHRID's own eligibility and mutual-exclusion rules. Its DDS
+  // Reference section states them in three sentences: "The CHRID keyword
+  // is not valid on constant fields, numeric fields (fields with decimal
+  // positions specified in positions 36 through 37), message fields (M
+  // specified in position 38), hidden fields (H specified in position
+  // 38), or program-to-system fields (P in Position 38)." and "The CHRID
+  // keyword cannot be specified with the DUP (Duplication) keyword."
+  // I-30 found none of it enforced beyond hiding the General keywords row
+  // for constants and M/P fields.
+  //
+  // "Numeric" is taken literally from that text - decimal positions
+  // specified (0 counts) - NOT inferred from the data type: a Y (numeric
+  // only) or S field is only numeric for CHRID's purposes once positions
+  // 36-37 are filled in. A blank usage is the DDS default (output), so it
+  // is never blocked.
+  //
+  // Enforced the same way I-58/I-69 enforce theirs, all diff-based so a
+  // hand-written file that is already invalid never blocks an unrelated
+  // edit:
+  //   - chridFieldAddReason       raw editor's "+ Add keyword" and the
+  //                               General keywords row's on-transition
+  //                               (CHRID on an ineligible / DUP field, and
+  //                               DUP on a CHRID field);
+  //   - chridNewConflictReason    the commitEdit choke point, for every
+  //                               panel that writes keywords (the DUP
+  //                               checkbox in Input keywords included);
+  //   - chridBasicEditConflictReason  the Basic tab's Apply (a usage or
+  //                               decimal-positions change on a field that
+  //                               already carries CHRID).
+  // The option-indicator side ("Option indicators are not valid for this
+  // keyword") was already handled by I-30.
+  // -----------------------------------------------------------------------
+  var CHRID_DUP_TEXT = 'CHRID cannot be specified together with DUP on the same field (per the DDS Reference).';
+  var CHRID_USAGE_LABELS = { H: 'hidden (H)', M: 'message (M)', P: 'program-to-system (P)' };
+  var CHRID_NUMERIC_TEXT = 'CHRID is not valid on numeric fields, i.e. fields with decimal positions specified (per the DDS Reference).';
+
+  /** True when a field's decimal positions are specified (positions 36-37
+   *  filled in). null/undefined/blank/non-numeric all mean "not specified";
+   *  0 counts as specified. */
+  function chridDecimalsSpecified(decimalPositions) {
+    if (decimalPositions === null || decimalPositions === undefined) return false;
+    var t = String(decimalPositions).trim();
+    return t !== '' && !isNaN(Number(t));
+  }
+
+  function chridUsageReason(usage) {
+    var u = String(usage == null ? '' : usage).trim().toUpperCase();
+    if (Object.prototype.hasOwnProperty.call(CHRID_USAGE_LABELS, u)) {
+      return 'CHRID is not valid on ' + CHRID_USAGE_LABELS[u] + ' fields (per the DDS Reference).';
+    }
+    return null;
+  }
+
+  /** Why CHRID cannot be on a field of this kind, or null when the field
+   *  is eligible: constant, usage H/M/P, or decimal positions specified.
+   *  (DUP is a keyword-vs-keyword rule, checked separately.) */
+  function chridEligibilityReason(usage, decimalPositions, isConstant) {
+    if (isConstant) return 'CHRID is not valid on constant fields (per the DDS Reference).';
+    var usageReason = chridUsageReason(usage);
+    if (usageReason) return usageReason;
+    if (chridDecimalsSpecified(decimalPositions)) return CHRID_NUMERIC_TEXT;
+    return null;
+  }
+
+  function chridHas(keywords, name) {
+    return (keywords || []).some(function (k) { return k.name === name; });
+  }
+
+  /** Raw keyword editor's "add" guard and the General keywords row's
+   *  on-transition, both directions:
+   *  - adding CHRID: blocked on an ineligible field, or when the field
+   *    already carries DUP;
+   *  - adding DUP: blocked when the field already carries CHRID.
+   *  Returns null for any other keyword name. */
+  function chridFieldAddReason(keywordName, fieldKeywords, usage, decimalPositions, isConstant) {
+    var name = String(keywordName || '').toUpperCase();
+    if (name === 'CHRID') {
+      var eligibility = chridEligibilityReason(usage, decimalPositions, isConstant);
+      if (eligibility) return eligibility;
+      return chridHas(fieldKeywords, 'DUP') ? CHRID_DUP_TEXT : null;
+    }
+    if (name === 'DUP') {
+      return chridHas(fieldKeywords, 'CHRID') ? 'DUP cannot be specified on a field that already has CHRID (per the DDS Reference).' : null;
+    }
+    return null;
+  }
+
+  /** commitEdit choke point: given the field's keywords before and after
+   *  an edit (and the field's own kind - `ctx` is { usage, decimalPositions,
+   *  isConstant }, the values that will be true AFTER the edit), returns a
+   *  reason when the edit INTRODUCES a CHRID violation:
+   *  - CHRID newly present on an ineligible field, or together with DUP;
+   *  - DUP newly added to a field that already had CHRID.
+   *  A field that already had both (hand-written) is never re-reported. */
+  function chridNewConflictReason(oldKeywords, newKeywords, ctx) {
+    if (!chridHas(newKeywords, 'CHRID')) return null;
+    var c = ctx || {};
+    if (!chridHas(oldKeywords, 'CHRID')) {
+      var eligibility = chridEligibilityReason(c.usage, c.decimalPositions, c.isConstant);
+      if (eligibility) return eligibility;
+      return chridHas(newKeywords, 'DUP') ? CHRID_DUP_TEXT : null;
+    }
+    if (chridHas(newKeywords, 'DUP') && !chridHas(oldKeywords, 'DUP')) {
+      return 'DUP cannot be specified on a field that already has CHRID (per the DDS Reference).';
+    }
+    return null;
+  }
+
+  /** Basic tab Apply guard: a usage change to H/M/P, or decimal positions
+   *  going from unspecified to specified, on a field that already carries
+   *  CHRID. `field` is the field before the edit, `updates` the Apply's
+   *  changes (only keys present in `updates` count as changed). Diff-based,
+   *  same blank-usage handling as chkmsgidBasicEditConflictReason (blank =
+   *  output). Returns a reason string or null. */
+  function chridBasicEditConflictReason(fieldKeywords, field, updates) {
+    if (!chridHas(fieldKeywords, 'CHRID')) return null;
+    var f = field || {};
+    var u = updates || {};
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    if (Object.prototype.hasOwnProperty.call(u, 'usage')) {
+      var oldU = norm(f.usage) || 'O';
+      var newU = norm(u.usage) || 'O';
+      if (newU !== oldU) {
+        var usageReason = chridUsageReason(newU);
+        if (usageReason) return usageReason + ' Remove CHRID first.';
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(u, 'decimalPositions')) {
+      if (chridDecimalsSpecified(u.decimalPositions) && !chridDecimalsSpecified(f.decimalPositions)) {
+        return CHRID_NUMERIC_TEXT + ' Remove CHRID first.';
+      }
+    }
+    return null;
+  }
+
+  // -----------------------------------------------------------------------
   // Field-level keyword pickers modeled on real SDA's "Select Field
   // Keywords" screens (see docs/sda-reference/, task D1) - CHECK(...)
   // (shared by SDA's "Keying options" and part of "Validity check"
@@ -7512,6 +7648,10 @@
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,
     chkmsgidFieldAddReason: chkmsgidFieldAddReason,
     chkmsgidBasicEditConflictReason: chkmsgidBasicEditConflictReason,
+    chridEligibilityReason: chridEligibilityReason,
+    chridFieldAddReason: chridFieldAddReason,
+    chridNewConflictReason: chridNewConflictReason,
+    chridBasicEditConflictReason: chridBasicEditConflictReason,
     dftOutputRequirementNote: dftOutputRequirementNote,
     sflNxtchgSflMsgRcdConflictReason: sflNxtchgSflMsgRcdConflictReason,
     loginpLogoutSflMsgRcdIgnoredNote: loginpLogoutSflMsgRcdIgnoredNote,

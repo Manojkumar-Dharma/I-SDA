@@ -2499,7 +2499,23 @@
   // text/boolean) rows ever needed before.
   var DFT_GROUP_KEYS = { dft: 'DFT', dftval: 'DFTVAL' };
 
-  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant) {
+  /** Task I-70 - CHRID is "not valid on constant fields, numeric fields
+   *  (decimal positions specified), message, hidden or program-to-system
+   *  fields". Constants and M/P are already filtered by the row's own
+   *  scope/mpScope columns; this covers the remaining two (usage H,
+   *  decimal positions specified). The row is hidden only while CHRID is
+   *  NOT already on the field, so a hand-written field that already
+   *  carries it (an invalid state) still shows the checkbox and the user
+   *  can untick it. `decimalPositions` is optional (undefined = not
+   *  specified, i.e. fail-open, for callers that do not pass it). Shared
+   *  by generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor so the two
+   *  can never disagree about which rows exist. */
+  function chridRowHidden(keywords, usage, decimalPositions, isConstant) {
+    if (DspfWriter.getFileFlagKeyword(keywords, 'CHRID').present) return false;
+    return !!DspfWriter.chridEligibilityReason(usage, decimalPositions, isConstant);
+  }
+
+  function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant, decimalPositions) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
@@ -2517,6 +2533,8 @@
       if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
       // Task I-42 - usageScope narrows a row to input-capable fields.
       if (!generalFieldKeywordRowMatchesUsage(usageScope, usage)) return;
+      // Task I-70 - CHRID is not valid on hidden or numeric fields.
+      if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
@@ -2530,7 +2548,7 @@
     return html;
   }
 
-  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage, recordKeywords, addGuardFn) {
+  function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage, recordKeywords, addGuardFn, decimalPositions) {
     // Task I-83: optional catch-all on-transition guard (see withAddGuard) -
     // HTML constants reach DFT/HLPID/PUTRETAIN/OVRATR/NOCCSID here, all of
     // which HTML's own DDS Reference forbids on the same field.
@@ -2550,7 +2568,33 @@
       // Task I-42 - must match generalFieldKeywordsHtml's own usageScope
       // skip logic exactly, same reasoning as the mpScope/dtScope comments.
       if (!generalFieldKeywordRowMatchesUsage(usageScope, usage)) return;
+      // Task I-70 - must match generalFieldKeywordsHtml's own CHRID skip
+      // exactly, same reasoning as the mpScope/dtScope/usageScope comments.
+      if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
       var id = ownerKey + '-gen-' + key;
+      if (key === 'chrid') {
+        // Task I-70 - guarded wiring (alert + revert, same idiom as the
+        // WRDWRAP branch just below): turning CHRID ON is blocked when the
+        // field already carries DUP, or is not eligible (see
+        // DspfWriter.chridFieldAddReason - the row is already hidden for
+        // hidden/numeric fields, this keeps the branch correct on its own).
+        // Turning it OFF is never blocked. No Conditioning wiring -
+        // "Option indicators are not valid for this keyword" (I-30).
+        var chOn = document.getElementById(id + '-on');
+        if (chOn) chOn.addEventListener('change', function () {
+          var present = chOn.checked;
+          if (present) {
+            var chReason = DspfWriter.chridFieldAddReason(name, keywords, usage, decimalPositions, isConstant);
+            if (chReason) {
+              window.alert(chReason);
+              chOn.checked = DspfWriter.getFileFlagKeyword(keywords, name).present;
+              return;
+            }
+          }
+          onChange(DspfWriter.setFileFlagKeyword(keywords, name, present, ''));
+        });
+        return;
+      }
       if (key === 'wrdwrap') {
         // Task I-42 - guarded wiring (alert + revert, same idiom as the
         // DFT/DFTVAL branch just below): turning WRDWRAP ON is blocked on a

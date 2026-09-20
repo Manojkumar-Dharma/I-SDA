@@ -112,7 +112,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Done | v0.10.145 |
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Done | v0.10.148 |
-| [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Not started | — |
+| [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Done | v0.10.155 |
 | [I-71](#i-71) | Field | `IGCALTTYP`: mutual-exclusion list | I-30 | Done | v0.10.154 |
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | In progress | — |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | In progress | — |
@@ -147,20 +147,19 @@ Suggested pickup order - roughly smallest and safest first; **not binding** (any
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-86](#i-86) | In progress | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field. Size (estimate): Small–medium. Raised by I-79. |
-| 2 | [I-70](#i-70) | Not started | `CHRID`: mutual-exclusion and eligibility rules. Size (estimate): Small–medium. Raised by I-30. |
-| 3 | [I-73](#i-73) | In progress | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
-| 4 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
-| 5 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
-| 6 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
-| 7 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
-| 8 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 9 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 10 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 11 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 12 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-73](#i-73) | In progress | `MSGID`: position-dependent mandatory/forbidden conditioning rule. Size (estimate): Medium. Raised by I-30. |
+| 3 | [I-72](#i-72) | In progress | `DUP`: floating-point restriction. Size (estimate): Small. Raised by I-30. |
+| 4 | [I-82](#i-82) | Not started | `BLKFOLD` vs floating-point (belt and suspenders). Size (estimate): Small (low priority). Raised by I-39. |
+| 5 | [I-78](#i-78) | Not started | `EDTCDE`: dedicated widget for the optional second parameter. Size (estimate): Small. Raised by I-31. |
+| 6 | [I-88](#i-88) | Not started | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` definition check. Size (estimate): Small–medium (needs a decision first). Raised by I-61, I-62. |
+| 7 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 8 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 11 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 12 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 13 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 14 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -168,6 +167,7 @@ Every earlier finding has been opened as a task (I-61 – I-90, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
+| I-70 | Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database definition through `applyFieldUpdate`, so it can give a `CHRID` field decimal positions (making it numeric, which `CHRID` forbids) with no check - the same gap I-61/I-62 logged for `WRDWRAP`/`PSHBTNFLD`, now tracked as I-88. I-88 should cover `CHRID` too, using `DspfWriter.chridBasicEditConflictReason`'s decimals rule. |
 | I-84 | The same "box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` exists in `ENTFLDATR`'s guard (I-53/I-54/I-60: the `addGuardFn` in `wireEntFldAtrEditor`, which fires whenever the checkbox is ticked at Apply). Confirmed by probe on the record-level panel: on an `SFL`, `MNUBAR` or `USRDFN` record that already carries a hand-edited `ENTFLDATR`, changing its colour and pressing Apply is refused with "ENTFLDATR cannot be *added* to …" and the keyword is left unchanged, while un-ticking it works and a plain record edits normally. Same fix shape as I-84: gate on the real transition (the keyword was not already present) rather than on the checkbox state. |
 | I-71 | `IGCALTTYP` eligibility (same DDS section, first rule): "Specify this keyword only for input- and output-capable fields whose keyboard shift type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." (and the DBCS chapter: not on DBCS-graphic fields, `G` in position 35). The General row's `IGCALTTYP` entry has no usage or data-type gating today, so it is offered on output-only / input-only fields and on `J`/`E`/`O`/`G` fields. Expect the WRDWRAP-style usage + shift-type gating (I-42 / I-61), with usage `B` only. |
 | I-71 | "Option indicators are not allowed with `IGCALTTYP`" (same section). I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle is not gated by keyword, so an indicator can still be put on a raw-added `IGCALTTYP` (and a hand-written one is not flagged). Check whether a generic "no option indicators" keyword list already exists for the other no-indicator keywords before adding one just for this. |
@@ -4108,9 +4108,22 @@ Not addressed here: `CHKMSGID`'s third rule — the optional `&message-data-fiel
 
 ### I-70 — `CHRID`: mutual-exclusion and eligibility rules
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-30
+> **Area:** Field · **Status:** Done (v0.10.155) · **Depends on:** I-30
 
 Per I-30's finding, `CHRID` is mutually exclusive with `DUP` and invalid on constant, numeric, and `M`/`H`/`P`-usage fields — unenforced. Re-verify against `DDS_Keyword_V7r6.txt` before implementing.
+
+**Implemented.** Re-verified against `CHRID`'s own section: "not valid on constant fields, numeric fields (fields with decimal positions specified in positions 36 through 37), message fields (M …), hidden fields (H …), or program-to-system fields (P …)" and "cannot be specified with the DUP keyword". I-30's note was accurate. (`DUP`'s own section does not restate the exclusion; it lives in `CHRID`'s section only.) Before this task only constants and `M`/`P` were handled, and only by hiding the General keywords row; `H`, numeric fields and `DUP` were not covered, and nothing blocked the raw editor.
+
+- **"Numeric" is taken literally** as decimal positions specified (0 counts), not inferred from the data type - a `Y`/`S` field with positions 36-37 blank is not numeric for `CHRID` by IBM's own definition. `DspfWriter.chridEligibilityReason(usage, decimalPositions, isConstant)` returns the reason (constant, `H`, `M`, `P`, numeric) or null; blank usage is the DDS default (output) and never blocked.
+- **Forward, both entry points:** `chridFieldAddReason` is chained onto the raw keyword editor's add guard and is also the General keywords row's on-transition (alert + revert, WRDWRAP's idiom). It blocks `CHRID` on an ineligible field or one already carrying `DUP`, and - the reverse direction - `DUP` on a field already carrying `CHRID`.
+- **Every other panel, at the `commitEdit` choke point:** diff-based `chridNewConflictReason(oldKeywords, newKeywords, ctx)` blocks an edit that introduces `CHRID` on an ineligible field or with `DUP`, or adds `DUP` to a `CHRID` field. This is what covers the Input keywords panel's `DUP` checkbox, which has no guard of its own. The field's kind is taken as it will be after the edit.
+- **Basic tab Apply:** `chridBasicEditConflictReason` blocks a usage change to `H`/`M`/`P`, or decimal positions going from blank to specified, on a field that already carries `CHRID` (message says "Remove CHRID first").
+- **General keywords row visibility:** the `CHRID` row is now also hidden for usage `H` and for numeric fields (`generalFieldKeywordsHtml`/`wireGeneralFieldKeywordsEditor` take an optional trailing `decimalPositions`; omitted = fail-open). Unlike the other scoped rows it is hidden only while `CHRID` is not already on the field, so a hand-written invalid field keeps a ticked checkbox the user can untick.
+- **Never blocks what it shouldn't:** all checks are diff-based, so a hand-written field that already has `CHRID` on an `H` field, or `CHRID` plus `DUP`, stays editable; removing `CHRID`/`DUP`, unrelated Basic-tab edits and unrelated keyword edits are all allowed.
+
+New `src/test/i70ChridEligibilityGuard.test.js` (118 checks): the eligibility matrix, both directions of the add guard and the diff check, the Basic-tab guard, the row visibility rules, and the real generated webview (General checkbox, `DUP` checkbox, raw editor, Basic tab, hidden fields reached through the Hidden tab). Confirmed to fail against pre-fix wiring: with the choke-point and Basic-tab checks removed, 5 webview-level checks fail.
+
+Not addressed here: Resolve Referenced Field can still give a `CHRID` field decimal positions - see the Deferred findings row (I-88).
 
 *Raised by I-30. Size (estimate): Small–medium.*
 
