@@ -6245,7 +6245,14 @@
       function commit(conditions) {
         var present = onEl.checked;
         var params = paramsEl ? paramsEl.value : '';
-        if (present) {
+        // Task I-111: the checks below are ADDITION checks, so they run on a real
+        // turn-on only - the box is ticked AND the keyword was not already there
+        // (I-84's "transition" definition, which fixed the same flaw for
+        // RTNCSRLOC). Editing the parameter text or the Conditioning of a keyword
+        // a hand-written record already carries is not an addition, and refusing it
+        // with "... cannot be added" was wrong and blocked tidying an invalid record.
+        var turningOn = present && !DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
+        if (turningOn) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
             DspfWriter.pulldownConflictReason(name, getKeywords()) ||
             (alsoCheckWindow ? DspfWriter.windowConflictReason(name, getKeywords()) : null) ||
@@ -6294,7 +6301,10 @@
       function commit(conditions) {
         var aVal = elA ? elA.value : '';
         var bVal = elB ? elB.value : '';
-        if ((aVal || '').trim() || (bVal || '').trim()) {
+        // Task I-111: real turn-on only - either box just became non-blank AND the
+        // keyword was not already on the record (see wireUsrdfnGuardedFlag's comment).
+        var alreadyThere = getKeywords().some(function (k) { return k.name === name; });
+        if (((aVal || '').trim() || (bVal || '').trim()) && !alreadyThere) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords()) || DspfWriter.sflWhitelistConflictReason(name, getKeywords()) || DspfWriter.mnubarWhitelistConflictReason(name, getKeywords());
           if (reason) {
             window.alert(reason);
@@ -6389,7 +6399,9 @@
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
       function commit(conditions) {
         var present = onEl.checked;
-        if (present) {
+        // Task I-111: real turn-on only - see wireUsrdfnGuardedFlag's own comment.
+        var turningOn = present && !DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
+        if (turningOn) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
             DspfWriter.pulldownConflictReason(name, getKeywords()) ||
             (alsoCheckKeep ? DspfWriter.keepMutexConflictReason(name, getKeywords()) : null) ||

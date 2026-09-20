@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-106 of 113 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.186**.
+107 of 113 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.187**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -153,7 +153,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-108](#i-108) | Record | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records | I-104 | Not started | — |
 | [I-109](#i-109) | Record | Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch) | I-104 | Done | v0.10.186 |
 | [I-110](#i-110) | Record | "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted | I-104 | Done | v0.10.185 |
-| [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Not started | — |
+| [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Done | v0.10.187 |
 | [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Not started | — |
 | [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Not started | — |
 
@@ -170,12 +170,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-108](#i-108) | Not started | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records. Size (estimate): Small. Raised by I-104. |
-| 2 | [I-111](#i-111) | Not started | Guards run on every edit while the box is ticked, not on a real turn-on. Size (estimate): Small–medium. Raised by I-102. |
-| 3 | [I-112](#i-112) | Not started | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
-| 4 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
-| 5 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 6 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 7 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-112](#i-112) | Not started | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
+| 3 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
+| 4 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 5 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 6 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -5165,11 +5164,18 @@ Opened from a deferred finding raised by I-104 (finding E), verbatim:
 
 ### I-111 — `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-84, I-102
+> **Area:** Record · **Status:** Done (v0.10.187) · **Depends on:** I-84, I-102
 
 Opened from a deferred finding raised by I-102, verbatim:
 
 The "the box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLOC` also exists in `wirePulldownGuardedFlag` (and, by the same `present`-gated pattern read from the code but **not probed**, in `wireUsrdfnGuardedFlag` and `wireUsrdfnGuardedTwoField`): its `USRDFN`/`SFL`/`MNUBAR` checks run whenever the keyword's box is ticked, not on a real turn-on. Confirmed by probe on the record panels: on a hand-written `USRDFN` record that already carries `MDTOFF(1)` or `SLNO(3)`, editing the keyword's parameter is refused with "... cannot be specified on a user-defined (USRDFN) record format", and on an `SFL` record with `MDTOFF(1)` with "... cannot be added to a subfile (SFL) record format"; un-ticking works and a plain record edits normally. The message is wrong for an edit and it blocks tidying an already-invalid record. Same fix shape as I-84: gate on the real transition (the keyword was not already present), in each of the three functions, with a test per function. Size (estimate): Small–medium.
+
+**Done.** All three wirers now check on a **real turn-on only**, I-84's "transition" definition (the keyword is being switched on **and** was not already on the record): `wireUsrdfnGuardedFlag` and `wirePulldownGuardedFlag` gate on `present && !getFileFlagKeyword(...).present`, `wireUsrdfnGuardedTwoField` on "either box non-blank and the keyword is not already on the record" (that keyword type has no `present` flag, so it looks the name up in the record's keywords). The whole chain of add-checks sits behind the gate (USRDFN, PULLDOWN, window, KEEP, PASSRCD, DSPMOD's DSPSIZ prerequisite, SFL, MNUBAR, ALWROL/CLRL/SLNO), so an edit is never re-reported and removing the keyword is always allowed.
+- **All three probed, not just read.** Before the change, on hand-written records: `DSPMOD(*DS4)` on `USRDFN` (`wireUsrdfnGuardedFlag`), `SLNO(3)` on `USRDFN` and `MDTOFF(1)` on `SFL` (`wirePulldownGuardedFlag`), `HLPSEQ` and `CSRLOC` on `USRDFN` and `HLPSEQ` on `MNUBAR` (`wireUsrdfnGuardedTwoField`) were each refused when the parameter / a box was edited, with "... cannot be added / specified ..." - including the two functions the filing only read from the code.
+- **Conditioning too, not just parameters.** Adding an indicator condition to an existing out-of-list keyword (`RETKEY` and `ALARM` on `USRDFN`, `CSRLOC` on `USRDFN`) went through the same refused `commit(conditions)`; also fixed, and tested through the row's real Conditioning UI.
+- **Turning on is unchanged.** Ticking the box (or typing into the boxes) on a record type that forbids it is still refused with the right record-type wording, the control reverts and nothing is written; a plain record is unaffected.
+- **Checked and left alone:** `wireKeepGuardedFlag` has the same `if (present)` shape, but `KEEP` has no parameter box and no Conditioning, so its commit only ever runs on the checkbox itself and there is no edit to misreport. A pre-existing quirk seen while testing (blanking only the *group* box of `HLPSEQ` leaves `" 1"` in the source and shifts the number into the group box) is unrelated to guarding, is the same on a plain record, and is not addressed here.
+- **Tests:** new `i111GuardsOnRealTurnOnOnly.test.js` (38 checks, one block per function: edit / Conditioning / removal accepted on `USRDFN`, `SFL`, `MNUBAR` and `PULLDOWN` records, turn-on still refused with the right wording, plain-record controls); 17 of them fail against the pre-fix code.
 
 *Raised by I-102. Size (estimate): Small–medium.*
 
