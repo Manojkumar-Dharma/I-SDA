@@ -144,7 +144,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-99](#i-99) | Record | `SFLMSGID` panel reads and writes the wrong grammar (`library` as a 3rd token; response indicator / `&msg-data` dropped) | I-97 | Done | v0.10.175 |
 | [I-100](#i-100) | Record | `SFLMSG` panel drops a hand-written response indicator when its text is edited | I-99 | Done | v0.10.176 |
 | [I-101](#i-101) | Tooling / all levels | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none | I-95 | In progress | — |
-| [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | Not started | — |
+| [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | In progress | — |
 | [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | Not started | — |
 | [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Not started | — |
 | [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Not started | — |
@@ -162,7 +162,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 2 | [I-102](#i-102) | Not started | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard. Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 2 | [I-102](#i-102) | In progress | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard. Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 3 | [I-103](#i-103) | Not started | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 4 | [I-104](#i-104) | Not started | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`). Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 5 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
@@ -4916,7 +4916,7 @@ The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`N
 
 ### I-102 — `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-44, I-51
+> **Area:** Record · **Status:** In progress · **Depends on:** I-44, I-51
 
 **Bug.** Ticking `HLPCLR` on a `USRDFN` record is refused with "HLPCLR cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference)", although `USRDFN`'s own DDS Reference text lists it as one of the few keywords that *do* apply: "No file- or record-level keywords apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT." `INVITE` behaves the same. On a plain record both are accepted. Verified on v0.10.176 in the real designer (`HLPCLR`'s row is in the Help subtab, which a `USRDFN` record keeps, so a user cannot turn a valid keyword on) and by driving every record panel directly with R2's tab narrowing bypassed (both refused). `INVITE`'s row is in the `output` panel, which R2 hides on a `USRDFN` record, so it is not reachable through the structured UI today; it would be refused if it were (see I-105).
 
