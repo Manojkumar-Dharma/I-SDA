@@ -5959,16 +5959,23 @@
       var logoutNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGOUT', kw);
       if (logoutNote) g += '<div class="hint-small">' + escapeHtml(logoutNote) + '</div>';
     }
+    // Task I-98: LOGINP - "Option indicators are not valid for this
+    // keyword." Same as the SFL panel since I-9 (sflKeywordsPanelsHtml):
+    // no Conditioning toggle. I-11 checked this panel's keyword set against
+    // I-9's but never its conditioning, so the toggle was left in here.
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
-    g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, fLoginp.conditions, expandedSet);
+    g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined);
     if (fLoginp.present) {
       var loginpNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGINP', kw);
       if (loginpNote) g += '<div class="hint-small">' + escapeHtml(loginpNote) + '</div>';
     }
+    // Task I-98: CHECK(AB)/CHECK(RL) - "Option indicators are valid only
+    // for CHECK(ER) and CHECK(ME)" (I-3, I-9), and AB/RL are neither, so no
+    // Conditioning toggle - same as the SFL panel.
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, fCheckAb.conditions, expandedSet);
+    g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, fCheckRl.conditions, expandedSet);
+    g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined);
     g += chgInpDftFlagHtml(kw, 'sm-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     // Task I-25: KEEP (shown on real SDA's own "Select Subfile Message
     // Keywords" screen) is deliberately NOT repeated here anymore - it's
@@ -7106,10 +7113,10 @@
    *  a previous commit in the same render already made" contract as
    *  wireFileKeywordsPanels above. */
   function wireSflMsgPanels(getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
-    function simple(id, name, placeholderIsParams) {
+    function simple(id, name, placeholderIsParams, noConditioning) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions);
-      }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
+      }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
 
     // SFLMSGRCD: an unconditioned primary value, plus one input per
@@ -7173,11 +7180,16 @@
       }, expandedSet, rerender);
     })();
     simple('sm-logout', 'LOGOUT');
-    simple('sm-loginp', 'LOGINP');
+    // Task I-98: LOGINP takes no option indicators (see sflMsgPanelsHtml).
+    simple('sm-loginp', 'LOGINP', false, true);
     // Task I-25: KEEP no longer has a live row on this panel - see
     // sflMsgPanelsHtml's own comment.
-    wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'AB').conditions, expandedSet, rerender);
-    wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'CHECK', 'RL').conditions, expandedSet, rerender);
+    // Task I-98: CHECK(AB)/CHECK(RL) take no option indicators (see
+    // sflMsgPanelsHtml) - wired with no conditions/expandedSet/rerender, so
+    // setFileFlagKeyword's own preserve-existing-conditioning behaviour
+    // leaves a hand-edited one alone (same as the SFL panel).
+    wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
+    wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
     wireChgInpDftFlag(getKeywords, onChange, 'sm-chginpdft', expandedSet, rerender);
 
     wireIndicatorTextRows('sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);

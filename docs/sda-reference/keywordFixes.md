@@ -140,7 +140,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Done | v0.10.170 |
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Done | v0.10.165 |
 | [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
-| [I-98](#i-98) | Record | SFLMSG record's General panel: drop the option-indicator Conditioning on `LOGINP` and `CHECK(AB)`/`CHECK(RL)` (I-9's fix never reached it) | I-9, I-76 | In progress | — |
+| [I-98](#i-98) | Record | SFLMSG record's General panel: drop the option-indicator Conditioning on `LOGINP` and `CHECK(AB)`/`CHECK(RL)` (I-9's fix never reached it) | I-9, I-76 | Done | v0.10.174 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -4818,9 +4818,15 @@ New `i97ErrmsgidSflmsgidDataFieldValidation.test.js` (70 checks): the shared che
 
 ### I-98 — SFLMSG record's General panel: no option-indicator Conditioning on `LOGINP` and `CHECK(AB)`/`CHECK(RL)`
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-9, I-76
+> **Area:** Record · **Status:** Done (v0.10.174) · **Depends on:** I-9, I-76
 
 Opened from I-76's deferred finding. `sflMsgPanelsHtml` / `wireSflMsgPanels` (the SFLMSG record's General tab) still offers a Conditioning toggle on `LOGINP` and `CHECK(AB)`/`CHECK(RL)` (`sm-loginp`, `sm-check-ab`, `sm-check-rl` pass `.conditions` into `flagRowHtml` and wire it through `wireFlagRow`). The SFL panel (`sflKeywordsPanelsHtml`) has not offered them since I-9: `LOGINP`'s DDS Reference section says "Option indicators are not valid for this keyword", and option indicators on `CHECK` are valid only for `CHECK(ER)` and `CHECK(ME)` (I-3, I-9). I-11 checked SFLMSG's keyword *set* against I-9's but not its conditioning. Fix shape: drop the conditioning arguments on those three rows the same way I-9 did, plus a diff-based guard for a hand-edited record that already carries one, as I-95 did. (The panel's own live `CHGINPDFT` row is R3's deliberate leftover, not part of this task.)
+
+**Done.** `sflMsgPanelsHtml` renders `sm-loginp`, `sm-check-ab` and `sm-check-rl` with no `conditions`/`expandedSet`, and `wireSflMsgPanels` wires them without a Conditioning toggle - `simple()` gained the same optional `noConditioning` argument the SFL panel's copy has, used for `LOGINP`; the two `CHECK` rows drop their trailing arguments. `SFLNXTCHG` and `LOGOUT` keep theirs (I-9 kept them on the SFL panel too), and `CHGINPDFT` already had none (I-3).
+
+**Not done, on purpose:** no diff-based guard for a hand-edited record. I-9 did not add one to the SFL panel either, and it would only matter through the raw keyword editor, which is I-95's scope (its scan already lists `LOGINP` and `CHECK`). Because the rows are wired with no conditions, `setFileFlagKeyword`'s preserve-existing-conditioning behaviour leaves an indicator on a hand-edited `LOGINP`/`CHECK(AB)` alone when another row is edited, and ticking either box off still removes the keyword - both asserted.
+
+New `src/test/i98SflmsgGeneralConditioning.test.js` (19 checks, run in jsdom against the real generated webview): no toggle on `sm-loginp`/`sm-check-ab`/`sm-check-rl`, `sm-sflnxtchg`/`sm-logout` still have theirs, the three rows still commit as plain checkboxes with no indicators written, and a hand-edited record carrying `LOGINP`/`CHECK(AB)` with indicators keeps them across an unrelated edit. Confirmed to fail against the pre-fix code (4 checks). Wired into `npm test`.
 
 *Raised by I-76. Size (estimate): Small.*
 
