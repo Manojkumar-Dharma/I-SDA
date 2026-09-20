@@ -6042,7 +6042,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     document.getElementById('p-back').addEventListener('click', () => { selectedHelpSourceLine = null; renderProps(recordName); });
     if (!editable) return;
-    WebviewClientHelpers.wireApplicationHelpFields('help-' + help.sourceLine, () => model.records.find((r) => r.name === recordName).helpEntries.find((h) => h.sourceLine === selectedHelpSourceLine).keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }), expandedKeywordConditioning, () => renderHelpProps(recordName));
+    WebviewClientHelpers.wireApplicationHelpFields('help-' + help.sourceLine, () => model.records.find((r) => r.name === recordName).helpEntries.find((h) => h.sourceLine === selectedHelpSourceLine).keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }), expandedKeywordConditioning, () => renderHelpProps(recordName), () => model, help.sourceLine);
     WebviewClientHelpers.wireKeywordEditor(help.keywords, (newKeywords) => commitHelpEdit(recordName, help, { keywords: newKeywords }), 'help-' + help.sourceLine, expandedKeywordConditioning, () => renderHelpProps(recordName));
   }
 

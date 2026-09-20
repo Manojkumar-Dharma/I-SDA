@@ -5125,6 +5125,70 @@
     return '';
   }
 
+  /**
+   * I-67: is `keywordName` present ANYWHERE in the display file - the
+   * file-level keyword list, or any help specification's own keywords on
+   * any record - other than the one instance being edited (`ownSourceLine`,
+   * a help entry's own sourceLine; omit/pass null when checking from the
+   * file-level panel, which has no "own" help entry to exclude). Backs the
+   * HLPPNLGRP/HLPDOC half of hlpdocHspecConflictReason below: IBM's own
+   * HLPPNLGRP section states that exclusion as file-wide ("a display file
+   * cannot contain both HLPPNLGRP and HLPDOC keywords"), not scoped to a
+   * single file- or help-specification-level instance, so a same-array
+   * presence check (like hlpdocConflictReason above uses for the file
+   * level's own HLPRTN half) isn't enough once HLPDOC/HLPPNLGRP can each
+   * live at either level.
+   */
+  function anyHelpKeywordPresentInFile(model, keywordName, ownSourceLine) {
+    if (!model) return false;
+    if ((model.fileKeywords || []).some(function (kw) { return kw.name === keywordName; })) return true;
+    return (model.records || []).some(function (rec) {
+      return (rec.helpEntries || []).some(function (h) {
+        if (ownSourceLine != null && h.sourceLine === ownSourceLine) return false;
+        return (h.keywords || []).some(function (kw) { return kw.name === keywordName; });
+      });
+    });
+  }
+
+  /**
+   * I-67: HLPDOC's help-specification-level form (`applicationHelpFieldsHtml`'s
+   * per-H-spec panel, alongside HLPBDY/HLPARA/HLPPNLGRP/HLPEXCLD). Re-read
+   * both keywords' own DDS Reference sections rather than assuming
+   * hlpdocConflictReason's file-level shape carries over unchanged:
+   * - HLPDOC's own section: "You cannot specify HLPDOC with HLPBDY,
+   *   HLPPNLGRP, or HLPRTN." HLPBDY only exists at H-spec level in this
+   *   codebase, so that half is necessarily a same-specification check.
+   * - HLPPNLGRP's own section instead spells its half out explicitly as
+   *   file-wide: "a display file cannot contain both HLPPNLGRP and HLPDOC
+   *   keywords" - not "the same specification" - so that half is checked
+   *   via anyHelpKeywordPresentInFile against the WHOLE file (file-level
+   *   keywords plus every other help entry on every record), not just
+   *   `ownKeywords`.
+   * - I-90's research found the HLPRTN cross-level question genuinely
+   *   unsettled by the DDS Reference alone (see I-90's own writeup) -
+   *   deliberately NOT checked here, on I-90's own recommendation.
+   * `model` is the same shape anyHelpKeywordPresentInFile expects
+   * (`.fileKeywords`, `.records[].helpEntries[].keywords`); `ownSourceLine`
+   * is this help entry's own sourceLine, excluded from the file-wide
+   * search so an H-spec's own not-yet-committed HLPDOC/HLPPNLGRP never
+   * conflicts with itself.
+   */
+  function hlpdocHspecConflictReason(keywordName, ownKeywords, model, ownSourceLine) {
+    var presentOwn = function (n) { return (ownKeywords || []).some(function (kw) { return kw.name === n; }); };
+    if (keywordName === 'HLPDOC') {
+      if (presentOwn('HLPBDY')) return 'HLPDOC cannot be specified on the same help specification as HLPBDY (mutually exclusive per the DDS Reference).';
+      if (anyHelpKeywordPresentInFile(model, 'HLPPNLGRP', ownSourceLine)) return 'HLPDOC cannot be specified in the same display file as HLPPNLGRP, wherever either appears (mutually exclusive per the DDS Reference).';
+      return '';
+    }
+    if (keywordName === 'HLPBDY' && presentOwn('HLPDOC')) {
+      return 'HLPBDY cannot be specified on the same help specification as HLPDOC (mutually exclusive per the DDS Reference).';
+    }
+    if (keywordName === 'HLPPNLGRP' && (presentOwn('HLPDOC') || anyHelpKeywordPresentInFile(model, 'HLPDOC', ownSourceLine))) {
+      return 'HLPPNLGRP cannot be specified in the same display file as HLPDOC, wherever either appears (mutually exclusive per the DDS Reference).';
+    }
+    return '';
+  }
+
   /** Cross-check requested against I-38's own HLPDOC work: IBM's DDS
    *  Reference states, right after HLPPNLGRP's own format description,
    *  "a display file cannot contain both HLPPNLGRP and HLPRCD keywords,
@@ -8618,6 +8682,8 @@
     getFileHlpSchIdxKeyword: getFileHlpSchIdxKeyword,
     setFileHlpSchIdxKeyword: setFileHlpSchIdxKeyword,
     hlpdocConflictReason: hlpdocConflictReason,
+    anyHelpKeywordPresentInFile: anyHelpKeywordPresentInFile,
+    hlpdocHspecConflictReason: hlpdocHspecConflictReason,
     hlprcdConflictReason: hlprcdConflictReason,
     getWdwBorder: getWdwBorder,
     setWdwBorder: setWdwBorder,

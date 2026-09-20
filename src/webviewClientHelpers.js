@@ -4965,6 +4965,17 @@
           hlppnlgrpOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').present;
           return;
         }
+        // Task I-67: hlpdocConflictReason above only ever checked the
+        // file's OWN keywords for HLPDOC - now that I-67 added HLPDOC's
+        // help-specification-level form too, a file-level HLPPNLGRP must
+        // also be blocked while ANY H-spec on ANY record already carries
+        // HLPDOC (file-wide per HLPPNLGRP's own DDS Reference section -
+        // see hlpdocHspecConflictReason's doc comment).
+        if (getModel && DspfWriter.anyHelpKeywordPresentInFile(getModel(), 'HLPDOC', null)) {
+          window.alert('HLPPNLGRP cannot be specified in the same display file as HLPDOC, wherever either appears (mutually exclusive per the DDS Reference).');
+          hlppnlgrpOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').present;
+          return;
+        }
       }
       var mod = (hlppnlgrpModule.value || '').trim();
       var lib = (hlppnlgrpLibrary.value || '').trim();
@@ -5101,6 +5112,17 @@
         var reason = DspfWriter.hlpdocConflictReason('HLPDOC', getKeywords());
         if (reason) {
           window.alert(reason);
+          hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
+          return;
+        }
+        // Task I-67: hlpdocConflictReason above only ever checked the
+        // file's OWN keywords for HLPPNLGRP - now that I-67 added
+        // HLPPNLGRP's (already-modelled) and HLPDOC's help-specification-
+        // level forms, a file-level HLPDOC must also be blocked while ANY
+        // H-spec on ANY record already carries HLPPNLGRP (file-wide - see
+        // hlpdocHspecConflictReason's doc comment).
+        if (getModel && DspfWriter.anyHelpKeywordPresentInFile(getModel(), 'HLPPNLGRP', null)) {
+          window.alert('HLPDOC cannot be specified in the same display file as HLPPNLGRP, wherever either appears (mutually exclusive per the DDS Reference).');
           hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
           return;
         }
@@ -6729,20 +6751,131 @@
     html += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', fHlpbdy.present, undefined, undefined, fHlpbdy.conditions, expandedSet);
     var fHlpara = DspfWriter.getFileFlagKeyword(kw, 'HLPARA');
     html += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, undefined, undefined, fHlpara.conditions, expandedSet);
+    // Task I-67: HLPDOC's help-specification-level form - I-38 only ever
+    // added the file-level one, deferring this one (same "file-level only,
+    // H-spec deferred" precedent I-5's own HLPRCD entry set). Same
+    // checkbox-plus-hand-split-3-part-parameters shape as the file-level
+    // panel's own HLPDOC row (fileKeywordsPanelsHtml), all three parts
+    // required per IBM's format (no brackets around any of them).
+    var hlpdoc = DspfWriter.getFileFlagKeyword(kw, 'HLPDOC');
+    var hlpdocParts = (hlpdoc.parameters || '').trim().split(/\s+/).filter(Boolean);
+    html += flagRowHtml(p + '-hlpdoc', 'Help document (HLPDOC)', hlpdoc.present, undefined, undefined, hlpdoc.conditions, expandedSet);
+    html += '<input type="text" id="' + p + '-hlpdoc-label" placeholder="Online help text label name" value="' + escapeHtml(hlpdocParts[0] || '') + '" style="width:100%;" />';
+    html += '<div class="two-col" style="margin-top:4px;"><input type="text" id="' + p + '-hlpdoc-document" placeholder="Document name" value="' + escapeHtml(hlpdocParts[1] || '') + '" />' +
+      '<input type="text" id="' + p + '-hlpdoc-folder" placeholder="Folder name" value="' + escapeHtml(hlpdocParts[2] || '') + '" /></div>';
     return html;
   }
 
-  function wireApplicationHelpFields(idPrefix, getKeywords, onChange, expandedSet, rerender) {
+  /**
+   * getModel/ownSourceLine (both optional) back I-67's HLPDOC/HLPPNLGRP
+   * file-wide conflict guard (DspfWriter.hlpdocHspecConflictReason) - see
+   * that function's own doc comment for why a same-array presence check
+   * isn't enough once HLPDOC/HLPPNLGRP can each live at either the file or
+   * the help-specification level. Callers that can't supply a model (there
+   * are none today; kept optional defensively, same as wireFileKeywordsPanels'
+   * own getModel) simply skip the file-wide half and still get the
+   * same-specification HLPBDY guard.
+   */
+  function wireApplicationHelpFields(idPrefix, getKeywords, onChange, expandedSet, rerender, getModel, ownSourceLine) {
     var p = idPrefix;
     function simple(id, name, hasParams) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
       }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
-    simple(p + '-hlppnlgrp', 'HLPPNLGRP', true);
+    // Task I-67: HLPPNLGRP's own reverse-direction guard against HLPDOC
+    // existing anywhere in the file (file-wide per HLPPNLGRP's own DDS
+    // Reference section - see hlpdocHspecConflictReason's doc comment) -
+    // hand-rolled like HLPBDY just below, since wireFlagRow has no
+    // per-keyword conflict hook and this row also carries a parameter box
+    // (module/library/panel-group), unlike HLPBDY's bare checkbox.
+    (function () {
+      var hlppnlgrpOn = document.getElementById(p + '-hlppnlgrp-on');
+      var hlppnlgrpParams = document.getElementById(p + '-hlppnlgrp-params');
+      if (!hlppnlgrpOn) return;
+      function commit(conditions) {
+        if (hlppnlgrpOn.checked) {
+          var reason = DspfWriter.hlpdocHspecConflictReason('HLPPNLGRP', getKeywords(), getModel ? getModel() : null, ownSourceLine);
+          if (reason) {
+            window.alert(reason);
+            hlppnlgrpOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').present;
+            return;
+          }
+        }
+        var params = hlppnlgrpParams ? hlppnlgrpParams.value : '';
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPPNLGRP', hlppnlgrpOn.checked, params, undefined, conditions));
+      }
+      hlppnlgrpOn.addEventListener('change', function () { commit(); });
+      if (hlppnlgrpParams) hlppnlgrpParams.addEventListener('change', function () { commit(); });
+      wireFlagRowConditioning(p + '-hlppnlgrp', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').conditions, commit, expandedSet, rerender);
+    })();
     simple(p + '-hlpexcld', 'HLPEXCLD');
-    simple(p + '-hlpbdy', 'HLPBDY');
+    // Task I-67: HLPBDY's own reverse-direction guard against HLPDOC
+    // already sharing this help specification - wireFlagRow has no
+    // per-keyword conflict hook (unlike commitIndicatorTextRow's optional
+    // conflictFn - I-68), so this is hand-rolled the same alertAndRevert
+    // way the file-level HLPDOC/HLPPNLGRP checkboxes below already are.
+    (function () {
+      var hlpbdyOn = document.getElementById(p + '-hlpbdy-on');
+      if (!hlpbdyOn) return;
+      hlpbdyOn.addEventListener('change', function () {
+        if (hlpbdyOn.checked) {
+          var reason = DspfWriter.hlpdocHspecConflictReason('HLPBDY', getKeywords(), getModel ? getModel() : null, ownSourceLine);
+          if (reason) {
+            window.alert(reason);
+            hlpbdyOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPBDY').present;
+            return;
+          }
+        }
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPBDY', hlpbdyOn.checked, '', undefined, DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPBDY').conditions));
+      });
+      wireFlagRowConditioning(p + '-hlpbdy', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPBDY').conditions, function (newConditions) {
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPBDY', hlpbdyOn.checked, '', undefined, newConditions));
+      }, expandedSet, rerender);
+    })();
     simple(p + '-hlpara', 'HLPARA');
+
+    // Task I-67: HLPDOC's help-specification-level form. Same "-on"
+    // checkbox drives presence regardless of whether the sub-fields are
+    // filled in yet, and same all-three-parts-required validation, as the
+    // file-level HLPDOC panel (fileKeywordsPanelsHtml's own commitHlpdoc) -
+    // see that function's own comment for the full rationale. Guarded by
+    // hlpdocHspecConflictReason (HLPBDY same-spec, HLPPNLGRP file-wide) on
+    // every commit, not just the moment the checkbox is first ticked, so
+    // blanking a required part back out while still checked is caught too.
+    var hlpdocOn = document.getElementById(p + '-hlpdoc-on');
+    var hlpdocLabel = document.getElementById(p + '-hlpdoc-label');
+    var hlpdocDocument = document.getElementById(p + '-hlpdoc-document');
+    var hlpdocFolder = document.getElementById(p + '-hlpdoc-folder');
+    function commitHlpdoc(conditions) {
+      if (hlpdocOn.checked) {
+        var reason = DspfWriter.hlpdocHspecConflictReason('HLPDOC', getKeywords(), getModel ? getModel() : null, ownSourceLine);
+        if (reason) {
+          window.alert(reason);
+          hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
+          return;
+        }
+      }
+      var label = (hlpdocLabel.value || '').trim();
+      var doc2 = (hlpdocDocument.value || '').trim();
+      var folder = (hlpdocFolder.value || '').trim();
+      if (hlpdocOn.checked && (!label || !doc2 || !folder)) {
+        window.alert('HLPDOC requires all three parts - online help text label name, document name, and folder name (per the DDS Reference).');
+        hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
+        return;
+      }
+      var parts = [label, doc2, folder].filter(Boolean);
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPDOC', hlpdocOn.checked, parts.join(' '), undefined, conditions));
+    }
+    // Task I-43's catch-22 fix applies here too - only the checkbox's own
+    // listener commits unconditionally; the three sub-field listeners
+    // no-op while the checkbox is off (see the file-level HLPDOC/HLPRCD
+    // rows' own comment for the full mechanism).
+    if (hlpdocOn) hlpdocOn.addEventListener('change', function () { commitHlpdoc(); });
+    if (hlpdocLabel) hlpdocLabel.addEventListener('change', function () { if (!hlpdocOn.checked) return; commitHlpdoc(); });
+    if (hlpdocDocument) hlpdocDocument.addEventListener('change', function () { if (!hlpdocOn.checked) return; commitHlpdoc(); });
+    if (hlpdocFolder) hlpdocFolder.addEventListener('change', function () { if (!hlpdocOn.checked) return; commitHlpdoc(); });
+    wireFlagRowConditioning(p + '-hlpdoc', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').conditions, commitHlpdoc, expandedSet, rerender);
   }
 
   /** Renders a fixed-size (`rowCount`, default 6) repeatable table of

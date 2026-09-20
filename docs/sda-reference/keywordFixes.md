@@ -109,7 +109,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-64](#i-64) | Field | `PSHBTNFLD` whitelist: structured field panels | I-57 | Done | v0.10.143 |
 | [I-65](#i-65) | Field | `CHCAVAIL`/`CHCUNAVAIL`/`CHCCTL` editors for push-button fields | I-57 | Done | v0.10.142 |
 | [I-66](#i-66) | Field | `PSHBTNCHC` choice-text validation (mnemonics, fit) | I-57 | Done | v0.10.144 |
-| [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Not started | — |
+| [I-67](#i-67) | File | `HLPDOC`: help-specification-level form | I-38 | Done | v0.10.178 |
 | [I-68](#i-68) | File | `HLPRTN`: reverse conflict guard | I-38 | Done | v0.10.145 |
 | [I-69](#i-69) | Field | `CHKMSGID`: validity-check dependency guard | I-30 | Done | v0.10.148 |
 | [I-70](#i-70) | Field | `CHRID`: mutual-exclusion and eligibility rules | I-30 | Done | v0.10.155 |
@@ -165,9 +165,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-103](#i-103) | In progress | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard. Size (estimate): Small. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 3 | [I-104](#i-104) | Not started | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`). Size (estimate): Small–medium. Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
 | 4 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 5 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
-| 6 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 7 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 5 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 6 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4062,13 +4061,23 @@ Full suite: zero failures.
 
 ### I-67 — `HLPDOC`: help-specification-level form
 
-> **Area:** File · **Status:** Not started · **Depends on:** I-38
+> **Area:** File · **Status:** Done (v0.10.178) · **Depends on:** I-38
 
 I-38 added `HLPDOC` at **file level** only. IBM also allows it at help-specification level (inside an H specification, alongside `HLPARA`) — the same "file-level only, H-spec level deferred" precedent I-5's `HLPRCD` set. Not modelled.
 
 **Note from I-90 (research):** add no `HLPRTN` check at the help-specification level - the DDS Reference does not establish that `HLPDOC` conflicts with `HLPRTN` across levels, and an optioned record-level `HLPRTN` alongside H-spec help is the documented usage. Only the exclusions that exist at this level apply: `HLPBDY` (same H spec) and `HLPPNLGRP` (whose own statement is file-wide - decide whether an H-spec `HLPDOC` also conflicts with a file-level `HLPPNLGRP` and with an H-spec `HLPPNLGRP` elsewhere in the file). See I-90.
 
 **Note for I-40:** this adds a level for an existing index entry, so the keyword-index regeneration (I-40) should run after this task.
+
+**Done.** Added `HLPDOC` to the existing per-help-specification "Application Help" panel (`applicationHelpFieldsHtml`/`wireApplicationHelpFields`, alongside `HLPPNLGRP`/`HLPEXCLD`/`HLPBDY`/`HLPARA`) — same checkbox-plus-3-required-parts shape, same all-parts-required validation, as the file-level `HLPDOC` row I-38 added.
+
+- **I-90's deferred decision, made:** re-read `HLPPNLGRP`'s own DDS Reference section rather than assuming `HLPDOC`'s "cannot specify HLPDOC with HLPBDY, HLPPNLGRP, or HLPRTN" sentence scopes the same way for each of the three. `HLPBDY` only exists at H-spec level in this codebase, so that half is necessarily a same-specification check. `HLPPNLGRP`'s own section instead states its half explicitly as file-wide: "a display file **cannot contain both** HLPPNLGRP and HLPDOC keywords" — not "the same specification." So an H-spec's `HLPDOC` now conflicts with `HLPPNLGRP` **anywhere** in the file (another H-spec, or file level), and vice versa — not just within the same specification. New `DspfWriter.anyHelpKeywordPresentInFile(model, keywordName, ownSourceLine)` (searches file-level keywords plus every record's every help entry, excluding the instance being edited) backs this; new `DspfWriter.hlpdocHspecConflictReason(keywordName, ownKeywords, model, ownSourceLine)` wraps it with the `HLPBDY` same-spec half. `HLPRTN` is deliberately NOT checked at this level, per I-90's own recommendation above.
+- **The file-level side had the same gap, now closed too:** I-38's `hlpdocConflictReason` only ever checked the file's OWN keywords, so a file-level `HLPDOC`/`HLPPNLGRP` checkbox couldn't see an H-spec-level instance of the other — genuinely incorrect per `HLPPNLGRP`'s own file-wide wording, not a new rule invented for this task. `fileKeywordsPanelsHtml`'s `commitHlppnlgrp`/`commitHlpdoc` now also call `anyHelpKeywordPresentInFile` (via the `getModel` already threaded through `wireFileKeywordsPanels` for I-18's own MNUBARSW/MNUCNL cross-record check) alongside the existing same-array check.
+- **Threading `model` to the H-spec panel:** `wireApplicationHelpFields` gained two new optional trailing parameters, `getModel` and `ownSourceLine`, wired from `buildWebviewTemplate.js`'s `renderHelpProps` (`() => model`, `help.sourceLine`) - optional so it degrades gracefully (same-spec `HLPBDY` check only) if a future caller can't supply a model.
+- **Hand-rolled, not `wireFlagRow`:** `HLPBDY` and `HLPPNLGRP`'s checkboxes in the H-spec panel needed a conflict-check hook `wireFlagRow` doesn't have (the established "hard-block paths must be hand-rolled outside `wireFlagRow`" principle), same `alertAndRevert` idiom as every other conflict guard in this codebase; `HLPPNLGRP`'s hand-rolled version also has to read its own parameter box, since it (unlike `HLPBDY`) carries `module library/panel-group-name`.
+- **Turning a keyword OFF is never blocked** in either direction, at either level - same "only the on-transition is guarded" contract every other mutual-exclusion checker in this codebase uses.
+
+New `src/test/i67HlpdocHspecLevel.test.js` (34 checks): dspfWriter-level unit coverage for `anyHelpKeywordPresentInFile` and `hlpdocHspecConflictReason` (file-wide search across records, `ownSourceLine` exclusion, same-spec `HLPBDY`, file-wide `HLPPNLGRP`, no `HLPRTN` check), plus a real-generated-webview scenario: the row exists pre-filled from an H-spec's own already-present `HLPDOC`, edits commit to the help entry's own keywords (not the record's or file's), all three parts are required, turning `HLPDOC` off is never blocked, and both conflict directions are exercised file-wide across two separate records (SCREEN1's `HLPDOC` blocks SCREEN2's `HLPPNLGRP`; SCREEN2's own `HLPBDY` blocks its own `HLPDOC`).
 
 *Raised by I-38. Size (estimate): Medium.*
 
