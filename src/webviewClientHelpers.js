@@ -1836,13 +1836,17 @@
    *  Message file, Library - see DspfWriter.parseMsgIdParams/
    *  formatMsgIdParams's own doc comment for MSGID's exact grammar and
    *  why a rarer combined-field form still falls back to raw text. */
-  function messageIdInstancesHtml(keywords, ownerKey, expandedSet) {
+  function messageIdInstancesHtml(keywords, ownerKey, expandedSet, sflRecordReason) {
     var instances = DspfWriter.getMessageIdInstances(keywords);
     var html = '<div class="section-label">Message ID (MSGID)</div>';
     // Task I-73 - position-dependent option-indicator rule (see
     // DspfWriter.msgidConditioningNotes's own doc comment): advisory lines
     // for the required half, and the Conditioning toggle is hidden on the
     // last/only MSGID for the forbidden half.
+    // Task I-92 - only passed for a field of an SFL record that ALREADY has
+    // MSGID (otherwise the whole accordion is not rendered): says why, so
+    // the person can see it should be removed.
+    if (sflRecordReason) html += '<div class="hint-small warn">' + escapeHtml(sflRecordReason + ' Remove it.') + '</div>';
     DspfWriter.msgidConditioningNotes(keywords).forEach(function (note) {
       html += '<div class="hint-small warn">' + escapeHtml(note) + '</div>';
     });

@@ -2067,15 +2067,47 @@
     return hits.join(', ') + ' cannot be specified on a field that already has MSGID (per the DDS Reference).';
   }
 
+  /** Task I-92 - MSGID's own DDS Reference section: "You cannot specify MSGID
+   *  in a subfile record format (SFL keyword)." Record-level, so it needs the
+   *  RECORD's keywords rather than the field's (same as htmlConflictReason's
+   *  SFL branch, I-41). Only the SFL record itself: SFLCTL is the subfile
+   *  CONTROL record, an ordinary display record whose fields are not subfile
+   *  detail fields, and is not what this sentence names. */
+  function msgidRecordIsSubfile(recordKeywords) {
+    return (recordKeywords || []).some(function (k) { return k && k.name === 'SFL'; });
+  }
+  function msgidSflRecordReason(recordKeywords) {
+    return msgidRecordIsSubfile(recordKeywords)
+      ? 'MSGID is not allowed in a field of a subfile (SFL) record (per the DDS Reference).'
+      : null;
+  }
+  function msgidCount(keywords) {
+    return (keywords || []).filter(function (k) { return k && k.name === 'MSGID'; }).length;
+  }
+
+  /** Task I-92 - diff-based backstop for the SFL rule, for the commitEdit
+   *  choke point (covers the Message ID panel's "+ Add message ID", which
+   *  the add-time check above does not see). Blocks an edit that would
+   *  INTRODUCE MSGID on a field of an SFL record: the field carries more
+   *  MSGID keywords after the edit than before. A hand-written field that
+   *  already has MSGID on an SFL record is not re-reported on unrelated
+   *  edits, and removing or editing its MSGID in place is always allowed. */
+  function msgidSflNewConflictReason(oldKeywords, newKeywords, recordKeywords) {
+    if (msgidCount(newKeywords) <= msgidCount(oldKeywords)) return null;
+    return msgidSflRecordReason(recordKeywords);
+  }
+
   /** Task I-91 - add-time check, BOTH directions, for one keyword being added
    *  (as typed into the raw keyword editor's "+ Add keyword" or ticked as a
    *  General row): adding MSGID to a field that carries DFT / DFTVAL /
    *  FLTFIXDEC / FLTPCN / MSGCON, or adding one of those to a field that
    *  already carries MSGID. Returns a reason string, or null. A no-op for
    *  every other keyword. */
-  function msgidExclusionConflictReason(keywordName, fieldKeywords) {
+  function msgidExclusionConflictReason(keywordName, fieldKeywords, recordKeywords) {
     var name = String(keywordName || '').toUpperCase();
     if (name === 'MSGID') {
+      var sflReason = msgidSflRecordReason(recordKeywords);
+      if (sflReason) return sflReason;
       var hits = msgidExcludedHits(fieldKeywords);
       return hits.length ? msgidExclusionForwardReason(hits) : null;
     }
@@ -8014,6 +8046,9 @@
     igcalttypNewConflictReason: igcalttypNewConflictReason,
     msgidExclusionConflictReason: msgidExclusionConflictReason,
     msgidExclusionNewConflictReason: msgidExclusionNewConflictReason,
+    msgidRecordIsSubfile: msgidRecordIsSubfile,
+    msgidSflRecordReason: msgidSflRecordReason,
+    msgidSflNewConflictReason: msgidSflNewConflictReason,
     referencedFieldResolveConflictReason: referencedFieldResolveConflictReason,
     dupFloatNewConflictReason: dupFloatNewConflictReason,
     blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,

@@ -4487,8 +4487,14 @@ const htmlTemplate = `<!DOCTYPE html>
       dbRefBody += WebviewClientHelpers.databaseReferenceHtml(field, 'field-' + field.sourceLine, expandedKeywordConditioning);
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::database-reference', 'Database reference', dbRefBody, false);
     }
-    if (!isConstant && catVis.messageId) {
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::message-id', 'Message ID', WebviewClientHelpers.messageIdInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+    // Task I-92: MSGID cannot be specified in a subfile (SFL) record format
+    // (DDS Reference), so the Message ID panel is not offered for a field of
+    // an SFL record - unless the field already carries MSGID (hand-edited),
+    // in which case it is shown with a note so it can be removed.
+    const msgidSflReason = DspfWriter.msgidSflRecordReason(found.record.keywords);
+    const msgidOfferable = !msgidSflReason || DspfWriter.getMessageIdInstances(field.keywords).length > 0;
+    if (!isConstant && catVis.messageId && msgidOfferable) {
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::message-id', 'Message ID', WebviewClientHelpers.messageIdInstancesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, msgidSflReason), false);
     }
     // Task D3 - Subfile Keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL - I-26
     // added SFLSCROLL to this same screen), for a numeric field living
@@ -4710,7 +4716,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
@@ -4733,7 +4739,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     // Task I-83: HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to these rows too.
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords), field.decimalPositions);
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords), field.decimalPositions);
     if (!isConstant && catVis.inputKeywords) {
       WebviewClientHelpers.wireEntFldAtrEditor(() => field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
@@ -6490,6 +6496,14 @@ const htmlTemplate = `<!DOCTYPE html>
       // both directions - adding MSGID to a field carrying one of them, or
       // one of them to a field carrying MSGID. Covers every panel that writes
       // keywords, including the MSGID panel itself.
+      // Task I-92: and MSGID's own record-level rule - not in a field of a
+      // subfile (SFL) record - for an edit that adds a MSGID.
+      const msgidSflReason = DspfWriter.msgidSflNewConflictReason(field.keywords, updates.keywords, (model.records.find((r) => r.name === recordName) || {}).keywords);
+      if (msgidSflReason) {
+        window.alert(msgidSflReason);
+        render();
+        return;
+      }
       const msgidExclusionReason = DspfWriter.msgidExclusionNewConflictReason(field.keywords, updates.keywords);
       if (msgidExclusionReason) {
         window.alert(msgidExclusionReason);

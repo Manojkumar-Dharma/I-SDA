@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-82 of 96 tasks done; 14 open (see [Open work](#open-work)). Current version: **v0.10.161**.
+82 of 96 tasks done; 14 open (see [Open work](#open-work)). Current version: **v0.10.164**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -134,7 +134,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
-| [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | In progress | — |
+| [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Done | v0.10.164 |
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
 | [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Not started | — |
@@ -152,18 +152,17 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-92](#i-92) | In progress | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
-| 2 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
-| 3 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 4 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
-| 5 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 6 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 7 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 8 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 9 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 10 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 11 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 12 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
+| 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
+| 3 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
+| 4 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 5 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 6 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 7 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 8 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 9 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 10 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 11 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4576,9 +4575,18 @@ New `i91MsgidExclusionGuard.test.js` (81 checks: unit checks on both functions, 
 
 ### I-92 — `MSGID`: not valid on a field of a subfile (`SFL`) record
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-73
+> **Area:** Field · **Status:** Done (v0.10.164) · **Depends on:** I-73
 
 Found while probing for I-73. `MSGID`'s entry says "You cannot specify MSGID in a subfile record format (SFL keyword)." The Message ID accordion is offered for output-capable fields of an `SFL` record (confirmed by probe: a usage `O` field under an `SFL` record renders the instances list and its "+ Add message ID" button), and nothing blocks adding one. Either hide the accordion for fields of an `SFL` record, or guard the add, the same way I-56/I-46 treat other record-shape rules; a hand-edited field that already carries `MSGID` must remain removable. Check `SFLCTL` (its own fields are not subfile detail fields) before deciding what "an SFL record" means here.
+
+**Fixed.** Re-read the `MSGID` section: "You cannot specify MSGID in a subfile record format (SFL keyword)." Record-level, so the checks take the *record's* keywords (same shape as `htmlConflictReason`'s `SFL` branch, I-41). It names the `SFL` record only: `SFLCTL` is the subfile *control* record, an ordinary display record whose fields are not subfile detail fields, so it is deliberately not covered (asserted by the test).
+
+Three layers, in `dspfWriter.js` and the webview:
+- **The panel.** The Message ID accordion is no longer rendered for a field of an `SFL` record. If the field already carries `MSGID` (hand-edited), it is rendered anyway with a note ("... Remove it.") so the keyword can be seen and removed, which is always allowed. `messageIdInstancesHtml` gained an optional 4th parameter for the note.
+- **Add-time checks.** `msgidExclusionConflictReason` (I-91) gained an optional third argument, the record's keywords: adding `MSGID` on an `SFL` record returns the new reason, and it takes precedence over I-91's own `DFT`/... reason. Wired into the raw keyword editor's "+ Add keyword" and the General rows' catch-all guard (which pass `found.record.keywords`). With the argument omitted the function behaves exactly as under I-91.
+- **The `commitEdit` choke point.** New `msgidSflNewConflictReason(oldKeywords, newKeywords, recordKeywords)` blocks an edit that leaves the field with *more* `MSGID` keywords than before, on an `SFL` record. That is what catches the panel's own "+ Add message ID" (which the add-time check never sees). A count comparison rather than "introduced" so that adding a *second* `MSGID` to an already-invalid hand-edited field is also blocked; editing one in place, removing one, and unrelated edits to that field are not.
+
+New `i92MsgidSflRecordGuard.test.js` (45 checks: the pure functions incl. `SFLCTL`/plain/undefined records, `CHKMSGID`/`ERRMSGID`/`SFLMSGID` not mistaken for `MSGID`, and I-91's behaviour unchanged; then the real generated script in jsdom: `SFL` field has no panel, hand-edited `SFL` field shows the note and can be removed but not extended, the raw editor is blocked, and `SFLCTL` and plain records are unaffected). Confirmed against pre-fix code by `git stash`: with only the wiring stashed 8 checks fail; with everything stashed it fails outright. Wired into `npm test`.
 
 *Raised by I-73. Size (estimate): Small.*
 
