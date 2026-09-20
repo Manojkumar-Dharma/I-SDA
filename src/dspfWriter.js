@@ -2192,6 +2192,51 @@
     return added.length ? igcalttypReverseReason(added) : null;
   }
 
+  /** Task I-95 - keywords whose own DDS Reference section says option
+   *  indicators cannot be used with them. IGCALTTYP: "Option indicators are
+   *  not allowed with IGCALTTYP." I-30 made its General row non-conditionable,
+   *  but the raw keyword editor (shared by the file, field, record and
+   *  help-entry levels) draws a Conditioning toggle on EVERY keyword chip, so
+   *  an indicator could still be put on a raw-added IGCALTTYP and a
+   *  hand-written one carrying an indicator was never flagged.
+   *
+   *  No generic list of such keywords existed - the panels' per-row
+   *  `conditionable` flags only cover the structured rows - so this is that
+   *  list: name -> the message to show. Only keywords whose exclusion has
+   *  been read in the reference belong here; it is deliberately not
+   *  populated from a guess. Note the reference words the rule two ways: a
+   *  keyword that "cannot be conditioned itself" but sits on a field that can
+   *  (DATFMT, EDTMSK, ...) and this outright "not allowed with" - only add a
+   *  keyword after reading which one it is. */
+  var NO_OPTION_INDICATOR_KEYWORDS = {
+    IGCALTTYP: 'Option indicators are not allowed with IGCALTTYP (per the DDS Reference).'
+  };
+  function noOptionIndicatorsReason(keywordName) {
+    var name = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
+    if (!name) return null;
+    return Object.prototype.hasOwnProperty.call(NO_OPTION_INDICATOR_KEYWORDS, name) ? NO_OPTION_INDICATOR_KEYWORDS[name] : null;
+  }
+  /** Number of OPTION INDICATORS in a keyword's conditions (a list of OR-ed
+   *  groups, each a list of AND-ed indicators). A display-size condition
+   *  (*DS3/*DS4) is not an option indicator and does not count. */
+  function optionIndicatorCount(conditions) {
+    return (conditions || []).reduce(function (n, g) {
+      return n + (g && g.indicators ? g.indicators.length : 0);
+    }, 0);
+  }
+  /** Diff-based, like I-58 / I-61 / I-62 / I-72 / I-81: given a keyword's
+   *  conditions before and after an edit, returns the reason when the edit
+   *  ADDS option indicators to a keyword that takes none, else null. Removing
+   *  indicators, or leaving them alone, is always allowed - so a hand-written
+   *  keyword that already carries some (already invalid, and warned about in
+   *  the raw editor) can still have them removed, and is not re-reported.
+   *  Keywords not in the table are never affected. */
+  function noOptionIndicatorsNewConflictReason(keywordName, oldConditions, newConditions) {
+    var reason = noOptionIndicatorsReason(keywordName);
+    if (!reason) return null;
+    return optionIndicatorCount(newConditions) > optionIndicatorCount(oldConditions) ? reason : null;
+  }
+
   /** Task I-91 - MSGID's own DDS Reference section: "The following keywords
    *  cannot be specified on a field with the MSGID keyword: DFT, DFTVAL,
    *  FLTFIXDEC, FLTPCN, MSGCON." A bidirectional mutual exclusion on the SAME
@@ -8261,6 +8306,9 @@
     wrdwrapNewConflictReason: wrdwrapNewConflictReason,
     igcalttypConflictReason: igcalttypConflictReason,
     igcalttypNewConflictReason: igcalttypNewConflictReason,
+    noOptionIndicatorsReason: noOptionIndicatorsReason,
+    optionIndicatorCount: optionIndicatorCount,
+    noOptionIndicatorsNewConflictReason: noOptionIndicatorsNewConflictReason,
     msgidExclusionConflictReason: msgidExclusionConflictReason,
     msgidExclusionNewConflictReason: msgidExclusionNewConflictReason,
     msgidRecordIsSubfile: msgidRecordIsSubfile,

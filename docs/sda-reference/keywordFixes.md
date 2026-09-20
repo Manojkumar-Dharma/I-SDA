@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-90 of 97 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.169**.
+91 of 97 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.170**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -137,7 +137,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Done | v0.10.164 |
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
 | [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
-| [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | In progress | — |
+| [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Done | v0.10.170 |
 | [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Done | v0.10.165 |
 | [I-97](#i-97) | Field / Record | `ERRMSGID` / `SFLMSGID`: validate the `&msg-data` parameter (same rule as `CHKMSGID`'s) | I-89 | Done | v0.10.169 |
 
@@ -153,13 +153,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-95](#i-95) | In progress | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
-| 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 3 | [I-75](#i-75) | In progress | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 4 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 5 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
-| 6 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 7 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
+| 2 | [I-75](#i-75) | In progress | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 3 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 4 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
+| 5 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 6 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -168,6 +167,7 @@ Every finding logged before I-97 has been opened as a task (I-61 – I-97, see t
 | Raised by | Finding |
 |-----------|---------|
 | I-97 | The record-level **SFLMSGID panel reads and writes the wrong grammar** (found while checking how `&msg-data` could reach it). IBM's format is `SFLMSGID(msgid [library-name/]msg-file [response-indicator] [&msg-data])`, but `parseSflMsgIdParams`/`formatSflMsgIdParams` treat the *third space-separated token* as the library and write it that way (`A F QGPL`), where a bare third token is a response indicator - so a library entered in the panel produces invalid DDS. Reading goes wrong the other way: hand-written `SFLMSGID(USR1234 QGPL/USRMSGS 30 &FLD)` shows message file `QGPL/USRMSGS` and library `30`, and changing the message id in the panel rewrites it as `NEW0001 QGPL/USRMSGS 30`, silently **dropping `&FLD`**. Probed with the two functions directly. The panel also has no response-indicator or `&msg-data` input. ERRMSGID's own parser (`getErrorMessageInstances`) already does this correctly and is the model to copy. |
+| I-95 | The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`NO_OPTION_INDICATOR_KEYWORDS`, seeded with that one keyword). Scanning `DDS_Keyword_V7r6.txt` finds **93** keyword sections with an "Option indicators are not valid/allowed" sentence, so the same hole exists for the other ~92: **81** worded plainly (ALIAS, ALTHELP, ALTNAME, ALWROL, ASSUME, BLANKS, BLKFOLD, CHANGE, CHCACCEL, CHCCTL, CHECK, CHGINPDFT, CHKMSGID, CLRL, CNTFLD, COMP, DLTCHK, DLTEDT, DSPRL, DSPSIZ, EDTCDE, EDTWRD, ERRSFL, FLDCSRPRG, FLTFIXDEC, GETRETAIN, GRDCLR, HLPARA, HLPCMDKEY, HLPFULL, HLPID, HLPSCHIDX, HLPTITLE, HOME, INDARA, INDTXT, INZRCD, LOGINP, MLTCHCFLD, MSGCON, MSGID, MSGLOC, OPENPRT, PASSRCD, PSHBTNFLD, PULLDOWN, RANGE, REF, REFFLD, RTNCSRLOC, RTNDTA, SETOF, SFL, SFLCHCCTL, SFLCSRPRG, SFLCTL, SFLENTER, SFLLIN, SFLMLTCHC, SFLMODE, SFLMSGKEY, SFLMSGRCD, SFLPAG, SFLRCDNBR, SFLRNA, SFLROLVAL, SFLRTNSEL, SFLSCROLL, SFLSIZ, SFLSNGCHC, SLNO, SNGCHCFLD, TEXT, USRDFN, USRDSPMGT, VALNUM, VALUES, VLDCMDKEY, WDWTITLE, WRDWRAP) and **12** worded "...although option indicators can be used to condition the field" (CHOICE, DATE, DATFMT, DATSEP, DFT, EDTMSK, MAPVAL, SYSNAME, TIME, TIMFMT, TIMSEP, USER). These lists are a *starting point extracted by a scan, not verified per keyword*: the sentence is sometimes conditional (`MSGID` allows indicators except on the last one, I-73; `CHECK` only for some codes, I-30), and several of these keywords are legitimately conditioned by iSDA's own structured editors, so each one has to be read, and checked against the panel that conditions it, before it goes into the table. Size (estimate): Large - an audit, best done in batches by level. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -4709,11 +4709,19 @@ Found while fixing I-71. `IGCALTTYP` eligibility (same DDS section, first rule):
 
 ### I-95 — `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle)
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-71
+> **Area:** Field · **Status:** Done (v0.10.170) · **Depends on:** I-71
 
-Found while fixing I-71. "Option indicators are not allowed with `IGCALTTYP`" (same section). I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle is not gated by keyword, so an indicator can still be put on a raw-added `IGCALTTYP` (and a hand-written one is not flagged). Check whether a generic "no option indicators" keyword list already exists for the other no-indicator keywords before adding one just for this.
+**Fixed.** Found while fixing I-71. `IGCALTTYP`'s section in `DDS_Keyword_V7r6.txt` says it twice: "Option indicators are not allowed with IGCALTTYP." and, in the rules list, "Option indicators are not allowed with this keyword." I-30 made the General row non-conditionable, but the raw keyword editor's per-keyword *Conditioning* toggle was not gated by keyword, so an indicator could still be put on a raw-added `IGCALTTYP`, and a hand-written one carrying an indicator was never flagged.
 
-*Raised by I-71. Size (estimate): Small.*
+The filing asked to check first whether a generic "no option indicators" keyword list already existed. None did: the panels' per-row `conditionable` flags only cover the structured rows (I-70's own comment says the option-indicator side of `CHRID` "was already handled by I-30", i.e. by the General row alone). `keywordEditorHtml` draws the toggle on **every** chip whatever its name, and that one component is shared by the file, field, record and help-entry levels, so fixing it there covers all four.
+
+Fix: a generic `NO_OPTION_INDICATOR_KEYWORDS` table in `dspfWriter.js` (name to message), and three functions over it - `noOptionIndicatorsReason(name)`, `optionIndicatorCount(conditions)` and the diff-based `noOptionIndicatorsNewConflictReason(name, oldConditions, newConditions)`. The raw editor uses them three ways: a listed keyword with no indicators gets **no Conditioning toggle** at all (a small "No option indicators" note instead); a listed keyword that already carries indicators (hand-written) **keeps its toggle so they can be removed and shows a warning**; and adding an indicator to one is **refused with an alert** and the panel re-rendered. Diff-based, like I-58, I-61, I-62, I-72 and I-81: only an edit that *adds* indicators is blocked, removing them is always allowed, and a display-size condition (`*DS3`/`*DS4`) is not an option indicator and does not count. Unlisted keywords are untouched. Adding or removing the `IGCALTTYP` keyword itself works as before.
+
+Why the table is seeded with `IGCALTTYP` alone: scanning the reference finds **93** keyword sections carrying an "Option indicators are not valid/allowed" sentence, so the same hole exists for the rest, but that sentence is sometimes conditional (`MSGID` allows indicators except on the last one, I-73; `CHECK` only for some codes, I-30), so the table cannot be filled mechanically. Each keyword has to be read first; see Deferred findings. The table's own comment says so.
+
+New `i95IgcalttypNoOptionIndicators.test.js` (62 checks): pure unit checks of the table and the diff-based function (adding a first / a second / an OR-group indicator, NOT, removal, no change, unlisted keywords, display-size conditions, null-safety); the exported raw-editor helpers in a plain jsdom document (no toggle and a note on a listed keyword, the toggle kept and a warning on a hand-written one, adding blocked with an alert and nothing committed, removing allowed and the toggle disappearing again, `DUP` unaffected, adding and removing the keyword itself); and the real generated designer in jsdom (a field `IGCALTTYP`, a `DUP` field, and a hand-written `IGCALTTYP` conditioned by indicator 01). Confirmed via `git stash` to fail (23 checks) against pre-fix code. Full suite: 7272/7272 assertions, zero failures, rebased across I-87, I-89, I-90, I-96 and I-97 while in progress.
+
+Not addressed here: the other ~92 keywords - see Deferred findings.
 
 ---
 

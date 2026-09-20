@@ -566,12 +566,26 @@
       var conditions = k.conditions || [];
       var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
       var isExpanded = !!(expandedSet && expandedSet.has(ownerKey + ':' + idx));
+      // Task I-95: a keyword the DDS Reference says takes no option indicators
+      // (DspfWriter.noOptionIndicatorsReason - IGCALTTYP so far) gets no
+      // Conditioning toggle at all while it carries none. One that already
+      // carries some (a hand-written file) keeps the toggle so they can be
+      // removed, and is flagged; adding one is refused in wireKeywordEditor.
+      var noIndReason = DspfWriter.noOptionIndicatorsReason(k.name);
+      var hasIndicators = DspfWriter.optionIndicatorCount(conditions) > 0;
+      var hideToggle = !!noIndReason && !hasIndicators;
       html += '<div class="kw-row">';
       html += '<div class="kw-row-main"><span class="keyword-chip">' + escapeHtml(k.name) +
         (k.parameters ? '(' + escapeHtml(k.parameters) + ')' : '') +
         '<button data-owner="' + ownerKey + '" data-idx="' + idx + '" class="kw-remove">\u00d7</button></span>' +
-        '<span class="kw-cond-toggle" data-owner="' + ownerKey + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span></div>';
-      if (isExpanded) {
+        (hideToggle
+          ? '<span class="hint-small kw-cond-none" title="' + escapeHtml(noIndReason) + '">No option indicators</span>'
+          : '<span class="kw-cond-toggle" data-owner="' + ownerKey + '" data-idx="' + idx + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</span>') +
+        '</div>';
+      if (noIndReason && hasIndicators) {
+        html += '<div class="hint-small kw-cond-warning" style="margin:2px 0 4px 0;">' + escapeHtml(noIndReason) + ' Remove them.</div>';
+      }
+      if (isExpanded && !hideToggle) {
         html += '<div class="kw-cond-body">' + conditionsEditorHtml(conditions, ownerKey + '-kw' + idx, expandedSet) + '</div>';
       }
       html += '</div>';
@@ -617,6 +631,14 @@
       });
       if (expandedSet && expandedSet.has(expandKey) && list[idx]) {
         wireConditionsEditor(ownerKey + '-kw' + idx, list[idx].conditions, function (newConditions) {
+          // Task I-95: diff-based - only an edit that ADDS option indicators to
+          // a keyword that takes none is refused; removing them is always fine.
+          var noIndReason = DspfWriter.noOptionIndicatorsNewConflictReason(list[idx].name, list[idx].conditions, newConditions);
+          if (noIndReason) {
+            window.alert(noIndReason);
+            if (rerender) rerender();
+            return;
+          }
           var next = list.map(function (k, i) {
             if (i !== idx) return k;
             return { name: k.name, parameters: k.parameters, conditions: newConditions, raw: k.raw, sourceLines: k.sourceLines };
