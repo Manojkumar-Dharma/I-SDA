@@ -134,7 +134,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
-| [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | Not started | — |
+| [I-92](#i-92) | Field | `MSGID`: not valid on a field of a subfile (`SFL`) record | I-73 | In progress | — |
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
 | [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | Not started | — |
@@ -152,7 +152,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-92](#i-92) | Not started | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
+| 1 | [I-92](#i-92) | In progress | `MSGID`: not valid on a field of a subfile (`SFL`) record. Size (estimate): Small. Raised by I-73. |
 | 2 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 3 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
 | 4 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
@@ -4576,7 +4576,7 @@ New `i91MsgidExclusionGuard.test.js` (81 checks: unit checks on both functions, 
 
 ### I-92 — `MSGID`: not valid on a field of a subfile (`SFL`) record
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-73
+> **Area:** Field · **Status:** In progress · **Depends on:** I-73
 
 Found while probing for I-73. `MSGID`'s entry says "You cannot specify MSGID in a subfile record format (SFL keyword)." The Message ID accordion is offered for output-capable fields of an `SFL` record (confirmed by probe: a usage `O` field under an `SFL` record renders the instances list and its "+ Add message ID" button), and nothing blocks adding one. Either hide the accordion for fields of an `SFL` record, or guard the add, the same way I-56/I-46 treat other record-shape rules; a hand-edited field that already carries `MSGID` must remain removable. Check `SFLCTL` (its own fields are not subfile detail fields) before deciding what "an SFL record" means here.
 
