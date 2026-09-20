@@ -117,7 +117,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-72](#i-72) | Field | `DUP`: floating-point restriction | I-30 | Done | v0.10.157 |
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Done | v0.10.156 |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | Not started | — |
-| [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Not started | — |
+| [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | In progress | — |
 | [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Not started | — |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Done | v0.10.151 |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Done | v0.10.163 |
@@ -155,7 +155,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-95](#i-95) | In progress | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 3 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 3 | [I-75](#i-75) | In progress | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
 | 4 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
 | 5 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
 | 6 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
@@ -4214,7 +4214,7 @@ Per the DDS Reference, a field defined by reference should also inherit `DATFMT`
 
 ### I-75 — Usage `P` fields: reachable selection path
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-35
+> **Area:** Field · **Status:** In progress · **Depends on:** I-35
 
 Usage `P` (program-to-system) fields are not drawn on the design surface, so there is no reachable way to select one in the current UI; the fixed-keyword-list scoping I-35 added for usage `P` therefore cannot be exercised interactively. Needs a way to list/select hidden and `P` fields (e.g. a field list in the record panel).
 
