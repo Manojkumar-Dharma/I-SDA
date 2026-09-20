@@ -746,7 +746,7 @@ async function fetchReferencedFieldAttributes(
  * this isn't looking up ONE already-known name, it's discovering every
  * field a file has).
  */
-type DatabaseFileField = ReferencedFieldAttributes & { name: string; text: string };
+type DatabaseFileField = ResolvedReference & { name: string; text: string };
 
 /**
  * Task L14 - "Add fields from database file". Lists EVERY field in a PF/LF
@@ -832,9 +832,17 @@ async function fetchDatabaseFileFields(
   // WHNAME per row and compares it to the previous row's to detect a
   // format change, exactly the "group by format" this function itself
   // needs to do next).
+  //
+  // Task I-113: SELECT * (not a column list), same reasoning as
+  // fetchReferencedFieldAttributes - the keyword columns (WHFTXT, WHALIS/WHALI2,
+  // WHCSID, WHECDE, WHEWRD, WHFMT, WHSEP) are read by name from each row, so a
+  // release that lacks one of them just yields no keyword. Each listed field now
+  // carries the keywords it lets a REFFLD field inherit, so "+ Fields from
+  // database file" can hand the designer a full resolved definition (see
+  // handleAddFieldsFromDatabase) instead of writing length/type/decimals.
   const sql = recordFormat
-    ? `SELECT WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} WHERE WHNAME = '${recordFormat.toUpperCase().replace(/'/g, "''")}' ORDER BY WHFOBO`
-    : `SELECT WHNAME, WHFLDI, WHFTXT, WHFLDT, WHFLDB, WHFLDD, WHFLDP FROM QTEMP.${tempMember} ORDER BY WHNAME, WHFOBO`;
+    ? `SELECT * FROM QTEMP.${tempMember} WHERE WHNAME = '${recordFormat.toUpperCase().replace(/'/g, "''")}' ORDER BY WHFOBO`
+    : `SELECT * FROM QTEMP.${tempMember} ORDER BY WHNAME, WHFOBO`;
   let rows: any[];
   try {
     rows = await connection.runSQL(sql);
@@ -860,6 +868,7 @@ async function fetchDatabaseFileFields(
     name: String(rowValue(row, 'WHFLDI') || '').trim(),
     text: String(rowValue(row, 'WHFTXT') || '').trim(),
     ...mapDspffdRowToAttributes(row),
+    keywords: DspfEngine.inheritableKeywordsFromDspffdRow(row),
   }));
   return { fields, recordFormat: recordFormat || String(rowValue(rows[0], 'WHNAME') || '').trim() };
 }
@@ -987,10 +996,24 @@ async function handleListDatabaseFields(
  * not a final layout; each is individually draggable/editable afterward
  * like any other field, same framing Task L14's own plan-doc row uses.
  * `fields` already carries every attribute (length/dataType/
- * decimalPositions/text) from the 'listDatabaseFields' round-trip the
+ * decimalPositions/text/keywords) from the 'listDatabaseFields' round-trip the
  * webview's picker already displayed - reusing that instead of re-querying
  * DSPFFD a second time here, since it's the exact same data the person
  * already saw and picked from a moment ago.
+ *
+ * Task I-113: each field is written as a BARE reference field - "R" in
+ * position 29, name, usage and location, plus REFFLD, and NO length, data type
+ * or decimal positions. Per the DDS Reference (position 29) a field that
+ * specifies its own length, data type or decimals does not inherit the
+ * referenced field's editing and validity checking, and I-74 made the designer
+ * show those as inherited; writing the database's absolute attributes here
+ * (what this used to do) defeated that for every field it added. It also let a
+ * packed or binary type reach position 35 of a display file, where IBM turns
+ * it into zoned. The definitions the picker already holds are instead posted to
+ * the webview as 'referencesResolved' (same message, same key, same in-memory
+ * store as Resolve Referenced Field), so the preview and the "Inherited from
+ * referenced field" panel are populated straight away and the source stays
+ * bare. The +n/-n length adjustment keeps working on the added fields.
  *
  * Task L53: the batch's starting position now comes from `msg.location` -
  * the Line/Column the person clicked on the screen preview via the
@@ -1010,11 +1033,12 @@ async function handleListDatabaseFields(
  */
 async function handleAddFieldsFromDatabase(
   document: vscode.TextDocument,
+  webview: vscode.Webview,
   msg: {
     recordName: string;
     library: string | null;
     file: string;
-    fields: Array<{ name: string; length: number; dataType: string; decimalPositions: number | null; text: string }>;
+    fields: Array<{ name: string; length: number; dataType: string; decimalPositions: number | null; text: string; keywords?: Array<{ name: string; parameters: string }> }>;
     location?: { line: number; column: number };
   }
 ): Promise<void> {
@@ -1049,6 +1073,11 @@ async function handleAddFieldsFromDatabase(
   }
   const PLACEMENT_COLUMN = msg.location ? Math.max(1, msg.location.column) : 2;
 
+  // Task I-113: the name each picked database field was actually given (after
+  // nextAvailableFieldName's collision handling), so its resolved definition
+  // can be keyed exactly the way the designer will look it up afterwards.
+  const addedNames: Array<{ fieldName: string; dbField: (typeof msg.fields)[number] }> = [];
+
   for (const dbField of msg.fields) {
     const rec = currentModel.records.find((r: any) => r.name === msg.recordName);
     if (!rec) break;
@@ -1060,9 +1089,11 @@ async function handleAddFieldsFromDatabase(
     const newLines = DspfWriter.insertField(rec, lines, {
       nameType: 'FIELD',
       name: fieldName,
-      length: dbField.length,
-      dataType: dbField.dataType,
-      decimalPositions: dbField.decimalPositions,
+      // Task I-113: no length / dataType / decimalPositions - a bare reference
+      // field (see this function's doc comment).
+      length: null,
+      dataType: null,
+      decimalPositions: null,
       usage: 'B',
       isReference: true,
       location: { line: nextLine, column: PLACEMENT_COLUMN },
@@ -1070,6 +1101,7 @@ async function handleAddFieldsFromDatabase(
     });
     text = newLines.join('\n');
     currentModel = parseDspf(text);
+    addedNames.push({ fieldName, dbField });
     nextLine++;
   }
 
@@ -1083,7 +1115,36 @@ async function handleAddFieldsFromDatabase(
   // the webview needs the new fields pushed back to it via the normal
   // onDidChangeTextDocument -> 'externalUpdate' path.
   await vscode.workspace.applyEdit(edit);
-  vscode.window.showInformationMessage(`iSDA: Added ${msg.fields.length} field${msg.fields.length === 1 ? '' : 's'} from ${msg.library ? msg.library + '/' : ''}${msg.file}.`);
+
+  // Task I-113: hand the designer the definitions the picker already fetched, keyed
+  // from the fields as they now stand in the source (the same resolveReferenceTarget /
+  // referenceKey pair the render path and Resolve Referenced Field use), so the added
+  // fields draw at their real width and list what they inherit without a second
+  // DSPFFD round-trip. Nothing is written into the document for this.
+  const finalRecord = currentModel.records.find((r: any) => r.name === msg.recordName);
+  const entries: Array<{ key: string; definition: ResolvedReference }> = [];
+  if (finalRecord) {
+    for (const added of addedNames) {
+      const addedField = (finalRecord.fields || []).find((f: any) => f.name === added.fieldName);
+      const target = addedField ? DspfEngine.resolveReferenceTarget(currentModel, finalRecord, addedField) : null;
+      const key = target ? DspfEngine.referenceKey(target) : null;
+      if (!key || entries.some((e) => e.key === key)) continue;
+      entries.push({
+        key,
+        definition: {
+          length: added.dbField.length,
+          dataType: added.dbField.dataType,
+          decimalPositions: added.dbField.decimalPositions,
+          keywords: added.dbField.keywords || [],
+        },
+      });
+    }
+  }
+  if (entries.length > 0) {
+    webview.postMessage({ type: 'referencesResolved', entries });
+  }
+
+  vscode.window.showInformationMessage(`iSDA: Added ${msg.fields.length} field${msg.fields.length === 1 ? '' : 's'} from ${msg.library ? msg.library + '/' : ''}${msg.file}. Length, data type and decimals are inherited from the database file, not written into the source.`);
 }
 
 /**
@@ -1249,7 +1310,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await handleListDatabaseFields(webviewPanel.webview, msg);
         await sendCodeForIStatus();
       } else if (msg.type === 'addFieldsFromDatabase') {
-        await handleAddFieldsFromDatabase(document, msg);
+        await handleAddFieldsFromDatabase(document, webviewPanel.webview, msg);
         await sendCodeForIStatus();
       } else if (msg.type === 'compileDspf') {
         await compileDspf(document.uri, webviewPanel.webview);

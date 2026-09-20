@@ -107,6 +107,9 @@ conditioning rules are checked against IBM's DDS Reference (see
   field's length, type, decimals and inherited keywords (`TEXT`, `ALIAS`, `CCSID`, editing,
   date/time formats) into the designer as a read-only view without changing the DDS source,
   so a `+n` / `-n` length on a reference field keeps working.
+  Fields added from a database file are written as bare reference fields (`R` + `REFFLD`,
+  no length, type or decimals) so they inherit editing and validity checking too; their
+  definitions load into the designer the same way, straight after the insert.
 
 ### Canvas and editing
 

@@ -155,7 +155,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-110](#i-110) | Record | "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted | I-104 | Done | v0.10.185 |
 | [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Done | v0.10.187 |
 | [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Done (research; documented limit) | v0.10.188 |
-| [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | In progress | — |
+| [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Done | v0.10.190 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -169,10 +169,9 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-113](#i-113) | In progress | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
-| 2 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 3 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 2 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -5212,11 +5211,21 @@ Validity-checking keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and 
 
 ### I-113 — "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first)
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-74
+> **Area:** Field · **Status:** Done (v0.10.190) · **Depends on:** I-74
 
 Opened from a deferred finding raised by I-74, verbatim:
 
 **+ Fields from database file** (L14) still writes an explicit length, data type and decimals next to `REFFLD`. By the same IBM rule (position 29) a field that specifies them does not inherit the referenced field's editing or validity checking. Decide whether it should write a bare `R` field with `REFFLD` only (then resolve for the preview), which would also stop it writing packed/binary types into position 35 of a display file.
+
+**Done.** Decision made first, as the task asked (with the user): **Option A** - write a bare `R` field with `REFFLD` only, then resolve for the preview. Options weighed: A (bare field), B (keep explicit attributes but only for a display-file-safe type - a smaller change, but it keeps the loss of inheritance, which is the actual defect) and C (leave it and document the limit - rejected, a working fix exists).
+
+- **What is written now (`handleAddFieldsFromDatabase`, `extension.ts`):** `R` in position 29, the name, usage `B`, the location, and `REFFLD(<field> [<lib>/]<file>)`. Length, data type and decimals are blank - `insertField` was given `null` for all three. No other keyword is written. A packed or binary database type can therefore no longer reach position 35 of a display file (the engine already shows it as zoned, I-74).
+- **Why the definitions still reach the designer:** `fetchDatabaseFileFields` now reads `SELECT *` (still `ORDER BY WHNAME, WHFOBO` / `WHFOBO`) and each listed field carries `keywords` from `DspfEngine.inheritableKeywordsFromDspffdRow` (the same function Resolve uses). The webview already echoes the picked field objects back in `addFieldsFromDatabase`, so no second DSPFFD call is needed: after the insert the host posts them as `referencesResolved`, keyed by `resolveReferenceTarget` + `referenceKey` of each field as it now stands in the source. The preview and the "Inherited from referenced field" panel are populated at once; nothing else is written into the document. A field renamed by the collision rule (`CUSTNO` -> `CUSTNO2`) is keyed by its `REFFLD` database field, not its own name.
+- **`+n` / `-n` and inheritance now work on these fields:** a field with no own length/type/decimals inherits the referenced editing and validity keywords (I-74's `referenceSpecifiesOwnShape` is false for it); the tests show an edit code kept for the bare field and dropped for the old explicit shape.
+- **I-88's conflict check is not needed at insert time:** it guards keywords on the field (`WRDWRAP`, `PSHBTNFLD`, `CHRID`, `DUP`, `BLKFOLD`, `SFLCHCCTL`), and a freshly added field carries only `REFFLD`. It still runs on every later Resolve.
+- **Known limit (not new):** the resolved definitions live in the designer's memory (I-74). After the designer is closed and reopened, an added field draws at the unresolved default width until Resolve Referenced Field / Resolve All is used - the same as any hand-written reference field.
+
+New `src/test/i113AddFieldsBareReference.test.js` (31 checks, added to the `test` script): the list query and the keywords on each listed field; the written source (position 29 `R`, columns 30-37 blank, no `P` in position 35, only `REFFLD` as a keyword, usage `B`); the `referencesResolved` message (one entry per field, exact key, definition contents); the designer side (effective length, zoned type, inherited `EDTCDE` kept, the old explicit shape contrast, `+2` -> 8); the collision-renamed key; an older webview's field list with no `keywords`; and an empty selection posting nothing. **18 of the 31 fail against the pre-change code** (verified by running the new file against the previously compiled `dist/` before the change; the other 13 describe behavior that did not change, e.g. `REFFLD` naming and the existing field being untouched). The existing L14 tests in `extension.test.js` / `dspfWebview.test.js` pass unchanged.
 
 *Raised by I-74. Size (estimate): Small–medium.*
 
