@@ -4664,6 +4664,14 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(dupFloatEditReason);
           return;
         }
+        // Task I-82: BLKFOLD cannot be specified on a floating-point
+        // field. The commitEdit backstop covers this too; repeated here
+        // as an early return, same reasoning as the I-72 DUP check above.
+        const blkfoldFloatEditReason = DspfWriter.blkfoldFloatNewConflictReason(field, updates);
+        if (blkfoldFloatEditReason) {
+          window.alert(blkfoldFloatEditReason);
+          return;
+        }
         // Task I-69: CHKMSGID also requires an input-capable field (usage B
         // or I) - blocks a usage CHANGE to O/H/M/P on a field that already
         // carries it. Same diff-based idiom as the WRDWRAP check above.
@@ -6415,6 +6423,15 @@ const htmlTemplate = `<!DOCTYPE html>
     const dupFloatReason = DspfWriter.dupFloatNewConflictReason(field, updates);
     if (dupFloatReason) {
       window.alert(dupFloatReason);
+      render();
+      return;
+    }
+    // Task I-82: BLKFOLD cannot be specified on a floating-point field
+    // (DDS Reference) - same shape and same reasoning as the DUP check
+    // just above (I-72).
+    const blkfoldFloatReason = DspfWriter.blkfoldFloatNewConflictReason(field, updates);
+    if (blkfoldFloatReason) {
+      window.alert(blkfoldFloatReason);
       render();
       return;
     }

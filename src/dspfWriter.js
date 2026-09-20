@@ -2065,6 +2065,35 @@
     return 'The data type cannot be changed to F (floating point) while the field carries DUP - DUP cannot be specified on a floating-point field (per the DDS Reference). Remove DUP first.';
   }
 
+  /** Task I-82 - BLKFOLD's own DDS Reference section says "You cannot
+   *  specify the BLKFOLD keyword on a floating-point field (F in position
+   *  35)." I-39's dtScope gating ('non-float') already keeps the row from
+   *  being offered on a float field, so this is the "belt and suspenders"
+   *  half: a field whose data type is changed to F AFTER BLKFOLD is set
+   *  (the Basic tab), or BLKFOLD typed into the raw editor on an existing
+   *  float field. Exact same shape as I-72's dupFloatNewConflictReason
+   *  just above - same oldField/updates contract, same diff-based
+   *  (only an edit that INTRODUCES the violation is blocked; an
+   *  already-invalid hand-written field is not re-reported and can always
+   *  be fixed), same two call sites (commitEdit, plus the Basic tab's
+   *  Apply as an early return). */
+  function blkfoldFloatNewConflictReason(oldField, updates) {
+    var o = oldField || {};
+    var u = updates || {};
+    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'BLKFOLD'; }); };
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
+    var newDataType = owns('dataType') ? norm(u.dataType) : norm(o.dataType);
+    var newKeywords = owns('keywords') ? u.keywords : o.keywords;
+    if (newDataType !== 'F' || !has(newKeywords)) return null;
+    // The field ends up floating-point with BLKFOLD; only blame this edit if it introduced that.
+    if (norm(o.dataType) === 'F' && has(o.keywords)) return null;
+    if (!has(o.keywords)) {
+      return 'BLKFOLD cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
+    }
+    return 'The data type cannot be changed to F (floating point) while the field carries BLKFOLD - BLKFOLD cannot be specified on a floating-point field (per the DDS Reference). Remove BLKFOLD first.';
+  }
+
   function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
     if (keywordName !== 'WRDWRAP') return null;
     var usageReason = wrdwrapUsageReason(usage);
@@ -7793,6 +7822,7 @@
     igcalttypConflictReason: igcalttypConflictReason,
     igcalttypNewConflictReason: igcalttypNewConflictReason,
     dupFloatNewConflictReason: dupFloatNewConflictReason,
+    blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,
