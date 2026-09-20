@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-81 of 96 tasks done; 15 open (see [Open work](#open-work)). Current version: **v0.10.160**.
+82 of 96 tasks done; 14 open (see [Open work](#open-work)). Current version: **v0.10.161**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -130,7 +130,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-85](#i-85) | Field | `PSHBTNFLD` / `PSHBTNCHC`: guard removing one while the other stays | I-57, I-64, I-81 | Done | v0.10.153 |
 | [I-86](#i-86) | Cross-level | `SFLNXTCHC` vs a record that contains an `SFLCHCCTL` field | I-79 | Done | v0.10.158 |
 | [I-87](#i-87) | Field | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule | I-79 | Not started | — |
-| [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | In progress | — |
+| [I-88](#i-88) | Field | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check | I-61, I-62, I-70, I-72 | Done | v0.10.161 |
 | [I-89](#i-89) | Field | `CHKMSGID`: validate its `&message-data-field` parameter | I-69 | Not started | — |
 | [I-90](#i-90) | Cross-level | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification) | I-38, I-68 | Not started | — |
 | [I-91](#i-91) | Field | `MSGID`: exclusion of `DFT`, `DFTVAL`, `FLTFIXDEC` and `FLTPCN` on the same field | I-73 | Done | v0.10.160 |
@@ -158,15 +158,14 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-95](#i-95) | Not started | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 5 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
 | 6 | [I-96](#i-96) | Not started | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
-| 7 | [I-88](#i-88) | In progress | Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check. Size (estimate): Small–medium (needs a decision first; four keywords now share it). Raised by I-61, I-62, I-70, I-72. |
-| 8 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 9 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 10 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 11 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 12 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 13 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 14 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 15 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 7 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 8 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 9 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 10 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 11 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 12 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 13 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 14 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4496,7 +4495,7 @@ Reordering fields (Structure tab's Up/Down buttons, `DspfWriter.reorderFields`, 
 
 ### I-88 — Resolve Referenced Field: `WRDWRAP` / `PSHBTNFLD` / `CHRID` / `DUP` definition check
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-61, I-62, I-70, I-72
+> **Area:** Field · **Status:** Done (v0.10.161) · **Depends on:** I-61, I-62, I-70, I-72
 
 Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database file's definition through `applyFieldUpdate` with no `WRDWRAP` (I-61) or `PSHBTNFLD` (I-62) check, so a `WRDWRAP` field can still end up with a data type `WRDWRAP` forbids, and a `PSHBTNFLD` field with a data type, length or decimals other than `Y` / 2 / 0, that way. Needs a decision (block, warn, or leave) because the type comes from a real database file, not from the user's own edit.
 
@@ -4504,6 +4503,16 @@ Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type a
 
 - *`CHRID` (I-70):* Resolve Referenced Field (`extension.ts`) rewrites a field's length, data type and decimals from the database definition through `applyFieldUpdate`, so it can give a `CHRID` field decimal positions (making it numeric, which `CHRID` forbids) with no check - the same gap I-61/I-62 logged for `WRDWRAP`/`PSHBTNFLD`, now tracked as I-88. I-88 should cover `CHRID` too, using `DspfWriter.chridBasicEditConflictReason`'s decimals rule.
 - *`DUP` (I-72):* Resolve Referenced Field (`extension.ts`) rewrites a field's data type from the database definition through `applyFieldUpdate`, so it can turn a `DUP` field into a floating-point (`F`) field, which `DUP` forbids, with no check - the same gap I-61, I-62 and I-70 logged, tracked as I-88. I-88 should cover `DUP` too, using `DspfWriter.dupFloatNewConflictReason`.
+
+**Fixed.** The decision the task called for was **block**: a resolve that would leave a field in a state the panels themselves refuse now leaves that field exactly as it is and reports why; every other field in a "resolve all" still resolves. (Warn-and-apply would have written DDS the panels reject and IBM i would reject at compile time; every other guard in the series hard-blocks.)
+
+New `DspfWriter.referencedFieldResolveConflictReason(field, updates)` in `dspfWriter.js` runs, for the properties a resolve writes (length, data type, decimals - never usage), the very same diff-based Basic-tab checks, in the same order the Basic tab's Apply handler runs them, so the two cannot drift apart: `wrdwrapBasicEditConflictReason` (I-61), `pshbtnfldBasicEditConflictReason` (I-62), `dupFloatNewConflictReason` (I-72), `blkfoldFloatNewConflictReason` (I-82), `chridBasicEditConflictReason` (I-70) and `sflchcctlBasicEditConflictReason` (I-79). `BLKFOLD` and `SFLCHCCTL` were not in the task's list but are the same gap (a data-type / length / decimals write against a keyword's definition rule, already checked by the Basic tab), so they are included rather than left to reopen it. `CHKMSGID`'s check is usage-only and a resolve never changes usage, and the date/time-versus-usage check is not keyword-based, so neither is included.
+
+`handleResolveReferencedField` (`extension.ts`) calls it before `applyFieldUpdate`. A blocked field is skipped and added to the existing failures message: "CUSTNO: left unresolved - the database definition (data type S, length 7, decimals 2) conflicts with a keyword on this field. CHRID …".
+
+Two details: (1) the database's own character type comes back as a **blank** data type (DDS's default, the same as an explicit `A`), so a blank over an existing `A` is not treated as a change - otherwise every diff-based check would re-report an already-invalid hand-written field it is meant to leave alone; (2) a real database file never defines type `Y` (it is the push-button type), so a `PSHBTNFLD` reference field is in practice always refused on resolve - the shape is still tested.
+
+New `i88ResolveReferencedFieldDefinitionCheck.test.js` (76 checks: unit checks on the function for all six keywords, then the real extension host handler against the vscode mock with a stubbed Code for IBM i - single-field refusals, the allowed definitions, an already-invalid hand-written field, and a "resolve all" that leaves the blocked fields byte-for-byte unchanged while resolving the rest). Confirmed via `git stash` to fail (50 checks) against pre-fix code. Full suite: 116 test files run in parallel, zero failures.
 
 *Raised by I-61, I-62, I-70, I-72. Size (estimate): Small–medium (needs a decision first; four keywords now share it).*
 

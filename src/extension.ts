@@ -31,6 +31,7 @@ const DspfEngine: {
 } = require('./dspfEngine.js');
 const DspfWriter: {
   applyFieldUpdate(field: any, sourceLines: string[], updates: any): string[];
+  referencedFieldResolveConflictReason(field: any, updates: any): string | null;
   insertField(record: any, sourceLines: string[], newField: any): string[];
   nextAvailableFieldName(record: any, baseName: string): string;
   insertTypedRecord(dspfFile: any, sourceLines: string[], newRecord: { name: string; keywords: any[] }, pairBack: any): string[];
@@ -908,12 +909,21 @@ async function handleResolveReferencedField(document: vscode.TextDocument, msg: 
           continue;
         }
 
+        // Task I-88: the database's definition is applied through the same
+        // definition checks the Basic tab's Apply runs (WRDWRAP, PSHBTNFLD,
+        // CHRID, DUP, BLKFOLD, SFLCHCCTL), so a resolve can never leave a
+        // field in a state the panels themselves refuse. A field that would
+        // end up invalid is left as it is and reported; the others still resolve.
+        const definition = { length: outcome.length, dataType: outcome.dataType, decimalPositions: outcome.decimalPositions };
+        const conflict = DspfWriter.referencedFieldResolveConflictReason(field, definition);
+        if (conflict) {
+          const shown = `${outcome.dataType || 'A'}, length ${outcome.length}, decimals ${outcome.decimalPositions == null ? 0 : outcome.decimalPositions}`;
+          failures.push(`${fieldName}: left unresolved - the database definition (data type ${shown}) conflicts with a keyword on this field. ${conflict}`);
+          continue;
+        }
+
         let lines = text.split(/\r\n|\r|\n/);
-        lines = DspfWriter.applyFieldUpdate(field, lines, {
-          length: outcome.length,
-          dataType: outcome.dataType,
-          decimalPositions: outcome.decimalPositions,
-        });
+        lines = DspfWriter.applyFieldUpdate(field, lines, definition);
         text = lines.join('\n');
         currentModel = parseDspf(text);
         resolvedCount++;

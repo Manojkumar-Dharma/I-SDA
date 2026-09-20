@@ -7203,6 +7203,55 @@
     return 'SFLCHCCTL requires a length-1, data type Y, 0-decimal, usage H field (per the DDS Reference) - cannot set ' + problems.join(', ') + '.';
   }
 
+  /** Task I-88 - Resolve Referenced Field (extension.ts) overwrites a
+   *  reference field's length, data type and decimals with the values from
+   *  the real database file, through applyFieldUpdate. Unlike the Basic tab's
+   *  Apply, nothing checked those against the keywords already on the field,
+   *  so a resolve could leave it in a state the panels themselves refuse:
+   *  WRDWRAP (I-61) with a data type it forbids, PSHBTNFLD (I-62) with
+   *  anything but Y / length 2 / 0 decimals, CHRID (I-70) with decimal
+   *  positions (which make it numeric), DUP (I-72) or BLKFOLD (I-82) on a
+   *  floating-point field, SFLCHCCTL (I-79) with anything but Y / 1 / 0.
+   *
+   *  This runs, for the definition properties a resolve writes (length,
+   *  dataType, decimalPositions - never usage, so CHKMSGID's usage-only rule
+   *  cannot be affected), the very same diff-based Basic-tab checks, in the
+   *  same order the Basic tab's Apply handler runs them, so the two can never
+   *  drift apart. `field` is the parsed field (with its keywords); `updates`
+   *  carries only the properties being written (an absent key counts as
+   *  unchanged). Returns the first reason string, or null when the definition
+   *  can be applied. Diff-based like the checks it composes: a resolve that
+   *  leaves a property as it is never trips on an already-invalid
+   *  hand-written field, and a resolve to a conforming value is never
+   *  blocked. The database's own character type comes back as a blank data
+   *  type (DDS's default, A), which is not treated as a change from an
+   *  explicit A (see the normalisation below). */
+  function referencedFieldResolveConflictReason(field, updates) {
+    var f = field || {};
+    var u = updates || {};
+    var kws = f.keywords || [];
+    // A resolved CHARACTER field comes back with a blank data type - DDS's
+    // default, and the same thing as an explicit A - so a blank over an existing
+    // A is not a change of data type. Left in, every diff-based check below
+    // would see "A -> blank" as a change and re-report an already-invalid
+    // hand-written field it is supposed to leave alone.
+    if (Object.prototype.hasOwnProperty.call(u, 'dataType') &&
+        String(u.dataType == null ? '' : u.dataType).trim() === '' &&
+        String(f.dataType == null ? '' : f.dataType).trim().toUpperCase() === 'A') {
+      var kept = {};
+      Object.keys(u).forEach(function (key) { if (key !== 'dataType') kept[key] = u[key]; });
+      u = kept;
+    }
+    var newDataType = Object.prototype.hasOwnProperty.call(u, 'dataType') ? u.dataType : f.dataType;
+    return wrdwrapBasicEditConflictReason(kws, f.dataType, f.usage, newDataType, f.usage) ||
+      pshbtnfldBasicEditConflictReason(kws, f, u) ||
+      dupFloatNewConflictReason(f, u) ||
+      blkfoldFloatNewConflictReason(f, u) ||
+      chridBasicEditConflictReason(kws, f, u) ||
+      sflchcctlBasicEditConflictReason(kws, f, u) ||
+      null;
+  }
+
   // ---------------------------------------------------------------------
   // Task R4 - SFLCTL-specific picker (Subfile Control menu: General/
   // Display Layout/Subfile Messages - see docs/sda-reference/screens/
@@ -7890,6 +7939,7 @@
     igcalttypNewConflictReason: igcalttypNewConflictReason,
     msgidExclusionConflictReason: msgidExclusionConflictReason,
     msgidExclusionNewConflictReason: msgidExclusionNewConflictReason,
+    referencedFieldResolveConflictReason: referencedFieldResolveConflictReason,
     dupFloatNewConflictReason: dupFloatNewConflictReason,
     blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
