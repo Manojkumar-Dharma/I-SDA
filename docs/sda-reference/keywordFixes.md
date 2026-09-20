@@ -118,7 +118,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-73](#i-73) | Field | `MSGID`: position-dependent mandatory/forbidden conditioning rule | I-30 | Done | v0.10.156 |
 | [I-74](#i-74) | Field | `REF`/`REFFLD`: copy the other keywords from the referenced database field | I-32 | In progress | — |
 | [I-75](#i-75) | Field | Usage `P` fields: reachable selection path | I-35 | Done | v0.10.171 |
-| [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | In progress | — |
+| [I-76](#i-76) | Tooling | Research: do SFLMSG's General/Indicator categories need their own index categories? | I-16 | Done (no code change) | v0.10.173 |
 | [I-77](#i-77) | Record | `RTNCSRLOC`: re-check the `USRDFN` exclusion | I-56, I-60 | Done | v0.10.151 |
 | [I-78](#i-78) | Field | `EDTCDE`: dedicated widget for the optional second parameter | I-31 | Done | v0.10.163 |
 | [I-79](#i-79) | Field | `SFLCHCCTL`: field-shape, first-field and one-per-record rules | I-39 | Done | v0.10.149 |
@@ -155,8 +155,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-74](#i-74) | In progress | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
 | 2 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. I-90's research applies: add no `HLPRTN` check at this level (see I-90); only the exclusions that exist at H-spec level (`HLPBDY`, `HLPPNLGRP`). |
-| 3 | [I-76](#i-76) | In progress | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -164,6 +163,7 @@ Every finding logged before I-97 has been opened as a task (I-61 – I-97, see t
 
 | Raised by | Finding |
 |-----------|---------|
+| I-76 | The **SFLMSG record's General panel** (`sflMsgPanelsHtml`/`wireSflMsgPanels`) **still offers a Conditioning toggle on `LOGINP` and `CHECK(AB)`/`CHECK(RL)`**, which the SFL panel (`sflKeywordsPanelsHtml`) has not offered since I-9: `LOGINP`'s DDS Reference section says "Option indicators are not valid for this keyword", and option indicators on `CHECK` are valid only for `CHECK(ER)` and `CHECK(ME)` (I-3, I-9). `sm-loginp`, `sm-check-ab` and `sm-check-rl` pass `.conditions` into `flagRowHtml` and wire it through `wireFlagRow`; the SFL equivalents pass `undefined`. Found while comparing the two panels for I-76 - I-11 checked SFLMSG's keyword *set* against I-9's but not its conditioning. (The panel also still carries its own live `CHGINPDFT` row, which R3 deliberately left in place, so it is not new.) Fix shape: drop the conditioning arguments on those three rows, the same as I-9, plus a diff-based guard for a hand-edited record that already carries one, as I-95 did. Size (estimate): Small. |
 | I-97 | The record-level **SFLMSGID panel reads and writes the wrong grammar** (found while checking how `&msg-data` could reach it). IBM's format is `SFLMSGID(msgid [library-name/]msg-file [response-indicator] [&msg-data])`, but `parseSflMsgIdParams`/`formatSflMsgIdParams` treat the *third space-separated token* as the library and write it that way (`A F QGPL`), where a bare third token is a response indicator - so a library entered in the panel produces invalid DDS. Reading goes wrong the other way: hand-written `SFLMSGID(USR1234 QGPL/USRMSGS 30 &FLD)` shows message file `QGPL/USRMSGS` and library `30`, and changing the message id in the panel rewrites it as `NEW0001 QGPL/USRMSGS 30`, silently **dropping `&FLD`**. Probed with the two functions directly. The panel also has no response-indicator or `&msg-data` input. ERRMSGID's own parser (`getErrorMessageInstances`) already does this correctly and is the model to copy. |
 | I-95 | The raw keyword editor's Conditioning toggle is guarded for `IGCALTTYP` only (`NO_OPTION_INDICATOR_KEYWORDS`, seeded with that one keyword). Scanning `DDS_Keyword_V7r6.txt` finds **93** keyword sections with an "Option indicators are not valid/allowed" sentence, so the same hole exists for the other ~92: **81** worded plainly (ALIAS, ALTHELP, ALTNAME, ALWROL, ASSUME, BLANKS, BLKFOLD, CHANGE, CHCACCEL, CHCCTL, CHECK, CHGINPDFT, CHKMSGID, CLRL, CNTFLD, COMP, DLTCHK, DLTEDT, DSPRL, DSPSIZ, EDTCDE, EDTWRD, ERRSFL, FLDCSRPRG, FLTFIXDEC, GETRETAIN, GRDCLR, HLPARA, HLPCMDKEY, HLPFULL, HLPID, HLPSCHIDX, HLPTITLE, HOME, INDARA, INDTXT, INZRCD, LOGINP, MLTCHCFLD, MSGCON, MSGID, MSGLOC, OPENPRT, PASSRCD, PSHBTNFLD, PULLDOWN, RANGE, REF, REFFLD, RTNCSRLOC, RTNDTA, SETOF, SFL, SFLCHCCTL, SFLCSRPRG, SFLCTL, SFLENTER, SFLLIN, SFLMLTCHC, SFLMODE, SFLMSGKEY, SFLMSGRCD, SFLPAG, SFLRCDNBR, SFLRNA, SFLROLVAL, SFLRTNSEL, SFLSCROLL, SFLSIZ, SFLSNGCHC, SLNO, SNGCHCFLD, TEXT, USRDFN, USRDSPMGT, VALNUM, VALUES, VLDCMDKEY, WDWTITLE, WRDWRAP) and **12** worded "...although option indicators can be used to condition the field" (CHOICE, DATE, DATFMT, DATSEP, DFT, EDTMSK, MAPVAL, SYSNAME, TIME, TIMFMT, TIMSEP, USER). These lists are a *starting point extracted by a scan, not verified per keyword*: the sentence is sometimes conditional (`MSGID` allows indicators except on the last one, I-73; `CHECK` only for some codes, I-30), and several of these keywords are legitimately conditioned by iSDA's own structured editors, so each one has to be read, and checked against the panel that conditions it, before it goes into the table. Size (estimate): Large - an audit, best done in batches by level. |
 
@@ -3333,6 +3333,14 @@ own finding above) "record → Subfile keywords" category as `SFLRCDNBR`/
 I-40's regeneration should keep that grouping (correcting the label to
 field-level) rather than reverting it.
 
+**Note from I-76 (research, done):** no new SFLMSG index categories are
+needed - its General/Indicator screens are the same as SFL's, which the
+index already has. Just add `"SFLMSG"` to `sharedWith` on both "Subfile -
+General (SFL)" and "Subfile - Indicator (SFL)" in `build_index.py`
+(currently `WNDSFL`, `PULDWNSFL`), and name the two SFLMSG screenshot
+folders (`screens/record-level/subfile-message-sflmsg/general` and
+`.../indicator`) in those categories' descriptions. See I-76.
+
 ---
 
 <a id="i-41"></a>
@@ -4233,9 +4241,20 @@ New scenario in `src/test/dspfWebview.test.js` (`runProgramFieldsScenario`, 12 c
 
 ### I-76 — Research: do SFLMSG's General/Indicator categories need their own index categories?
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-16
+> **Area:** Tooling · **Status:** Done (no code change) (v0.10.173) · **Depends on:** I-16
 
 SFLMSG's General and Indicator categories reuse I-9's `SFL` set verbatim. Whether they deserve distinct `KEYWORD-INDEX.json` categories of their own is an index-completeness question raised during I-16 and never researched. Research first, then either fold the answer into I-40 or record why not. **I-40 should run after this.**
+
+**Closed (0.10.173, research only, no code change).** **No - SFLMSG does not need index categories of its own.**
+
+- The real SDA screens are the same screens. `screens/record-level/subfile-message-sflmsg/general/image50.png` and `.../indicator/image51.png` were compared against `subfile-sfl/general/image32.png` and `.../indicator/image33.png`: the same rows in the same order (`SFLNXTCHG`, `LOGOUT`, `LOGINP`, `KEEP`, `CHECK(AB)`, `CHECK(RL)`, `CHGINPDFT`; `INDTXT`, `SETOF`, `CHANGE`), differing only in the record name (and a "Bottom" marker).
+- The index already has the matching categories - "Subfile - General (SFL)" and "Subfile - Indicator (SFL)" - and every keyword on the SFLMSG screens is indexed: the four/three listed there, with `KEEP` and `CHGINPDFT` under the base "General" category (I-25 / R3). A second pair of categories would list the same keywords twice, which the lookup file would then report as duplicate locations.
+- Precedent: `WNDSFL` and `PULDWNSFL` also reuse the SFL categories and are represented only through `sharedWith`, with no categories of their own.
+- **The one real gap is metadata:** `SFLMSG` is missing from `sharedWith` on both SFL categories (currently `WNDSFL`, `PULDWNSFL`), and the SFLMSG screenshot folders are not mentioned anywhere (the schema holds one `screenshotDir` per category). No keyword is missing, so `KEYWORD-LOOKUP.json` is unaffected.
+
+**Handed to I-40** (see its note): add `"SFLMSG"` to `sharedWith` on both SFL categories in `build_index.py`, and name the two SFLMSG screenshot folders in each category's description. Nothing else to regenerate for this question.
+
+**Side finding, logged under Deferred findings rather than fixed here:** I-11's "this is I-9's own SFL keyword set, verbatim" is true of the screens and the keyword set, but `sflMsgPanelsHtml` did not receive I-9's conditioning corrections - see the deferred finding.
 
 *Raised by I-11, I-15, I-23. Size (estimate): Small (research).*
 
