@@ -1349,8 +1349,17 @@
   // sflWhitelistConflictReason/mnubarWhitelistConflictReason for
   // whichever kind is being set, same safe-no-op-when-record-type-
   // doesn't-match shape every other whitelist guard here already has.
+  //
+  // Task I-109: USRDFN's own closed whitelist is checked too (I-104 finding
+  // D). It was the one record type whose whitelist this function never ran,
+  // so on a USRDFN record "+ Add indicator keyword" (which defaults to CLEAR)
+  // and the kind switch to CLEAR/PAGEDOWN/PAGEUP/HOME/VLDCMDKEY/SETOF/CHANGE/
+  // INDTXT were all accepted - only HELP and HLPRTN are on USRDFN's list. Both
+  // paths go through here (the Add default walks fallbackOrder below), so one
+  // check closes both, and the Add now defaults to HELP on a USRDFN record.
   function recordIndicatorKindConflictReason(kind, keywords) {
     return (kind === 'CLEAR' ? DspfWriter.pulldownConflictReason('CLEAR', keywords) : null) ||
+      DspfWriter.usrdfnWhitelistConflictReason(kind, keywords) ||
       DspfWriter.sflWhitelistConflictReason(kind, keywords) ||
       DspfWriter.mnubarWhitelistConflictReason(kind, keywords);
   }
@@ -1404,7 +1413,11 @@
           // already covered for free elsewhere, since each of those own
           // guards scans this same keywords array for the conflicting
           // keyword name regardless of which UI wrote it.
-          var kindConflictReason = recordIndicatorKindConflictReason(nextKind, keywords);
+          // Task I-109: only a real change of kind is checked. Editing the response
+          // indicator of a row that already exists (e.g. on a hand-written USRDFN
+          // record that carries CLEAR) is not an addition, and refusing it with
+          // "CLEAR cannot be added ..." would be wrong and would block tidying.
+          var kindConflictReason = partial.kind !== undefined ? recordIndicatorKindConflictReason(nextKind, keywords) : null;
           if (kindConflictReason) {
             window.alert(kindConflictReason);
             if (kindEl) kindEl.value = inst.kind;
@@ -1433,7 +1446,9 @@
         // ending at INDTXT - confirmed on both SFL's whitelist (I-46) and
         // MNUBAR's whitelist (I-48), and never on PULLDOWN's forbidden
         // list, so it's always a safe last resort for every record type
-        // this shared component is reachable from. The guardedUpdate
+        // this shared component is reachable from. (Task I-109: USRDFN's
+        // whitelist is walked too; only HELP and HLPRTN are on it, so the
+        // walk stops at HELP there - never reaching INDTXT.) The guardedUpdate
         // check above still blocks anyone who explicitly picks a
         // conflicting kind from the dropdown afterward.
         var fallbackOrder = ['CLEAR', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'PAGEDOWN', 'PAGEUP', 'CHANGE', 'SETOF', 'INDTXT'];

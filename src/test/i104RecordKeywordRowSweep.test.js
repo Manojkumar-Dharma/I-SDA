@@ -127,10 +127,6 @@ const USRDFN_VISIBLE_PANELS = ['general', 'help', 'print']; // R2's narrowing, b
  *  Each is asserted to STILL be a gap. */
 const KNOWN_GAPS = {
   'USRDFN|input:altname': 'finding C', 'SFL|input:altname': 'finding C', 'MNUBAR|input:altname': 'finding C',
-  'USRDFN|add:rec-recind-rep': 'finding D',
-  'USRDFN|kind:CLEAR': 'finding D', 'USRDFN|kind:PAGEDOWN': 'finding D', 'USRDFN|kind:PAGEUP': 'finding D',
-  'USRDFN|kind:HOME': 'finding D', 'USRDFN|kind:VLDCMDKEY': 'finding D', 'USRDFN|kind:SETOF': 'finding D',
-  'USRDFN|kind:CHANGE': 'finding D', 'USRDFN|kind:INDTXT': 'finding D',
 };
 
 // ===========================================================================

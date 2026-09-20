@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-105 of 113 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.185**.
+106 of 113 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.186**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -151,7 +151,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-106](#i-106) | Record | `UNLOCK`: not guarded on `SFL` / `USRDFN` records | I-104 | Done | v0.10.183 |
 | [I-107](#i-107) | Record | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records | I-104 | Done | v0.10.184 |
 | [I-108](#i-108) | Record | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records | I-104 | Not started | — |
-| [I-109](#i-109) | Record | Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch) | I-104 | Not started | — |
+| [I-109](#i-109) | Record | Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch) | I-104 | Done | v0.10.186 |
 | [I-110](#i-110) | Record | "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted | I-104 | Done | v0.10.185 |
 | [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Not started | — |
 | [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Not started | — |
@@ -170,13 +170,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-108](#i-108) | Not started | `ALTNAME` text row: accepted on `USRDFN`, `SFL` and `MNUBAR` records. Size (estimate): Small. Raised by I-104. |
-| 2 | [I-109](#i-109) | Not started | Record Indicator row: no `USRDFN` whitelist. Size (estimate): Small. Raised by I-104. |
-| 3 | [I-111](#i-111) | Not started | Guards run on every edit while the box is ticked, not on a real turn-on. Size (estimate): Small–medium. Raised by I-102. |
-| 4 | [I-112](#i-112) | Not started | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
-| 5 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
-| 6 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
-| 7 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 8 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-111](#i-111) | Not started | Guards run on every edit while the box is ticked, not on a real turn-on. Size (estimate): Small–medium. Raised by I-102. |
+| 3 | [I-112](#i-112) | Not started | `REFFLD`-inherited validity keywords cannot be shown (research first). Size (estimate): Small (research). Raised by I-74. |
+| 4 | [I-113](#i-113) | Not started | "+ Fields from database file" writes explicit attributes next to `REFFLD` (decision first). Size (estimate): Small–medium. Raised by I-74. |
+| 5 | [I-105](#i-105) | Not started | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first). Size (estimate): Medium (a decision first, then per-row UI work). Found by a direct check of a `USRDFN` record's keyword rows (v0.10.176). |
+| 6 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 7 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -5125,11 +5124,18 @@ Opened from a deferred finding raised by I-104 (finding C), verbatim:
 
 ### I-109 — Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch)
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-104
+> **Area:** Record · **Status:** Done (v0.10.186) · **Depends on:** I-104
 
 Opened from a deferred finding raised by I-104 (finding D), verbatim:
 
 **The record-level Indicator row has no `USRDFN` whitelist.** `recordIndicatorKindConflictReason` runs the SFL and MNUBAR whitelists and PULLDOWN's `CLEAR` check, but never `usrdfnWhitelistConflictReason`; so on a USRDFN record both "+ Add indicator keyword" (which creates `CLEAR`) and switching an instance's kind to `CLEAR`, `PAGEDOWN`, `PAGEUP`, `HOME`, `VLDCMDKEY`, `SETOF`, `CHANGE` or `INDTXT` are accepted; only `HELP` and `HLPRTN` are on USRDFN's list. Latent (R2 hides the Indicator tab), but the guards exist for hand-edited files and for R2 changing. Fix shape: add the USRDFN check to `recordIndicatorKindConflictReason` and the Add path (which must also stop defaulting to `CLEAR` on a USRDFN record); nine `USRDFN|kind:*` / `USRDFN|add:rec-recind-rep` entries come out of `KNOWN_GAPS`. Size: Small.
+
+**Done.** `recordIndicatorKindConflictReason` now runs `usrdfnWhitelistConflictReason` alongside the PULLDOWN `CLEAR`, SFL and MNUBAR checks. Both paths go through that one function - the kind switch directly, and "+ Add indicator keyword" because its default-kind walk (`fallbackOrder`) asks it about each kind in turn - so a single check closes both:
+- **Switch:** on a `USRDFN` record, `CLEAR`, `PAGEDOWN`, `PAGEUP`, `HOME`, `VLDCMDKEY`, `SETOF`, `CHANGE` and `INDTXT` are refused with the whitelist message (naming the keyword), the dropdown reverts and nothing is written; `HELP` <-> `HLPRTN` stay allowed.
+- **Add:** the walk skips everything USRDFN refuses and stops at `HELP`, so the Add on a `USRDFN` record creates `HELP(10)` instead of `CLEAR`. Every other record type's default is unchanged (plain `CLEAR`, SFL `CHANGE`, MNUBAR `CLEAR`, PULLDOWN `HOME`).
+- **A second flaw found on the way, fixed here because the new check would otherwise have spread it:** `guardedUpdate` ran the kind check on *every* change, including editing the response indicator of a row that already exists, so on a hand-written record that already carried an out-of-list row (a `USRDFN` record with `CLEAR(55)`, or an `SFL` record with `HOME(55)` - the latter already broken before this task) editing the response indicator was refused with "... cannot be added ...", which is wrong for an edit and blocks tidying. Only a real change of kind is checked now. This is the same mistake I-111 describes for the three other whitelist-guard functions (`wirePulldownGuardedFlag`, `wireUsrdfnGuardedFlag`, `wireUsrdfnGuardedTwoField`); I-111 is unchanged and still open for those.
+- **Tests:** the nine `USRDFN|kind:*` / `USRDFN|add:rec-recind-rep` entries were removed from the I-104 sweep's `KNOWN_GAPS` (only the three `ALTNAME` entries, I-108, remain); new `i109RecordIndicatorUsrdfnWhitelist.test.js` (33 checks: the Add default per record type, all eight refused switches with the message and the revert, `HELP` -> `HLPRTN`, editing/removing an existing out-of-list row, and the SFL/MNUBAR/PULLDOWN switch guards still firing). Against the old code 19 of its checks fail.
+- R2 still hides the Indicator tab on a `USRDFN` record, so this is a guard for hand-edited files and for R2 changing, as the finding said.
 
 *Raised by I-104 (finding D). Size (estimate): Small.*
 
