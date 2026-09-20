@@ -189,10 +189,12 @@ setTimeout(() => {
   // === Group B: F1 (float, no DUP) - direction A ===
   console.log('\nF1 (floating-point, no DUP): adding DUP is blocked');
   if (selectField(2)) {
-    check('setup: the Input keywords DUP checkbox is shown and unchecked', isChecked(2, 'dup') === false);
-    const r = tick(2, 'dup', true);
-    check('ticking DUP blocked with an alert naming DUP and floating-point, no applyEdit', blocked(r, /DUP/) && /floating-point/.test(r.alertMessage || ''));
-    check('  ...and the checkbox is put back to unchecked by the re-render', isChecked(2, 'dup') === false);
+    // Task I-96: the Input keywords panel no longer offers the DUP checkbox on
+    // a floating-point field at all (it used to render it and refuse the tick
+    // with an alert), so that route is closed at the source. The raw editor
+    // and the Basic tab - which the hard block also covers - are exercised below.
+    check('(I-96) the Input keywords DUP checkbox is not offered on a floating-point field', isChecked(2, 'dup') === undefined);
+    check('  ...while BLANKS (not DUP-related) is still offered', isChecked(2, 'blanks') === false);
   }
   selectField(2);
   {
@@ -251,8 +253,9 @@ setTimeout(() => {
     check('with DUP gone, changing it to data type F commits', allowed(r4));
     const f4 = r4.applyEdit && reparsedField(r4.applyEdit.text, 'F4');
     check('  ...data type F written, no DUP', !!f4 && f4.dataType === 'F' && !kwNames(f4).includes('DUP'));
-    const r5 = (selectField(5), tick(5, 'dup', true));
-    check('and now that it is floating-point, adding DUP is blocked again', blocked(r5, /DUP/) && /floating-point/.test(r5.alertMessage || ''));
+    check('(I-96) and now that it is floating-point the DUP checkbox is no longer offered', (selectField(5), isChecked(5, 'dup')) === undefined);
+    const r5 = (selectField(5), rawAdd(5, 'DUP', ''));
+    check('and adding DUP through the raw editor is blocked again', blocked(r5, /DUP/) && /floating-point/.test(r5.alertMessage || ''));
   }
 
   // === Group E: F3 / F5 hand-written and already invalid (float + DUP) ===

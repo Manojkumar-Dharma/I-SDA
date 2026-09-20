@@ -2313,8 +2313,14 @@
    *  same as every other superseded getX/setX pair from earlier L5
    *  pieces), since a plain present/absent flag needs no dedicated
    *  parsing. */
-  function inputKeywordsHtml(keywords, ownerKey, expandedSet) {
+  function inputKeywordsHtml(keywords, ownerKey, expandedSet, dataType) {
     var html = '<div class="section-label">Input keywords</div>';
+    // Task I-96: DUP cannot be specified on a floating-point field (DDS
+    // Reference; blocked by I-72) - so the row is not offered there, except
+    // on a hand-written float field that already carries it (kept, with a
+    // note, so it can be un-ticked). See DspfWriter.dupCheckboxOffered.
+    var dupNote = DspfWriter.dupFloatFieldNote(dataType, keywords);
+    if (dupNote) html += '<div class="hint-small warn">' + escapeHtml(dupNote) + '</div>';
     // Task I-30: DUP is the only one of these three IBM marks
     // conditionable ("Option indicators are valid for this keyword") -
     // BLANKS and CHANGE (field-level) are both "not valid for this
@@ -2326,6 +2332,7 @@
       ['blanks', 'BLANKS', 'Numeric field: let the program tell blank apart from zero', false],
       ['change', 'CHANGE', 'Response indicator turns on if the workstation user changed this field', false],
     ].forEach(function (row) {
+      if (row[1] === 'DUP' && !DspfWriter.dupCheckboxOffered(dataType, keywords)) return;
       var id = ownerKey + '-inp-' + row[0];
       var kw = DspfWriter.getFileFlagKeyword(keywords, row[1]);
       html += flagRowHtml(id, row[1], kw.present, undefined, undefined, row[3] ? kw.conditions : undefined, expandedSet);
@@ -2338,9 +2345,12 @@
     return html;
   }
 
-  function wireInputKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+  function wireInputKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType) {
     ['dup', 'blanks', 'change'].forEach(function (k, i) {
       var name = ['DUP', 'BLANKS', 'CHANGE'][i];
+      // Task I-96: not rendered (see inputKeywordsHtml), so nothing to wire - and
+      // a stale open-Conditioning key for it must not try to.
+      if (name === 'DUP' && !DspfWriter.dupCheckboxOffered(dataType, keywords)) return;
       var id = ownerKey + '-inp-' + k;
       wireFlagRow(
         id,

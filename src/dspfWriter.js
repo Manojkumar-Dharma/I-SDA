@@ -2235,6 +2235,30 @@
     return 'The data type cannot be changed to F (floating point) while the field carries DUP - DUP cannot be specified on a floating-point field (per the DDS Reference). Remove DUP first.';
   }
 
+  /** Task I-96 - I-72 blocks DUP on a floating-point field (DDS Reference:
+   *  "You cannot specify the DUP keyword on a floating-point field (F in
+   *  position 35)") but left the Input keywords panel offering the DUP
+   *  checkbox there, refused only after the fact by an alert. The panel now
+   *  does not offer it (dupCheckboxOffered), with one exception: a
+   *  hand-written floating-point field that ALREADY carries DUP keeps its
+   *  ticked row so it can still be un-ticked - the very reason I-72 rejected
+   *  a plain dtScope-style hidden row - and dupFloatFieldNote says why it is
+   *  invalid. The block itself (dupFloatNewConflictReason) is unchanged and
+   *  still covers the raw editor and the Basic tab; this is presentation.
+   *  `dataType` is field.dataType (position 35); blank/unknown keeps the row. */
+  function dupIsFloatType(dataType) {
+    return String(dataType == null ? '' : dataType).trim().toUpperCase() === 'F';
+  }
+  function dupCheckboxOffered(dataType, keywords) {
+    if (!dupIsFloatType(dataType)) return true;
+    return (keywords || []).some(function (k) { return k && k.name === 'DUP'; });
+  }
+  function dupFloatFieldNote(dataType, keywords) {
+    if (!dupIsFloatType(dataType)) return null;
+    if (!(keywords || []).some(function (k) { return k && k.name === 'DUP'; })) return null;
+    return 'DUP cannot be specified on a floating-point field (per the DDS Reference). Untick it, or change the data type.';
+  }
+
   /** Task I-82 - BLKFOLD's own DDS Reference section says "You cannot
    *  specify the BLKFOLD keyword on a floating-point field (F in position
    *  35)." I-39's dtScope gating ('non-float') already keeps the row from
@@ -8051,6 +8075,8 @@
     msgidSflNewConflictReason: msgidSflNewConflictReason,
     referencedFieldResolveConflictReason: referencedFieldResolveConflictReason,
     dupFloatNewConflictReason: dupFloatNewConflictReason,
+    dupCheckboxOffered: dupCheckboxOffered,
+    dupFloatFieldNote: dupFloatFieldNote,
     blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,

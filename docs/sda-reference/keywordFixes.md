@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-85 of 96 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.164**.
+83 of 96 tasks done; 13 open (see [Open work](#open-work)). Current version: **v0.10.165**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -138,7 +138,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-93](#i-93) | Record | `ENTFLDATR`: gate the add-guard on the real transition (refuses a legitimate edit on an `SFL`/`MNUBAR`/`USRDFN` record) | I-84 | Done | v0.10.162 |
 | [I-94](#i-94) | Field | `IGCALTTYP`: eligibility (usage `B` only, keyboard shift type, not DBCS) | I-71 | Not started | — |
 | [I-95](#i-95) | Field | `IGCALTTYP`: option indicators are not allowed (raw editor's Conditioning toggle) | I-71 | In progress | — |
-| [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | In progress | — |
+| [I-96](#i-96) | Field | Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic) | I-72 | Done | v0.10.165 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -154,15 +154,14 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-95](#i-95) | In progress | `IGCALTTYP`: option indicators are not allowed - the raw editor's Conditioning toggle is not gated by keyword. Check for an existing generic "no option indicators" list first. Size (estimate): Small. Raised by I-71. |
 | 2 | [I-94](#i-94) | Not started | `IGCALTTYP`: eligibility - input/output-capable (usage `B`) fields only, keyboard shift type A/N/X/W/I, not DBCS. Reuses the `WRDWRAP`-style usage + shift-type gating (I-42 / I-61). Size (estimate): Small–medium. Raised by I-71. |
-| 3 | [I-96](#i-96) | In progress | Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Cosmetic - the block is already enforced; needs a decision about hand-written float fields that already carry `DUP`. Size (estimate): Small (cosmetic). Raised by I-72. |
-| 4 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
-| 5 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
-| 6 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
-| 7 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
-| 8 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
-| 9 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
-| 10 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
-| 11 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 3 | [I-87](#i-87) | Not started | `SFLCHCCTL`: guard field reordering (Up/Down) against breaking the first-field rule. Size (estimate): Medium. Raised by I-79. |
+| 4 | [I-89](#i-89) | Not started | `CHKMSGID`: validate its `&message-data-field` parameter. Size (estimate): Medium. Raised by I-69. |
+| 5 | [I-75](#i-75) | Not started | Usage `P` fields: reachable selection path. Size (estimate): Medium. Raised by I-35. |
+| 6 | [I-74](#i-74) | Not started | `REF`/`REFFLD`: copy the other keywords from the referenced database field. Size (estimate): Large. Raised by I-32. |
+| 7 | [I-90](#i-90) | Not started | Research: `HLPDOC` / `HLPRTN` cross-level scope (file, record, help specification). Size (estimate): Small (research; may be inconclusive). Raised by I-68. Ahead of I-67, which it likely bears on (I-67 adds the help-specification level of HLPDOC). |
+| 8 | [I-67](#i-67) | Not started | `HLPDOC`: help-specification-level form. Size (estimate): Medium. Raised by I-38. |
+| 9 | [I-76](#i-76) | Not started | Research: do SFLMSG's General/Indicator categories need their own index categories? Size (estimate): Small (research). Raised by I-11, I-15, I-23. |
+| 10 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76 as well - I-67 adds a level to an indexed keyword and I-76 may add index categories). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -4638,9 +4637,19 @@ Found while fixing I-71. "Option indicators are not allowed with `IGCALTTYP`" (s
 
 ### I-96 — Input keywords panel: `DUP` checkbox still offered on a floating-point field (cosmetic)
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-72
+> **Area:** Field · **Status:** Done (v0.10.165) · **Depends on:** I-72
 
 Found while fixing I-72. The Input keywords panel still offers the `DUP` checkbox on a floating-point field (ticking it is refused with an alert). Hiding it needs a data-type argument on `inputKeywordsHtml`/`wireInputKeywordsEditor` (neither takes one) and a decision about a hand-written float field that already has `DUP`: `generalFieldKeywordsHtml`'s `dtScope` gating hides a mismatching row even when the keyword is present, which would make it impossible to un-tick in the panel. Cosmetic - the block is already enforced.
+
+**Fixed.** The Input keywords panel now takes the field's data type and does not offer the `DUP` row on a floating-point field (`DUP`: "You cannot specify the DUP keyword on a floating-point field (F in position 35)"). `BLANKS`, `CHANGE` and `CHGINPDFT` are unaffected. It is presentation only: I-72's hard block (`dupFloatNewConflictReason`) is unchanged and still covers the raw editor and the Basic tab.
+
+The open question in the filing was a hand-written float field that already has `DUP`, where a `dtScope`-style hidden row would make it impossible to un-tick in the panel. Resolved by hiding the row **only when the field does not already carry `DUP`**: on such a field the ticked row stays, with a `hint-small warn` note ("DUP cannot be specified on a floating-point field (per the DDS Reference). Untick it, or change the data type."), so it can still be cleared; once cleared, the row is not offered again (asserted). Blank or unknown data type keeps the row, as for a field still being drafted.
+
+- `dspfWriter.js`: `dupCheckboxOffered(dataType, keywords)` and `dupFloatFieldNote(dataType, keywords)` (pure, normalising the data type the same way I-72's check does), exported.
+- `webviewClientHelpers.js`: `inputKeywordsHtml` and `wireInputKeywordsEditor` gained an optional trailing `dataType` parameter (the filing's "neither takes one"); with it omitted they behave as before. The `DUP` row is skipped in both when not offered, so a stale open-Conditioning key for it never tries to wire a row that is not there.
+- `buildWebviewTemplate.js`: both call sites pass `field.dataType`. Changing the data type on the Basic tab re-renders the panel, so the row disappears on `F` and comes back on the way back to `A` (asserted).
+
+I-72's own test asserted the checkbox *exists* on its float field and ticked it; those two spots were adapted (the checkbox is now asserted absent, and the "blocked again once floating-point" step goes through the raw editor instead). Its check count is unchanged (62). New `i96DupCheckboxFloatField.test.js` (41 checks: the pure functions, then the real generated webview in jsdom on float / character / hand-written float + `DUP` fields, the Basic tab round trip and I-72's raw-editor block). Confirmed against pre-fix code by `git stash`: with only the wiring stashed 4 checks fail; with everything stashed it fails outright. Wired into `npm test`.
 
 *Raised by I-72. Size (estimate): Small (cosmetic).*
 

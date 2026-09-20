@@ -4465,7 +4465,7 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::keying-options', 'Keying options', WebviewClientHelpers.keyingOptionsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType), false);
     }
     if (!isConstant && catVis.inputKeywords) {
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::input-keywords', 'Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::input-keywords', 'Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType), false);
     }
     // Task I-42 - ENTFLDATR is documented \"field-level, record-level, or
     // file-level\" (record and file were already offered); this is the
@@ -4736,7 +4736,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!isConstant) {
       WebviewClientHelpers.wireKeyingOptionsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (newDataType) => commitEdit(ownerRecordName, field, { dataType: newDataType }));
-      WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
+      WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType);
     }
     // Task I-83: HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to these rows too.
     WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords), field.decimalPositions);
