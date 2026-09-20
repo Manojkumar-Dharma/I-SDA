@@ -7767,11 +7767,16 @@
   // which L1c's per-instance UI bypasses in favor of
   // quoteDdsLiteral/unquoteDdsLiteral directly (each instance's own raw
   // `parameters`, not a single keywords-array lookup). SFLMSGID's trailing
-  // "Ind"/"Name" columns shown on the real screen still aren't modeled -
-  // only msgid/message-file/library (IBM's own documented 3-parameter
-  // form) were confidently verified; getting a keyword's parameter ORDER
-  // wrong risks writing invalid DDS, which is worse than leaving those two
-  // columns for the raw editor.
+  // "Ind"/"Name" columns shown on the real screen are modeled as of Task
+  // I-99: IBM's format is SFLMSGID(msgid [library-name/]msg-file
+  // [response-indicator] [&msg-data]) - the library is part of the SECOND
+  // token, slash-qualified, and the two optional trailing tokens are a
+  // bare 2-digit indicator and a &-prefixed field name (same shape as
+  // ERRMSGID's, see getErrorMessageInstances). Before I-99 this pair read
+  // and wrote a bare third token as the library, which is a response
+  // indicator's position, so a library typed into the panel produced
+  // invalid DDS and a hand-written response indicator/&msg-data was
+  // misread and silently dropped on the next edit.
   // ---------------------------------------------------------------------
 
   /**
@@ -7891,33 +7896,79 @@
   }
 
   /**
-   * Parses a raw SFLMSGID parameter string (msgid/message-file/[library],
-   * IBM's documented 3-token form) into { msgId, msgFile, library } - the
-   * per-INSTANCE version of what used to be getSflMsgId's whole-keywords-
-   * array lookup (see this section's own doc comment above for why it's
-   * superseded, and why the real screen's trailing "Ind"/"Name" columns
-   * still aren't modeled). Works directly on one instance's raw
+   * Parses a raw SFLMSGID parameter string into { msgId, msgFile, library,
+   * responseIndicator, msgDataField } - the per-INSTANCE version of what
+   * used to be getSflMsgId's whole-keywords-array lookup (see this
+   * section's own doc comment above). Works directly on one instance's raw
    * `parameters` string, the shape Task L1's
    * getRepeatableKeywordInstances/setRepeatableKeywordInstances pass
    * around.
+   *
+   * Task I-99: IBM's grammar is `msgid [library-name/]msg-file
+   * [response-indicator] [&msg-data]` (DDS Reference, SFLMSGID keyword) -
+   * the library is the slash-qualifier of the SECOND token, and a bare
+   * numeric token after it is the response indicator, a `&`-prefixed one
+   * the message data field (the same reading ERRMSGID's own
+   * getErrorMessageInstances does). `msgDataField` keeps the `&` as typed.
+   *
+   * Repair, not a new form: before I-99 this panel wrote the library as a
+   * bare third token (`MSGID MSGF QGPL`), which is not valid DDS. A file
+   * written that way still opens with its library in the library box
+   * (only when the message file carries no qualifier of its own and the
+   * token is neither numeric nor `&`-prefixed), so the next edit through
+   * the panel rewrites it as `MSGID QGPL/MSGF` instead of dropping it.
    */
   function parseSflMsgIdParams(parameters) {
     var tokens = (parameters || '').trim().split(/\s+/).filter(Boolean);
-    return { msgId: tokens[0] || '', msgFile: tokens[1] || '', library: tokens[2] || '' };
+    var qualified = tokens[1] || '';
+    var slash = qualified.lastIndexOf('/');
+    var library = slash >= 0 ? qualified.slice(0, slash) : '';
+    var msgFile = slash >= 0 ? qualified.slice(slash + 1) : qualified;
+    var responseIndicator = '';
+    var msgDataField = '';
+    var legacyLibrary = '';
+    tokens.slice(2).forEach(function (t) {
+      if (t.charAt(0) === '&') msgDataField = t;
+      else if (/^\d+$/.test(t)) responseIndicator = t;
+      else if (!legacyLibrary) legacyLibrary = t;
+    });
+    if (!library && legacyLibrary) library = legacyLibrary;
+    return { msgId: tokens[0] || '', msgFile: msgFile, library: library, responseIndicator: responseIndicator, msgDataField: msgDataField };
   }
 
-  /** Inverse of parseSflMsgIdParams - library only included if both msgId
-   *  and msgFile are present too (same rule the superseded setSflMsgId
-   *  used). Returns '' (an instance with a blank payload) when msgId or
-   *  msgFile is blank; the caller (Task L1c's SFLMSGID wiring in
-   *  webviewClientHelpers.js) decides what an empty-parameters instance
-   *  means, same as any other repeatable instance's payload. */
+  /** Inverse of parseSflMsgIdParams: `msgid [library/]msg-file
+   *  [response-indicator] [&msg-data]`. Returns '' (an instance with a
+   *  blank payload) when msgId or msgFile is blank; the caller (Task
+   *  L1c's SFLMSGID wiring in webviewClientHelpers.js) decides what an
+   *  empty-parameters instance means, same as any other repeatable
+   *  instance's payload. A message file already typed as `LIB/FILE` with
+   *  no separate library is written as typed; with a separate library the
+   *  file's own qualifier is dropped so the two never stack. A
+   *  `msgDataField` typed without its `&` gets one. */
   function formatSflMsgIdParams(state) {
     var msgId = ((state && state.msgId) || '').trim();
     var msgFile = ((state && state.msgFile) || '').trim();
     var library = ((state && state.library) || '').trim();
     if (!msgId || !msgFile) return '';
-    return msgId + ' ' + msgFile + (library ? ' ' + library : '');
+    if (library && msgFile.indexOf('/') >= 0) msgFile = msgFile.slice(msgFile.lastIndexOf('/') + 1);
+    var parts = [msgId, (library ? library + '/' : '') + msgFile];
+    var responseIndicator = ((state && state.responseIndicator) || '').trim();
+    if (responseIndicator) parts.push(responseIndicator);
+    var msgDataField = ((state && state.msgDataField) || '').trim();
+    if (msgDataField) parts.push(msgDataField.charAt(0) === '&' ? msgDataField : '&' + msgDataField);
+    return parts.join(' ');
+  }
+
+  /** Task I-99: null when `value` is blank or a valid response indicator
+   *  (2 digits, 01-99, the range the DDS Reference gives for indicators),
+   *  otherwise the message the SFLMSGID panel alerts with. A bare
+   *  non-numeric token here would be written into the response-indicator
+   *  slot verbatim and read back as something else. */
+  function sflMsgIdResponseIndicatorProblem(value) {
+    var v = String(value == null ? '' : value).trim();
+    if (!v) return null;
+    if (/^(0[1-9]|[1-9][0-9])$/.test(v)) return null;
+    return 'SFLMSGID\u2019s response indicator must be a two-digit indicator from 01 to 99 (got \u201c' + v + '\u201d).';
   }
 
   // ---------------------------------------------------------------------
@@ -8567,6 +8618,7 @@
     sflsizConditionedFieldNameConflictReason: sflsizConditionedFieldNameConflictReason,
     parseSflMsgIdParams: parseSflMsgIdParams,
     formatSflMsgIdParams: formatSflMsgIdParams,
+    sflMsgIdResponseIndicatorProblem: sflMsgIdResponseIndicatorProblem,
     parseDisplaySizeTriples: parseDisplaySizeTriples,
     serializeDisplaySizes: serializeDisplaySizes,
     getS36ERestriction: getS36ERestriction,

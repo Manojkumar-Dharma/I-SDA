@@ -5342,7 +5342,7 @@ function runSflCtlPickerScenario() {
     check('second instance carries its own text', /^'More records exist'$/.test(sflMsgKws[1].parameters.trim()));
     posted.length = 0;
 
-    console.log('  Subfile Messages: SFLMSGID (msgid/file/library) commits independently of SFLMSG, via the same repeatable component');
+    console.log('  Subfile Messages: SFLMSGID (msgid/file/library, plus response indicator and &msg-data since I-99) commits independently of SFLMSG, via the same repeatable component');
     doc.querySelector('.repeat-inst-add[data-prefix="' + p + '-sflmsgid-rep"]').dispatchEvent(new Event('click', { bubbles: true }));
     console.log('  Subfile Messages: clicking "+ Add" alone never writes an invalid blank-parameters SFLMSGID - seeds a valid MSGID/MSGFILE placeholder instead');
     applyEdit = posted.find((m) => m.type === 'applyEdit');
@@ -5355,7 +5355,9 @@ function runSflCtlPickerScenario() {
     doc.getElementById(p + '-sflmsgid-rep-inst0-lib').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');
     reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'DTLCTL');
-    check('SFLMSGID written as msgid+file+library', reparsed.keywords.find((k) => k.name === 'SFLMSGID').parameters.trim() === 'MSG0001 MYMSGF MYLIB');
+    // Task I-99: IBM's grammar is msgid [library-name/]msg-file - the library
+    // is the slash-qualifier of the message file, not a third token.
+    check('SFLMSGID written as msgid + library/file', reparsed.keywords.find((k) => k.name === 'SFLMSGID').parameters.trim() === 'MSG0001 MYLIB/MYMSGF');
     check('both SFLMSG instances from the previous steps are still there (independent commits)', reparsed.keywords.filter((k) => k.name === 'SFLMSG').length === 2);
     posted.length = 0;
 

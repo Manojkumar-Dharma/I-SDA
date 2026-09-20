@@ -7793,9 +7793,15 @@
       html += '<input type="text" id="' + instIdPrefix + '-file" placeholder="message file" value="' + escapeHtml(parsed.msgFile) + '" />';
       html += '</div>';
       html += '<input type="text" id="' + instIdPrefix + '-lib" placeholder="library (optional)" value="' + escapeHtml(parsed.library) + '" style="width:100%;margin-top:4px;" />';
+      // Task I-99: the two optional trailing parameters of IBM's
+      // SFLMSGID(msgid [library/]msg-file [response-indicator] [&msg-data]).
+      html += '<div class="two-col" style="margin-top:4px;">';
+      html += '<input type="text" id="' + instIdPrefix + '-resp" placeholder="response indicator 01-99 (optional)" value="' + escapeHtml(parsed.responseIndicator) + '" />';
+      html += '<input type="text" id="' + instIdPrefix + '-data" placeholder="&amp;message data field (optional)" value="' + escapeHtml(parsed.msgDataField) + '" />';
+      html += '</div>';
       return html;
     }, expandedSet, '+ Add SFLMSGID instance');
-    sm += '<div class="hint-small">Each instance above is independently conditioned (its own Conditioning toggle) - add as many as needed for different messages/message-IDs under different indicators. Real SDA also shows "Ind"/"Name" columns for SFLMSGID beyond msgid/message-file/library - not modeled here (getting a keyword\'s parameter order wrong risks writing invalid DDS); use the raw Keywords editor below for those.</div>';
+    sm += '<div class="hint-small">Each instance above is independently conditioned (its own Conditioning toggle) - add as many as needed for different messages/message-IDs under different indicators. The response indicator is turned off again by the system on the next input operation, and the message data field must be a character (A) field with usage P in this record.</div>';
     panels.subfileMessages = sm;
 
     return panels;
@@ -7965,9 +7971,21 @@
       var idInput = document.getElementById(instIdPrefix + '-id');
       var fileInput = document.getElementById(instIdPrefix + '-file');
       var libInput = document.getElementById(instIdPrefix + '-lib');
-      if (!idInput || !fileInput || !libInput) return;
+      var respInput = document.getElementById(instIdPrefix + '-resp');
+      var dataInput = document.getElementById(instIdPrefix + '-data');
+      if (!idInput || !fileInput || !libInput || !respInput || !dataInput) return;
       function commit() {
-        var formatted = DspfWriter.formatSflMsgIdParams({ msgId: idInput.value, msgFile: fileInput.value, library: libInput.value });
+        // Task I-99: a response indicator is a two-digit indicator 01-99 -
+        // anything else would be written into that slot verbatim and read
+        // back as a library or a message data field. Alert + revert, no
+        // edit posted.
+        var respProblem = DspfWriter.sflMsgIdResponseIndicatorProblem(respInput.value);
+        if (respProblem) {
+          window.alert(respProblem);
+          respInput.value = DspfWriter.parseSflMsgIdParams(inst.parameters).responseIndicator;
+          return;
+        }
+        var formatted = DspfWriter.formatSflMsgIdParams({ msgId: idInput.value, msgFile: fileInput.value, library: libInput.value, responseIndicator: respInput.value, msgDataField: dataInput.value });
         // Mirrors the superseded setSflMsgId's own guarantee: never write an
         // incomplete SFLMSGID (blank msgId or msgFile is invalid DDS - a
         // keyword needs SOME parameter). formatSflMsgIdParams returns '' in
@@ -7982,6 +8000,8 @@
       idInput.addEventListener('change', commit);
       fileInput.addEventListener('change', commit);
       libInput.addEventListener('change', commit);
+      respInput.addEventListener('change', commit);
+      dataInput.addEventListener('change', commit);
     }, expandedSet, rerender, function makeDefaultSflMsgId() {
       // Same non-blank-placeholder reasoning as makeDefaultSflMsg above,
       // and matching L1b's own 'MSGID'/'MSGFILE' convention for ERRMSGID -
