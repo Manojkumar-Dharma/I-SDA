@@ -146,7 +146,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-101](#i-101) | Tooling / all levels | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none | I-95 | In progress (batch 1 done) | v0.10.180 (batch 1) |
 | [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | Done | v0.10.177 |
 | [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | In progress | — |
-| [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Not started | — |
+| [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | In progress | — |
 | [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -5001,7 +5001,7 @@ The same holds on an **`MNUBAR`** record: `DspfWriter.mnubarWhitelistConflictRea
 
 ### I-104 — Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`)
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-102, I-103
+> **Area:** Record · **Status:** In progress · **Depends on:** I-102, I-103
 
 I-44 assumed which rows a `USRDFN` record shows and wired the guards by name. I-53 and I-54 then swept the `SFL` and `MNUBAR` records row by row, by hand. Nobody did that for `USRDFN`, which is how `CHGINPDFT` (accepted although not allowed, I-103) and `HLPCLR` (refused although allowed, I-102) went unnoticed for so long. A test that walks the rows instead of naming them would have caught both, and would catch the next row someone adds without a guard.
 
