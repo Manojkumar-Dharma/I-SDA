@@ -47,7 +47,7 @@ console.log('\nPart 1a. the table');
   const names = DspfWriter.noOptionIndicatorKeywordNames();
   check('every batch keyword is listed', BATCH.every((n) => names.indexOf(n) >= 0));
   check('IGCALTTYP (I-95) is still listed', names.indexOf('IGCALTTYP') >= 0);
-  check('nothing else is (15 entries: the 14 + IGCALTTYP)', names.length === BATCH.length + 1);
+  check('nothing from the file level or IGCALTTYP is missing (later batches add more entries - see i101RecordLevelNoOptionIndicators)', names.length >= BATCH.length + 1);
   check('each reason names its keyword and says "not valid"', BATCH.every((n) => {
     const r = DspfWriter.noOptionIndicatorsReason(n);
     return !!r && r.indexOf(n) >= 0 && /not valid/.test(r);

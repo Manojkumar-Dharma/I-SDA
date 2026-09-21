@@ -2323,6 +2323,34 @@
   NOT_VALID_FILE_LEVEL_KEYWORDS.forEach(function (name) {
     NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
   });
+  /** Task I-101, batch 2 - the record-level-only keywords. Each was read in
+   *  DDS_Keyword_V7r6.txt: its own section is a "record-level keyword" section
+   *  (and no section of it describes another level), and says, plainly and
+   *  with no conditional wording, "Option indicators are not valid for this
+   *  keyword". A record-level-only keyword cannot appear at any other level,
+   *  so a name-keyed entry is exactly right. None of them has a Conditioning
+   *  toggle in a structured panel (checked in the batch's test, so it stays
+   *  true); this closes the raw keyword editor's toggle, as batch 1 did for
+   *  the file level. */
+  var NOT_VALID_RECORD_LEVEL_KEYWORDS = [
+    'ALWROL', 'ASSUME', 'CLRL', 'GETRETAIN', 'GRDRCD', 'HLPCMDKEY', 'HLPSEQ',
+    'INZRCD', 'LOGINP', 'MNUBAR', 'PULLDOWN', 'RTNCSRLOC', 'RTNDTA', 'SETOF',
+    'SFL', 'SFLCTL', 'SFLENTER', 'SFLMLTCHC', 'SFLRNA', 'SFLRTNSEL',
+    'SFLSNGCHC', 'SLNO', 'UNLOCK', 'USRDFN'
+  ];
+  NOT_VALID_RECORD_LEVEL_KEYWORDS.forEach(function (name) {
+    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
+  });
+  /** Batch 2, the record-level-only keywords whose section ALSO says display
+   *  size condition names are valid (SFLLIN, SFLPAG and SFLSIZ on the
+   *  subfile-control record, SFLMSGRCD on the message subfile record, WINDOW).
+   *  Same shape as MSGLOC (batch 1): an option indicator is refused, while a
+   *  display-size condition is not an option indicator and is left alone (the
+   *  raw editor keeps the toggle when one is present). */
+  var NOT_VALID_RECORD_LEVEL_DISPLAY_SIZE_KEYWORDS = ['SFLLIN', 'SFLMSGRCD', 'SFLPAG', 'SFLSIZ', 'WINDOW'];
+  NOT_VALID_RECORD_LEVEL_DISPLAY_SIZE_KEYWORDS.forEach(function (name) {
+    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference); display size condition names are.';
+  });
   /** The names in NO_OPTION_INDICATOR_KEYWORDS (a copy - the table itself is
    *  not exposed), for tests and audits. */
   function noOptionIndicatorKeywordNames() {
