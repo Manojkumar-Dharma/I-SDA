@@ -4979,7 +4979,7 @@ function runWindowPickerScenario() {
 }
 
 function runUsrDfnPickerScenario() {
-  console.log('\nUSRDFN picker (Task R2): Keywords tab narrows R1\'s 7 categories to General/Help/Print only');
+  console.log('\nUSRDFN picker (Task R2 / I-114): Keywords tab narrows R1\'s 7 categories to General/Indicator/Help/Print only');
   const src =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'USERDEFN', func: 'USRDFN' }),
@@ -5030,11 +5030,11 @@ function runUsrDfnPickerScenario() {
     keywordFinderInput.value = '';
     keywordFinderInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-    console.log('  a USRDFN record (carries the USRDFN keyword) only gets General/Help/Print');
+    console.log('  a USRDFN record (carries the USRDFN keyword) only gets General/Indicator/Help/Print (Indicator added by I-114, HELP/HLPRTN only)');
     recordSelect.value = 'USERDEFN';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
     const usrdfnLabels = keywordsSubtabLabels();
-    check('exactly 3 subtabs', usrdfnLabels.length === 3);
+    check('exactly 4 subtabs', usrdfnLabels.length === 4);
     check('General present', usrdfnLabels.includes('General'));
     check('Help present', usrdfnLabels.includes('Help'));
     check('Print present', usrdfnLabels.includes('Print'));
@@ -5045,7 +5045,7 @@ function runUsrDfnPickerScenario() {
     check('non-applicable rows are absent (INZRCD, ASSUME, RETKEY, CHGINPDFT, VALNUM, WRDWRAP, ENTFLDATR, HLPCMDKEY, ALTNAME)',
       ['inzrcd', 'assume', 'retkey', 'chginpdft', 'valnum', 'wrdwrap', 'hlpcmdkey'].every((s) => !doc.getElementById('rk-USERDEFN-' + s + '-on')) &&
       !doc.getElementById('rk-USERDEFN-entfldatr-on') && !doc.getElementById('rk-USERDEFN-altname'));
-    check('Indicator absent', !usrdfnLabels.includes('Indicator'));
+    check('Indicator present (Task I-114: HELP / HLPRTN are on USRDFN\'s whitelist)', usrdfnLabels.includes('Indicator'));
     check('Output absent', !usrdfnLabels.includes('Output'));
     check('Input absent', !usrdfnLabels.includes('Input'));
     check('Overlay absent', !usrdfnLabels.includes('Overlay'));

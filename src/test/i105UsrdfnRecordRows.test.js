@@ -72,13 +72,16 @@ console.log('USRDFN view renders only the whitelisted rows');
     'rtndta', 'overlay', 'putretain', 'protect', 'putovr', 'ovrdta', 'ovratr', 'inzinp', 'mdtoff', 'eraseinp', 'erase', 'msgalarm'];
   const shown = NOT_APPLICABLE.filter((s) => usrIds.some((i) => i === 'rec-' + s || i === 'rec-' + s + '-on'));
   check('none of the ' + NOT_APPLICABLE.length + ' non-applicable rows is rendered (shown: ' + (shown.join(',') || 'none') + ')', shown.length === 0);
-  check('no MNUBARDSP / HLPTITLE / record-indicator / MOUBTN instance lists are rendered',
-    !usrIds.some((i) => /mnubardsp|hlptitle|recind|moubtn/i.test(i)));
+  check('no MNUBARDSP / HLPTITLE / MOUBTN instance lists are rendered',
+    !usrIds.some((i) => /mnubardsp|hlptitle|moubtn/i.test(i)));
+  // Task I-114: the record-indicator list IS rendered now (HELP / HLPRTN only - see i114UsrdfnIndicatorSubtab.test.js).
+  check('the record-indicator list is rendered (I-114), limited to HELP / HLPRTN by the kind selector',
+    usrIds.some((i) => /recind/i.test(i)));
   check('the default (non-USRDFN-view) panels still render the full row set', fullIds.length > usrIds.length + 30);
   check('every id the USRDFN view renders is one the full view also renders (same wiring ids)', usrIds.every((i) => fullIds.includes(i)));
   const panels = Helpers.recordKeywordsPanelsHtml(USRDFN, 'rec', new Set(), 'USRDFN');
-  check('the panels R2 already drops come back empty, not undefined',
-    ['indicatorKeywords', 'output', 'input', 'overlay'].every((k) => panels[k] === ''));
+  check('the panels R2 still drops come back empty, not undefined (the Indicator panel is no longer one of them - I-114)',
+    ['output', 'input', 'overlay'].every((k) => panels[k] === '') && panels.indicatorKeywords !== '');
 }
 
 // ===========================================================================

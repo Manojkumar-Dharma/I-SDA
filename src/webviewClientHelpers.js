@@ -5715,6 +5715,11 @@
     var indStatus = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords. Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>';
     // Task I-105: the kind selector lists only the kinds the record type allows.
     var indKindsAllowed = RECORD_INDICATOR_INSTANCE_KEYWORDS.some(function (pair) { return ok(pair[0]); });
+    // Task I-114: a USRDFN record shows this panel too, but only HELP / HLPRTN
+    // apply to it, so the generic wording (CLEAR rows, CA/CF keys panel) would mislead.
+    if (restrictTo === 'USRDFN') {
+      indStatus = '<div class="status" style="margin-bottom:10px;">A user-defined record accepts only HELP (the Help key) and HLPRTN (return from help) here. Each row below is independently conditioned and repeatable.</div>';
+    }
     if (indKindsAllowed) ind += indStatus + recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet, restrictTo);
     // Task I-42 - MOUBTN is documented "file-level or record-level"; the
     // record-level form reuses the file-level panel verbatim (same
@@ -5726,8 +5731,15 @@
       ind += '<div class="section-label">Mouse buttons (MOUBTN)</div>';
       ind += moubtnPanelHtml(kw, p, expandedSet);
     }
-    // Task R2 (unchanged): a USRDFN record has no Indicator subtab.
-    panels.indicatorKeywords = restrictTo === 'USRDFN' ? '' : ind;
+    // Task R2 kept the Indicator subtab off a USRDFN record (real SDA's own
+    // USRDFN menu has none). Task I-114 reverses that for the two kinds USRDFN's
+    // closed whitelist allows - HELP and HLPRTN - which were otherwise reachable
+    // only through the raw editor (the same gap INVITE had, fixed by I-105's
+    // "show every applicable row"). The kind selector already lists only those
+    // two (I-105) and the kind guard already refuses the rest (I-109); nothing
+    // else on this panel passes USRDFN's whitelist, so the panel is just the
+    // repeatable HELP / HLPRTN rows.
+    panels.indicatorKeywords = ind;
 
     // --- Application help ---
     // Task L5d-ii: HLPPNLGRP/HLPEXCLD/HLPBDY/HLPARA do NOT belong here.
@@ -5946,7 +5958,10 @@
   // applicationHelpFieldsHtml's own doc comment - so today's narrowed
   // USRDFN subset is General/Help/Print, 3 of R1's remaining 7; that's a
   // side effect of L5d-ii's correctness fix, not a re-litigation of this
-  // task's own finding about what real SDA's menu shows.) The USRDFN
+  // task's own finding about what real SDA's menu shows. Task I-114 later
+  // added a fourth, Indicator, limited to HELP/HLPRTN - the two whitelisted
+  // kinds that had no other row - so the subset is now General/Indicator/
+  // Help/Print, a deliberate departure from real SDA's menu.) The USRDFN
   // keyword's own parameter (which field carries the formatted data -
   // see buildTypedRecordPlan) isn't part of any of these screens either;
   // it stays reachable through the Advanced/raw keywords accordion, same
@@ -5959,7 +5974,8 @@
    *  (see buildTypedRecordPlan, which writes it - always with blank
    *  parameters at creation time - for every USRDFN record the "+ Add
    *  record" wizard creates). Drives whether renderRecordProps narrows the
-   *  R1 Keywords subtabs to USRDFN's own 4-of-8 subset. */
+   *  R1 Keywords subtabs to USRDFN's own narrowed subset (General, Indicator
+   *  limited to HELP/HLPRTN, Help, Print - see the Task R2 / I-114 comment above). */
   function isUsrDfnRecord(rec) {
     return (rec.keywords || []).some(function (k) { return k.name === 'USRDFN'; });
   }

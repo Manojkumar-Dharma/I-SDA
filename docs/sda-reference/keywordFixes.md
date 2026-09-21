@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-112 of 117 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.192**.
+113 of 117 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.193**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -156,7 +156,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Done | v0.10.187 |
 | [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Done (research; documented limit) | v0.10.188 |
 | [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Done | v0.10.190 |
-| [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Not started | — |
+| [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Done | v0.10.193 |
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API (needs a real IBM i) | I-112 | Not started | — |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | In progress | Claude |
@@ -173,11 +173,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-114](#i-114) | Not started | `HELP` / `HLPRTN` on a `USRDFN` record are reachable only through the raw keyword editor (decision first). Size (estimate): Small–medium. Raised by I-105. |
-| 2 | [I-117](#i-117) | In progress | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first). Size (estimate): Small–medium. Raised by I-115. |
-| 3 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 4 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
-| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-117](#i-117) | In progress | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first). Size (estimate): Small–medium. Raised by I-115. |
+| 2 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 3 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
+| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -5252,11 +5251,19 @@ New `src/test/i113AddFieldsBareReference.test.js` (31 checks, added to the `test
 
 ### I-114 — `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first)
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-105
+> **Area:** Record · **Status:** Done (v0.10.193) · **Depends on:** I-105
 
 Opened from a deferred finding raised by I-105, verbatim:
 
 **`HELP` / `HLPRTN` on a `USRDFN` record.** Both are on `USRDFN`'s whitelist and live in the record-indicator list, but R2 keeps the Indicator subtab out of a `USRDFN` record, so they are reachable only through the raw keyword editor - the same gap `INVITE` had. Decide whether to show an Indicator subtab limited to those two kinds (R2 recorded that real SDA's own `USRDFN` menu has none).
+
+**Done.** Decision: **show an Indicator subtab on a `USRDFN` record, limited to `HELP` and `HLPRTN`** - I-105's own rule (decision (a): "hide every non-applicable row ... and show every applicable one"), which is what made `INVITE` reachable. Options weighed: (1) that; (2) leave them raw-editor-only, matching real SDA's `USRDFN` menu (`docs/sda-reference/screens/record-level/usrdfn/_menu-example/image26.png` shows General, Application help, Help, Print, ALTNAME, TEXT - no Indicator category) - rejected, it keeps two whitelisted keywords hidden and contradicts I-105. This is a **deliberate departure from real SDA's menu**, in the same way I-105 surfaced `INVITE` (which real SDA files under Output, also absent from its `USRDFN` menu).
+
+- **The change is one line plus wording.** `recordKeywordsPanelsHtml` (`webviewClientHelpers.js`) no longer blanks the Indicator panel for a `USRDFN` record (the R2 line `restrictTo === 'USRDFN' ? '' : ind`). Everything else it needed already existed: the kind selector lists only whitelisted kinds (I-105), the kind guard refuses the rest (I-109), and "+ Add indicator keyword" defaults to `HELP(10)` on a `USRDFN` record (I-109). Nothing else on the panel passes `USRDFN`'s whitelist (`MOUBTN` is gated out), so the subtab is just the repeatable `HELP` / `HLPRTN` rows.
+- **Status text.** The panel's generic intro (about `CLEAR` rows and the CA/CF keys panel) would mislead here, so a `USRDFN` record gets its own: it accepts only `HELP` (the Help key) and `HLPRTN` (return from help), each row independently conditioned and repeatable. Other record types keep the generic text.
+- **Subtabs on a `USRDFN` record are now General / Indicator / Help / Print** (Output / Input / Overlay stay dropped). Plain (7), `SFL` (4), `SFLMSG` (none, I-115), `MNUBAR` (7) and `SFLCTL` are unchanged. A hand-written out-of-list row on a `USRDFN` record (say `CLEAR(55)`) still renders truthfully - it keeps its own kind in the selector - and nothing is rewritten by rendering it.
+- **Comments** naming the old subset (`buildWebviewTemplate.js`, `dspfWriter.js`, the R2 block and `isUsrDfnRecord` in `webviewClientHelpers.js`) were updated.
+- **Tests.** New `src/test/i114UsrdfnIndicatorSubtab.test.js` (25 checks, wired into `npm test`): the panel is non-empty with the `USRDFN` wording and no `MOUBTN`; Add creates `HELP(10)`; the selector offers exactly `HELP` / `HLPRTN`; `HELP` -> `HLPRTN` commits; a second row can be added; a hand-written `CLEAR(55)` renders truthfully and untouched; plain / `SFL` / `MNUBAR` panels unchanged; and in the real template the subtabs are General, Indicator, Help, Print, Add posts an edit that writes `HELP(10)` next to the untouched `USRDFN`, and switching to `HLPRTN` rewrites it. Against the old code 3 of its checks fail and it then crashes at the missing Add button. Three existing checks that encoded "a `USRDFN` record has no Indicator subtab" were updated: `dspfWebview.test.js`'s R2 scenario (4 subtabs, Indicator present) and two in `i105UsrdfnRecordRows.test.js`.
 
 *Raised by I-105. Size (estimate): Small–medium.*
 

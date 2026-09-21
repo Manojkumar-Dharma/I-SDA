@@ -5776,7 +5776,8 @@ const htmlTemplate = `<!DOCTYPE html>
     // Task I-105: a USRDFN, SFL or MNUBAR record's Keywords subtabs carry only
     // the rows on that record type's closed whitelist - every non-applicable
     // row is hidden, not shown-and-refused - and a subtab with no applicable
-    // row is dropped (USRDFN: General/Help/Print, the R2 subset; SFL: General/
+    // row is dropped (USRDFN: General/Indicator/Help/Print - the R2 subset plus
+    // I-114's HELP/HLPRTN-only Indicator; SFL: General/
     // Indicator/Output/Input; MNUBAR: all seven; SFLMSG (I-115): none).
     const rkRestriction = WebviewClientHelpers.recordKeywordsRestriction(rec);
     const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix, expandedKeywordConditioning, rkRestriction);

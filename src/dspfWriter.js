@@ -2686,7 +2686,7 @@
   }
 
   /** Task I-8 - USRDFN record-level keyword audit. Checking every keyword
-   *  in USRDFN's own narrowed General/Help/Print subset (see
+   *  in USRDFN's own narrowed General/Indicator/Help/Print subset (see
    *  isUsrDfnRecord's own doc comment in webviewClientHelpers.js) against
    *  the DDS Reference's own text turned up four - and only four -
    *  keywords individually documented as incompatible with a user-defined
