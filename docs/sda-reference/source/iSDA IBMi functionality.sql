@@ -5,6 +5,56 @@ CALL QSYS2.QCMDEXC('ADDPFM FILE(SDATST/QDDSSRC) MBR(TESTPF) SRCTYPE(PF)');
 CREATE OR REPLACE ALIAS SDATST.QDDSSRC_TESTPF FOR SDATST.QDDSSRC (TESTPF);
 DELETE FROM SDATST.QDDSSRC_TESTPF;
 
+CALL QSYS2.QCMDEXC('CRTLIB LIB(SDATST) TEXT(''I-SDA I-116 capture'')');
+CALL QSYS2.QCMDEXC('CRTSRCPF FILE(SDATST/QDDSSRC) RCDLEN(112)');
+CALL QSYS2.QCMDEXC('ADDPFM FILE(SDATST/QDDSSRC) MBR(TESTPF) SRCTYPE(PF)');
+CREATE OR REPLACE ALIAS SDATST.QDDSSRC_TESTPF FOR SDATST.QDDSSRC (TESTPF);
+
+---old insert sql , which failed
+INSERT INTO SDATST.QDDSSRC_TESTPF (SRCSEQ, SRCDAT, SRCDTA) VALUES
+  (1, 0, '     A          R TESTFMT'),
+  (2, 0, '     A            FLDME         10A         CHECK(ME)'),
+  (3, 0, '     A            FLDRANGE       5S 0       RANGE(1 99999)'),
+  (4, 0, '     A            FLDVALS        1A         VALUES(''A'' ''B'' ''C'')'),
+  (5, 0, '     A            FLDCOMP        7P 2       COMP(GT 0)'),
+  (6, 0, '     A            FLDCOMPC       3A         COMP(EQ ''XYZ'')'),
+  (7, 0, '     A            FLDNEG         7S 2       RANGE(-5.5 100.25)'),
+  (8, 0, '     A            FLDM10         6S 0       CHECK(M10)'),
+  (9, 0, '     A            FLDVN          9S 2       CHECK(VN)'),
+  (10, 0, '     A            FLDAB          5A         CHECK(AB)'),
+  (11, 0, '     A            FLDMSG         5S 0       RANGE(10 20)'),
+  (12, 0, '     A                                      CHKMSGID(CPF9897 QSYS/QCPFMSG)'),
+  (13, 0, '     A            FLDMSGD        5S 0       VALUES(1 2 3)'),
+  (14, 0, '     A                                      CHKMSGID(CPF9897 QCPFMSG &FLDDTA)'),
+  (15, 0, '     A            FLDDTA        20A'),
+  (16, 0, '     A            FLDMULT        5S 0       CHECK(ME)'),
+  (17, 0, '     A                                      COMP(GT 0)'),
+  (18, 0, '     A                                      COMP(LT 100)'),
+  (19, 0, '     A            FLDSGL         7F 2'),
+  (20, 0, '     A            FLDDBL        15F 2'),
+  (21, 0, '     A            FLDNONE        5A');
+
+CALL QSYS2.QCMDEXC('CRTPF FILE(SDATST/TESTPF) SRCFILE(SDATST/QDDSSRC) SRCMBR(TESTPF)');
+
+--Failure details as below
+--below are step 1 failures
+     900       A            FLDVN          9S 2       CHECK(VN)        
+ *                                                  CPD7554-*          
+    1000       A            FLDAB          5A         CHECK(AB)        
+ *                                                  CPD7656-*          
+   1600       A            FLDMULT        5S 0       CHECK(ME)          
+   1700       A                                      COMP(GT 0)         
+   1800       A                                      COMP(LT 100)       
+*                                            CPD7492-*                  
+   2000       A            FLDDBL        15F 2         
+*                             CPD7635-*****            
+
+* CPD7492      20        1      Message . . . . :   Keyword specified more than once in one specification.         
+* CPD7554      20        1      Message . . . . :   Keyword not valid with data type or keyboard shift value.      
+* CPD7635      30        1      Message . . . . :   Length too large for floating-point precision.                           
+* CPD7656      20        1      Message . . . . :   Indicated keyword requires validity checking keyword.
+
+--New insert which passed is below
 INSERT INTO SDATST.QDDSSRC_TESTPF (SRCSEQ, SRCDAT, SRCDTA) VALUES
   (1, 0, '     A          R TESTFMT'),
   (2, 0, '     A            FLDME         10A         CHECK(ME)'),
@@ -38,7 +88,7 @@ CALL QSYS2.QCMDEXC('DSPFFD FILE(SDATST/TESTPF) OUTPUT(*OUTFILE) OUTFILE(SDATST/F
 SELECT WHFLDI, WHFLDT, WHFLDB, WHFLDD, WHFLDP, WHVCNE, WHCSID, WHECDE
   FROM SDATST.FFDOUT ORDER BY WHFOBO;
 
---Step 3 dump
+--Step 3 dump - which is also failure
 CREATE OR REPLACE PROCEDURE SDATST.RTVFD_HEX ()
   LANGUAGE SQL
   RESULT SETS 1
@@ -99,7 +149,7 @@ END;
 
 CALL SDATST.RTVFD_DIAG();
 
---Block B
+--Block B - requries to be investigated for further processing
 CREATE OR REPLACE PROCEDURE SDATST.QDBRTVFD_X (
   INOUT P_RCV     CHAR(32000) FOR BIT DATA,
   INOUT P_RCVLEN  INTEGER,
@@ -150,7 +200,7 @@ END;
 
 CALL SDATST.RTVFD_DIAG2();
 
---Block C 
+--Block C - qtemp function creation is not allowed
 
 CREATE OR REPLACE PROCEDURE QTEMP.QDBRTVFD_X (
   INOUT P_RCV     CHAR(32000) FOR BIT DATA,
