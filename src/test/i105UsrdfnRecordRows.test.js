@@ -155,14 +155,14 @@ for (const type of ['SFL', 'MNUBAR']) {
   check(type + ': a hand-written INZRCD is hidden in the panel but kept', !$('rec-inzrcd-on') && has(st2, 'INZRCD'));
   check(type + ': ...and still listed in the raw editor', /INZRCD/.test(Helpers.keywordEditorHtml(base.concat([kwd('INZRCD')]), 'record-X', new Set())));
 }
-console.log('SFLMSG and SFLCTL records are not restricted here');
+console.log('SFLCTL records are not restricted here (SFLMSG was added by I-115 - see i115SflmsgKeywordsTab.test.js)');
 {
   check('recordKeywordsRestriction: USRDFN / SFL / MNUBAR / plain / SFLMSG / SFLCTL',
     Helpers.recordKeywordsRestriction({ keywords: [kwd('USRDFN')] }) === 'USRDFN' &&
     Helpers.recordKeywordsRestriction({ keywords: [kwd('SFL')] }) === 'SFL' &&
     Helpers.recordKeywordsRestriction({ keywords: [kwd('MNUBAR')] }) === 'MNUBAR' &&
     Helpers.recordKeywordsRestriction({ keywords: [] }) === null &&
-    Helpers.recordKeywordsRestriction({ keywords: [kwd('SFL'), kwd('SFLMSGRCD')] }) === null &&
+    Helpers.recordKeywordsRestriction({ keywords: [kwd('SFL'), kwd('SFLMSGRCD')] }) === 'SFLMSG' &&
     Helpers.recordKeywordsRestriction({ keywords: [kwd('SFLCTL')] }) === null);
 }
 

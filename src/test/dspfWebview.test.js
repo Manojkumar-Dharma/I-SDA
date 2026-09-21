@@ -4455,9 +4455,9 @@ function runSflMsgPickerScenario() {
       dom.window.alert = originalAlert;
     }
 
-    console.log('  Task I-25: KEEP no longer has its own live row on this panel - it is on the base Record Keywords -> General tab instead, with a hint pointing there');
+    console.log('  Task I-25 / I-115: KEEP has no live row on this panel, and (I-115) none on the SFLMSG record\'s Keywords tab either - a hint says why');
     check('no sm-keep row rendered', !doc.getElementById('sm-keep-on'));
-    check('hint pointing to the base tab is shown', /Keep records on display when closing the file \(KEEP\) is on the base Record Keywords/.test(doc.body.innerHTML));
+    check('hint explaining the base rows are not offered is shown', /a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows \(KEEP and the rest\) are not offered here/.test(doc.body.innerHTML));
 
     console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
     doc.getElementById('sm-check-ab-on').checked = true;

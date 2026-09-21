@@ -152,14 +152,14 @@ setTimeout(() => {
   // blocks a plain-SFL whitelist keyword (LOGINP) ===
   selectRecord('SFLMSGREC');
   const mP = 'rk-SFLMSGREC';
-  console.log('\nmessage-subfile record: LOGINP (valid on a plain SFL record) is still blocked');
+  // Task I-115: a message-subfile record's Keywords tab no longer offers the row at
+  // all (its whitelist is SFLMSGRCD only), so there is nothing to tick; the refusal
+  // itself stays covered on the full row set (i46 / i102 / i104 / i111 / i115).
+  console.log('\nmessage-subfile record: LOGINP (valid on a plain SFL record) is not offered (I-115)');
   {
     const result = toggleFlag(mP, 'loginp', true);
-    check('setup: loginp checkbox is present', !result.missing);
-    if (!result.missing) {
-      check('LOGINP blocked on a message-subfile record with an alert naming SFLMSGRCD', !!result.alertMessage && result.alertMessage.indexOf('SFLMSGRCD') !== -1);
-      check('no applyEdit was posted for the blocked LOGINP attempt', !result.applyEdit);
-    }
+    check('the loginp checkbox is not rendered on a message-subfile record', !!result.missing);
+    check('no applyEdit was posted', !result.applyEdit);
   }
 
   // === Group D: no regression - a non-SFL record's checkboxes/bespoke

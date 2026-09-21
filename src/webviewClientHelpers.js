@@ -5567,7 +5567,7 @@
     var panels = {};
 
     // Task I-105: `restrictTo` ('USRDFN' | 'SFL' | 'MNUBAR', or true for
-    // USRDFN) renders ONLY the rows on that record type's closed whitelist
+    // USRDFN; Task I-115 adds 'SFLMSG', which leaves every panel empty) renders ONLY the rows on that record type's closed whitelist
     // (DspfWriter.usrdfnWhitelistConflictReason / sflWhitelistConflictReason /
     // mnubarWhitelistConflictReason); every other row is not built at all -
     // hidden, not shown-and-refused. Omitted (every other record type, and
@@ -5968,23 +5968,28 @@
    *  'SFL' | 'MNUBAR', or a falsy value for "no restriction") allows
    *  `keywordName` on a record of that type. Delegates to the same
    *  DspfWriter whitelist functions the guards use, so the rows shown and
-   *  the rows accepted can never disagree. */
+   *  the rows accepted can never disagree. Task I-115 adds 'SFLMSG': a
+   *  message subfile (SFL + SFLMSGRCD) - the same sflWhitelistConflictReason,
+   *  whose message-subfile branch allows SFL and SFLMSGRCD only, so no
+   *  Keywords-tab row passes. */
   function recordRestrictionAllows(restrictTo, keywordName) {
     if (!restrictTo) return true;
-    var marker = [{ name: restrictTo }];
+    var marker = restrictTo === 'SFLMSG' ? [{ name: 'SFL' }, { name: 'SFLMSGRCD' }] : [{ name: restrictTo }];
     var reason = restrictTo === 'USRDFN' ? DspfWriter.usrdfnWhitelistConflictReason(keywordName, marker)
-      : restrictTo === 'SFL' ? DspfWriter.sflWhitelistConflictReason(keywordName, marker)
+      : (restrictTo === 'SFL' || restrictTo === 'SFLMSG') ? DspfWriter.sflWhitelistConflictReason(keywordName, marker)
       : restrictTo === 'MNUBAR' ? DspfWriter.mnubarWhitelistConflictReason(keywordName, marker)
       : null;
     return !reason;
   }
 
   /** Task I-105 - which closed whitelist governs `rec`'s Keywords tab, or
-   *  null when none does. USRDFN first, then plain SFL (not SFLMSG, whose
-   *  own tab covers it), then MNUBAR. Passed as recordKeywordsPanelsHtml's
-   *  `restrictTo`. */
+   *  null when none does. USRDFN first, then a message subfile (SFLMSG -
+   *  Task I-115: its whitelist is SFLMSGRCD only, so every row is hidden and
+   *  only the raw editor and Conditioning remain on the tab), then plain SFL,
+   *  then MNUBAR. Passed as recordKeywordsPanelsHtml's `restrictTo`. */
   function recordKeywordsRestriction(rec) {
     if (isUsrDfnRecord(rec)) return 'USRDFN';
+    if (isSflMsgRecord(rec)) return 'SFLMSG';
     if (isSflRecord(rec)) return 'SFL';
     if (isMnuBarRecord(rec)) return 'MNUBAR';
     return null;
@@ -6118,7 +6123,7 @@
     } else {
       mr += '<div class="hint-small">Add a second display size (file-level Display Sizes picker) to condition this by DSPSIZ.</div>';
     }
-    mr += '<div class="hint-small">Real SDA also offers a "Roll keyword" here - its DDS argument shape wasn\u2019t confidently verified, so use the raw Keywords editor below if you need it.</div>';
+    mr += '<div class="hint-small">Real SDA also offers a "Roll keyword" here - its DDS argument shape wasn\u2019t confidently verified, so use the raw Keywords editor (Keywords tab) if you need it.</div>';
 
     var keyField = (rec.fields || []).find(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLMSGKEY'; }); });
     // Task L73: this used to be read-only status text pointing the person
@@ -6182,7 +6187,7 @@
     // every record type including this one, so a second live copy here was
     // just two controls fighting over the same keyword (same rationale
     // I-25 applied to the SFL/SFLCTL tabs' own KEEP copies below).
-    g += '<div class="hint-small">Keep records on display when closing the file (KEEP) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
+    g += '<div class="hint-small">Besides SFL, a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows (KEEP and the rest) are not offered here \u2013 the Keywords tab keeps only the raw editor and Conditioning.</div>';
     panels.general = g;
 
     // --- Indicator ---

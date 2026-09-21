@@ -5777,7 +5777,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // the rows on that record type's closed whitelist - every non-applicable
     // row is hidden, not shown-and-refused - and a subtab with no applicable
     // row is dropped (USRDFN: General/Help/Print, the R2 subset; SFL: General/
-    // Indicator/Output/Input; MNUBAR: all seven).
+    // Indicator/Output/Input; MNUBAR: all seven; SFLMSG (I-115): none).
     const rkRestriction = WebviewClientHelpers.recordKeywordsRestriction(rec);
     const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix, expandedKeywordConditioning, rkRestriction);
     const rkAllTabs = [
@@ -5790,8 +5790,16 @@ const htmlTemplate = `<!DOCTYPE html>
       { id: 'print', label: 'Print', content: rkPanels.print },
     ];
     const rkTabs = rkRestriction ? rkAllTabs.filter((t) => t.content !== '') : rkAllTabs;
-    const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
-    let keywordsHtml = subtabsHtml(rkTabs, rkActiveTab);
+    // Task I-115: a message-subfile (SFLMSG) record's whitelist is SFLMSGRCD
+    // only, so every subtab is empty and dropped - no subtab strip at all
+    // (rkTabs[0] would not exist); the raw editor and Conditioning below stay.
+    let keywordsHtml = '';
+    if (rkTabs.length > 0) {
+      const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
+      keywordsHtml = subtabsHtml(rkTabs, rkActiveTab);
+    } else {
+      keywordsHtml = '<div class="hint-small">No record keyword rows apply to this record type - the SFLMSG tab covers what a message subfile takes (SFLMSGRCD). Hand-written keywords stay listed and removable in the raw editor below.</div>';
+    }
     keywordsHtml += accordionHtml('record-' + rec.name + '::raw', 'Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
     keywordsHtml += accordionHtml('record-' + rec.name + '::conditioning', 'Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record', expandedKeywordConditioning), false);
 
