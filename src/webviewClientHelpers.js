@@ -6189,31 +6189,37 @@
       var loginpNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGINP', kw);
       if (loginpNote) g += '<div class="hint-small">' + escapeHtml(loginpNote) + '</div>';
     }
-    // Task I-98: CHECK(AB)/CHECK(RL) - "Option indicators are valid only
-    // for CHECK(ER) and CHECK(ME)" (I-3, I-9), and AB/RL are neither, so no
-    // Conditioning toggle - same as the SFL panel.
-    var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    g += flagRowHtml('sm-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined);
-    var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    g += flagRowHtml('sm-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined);
-    g += chgInpDftFlagHtml(kw, 'sm-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     // Task I-25: KEEP (shown on real SDA's own "Select Subfile Message
     // Keywords" screen) is deliberately NOT repeated here anymore - it's
     // already on Task R1's base Record Keywords -> General tab, shown for
     // every record type including this one, so a second live copy here was
     // just two controls fighting over the same keyword (same rationale
     // I-25 applied to the SFL/SFLCTL tabs' own KEEP copies below).
-    g += '<div class="hint-small">Besides SFL, a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows (KEEP and the rest) are not offered here \u2013 the Keywords tab keeps only the raw editor and Conditioning.</div>';
+    // Task I-117: CHECK(AB)/CHECK(RL)/CHGINPDFT rows used to live here too,
+    // and offered/committed with no alert even though the DDS Reference's
+    // SFL section puts all three ONLY on its "for all other subfiles" list,
+    // never on the "for message subfiles" list (SFLMSGRCD/SFLMSGKEY/
+    // SFLPGMQ) - the exact same closed-list text sflWhitelistConflictReason
+    // already enforces for the raw editor and the base Keywords tab (I-46,
+    // I-115). Unlike LOGINP/LOGOUT just below, neither CHECK's own section
+    // nor CHGINPDFT's own section restates any message-subfile-specific
+    // behavior at all (I-23's audit), so there is no "ignored, but
+    // harmless" finding to justify an advisory-only row the way LOGINP/
+    // LOGOUT get one - they are simply not part of this record type's
+    // keyword set, so the rows are dropped rather than kept with a note.
+    g += '<div class="hint-small">Besides SFL, a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows (KEEP, CHECK(AB)/CHECK(RL), CHGINPDFT, and the rest) are not offered here \u2013 the Keywords tab keeps only the raw editor and Conditioning.</div>';
     panels.general = g;
 
     // --- Indicator ---
-    // Repeatable INDTXT/SETOF/CHANGE row list (see indicatorTextRowsHtml
-    // above) - real DDS takes exactly one indicator per SETOF/CHANGE
-    // instance (multiple instances for multiple indicators, not a
-    // space-separated list in one keyword), and CHANGE's shape is now
-    // verified (indicator-only, no text) rather than the "not confidently
-    // verified" placeholder this screen originally shipped with.
-    panels.indicator = indicatorTextRowsHtml(kw, 'sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6);
+    // Task I-117: INDTXT/SETOF/CHANGE used to render here as a repeatable
+    // row list (indicatorTextRowsHtml) and committed with no alert, but -
+    // same finding as the General panel's CHECK(AB)/CHECK(RL)/CHGINPDFT
+    // rows just above - all three are on the SFL section's "for all other
+    // subfiles" list only, never the message-subfile one, and none of the
+    // three has an individual "ignored on a message subfile" statement the
+    // way LOGINP/LOGOUT do. Dropped for the same reason; a hand-written
+    // entry still stays listed and removable in the raw editor.
+    panels.indicator = '<div class="hint-small">Besides SFL, a message-subfile record accepts only SFLMSGRCD, so INDTXT/SETOF/CHANGE are not offered here \u2013 the Keywords tab keeps only the raw editor and Conditioning.</div>';
 
     return panels;
   }
@@ -7600,15 +7606,9 @@
     simple('sm-loginp', 'LOGINP', false, true);
     // Task I-25: KEEP no longer has a live row on this panel - see
     // sflMsgPanelsHtml's own comment.
-    // Task I-98: CHECK(AB)/CHECK(RL) take no option indicators (see
-    // sflMsgPanelsHtml) - wired with no conditions/expandedSet/rerender, so
-    // setFileFlagKeyword's own preserve-existing-conditioning behaviour
-    // leaves a hand-edited one alone (same as the SFL panel).
-    wireFlagRow('sm-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
-    wireFlagRow('sm-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
-    wireChgInpDftFlag(getKeywords, onChange, 'sm-chginpdft', expandedSet, rerender);
-
-    wireIndicatorTextRows('sm-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
+    // Task I-117: CHECK(AB)/CHECK(RL)/CHGINPDFT/INDTXT/SETOF/CHANGE no
+    // longer have live rows on this panel either - see sflMsgPanelsHtml's
+    // own comment. Nothing to wire for them here now.
   }
 
   /** Wires the Message Record panel's Task L73 additions - renaming the

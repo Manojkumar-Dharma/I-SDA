@@ -134,7 +134,7 @@ setTimeout(() => {
   // refused there), so the base Keywords tab no longer offers a KEEP row for this
   // record type at all - the hint says so, and a hand-written KEEP stays listed
   // (and removable) in the raw keyword editor.
-  check('hint explaining the base rows are not offered is shown', /a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows \(KEEP and the rest\) are not offered here/.test(doc.body.innerHTML));
+  check('hint explaining the base rows are not offered is shown', /a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows \(KEEP, CHECK\(AB\)\/CHECK\(RL\), CHGINPDFT, and the rest\) are not offered here/.test(doc.body.innerHTML));
   const sflmsgBaseKeepOn = doc.getElementById('rk-SFLMSGREC-keep-on');
   check('I-115: the base tab no longer shows a KEEP row for a message-subfile record', !sflmsgBaseKeepOn);
   const rawChips = Array.prototype.slice.call(doc.querySelectorAll('#kwed-record-SFLMSGREC .keyword-chip')).map(function (c) { return c.textContent; });

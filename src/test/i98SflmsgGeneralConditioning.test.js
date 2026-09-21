@@ -3,11 +3,21 @@
  *
  * Task I-98 - the SFLMSG record's General panel (sflMsgPanelsHtml/
  * wireSflMsgPanels) must not offer an option-indicator Conditioning toggle
- * on LOGINP or CHECK(AB)/CHECK(RL). IBM's DDS Reference says "Option
- * indicators are not valid for this keyword" for LOGINP, and option
- * indicators on CHECK are valid only for CHECK(ER)/CHECK(ME) (I-3, I-9).
- * The SFL panel has honoured that since I-9; I-11 checked SFLMSG's keyword
- * set against I-9's but never its conditioning, so the toggles were left in.
+ * on LOGINP. IBM's DDS Reference says "Option indicators are not valid for
+ * this keyword" for LOGINP. The SFL panel has honoured that since I-9; I-11
+ * checked SFLMSG's keyword set against I-9's but never its conditioning, so
+ * the toggle was left in.
+ *
+ * Task I-117 later dropped this panel's own CHECK(AB)/CHECK(RL)/CHGINPDFT
+ * rows (and the Indicator panel's INDTXT/SETOF/CHANGE rows) entirely - the
+ * DDS Reference's SFL section puts all of them only on its "for all other
+ * subfiles" list, never the message-subfile one, and unlike LOGINP/LOGOUT
+ * none of them has an individually-documented "ignored on a message
+ * subfile" fallback to justify keeping an advisory-only row. This file's
+ * former CHECK(AB)/CHECK(RL)/CHGINPDFT conditioning checks are replaced
+ * below with checks that those rows (and the Indicator panel) no longer
+ * render at all - see i115SflmsgKeywordsTab.test.js and dspfWebview.test.js
+ * for the rest of I-117's coverage.
  *
  * Runs the DSPF designer's real generated client-side script in jsdom (same
  * rationale as i9SflConditioningAudit.test.js).
@@ -78,7 +88,8 @@ function lastRecord(posted) {
 }
 
 // ---------------------------------------------------------------------------
-// Scenario 1 - plain SFLMSG record: which rows offer a Conditioning toggle.
+// Scenario 1 - plain SFLMSG record: which rows offer a Conditioning toggle,
+// and which rows I-117 dropped entirely.
 // ---------------------------------------------------------------------------
 boot(sflMsgLines(), ({ doc, Event, posted }) => {
   const hasToggle = (id) => !!doc.querySelector('.kw-cond-toggle[data-flag-id="' + id + '"]');
@@ -86,16 +97,22 @@ boot(sflMsgLines(), ({ doc, Event, posted }) => {
   console.log('\nsetup');
   check('the SFLMSG tab rendered its General rows', !!doc.getElementById('sm-sflnxtchg-on') && !!doc.getElementById('sm-loginp-on'));
 
-  console.log('\nTask I-98: keywords IBM documents as NOT taking option indicators must not offer a Conditioning toggle');
-  ['sm-loginp', 'sm-check-ab', 'sm-check-rl'].forEach((id) => {
-    check(id + ' has no Conditioning toggle', !hasToggle(id));
-  });
-  check('CHGINPDFT (I-3) still has none', !hasToggle('sm-chginpdft'));
+  console.log('\nTask I-98: LOGINP must not offer a Conditioning toggle');
+  check('sm-loginp has no Conditioning toggle', !hasToggle('sm-loginp'));
 
   console.log('\nno regression: the rows that DO take option indicators keep their toggle');
   ['sm-sflnxtchg', 'sm-logout'].forEach((id) => {
     check(id + ' still has a Conditioning toggle', hasToggle(id));
   });
+
+  console.log('\nTask I-117: CHECK(AB)/CHECK(RL)/CHGINPDFT rows are dropped from the General panel entirely - not just conditioning-less, gone');
+  check('no sm-check-ab row', !doc.getElementById('sm-check-ab-on'));
+  check('no sm-check-rl row', !doc.getElementById('sm-check-rl-on'));
+  check('no sm-chginpdft row', !doc.getElementById('sm-chginpdft-on'));
+
+  console.log('\nTask I-117: INDTXT/SETOF/CHANGE rows are dropped from the Indicator panel entirely');
+  check('no sm-ind rows', !doc.getElementById('sm-ind-row0-kw'));
+  check('hint explains why', /a message-subfile record accepts only SFLMSGRCD, so INDTXT\/SETOF\/CHANGE are not offered here/.test(doc.body.innerHTML));
 
   console.log('\nthe rows still work as plain on/off checkboxes');
   const on = (id) => {
@@ -108,35 +125,24 @@ boot(sflMsgLines(), ({ doc, Event, posted }) => {
   let rec = lastRecord(posted);
   check('LOGINP turned on commits an edit', !!rec && rec.keywords.some((k) => k.name === 'LOGINP'));
   check('the committed LOGINP carries no indicators', !!rec && rec.keywords.filter((k) => k.name === 'LOGINP').every((k) => !(k.conditions || []).length));
-  posted.length = 0;
-  on('sm-check-ab');
-  rec = lastRecord(posted);
-  check('CHECK(AB) turned on commits an edit', !!rec && rec.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB'));
-  posted.length = 0;
-  on('sm-check-rl');
-  rec = lastRecord(posted);
-  check('CHECK(RL) turned on commits an edit', !!rec && rec.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
-  check('CHECK(AB) is still there after CHECK(RL)', !!rec && rec.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB'));
 
   // -------------------------------------------------------------------------
-  // Scenario 2 - hand-edited record that already carries indicators on these
-  // keywords: not shown, but nothing else on the panel may silently drop them
+  // Scenario 2 - hand-edited record that already carries an indicator on
+  // LOGINP: not shown, but nothing else on the panel may silently drop it
   // (same preserve-existing-conditioning behaviour as the SFL panel).
   // -------------------------------------------------------------------------
   boot(
     sflMsgLines([
       buildLine({ seq: '00025', ind1: '50', func: 'LOGINP' }),
-      buildLine({ seq: '00026', ind1: '51', func: 'CHECK(AB)' }),
     ]),
     ({ doc: doc2, Event: Event2, posted: posted2 }) => {
-      console.log('\nhand-edited record already carrying LOGINP / CHECK(AB) with indicators');
+      console.log('\nhand-edited record already carrying LOGINP with an indicator');
       const rec0 = DspfParser.parseDspf(sflMsgLines([
         buildLine({ seq: '00025', ind1: '50', func: 'LOGINP' }),
-        buildLine({ seq: '00026', ind1: '51', func: 'CHECK(AB)' }),
       ])).records.find((r) => r.name === 'SFLMESS');
-      check('setup: the parser sees both keywords with an indicator condition', rec0.keywords.filter((k) => (k.name === 'LOGINP' || k.name === 'CHECK') && (k.conditions || []).length > 0).length === 2);
-      check('setup: LOGINP and CHECK(AB) boxes render checked', doc2.getElementById('sm-loginp-on').checked && doc2.getElementById('sm-check-ab-on').checked);
-      check('still no Conditioning toggle on LOGINP / CHECK(AB) / CHECK(RL)', ['sm-loginp', 'sm-check-ab', 'sm-check-rl'].every((id) => !doc2.querySelector('.kw-cond-toggle[data-flag-id="' + id + '"]')));
+      check('setup: the parser sees LOGINP with an indicator condition', rec0.keywords.filter((k) => k.name === 'LOGINP' && (k.conditions || []).length > 0).length === 1);
+      check('setup: LOGINP box renders checked', doc2.getElementById('sm-loginp-on').checked);
+      check('still no Conditioning toggle on LOGINP', !doc2.querySelector('.kw-cond-toggle[data-flag-id="sm-loginp"]'));
 
       const logout = doc2.getElementById('sm-logout-on');
       logout.checked = true;
@@ -144,7 +150,6 @@ boot(sflMsgLines(), ({ doc, Event, posted }) => {
       const rec1 = lastRecord(posted2);
       check('editing another row (LOGOUT) posted an edit', !!rec1 && rec1.keywords.some((k) => k.name === 'LOGOUT'));
       check("LOGINP's existing indicator survived the edit", !!rec1 && rec1.keywords.some((k) => k.name === 'LOGINP' && (k.conditions || []).length > 0));
-      check("CHECK(AB)'s existing indicator survived the edit", !!rec1 && rec1.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB' && (k.conditions || []).length > 0));
 
       posted2.length = 0;
       const loginp = doc2.getElementById('sm-loginp-on');

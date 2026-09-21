@@ -4457,36 +4457,16 @@ function runSflMsgPickerScenario() {
 
     console.log('  Task I-25 / I-115: KEEP has no live row on this panel, and (I-115) none on the SFLMSG record\'s Keywords tab either - a hint says why');
     check('no sm-keep row rendered', !doc.getElementById('sm-keep-on'));
-    check('hint explaining the base rows are not offered is shown', /a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows \(KEEP and the rest\) are not offered here/.test(doc.body.innerHTML));
+    check('hint explaining the base rows are not offered is shown', /a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows \(KEEP, CHECK\(AB\)\/CHECK\(RL\), CHGINPDFT, and the rest\) are not offered here/.test(doc.body.innerHTML));
 
-    console.log('  General: CHECK(AB) and CHECK(RL) are independent toggles sharing the CHECK keyword name');
-    doc.getElementById('sm-check-ab-on').checked = true;
-    doc.getElementById('sm-check-ab-on').dispatchEvent(new Event('change', { bubbles: true }));
-    applyEdit = posted.find((m) => m.type === 'applyEdit');
-    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
-    check('CHECK(AB) was added', reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'AB'));
-    check('CHECK(RL) was not', !reparsed.keywords.some((k) => k.name === 'CHECK' && k.parameters.trim().toUpperCase() === 'RL'));
-    posted.length = 0;
+    console.log('  Task I-117: CHECK(AB)/CHECK(RL)/CHGINPDFT no longer have live rows here - the DDS Reference\'s SFL section puts them only on the "for all other subfiles" list, never the message-subfile one, and (unlike LOGINP/LOGOUT) neither keyword\'s own section documents an "ignored" fallback for a message subfile');
+    check('no sm-check-ab row rendered', !doc.getElementById('sm-check-ab-on'));
+    check('no sm-check-rl row rendered', !doc.getElementById('sm-check-rl-on'));
+    check('no sm-chginpdft row rendered', !doc.getElementById('sm-chginpdft-on'));
 
-    console.log('  Indicator: repeatable INDTXT/SETOF/CHANGE rows (Task R3/R5 shared component) commit together via Apply');
-    doc.getElementById('sm-ind-row0-kw').value = 'INDTXT';
-    doc.getElementById('sm-ind-row0-ind').value = '50';
-    doc.getElementById('sm-ind-row0-text').value = 'Amount valid';
-    doc.getElementById('sm-ind-row1-kw').value = 'SETOF';
-    doc.getElementById('sm-ind-row1-ind').value = '30';
-    doc.getElementById('sm-ind-row2-kw').value = 'SETOF';
-    doc.getElementById('sm-ind-row2-ind').value = '31';
-    doc.getElementById('sm-ind-row3-kw').value = 'CHANGE';
-    doc.getElementById('sm-ind-row3-ind').value = '40';
-    doc.querySelector('.sm-ind-apply').dispatchEvent(new Event('click', { bubbles: true }));
-    applyEdit = posted.find((m) => m.type === 'applyEdit');
-    reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'SFLMESS');
-    const indtxtKw = reparsed.keywords.find((k) => k.name === 'INDTXT');
-    check('INDTXT written with indicator 50 and quoted text', indtxtKw && /^50\s+'Amount valid'/.test(indtxtKw.parameters.trim()));
-    check('two independent SETOF keywords - one per indicator, not one space-separated list', reparsed.keywords.filter((k) => k.name === 'SETOF').length === 2);
-    check('SETOF(30) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '30'));
-    check('SETOF(31) present', reparsed.keywords.some((k) => k.name === 'SETOF' && k.parameters.trim() === '31'));
-    check('CHANGE(40) written - previously a documented gap, now verified and supported', reparsed.keywords.some((k) => k.name === 'CHANGE' && k.parameters.trim() === '40'));
+    console.log('  Task I-117: INDTXT/SETOF/CHANGE no longer have live rows on the Indicator panel either - same finding as CHECK(AB)/CHECK(RL)/CHGINPDFT above');
+    check('no sm-ind rows rendered', !doc.getElementById('sm-ind-row0-kw'));
+    check('hint explaining INDTXT/SETOF/CHANGE are not offered is shown', /a message-subfile record accepts only SFLMSGRCD, so INDTXT\/SETOF\/CHANGE are not offered here/.test(doc.body.innerHTML));
 
     console.log('  Message Record (Task L73): a record with SFLMSGRCD but no synthesized hidden fields yet falls back gracefully - no inputs, no crash');
     const bareSrc =

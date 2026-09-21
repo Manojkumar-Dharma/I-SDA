@@ -159,7 +159,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Done | v0.10.193 |
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API (needs a real IBM i) | I-112 | Not started | — |
-| [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | In progress | Claude |
+| [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | Claude |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -173,10 +173,9 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-117](#i-117) | In progress | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first). Size (estimate): Small–medium. Raised by I-115. |
-| 2 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 3 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
-| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 1 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 2 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
+| 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
@@ -5309,11 +5308,21 @@ Opened from a deferred finding raised by I-112, verbatim:
 
 ### I-117 — The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first)
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-115
+> **Area:** Record · **Status:** Done · **Depends on:** I-115
 
 Opened from a deferred finding raised by I-115, verbatim:
 
 **The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses.** `sflWhitelistConflictReason` allows only `SFL` and `SFLMSGRCD` on a message subfile ("For message subfiles: SFLMSGRCD, SFLMSGKEY, SFLPGMQ" in the `SFL` section), but the SFLMSG tab's rows commit `CHECK(AB)`, `CHECK(RL)`, `LOGINP` and `LOGOUT` with no alert (probed; only `SFLNXTCHG` is refused, I-11), and also offer `CHGINPDFT` and `INDTXT` / `SETOF` / `CHANGE`. I-23 read the DDS Reference and found an explicit `SFLMSGRCD` rule only for `LOGINP` / `LOGOUT` ("ignored", advisory) and `SFLNXTCHG`. Re-read the sections and decide: guard the rows (and drop them, as I-105 / I-115 do), or loosen the whitelist. Size: Small–medium (a decision first).
+
+**Done.** Decision made first, re-reading the `SFL` section and each individual keyword's own section fresh:
+
+- **The `SFL` section's closed list is unambiguous.** It splits the subfile record format's own extra keywords into two mutually exclusive groups: "For message subfiles: `SFLMSGRCD` (required at the record level), `SFLMSGKEY` (required at the field level), `SFLPGMQ`" versus "For all other subfiles (at the record level): `CHANGE`, `LOGINP`, `CHECK(AB)`, `CHECK(RL)`, `LOGOUT`, `SETOF`, `CHGINPDFT`, `SETOFF`, `INDTXT`, `SFLNXTCHG`, `KEEP`, `TEXT`." Nothing in the section says the second group is also usable on a message subfile - the "for message subfiles" / "for all other subfiles" framing is the same closed-list shape I-46 already read this same text as, for `sflWhitelistConflictReason`.
+- **`LOGINP`/`LOGOUT` are the one documented exception, not a precedent for the rest.** Each of their own dedicated sections states outright: "The IBM i operating system ignores LOGINP/LOGOUT for... The record format is a subfile record format for a message subfile." That is an explicit, individually-stated exception - accepted at compile time but functionally a no-op - which is exactly why I-23 gave them an advisory note instead of hiding them, and exactly why nothing else in the "for all other subfiles" list gets the same treatment by default.
+- **`CHECK(AB)`, `CHECK(RL)`, `CHGINPDFT`, `INDTXT`, `SETOF`, `CHANGE` have no such statement anywhere.** Re-read each one's own section (`CHECK`, `CHGINPDFT`, `INDTXT`, `SETOF`, `CHANGE`) fresh for this task: none of them mentions a message subfile, `SFLMSGRCD`, or an "ignored"/"not valid" condition tied to one. They are simply outside this record type's keyword set per the `SFL` section's closed list, with no documented fallback behavior to base an advisory note on.
+- **The decision: drop the rows**, not loosen the whitelist. Loosening `sflWhitelistConflictReason` would mean accepting keywords the DDS Reference's own closed list excludes, with no textual basis; dropping the rows keeps this tab's own panels honest about what a message-subfile record actually takes, matches what `sflWhitelistConflictReason` already refuses everywhere else (the raw editor, the base Keywords tab per I-115), and follows the same "hide rows that never apply" precedent I-105/I-115 already established rather than inventing a third pattern.
+- **`sflMsgPanelsHtml` (`webviewClientHelpers.js`).** The General panel's `CHECK(AB)`, `CHECK(RL)` and `CHGINPDFT` rows are removed; its existing hint (previously "the base Record Keywords rows (KEEP and the rest) are not offered here") is reworded to name them explicitly: "...the base Record Keywords rows (KEEP, CHECK(AB)/CHECK(RL), CHGINPDFT, and the rest) are not offered here...". The Indicator panel's repeatable `INDTXT`/`SETOF`/`CHANGE` row list (`indicatorTextRowsHtml`) is replaced outright with a matching hint. `LOGINP`, `LOGOUT` (with their I-23 advisory notes) and the hard-blocked `SFLNXTCHG` (I-11) are unchanged.
+- **`wireSflMsgPanels` (`webviewClientHelpers.js`).** The now-removed rows' wiring (`sm-check-ab`, `sm-check-rl`, `wireChgInpDftFlag('sm-chginpdft', ...)`, `wireIndicatorTextRows('sm-ind', ...)`) is deleted; nothing else in this function changed.
+- **Tests.** `i98SflmsgGeneralConditioning.test.js` (I-98's original CHECK(AB)/CHECK(RL)/CHGINPDFT conditioning-toggle checks, now moot since those rows are gone) is rewritten: it keeps the still-relevant LOGINP-has-no-toggle and SFLNXTCHG/LOGOUT-keep-their-toggle checks, adds checks that `sm-check-ab`/`sm-check-rl`/`sm-chginpdft`/`sm-ind-row0-kw` no longer render at all, and keeps the LOGINP on/off and hand-edited-indicator-survives-an-unrelated-edit scenarios (trimmed to drop the removed keywords). `dspfWebview.test.js`'s R5 SFLMSG block and `i25KeepConsolidationAudit.test.js`'s hint-text check are updated for the reworded General-panel hint and the dropped rows. All 144 test files pass with zero failures after the change.
 
 *Raised by I-115. Size (estimate): Small–medium.*
 
