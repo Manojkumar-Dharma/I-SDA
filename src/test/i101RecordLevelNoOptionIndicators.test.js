@@ -5,14 +5,15 @@
  * closed the raw keyword editor's Conditioning toggle for the 14 file-level-only
  * keywords; this batch adds the 29 record-level-only keywords whose own section
  * of DDS_Keyword_V7r6.txt says, plainly, "Option indicators are not valid for
- * this keyword":
+ * this keyword" (30 with SFLMODE, added once its "valid" sentence was traced to
+ * the neighbouring SFLMSG/SFLMSGID text):
  *   plain (24):  ALWROL ASSUME CLRL GETRETAIN GRDRCD HLPCMDKEY HLPSEQ INZRCD
  *                LOGINP MNUBAR PULLDOWN RTNCSRLOC RTNDTA SETOF SFL SFLCTL
- *                SFLENTER SFLMLTCHC SFLRNA SFLRTNSEL SFLSNGCHC SLNO UNLOCK USRDFN
+ *                SFLENTER SFLMLTCHC SFLMODE SFLRNA SFLRTNSEL SFLSNGCHC SLNO
+ *                UNLOCK USRDFN
  *   display size (5): SFLLIN SFLMSGRCD SFLPAG SFLSIZ WINDOW - same sentence, but
  *                display size condition names are valid (the MSGLOC shape).
- * Held back on purpose: CSRLOC (its section says option indicators ARE valid)
- * and SFLMODE (its section carries both sentences - needs its own read).
+ * Held back on purpose: CSRLOC (its section says option indicators ARE valid).
  *
  * Part 1: the table, checked AGAINST the reference text itself.
  * Part 2: the raw editor in a plain jsdom document.
@@ -39,7 +40,7 @@ function check(label, condition) {
   }
 }
 
-const PLAIN = ['ALWROL', 'ASSUME', 'CLRL', 'GETRETAIN', 'GRDRCD', 'HLPCMDKEY', 'HLPSEQ', 'INZRCD', 'LOGINP', 'MNUBAR', 'PULLDOWN', 'RTNCSRLOC', 'RTNDTA', 'SETOF', 'SFL', 'SFLCTL', 'SFLENTER', 'SFLMLTCHC', 'SFLRNA', 'SFLRTNSEL', 'SFLSNGCHC', 'SLNO', 'UNLOCK', 'USRDFN'];
+const PLAIN = ['ALWROL', 'ASSUME', 'CLRL', 'GETRETAIN', 'GRDRCD', 'HLPCMDKEY', 'HLPSEQ', 'INZRCD', 'LOGINP', 'MNUBAR', 'PULLDOWN', 'RTNCSRLOC', 'RTNDTA', 'SETOF', 'SFL', 'SFLCTL', 'SFLENTER', 'SFLMLTCHC', 'SFLMODE', 'SFLRNA', 'SFLRTNSEL', 'SFLSNGCHC', 'SLNO', 'UNLOCK', 'USRDFN'];
 const DSIZE = ['SFLLIN', 'SFLMSGRCD', 'SFLPAG', 'SFLSIZ', 'WINDOW'];
 const BATCH = PLAIN.concat(DSIZE);
 const FILE_LEVEL = ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP', 'DSPRL', 'DSPSIZ', 'ERRSFL', 'HLPFULL', 'HLPSCHIDX', 'INDARA', 'MSGLOC', 'OPENPRT', 'PASSRCD', 'REF', 'USRDSPMGT'];
@@ -50,9 +51,9 @@ const FILE_LEVEL = ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP', 'DSPRL', 'DSPSIZ', 'ER
 console.log('\nPart 1a. the table');
 {
   const names = DspfWriter.noOptionIndicatorKeywordNames();
-  check('every batch keyword is listed (29 = 24 plain + 5 display-size)', BATCH.length === 29 && BATCH.every((n) => names.indexOf(n) >= 0));
+  check('every batch keyword is listed (30 = 25 plain + 5 display-size)', BATCH.length === 30 && BATCH.every((n) => names.indexOf(n) >= 0));
   check('batch 1 (14 file-level) and IGCALTTYP are still listed', FILE_LEVEL.every((n) => names.indexOf(n) >= 0) && names.indexOf('IGCALTTYP') >= 0);
-  check('nothing else is (44 = 29 + 14 + IGCALTTYP)', names.length === BATCH.length + FILE_LEVEL.length + 1);
+  check('the file-level and record-level entries add up (45 = 30 + 14 + IGCALTTYP; batch 3 adds the field-level ones - see i101FieldLevelNoOptionIndicators)', names.length >= BATCH.length + FILE_LEVEL.length + 1);
   check('each reason names its keyword and says "not valid"', BATCH.every((n) => {
     const r = DspfWriter.noOptionIndicatorsReason(n);
     return !!r && r.indexOf(n) >= 0 && /not valid/.test(r);
@@ -64,7 +65,7 @@ console.log('\nPart 1a. the table');
   check('the diff check fires for a batch keyword that gains an indicator', BATCH.every((n) => !!DspfWriter.noOptionIndicatorsNewConflictReason(n, [], G1)));
   check('...but not for one that only loses it or is unchanged', BATCH.every((n) => DspfWriter.noOptionIndicatorsNewConflictReason(n, G1, []) === null && DspfWriter.noOptionIndicatorsNewConflictReason(n, G1, G1) === null));
   check('...nor for a display-size condition, which is not an option indicator', DSIZE.every((n) => DspfWriter.noOptionIndicatorsNewConflictReason(n, [], [{ displaySizeCondition: { name: '*DS4', not: false }, indicators: [] }]) === null));
-  check('held back: CSRLOC and SFLMODE are not in the table', !DspfWriter.noOptionIndicatorsReason('CSRLOC') && !DspfWriter.noOptionIndicatorsReason('SFLMODE'));
+  check('held back: CSRLOC is not in the table', !DspfWriter.noOptionIndicatorsReason('CSRLOC'));
   check('unlisted keywords stay null (TEXT, CHGINPDFT, HLPTITLE, CA01, MSGID, CHECK, KEEP, HELP)', ['TEXT', 'CHGINPDFT', 'HLPTITLE', 'CA01', 'MSGID', 'CHECK', 'KEEP', 'HELP'].every((n) => DspfWriter.noOptionIndicatorsReason(n) === null));
 }
 
@@ -90,7 +91,10 @@ console.log('\nPart 1b. every entry is backed by its own record-level section of
     const secs = sections(n).filter((s) => levelOf(s));
     const rec = secs.filter((s) => levelOf(s) === 'record');
     check(n + ': described as a record-level keyword, and no section of it describes another level', rec.length >= 1 && rec.length === secs.length);
-    const text = rec.join(' ');
+    // SFLMODE's extracted text runs on into the NEXT keyword (SFLMSG/SFLMSGID),
+    // whose "Option indicators are valid for these keywords" sentence is not
+    // SFLMODE's: cut its own text at its own "Example" (asserted just below).
+    const text = n === 'SFLMODE' ? rec[0].split(' Example The following example')[0] : rec.join(' ');
     const plain = /Option indicators are not valid for (?:this|these) keywords?[.;]/.test(text);
     check(n + ': its section says "Option indicators are not valid for this keyword"', plain);
     check(n + ': no record-level section of it says option indicators ARE valid', !/Option indicators are (?:valid|allowed)/i.test(text));
@@ -100,7 +104,9 @@ console.log('\nPart 1b. every entry is backed by its own record-level section of
   const csrloc = sections('CSRLOC').filter((s) => levelOf(s) === 'record').join(' ');
   check('CSRLOC (held back): its record-level section says option indicators ARE valid', /Option indicators are valid for this keyword/.test(csrloc));
   const sflmode = sections('SFLMODE').filter((s) => levelOf(s) === 'record').join(' ');
-  check('SFLMODE (held back): its section has both a "not valid" and a "valid" sentence', /Option indicators are not valid/.test(sflmode) && /Option indicators are valid/.test(sflmode));
+  check('SFLMODE: the "valid" sentence after its own text belongs to SFLMSG/SFLMSGID (its Example follows), not to SFLMODE',
+    /Option indicators are not valid for this keyword\. Example The following example shows how to specify the SFLMODE and SFLCSRRRN keywords/.test(sflmode) &&
+    /Option indicators are valid for these keywords\. \d+ IBM i: Programming Example The following example shows how to specify the SFLMSG and SFLMSGID keywords/.test(sflmode));
 }
 
 // ===========================================================================
@@ -204,10 +210,10 @@ DSIZE.forEach((n) => {
   check('removing the size condition is allowed, then the toggle is gone', !msg && st.keywords[0].conditions.length === 0 && !toggleOf(0));
 }
 
-console.log('\nPart 2e. keywords outside the batch are unchanged (CSRLOC and SFLMODE are held back on purpose)');
+console.log('\nPart 2e. keywords outside the batch are unchanged (CSRLOC is held back on purpose; CHANGE is a multi-level keyword)');
 {
-  const st = mount([kwd('CSRLOC', 'ROW COL', [G('01')]), kwd('SFLMODE', 'MODE', [G('02')]), kwd('TEXT', "'x'", [G('03')])]);
-  check('no warnings on CSRLOC / SFLMODE / TEXT', !document.querySelector('.kw-cond-warning'));
+  const st = mount([kwd('CSRLOC', 'ROW COL', [G('01')]), kwd('CHANGE', '10', [G('02')]), kwd('TEXT', "'x'", [G('03')])]);
+  check('no warnings on CSRLOC / CHANGE / TEXT', !document.querySelector('.kw-cond-warning'));
   check('all three keep their toggles', !!toggleOf(0) && !!toggleOf(1) && !!toggleOf(2));
   click(toggleOf(0));
   const before = st.changes;

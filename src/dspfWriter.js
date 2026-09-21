@@ -2335,7 +2335,7 @@
   var NOT_VALID_RECORD_LEVEL_KEYWORDS = [
     'ALWROL', 'ASSUME', 'CLRL', 'GETRETAIN', 'GRDRCD', 'HLPCMDKEY', 'HLPSEQ',
     'INZRCD', 'LOGINP', 'MNUBAR', 'PULLDOWN', 'RTNCSRLOC', 'RTNDTA', 'SETOF',
-    'SFL', 'SFLCTL', 'SFLENTER', 'SFLMLTCHC', 'SFLRNA', 'SFLRTNSEL',
+    'SFL', 'SFLCTL', 'SFLENTER', 'SFLMLTCHC', 'SFLMODE', 'SFLRNA', 'SFLRTNSEL',
     'SFLSNGCHC', 'SLNO', 'UNLOCK', 'USRDFN'
   ];
   NOT_VALID_RECORD_LEVEL_KEYWORDS.forEach(function (name) {
@@ -2350,6 +2350,42 @@
   var NOT_VALID_RECORD_LEVEL_DISPLAY_SIZE_KEYWORDS = ['SFLLIN', 'SFLMSGRCD', 'SFLPAG', 'SFLSIZ', 'WINDOW'];
   NOT_VALID_RECORD_LEVEL_DISPLAY_SIZE_KEYWORDS.forEach(function (name) {
     NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference); display size condition names are.';
+  });
+  /** Task I-101, batch 3 - the field-level-only keywords. Each was read in
+   *  DDS_Keyword_V7r6.txt: every section of it that describes a level says
+   *  "field-level keyword", and says "Option indicators are not valid for this
+   *  keyword". Two wordings, both meaning the same for THIS table:
+   *    - plain (23): just that sentence;
+   *    - "although option indicators can be used to condition the field ..."
+   *      (12: CHRID DATE DATFMT DATSEP DFT HTML MAPVAL SYSNAME TIME TIMFMT
+   *      TIMSEP USER; HTML's section says "option indicators are allowed on the
+   *      constant field").
+   *  The second wording is why a field-level keyword needed its own read: the
+   *  FIELD may carry option indicators (they are on the field's own line and
+   *  the parser keeps them on the field, not on its first-line keyword), but a
+   *  keyword written on a continuation line of its own may not. Only the
+   *  keyword's own conditions are checked here, so a conditioned field is never
+   *  flagged. Held back: MSGCON (indicators are valid for the presence of the
+   *  message) and MSGID (conditional - I-73). CNTFLD (here) and SFLMODE
+   *  (batch 2) each show a "valid" sentence in the text extracted after their
+   *  own "not valid" one - that is the NEXT keyword's text (GRDATR; SFLMSG and
+   *  SFLMSGID) spilling past the section boundary, not their own (proved in
+   *  the i101 tests). */
+  var NOT_VALID_FIELD_LEVEL_KEYWORDS = [
+    'ALIAS', 'BLANKS', 'BLKFOLD', 'CHCACCEL', 'CHCCTL', 'CHKMSGID', 'CNTFLD', 'COMP',
+    'DLTCHK', 'DLTEDT', 'EDTCDE', 'EDTMSK', 'EDTWRD', 'FLDCSRPRG', 'FLTFIXDEC',
+    'HLPID', 'MLTCHCFLD', 'PSHBTNFLD', 'RANGE', 'SFLCHCCTL', 'SFLCSRPRG',
+    'SNGCHCFLD', 'VALUES'
+  ];
+  NOT_VALID_FIELD_LEVEL_KEYWORDS.forEach(function (name) {
+    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
+  });
+  var NOT_VALID_FIELD_LEVEL_FIELD_CONDITIONABLE_KEYWORDS = [
+    'CHRID', 'DATE', 'DATFMT', 'DATSEP', 'DFT', 'HTML', 'MAPVAL', 'SYSNAME',
+    'TIME', 'TIMFMT', 'TIMSEP', 'USER'
+  ];
+  NOT_VALID_FIELD_LEVEL_FIELD_CONDITIONABLE_KEYWORDS.forEach(function (name) {
+    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference); they can condition the field it is on.';
   });
   /** The names in NO_OPTION_INDICATOR_KEYWORDS (a copy - the table itself is
    *  not exposed), for tests and audits. */

@@ -59,7 +59,7 @@ console.log('\nPart 1a. the table');
     return DspfWriter.noOptionIndicatorsNewConflictReason(n, g, []) === null && DspfWriter.noOptionIndicatorsNewConflictReason(n, g, g) === null;
   }));
   check('a display-size condition is not an option indicator', DspfWriter.noOptionIndicatorsNewConflictReason('MSGLOC', [], [{ displaySizeCondition: { name: '*DS4', not: false }, indicators: [] }]) === null);
-  ['TEXT', 'KEEP', 'CHGINPDFT', 'INDTXT', 'HLPTITLE', 'CA01', 'HELP', 'PRINT', 'DFT', 'MSGID', 'CHECK'].forEach((n) => {
+  ['TEXT', 'KEEP', 'CHGINPDFT', 'INDTXT', 'HLPTITLE', 'CA01', 'HELP', 'PRINT', 'MSGID', 'CHECK'].forEach((n) => {
     check(n + ' is NOT listed (multi-level, conditional or allowed - later batches / never)', DspfWriter.noOptionIndicatorsReason(n) === null);
   });
 }
