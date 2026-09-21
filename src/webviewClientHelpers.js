@@ -575,8 +575,13 @@
       // legitimately takes *DS3/*DS4 ones) keeps the toggle too, so that
       // condition stays visible and removable - the toggle is only ever
       // hidden when there is nothing at all to show.
-      var noIndReason = DspfWriter.noOptionIndicatorsReason(k.name);
-      var hasIndicators = DspfWriter.optionIndicatorCount(conditions) > 0;
+      // Task I-101 batch 4: the file-level keyword list (owner key "file") also
+      // gets the file-level-only entries (HLPTITLE); a listed keyword that
+      // carries something it may not (an option indicator, or a display-size
+      // condition for SFLPGMQ) is warned about.
+      var kwLevel = ownerKey === 'file' ? 'file' : undefined;
+      var noIndReason = DspfWriter.noOptionIndicatorsReason(k.name, kwLevel);
+      var hasIndicators = !!DspfWriter.noOptionIndicatorsPresentReason(k.name, conditions, kwLevel);
       var hideToggle = !!noIndReason && conditions.length === 0;
       html += '<div class="kw-row">';
       html += '<div class="kw-row-main"><span class="keyword-chip">' + escapeHtml(k.name) +
@@ -637,7 +642,7 @@
         wireConditionsEditor(ownerKey + '-kw' + idx, list[idx].conditions, function (newConditions) {
           // Task I-95: diff-based - only an edit that ADDS option indicators to
           // a keyword that takes none is refused; removing them is always fine.
-          var noIndReason = DspfWriter.noOptionIndicatorsNewConflictReason(list[idx].name, list[idx].conditions, newConditions);
+          var noIndReason = DspfWriter.noOptionIndicatorsNewConflictReason(list[idx].name, list[idx].conditions, newConditions, ownerKey === 'file' ? 'file' : undefined);
           if (noIndReason) {
             window.alert(noIndReason);
             if (rerender) rerender();
@@ -7034,7 +7039,12 @@
     var fHlpbdy = DspfWriter.getFileFlagKeyword(kw, 'HLPBDY');
     html += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', fHlpbdy.present, undefined, undefined, fHlpbdy.conditions, expandedSet);
     var fHlpara = DspfWriter.getFileFlagKeyword(kw, 'HLPARA');
-    html += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, undefined, undefined, fHlpara.conditions, expandedSet);
+    // Task I-101 batch 4: HLPARA's own section says option indicators are NOT valid
+    // (unlike the other three keywords in this panel, which say they are), so this row
+    // takes no conditions argument - no Conditioning toggle. An existing hand-written
+    // condition is preserved on commit (see wireApplicationHelpFields) and is visible,
+    // with a warning, in the help entry's raw keyword editor.
+    html += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, undefined, undefined, undefined, expandedSet);
     // Task I-67: HLPDOC's help-specification-level form - I-38 only ever
     // added the file-level one, deferring this one (same "file-level only,
     // H-spec deferred" precedent I-5's own HLPRCD entry set). Same

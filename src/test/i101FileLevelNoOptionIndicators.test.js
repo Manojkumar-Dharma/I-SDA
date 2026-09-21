@@ -59,7 +59,7 @@ console.log('\nPart 1a. the table');
     return DspfWriter.noOptionIndicatorsNewConflictReason(n, g, []) === null && DspfWriter.noOptionIndicatorsNewConflictReason(n, g, g) === null;
   }));
   check('a display-size condition is not an option indicator', DspfWriter.noOptionIndicatorsNewConflictReason('MSGLOC', [], [{ displaySizeCondition: { name: '*DS4', not: false }, indicators: [] }]) === null);
-  ['TEXT', 'KEEP', 'CHGINPDFT', 'INDTXT', 'HLPTITLE', 'CA01', 'HELP', 'PRINT', 'MSGID', 'CHECK'].forEach((n) => {
+  ['KEEP', 'HLPTITLE', 'CA01', 'HELP', 'PRINT', 'MSGID', 'CHECK'].forEach((n) => {
     check(n + ' is NOT listed (multi-level, conditional or allowed - later batches / never)', DspfWriter.noOptionIndicatorsReason(n) === null);
   });
 }
@@ -201,14 +201,14 @@ console.log('\nPart 2d. the display-size edge: MSGLOC legitimately takes *DS3/*D
 
 console.log('\nPart 2e. keywords outside the batch are unchanged');
 {
-  const st = mount([kwd('TEXT', "'x'", [G('01')]), kwd('CHGINPDFT', '', [G('02')]), kwd('HLPTITLE', "'t'", [G('03')])]);
-  check('no warnings on TEXT / CHGINPDFT / HLPTITLE (later batches will decide them)', !document.querySelector('.kw-cond-warning'));
+  const st = mount([kwd('KEEP', '', [G('01')]), kwd('PRINT', '', [G('02')]), kwd('HLPTITLE', "'t'", [G('03')])]);
+  check('no warnings on KEEP / PRINT / HLPTITLE (HLPTITLE is level-aware since batch 4: only its file-level list refuses)', !document.querySelector('.kw-cond-warning'));
   check('all three keep their toggles', !!toggleOf(0) && !!toggleOf(1) && !!toggleOf(2));
   click(toggleOf(0));
   const before = st.changes;
   document.querySelector('.cond-add-row .cond-ind-num').value = '09';
   const msg = withAlertCapture(() => click(document.querySelector('.cond-ind-add')));
-  check('an indicator can still be added to TEXT (this batch does not touch it)', !msg && st.changes === before + 1);
+  check('an indicator can still be added to KEEP (this batch does not touch it)', !msg && st.changes === before + 1);
 }
 
 // ===========================================================================

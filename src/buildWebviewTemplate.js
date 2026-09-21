@@ -6577,6 +6577,19 @@ const htmlTemplate = `<!DOCTYPE html>
       render();
       return;
     }
+    // Task I-101 batch 4: SFLMSGKEY's own section says option indicators are
+    // "not valid for this keyword or with the associated field" - the field
+    // half. Blocks an edit that would leave a field carrying SFLMSGKEY with
+    // option indicators it did not have: indicators added to the field's own
+    // Conditioning editor, or SFLMSGKEY (raw editor) added to a conditioned
+    // field. Outside the updates.keywords block below because the first
+    // direction carries no keywords at all.
+    const sflmsgkeyFieldReason = DspfWriter.sflmsgkeyFieldNewConflictReason(field, updates);
+    if (sflmsgkeyFieldReason) {
+      window.alert(sflmsgkeyFieldReason);
+      render();
+      return;
+    }
     // Task I-58: reverse-direction WRDWRAP guard, ONE choke point for every
     // field-level panel that writes keywords (CHECK Keying/Validity codes,
     // CHGINPDFT, DUP, DSPATR OID/SP, FLTFIXDEC, IGCALTTYP, the raw editor -

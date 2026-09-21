@@ -2387,15 +2387,71 @@
   NOT_VALID_FIELD_LEVEL_FIELD_CONDITIONABLE_KEYWORDS.forEach(function (name) {
     NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference); they can condition the field it is on.';
   });
+  /** Task I-101, batch 4 - keywords that exist at MORE THAN ONE level but whose
+   *  section gives the SAME rule at every level, so a name-keyed entry is exactly
+   *  right for all of them. Each was read in DDS_Keyword_V7r6.txt: "Option
+   *  indicators are not valid for this keyword" with no "valid" sentence of its
+   *  own, at every level the section describes -
+   *    CHANGE (record or field), CHGINPDFT / INDTXT / VALNUM / WRDWRAP (file,
+   *    record or field), TEXT (record or field), VLDCMDKEY (file or record) -
+   *  plus the ones the earlier scan had put here by mistake but that are
+   *  single-level with a plain sentence: REFFLD, SFLRCDNBR, SFLROLVAL and
+   *  SFLSCROLL (field level), ALTNAME (record level; its statement is in
+   *  the System/36 chapter of the reference, "not valid for this keyword" and
+   *  "not allowed with this keyword") and HLPARA (the help-specification level,
+   *  the one level the earlier batches never touched; the other four help-
+   *  specification keywords - HLPPNLGRP, HLPEXCLD, HLPBDY, HLPDOC - say option
+   *  indicators ARE valid). HLPTITLE is NOT here: it is not valid on
+   *  a file-level HLPTITLE but allowed on record-level ones (see
+   *  NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS). */
+  var NOT_VALID_MULTI_LEVEL_KEYWORDS = [
+    'ALTNAME', 'CHANGE', 'CHGINPDFT', 'HLPARA', 'INDTXT', 'REFFLD', 'SFLRCDNBR',
+    'SFLROLVAL', 'SFLSCROLL', 'TEXT', 'VALNUM', 'VLDCMDKEY', 'WRDWRAP'
+  ];
+  NOT_VALID_MULTI_LEVEL_KEYWORDS.forEach(function (name) {
+    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
+  });
+  /** Batch 4 - the two subfile-message field keywords whose sections word the
+   *  rule differently, followed to the letter:
+   *    SFLMSGKEY: "Option indicators are not valid for this keyword OR WITH THE
+   *      ASSOCIATED FIELD." The keyword entry is here; the field half is
+   *      sflmsgkeyFieldNewConflictReason below (wired into commitEdit).
+   *    SFLPGMQ: "Option indicators AND DISPLAY SIZE CONDITION NAMES are not
+   *      valid for this keyword." The indicator half is the entry; the display
+   *      size half is NO_DISPLAY_SIZE_CONDITION_KEYWORDS below. */
+  NO_OPTION_INDICATOR_KEYWORDS.SFLMSGKEY = 'Option indicators are not valid for SFLMSGKEY or with the field it is on (per the DDS Reference).';
+  NO_OPTION_INDICATOR_KEYWORDS.SFLPGMQ = 'Option indicators and display size condition names are not valid for SFLPGMQ (per the DDS Reference).';
+  /** Listed keywords for which a display-size condition (*DS3/*DS4) is ALSO
+   *  invalid (every other listed keyword either takes one - MSGLOC, SFLSIZ, ...
+   *  - or its section is silent). */
+  var NO_DISPLAY_SIZE_CONDITION_KEYWORDS = ['SFLPGMQ'];
+  /** Keywords that take no option indicators AT THE FILE LEVEL ONLY. HLPTITLE:
+   *  "Option indicators are not valid on a file-level HLPTITLE keyword.
+   *  Option indicators are allowed on record-level HLPTITLE keywords ..." The
+   *  raw keyword editor knows its level from its owner key ('file'). */
+  var NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS = {
+    HLPTITLE: 'Option indicators are not valid on a file-level HLPTITLE keyword (per the DDS Reference); they are allowed on record-level HLPTITLE keywords.'
+  };
   /** The names in NO_OPTION_INDICATOR_KEYWORDS (a copy - the table itself is
    *  not exposed), for tests and audits. */
   function noOptionIndicatorKeywordNames() {
     return Object.keys(NO_OPTION_INDICATOR_KEYWORDS);
   }
-  function noOptionIndicatorsReason(keywordName) {
+  function noOptionIndicatorFileLevelKeywordNames() {
+    return Object.keys(NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS);
+  }
+  /** `level` is optional: 'file' adds the file-level-only entries
+   *  (HLPTITLE); anything else (or omitted) consults the every-level table. */
+  function noOptionIndicatorsReason(keywordName, level) {
     var name = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
     if (!name) return null;
-    return Object.prototype.hasOwnProperty.call(NO_OPTION_INDICATOR_KEYWORDS, name) ? NO_OPTION_INDICATOR_KEYWORDS[name] : null;
+    if (Object.prototype.hasOwnProperty.call(NO_OPTION_INDICATOR_KEYWORDS, name)) return NO_OPTION_INDICATOR_KEYWORDS[name];
+    if (level === 'file' && Object.prototype.hasOwnProperty.call(NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS, name)) return NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS[name];
+    return null;
+  }
+  function noDisplaySizeConditionKeyword(keywordName) {
+    var name = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
+    return NO_DISPLAY_SIZE_CONDITION_KEYWORDS.indexOf(name) >= 0;
   }
   /** Number of OPTION INDICATORS in a keyword's conditions (a list of OR-ed
    *  groups, each a list of AND-ed indicators). A display-size condition
@@ -2405,17 +2461,60 @@
       return n + (g && g.indicators ? g.indicators.length : 0);
     }, 0);
   }
+  /** Number of display-size condition groups (*DS3/*DS4) in a keyword's
+   *  conditions. */
+  function displaySizeConditionCount(conditions) {
+    return (conditions || []).reduce(function (n, g) {
+      return n + (g && g.displaySizeCondition ? 1 : 0);
+    }, 0);
+  }
+  /** The reason when a listed keyword CURRENTLY carries something it may not
+   *  (an option indicator, or - for SFLPGMQ - a display-size condition), else
+   *  null. The raw editor uses it to warn about a hand-written keyword. */
+  function noOptionIndicatorsPresentReason(keywordName, conditions, level) {
+    var reason = noOptionIndicatorsReason(keywordName, level);
+    if (!reason) return null;
+    if (optionIndicatorCount(conditions) > 0) return reason;
+    if (noDisplaySizeConditionKeyword(keywordName) && displaySizeConditionCount(conditions) > 0) return reason;
+    return null;
+  }
   /** Diff-based, like I-58 / I-61 / I-62 / I-72 / I-81: given a keyword's
    *  conditions before and after an edit, returns the reason when the edit
-   *  ADDS option indicators to a keyword that takes none, else null. Removing
-   *  indicators, or leaving them alone, is always allowed - so a hand-written
-   *  keyword that already carries some (already invalid, and warned about in
-   *  the raw editor) can still have them removed, and is not re-reported.
-   *  Keywords not in the table are never affected. */
-  function noOptionIndicatorsNewConflictReason(keywordName, oldConditions, newConditions) {
-    var reason = noOptionIndicatorsReason(keywordName);
+   *  ADDS option indicators to a keyword that takes none (or, for SFLPGMQ, a
+   *  display-size condition), else null. Removing indicators, or leaving them
+   *  alone, is always allowed - so a hand-written keyword that already carries
+   *  some (already invalid, and warned about in the raw editor) can still have
+   *  them removed, and is not re-reported. Keywords not in the table are never
+   *  affected. `level` is optional (see noOptionIndicatorsReason). */
+  function noOptionIndicatorsNewConflictReason(keywordName, oldConditions, newConditions, level) {
+    var reason = noOptionIndicatorsReason(keywordName, level);
     if (!reason) return null;
-    return optionIndicatorCount(newConditions) > optionIndicatorCount(oldConditions) ? reason : null;
+    if (optionIndicatorCount(newConditions) > optionIndicatorCount(oldConditions)) return reason;
+    if (noDisplaySizeConditionKeyword(keywordName) && displaySizeConditionCount(newConditions) > displaySizeConditionCount(oldConditions)) return reason;
+    return null;
+  }
+
+  /** Task I-101, batch 4 - SFLMSGKEY's own DDS Reference section: "Option
+   *  indicators are not valid for this keyword or with the associated field."
+   *  The keyword half is the NO_OPTION_INDICATOR_KEYWORDS entry; this is the
+   *  FIELD half - a field that carries SFLMSGKEY takes no option indicators of
+   *  its own. Diff-based and both directions, for the commitEdit choke point
+   *  (`updates` is what an edit would change - `conditions` and/or `keywords`):
+   *  blocks an edit that would leave an SFLMSGKEY field with option indicators
+   *  it did not have (indicators added to the field, or SFLMSGKEY added to an
+   *  already-conditioned field). A hand-written field that already has both is
+   *  not re-reported, and removing indicators or the keyword is always fine. */
+  function sflmsgkeyFieldNewConflictReason(field, updates) {
+    if (!field || !updates) return null;
+    var has = function (kws) { return (kws || []).some(function (k) { return k && k.name === 'SFLMSGKEY'; }); };
+    var own = function (k) { return Object.prototype.hasOwnProperty.call(updates, k); };
+    var afterKeywords = own('keywords') ? updates.keywords : field.keywords;
+    var afterConditions = own('conditions') ? updates.conditions : field.conditions;
+    if (!has(afterKeywords)) return null;
+    var after = optionIndicatorCount(afterConditions);
+    if (after === 0) return null;
+    if (!has(field.keywords)) return 'SFLMSGKEY cannot be added to a field that has option indicators - they are not valid with the field it is on (per the DDS Reference).';
+    return after > optionIndicatorCount(field.conditions) ? 'Option indicators are not valid on a field that carries SFLMSGKEY (per the DDS Reference).' : null;
   }
 
   /** Task I-91 - MSGID's own DDS Reference section: "The following keywords
@@ -8663,8 +8762,12 @@
     igcalttypBasicEditConflictReason: igcalttypBasicEditConflictReason,
     noOptionIndicatorsReason: noOptionIndicatorsReason,
     noOptionIndicatorKeywordNames: noOptionIndicatorKeywordNames,
+    noOptionIndicatorFileLevelKeywordNames: noOptionIndicatorFileLevelKeywordNames,
     optionIndicatorCount: optionIndicatorCount,
+    displaySizeConditionCount: displaySizeConditionCount,
+    noOptionIndicatorsPresentReason: noOptionIndicatorsPresentReason,
     noOptionIndicatorsNewConflictReason: noOptionIndicatorsNewConflictReason,
+    sflmsgkeyFieldNewConflictReason: sflmsgkeyFieldNewConflictReason,
     msgidExclusionConflictReason: msgidExclusionConflictReason,
     msgidExclusionNewConflictReason: msgidExclusionNewConflictReason,
     msgidRecordIsSubfile: msgidRecordIsSubfile,

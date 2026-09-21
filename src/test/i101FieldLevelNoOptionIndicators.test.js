@@ -60,7 +60,7 @@ console.log('\nPart 1a. the table');
   const names = DspfWriter.noOptionIndicatorKeywordNames();
   check('every batch keyword is listed (35 = 23 plain + 12 field-conditionable)', BATCH.length === 35 && BATCH.every((n) => names.indexOf(n) >= 0));
   check('batches 1 and 2 and IGCALTTYP are still listed (45)', EARLIER.length === 45 && EARLIER.every((n) => names.indexOf(n) >= 0));
-  check('nothing else is (80 = 35 + 45)', names.length === BATCH.length + EARLIER.length);
+  check('nothing from batches 1-3 is missing (80 = 35 + 45; batch 4 adds the multi-level ones - see i101MultiLevelNoOptionIndicators)', names.length >= BATCH.length + EARLIER.length);
   check('each reason names its keyword and says "not valid"', BATCH.every((n) => {
     const r = DspfWriter.noOptionIndicatorsReason(n);
     return !!r && r.indexOf(n) >= 0 && /not valid/.test(r);
@@ -72,7 +72,7 @@ console.log('\nPart 1a. the table');
   check('the diff check fires for a batch keyword that gains an indicator', BATCH.every((n) => !!DspfWriter.noOptionIndicatorsNewConflictReason(n, [], G1)));
   check('...but not for one that only loses it or is unchanged', BATCH.every((n) => DspfWriter.noOptionIndicatorsNewConflictReason(n, G1, []) === null && DspfWriter.noOptionIndicatorsNewConflictReason(n, G1, G1) === null));
   check('held back: MSGCON and MSGID are not in the table', ['MSGCON', 'MSGID'].every((n) => !DspfWriter.noOptionIndicatorsReason(n)));
-  check('unlisted keywords stay null (DSPATR, COLOR, CHECK, TEXT, DUP, DFTVAL, PUTRETAIN, CHGINPDFT, HLPTITLE, CA01)', ['DSPATR', 'COLOR', 'CHECK', 'TEXT', 'DUP', 'DFTVAL', 'PUTRETAIN', 'CHGINPDFT', 'HLPTITLE', 'CA01'].every((n) => DspfWriter.noOptionIndicatorsReason(n) === null));
+  check('unlisted keywords stay null (DSPATR, COLOR, CHECK, DUP, DFTVAL, PUTRETAIN, HLPTITLE, CA01)', ['DSPATR', 'COLOR', 'CHECK', 'DUP', 'DFTVAL', 'PUTRETAIN', 'HLPTITLE', 'CA01'].every((n) => DspfWriter.noOptionIndicatorsReason(n) === null));
 }
 
 console.log('\nPart 1b. every entry is backed by its own field-level section of DDS_Keyword_V7r6.txt');

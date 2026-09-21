@@ -60,7 +60,7 @@ check('noOptionIndicatorsNewConflictReason is exported', typeof DspfWriter.noOpt
   const r = list('IGCALTTYP') || '';
   check('IGCALTTYP is listed, and the reason names it and the DDS Reference', /IGCALTTYP/.test(r) && /Option indicators are not allowed/.test(r) && /DDS Reference/.test(r));
   check('lowercase name is normalised', !!list('igcalttyp'));
-  ['DUP', 'COLOR', 'DSPATR', 'TEXT', 'IGCCNV', 'DFTVAL', 'PUTRETAIN', '', null, undefined].forEach((n) => {
+  ['DUP', 'COLOR', 'DSPATR', 'KEEP', 'IGCCNV', 'DFTVAL', 'PUTRETAIN', '', null, undefined].forEach((n) => {
     check('unlisted keyword ' + JSON.stringify(n) + ' is not listed', !list(n));
   });
 

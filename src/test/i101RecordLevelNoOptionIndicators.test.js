@@ -66,7 +66,7 @@ console.log('\nPart 1a. the table');
   check('...but not for one that only loses it or is unchanged', BATCH.every((n) => DspfWriter.noOptionIndicatorsNewConflictReason(n, G1, []) === null && DspfWriter.noOptionIndicatorsNewConflictReason(n, G1, G1) === null));
   check('...nor for a display-size condition, which is not an option indicator', DSIZE.every((n) => DspfWriter.noOptionIndicatorsNewConflictReason(n, [], [{ displaySizeCondition: { name: '*DS4', not: false }, indicators: [] }]) === null));
   check('held back: CSRLOC is not in the table', !DspfWriter.noOptionIndicatorsReason('CSRLOC'));
-  check('unlisted keywords stay null (TEXT, CHGINPDFT, HLPTITLE, CA01, MSGID, CHECK, KEEP, HELP)', ['TEXT', 'CHGINPDFT', 'HLPTITLE', 'CA01', 'MSGID', 'CHECK', 'KEEP', 'HELP'].every((n) => DspfWriter.noOptionIndicatorsReason(n) === null));
+  check('unlisted keywords stay null (HLPTITLE, CA01, MSGID, CHECK, KEEP, HELP)', ['HLPTITLE', 'CA01', 'MSGID', 'CHECK', 'KEEP', 'HELP'].every((n) => DspfWriter.noOptionIndicatorsReason(n) === null));
 }
 
 console.log('\nPart 1b. every entry is backed by its own record-level section of DDS_Keyword_V7r6.txt');
@@ -210,10 +210,10 @@ DSIZE.forEach((n) => {
   check('removing the size condition is allowed, then the toggle is gone', !msg && st.keywords[0].conditions.length === 0 && !toggleOf(0));
 }
 
-console.log('\nPart 2e. keywords outside the batch are unchanged (CSRLOC is held back on purpose; CHANGE is a multi-level keyword)');
+console.log('\nPart 2e. keywords outside the batch are unchanged (CSRLOC is held back on purpose)');
 {
-  const st = mount([kwd('CSRLOC', 'ROW COL', [G('01')]), kwd('CHANGE', '10', [G('02')]), kwd('TEXT', "'x'", [G('03')])]);
-  check('no warnings on CSRLOC / CHANGE / TEXT', !document.querySelector('.kw-cond-warning'));
+  const st = mount([kwd('CSRLOC', 'ROW COL', [G('01')]), kwd('KEEP', '', [G('02')]), kwd('DUP', '', [G('03')])]);
+  check('no warnings on CSRLOC / KEEP / DUP', !document.querySelector('.kw-cond-warning'));
   check('all three keep their toggles', !!toggleOf(0) && !!toggleOf(1) && !!toggleOf(2));
   click(toggleOf(0));
   const before = st.changes;
