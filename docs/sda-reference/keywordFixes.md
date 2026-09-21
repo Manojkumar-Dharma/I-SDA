@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-113 of 117 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.193**.
+114 of 123 tasks done; 9 open (see [Open work](#open-work)). Current version: **v0.10.195**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -160,6 +160,12 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API (needs a real IBM i) | I-112 | Not started | — |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | Claude |
+| [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Not started | — |
+| [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Not started | — |
+| [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Not started | — |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
+| [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -176,6 +182,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 1 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
 | 2 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
 | 3 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 4 | [I-118](#i-118) | Not started | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
+| 5 | [I-120](#i-120) | Not started | Shared test harness. Size (estimate): Medium (mechanical, touches all 145 test files). |
+| 6 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
+| 7 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
+| 8 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 9 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
 ## Deferred findings (not yet tasks)
 
@@ -5333,5 +5345,65 @@ Opened from a deferred finding raised by I-115, verbatim:
 - **Tests.** `i98SflmsgGeneralConditioning.test.js` (I-98's original CHECK(AB)/CHECK(RL)/CHGINPDFT conditioning-toggle checks, now moot since those rows are gone) is rewritten: it keeps the still-relevant LOGINP-has-no-toggle and SFLNXTCHG/LOGOUT-keep-their-toggle checks, adds checks that `sm-check-ab`/`sm-check-rl`/`sm-chginpdft`/`sm-ind-row0-kw` no longer render at all, and keeps the LOGINP on/off and hand-edited-indicator-survives-an-unrelated-edit scenarios (trimmed to drop the removed keywords). `dspfWebview.test.js`'s R5 SFLMSG block and `i25KeepConsolidationAudit.test.js`'s hint-text check are updated for the reworded General-panel hint and the dropped rows. All 144 test files pass with zero failures after the change.
 
 *Raised by I-115. Size (estimate): Small–medium.*
+
+---
+
+### I-118 — Remove dead code, test-only exports and unreferenced fixtures
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-40
+
+Opened from the maintainability audit in [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md) (section 2). Scope: `commandKeyNumbersInUse` and `guardedSimple` (no callers); the ~22 exports referenced only by tests (list in the audit) - confirm each has no dynamic call site, then delete it together with its own test checks, or move it to a test helper if a test legitimately needs it; delete `src/fixtures/generateMenubarFixture.js`, `generateWidgetFixture.js`, `generateWindowRefsFixture.js` and `smoketest.js` if still unreferenced. Every deletion must leave `npm test` green with the same or fewer checks explained in the commit.
+
+*Raised by the 2026-09-21 audit. Size (estimate): Small.*
+
+---
+
+### I-119 — De-duplicate copied helpers
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-118
+
+Scope (audit section 3): the two `escapeHtml` versions (they escape different characters - pick one behaviour on purpose and test it), `isPulldownRecord`, the identical `assembleParams` and `makeDefaultInstance` pairs, `wireRemoveButtons` and `commitHlpdoc`, the getter/setter clone pairs (`getFileMsgLocLines`/`getSflMsgRcdLines`, `nextAvailableFieldName`/`nextAvailableRecordName`, `dupFloatNew`/`blkfoldFloatNew`), and a single source for `parseScreenSizes`/`parseDisplaySizeTriples` (mind the `dspfWriter.js`-is-a-plain-`<script>` constraint in `learnings.md`; a build-time step is fine). Also look at what `buildMenuWebviewTemplate.js` can share with `buildWebviewTemplate.js`. Respect the `buildWebviewTemplate.js` backtick rule.
+
+*Raised by the 2026-09-21 audit. Size (estimate): Small-medium.*
+
+---
+
+### I-120 — Shared test harness
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-40
+
+Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` calls rebuild the 1.65 MB page. Scope: a `src/test/helpers/` module with one `check`/failure counter (or the built-in `node:test` runner), one `makeDom`/`mount` builder that caches the generated HTML per process, and the repeated `reparsedField`, `withAlertCapture`, `lastEdit`, `kwd` helpers; a runner script that discovers `*.test.js` so a new test can no longer be forgotten in `package.json`'s `test` script. Migrate files mechanically, keep every check label, and compare check counts before and after (6,799 at v0.10.195). Report suite wall time before and after.
+
+*Raised by the 2026-09-21 audit. Size (estimate): Medium.*
+
+---
+
+### I-121 — One declarative rule spec per keyword
+
+> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-40, I-119
+
+Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
+
+*Raised by the 2026-09-21 audit. Size (estimate): Large - split by record type when claiming.*
+
+---
+
+### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-120, I-121
+
+Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
+
+*Raised by the 2026-09-21 audit. Size (estimate): Large - batch by level.*
+
+---
+
+### I-123 — Move "Task I-nn" history out of source comments
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-121
+
+35-48% of lines in the big source files are comments and about 1,100 lines cite a task ID. Keep comments that state a rule or a DDS Reference citation; move task narrative (what was wrong before, which session found it) to this file and the git log, leaving at most a one-line "see I-nn". Best done alongside I-121 so each rule's citation lives in the spec. Mechanical, no behaviour change: the test suite and the compiled output must be unchanged apart from comments.
+
+*Raised by the 2026-09-21 audit. Size (estimate): Medium.*
 
 ---
