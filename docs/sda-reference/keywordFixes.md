@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-112 of 116 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.192**.
+112 of 117 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.192**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -159,6 +159,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Not started | — |
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API (needs a real IBM i) | I-112 | Not started | — |
+| [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -173,17 +174,18 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-114](#i-114) | Not started | `HELP` / `HLPRTN` on a `USRDFN` record are reachable only through the raw keyword editor (decision first). Size (estimate): Small–medium. Raised by I-105. |
-| 2 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
-| 3 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
-| 4 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-117](#i-117) | Not started | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first). Size (estimate): Small–medium. Raised by I-115. |
+| 3 | [I-101](#i-101) | In progress | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none. Size (estimate): Large - an audit, best done in batches by level. Raised by I-95. |
+| 4 | [I-116](#i-116) | Not started | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Needs a real IBM i to confirm the structure layout. Size (estimate): Medium (unverified). Raised by I-112. |
+| 5 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 
 ## Deferred findings (not yet tasks)
 
-Every earlier finding has been opened as a task (I-61 – I-116, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-117, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-115 | **The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses.** `sflWhitelistConflictReason` allows only `SFL` and `SFLMSGRCD` on a message subfile ("For message subfiles: SFLMSGRCD, SFLMSGKEY, SFLPGMQ" in the `SFL` section), but the SFLMSG tab's rows commit `CHECK(AB)`, `CHECK(RL)`, `LOGINP` and `LOGOUT` with no alert (probed; only `SFLNXTCHG` is refused, I-11), and also offer `CHGINPDFT` and `INDTXT` / `SETOF` / `CHANGE`. I-23 read the DDS Reference and found an explicit `SFLMSGRCD` rule only for `LOGINP` / `LOGOUT` ("ignored", advisory) and `SFLNXTCHG`. Re-read the sections and decide: guard the rows (and drop them, as I-105 / I-115 do), or loosen the whitelist. Size: Small–medium (a decision first). |
+| - | None at the moment. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5275,7 +5277,7 @@ Opened from a deferred finding raised by I-105, verbatim:
 - **The rule.** `recordRestrictionAllows` / `recordKeywordsRestriction` (`webviewClientHelpers.js`) gained an `'SFLMSG'` restriction. A record carrying `SFLMSGRCD` (and not `USRDFN`) now gets it, checked before plain `SFL`. It delegates to the same `DspfWriter.sflWhitelistConflictReason` the guards use, called with an `SFL` + `SFLMSGRCD` marker, so its message-subfile branch (only `SFL` and `SFLMSGRCD` allowed) gates the rows: every one of the 29 keywords the rows can write is refused, so `recordKeywordsPanelsHtml(..., 'SFLMSG')` returns an empty string for all seven panels and renders no element id at all.
 - **`renderRecordProps` (`buildWebviewTemplate.js`).** With no subtab left, the strip is not built (the old code read `rkTabs[0].id`, which would have thrown on an empty list). The Keywords tab shows a one-line note - no record keyword rows apply, the SFLMSG tab covers what a message subfile takes, hand-written keywords stay listed in the raw editor - followed by the unchanged "Advanced / raw keywords" and "Conditioning" accordions. Plain, `SFL` (I-105's four subtabs), `SFLCTL`, `MNUBAR` and `USRDFN` records are unchanged.
 - **Two hints on the SFLMSG tab were wrong and are reworded.** The I-25 KEEP hint said `KEEP` "is on the base Record Keywords -> General tab above"; a message subfile's whitelist has never allowed `KEEP` (ticking it was refused), and after this change the row is gone, so it now says that a message-subfile record accepts only `SFLMSGRCD` besides `SFL`, so the base rows are not offered. The Roll-keyword hint said "the raw Keywords editor below" though the editor is on another tab; it now says "(Keywords tab)". `dspfWebview.test.js`'s I-25 check was updated to the new wording.
-- **Found, not changed (out of scope) - logged as a deferred finding.** The SFLMSG tab's own General and Indicator panels (`CHECK(AB)` / `CHECK(RL)`, `LOGINP`, `LOGOUT`, `CHGINPDFT`, `INDTXT` / `SETOF` / `CHANGE`) offer keywords that `sflWhitelistConflictReason` refuses on the same record. Probed with the panel's own wiring on an `SFL` + `SFLMSGRCD` record: ticking `CHECK(AB)`, `CHECK(RL)`, `LOGINP` and `LOGOUT` is **accepted with no alert** (only `SFLNXTCHG` is refused, by I-11). I-23 had recorded that only `LOGINP` / `LOGOUT` (advisory) and `SFLNXTCHG` (hard block) have a stated `SFLMSGRCD` rule in the DDS Reference; the closed list in the `SFL` section (`SFLMSGRCD`, `SFLMSGKEY`, `SFLPGMQ` for message subfiles) says otherwise. Which is right needs the reference read again, so nothing was changed.
+- **Found, not changed (out of scope) - opened as I-117.** The SFLMSG tab's own General and Indicator panels (`CHECK(AB)` / `CHECK(RL)`, `LOGINP`, `LOGOUT`, `CHGINPDFT`, `INDTXT` / `SETOF` / `CHANGE`) offer keywords that `sflWhitelistConflictReason` refuses on the same record. Probed with the panel's own wiring on an `SFL` + `SFLMSGRCD` record: ticking `CHECK(AB)`, `CHECK(RL)`, `LOGINP` and `LOGOUT` is **accepted with no alert** (only `SFLNXTCHG` is refused, by I-11). I-23 had recorded that only `LOGINP` / `LOGOUT` (advisory) and `SFLNXTCHG` (hard block) have a stated `SFLMSGRCD` rule in the DDS Reference; the closed list in the `SFL` section (`SFLMSGRCD`, `SFLMSGKEY`, `SFLPGMQ` for message subfiles) says otherwise. Which is right needs the reference read again, so nothing was changed.
 - **Tests.** New `src/test/i115SflmsgKeywordsTab.test.js` (27 checks, wired into `npm test`): which whitelist governs a record (`SFL` + `SFLMSGRCD` and `SFLMSGRCD` alone -> `SFLMSG`, `USRDFN` still wins, plain `SFL` / `MNUBAR` / `SFLCTL` / plain unchanged); the row gate and the writer guard agree for all 29 keywords; all seven panels empty and no element ids; the full row set is still built without the restriction; a hand-written `INZRCD` is still listed in the raw editor; and, in the real template, the Keywords tab keeps no subtab strip and no base rows but shows the note, the raw editor and Conditioning, the SFLMSG tab is untouched, and a plain record still has 7 subtabs and a plain `SFL` record 4. **11 of the 27 fail against the pre-change code.** `i105UsrdfnRecordRows.test.js`'s "SFLMSG is not restricted" check now expects `'SFLMSG'`.
 
 *Raised by I-105. Size (estimate): Small.*
@@ -5293,5 +5295,19 @@ Opened from a deferred finding raised by I-112, verbatim:
 **Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API** (`FILD0200`, per-field `Qdb_Qddfvchk` section) so the inherited panel can list `CHECK` / `COMP` / `RANGE` / `VALUES` / `CHKMSGID` instead of just stating the limit. Needs a real IBM i to confirm the structure layout and whether `FLTPCN` is reachable. Also worth confirming there: whether newer `QWHDRFFD` releases carry message-id columns and what `WHVCNE` counts. Size: Medium (unverified).
 
 *Raised by I-112. Size (estimate): Medium (unverified).*
+
+---
+
+<a id="i-117"></a>
+
+### I-117 — The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first)
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-115
+
+Opened from a deferred finding raised by I-115, verbatim:
+
+**The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses.** `sflWhitelistConflictReason` allows only `SFL` and `SFLMSGRCD` on a message subfile ("For message subfiles: SFLMSGRCD, SFLMSGKEY, SFLPGMQ" in the `SFL` section), but the SFLMSG tab's rows commit `CHECK(AB)`, `CHECK(RL)`, `LOGINP` and `LOGOUT` with no alert (probed; only `SFLNXTCHG` is refused, I-11), and also offer `CHGINPDFT` and `INDTXT` / `SETOF` / `CHANGE`. I-23 read the DDS Reference and found an explicit `SFLMSGRCD` rule only for `LOGINP` / `LOGOUT` ("ignored", advisory) and `SFLNXTCHG`. Re-read the sections and decide: guard the rows (and drop them, as I-105 / I-115 do), or loosen the whitelist. Size: Small–medium (a decision first).
+
+*Raised by I-115. Size (estimate): Small–medium.*
 
 ---
