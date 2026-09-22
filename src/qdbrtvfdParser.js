@@ -8,17 +8,34 @@
  * of these (I-112: only a count, WHVCNE), which is why the REFFLD-inherited
  * panel had to say "not listed here".
  *
- * NOT built from IBM's published structure layout. It was worked out from ONE
- * real capture (docs/sda-reference/source/Block B.txt: a 16-field physical
- * file, FILD0200, 6,175 bytes) cross-checked against the DDS that produced it
- * (docs/sda-reference/source/iSDA IBMi functionality.sql). Every offset and
- * code below is therefore "observed", not "documented"; the parser is
- * defensive on purpose - anything that does not line up returns ok:false with a
- * reason (and a code it does not know becomes an explicit "unknown" entry
- * rather than a guess) so the caller can fall back to the documented limit
- * instead of showing something wrong. What is still unconfirmed is listed in
- * keywordFixes.md under I-116 (COMP operator codes, most CHECK codes, an
- * explicit-vs-default FLTPCN, keyed files, other releases / CCSIDs).
+ * NOT built from IBM's published structure layout. It was worked out from three
+ * real captures on IBM i 7.3, CCSID 37 (docs/sda-reference/source/Block B.txt,
+ * "Block - TESTPF2.txt" and "Block - TESTPFK.txt": 46 fields total, FILD0200)
+ * cross-checked against the DDS that produced them (docs/sda-reference/source/
+ * "iSDA IBMi functionality.sql") and, for two of the findings below, against a
+ * DSPFFD OUTFILE capture ("DSPFFD outfile.txt"). Every offset and code is
+ * therefore "observed", not "documented"; the parser is defensive on purpose -
+ * anything that does not line up returns ok:false with a reason (and a code it
+ * does not know becomes an explicit "unknown" entry rather than a guess) so the
+ * caller can fall back to the documented limit instead of showing something
+ * wrong.
+ *
+ * Findings from the DSPFFD OUTFILE capture (answers two questions I-112 left
+ * open): WHVCNE is the count of validity-check keyword ENTRIES on the field
+ * (CHECK(AB) VALUES('A' 'B') is 2, not the 2 values inside VALUES) - it matches
+ * field.validity.entries.length exactly for all 16 Block B fields. WHCSID is 37
+ * (the job CCSID) for character fields and the sentinel 65535 ("no CCSID
+ * applies") for every numeric field, not a real per-field CCSID.
+ *
+ * Finding from TESTPFK (Block B's 16 fields plus a K spec on FLDME): byte-for-
+ * byte identical to Block B's own receiver, same header, same field entries.
+ * FILD0200 does not surface key information at all; a keyed file needs a
+ * different call (or a different format) if that is ever needed.
+ *
+ * Still open (see keywordFixes.md I-116): an explicit FLTPCN cannot be told
+ * apart from the implicit default - FLDFLTIMPL (7F 2, no FLTPCN keyword) came
+ * back byte-identical to Block B's FLDSGL (7F 2, explicit FLTPCN(*SINGLE));
+ * other releases / CCSIDs are still unconfirmed.
  *
  * Layout as observed (offsets in bytes, big-endian):
  *   header       0..255   u32 bytes-returned @0, u32 bytes-available @4,
@@ -69,10 +86,14 @@
   var CODE_CHKMSGID = 0x63;
   var CODE_RANGE = 0x71;
   var CODE_VALUES = 0x72;
-  var CHECK_CODES = { 0x64: 'ME', 0xa0: 'M10', 0xa2: 'VN', 0xa3: 'AB' };
-  // COMP: only one numeric (GT) and one character (EQ) sample exist, so these
-  // two are "observed" pairs, not a decoded table. Every other code -> operator null.
-  var COMP_OPERATOR_CODES_OBSERVED = { 0x73: 'GT', 0x75: 'EQ' };
+  var CHECK_CODES = { 0x64: 'ME', 0xa0: 'M10', 0xa1: 'M11', 0xa2: 'VN', 0xa3: 'AB', 0xa5: 'VNE', 0xa6: 'M10F', 0xa7: 'M11F' };
+  // All 8 comparison operators, captured both numeric and character (character used
+  // the same codes as numeric - confirmed with GT and NE). ER/FE/LC/RB/RZ/RL/RLTB (the
+  // DDS Reference's keyboard/cursor-control CHECK codes, equivalent to AUTO/LOWER/
+  // CHGINPDFT/WRDWRAP/roll keywords) were not captured: those are workstation
+  // behaviours with no meaning on a physical file's own field, so REFFLD has nothing
+  // to inherit there and they are left undecoded (defense in depth) rather than guessed.
+  var COMP_OPERATOR_CODES = { 0x73: 'GT', 0x74: 'GE', 0x75: 'EQ', 0x76: 'NE', 0x77: 'LE', 0x78: 'LT', 0x79: 'NL', 0x7a: 'NG' };
 
   // CCSID 037 -> UTF-16 code units. The job / column CCSID on a real system can
   // differ; callers can pass options.decode instead.
@@ -178,11 +199,11 @@
       if (CHECK_CODES[code] !== undefined) {
         entry.kind = 'CHECK';
         entry.check = CHECK_CODES[code];
-      } else if (code === CODE_RANGE || code === CODE_VALUES || COMP_OPERATOR_CODES_OBSERVED[code] !== undefined) {
+      } else if (code === CODE_RANGE || code === CODE_VALUES || COMP_OPERATOR_CODES[code] !== undefined) {
         var items = readItems(bytes, o + ENTRY_HEADER_LENGTH, entryEnd, count, decode);
         if (!items) { warnings.push(field.name + ': validity entry ' + n + ' items do not fit'); return null; }
         entry.kind = code === CODE_RANGE ? 'RANGE' : code === CODE_VALUES ? 'VALUES' : 'COMP';
-        if (entry.kind === 'COMP') entry.operator = COMP_OPERATOR_CODES_OBSERVED[code];
+        if (entry.kind === 'COMP') entry.operator = COMP_OPERATOR_CODES[code];
         entry.values = items.map(function (it) {
           return numeric ? decodeNumeric(bytes, it.start, it.end, field.decimals) : decode(bytes, it.start, it.end).replace(/\s+$/, '');
         });
