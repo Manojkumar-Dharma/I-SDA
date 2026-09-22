@@ -245,4 +245,105 @@ END;
 
 CALL QTEMP.RTVFD_DIAG3();
 
-CALL QSYS2.QCMDEXC('DLTLIB LIB(SDATST)');
+CALL QSYS2.QCMDEXC('DLTLIB LIB(SDATST)');--I-116 additional captures (round 2) - to fill the gaps listed in keywordFixes.md I-116:
+--COMP operators (only GT numeric / EQ character captured so far), the remaining CHECK codes
+--(M11, M10F, M11F, VNE), VALUES on a decimal field, an F field with no FLTPCN (implicit vs the
+--explicit FLTPCN(*SINGLE)/(*DOUBLE) already captured), and a keyed file. Same SDATST library
+--and QDDSSRC file as Block B; run this after that setup (or after CRTLIB/CRTSRCPF again if
+--SDATST/QDDSSRC was deleted). If any CRTPF below fails, paste the CPD messages back exactly
+--like the first round - the DDS here has not been tried on a real system yet.
+
+CALL QSYS2.QCMDEXC('ADDPFM FILE(SDATST/QDDSSRC) MBR(TESTPF2) SRCTYPE(PF)');
+CALL QSYS2.QCMDEXC('ADDPFM FILE(SDATST/QDDSSRC) MBR(TESTPFK) SRCTYPE(PF)');
+CREATE OR REPLACE ALIAS SDATST.QDDSSRC_TESTPF2 FOR SDATST.QDDSSRC (TESTPF2);
+CREATE OR REPLACE ALIAS SDATST.QDDSSRC_TESTPFK FOR SDATST.QDDSSRC (TESTPFK);
+DELETE FROM SDATST.QDDSSRC_TESTPF2;
+DELETE FROM SDATST.QDDSSRC_TESTPFK;
+
+--TESTPF2: the remaining CHECK codes, the other COMP operators, VALUES on a decimal field,
+--and an F field with no FLTPCN at all (compare its capture with FLDSGL/FLDDBL in Block B,
+--which both used an explicit FLTPCN matching the default for their digits).
+INSERT INTO SDATST.QDDSSRC_TESTPF2 (SRCSEQ, SRCDAT, SRCDTA) VALUES
+  (1, 0, '     A          R TESTFMT2'),
+  (2, 0, '     A            FLDM11         6S 0       CHECK(M11)'),
+  (3, 0, '     A            FLDM10F        6S 0       CHECK(M10F)'),
+  (4, 0, '     A            FLDM11F        6S 0       CHECK(M11F)'),
+  (5, 0, '     A            FLDVNE        20A         CHECK(VNE)'),
+  (6, 0, '     A            FLDCOMPNE      5S 0       COMP(NE 0)'),
+  (7, 0, '     A            FLDCOMPLT      5S 0       COMP(LT 50)'),
+  (8, 0, '     A            FLDCOMPNL      5S 0       COMP(NL 10)'),
+  (9, 0, '     A            FLDCOMPNG      5S 0       COMP(NG 200)'),
+  (10, 0, '     A            FLDCOMPLE      5S 0       COMP(LE 75)'),
+  (11, 0, '     A            FLDCOMPGE      5S 0       COMP(GE 5)'),
+  (12, 0, '     A            FLDCOMPGTC     3A         COMP(GT ''AAA'')'),
+  (13, 0, '     A            FLDCOMPNEC     3A         COMP(NE ''BBB'')'),
+  (14, 0, '     A            FLDVALSDEC     7S 2       VALUES(1.50 2.75 -3.25)'),
+  (15, 0, '     A            FLDFLTIMPL     7F 2');
+CALL QSYS2.QCMDEXC('CRTPF FILE(SDATST/TESTPF2) SRCFILE(SDATST/QDDSSRC) SRCMBR(TESTPF2)');
+
+--TESTPFK: the same 16 fields as the passing TESTPF insert in Block B, plus a K spec, so the
+--capture includes whatever FILD0200 puts after the field entries for a keyed file (the parser
+--currently reads only the fields and ignores anything after them).
+INSERT INTO SDATST.QDDSSRC_TESTPFK (SRCSEQ, SRCDAT, SRCDTA) VALUES
+  (1, 0, '     A          R TESTFMT'),
+  (2, 0, '     A            FLDME         10A         CHECK(ME)'),
+  (3, 0, '     A            FLDRANGE       5S 0       RANGE(1 99999)'),
+  (4, 0, '     A            FLDVALS        1A         VALUES(''A'' ''B'' ''C'')'),
+  (5, 0, '     A            FLDCOMP        7P 2       COMP(GT 0)'),
+  (6, 0, '     A            FLDCOMPC       3A         COMP(EQ ''XYZ'')'),
+  (7, 0, '     A            FLDNEG         7S 2       RANGE(-5.5 100.25)'),
+  (8, 0, '     A            FLDM10         6S 0       CHECK(M10)'),
+  (9, 0, '     A            FLDVN          9A         CHECK(VN)'),
+  (10, 0, '     A            FLDAB          5A         VALUES(''A'' ''B'')'),
+  (11, 0, '     A                                      CHECK(AB)'),
+  (12, 0, '     A            FLDMSG         5S 0       RANGE(10 20)'),
+  (13, 0, '     A                                      CHKMSGID(CPF9897 QSYS/QCPFMSG)'),
+  (14, 0, '     A            FLDMSGD        5S 0       VALUES(1 2 3)'),
+  (15, 0, '     A                                      CHKMSGID(CPF9897 QCPFMSG &FLDDTA)'),
+  (16, 0, '     A            FLDDTA        20A'),
+  (17, 0, '     A            FLDMULT        5S 0       RANGE(1 99)'),
+  (18, 0, '     A                                      CHECK(ME)'),
+  (19, 0, '     A            FLDSGL         7F 2       FLTPCN(*SINGLE)'),
+  (20, 0, '     A            FLDDBL        15F 2       FLTPCN(*DOUBLE)'),
+  (21, 0, '     A            FLDNONE        5A'),
+  (22, 0, '     A          K FLDME');
+CALL QSYS2.QCMDEXC('CRTPF FILE(SDATST/TESTPFK) SRCFILE(SDATST/QDDSSRC) SRCMBR(TESTPFK)');
+
+--Step 2 (from Block B) still needed - please run these and share the result rows, not just
+--confirmation that they ran:
+--  SELECT OS_VERSION, OS_RELEASE FROM SYSIBMADM.ENV_SYS_INFO;
+--  SELECT CURRENT_NUMERIC_VALUE AS QCCSID FROM QSYS2.SYSTEM_VALUE_INFO WHERE SYSTEM_VALUE_NAME = 'QCCSID';
+--  CALL QSYS2.QCMDEXC('DSPFFD FILE(SDATST/TESTPF) OUTPUT(*OUTFILE) OUTFILE(SDATST/FFDOUT)');
+--  SELECT WHFLDI, WHFLDT, WHFLDB, WHFLDD, WHFLDP, WHVCNE, WHCSID, WHECDE FROM SDATST.FFDOUT ORDER BY WHFOBO;
+
+--Capture procedure, generalized from Block B's QDBRTVFD_X / RTVFD_DIAG2 so it is not repeated
+--three times. P_FILE is padded to the 10-character library-qualified NAME format QDBRTVFD wants;
+--library is left as SDATST. Same LANGUAGE CL wrapper as Block B (QTEMP is refused; a plain CALL
+--to QSYS.QDBRTVFD from SQL did not return data either - see RTVFD_DIAG/RTVFD_DIAG3 above).
+CREATE OR REPLACE PROCEDURE SDATST.RTVFD_DUMP (IN P_FILE CHAR(10))
+  LANGUAGE SQL
+  RESULT SETS 1
+BEGIN
+  DECLARE V_RCV     CHAR(32000) FOR BIT DATA;
+  DECLARE V_RCVLEN  INTEGER DEFAULT 32000;
+  DECLARE V_RTNFILE CHAR(20) DEFAULT ' ';
+  DECLARE V_FMT     CHAR(8)  DEFAULT 'FILD0200';
+  DECLARE V_FILE    CHAR(20) DEFAULT CAST(P_FILE AS CHAR(10)) || 'SDATST    ';
+  DECLARE V_RECFMT  CHAR(10) DEFAULT '*FIRST    ';
+  DECLARE V_OVR     CHAR(1)  DEFAULT '0';
+  DECLARE V_SYS     CHAR(10) DEFAULT '*LCL      ';
+  DECLARE V_TYPE    CHAR(10) DEFAULT '*EXT      ';
+  DECLARE V_ERR     CHAR(16) FOR BIT DATA DEFAULT X'00000010000000000000000000000000';
+  DECLARE C1 CURSOR WITH RETURN FOR
+    WITH T(N) AS (VALUES 0 UNION ALL SELECT N + 1 FROM T WHERE N < 127)
+    SELECT 'RCV' AS K, N * 64 AS OFFSET, HEX(SUBSTR(V_RCV, N * 64 + 1, 64)) AS HEXDATA
+      FROM T ORDER BY N;
+
+  CALL SDATST.QDBRTVFD_X(V_RCV, V_RCVLEN, V_RTNFILE, V_FMT, V_FILE, V_RECFMT, V_OVR, V_SYS, V_TYPE, V_ERR);
+  OPEN C1;
+END;
+
+--Run each of these separately and save the RCV rows to their own text file, same shape as Block B.txt
+--(SRCSEQ/K column, OFFSET, HEXDATA), so the file name tells us which capture is which:
+CALL SDATST.RTVFD_DUMP('TESTPF2   ');
+CALL SDATST.RTVFD_DUMP('TESTPFK   ');
