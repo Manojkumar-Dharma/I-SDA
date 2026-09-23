@@ -1,8 +1,8 @@
 {
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
-    "uniqueKeywords": 169,
-    "generated": "2026-09-15"
+    "uniqueKeywords": 186,
+    "generated": "2026-09-23"
   },
   "keywords": {
     "*AUTOENT": [
@@ -306,6 +306,17 @@
         "parameters": "",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "BLKFOLD": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Fold output text at a blank rather than the end of the line; not valid on floating-point fields (Task I-39)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
         "sharedWith": []
       }
     ],
@@ -622,6 +633,36 @@
         "sharedWith": []
       }
     ],
+    "CSRINPONLY": [
+      {
+        "level": "file",
+        "category": "General",
+        "description": "Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/01-general-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "record",
+        "category": "General",
+        "description": "Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/general",
+        "sharedWith": [
+          "RECORD",
+          "SFLCTL",
+          "SFLMSGCTL",
+          "WINDOW",
+          "WNDSFCTL",
+          "PULLDOWN",
+          "PDNSFLCTL",
+          "MNUBAR",
+          "USRDFN (4-of-8 subset)"
+        ]
+      }
+    ],
     "CSRLOC": [
       {
         "level": "record",
@@ -630,6 +671,17 @@
         "parameters": "row field, column field",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "DATE": [
+      {
+        "level": "field",
+        "category": "Constant field additions",
+        "description": "Constant's value is the current system date (Task I-33)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/constant/general",
         "sharedWith": []
       }
     ],
@@ -883,6 +935,28 @@
         "sharedWith": []
       }
     ],
+    "FLTFIXDEC": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Display a floating-point (usage B/O) field in fixed-decimal notation instead of standard floating-point form (Task I-39)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "FLTPCN": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Floating-point field precision, single or double (Task I-39)",
+        "parameters": "*SINGLE | *DOUBLE",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
     "FRCDTA": [
       {
         "level": "record",
@@ -935,9 +1009,9 @@
     ],
     "HLPARA": [
       {
-        "level": "record",
-        "category": "Application help",
-        "description": "Help specification area (Help-specification level)",
+        "level": "help-specification",
+        "category": "Application Help",
+        "description": "Help specification area",
         "parameters": "",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/application-help",
@@ -946,9 +1020,9 @@
     ],
     "HLPBDY": [
       {
-        "level": "record",
-        "category": "Application help",
-        "description": "Help boundary area (Help-specification level)",
+        "level": "help-specification",
+        "category": "Application Help",
+        "description": "Help boundary area",
         "parameters": "",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/application-help",
@@ -989,11 +1063,31 @@
         ]
       }
     ],
+    "HLPDOC": [
+      {
+        "level": "file",
+        "category": "Help",
+        "description": "Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY, HLPPNLGRP, or HLPRTN (Task I-38; also valid at help-specification level, see the 'help-specification' level's own Application Help category, Task I-67)",
+        "parameters": "online-help-information-text-label-name document-name folder-name",
+        "repeatable": false,
+        "screenshotDir": "screens/file-level/04-help-keywords",
+        "sharedWith": []
+      },
+      {
+        "level": "help-specification",
+        "category": "Application Help",
+        "description": "Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY (same H spec), or with HLPPNLGRP (anywhere in the file) (Task I-67; help-specification-level form; also valid file-wide - see file-level Help)",
+        "parameters": "online-help-information-text-label-name document-name folder-name",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/base-record-keywords/application-help",
+        "sharedWith": []
+      }
+    ],
     "HLPEXCLD": [
       {
-        "level": "record",
-        "category": "Application help",
-        "description": "Exclude area from help text (Help-specification level)",
+        "level": "help-specification",
+        "category": "Application Help",
+        "description": "Exclude area from help text",
         "parameters": "",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/application-help",
@@ -1042,9 +1136,9 @@
         "sharedWith": []
       },
       {
-        "level": "record",
-        "category": "Application help",
-        "description": "Help text supplied by a UIM panel group (Help-specification level, not record-level)",
+        "level": "help-specification",
+        "category": "Application Help",
+        "description": "Help text supplied by a UIM panel group (help-specification-level form; also valid file-wide - see file-level Help)",
         "parameters": "panel-group-name library module-name",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/application-help",
@@ -1391,6 +1485,17 @@
         ]
       }
     ],
+    "MAPVAL": [
+      {
+        "level": "field",
+        "category": "General",
+        "description": "Map field data to a different value on input/output; date (L)/time (T)/timestamp (Z) fields only (Task I-39)",
+        "parameters": "program-value/system-value pairs",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
     "MDTOFF": [
       {
         "level": "record",
@@ -1541,6 +1646,17 @@
         "parameters": "",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/output",
+        "sharedWith": []
+      }
+    ],
+    "MSGCON": [
+      {
+        "level": "field",
+        "category": "Constant field additions",
+        "description": "Constant's value comes from a message description instead of a literal - single instance, not repeatable (Task I-33)",
+        "parameters": "length message-ID [library-name/]message-file-name",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/constant/general",
         "sharedWith": []
       }
     ],
@@ -1938,6 +2054,31 @@
         ]
       }
     ],
+    "SFL": [
+      {
+        "level": "record",
+        "category": "Subfile - General (SFL)",
+        "description": "This record is a subfile record, must immediately precede its SFLCTL record (Task I-40: was missing from this index entirely)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/general",
+        "sharedWith": [
+          "WNDSFL",
+          "PULDWNSFL"
+        ]
+      }
+    ],
+    "SFLCHCCTL": [
+      {
+        "level": "field",
+        "category": "Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG)",
+        "description": "Choice control field for a selection list; must be the record's first field, length 1, data type Y, 0 decimals, usage H (Task I-39)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/subfile-keywords",
+        "sharedWith": []
+      }
+    ],
     "SFLCLR": [
       {
         "level": "record",
@@ -1950,6 +2091,17 @@
           "WNDSFCTL",
           "PDNSFLCTL"
         ]
+      }
+    ],
+    "SFLCSRPRG": [
+      {
+        "level": "field",
+        "category": "Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG)",
+        "description": "Cursor progresses to the same field in the next subfile record instead of the next field; ignored without an enhanced data stream, not allowed with SFLLIN (Task I-39)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-sfl/subfile-keywords",
+        "sharedWith": []
       }
     ],
     "SFLCSRRRN": [
@@ -2164,8 +2316,8 @@
     ],
     "SFLMSGKEY": [
       {
-        "level": "record",
-        "category": "Subfile Message record (SFLMSG record type) - Message Record",
+        "level": "field",
+        "category": "Subfile Message fields (SFLMSGKEY/SFLPGMQ)",
         "description": "Message ID field (program builds queue one message at a time)",
         "parameters": "field name",
         "repeatable": false,
@@ -2214,8 +2366,8 @@
     ],
     "SFLPGMQ": [
       {
-        "level": "record",
-        "category": "Subfile Message record (SFLMSG record type) - Message Record",
+        "level": "field",
+        "category": "Subfile Message fields (SFLMSGKEY/SFLPGMQ)",
         "description": "Program message queue field, or generate a 276-byte field",
         "parameters": "field name | Y=Yes",
         "repeatable": false,
@@ -2225,8 +2377,8 @@
     ],
     "SFLRCDNBR": [
       {
-        "level": "record",
-        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)",
+        "level": "field",
+        "category": "Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG)",
         "description": "Subfile record number field",
         "parameters": "CURSOR | *TOP",
         "repeatable": false,
@@ -2250,8 +2402,8 @@
     ],
     "SFLROLVAL": [
       {
-        "level": "record",
-        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)",
+        "level": "field",
+        "category": "Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG)",
         "description": "Number of records to roll",
         "parameters": "",
         "repeatable": false,
@@ -2259,10 +2411,24 @@
         "sharedWith": []
       }
     ],
-    "SFLSCROLL": [
+    "SFLRTNSEL": [
       {
         "level": "record",
-        "category": "Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)",
+        "category": "Subfile Control - General (SFLCTL)",
+        "description": "Return all selected choices (including unchanged defaults) to GET-NEXT-CHANGED; requires SFLMLTCHC or SFLSNGCHC (Task I-39)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/subfile-control-sflctl/general",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PDNSFLCTL"
+        ]
+      }
+    ],
+    "SFLSCROLL": [
+      {
+        "level": "field",
+        "category": "Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG)",
         "description": "Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26)",
         "parameters": "no parameters",
         "repeatable": false,
@@ -2320,6 +2486,17 @@
         "sharedWith": []
       }
     ],
+    "SYSNAME": [
+      {
+        "level": "field",
+        "category": "Constant field additions",
+        "description": "Constant's value is the current system name (Task I-33)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/constant/general",
+        "sharedWith": []
+      }
+    ],
     "TEXT": [
       {
         "level": "record",
@@ -2347,6 +2524,17 @@
         "parameters": "'quoted text'",
         "repeatable": false,
         "screenshotDir": "screens/field-level/character/general",
+        "sharedWith": []
+      }
+    ],
+    "TIME": [
+      {
+        "level": "field",
+        "category": "Constant field additions",
+        "description": "Constant's value is the current system time (Task I-33)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/constant/general",
         "sharedWith": []
       }
     ],
@@ -2380,6 +2568,28 @@
         "parameters": "*ERASE, *MDTOFF (optional flags)",
         "repeatable": false,
         "screenshotDir": "screens/record-level/base-record-keywords/input",
+        "sharedWith": []
+      }
+    ],
+    "USER": [
+      {
+        "level": "field",
+        "category": "Constant field additions",
+        "description": "Constant's value is the current user profile name (Task I-33)",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/constant/general",
+        "sharedWith": []
+      }
+    ],
+    "USRDFN": [
+      {
+        "level": "record",
+        "category": "User-Defined Record (USRDFN)",
+        "description": "This record's data is a user-defined data stream; no fields are valid; only INVITE/KEEP/PASSRCD/HLPRTN/HELP/HLPCLR/PRINT/OPENPRT/TEXT apply",
+        "parameters": "no parameters",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/user-defined-usrdfn/general",
         "sharedWith": []
       }
     ],
@@ -2488,6 +2698,20 @@
         "repeatable": false,
         "screenshotDir": "screens/record-level/pulldown-puldwn/general",
         "sharedWith": []
+      }
+    ],
+    "WDWTITLE": [
+      {
+        "level": "record",
+        "category": "Window Parameters",
+        "description": "Window title text, embedded in the window's top or bottom border - iSDA exposes the quoted title-text portion via a plain text box (getWindowTitleText/setWindowTitleText); any position/*COLOR/*DSPATR modifiers already present are preserved verbatim but not separately editable (Task I-40: was missing from this index entirely)",
+        "parameters": "[(*TEXT 'title-text'|&field)] [(*COLOR c)] [(*DSPATR a)] [*CENTER|*LEFT|*RIGHT] [*TOP|*BOTTOM] - at least one parameter required",
+        "repeatable": false,
+        "screenshotDir": "screens/record-level/window/window-parameters-size-roll",
+        "sharedWith": [
+          "WNDSFCTL",
+          "PULLDOWN"
+        ]
       }
     ],
     "WINDOW": [

@@ -15,7 +15,8 @@ data = {
             "Task S36-6: an optional 's36e' field marks the 7 keywords USRDSPMGT restricts (plus USRDSPMGT itself) - see the dedicated 'S36E-conditional keywords' section in KEYWORD-INDEX.md for the full list and Task S36-3's own rule table (src/dspfWriter.js's S36E_KEYWORD_RESTRICTIONS) for citations. Field-level CHANGE (Input Keywords category) is a distinct keyword from record-level CHANGE and is deliberately NOT marked - S36-3 verified only the record-level CHANGE keyword.",
             "Task I-16: full regeneration pass against the codebase as it stood after I-7 through I-29 (docs/sda-reference/keywordFixes.md). Notable corrections vs. the previous snapshot: removed the stale standalone 'PRTFILE' keyword at both file- and record-level (I-2 - it was never real DDS syntax, only ever PRINT's own parameter); added file-level HLPRCD/MOUBTN/VALNUM/WRDWRAP (I-5); marked record-level MNUBARDSP (I-17) and record-level HLPTITLE (I-27) as repeatable, independently-conditioned instance lists; removed KEEP from the SFL/SFLCTL subfile panels' own keyword lists now that it's a hint pointing at the sole surviving live copy on the base Record Keywords General tab, not a second live control (I-25); added SFLSNGCHC/SFLMLTCHC (SFLCTL General) and SFLSCROLL (subfile field keywords) (I-26); removed the separate 'Menu-Bar record - Menu-Bar Display Keywords' category and MNUBARDSP's duplicate row on the MNUBAR record's own General tab - confirmed a documentation artifact, not a second live UI surface (I-14, closed here). This does not re-litigate conditioning eligibility, mutual-exclusion guards, or advisory notes from I-3/I-7 through I-24/I-28 - those don't change what's listed here, only how each listed keyword behaves; conditioning/conflict details live in keywordFixes.md, not in this structural index.",
             "Follow-up check (same session as I-16): file-level CLEAR/HOME/PAGEDOWN/PAGEUP/HELP/HLPRTN/VLDCMDKEY corrected to show their optional ['text'] sub-parameter (Task I-4, v0.10.87) - this index had never been updated for that fix either.",
-            "Task I-30 (character fields, the first field-level task): corrected three field-level 'General' category entries against the actual code rather than an old snapshot - DSPATR's value list had two values (UH/RE) that don't exist anywhere in IBM's own DDS Reference (should be PR/OID, matching the code's own DSPATR_ATTRS constant exactly); CNTFLD's parameter was described as a field name but is actually a numeric column-width; DFTVAL was marked repeatable=True but the code deliberately implements it as a single conditionable occurrence, not a repeatable list. Also added TEXT (missing from this index entirely) and HLPID (missing from the Character category specifically - it already existed under 'Constant field additions'). As with I-16, this index still doesn't track conditioning eligibility (a 'valid/not valid for this keyword' fact per keyword) - I-30's own extensive conditioning-toggle fixes across Colors & Attributes/Keying Options/Validity Check/Input Keywords/General Keywords/Database Reference live in keywordFixes.md and the code itself, not here."
+            "Task I-30 (character fields, the first field-level task): corrected three field-level 'General' category entries against the actual code rather than an old snapshot - DSPATR's value list had two values (UH/RE) that don't exist anywhere in IBM's own DDS Reference (should be PR/OID, matching the code's own DSPATR_ATTRS constant exactly); CNTFLD's parameter was described as a field name but is actually a numeric column-width; DFTVAL was marked repeatable=True but the code deliberately implements it as a single conditionable occurrence, not a repeatable list. Also added TEXT (missing from this index entirely) and HLPID (missing from the Character category specifically - it already existed under 'Constant field additions'). As with I-16, this index still doesn't track conditioning eligibility (a 'valid/not valid for this keyword' fact per keyword) - I-30's own extensive conditioning-toggle fixes across Colors & Attributes/Keying Options/Validity Check/Input Keywords/General Keywords/Database Reference live in keywordFixes.md and the code itself, not here.",
+            "Task I-40: full regeneration pass, run after I-41/I-42/I-57/I-67/I-76 all landed. Applied 6 of the 7 level-label corrections the task's own original audit found: HLPPNLGRP/HLPDOC moved out of a mislabeled 'record' slot into a new dedicated 'help-specification' level (HLPPNLGRP and HLPDOC each keep a SEPARATE file-level entry too - both keywords are genuinely valid at both levels, not one or the other); SFLMSGKEY/SFLPGMQ/SFLRCDNBR/SFLROLVAL/SFLSCROLL moved from 'record' to 'field' (confirmed via subfileFieldKeywordsHtml and the SFLMSG message-record panel, both field-scoped). Did NOT apply the audit's 7th claimed correction (CHECK, 'field-only'): a fresh trace against the current codebase found genuine hand-wired file-level (fk-check-ab/rltb/rl) and record-level (recordCheckGuard-guarded rows in the Input panel) CHECK(AB)/CHECK(RL)/CHECK(RLTB) wiring, predating this task's original claim, and IBM's own DDS Reference text confirms CHECK(AB) is explicitly valid 'at the file level, record level, or field level' - the index's existing file/record/field labeling for CHECK was already correct, so it's unchanged. Also folded in 8 keywords (BLKFOLD, CSRINPONLY [file+record], FLTFIXDEC, FLTPCN, MAPVAL, SFLCHCCTL, SFLCSRPRG, SFLRTNSEL) that Task I-39 had hand-edited directly into KEYWORD-INDEX.json/.md without updating this generator script - preserved at I-39's own category placement per this task's own note, rather than being silently dropped by the regeneration. Added the 9 keywords the audit found missing: DATE/TIME/USER/SYSNAME/MSGCON (field-level constant value sources, Task I-33), SFL/USRDFN (record-type marker keywords, previously only mentioned in 'sharedWith' notes, never as their own entries), WDWTITLE (record-level window title, Task I-12 area), HLPDOC (file + help-specification level, Tasks I-38/I-67)."
         ]
     },
     "levels": []
@@ -74,6 +75,7 @@ cat(file_lvl, "General", "File-wide behavior flags plus REF/PASSRCD/TEXT.", [
     kw("PASSRCD", "Record to pass unformatted data to/from", "record name"),
     kw("VALNUM", "Enhanced numeric error checking", "no parameters"),
     kw("WRDWRAP", "Word wrap for continued-entry fields", "no parameters"),
+    kw("CSRINPONLY", "Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39)", "no parameters"),
 ], screenshotDir="screens/file-level/01-general-keywords")
 
 cat(file_lvl, "Indicator", "Screen-control indicator keywords (CA/CF command keys have their own separate Command Keys panel).", [
@@ -99,6 +101,7 @@ cat(file_lvl, "Help", "File-wide online help behavior.", [
     kw("HLPFULL", "Full-screen help text"),
     kw("HLPTITLE", "Help title text", "'quoted text'"),
     kw("HLPRCD", "Help record - names the record format containing the help text (Task I-5)", "record-format-name [[library-name/]file-name]"),
+    kw("HLPDOC", "Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY, HLPPNLGRP, or HLPRTN (Task I-38; also valid at help-specification level, see the 'help-specification' level's own Application Help category, Task I-67)", "online-help-information-text-label-name document-name folder-name"),
 ], screenshotDir="screens/file-level/04-help-keywords")
 
 cat(file_lvl, "Display Sizes", "DSPSIZ (up to 2 sizes) plus each size's own message line.", [
@@ -130,6 +133,17 @@ cat(file_lvl, "Command Keys", "CAxx/CFxx function-key assignments (own dedicated
     kw("CF01-CF24", "Command Function key (returns to program)", "indicator, response-indicator, 'text'", repeatable=True),
 ], sharedWith=["record: General (all types)"])
 
+# ============================== HELP-SPECIFICATION LEVEL ==============================
+hspec_lvl = lvl("help-specification", "Help-specification-level keywords - apply to one H-specification entry (a separate DDS spec type from file/record/field), reached from each Help entry's own properties. SDA shows this as its own screen (Help number N of M / Next help number); iSDA does not model it as a record-level tab. Task I-40: this level was previously folded into 'record', mislabeling 4 of its 5 keywords (see keywordFixes.md's I-40 for the full correction).")
+
+cat(hspec_lvl, "Application Help", "Per-H-specification help content/exclusion-area keywords, wired via applicationHelpFieldsHtml/wireApplicationHelpFields, scoped to a SINGLE help entry (not the owning record or the whole file). HLPPNLGRP and HLPDOC are also independently valid at file level (see the 'file' level's own Help category) - each keyword here is the help-specification-level FORM of that same keyword, not a distinct one.", [
+    kw("HLPPNLGRP", "Help text supplied by a UIM panel group (help-specification-level form; also valid file-wide - see file-level Help)", "panel-group-name library module-name"),
+    kw("HLPEXCLD", "Exclude area from help text"),
+    kw("HLPBDY", "Help boundary area"),
+    kw("HLPARA", "Help specification area"),
+    kw("HLPDOC", "Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY (same H spec), or with HLPPNLGRP (anywhere in the file) (Task I-67; help-specification-level form; also valid file-wide - see file-level Help)", "online-help-information-text-label-name document-name folder-name"),
+], screenshotDir="screens/record-level/base-record-keywords/application-help")
+
 # ============================== RECORD LEVEL - BASE (R1) ==============================
 rec_lvl = lvl("record", "Record-level keywords - apply to one record format. R1's 8-panel 'Select Record Keywords' picker is the base set, reused (in full or narrowed subsets) by every record type.")
 
@@ -146,6 +160,7 @@ cat(rec_lvl, "General", "Record-wide behavior flags plus command-keys entry poin
     kw("RTNCSRLOC", "Return cursor location to these hidden fields", "row field, column field"),
     kw("TEXT", "Documentation text - no compiled/runtime effect", "'quoted text'"),
     kw("ALTNAME", "Alternative record name for program-described-file I/O", "'alternative-name'", s36e=S36E_ALTNAME_GENERAL),
+    kw("CSRINPONLY", "Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39)", "no parameters"),
 ], sharedWith=["RECORD", "SFLCTL", "SFLMSGCTL", "WINDOW", "WNDSFCTL", "PULLDOWN", "PDNSFLCTL", "MNUBAR", "USRDFN (4-of-8 subset)"], screenshotDir="screens/record-level/base-record-keywords/general")
 
 cat(rec_lvl, "Indicator", "Repeatable, independently-conditioned screen-control indicator instances (CA/CF command keys have their own panel).", [
@@ -160,13 +175,6 @@ cat(rec_lvl, "Indicator", "Repeatable, independently-conditioned screen-control 
     kw("CHANGE", "Return-this-record-on-changed-field indicator", "indicator", repeatable=True, s36e=S36E_CHANGE_RECORD),
     kw("INDTXT", "Descriptive text for an indicator", "indicator 'text'", repeatable=True),
 ], sharedWith=["RECORD", "SFLCTL", "WINDOW", "PULLDOWN", "MNUBAR"], screenshotDir="screens/record-level/base-record-keywords/indicator")
-
-cat(rec_lvl, "Application help", "SDA shows this as its own screen (Help number N of M / Next help number); iSDA does not model it as a record-level tab - those 4 keywords are Help-SPECIFICATION-level (a separate H-line DDS entry), not record-level, and live on each Help entry's own properties instead.", [
-    kw("HLPPNLGRP", "Help text supplied by a UIM panel group (Help-specification level, not record-level)", "panel-group-name library module-name"),
-    kw("HLPEXCLD", "Exclude area from help text (Help-specification level)"),
-    kw("HLPBDY", "Help boundary area (Help-specification level)"),
-    kw("HLPARA", "Help specification area (Help-specification level)"),
-], screenshotDir="screens/record-level/base-record-keywords/application-help")
 
 cat(rec_lvl, "Help", "Record-level online help.", [
     kw("HLPCLR", "Clear previous help text records"),
@@ -218,6 +226,7 @@ cat(rec_lvl, "Print", "Print key and system-print handling (record-level).", [
 
 # ============================== RECORD LEVEL - VARIANTS ==============================
 cat(rec_lvl, "Subfile - General (SFL)", "SFL detail record's own general flags (reuses the record General panel's Y=Yes rows shown on this screen). Task I-25: KEEP is deliberately NOT a live row here anymore - it's a hint pointing at the base Record Keywords -> General tab, the sole surviving live copy; CHGINPDFT is the same pre-existing (Task R3) hint-only arrangement.", [
+    kw("SFL", "This record is a subfile record, must immediately precede its SFLCTL record (Task I-40: was missing from this index entirely)", "no parameters"),
     kw("SFLNXTCHG", "Return this record on read next changed", "indicators"),
     kw("LOGOUT", "Write record to job log"),
     kw("LOGINP", "Write record to job log (input)"),
@@ -229,12 +238,6 @@ cat(rec_lvl, "Subfile - Indicator (SFL)", "Repeatable indicator instances specif
     kw("SETOF", "Set indicator(s) off", "indicator", repeatable=True),
     kw("CHANGE", "Return-on-changed indicator", "indicator", repeatable=True, s36e=S36E_CHANGE_RECORD),
 ], sharedWith=["WNDSFL", "PULDWNSFL"], screenshotDir="screens/record-level/subfile-sfl/indicator")
-
-cat(rec_lvl, "Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)", "Field-level keywords for a hidden field within an SFL/SFLCTL record (numeric fields only, Task D3; SFLSCROLL added Task I-26).", [
-    kw("SFLRCDNBR", "Subfile record number field", "CURSOR | *TOP"),
-    kw("SFLROLVAL", "Number of records to roll"),
-    kw("SFLSCROLL", "Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26)", "no parameters"),
-], screenshotDir="screens/record-level/subfile-sfl/subfile-keywords")
 
 cat(rec_lvl, "Subfile Control - General (SFLCTL)", "SFLCTL's own record-level control keywords, plus the linkage to its SFL.", [
     kw("SFLCTL", "This is a subfile control record, naming its related SFL", "subfile record name"),
@@ -252,6 +255,7 @@ cat(rec_lvl, "Subfile Control - General (SFLCTL)", "SFLCTL's own record-level co
     kw("SFLENTER", "Use Enter key instead of a command key to process the subfile"),
     kw("SFLSNGCHC", "Single-choice selection list - mutually exclusive with SFLMLTCHC and with SFLDROP/SFLFOLD (Task I-26)", "[*RSTCSR|*NORSTCSR] [*SLTIND] [*AUTOSLT|*NOAUTOSLT|*AUTOSLTENH] - RSTCSR/AUTOSLT defaults flip when the record is in a pull-down"),
     kw("SFLMLTCHC", "Multiple-choice selection list - mutually exclusive with SFLSNGCHC and with SFLDROP/SFLFOLD (Task I-26)", "[&number-selected] [*RSTCSR|*NORSTCSR] [*SLTIND] - RSTCSR default flips when the record is in a pull-down"),
+    kw("SFLRTNSEL", "Return all selected choices (including unchanged defaults) to GET-NEXT-CHANGED; requires SFLMLTCHC or SFLSNGCHC (Task I-39)", "no parameters"),
 ], sharedWith=["WNDSFCTL", "PDNSFLCTL"], screenshotDir="screens/record-level/subfile-control-sflctl/general")
 
 cat(rec_lvl, "Subfile Control - Display Layout", "Subfile sizing, one row per declared DSPSIZ display size when the file has 2+ sizes (Task I-22, same per-size shape as SFLMSGRCD/MSGLOC).", [
@@ -270,14 +274,17 @@ cat(rec_lvl, "Window control (WNDSFCTL general screen)", "Two record-level flags
     kw("USRRSTDSP", "Program handles display restore around this window", "indicators (optional)"),
 ], screenshotDir="screens/record-level/window-subfile-control-wndsfctl/general")
 
-cat(rec_lvl, "Subfile Message record (SFLMSG record type) - Message Record", "The SFLMSG record's own message-linking keywords (distinct from SFLCTL's Subfile Messages panel above).", [
+cat(rec_lvl, "Subfile Message record (SFLMSG record type) - Message Record", "The SFLMSG record's own record-level message-linking keyword (distinct from SFLCTL's Subfile Messages panel above). Task I-40: SFLMSGKEY/SFLPGMQ moved out of this category to field level - both are written/read only via a field within the SFLMSG record (see the field-level 'Subfile Message fields' category), not the record itself.", [
     kw("SFLMSGRCD", "Line number for the first message, conditioned by display size, with roll", "1-27 [, *DS3/*DS4] [, +/-]"),
-    kw("SFLMSGKEY", "Message ID field (program builds queue one message at a time)", "field name"),
-    kw("SFLPGMQ", "Program message queue field, or generate a 276-byte field", "field name | Y=Yes"),
 ], screenshotDir="screens/record-level/subfile-message-sflmsg/message-record")
 
-cat(rec_lvl, "Window Parameters", "WINDOW keyword in all 3 forms (referenced / default-start / explicit start+size), plus MSGLIN and RSTCSR sub-parameters.", [
+cat(rec_lvl, "User-Defined Record (USRDFN)", "The USRDFN record's own record-type marker keyword - data for this record is a user-defined data stream; no fields are valid on it, and only a closed subset of other keywords apply (Task I-40: was missing from this index entirely).", [
+    kw("USRDFN", "This record's data is a user-defined data stream; no fields are valid; only INVITE/KEEP/PASSRCD/HLPRTN/HELP/HLPCLR/PRINT/OPENPRT/TEXT apply", "no parameters"),
+], screenshotDir="screens/record-level/user-defined-usrdfn/general")
+
+cat(rec_lvl, "Window Parameters", "WINDOW keyword in all 3 forms (referenced / default-start / explicit start+size), plus MSGLIN and RSTCSR sub-parameters, plus the window's title text.", [
     kw("WINDOW", "Window definition or reference to another window", "referenced-window-name | start-line start-col lines cols [*NOMSGLIN] [*RSTCSR|*NORSTCSR]"),
+    kw("WDWTITLE", "Window title text, embedded in the window's top or bottom border - iSDA exposes the quoted title-text portion via a plain text box (getWindowTitleText/setWindowTitleText); any position/*COLOR/*DSPATR modifiers already present are preserved verbatim but not separately editable (Task I-40: was missing from this index entirely)", "[(*TEXT 'title-text'|&field)] [(*COLOR c)] [(*DSPATR a)] [*CENTER|*LEFT|*RIGHT] [*TOP|*BOTTOM] - at least one parameter required"),
 ], sharedWith=["WNDSFCTL", "PULLDOWN"], screenshotDir="screens/record-level/window/window-parameters-size-roll")
 
 cat(rec_lvl, "Border Parameters / Border Color / Border Display Attributes / Border Characters", "WDWBORDER's 3 groups (COLOR, DSPATR, CHAR), navigated via one sub-menu, shared with the file-level Window Border default.", [
@@ -341,7 +348,24 @@ cat(fld_lvl, "General", "Documentation/reference/default-value keywords.", [
     kw("CHRID", "Translate characters (graphic character set/code page)"),
     kw("IGCALTTYP", "Alter IGC (DBCS) type (character fields only)"),
     kw("NOCCSID", "No coded character set ID"),
+    kw("BLKFOLD", "Fold output text at a blank rather than the end of the line; not valid on floating-point fields (Task I-39)", "no parameters"),
+    kw("FLTFIXDEC", "Display a floating-point (usage B/O) field in fixed-decimal notation instead of standard floating-point form (Task I-39)", "no parameters"),
+    kw("FLTPCN", "Floating-point field precision, single or double (Task I-39)", "*SINGLE | *DOUBLE"),
+    kw("MAPVAL", "Map field data to a different value on input/output; date (L)/time (T)/timestamp (Z) fields only (Task I-39)", "program-value/system-value pairs"),
 ], screenshotDir="screens/field-level/character/general")
+
+cat(fld_lvl, "Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG)", "Keywords for a hidden field within an SFL/SFLCTL record (numeric fields only for SFLRCDNBR/SFLROLVAL, Task D3; SFLSCROLL added Task I-26; SFLCHCCTL/SFLCSRPRG added Task I-39). Task I-40: this whole category corrected from record-level to field-level - all 5 are written/read only via subfileFieldKeywordsHtml, a field-level panel, matching the DDS Reference's own field-level classification for each.", [
+    kw("SFLRCDNBR", "Subfile record number field", "CURSOR | *TOP"),
+    kw("SFLROLVAL", "Number of records to roll"),
+    kw("SFLSCROLL", "Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26)", "no parameters"),
+    kw("SFLCHCCTL", "Choice control field for a selection list; must be the record's first field, length 1, data type Y, 0 decimals, usage H (Task I-39)", "no parameters"),
+    kw("SFLCSRPRG", "Cursor progresses to the same field in the next subfile record instead of the next field; ignored without an enhanced data stream, not allowed with SFLLIN (Task I-39)", "no parameters"),
+], screenshotDir="screens/record-level/subfile-sfl/subfile-keywords")
+
+cat(fld_lvl, "Subfile Message fields (SFLMSGKEY/SFLPGMQ)", "Hidden field-level keywords within an SFLMSG record, linking the record's own SFLMSGRCD line number to the fields that actually carry the message ID / program message queue. Task I-40: corrected from record-level to field-level - both are written/read only via a field within the SFLMSG record, matching the DDS Reference's own field-level classification.", [
+    kw("SFLMSGKEY", "Message ID field (program builds queue one message at a time)", "field name"),
+    kw("SFLPGMQ", "Program message queue field, or generate a 276-byte field", "field name | Y=Yes"),
+], screenshotDir="screens/record-level/subfile-message-sflmsg/message-record")
 
 cat(fld_lvl, "Database Reference", "REFFLD-based field-definition reference plus override/ignore flags.", [
     kw("REFFLD", "Reference field for attributes (implemented via the separate 'Resolve Referenced Field via Code for i' feature, not a plain getX/setX pair)", "field [(if different)] file library record"),
@@ -371,8 +395,13 @@ cat(fld_lvl, "Date/Time Fields", "DATFMT/DATSEP (date fields, data type L only) 
     kw("TIMSEP", "Time separator (data type T only) - cannot be specified with a fixed-separator TIMFMT (*ISO/*USA/*EUR/*JIS)", "*JOB | 'separator character'"),
 ])
 
-cat(fld_lvl, "Constant field additions", "Keyword valid at constant-field level beyond the character-field base set.", [
+cat(fld_lvl, "Constant field additions", "Keyword valid at constant-field level beyond the character-field base set. DATE/TIME/USER/SYSNAME/MSGCON (Task I-40: were missing from this index entirely) are 5 of the 6 documented ways to supply a constant's value (the 6th, DFT, already lives in the base General category above) - iSDA models them as a single 'Value source' selector at constant-creation/-editing time (Task I-33), mutually exclusive with each other and with DFT/EDTCDE/EDTWRD.", [
     kw("HLPID", "Help ID for a constant field", "identifier"),
+    kw("DATE", "Constant's value is the current system date (Task I-33)", "no parameters"),
+    kw("TIME", "Constant's value is the current system time (Task I-33)", "no parameters"),
+    kw("USER", "Constant's value is the current user profile name (Task I-33)", "no parameters"),
+    kw("SYSNAME", "Constant's value is the current system name (Task I-33)", "no parameters"),
+    kw("MSGCON", "Constant's value comes from a message description instead of a literal - single instance, not repeatable (Task I-33)", "length message-ID [library-name/]message-file-name"),
 ], screenshotDir="screens/field-level/constant/general")
 
 cat(fld_lvl, "Menu-bar choice - Choice Selection Type", "SNGCHCFLD/MLTCHCFLD plus selection-behavior flags.", [

@@ -82,7 +82,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-37](#i-37) | Record | `ALWROL` / `CLRL` / `SLNO` vs `ASSUME` / `SFL` / `SFLCTL` / `USRDFN` | I-28 | Done | v0.10.111 |
 | [I-38](#i-38) | File | `HLPDOC` missing at file level | I-1 | Done | v0.10.116 |
 | [I-39](#i-39) | Cross-level | 8 keywords missing from iSDA (full-text audit) | — | Done | v0.10.118 |
-| [I-40](#i-40) | Tooling | Keyword index regeneration #2 (level labels, stale entries) | I-16; run last (after I-41, I-42, I-57, I-67, I-76) | Not started (claimed) | — |
+| [I-40](#i-40) | Tooling | Keyword index regeneration #2 (level labels, stale entries) | I-16; run last (after I-41, I-42, I-57, I-67, I-76) | Done | v0.10.199 |
 | [I-41](#i-41) | Field | Add missing field-level keyword `HTML` | I-1 | Done | v0.10.133 |
 | [I-42](#i-42) | Cross-level | Extend level scope: `MOUBTN` / `VALNUM` / `WRDWRAP` / `ENTFLDATR` | I-1, I-5 | Done | v0.10.135 |
 | [I-43](#i-43) | File | `HLPRCD` / `HLPDOC` checkbox catch-22 | I-38 | Done | v0.10.121 |
@@ -179,7 +179,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 2 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
+| 2 | [I-40](#i-40) | Done (v0.10.199) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 | 3 | [I-118](#i-118) | Not started | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
 | 4 | [I-120](#i-120) | Not started | Shared test harness. Size (estimate): Medium (mechanical, touches all 145 test files). |
 | 5 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
@@ -3316,9 +3316,9 @@ and `SFLRTNSEL` vs missing `SFLMLTCHC`/`SFLSNGCHC`.
 
 ### I-40 — `KEYWORD-INDEX.json`/`.md`/`KEYWORD-LOOKUP.json` regeneration: 7 level-label inaccuracies + 9 stale-missing entries
 
-> **Area:** Tooling · **Status:** Not started (claimed) · **Depends on:** I-16; run last (after I-41, I-42, I-57, I-67, I-76)
+> **Area:** Tooling · **Status:** Done (v0.10.199) · **Depends on:** I-16; run last (after I-41, I-42, I-57, I-67, I-76)
 
-**Claimed.** Independent full-text audit of `DDS_Keyword_V7r6.txt` against
+**Done.** Independent full-text audit of `DDS_Keyword_V7r6.txt` against
 current `src/*.js` (see
 `docs/sda-reference/source/dds-keyword-audit-report.md` for the full
 write-up and methodology), cross-checked against I-38/I-39 before filing to
@@ -3368,6 +3368,60 @@ General (SFL)" and "Subfile - Indicator (SFL)" in `build_index.py`
 (currently `WNDSFL`, `PULDWNSFL`), and name the two SFLMSG screenshot
 folders (`screens/record-level/subfile-message-sflmsg/general` and
 `.../indicator`) in those categories' descriptions. See I-76.
+
+**Execution (v0.10.199): re-verified every claimed finding above against the
+codebase as it now stands, rather than applying the claim text verbatim —
+several tasks landed between the original claim and this regeneration.**
+
+- **6 of the 7 claimed level-label corrections confirmed and applied:**
+  `HLPPNLGRP` (file/help-specification, never record - `applicationHelpFieldsHtml`
+  is genuinely H-spec-scoped) and `SFLMSGKEY`/`SFLPGMQ`/`SFLRCDNBR`/`SFLROLVAL`/
+  `SFLSCROLL` (all field-level, confirmed via `subfileFieldKeywordsHtml`'s own
+  `field.keywords` call sites in `buildWebviewTemplate.js`).
+- **The 7th claimed correction (`CHECK` → "field-only") was NOT applied -
+  it's wrong.** A fresh trace found genuine, pre-existing hand-wired
+  `CHECK(AB)`/`CHECK(RLTB)`/`CHECK(RL)` rows at **both** file level
+  (`fk-check-ab`/`fk-check-rltb`/`fk-check-rl` in the file General panel) and
+  record level (`recordCheckGuard`-guarded rows in the record Input panel,
+  I-107's own guard target) - neither goes through `checkInstancesHtml`, the
+  function the original audit traced. IBM's own DDS Reference text is
+  explicit: *"Use this code at the file level, record level, or field level
+  to allow all-blank input..."* (the `AB` sub-code's own description). The
+  index's existing file/record/field labeling for `CHECK` was already
+  correct; left unchanged. Lesson for future audits of this shape: tracing
+  one call site to conclude a keyword's *only* surface is a false negative
+  whenever a second surface is hand-wired outside the traced helper -
+  confirm absence by keyword name across the whole codebase, not just by
+  tracing one function's callers.
+- **Recovered 8 keywords I-39 had hand-edited directly into
+  `KEYWORD-INDEX.json`/`.md` without updating `build_index.py`:** `BLKFOLD`,
+  `CSRINPONLY` (file + record), `FLTFIXDEC`, `FLTPCN`, `MAPVAL`, `SFLCHCCTL`,
+  `SFLCSRPRG`, `SFLRTNSEL`. A blind re-run of `build_index.py` (the sole
+  generator) would have silently deleted all 8, since the generator has no
+  record of them. Folded into the source at I-39's own category placement
+  (per this task's own note to preserve that grouping), so `SFLCHCCTL`/
+  `SFLCSRPRG` moved to field level along with the rest of the
+  `SFLRCDNBR`/`SFLROLVAL`/`SFLSCROLL` category they were filed under.
+- **Added the 9 missing entries:** `DATE`/`TIME`/`USER`/`SYSNAME`/`MSGCON`
+  (field-level constant value sources, Task I-33's "Value source" selector -
+  filed under field-level "Constant field additions"), `SFL`/`USRDFN`
+  (record-type marker keywords, previously only named in `sharedWith` notes,
+  never given their own entry - `SFL` filed under "Subfile - General (SFL)",
+  `USRDFN` given its own new "User-Defined Record (USRDFN)" category),
+  `WDWTITLE` (record-level window title text, filed under "Window
+  Parameters" alongside `WINDOW`), `HLPDOC` (file-level, Task I-38 - filed
+  under file-level "Help" alongside `HLPPNLGRP`/`HLPRCD`).
+- **New "help-specification" level introduced** (previously HLPPNLGRP's
+  H-spec form was folded into "record", the exact mislabeling this task set
+  out to fix) - holds the "Application Help" category (`HLPPNLGRP`/
+  `HLPEXCLD`/`HLPBDY`/`HLPARA`/`HLPDOC`), with `HLPPNLGRP` and `HLPDOC` each
+  also keeping their separate file-level entry, since both keywords are
+  genuinely valid at both levels (I-67's own note: "this adds a level for an
+  existing index entry").
+- **Totals:** 47 → 49 categories, 206 → 225 keyword entries (`build_index.py`'s
+  own printed count), 186 unique keyword names. `npm run compile` clean,
+  `npm test` - all 145 test files, zero failures (docs-only change, no
+  `src/` edits).
 
 ---
 

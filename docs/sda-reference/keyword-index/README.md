@@ -1,8 +1,8 @@
 # Keyword Index
 
 Full inventory of every DDS keyword iSDA's visual designer exposes, organized
-by level (File/Record/Field) and by the exact UI category/tab iSDA shows it
-under. Built to support two things directly:
+by level (File/Record/Help-specification/Field) and by the exact UI
+category/tab iSDA shows it under. Built to support two things directly:
 
 1. **Comparison against real IBM i SDA** — each category links to its
    reference screenshot folder under `docs/sda-reference/screens/`, so a

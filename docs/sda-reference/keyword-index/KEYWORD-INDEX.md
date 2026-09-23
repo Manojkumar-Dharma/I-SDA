@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-15 (updated 2026-09-16 for Task I-39) · 215 keyword entries across 47 categories · 177 unique keyword names.
+Generated 2026-09-23 · 225 keyword entries across 49 categories · 186 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -57,6 +57,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `COMP` | field → Validity Check |
 | `CSRINPONLY` | file → General; record → General |
 | `CSRLOC` | record → Output |
+| `DATE` | field → Constant field additions |
 | `DATFMT` | field → Date/Time Fields |
 | `DATSEP` | field → Date/Time Fields |
 | `DFT` | field → General |
@@ -83,14 +84,15 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `FRCDTA` | record → Output |
 | `GETRETAIN` | record → Input |
 | `HELP` ⚠️ | file → Indicator; record → Indicator |
-| `HLPARA` | record → Application help |
-| `HLPBDY` | record → Application help |
+| `HLPARA` | help-specification → Application Help |
+| `HLPBDY` | help-specification → Application Help |
 | `HLPCLR` | record → Help |
 | `HLPCMDKEY` | record → Help |
-| `HLPEXCLD` | record → Application help |
+| `HLPDOC` | file → Help; help-specification → Application Help |
+| `HLPEXCLD` | help-specification → Application Help |
 | `HLPFULL` | file → Help |
 | `HLPID` | field → General; field → Constant field additions |
-| `HLPPNLGRP` | file → Help; record → Application help |
+| `HLPPNLGRP` | file → Help; help-specification → Application Help |
 | `HLPRCD` | file → Help |
 | `HLPRTN` ⚠️ | file → Indicator; record → Indicator |
 | `HLPSCHIDX` | file → Help |
@@ -120,6 +122,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `MNUCNL` | file → Menu-bar; record → Menu-Bar record - General |
 | `MOUBTN` | file → Indicator |
 | `MSGALARM` | file → General; record → Output |
+| `MSGCON` | field → Constant field additions |
 | `MSGID` ⚠️ | field → Message ID |
 | `MSGLOC` | file → Display Sizes |
 | `NOCCSID` | field → General |
@@ -145,9 +148,10 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `RTNCSRLOC` | record → General |
 | `RTNDTA` | record → Input |
 | `SETOF` | record → Indicator; record → Subfile - Indicator (SFL) |
-| `SFLCHCCTL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
+| `SFL` | record → Subfile - General (SFL) |
+| `SFLCHCCTL` | field → Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG) |
 | `SFLCLR` | record → Subfile Control - General (SFLCTL) |
-| `SFLCSRPRG` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
+| `SFLCSRPRG` | field → Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG) |
 | `SFLCSRRRN` | record → Subfile Control - General (SFLCTL) |
 | `SFLCTL` | record → Subfile Control - General (SFLCTL) |
 | `SFLDLT` | record → Subfile Control - General (SFLCTL) |
@@ -163,30 +167,35 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `SFLMODE` | record → Subfile Control - General (SFLCTL) |
 | `SFLMSG` | record → Subfile Control - Subfile Messages |
 | `SFLMSGID` | record → Subfile Control - Subfile Messages |
-| `SFLMSGKEY` | record → Subfile Message record (SFLMSG record type) - Message Record |
+| `SFLMSGKEY` | field → Subfile Message fields (SFLMSGKEY/SFLPGMQ) |
 | `SFLMSGRCD` | record → Subfile Message record (SFLMSG record type) - Message Record |
 | `SFLNXTCHG` | record → Subfile - General (SFL) |
 | `SFLPAG` | record → Subfile Control - Display Layout |
-| `SFLPGMQ` | record → Subfile Message record (SFLMSG record type) - Message Record |
-| `SFLRCDNBR` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
+| `SFLPGMQ` | field → Subfile Message fields (SFLMSGKEY/SFLPGMQ) |
+| `SFLRCDNBR` | field → Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG) |
 | `SFLRNA` | record → Subfile Control - General (SFLCTL) |
-| `SFLROLVAL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
+| `SFLROLVAL` | field → Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG) |
 | `SFLRTNSEL` | record → Subfile Control - General (SFLCTL) |
-| `SFLSCROLL` | record → Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL) |
+| `SFLSCROLL` | field → Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG) |
 | `SFLSIZ` | record → Subfile Control - Display Layout |
 | `SFLSNGCHC` | record → Subfile Control - General (SFLCTL) |
 | `SLNO` | record → Output |
 | `SNGCHCFLD` | field → Menu-bar choice - Choice Selection Type |
+| `SYSNAME` | field → Constant field additions |
 | `TEXT` | record → General; field → General |
+| `TIME` | field → Constant field additions |
 | `TIMFMT` | field → Date/Time Fields |
 | `TIMSEP` | field → Date/Time Fields |
 | `UNLOCK` | record → Input |
+| `USER` | field → Constant field additions |
+| `USRDFN` | record → User-Defined Record (USRDFN) |
 | `USRDSPMGT` ⚠️ | file → General |
 | `USRRSTDSP` | record → Window control (WNDSFCTL general screen) |
 | `VALNUM` | file → General |
 | `VALUES` | field → Validity Check |
 | `VLDCMDKEY` | file → Indicator; record → Indicator |
 | `WDWBORDER` | file → Window Border; record → Border Parameters / Border Color / Border Display Attributes / Border Characters; record → Pull-Down - General |
+| `WDWTITLE` | record → Window Parameters |
 | `WINDOW` | record → Window Parameters |
 | `WRDWRAP` | file → General |
 
@@ -282,6 +291,7 @@ File-wide online help behavior.
 | `HLPFULL` | Full-screen help text |  |  |  |
 | `HLPTITLE` | Help title text | 'quoted text' |  |  |
 | `HLPRCD` | Help record - names the record format containing the help text (Task I-5) | record-format-name [[library-name/]file-name] |  |  |
+| `HLPDOC` | Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY, HLPPNLGRP, or HLPRTN (Task I-38; also valid at help-specification level, see the 'help-specification' level's own Application Help category, Task I-67) | online-help-information-text-label-name document-name folder-name |  |  |
 
 ### Display Sizes
 
@@ -352,6 +362,24 @@ CAxx/CFxx function-key assignments (own dedicated panel, shared verbatim across 
 | `CA01-CA24` | Command Attention key (no field/record I/O) | indicator, response-indicator, 'text' | yes |  |
 | `CF01-CF24` | Command Function key (returns to program) | indicator, response-indicator, 'text' | yes |  |
 
+## Help-specification-level
+
+Help-specification-level keywords - apply to one H-specification entry (a separate DDS spec type from file/record/field), reached from each Help entry's own properties. SDA shows this as its own screen (Help number N of M / Next help number); iSDA does not model it as a record-level tab. Task I-40: this level was previously folded into 'record', mislabeling 4 of its 5 keywords (see keywordFixes.md's I-40 for the full correction).
+
+### Application Help
+
+Per-H-specification help content/exclusion-area keywords, wired via applicationHelpFieldsHtml/wireApplicationHelpFields, scoped to a SINGLE help entry (not the owning record or the whole file). HLPPNLGRP and HLPDOC are also independently valid at file level (see the 'file' level's own Help category) - each keyword here is the help-specification-level FORM of that same keyword, not a distinct one.
+
+*Reference screenshots:* `docs/sda-reference/screens/record-level/base-record-keywords/application-help/`
+
+| Keyword | Description | Parameters | Repeatable | S36E |
+|---|---|---|---|---|
+| `HLPPNLGRP` | Help text supplied by a UIM panel group (help-specification-level form; also valid file-wide - see file-level Help) | panel-group-name library module-name |  |  |
+| `HLPEXCLD` | Exclude area from help text |  |  |  |
+| `HLPBDY` | Help boundary area |  |  |  |
+| `HLPARA` | Help specification area |  |  |  |
+| `HLPDOC` | Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY (same H spec), or with HLPPNLGRP (anywhere in the file) (Task I-67; help-specification-level form; also valid file-wide - see file-level Help) | online-help-information-text-label-name document-name folder-name |  |  |
+
 ## Record-level
 
 Record-level keywords - apply to one record format. R1's 8-panel 'Select Record Keywords' picker is the base set, reused (in full or narrowed subsets) by every record type.
@@ -372,13 +400,13 @@ Record-wide behavior flags plus command-keys entry point, TEXT, ALTNAME.
 | `ALWROL` | Allow rolling of lines |  |  |  |
 | `RETKEY` | Retain CLEAR/HELP/HOME/ROLL keys |  |  | ⚠️ |
 | `RETCMDKEY` | Retain CFnn/CAnn command keys |  |  | ⚠️ |
-| `CSRINPONLY` | Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39) | no parameters |  |  |
 | `CHGINPDFT` | Change input field defaults | attribute codes |  |  |
 | `MNUBARDSP` | Menu-bar display, repeatable/independently-conditioned instances (Task I-17); non-MNUBAR records get a 3-name record/choice/pull-down form, MNUBAR records get a single pull-down-input-field form | parameters (optional, shape depends on record type) | yes |  |
 | `ENTFLDATR` | Default attribute for entry fields in this record |  |  |  |
 | `RTNCSRLOC` | Return cursor location to these hidden fields | row field, column field |  |  |
 | `TEXT` | Documentation text - no compiled/runtime effect | 'quoted text' |  |  |
 | `ALTNAME` | Alternative record name for program-described-file I/O | 'alternative-name' |  | ⚠️ |
+| `CSRINPONLY` | Restrict cursor movement (arrow keys) to input-capable positions only (Task I-39) | no parameters |  |  |
 
 ### Indicator
 
@@ -400,19 +428,6 @@ Repeatable, independently-conditioned screen-control indicator instances (CA/CF 
 | `SETOF` | Set indicator(s) off when this record is used | indicator, up to 3 | yes |  |
 | `CHANGE` | Return-this-record-on-changed-field indicator | indicator | yes | ⚠️ |
 | `INDTXT` | Descriptive text for an indicator | indicator 'text' | yes |  |
-
-### Application help
-
-SDA shows this as its own screen (Help number N of M / Next help number); iSDA does not model it as a record-level tab - those 4 keywords are Help-SPECIFICATION-level (a separate H-line DDS entry), not record-level, and live on each Help entry's own properties instead.
-
-*Reference screenshots:* `docs/sda-reference/screens/record-level/base-record-keywords/application-help/`
-
-| Keyword | Description | Parameters | Repeatable | S36E |
-|---|---|---|---|---|
-| `HLPPNLGRP` | Help text supplied by a UIM panel group (Help-specification level, not record-level) | panel-group-name library module-name |  |  |
-| `HLPEXCLD` | Exclude area from help text (Help-specification level) |  |  |  |
-| `HLPBDY` | Help boundary area (Help-specification level) |  |  |  |
-| `HLPARA` | Help specification area (Help-specification level) |  |  |  |
 
 ### Help
 
@@ -504,6 +519,7 @@ SFL detail record's own general flags (reuses the record General panel's Y=Yes r
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
+| `SFL` | This record is a subfile record, must immediately precede its SFLCTL record (Task I-40: was missing from this index entirely) | no parameters |  |  |
 | `SFLNXTCHG` | Return this record on read next changed | indicators |  |  |
 | `LOGOUT` | Write record to job log |  |  |  |
 | `LOGINP` | Write record to job log (input) |  |  |  |
@@ -522,20 +538,6 @@ Repeatable indicator instances specific to the subfile detail record.
 | `INDTXT` | Descriptive text for an indicator | indicator 'text' | yes |  |
 | `SETOF` | Set indicator(s) off | indicator | yes |  |
 | `CHANGE` | Return-on-changed indicator | indicator | yes | ⚠️ |
-
-### Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)
-
-Field-level keywords for a hidden field within an SFL/SFLCTL record (numeric fields only, Task D3; SFLSCROLL added Task I-26).
-
-*Reference screenshots:* `docs/sda-reference/screens/record-level/subfile-sfl/subfile-keywords/`
-
-| Keyword | Description | Parameters | Repeatable | S36E |
-|---|---|---|---|---|
-| `SFLRCDNBR` | Subfile record number field | CURSOR \| *TOP |  |  |
-| `SFLROLVAL` | Number of records to roll |  |  |  |
-| `SFLSCROLL` | Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26) | no parameters |  |  |
-| `SFLCHCCTL` | Choice control field for a selection list; must be the record's first field, length 1, data type Y, 0 decimals, usage H (Task I-39) | no parameters |  |  |
-| `SFLCSRPRG` | Cursor progresses to the same field in the next subfile record instead of the next field; ignored without an enhanced data stream, not allowed with SFLLIN (Task I-39) | no parameters |  |  |
 
 ### Subfile Control - General (SFLCTL)
 
@@ -604,19 +606,27 @@ Two record-level flags shown alongside WINDOW/WDWBORDER on SDA's WNDSFCTL genera
 
 ### Subfile Message record (SFLMSG record type) - Message Record
 
-The SFLMSG record's own message-linking keywords (distinct from SFLCTL's Subfile Messages panel above).
+The SFLMSG record's own record-level message-linking keyword (distinct from SFLCTL's Subfile Messages panel above). Task I-40: SFLMSGKEY/SFLPGMQ moved out of this category to field level - both are written/read only via a field within the SFLMSG record (see the field-level 'Subfile Message fields' category), not the record itself.
 
 *Reference screenshots:* `docs/sda-reference/screens/record-level/subfile-message-sflmsg/message-record/`
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
 | `SFLMSGRCD` | Line number for the first message, conditioned by display size, with roll | 1-27 [, *DS3/*DS4] [, +/-] |  |  |
-| `SFLMSGKEY` | Message ID field (program builds queue one message at a time) | field name |  |  |
-| `SFLPGMQ` | Program message queue field, or generate a 276-byte field | field name \| Y=Yes |  |  |
+
+### User-Defined Record (USRDFN)
+
+The USRDFN record's own record-type marker keyword - data for this record is a user-defined data stream; no fields are valid on it, and only a closed subset of other keywords apply (Task I-40: was missing from this index entirely).
+
+*Reference screenshots:* `docs/sda-reference/screens/record-level/user-defined-usrdfn/general/`
+
+| Keyword | Description | Parameters | Repeatable | S36E |
+|---|---|---|---|---|
+| `USRDFN` | This record's data is a user-defined data stream; no fields are valid; only INVITE/KEEP/PASSRCD/HLPRTN/HELP/HLPCLR/PRINT/OPENPRT/TEXT apply | no parameters |  |  |
 
 ### Window Parameters
 
-WINDOW keyword in all 3 forms (referenced / default-start / explicit start+size), plus MSGLIN and RSTCSR sub-parameters.
+WINDOW keyword in all 3 forms (referenced / default-start / explicit start+size), plus MSGLIN and RSTCSR sub-parameters, plus the window's title text.
 
 *Shared with:* WNDSFCTL, PULLDOWN
 
@@ -625,6 +635,7 @@ WINDOW keyword in all 3 forms (referenced / default-start / explicit start+size)
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
 | `WINDOW` | Window definition or reference to another window | referenced-window-name \| start-line start-col lines cols [*NOMSGLIN] [*RSTCSR\|*NORSTCSR] |  |  |
+| `WDWTITLE` | Window title text, embedded in the window's top or bottom border - iSDA exposes the quoted title-text portion via a plain text box (getWindowTitleText/setWindowTitleText); any position/*COLOR/*DSPATR modifiers already present are preserved verbatim but not separately editable (Task I-40: was missing from this index entirely) | [(*TEXT 'title-text'\|&field)] [(*COLOR c)] [(*DSPATR a)] [*CENTER\|*LEFT\|*RIGHT] [*TOP\|*BOTTOM] - at least one parameter required |  |  |
 
 ### Border Parameters / Border Color / Border Display Attributes / Border Characters
 
@@ -750,6 +761,31 @@ Documentation/reference/default-value keywords.
 | `FLTPCN` | Floating-point field precision, single or double (Task I-39) | *SINGLE \| *DOUBLE |  |  |
 | `MAPVAL` | Map field data to a different value on input/output; date (L)/time (T)/timestamp (Z) fields only (Task I-39) | program-value/system-value pairs |  |  |
 
+### Subfile fields (SFLRCDNBR/SFLROLVAL/SFLSCROLL/SFLCHCCTL/SFLCSRPRG)
+
+Keywords for a hidden field within an SFL/SFLCTL record (numeric fields only for SFLRCDNBR/SFLROLVAL, Task D3; SFLSCROLL added Task I-26; SFLCHCCTL/SFLCSRPRG added Task I-39). Task I-40: this whole category corrected from record-level to field-level - all 5 are written/read only via subfileFieldKeywordsHtml, a field-level panel, matching the DDS Reference's own field-level classification for each.
+
+*Reference screenshots:* `docs/sda-reference/screens/record-level/subfile-sfl/subfile-keywords/`
+
+| Keyword | Description | Parameters | Repeatable | S36E |
+|---|---|---|---|---|
+| `SFLRCDNBR` | Subfile record number field | CURSOR \| *TOP |  |  |
+| `SFLROLVAL` | Number of records to roll |  |  |  |
+| `SFLSCROLL` | Return top-of-subfile record number on scroll - cannot share a field with SFLRCDNBR/SFLROLVAL, only one per record (Task I-26) | no parameters |  |  |
+| `SFLCHCCTL` | Choice control field for a selection list; must be the record's first field, length 1, data type Y, 0 decimals, usage H (Task I-39) | no parameters |  |  |
+| `SFLCSRPRG` | Cursor progresses to the same field in the next subfile record instead of the next field; ignored without an enhanced data stream, not allowed with SFLLIN (Task I-39) | no parameters |  |  |
+
+### Subfile Message fields (SFLMSGKEY/SFLPGMQ)
+
+Hidden field-level keywords within an SFLMSG record, linking the record's own SFLMSGRCD line number to the fields that actually carry the message ID / program message queue. Task I-40: corrected from record-level to field-level - both are written/read only via a field within the SFLMSG record, matching the DDS Reference's own field-level classification.
+
+*Reference screenshots:* `docs/sda-reference/screens/record-level/subfile-message-sflmsg/message-record/`
+
+| Keyword | Description | Parameters | Repeatable | S36E |
+|---|---|---|---|---|
+| `SFLMSGKEY` | Message ID field (program builds queue one message at a time) | field name |  |  |
+| `SFLPGMQ` | Program message queue field, or generate a 276-byte field | field name \| Y=Yes |  |  |
+
 ### Database Reference
 
 REFFLD-based field-definition reference plus override/ignore flags.
@@ -808,13 +844,18 @@ DATFMT/DATSEP (date fields, data type L only) and TIMFMT/TIMSEP (time fields, da
 
 ### Constant field additions
 
-Keyword valid at constant-field level beyond the character-field base set.
+Keyword valid at constant-field level beyond the character-field base set. DATE/TIME/USER/SYSNAME/MSGCON (Task I-40: were missing from this index entirely) are 5 of the 6 documented ways to supply a constant's value (the 6th, DFT, already lives in the base General category above) - iSDA models them as a single 'Value source' selector at constant-creation/-editing time (Task I-33), mutually exclusive with each other and with DFT/EDTCDE/EDTWRD.
 
 *Reference screenshots:* `docs/sda-reference/screens/field-level/constant/general/`
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
 | `HLPID` | Help ID for a constant field | identifier |  |  |
+| `DATE` | Constant's value is the current system date (Task I-33) | no parameters |  |  |
+| `TIME` | Constant's value is the current system time (Task I-33) | no parameters |  |  |
+| `USER` | Constant's value is the current user profile name (Task I-33) | no parameters |  |  |
+| `SYSNAME` | Constant's value is the current system name (Task I-33) | no parameters |  |  |
+| `MSGCON` | Constant's value comes from a message description instead of a literal - single instance, not repeatable (Task I-33) | length message-ID [library-name/]message-file-name |  |  |
 
 ### Menu-bar choice - Choice Selection Type
 
