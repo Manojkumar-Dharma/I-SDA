@@ -223,6 +223,35 @@ console.log('\nread-only panel HTML');
   check('I-112: states the validity-checking / FLTPCN limit when nothing is listed', /reference-inherited-limit/.test(emptyHtml) && /CHECK, COMP, RANGE, VALUES, CHKMSGID/.test(emptyHtml) && /FLTPCN/.test(emptyHtml));
   check('I-112: states the limit alongside listed keywords too', /reference-inherited-limit/.test(html));
   check('I-112: no limit note on the unresolved panel', !/reference-inherited-limit/.test(WebviewClientHelpers.referenceInheritedHtml({ field: { isReference: true }, definition: null, inherited: { keywords: [], notes: [] } })));
+  // Task I-116: CHECK/COMP/RANGE/VALUES/CHKMSGID and FLTPCN come from a
+  // separate QDBRTVFD fetch (extension.ts's fetchReferencedFieldValidity),
+  // attempted every time the field is resolved. def.validityChecked says
+  // whether THIS resolve's attempt succeeded - not whether the field has any
+  // of these keywords (same as every other inherited category, it may
+  // genuinely have none). A def with no validityChecked at all (every case
+  // above, and every definition resolved before I-116 shipped) is treated
+  // the same as false - the limit hint above already covers that.
+  const checkedHtml = WebviewClientHelpers.referenceInheritedHtml({
+    field: { isReference: true },
+    definition: Object.assign({}, def, { validityChecked: true }),
+    inherited: { keywords: [{ name: 'CHECK', parameters: 'ME' }, { name: 'FLTPCN', parameters: '*SINGLE' }], notes: [] },
+  });
+  check('I-116: validityChecked true -> the I-112 fallback hint is gone', !/reference-inherited-limit/.test(checkedHtml));
+  check('I-116: ...and the QDBRTVFD-sourced keywords render as ordinary read-only chips, same as any other inherited keyword', /CHECK\(ME\)/.test(checkedHtml) && /FLTPCN\(\*SINGLE\)/.test(checkedHtml) && !/<input|<button/.test(checkedHtml));
+
+  const notConnectedHtml = WebviewClientHelpers.referenceInheritedHtml({
+    field: { isReference: true },
+    definition: Object.assign({}, def, { validityChecked: false, validityError: 'Not connected to an IBM i.' }),
+    inherited: { keywords: [{ name: 'TEXT', parameters: "'x'" }], notes: [] },
+  });
+  check('I-116: validityChecked false -> the hint is back, with the actual reason (not a generic one)', /reference-inherited-limit/.test(notConnectedHtml) && /Not connected to an IBM i\./.test(notConnectedHtml));
+
+  const noReasonHtml = WebviewClientHelpers.referenceInheritedHtml({
+    field: { isReference: true },
+    definition: Object.assign({}, def, { validityChecked: false }),
+    inherited: { keywords: [], notes: [] },
+  });
+  check('I-116: validityChecked false with no validityError -> falls back to a generic "requires a connection" reason', /requires a connection to the IBM i/.test(noReasonHtml));
 }
 
 // ---------------------------------------------------------------------------

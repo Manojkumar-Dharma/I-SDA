@@ -39,6 +39,16 @@ const DspfWriter: {
   insertTypedRecord(dspfFile: any, sourceLines: string[], newRecord: { name: string; keywords: any[] }, pairBack: any): string[];
   insertTypedRecordWithDependent(dspfFile: any, sourceLines: string[], mainRecord: { name: string; keywords: any[] }, dependentRecord: { name: string; keywords: any[] }): string[];
 } = require('./dspfWriter.js');
+// Same reasoning again: plain dependency-free JS (see its own file header).
+// Task I-116's own QDBRTVFD (FILD0200) receiver decoder - see
+// fetchReferencedFieldValidity below for why this needs a live IBM i call at
+// all (DSPFFD's own OUTFILE, used everywhere else in this file, does not
+// carry validity-checking keywords or FLTPCN).
+const QdbrtvfdParser: {
+  parseFild0200(bytes: Uint8Array): { ok: boolean; error?: string; fields: any[] };
+  inheritableValidityKeywords(field: any): Array<{ name: string; parameters: string }>;
+  bytesFromRows(rows: any[]): Uint8Array | null;
+} = require('./qdbrtvfdParser.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -634,7 +644,18 @@ type ReferencedFieldAttributes = { length: number; dataType: string; decimalPosi
  * CCSID, editing, date/time formats - see DspfEngine.inheritableKeywordsFromDspffdRow).
  * Held in memory by the webview, never written into the DDS source.
  */
-type ResolvedReference = ReferencedFieldAttributes & { keywords: Array<{ name: string; parameters: string }> };
+type ResolvedReference = ReferencedFieldAttributes & {
+  keywords: Array<{ name: string; parameters: string }>;
+  // Task I-116: whether a QDBRTVFD validity-keywords fetch was attempted for
+  // this field (true on success, false on any failure - see
+  // fetchReferencedFieldValidity's own doc comment). Absent on a definition
+  // resolved before I-116 shipped (or, in the future, from an older cache) -
+  // referenceInheritedHtml treats that the same as false. validityError is
+  // the reason, shown in the fallback hint, only set when validityChecked is
+  // false.
+  validityChecked?: boolean;
+  validityError?: string;
+};
 
 /**
  * Interprets one DSPFFD OUTFILE row (QADSPFFD/QWHDRFFD format) into DDS's
@@ -737,6 +758,197 @@ async function fetchReferencedFieldAttributes(
   }
 
   return { ...mapDspffdRowToAttributes(rows[0]), keywords: DspfEngine.inheritableKeywordsFromDspffdRow(rows[0]) };
+}
+
+/**
+ * Task I-116 (decision: "Yes We will use iSDAtemp library") - the fixed
+ * library the QDBRTVFD wrapper procedure lives in on the connected system.
+ * Not a setting: every iSDA install uses the same name, so the procedure
+ * this extension creates on one connection is reused (not recreated) the
+ * next time iSDA connects to that same system, by any user.
+ */
+const ISDA_TEMP_LIBRARY = 'ISDATEMP';
+
+/**
+ * Set once ensureIsdaTempQdbrtvfdProcedure() succeeds against a given
+ * connection, so a resolve of several fields (or several resolves in the
+ * same VS Code session) only pays for the CRTLIB/CREATE PROCEDURE round trip
+ * once. Deliberately keyed by nothing more than "this session" - a fresh
+ * extension host (a new VS Code window, or a reload) checks again, which is
+ * correct and cheap (the checks below are themselves idempotent no-ops when
+ * the library/procedure already exist).
+ */
+let isdaTempQdbrtvfdEnsured = false;
+
+/**
+ * Creates (if not already present) the library ISDA_TEMP_LIBRARY and, inside
+ * it, a small CL-language external SQL procedure wrapping QSYS.QDBRTVFD
+ * (format FILD0200) and returning its receiver as hex-encoded 64-byte rows -
+ * the same shape docs/sda-reference/source/"Block B.txt" etc. are in, and
+ * what QdbrtvfdParser.bytesFromRows() expects.
+ *
+ * Two things confirmed during I-116's own captures make this necessary
+ * rather than simpler:
+ *  - A plain `CALL QSYS.QDBRTVFD(...)` issued directly from SQL did not
+ *    return data (see docs/sda-reference/source/"iSDA IBMi functionality.sql",
+ *    the RTVFD_DIAG/RTVFD_DIAG3 attempts) - only a CL-language wrapper worked.
+ *  - QTEMP is refused as the wrapper's own library by CRTSQLPRC/CRTPGM, so it
+ *    has to be a real, permanent library - ISDA_TEMP_LIBRARY, created once,
+ *    left in place (harmless to delete by hand; iSDA recreates it next time).
+ *
+ * Returns null on success, or a short error string. Never throws.
+ */
+async function ensureIsdaTempQdbrtvfdProcedure(connection: any): Promise<string | null> {
+  if (isdaTempQdbrtvfdEnsured) return null;
+
+  try {
+    const existing = await connection.runSQL(`SELECT 1 AS X FROM QSYS2.SYSSCHEMAS WHERE SCHEMA_NAME = '${ISDA_TEMP_LIBRARY}'`);
+    if (!existing || existing.length === 0) {
+      const crtlib = await connection.runCommand({
+        command: `CRTLIB LIB(${ISDA_TEMP_LIBRARY}) TEXT('iSDA temporary objects (QDBRTVFD wrapper) - safe to delete, iSDA recreates it')`,
+        environment: 'ile',
+      });
+      // CPF2111 = library already exists (a race with another session/user is fine - not an error).
+      if (crtlib && typeof crtlib.code === 'number' && crtlib.code !== 0 && !/CPF2111/.test(String(crtlib.stderr || crtlib.stdout || ''))) {
+        return `Could not create library ${ISDA_TEMP_LIBRARY}: ${crtlib.stderr || crtlib.stdout || 'unknown error'}`;
+      }
+    }
+  } catch (err) {
+    return `Could not check/create library ${ISDA_TEMP_LIBRARY}: ${err}`;
+  }
+
+  // Same shape as the RTVFD_DUMP procedure worked out and captured against
+  // during I-116 (see "iSDA IBMi functionality.sql"), generalized to accept
+  // the file's own library rather than a hardcoded one, and to report the
+  // receiver's own bytesReturned/available as an extra row (K='HDR') so the
+  // caller can detect truncation without a second round trip for the common
+  // case. 32,000 bytes comfortably held every field captured during I-116
+  // (about 380 bytes/field observed, so roughly 80 fields); a file with more
+  // fields than that reports truncated - see fetchReferencedFieldValidity.
+  const createProcedureSql = `
+CREATE OR REPLACE PROCEDURE ${ISDA_TEMP_LIBRARY}.RTVFD_DUMP (IN P_FILE CHAR(10), IN P_LIB CHAR(10))
+  LANGUAGE SQL
+  RESULT SETS 1
+BEGIN
+  DECLARE V_RCV     CHAR(32000) FOR BIT DATA;
+  DECLARE V_RCVLEN  INTEGER DEFAULT 32000;
+  DECLARE V_RTNFILE CHAR(20) DEFAULT ' ';
+  DECLARE V_FMT     CHAR(8)  DEFAULT 'FILD0200';
+  DECLARE V_FILE    CHAR(20) DEFAULT P_FILE || P_LIB;
+  DECLARE V_RECFMT  CHAR(10) DEFAULT '*FIRST    ';
+  DECLARE V_OVR     CHAR(1)  DEFAULT '0';
+  DECLARE V_SYS     CHAR(10) DEFAULT '*LCL      ';
+  DECLARE V_TYPE    CHAR(10) DEFAULT '*EXT      ';
+  DECLARE V_ERR     CHAR(16) FOR BIT DATA DEFAULT X'00000010000000000000000000000000';
+  DECLARE C1 CURSOR WITH RETURN FOR
+    WITH T(N) AS (VALUES 0 UNION ALL SELECT N + 1 FROM T WHERE N < 127)
+    SELECT 'RCV' AS K, N * 64 AS OFFSET, HEX(SUBSTR(V_RCV, N * 64 + 1, 64)) AS HEXDATA
+      FROM T ORDER BY N;
+
+  CALL ${ISDA_TEMP_LIBRARY}.QDBRTVFD_X(V_RCV, V_RCVLEN, V_RTNFILE, V_FMT, V_FILE, V_RECFMT, V_OVR, V_SYS, V_TYPE, V_ERR);
+  OPEN C1;
+END`;
+  // QDBRTVFD_X is the CL-language wrapper itself (QSYS.QDBRTVFD cannot be
+  // called directly from SQL - see this function's own doc comment above);
+  // CRTCLMOD/CRTSQLPRC that program the same way, in the same library.
+  const createWrapperSql = `
+CREATE OR REPLACE PROCEDURE ${ISDA_TEMP_LIBRARY}.QDBRTVFD_X (
+  INOUT P_RCV CHAR(32000) FOR BIT DATA,
+  IN P_RCVLEN INTEGER,
+  OUT P_RTNFILE CHAR(20),
+  IN P_FMT CHAR(8),
+  IN P_FILE CHAR(20),
+  IN P_RECFMT CHAR(10),
+  IN P_OVR CHAR(1),
+  IN P_SYS CHAR(10),
+  IN P_TYPE CHAR(10),
+  INOUT P_ERR CHAR(16) FOR BIT DATA
+)
+  EXTERNAL NAME 'QSYS/QDBRTVFD'
+  LANGUAGE CL
+  PARAMETER STYLE GENERAL`;
+
+  try {
+    await connection.runSQL(createWrapperSql);
+    await connection.runSQL(createProcedureSql);
+  } catch (err) {
+    return `Could not create ${ISDA_TEMP_LIBRARY}.RTVFD_DUMP: ${err}`;
+  }
+
+  isdaTempQdbrtvfdEnsured = true;
+  return null;
+}
+
+/**
+ * Task I-116 - fetches one referenced field's validity-checking keywords
+ * (CHECK/COMP/RANGE/VALUES/CHKMSGID) and FLTPCN from a connected IBM i, via
+ * QDBRTVFD (format FILD0200; see src/qdbrtvfdParser.js's own doc comment for
+ * the receiver layout and exactly what is/isn't decoded).
+ *
+ * DSPFFD's own OUTFILE - used by fetchReferencedFieldAttributes above for
+ * length/type/decimals and the TEXT/ALIAS/CCSID/editing/date-time keywords -
+ * does not carry any of this: WHVCNE is only a validity-keyword-entry COUNT,
+ * confirmed against a real DSPFFD outfile capture
+ * (docs/sda-reference/source/"DSPFFD outfile.txt"), and there is no FLTPCN
+ * column at all. Only QDBRTVFD returns the actual keyword parameters.
+ *
+ * Independent of fetchReferencedFieldAttributes's own connection lookup
+ * (connection lookup is a cheap in-memory check, not a round trip - see
+ * getConnectedCodeForIBMi's own doc comment) so a problem here never blocks
+ * the rest of a resolve: any failure (no connection, cannot create/reach
+ * ISDA_TEMP_LIBRARY's procedure, the field just isn't found, the receiver
+ * doesn't decode) is returned as `{error}`, and the caller keeps the
+ * definition it already has and falls back to a hint in the panel instead of
+ * leaving the whole resolve half-done. Per the I-116 decision ("if connection
+ * to IBM i is not [available], [show a] hint; also don't allow to edit"),
+ * these keywords are shown, when available, exactly like every other
+ * inherited keyword already is - read-only chips, never editable - so there
+ * is nothing extra to wire for the "don't allow to edit" half; see
+ * webviewClientHelpers.js's referenceInheritedHtml for the "not available"
+ * hint this feeds.
+ */
+async function fetchReferencedFieldValidity(
+  target: { fieldName: string; library: string | null; file: string }
+): Promise<{ keywords: Array<{ name: string; parameters: string }> } | { error: string }> {
+  const ext = vscode.extensions.getExtension('halcyontechltd.code-for-ibmi');
+  if (!ext) return { error: 'Code for IBM i is not installed.' };
+  if (!ext.isActive) {
+    try {
+      await ext.activate();
+    } catch {
+      // fall through - exports may still be usable, or the connection check below will catch it
+    }
+  }
+  const instance: any = ext.exports && ext.exports.instance;
+  const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
+  if (!connection) return { error: 'Not connected to an IBM i.' };
+
+  const ensureError = await ensureIsdaTempQdbrtvfdProcedure(connection);
+  if (ensureError) return { error: ensureError };
+
+  const pad10 = (s: string) => (s.toUpperCase() + '          ').slice(0, 10).replace(/'/g, "''");
+  const filePart = pad10(target.file);
+  const libPart = pad10(target.library || '*LIBL');
+
+  let rows: any[];
+  try {
+    rows = await connection.runSQL(`CALL ${ISDA_TEMP_LIBRARY}.RTVFD_DUMP('${filePart}', '${libPart}')`);
+  } catch (err) {
+    return { error: `QDBRTVFD failed for ${(target.library ? target.library + '/' : '') + target.file}: ${err}` };
+  }
+
+  const bytes = QdbrtvfdParser.bytesFromRows(rows || []);
+  if (!bytes) return { error: 'QDBRTVFD returned no data.' };
+  const parsed = QdbrtvfdParser.parseFild0200(bytes);
+  if (!parsed.ok) return { error: parsed.error || 'Could not decode the QDBRTVFD receiver.' };
+
+  const fieldName = target.fieldName.toUpperCase();
+  const field = parsed.fields.find((f: any) => String(f.name).toUpperCase() === fieldName);
+  if (!field) return { error: `Field "${target.fieldName}" was not found in the QDBRTVFD receiver for ${(target.library ? target.library + '/' : '') + target.file}.` };
+
+  const keywords = QdbrtvfdParser.inheritableValidityKeywords(field);
+  if (field.floatPrecision) keywords.push({ name: 'FLTPCN', parameters: field.floatPrecision });
+  return { keywords };
 }
 
 /**
@@ -950,6 +1162,19 @@ async function handleResolveReferencedField(
           fetched.delete(key);
           continue;
         }
+        // Task I-116: never blocks the resolve above - a failure here just
+        // means the panel falls back to its "not available" hint for these
+        // particular keywords (see fetchReferencedFieldValidity's own doc
+        // comment for the reasoning and referenceInheritedHtml for the hint).
+        const validity = await fetchReferencedFieldValidity(target);
+        if ('error' in validity) {
+          outcome.validityChecked = false;
+          outcome.validityError = validity.error;
+        } else {
+          outcome.validityChecked = true;
+          outcome.keywords = outcome.keywords.concat(validity.keywords);
+        }
+
         entries.push({ key, definition: outcome });
       }
 

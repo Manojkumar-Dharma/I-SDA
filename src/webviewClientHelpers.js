@@ -2897,9 +2897,22 @@
     ((opts.inherited && opts.inherited.notes) || []).forEach(function (n) {
       html += '<div class="hint-small reference-inherited-note">' + escapeHtml(n) + '</div>';
     });
-    // Task I-112: a documented limit, not a bug - DSPFFD's outfile carries only a count of the
-    // referenced field's validity checks and has no FLTPCN column, so they are never listed above.
-    html += '<div class="hint-small reference-inherited-limit">Not listed here: the validity-checking keywords (CHECK, COMP, RANGE, VALUES, CHKMSGID) and FLTPCN. The referenced field may still pass them on (unless this field overrides them), but DSPFFD\u2019s outfile does not carry them, so they cannot be shown.</div>';
+    // Task I-116: CHECK/COMP/RANGE/VALUES/CHKMSGID and FLTPCN come from a
+    // separate QDBRTVFD fetch (see extension.ts's fetchReferencedFieldValidity),
+    // attempted every time this field is resolved. `def.validityChecked` says
+    // whether that attempt succeeded THIS time - not whether the field has
+    // any of these keywords (it may genuinely have none, same as every other
+    // inherited-keyword category above). When it didn't succeed (no IBM i
+    // connection, or the fetch itself failed), they are always shown as a
+    // hint, never guessed or left silently missing - and, succeeded or not,
+    // they are never editable here, same as every other chip in this panel:
+    // this whole section is a read-only preview of what the system applies
+    // at compile time, not something iSDA writes into the source.
+    if (!def.validityChecked) {
+      html += '<div class="hint-small reference-inherited-limit">Not listed here: the validity-checking keywords (CHECK, COMP, RANGE, VALUES, CHKMSGID) and FLTPCN' +
+        (def.validityError ? ' - ' + escapeHtml(def.validityError) : ' - requires a connection to the IBM i the referenced field lives on') +
+        '. The referenced field may still pass them on (unless this field overrides them); use \u201cResolve Referenced Field\u201d again once connected to check.</div>';
+    }
     return html + '</div>';
   }
 

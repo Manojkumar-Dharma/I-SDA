@@ -320,10 +320,31 @@
     return res;
   }
 
+  /**
+   * Same reassembly as bytesFromHexRows, but from an array of row objects
+   * (K/OFFSET/HEXDATA, case-insensitive keys) - the shape a SQL result set
+   * comes back as (Code for i's connection.runSQL()), rather than the
+   * pasted-text capture-file shape. Delegates to bytesFromHexRows so there is
+   * one reassembly implementation, not two.
+   */
+  function bytesFromRows(rows) {
+    if (!rows || !rows.length) return null;
+    var val = function (row, name) {
+      var v = row[name];
+      if (v === undefined) v = row[name.toLowerCase()];
+      return v;
+    };
+    var text = rows.map(function (r) {
+      return [val(r, 'K'), val(r, 'OFFSET'), val(r, 'HEXDATA')].join('\t');
+    }).join('\n');
+    return bytesFromHexRows(text);
+  }
+
   return {
     parseFild0200: parseFild0200,
     inheritableValidityKeywords: inheritableValidityKeywords,
     bytesFromHexRows: bytesFromHexRows,
+    bytesFromRows: bytesFromRows,
     decodeEbcdic037: decodeEbcdic037,
     HEADER_LENGTH: HEADER_LENGTH,
     FIXED_ENTRY_LENGTH: FIXED_ENTRY_LENGTH

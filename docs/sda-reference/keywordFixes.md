@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-114 of 123 tasks done; 9 open (see [Open work](#open-work)). Current version: **v0.10.195**.
+116 of 123 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.198**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -158,7 +158,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Done | v0.10.190 |
 | [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Done | v0.10.193 |
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
-| [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | In progress | — |
+| [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | Done | v0.10.198 |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | Claude |
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Not started | — |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Not started | — |
@@ -179,7 +179,6 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-116](#i-116) | In progress | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API. Parser confirmed against three real captures (all `CHECK`/`COMP` codes known); still open: the host-side call and the UI - see the task's Progress section. Size (estimate): Medium. Raised by I-112. |
 | 2 | [I-40](#i-40) | Not started (claimed 2026-09-16) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
 | 3 | [I-118](#i-118) | Not started | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
 | 4 | [I-120](#i-120) | Not started | Shared test harness. Size (estimate): Medium (mechanical, touches all 145 test files). |
@@ -5326,14 +5325,14 @@ Opened from a deferred finding raised by I-105, verbatim:
 
 ### I-116 — Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-112
+> **Area:** Field · **Status:** Done (v0.10.198) · **Depends on:** I-112
 
 Opened from a deferred finding raised by I-112, verbatim:
 
 **Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API** (`FILD0200`, per-field `Qdb_Qddfvchk` section) so the inherited panel can list `CHECK` / `COMP` / `RANGE` / `VALUES` / `CHKMSGID` instead of just stating the limit. Needs a real IBM i to confirm the structure layout and whether `FLTPCN` is reachable. Also worth confirming there: whether newer `QWHDRFFD` releases carry message-id columns and what `WHVCNE` counts. Size: Medium (unverified).
 
 
-**Progress (parser confirmed against three real captures, not yet wired).** `docs/sda-reference/source/Block B.txt`, `"Block - TESTPF2.txt"`, `"Block - TESTPFK.txt"` (all `FILD0200`, IBM i 7.3, CCSID 37) plus a `DSPFFD` `OUTFILE` capture (`"DSPFFD outfile.txt"`) made it possible to work out the layout without guessing, then confirm it. `src/qdbrtvfdParser.js` (dependency-free, UMD like `mnuCmdEngine.js`) decodes all three; `src/test/i116Qdbrtvfd.test.js` checks every field of all three captures against expectations written by hand from the DDS and the `OUTFILE` (never from the parser's own output), plus the failure paths, and every new code mapping was mutation-checked (a wrong `CHECK` or `COMP` code makes the matching golden check fail).
+**Progress (parser confirmed against three real captures).** `docs/sda-reference/source/Block B.txt`, `"Block - TESTPF2.txt"`, `"Block - TESTPFK.txt"` (all `FILD0200`, IBM i 7.3, CCSID 37) plus a `DSPFFD` `OUTFILE` capture (`"DSPFFD outfile.txt"`) made it possible to work out the layout without guessing, then confirm it. `src/qdbrtvfdParser.js` (dependency-free, UMD like `mnuCmdEngine.js`) decodes all three; `src/test/i116Qdbrtvfd.test.js` checks every field of all three captures against expectations written by hand from the DDS and the `OUTFILE` (never from the parser's own output), plus the failure paths, and every new code mapping was mutation-checked (a wrong `CHECK` or `COMP` code makes the matching golden check fail).
 
 - **Layout confirmed.** Length-prefixed field entries from offset 256 (a fixed 312-byte part plus a validity section spliced in at +252 whose length is entry length − 312); entry attributes (type, length, digits, decimals, buffer position); validity entries `RANGE`, `VALUES`, `COMP`, `CHECK` and `CHKMSGID` (message id, file, library, optional `&field`); numeric values stored as zoned digits scaled by the field's decimals, negative via a D zone.
 - **`CHECK` codes, all now known:** `ME`=0x64, `M10`=0xa0, `M11`=0xa1, `VN`=0xa2, `AB`=0xa3, `VNE`=0xa5, `M10F`=0xa6, `M11F`=0xa7. `ER`/`FE`/`LC`/`RB`/`RZ`/`RL`/`RLTB` (the DDS Reference's keyboard/cursor-control `CHECK` codes) were deliberately not captured - they're workstation behaviours with no meaning on a physical file's own field, so `REFFLD` has nothing to inherit there.
@@ -5343,14 +5342,7 @@ Opened from a deferred finding raised by I-112, verbatim:
 - **`WHVCNE` and `WHCSID` (the two questions I-112 left open, from the `DSPFFD OUTFILE` capture).** `WHVCNE` is the count of validity-check keyword *entries* on the field (`CHECK(AB) VALUES('A' 'B')` is 2, not the 2 values inside `VALUES`) - it matches `field.validity.entries.length` exactly for all 16 `TESTPF` fields. `WHCSID` is 37 (the job CCSID) for character fields and the sentinel 65535 ("no CCSID applies") for every numeric field - not a real per-field CCSID, so it isn't useful for `FLTPCN`/decoding purposes.
 - **Access.** A plain `CALL QSYS.QDBRTVFD` did not work from SQL and a wrapper in `QTEMP` is refused; a CL-language external procedure in a real library (Block B) works. That means a permanent object on the user's system, so the extension needs a setting / consent and a fallback to today's documented limit.
 
-**Still open.**
-
-1. **Decision:** how the extension calls the API (procedure library, consent, fallback), and whether a program-call route exists that avoids creating an object.
-2. **Buffer sizing:** about 380 bytes per field in these captures, so a 32,000-byte receiver holds roughly 80 fields; call again with `bytesAvailable` when `truncated` is reported (the parser already reports it).
-3. **Wiring and UI:** host-side call in `extension.ts`, pass `inheritableValidityKeywords()` to the inherited panel, replace the "Not listed here" hint at `webviewClientHelpers.js` (I-112), add the new file to the `dist` copy list, and a test for the panel. Note the captures are a *physical* file's DDS; the display-file Reference rules (for example `COMP` once per field, no `COMP` on floating point) do not necessarily apply to the referenced file's own keywords.
-4. **Optional further captures**, only if they turn out to matter once the UI is wired: other releases / CCSIDs, a keyed file where the key changes something else about the fields (not just adds a `K` spec).
-
-*Raised by I-112. Size (estimate): Medium (unverified).*
+**Wired in (v0.10.198), per the decision "Yes We will use iSDAtemp library":** `extension.ts`'s `fetchReferencedFieldValidity` calls `QDBRTVFD` (via a CL-language wrapper procedure this extension creates once, in a fixed library `ISDATEMP` - never `QTEMP`, never user-configurable) whenever "Resolve Referenced Field" runs, and merges the result into the same `keywords` array `fetchReferencedFieldAttributes` already fills from `DSPFFD` - both flow through `DspfEngine.inheritedReferenceKeywords` unchanged, so IBM's own shape-override rule (a field that specifies its own length/decimals/type gets neither editing nor validity keywords copied) applies to the QDBRTVFD-sourced ones too, automatically. Per the decision "if connection to IBM i is not [available], [show a] hint" - a fetch failure (no connection, cannot create/reach the library or procedure, field not found, receiver doesn't decode) never fails the resolve: `definition.validityChecked`/`validityError` tell `referenceInheritedHtml` (webviewClientHelpers.js) whether to show the keywords or the fallback hint, naming the actual reason. Nothing here is ever editable - same read-only chip as every other inherited keyword, so "also don't allow to edit" needed no separate wiring. The third decision, the `+n`/`-n` length editor for a reference field's own length override, turned out to already be shipped, in I-74 (v0.10.179) - confirmed, not re-built. New `i116ResolveFieldValidity.test.js` (the extension-host wiring, against a synthetic receiver built from Block B's own real captured bytes); extended `i74ReferenceInheritedKeywords.test.js` for the new hint states.
 
 ---
 
