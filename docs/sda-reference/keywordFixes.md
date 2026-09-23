@@ -160,7 +160,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | Done | v0.10.198 |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | Claude |
-| [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Not started | — |
+| [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | In progress | Claude |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Not started | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Not started | — |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 2 | [I-40](#i-40) | Done (v0.10.199) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
-| 3 | [I-118](#i-118) | Not started | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
+| 3 | [I-118](#i-118) | In progress | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
 | 4 | [I-120](#i-120) | Not started | Shared test harness. Size (estimate): Medium (mechanical, touches all 145 test files). |
 | 5 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
 | 6 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
@@ -5426,7 +5426,7 @@ Opened from a deferred finding raised by I-115, verbatim:
 
 ### I-118 — Remove dead code, test-only exports and unreferenced fixtures
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-40
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-40
 
 Opened from the maintainability audit in [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md) (section 2). Scope: `commandKeyNumbersInUse` and `guardedSimple` (no callers); the ~22 exports referenced only by tests (list in the audit) - confirm each has no dynamic call site, then delete it together with its own test checks, or move it to a test helper if a test legitimately needs it; delete `src/fixtures/generateMenubarFixture.js`, `generateWidgetFixture.js`, `generateWindowRefsFixture.js` and `smoketest.js` if still unreferenced. Every deletion must leave `npm test` green with the same or fewer checks explained in the commit.
 
