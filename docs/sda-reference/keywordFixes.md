@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-119 of 123 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.201**.
+119 of 124 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.201**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -166,6 +166,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
+| [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -179,18 +180,19 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
-| 2 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
-| 3 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
+| 1 | [I-124](#i-124) | Not started | Decide whether the "kept for backward compatibility" note on 6 test-only-export pairs is still worth honoring (decision first, then delete or keep). Size (estimate): Small. Raised by I-118. |
+| 2 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
+| 3 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
+| 4 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-117, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-124, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-118 | 6 of the audit's test-only-export candidates (`getValidityCheck`/`setValidityCheck`, `getMessageId`/`setMessageId`, `setCommandKey`/`removeCommandKey`, `getReferenceOverrides`/`setReferenceOverrides`, `colorAttrEditorHtml`/`wireColorAttrEditor`, `getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`) carry an explicit "kept for backward compatibility/API completeness" note, citing `getColorAttr`/`setColorAttr` as precedent - but `getColorAttr`/`setColorAttr` still has a live production caller and these don't. Whether the "kept" rationale is now stale (no live caller left to stay compatible with, since `DspfWriter` isn't a published external API) or still worth honoring needs a human decision, not made by I-118. |
+| - | None at the moment. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5429,7 +5431,7 @@ Opened from the maintainability audit in [`MAINTAINABILITY-AUDIT.md`](MAINTAINAB
 
 Removed as genuinely dead, no callers anywhere: `commandKeyNumbersInUse`, `guardedSimple`, `wireTwoField` (production superseded each - S36-4's hand-rolled guards, `wireUsrdfnGuardedTwoField` in I-44); `getEditCodeParts`, `getFileQuotedTextConditions`, `setFileHlpPnlGrpKeyword`/`setFileHlpSchIdxKeyword`, `getMnubardspFields`/`setMnubardspFields`. Their own test coverage was removed alongside them, except where a still-live sibling function (`setFileQuotedText`, the HLPPNLGRP/HLPSCHIDX getters) needed the coverage kept - those tests were rewritten to exercise the live function directly instead of losing the check. 3 of the 4 fixture scripts were genuinely orphaned and removed; `smoketest.js` was kept (it's an actively-documented manual dev tool per `vsc-extension-quickstart.md`, not unreferenced) and `lineBuilder.js` was kept (still used by the real `generateFixture.js` pipeline). Full details and exact test-check-delta accounting in the CHANGELOG (v0.10.200).
 
-**Deferred finding:** 6 of the audit's ~22 test-only-export candidates turned out to carry an explicit "kept for backward compatibility/API completeness" note - in their own doc comment for 4 of them, but for 2 (`getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`) only in a *different* file's comment (the code that superseded them) or the test file's own header. Left untouched this task: `getValidityCheck`/`setValidityCheck`, `getMessageId`/`setMessageId`, `setCommandKey`/`removeCommandKey`, `getReferenceOverrides`/`setReferenceOverrides`, `colorAttrEditorHtml`/`wireColorAttrEditor`, `getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`, and `noOptionIndicatorKeywordNames` (exists "for tests and audits", a deliberate test/audit-facing accessor, not dead code). The "kept for API completeness" rationale for the first 4 explicitly cites `getColorAttr`/`setColorAttr` as precedent, but `getColorAttr`/`setColorAttr` actually still have a live production caller (`webviewClientHelpers.js`) - these don't. Whether that makes the "kept" rationale stale (no live caller left to be compatible with, since `DspfWriter` isn't a published external API) or still worth honoring is a genuine judgment call left to a human or a dedicated follow-up task, not decided here.
+**Deferred finding - opened as I-124:** 6 of the audit's ~22 test-only-export candidates turned out to carry an explicit "kept for backward compatibility/API completeness" note - in their own doc comment for 4 of them, but for 2 (`getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`) only in a *different* file's comment (the code that superseded them) or the test file's own header. Left untouched this task: `getValidityCheck`/`setValidityCheck`, `getMessageId`/`setMessageId`, `setCommandKey`/`removeCommandKey`, `getReferenceOverrides`/`setReferenceOverrides`, `colorAttrEditorHtml`/`wireColorAttrEditor`, `getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`, and `noOptionIndicatorKeywordNames` (exists "for tests and audits", a deliberate test/audit-facing accessor, not dead code). The "kept for API completeness" rationale for the first 4 explicitly cites `getColorAttr`/`setColorAttr` as precedent, but `getColorAttr`/`setColorAttr` actually still have a live production caller (`webviewClientHelpers.js`) - these don't. Whether that makes the "kept" rationale stale (no live caller left to be compatible with, since `DspfWriter` isn't a published external API) or still worth honoring is a genuine judgment call left to a human or a dedicated follow-up task, not decided here.
 
 *Raised by the 2026-09-21 audit. Size (estimate): Small.*
 
@@ -5490,5 +5492,19 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 35-48% of lines in the big source files are comments and about 1,100 lines cite a task ID. Keep comments that state a rule or a DDS Reference citation; move task narrative (what was wrong before, which session found it) to this file and the git log, leaving at most a one-line "see I-nn". Best done alongside I-121 so each rule's citation lives in the spec. Mechanical, no behaviour change: the test suite and the compiled output must be unchanged apart from comments.
 
 *Raised by the 2026-09-21 audit. Size (estimate): Medium.*
+
+---
+
+<a id="i-124"></a>
+
+### I-124 — Test-only exports that still carry a "kept for backward compatibility" note (decision first)
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-118
+
+Opened from a deferred finding raised by I-118, verbatim:
+
+**6 of the audit's test-only-export candidates carry an explicit "kept for backward compatibility/API completeness" note.** `getValidityCheck`/`setValidityCheck`, `getMessageId`/`setMessageId`, `setCommandKey`/`removeCommandKey`, `getReferenceOverrides`/`setReferenceOverrides`, `colorAttrEditorHtml`/`wireColorAttrEditor`, `getInputKeywords`/`setInputKeywords` and `getGeneralFieldKeywords`/`setGeneralFieldKeywords` have no live production caller. The note sits in their own doc comment for 4 of them; for `getInputKeywords`/`setInputKeywords` and `getGeneralFieldKeywords`/`setGeneralFieldKeywords` it sits only in a different file's comment (the code that superseded them) or the test file's own header. The note cites `getColorAttr`/`setColorAttr` as precedent, but those still have a live production caller in `webviewClientHelpers.js`. Decide whether the "kept" rationale is stale (there is no live caller to stay compatible with, and `DspfWriter` is not a published external API) or still worth honoring. If stale, delete each pair with its own test coverage, as I-118 did for the pairs it removed; if honored, reword the comments so they no longer claim a precedent that does not hold. `noOptionIndicatorKeywordNames` stays regardless (a deliberate test/audit accessor).
+
+*Raised by I-118. Size (estimate): Small.*
 
 ---
