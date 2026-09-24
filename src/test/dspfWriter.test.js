@@ -12,15 +12,7 @@ const DspfEngine = require(path.join(__dirname, '../dspfEngine.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('DspfWriter.insertField() - appending after existing fields');
 {
@@ -2029,5 +2021,5 @@ console.log('\n' + 'I-32 - DspfWriter.getTimeSeparator()/setTimeSeparator() - TI
   check('timeSeparatorConflictReason allows *HMS/blank (variable-separator formats; TIMFMT has no *JOB value at all)', !DspfWriter.timeSeparatorConflictReason('*HMS') && !DspfWriter.timeSeparatorConflictReason(''));
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

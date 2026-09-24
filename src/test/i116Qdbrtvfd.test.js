@@ -34,15 +34,7 @@ const fs = require('fs');
 const path = require('path');
 const P = require('../qdbrtvfdParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 const capture = fs.readFileSync(path.join(__dirname, '..', '..', 'docs', 'sda-reference', 'source', 'Block B.txt'), 'utf8');
 
@@ -201,9 +193,9 @@ check('CRLF line endings are fine', P.bytesFromHexRows('RCV\t0\t0102\r\nRCV\t2\t
 check('empty input -> null', P.bytesFromHexRows('') === null);
 check('EBCDIC 037 spot checks: FLDME, digits, ampersand, asterisk', P.decodeEbcdic037(Uint8Array.from([0xc6, 0xd3, 0xc4, 0xd4, 0xc5]), 0, 5) === 'FLDME' && P.decodeEbcdic037(Uint8Array.from([0xf0, 0xf9, 0x50, 0x5c]), 0, 4) === '09&*');
 
-if (failures === 0) {
+if (failureCount() === 0) {
   console.log('\nALL CHECKS PASSED');
 } else {
-  console.log('\n' + failures + ' CHECK(S) FAILED');
+  console.log('\n' + failureCount() + ' CHECK(S) FAILED');
   process.exitCode = 1;
 }

@@ -22,19 +22,10 @@
  * (same rationale as i14MnubarConditioningAudit.test.js).
  * Run with: node src/test/i17MnubardspRepeatableInstances.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -45,16 +36,10 @@ const dspfSource =
     "     A                                      MNUBARCHC(1 PULLFILE '>File')",
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
 const posted = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     window.alert = () => {};
@@ -187,6 +172,6 @@ setTimeout(() => {
   check("BAR1's own MNUBAR keyword is untouched throughout", reparsed.keywords.some((k) => k.name === 'MNUBAR'));
   check("BAR1's own field-level MNUBARCHC (on MNUFLD) is untouched throughout", reparsed.fields.some((f) => f.name === 'MNUFLD' && f.keywords.some((k) => k.name === 'MNUBARCHC')));
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

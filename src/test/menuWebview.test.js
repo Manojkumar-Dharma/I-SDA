@@ -14,15 +14,8 @@ const MnuCmdEngine = require('../mnuCmdEngine.js');
 const DspfParser = require('../../dist/dspfParser.js');
 const DspfEngine = require('../dspfEngine.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom } = require('./helpers/common');
 
 const menuSource =
   [
@@ -43,10 +36,7 @@ const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce', menuSource
 );
 
 const posted = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
   },
@@ -253,10 +243,7 @@ function runCrossReferenceWarningScenario() {
     ''
   );
   const refPosted = [];
-  const refDom = new JSDOM(refHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const refDom = newWebviewDom(refHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => refPosted.push(m) });
     },
@@ -303,10 +290,7 @@ function runSplitConstantScenario() {
     ''
   );
   const splitPosted = [];
-  const splitDom = new JSDOM(splitHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const splitDom = newWebviewDom(splitHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => splitPosted.push(m) });
     },
@@ -364,10 +348,7 @@ function runMultiFragmentLabelScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -411,10 +392,7 @@ function runMultiFragmentLabelScenario() {
       ''
     );
     const posted2 = [];
-    const dom2 = new JSDOM(html2, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const dom2 = newWebviewDom(html2, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted2.push(m) });
       },
@@ -441,10 +419,7 @@ function runMultiFragmentLabelScenario() {
         ''
       );
       const posted3 = [];
-      const dom3 = new JSDOM(html3, {
-        runScripts: 'dangerously',
-        resources: 'usable',
-        pretendToBeVisual: true,
+      const dom3 = newWebviewDom(html3, {
         beforeParse(window) {
           window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted3.push(m) });
         },
@@ -523,10 +498,7 @@ function runScreenSpaceScenario() {
     ''
   );
   const roomyPosted = [];
-  const roomyDom = new JSDOM(roomyHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const roomyDom = newWebviewDom(roomyHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => roomyPosted.push(m) });
     },
@@ -554,10 +526,7 @@ function runScreenSpaceScenario() {
       ''
     );
     const fullPosted = [];
-    const fullDom = new JSDOM(fullHtml, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const fullDom = newWebviewDom(fullHtml, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => fullPosted.push(m) });
       },
@@ -584,10 +553,7 @@ function runScreenSpaceScenario() {
         ''
       );
       const overridePosted = [];
-      const overrideDom = new JSDOM(overrideHtml, {
-        runScripts: 'dangerously',
-        resources: 'usable',
-        pretendToBeVisual: true,
+      const overrideDom = newWebviewDom(overrideHtml, {
         beforeParse(window) {
           window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => overridePosted.push(m) });
         },
@@ -626,10 +592,7 @@ function runFirstOptionPlacementScenario() {
     ''
   );
   const titledPosted = [];
-  const titledDom = new JSDOM(titledHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const titledDom = newWebviewDom(titledHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => titledPosted.push(m) });
     },
@@ -651,10 +614,7 @@ function runFirstOptionPlacementScenario() {
       ''
     );
     const emptyPosted = [];
-    const emptyDom = new JSDOM(emptyHtml, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const emptyDom = newWebviewDom(emptyHtml, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => emptyPosted.push(m) });
       },
@@ -691,10 +651,7 @@ function runChosenPlacementScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -760,10 +717,7 @@ function runOptionConditioningScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -816,10 +770,7 @@ function runOptionStyleScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -887,10 +838,7 @@ function runOptionStyleScenario() {
       ''
     );
     const splitPosted = [];
-    const splitDom = new JSDOM(splitHtml, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const splitDom = newWebviewDom(splitHtml, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => splitPosted.push(m) });
       },
@@ -936,10 +884,7 @@ function runCopyOptionScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -981,10 +926,7 @@ function runCopyOptionCollisionScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1043,10 +985,7 @@ function runCopySplitOptionScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1082,10 +1021,7 @@ function runCopyMenuFileAttrsScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1139,10 +1075,7 @@ function runMenuRecordCrudScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1213,10 +1146,7 @@ function runCrossRecordOptionScopingScenario() {
     ''
   );
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1347,10 +1277,7 @@ function runFileNamePositionScenario() {
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
     ''
   );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -1385,10 +1312,7 @@ function runCommandSourceLinkScenario() {
       ''
     );
     const posted = [];
-    const dom = new JSDOM(html, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const dom = newWebviewDom(html, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       },
@@ -1446,10 +1370,7 @@ function runCodeForIBadgeHideScenario() {
     /<meta http-equiv="Content-Security-Policy"[^>]*>/,
     ''
   );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -1472,8 +1393,8 @@ function runCodeForIBadgeHideScenario() {
         setTimeout(() => {
           check('reappears once connected', !compileBtn.classList.contains('hidden'));
 
-          console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-          process.exit(failures === 0 ? 0 : 1);
+          console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+          process.exit(failureCount() === 0 ? 0 : 1);
         }, 0);
       }, 0);
     }, 0);

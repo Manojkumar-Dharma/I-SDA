@@ -38,15 +38,7 @@ const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const ext = require(path.join(__dirname, '../../dist/extension.js'));
 const { buildLine } = require('../fixtures/lineBuilder.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 const kw = (name, parameters) => ({ name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] });
 const fld = (dataType, length, decimals, usage, keywords) => ({ dataType, length, decimalPositions: decimals, usage, keywords: keywords || [] });
@@ -257,7 +249,7 @@ async function run() {
   }
 
   vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 run().catch((e) => { console.error(e); process.exit(1); });

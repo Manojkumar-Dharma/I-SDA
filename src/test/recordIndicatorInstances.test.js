@@ -21,15 +21,7 @@
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('getRecordIndicatorInstances - none of these keywords present at all');
 {
@@ -228,5 +220,5 @@ console.log('\nsetRecordIndicatorInstances - dropping (unchecking) a legacy ROLL
   check('unrelated COLOR keyword untouched', kw.some((k) => k.name === 'COLOR'));
 }
 
-console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) FAILED.`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(failureCount() === 0 ? '\nAll checks passed.' : `\n${failureCount()} check(s) FAILED.`);
+process.exit(failureCount() === 0 ? 0 : 1);

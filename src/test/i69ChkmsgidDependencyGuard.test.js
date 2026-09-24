@@ -18,21 +18,12 @@
  * Run with: node src/test/i69ChkmsgidDependencyGuard.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const kwd = (name, parameters) => ({ name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] });
 
 // ===========================================================================
@@ -111,12 +102,9 @@ function fieldLines(name, usage, keywordTexts) {
 
 async function scenario(lines, fn) {
   const src = [rec].concat(lines).join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'CM.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'CM.DSPF');
   const posted = [], alerts = [], errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = (m) => alerts.push(m);
@@ -277,7 +265,7 @@ async function main() {
     check('an unrelated Basic-tab edit (length) is unaffected', c.alerts.length === 0 && !!c.lastEdit());
   });
 
-  console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-  process.exit(failures === 0 ? 0 : 1);
+  console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

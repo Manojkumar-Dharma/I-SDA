@@ -28,18 +28,9 @@
  * (same rationale as i10SflctlConditioningAudit.test.js).
  * Run with: node src/test/i14MnubarConditioningAudit.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -48,15 +39,9 @@ const dspfSource =
     "     A                                      MNUBARCHC(1 PULLFILE '>File')",
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     window.alert = () => {};
@@ -111,6 +96,6 @@ setTimeout(() => {
     check('MNUBAR still has no Conditioning toggle after commit', !hasConditioningToggle(p + '-mnubar'));
   }
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

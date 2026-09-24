@@ -27,18 +27,10 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { kwd, newWebviewDom, webviewHtml, withAlertCapture } = require('./helpers/common');
 
 const PLAIN = ['ALWROL', 'ASSUME', 'CLRL', 'GETRETAIN', 'GRDRCD', 'HLPCMDKEY', 'HLPSEQ', 'INZRCD', 'LOGINP', 'MNUBAR', 'PULLDOWN', 'RTNCSRLOC', 'RTNDTA', 'SETOF', 'SFL', 'SFLCTL', 'SFLENTER', 'SFLMLTCHC', 'SFLMODE', 'SFLRNA', 'SFLRTNSEL', 'SFLSNGCHC', 'SLNO', 'UNLOCK', 'USRDFN'];
 const DSIZE = ['SFLLIN', 'SFLMSGRCD', 'SFLPAG', 'SFLSIZ', 'WINDOW'];
@@ -119,9 +111,6 @@ global.window = dom.window;
 global.DspfWriter = DspfWriter;
 const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-function kwd(name, parameters, conditions) {
-  return { name: name, parameters: parameters || '', conditions: conditions || [], raw: '', sourceLines: [] };
-}
 const G = (...nums) => ({ indicators: nums.map((n) => ({ number: n, not: false })) });
 const DS = (name) => ({ displaySizeCondition: { name: name, not: false }, indicators: [] });
 
@@ -136,13 +125,6 @@ function mount(keywords) {
   function onChange(next) { state.keywords = next; state.changes++; render(); }
   render();
   return state;
-}
-function withAlertCapture(fn) {
-  let msg = null;
-  const original = global.window.alert;
-  global.window.alert = function (m) { msg = m; };
-  try { fn(); } finally { global.window.alert = original; }
-  return msg;
 }
 const click = (el) => el.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
 const toggleOf = (idx) => document.querySelector('.kw-cond-toggle[data-owner="kwt"][data-idx="' + idx + '"]');
@@ -267,15 +249,9 @@ const SRC = [
   buildLine({ seq: '00080', nameType: 'R', name: 'PLAINREC', func: 'INZRCD' }),
 ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce101b', SRC, 'I101B.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce101b', SRC, 'I101B.DSPF');
 const errors = [];
-const webDom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const webDom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     window.alert = () => {};
@@ -308,6 +284,6 @@ setTimeout(() => {
   const r2 = d.querySelector('.kw-remove[data-owner="record-PLAINREC"][data-idx="0"]');
   check('INZRCD chip on another record: no toggle, note shown', !!r2 && /INZRCD/.test(r2.closest('.kw-row').textContent) && !t2 && /No option indicators/.test(r2.closest('.kw-row').textContent));
   check('no uncaught errors', errors.length === 0);
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 500);

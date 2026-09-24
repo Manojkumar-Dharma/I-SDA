@@ -28,18 +28,9 @@
  *     cancels placement mode instead of creating anything
  * Run with: node src/test/toolboxWindowTool.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -50,14 +41,8 @@ const dspfSource =
   ].join('\n') + '\n';
 
 const posted = [];
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern');
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     // gridMetrics() needs a non-zero rect to convert a pixel click into a
@@ -134,6 +119,6 @@ setTimeout(() => {
   check('WDW2 got its own geometry from its own click', /WDW2[\s\S]*?WINDOW\(10 20 10 40\)/.test(last2.text));
   check('record select switched to WDW2', recordSelect.value === 'WDW2');
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

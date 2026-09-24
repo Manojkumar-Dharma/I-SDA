@@ -21,22 +21,13 @@
  * Run with: node src/test/i57PshbtnFieldKind.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfEngine = require(path.join(__dirname, '../dspfEngine.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const kwd = (name, parameters) => ({ name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] });
 
 // ===========================================================================
@@ -208,14 +199,11 @@ console.log('\nB4. Mnemonic escaping and the no-choice fallback');
 // C. Real generated webview
 // ===========================================================================
 function makeDom(src) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'PB.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'PB.DSPF');
   const posted = [];
   const errors = [];
   const alerts = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = (m) => alerts.push(m);
@@ -446,7 +434,7 @@ async function main() {
     check('the canvas draws one button per PSHBTNCHC', buttons.length === 2 && buttons[0].textContent === 'Help' && buttons[1].textContent === 'Save');
   });
 
-  console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-  process.exit(failures === 0 ? 0 : 1);
+  console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

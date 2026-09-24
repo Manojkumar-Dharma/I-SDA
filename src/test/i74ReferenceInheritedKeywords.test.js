@@ -13,23 +13,14 @@
  * Run with: node src/test/i74ReferenceInheritedKeywords.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfEngine = require(path.join(__dirname, '../dspfEngine.js'));
-const { getWebviewHtml } = require(path.join(__dirname, '../../dist/webviewTemplate.js'));
 const WebviewClientHelpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const KEY = '/CUSTMAST/'; // referenceKey() of a field with no library: "/FILE/FIELD"
 function sourceWith(fields) {
@@ -258,12 +249,9 @@ console.log('\nread-only panel HTML');
 // The real webview script in jsdom
 // ---------------------------------------------------------------------------
 const wvSource = sourceWith([{ name: 'CUSTNO', length: '+2' }]);
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', wvSource, 'MYSCR.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+const html = webviewHtml('vscode-webview://fake', 'testnonce', wvSource, 'MYSCR.DSPF');
 const posted = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
   },
@@ -328,6 +316,6 @@ setTimeout(() => {
     check('"12" is written as an absolute length', !!abs && /CUSTNO\s+R\s+12\s+B/.test(abs.text));
   }
 
-  console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-  process.exit(failures === 0 ? 0 : 1);
+  console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 1500);

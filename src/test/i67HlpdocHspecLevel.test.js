@@ -22,21 +22,12 @@
  * of these ids/functions existed) while passing against the fix.
  * Run with: node src/test/i67HlpdocHspecLevel.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfWriter = require('../../dist/dspfWriter.js');
 const DspfParser = require('../../dist/dspfParser.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // --- dspfWriter.js-level: anyHelpKeywordPresentInFile ---
 console.log('anyHelpKeywordPresentInFile: searches file-level keywords + every record\'s help entries');
@@ -95,15 +86,9 @@ console.log('\nReal designer: a HELP entry\'s own Application Help panel now off
       buildLine({ seq: '00050', line: '1', col: '2', func: "'Other'" }),
       buildLine({ seq: '00060', nameType: 'H', func: "HLPBDY" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce67', src, 'HLPDOC.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce67', src, 'HLPDOC.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = () => {};
@@ -199,7 +184,7 @@ console.log('\nReal designer: a HELP entry\'s own Application Help panel now off
     check('HLPDOC was blocked on SCREEN2 (same-spec conflict with its own HLPBDY) - nothing new posted', posted.length === postedBeforeHlpdoc2);
     check('the HLPDOC checkbox reverted to unchecked', !doc.getElementById(hp2Prefix + '-hlpdoc-on').checked);
 
-    console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-    process.exitCode = failures === 0 ? 0 : 1;
+    console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+    process.exitCode = failureCount() === 0 ? 0 : 1;
   }, 0);
 }

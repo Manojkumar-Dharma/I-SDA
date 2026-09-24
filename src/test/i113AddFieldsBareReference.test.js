@@ -26,15 +26,7 @@ const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 const DspfEngine = require(path.join(__dirname, '../../dist/dspfEngine.js'));
 const { buildLine } = require('../fixtures/lineBuilder.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 function mockPanel(posted) {
   const panel = {
@@ -201,8 +193,8 @@ async function run() {
 
   vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 
 run();

@@ -21,17 +21,9 @@
  * Run with: node src/test/toolbarUiSettings.test.js
  */
 const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -43,10 +35,7 @@ const dspfSource =
 
 const posted = [];
 const dom = new JSDOM(
-  getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  ),
+  webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern'),
   {
     runScripts: 'dangerously',
     resources: 'usable',
@@ -112,6 +101,6 @@ setTimeout(() => {
   check('toolbar theme select ALSO updates to match, even though it was not the one changed', toolbarThemeSelect.value === 'violet');
   check('posts setUiTheme: violet', posted.some((m) => m.type === 'setUiTheme' && m.value === 'violet'));
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

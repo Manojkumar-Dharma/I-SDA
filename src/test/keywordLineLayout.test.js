@@ -48,15 +48,7 @@ const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 function cond(indicatorNumber) {
   return [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: indicatorNumber, not: false }] }];
@@ -251,5 +243,5 @@ console.log('\nTask L86: editing/adding an unrelated field-level keyword must no
   check('EDTCDE(Z) added correctly', rfield.keywords.some((k) => k.name === 'EDTCDE' && k.parameters.trim() === 'Z'));
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

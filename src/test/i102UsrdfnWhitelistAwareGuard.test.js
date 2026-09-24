@@ -29,18 +29,10 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const WHITELIST = ['INVITE', 'KEEP', 'PASSRCD', 'HLPRTN', 'HELP', 'HLPCLR', 'PRINT', 'OPENPRT', 'TEXT'];
 // Keywords the record panels wire through the three guard functions, none of
@@ -171,16 +163,10 @@ console.log('\ncontrol: a plain record still accepts them (nothing here is USRDF
 const SRC = [
   buildLine({ seq: '00010', nameType: 'R', name: 'USRREC', func: 'USRDFN' }),
 ].join('\n') + '\n';
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I102.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I102.DSPF');
 const posted = [];
 const errors = [];
-const webDom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const webDom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     window.alert = () => {};
@@ -228,6 +214,6 @@ setTimeout(() => {
   }
 
   check('no uncaught errors', errors.length === 0);
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  if (failures) process.exitCode = 1;
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  if (failureCount()) process.exitCode = 1;
 }, 600);

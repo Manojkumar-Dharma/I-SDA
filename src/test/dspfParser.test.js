@@ -19,15 +19,7 @@ const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('display-size condition: built-in *DS4');
 {
@@ -106,5 +98,5 @@ console.log('\nDspfWriter round-trips a display-size condition correctly through
   check('the constant text is untouched', newField.constantValue === 'WIDE SCREEN ONLY');
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

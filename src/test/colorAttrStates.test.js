@@ -13,15 +13,7 @@
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('getColorAttrStates - no COLOR/DSPATR at all');
 {
@@ -231,5 +223,5 @@ console.log('\napplyColorAttrStatesDiff - a "removed" state only removes the tar
   check('the unconditioned BLU state survives untouched', states[0].color === 'BLU' && states[0].conditions.length === 0);
 }
 
-console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) FAILED.`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(failureCount() === 0 ? '\nAll checks passed.' : `\n${failureCount()} check(s) FAILED.`);
+process.exit(failureCount() === 0 ? 0 : 1);

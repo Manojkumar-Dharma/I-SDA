@@ -58,15 +58,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -318,5 +310,5 @@ console.log('\ncolorAttrStatesHtml - COLOR alone (no DSPATR at all) still offers
   check('COLOR alone shows a Conditioning toggle', !!document.querySelector('.repeat-inst-cond-toggle'));
 }
 
-console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} check(s) FAILED.`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : `\n${failureCount()} check(s) FAILED.`);
+process.exit(failureCount() === 0 ? 0 : 1);

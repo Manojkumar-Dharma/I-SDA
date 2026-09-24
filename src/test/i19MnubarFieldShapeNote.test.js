@@ -19,20 +19,11 @@
  *
  * Run with: node src/test/i19MnubarFieldShapeNote.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfWriter = require('../../dist/dspfWriter.js');
 const DspfParser = require('../../dist/dspfParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // ---------------------------------------------------------------------
 // Unit-level: DspfWriter.mnubarFieldShapeNote directly (same convention
@@ -122,15 +113,9 @@ const dspfSource =
     "     A                                  1  2'Other record'",
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', dspfSource, 'MYMENU.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce19', dspfSource, 'MYMENU.DSPF');
 
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
   },
@@ -165,6 +150,6 @@ setTimeout(() => {
   console.log('\nDOM: a non-MNUBAR record has no MNUBAR tab at all (nothing to warn about)');
   check('OTHERREC has no MNUBAR tab', !Array.from(doc.querySelectorAll('.tabs button, [role="tab"], .tab-btn')).some((el) => /MNUBAR/i.test(el.textContent)));
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 50);

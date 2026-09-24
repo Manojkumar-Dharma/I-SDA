@@ -10,15 +10,7 @@
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('DspfWriter.commentOutLine()');
 {
@@ -104,5 +96,5 @@ console.log('\nDspfWriter.applyModificationTracking() - an edit with no actual l
   check('identical before/after produces no comments/tags at all', DspfWriter.applyModificationTracking(oldLines, newLines, { enabled: true, tag: 'MOD1' }).join('\n') === oldLines.join('\n'));
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

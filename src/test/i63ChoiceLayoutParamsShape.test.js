@@ -20,20 +20,11 @@
  *
  * Run with: node src/test/i63ChoiceLayoutParamsShape.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 const DspfWriter = require('../../dist/dspfWriter.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const kw = (name, parameters) => [{ name: name, parameters: parameters, conditions: [], raw: '', sourceLines: [] }];
 const paramsOf = (keywords, name) => (keywords.find((k) => k.name === name) || {}).parameters;
 
@@ -126,16 +117,10 @@ console.log('\nSource round trip: parse -> get -> set -> applyFieldUpdate -> rep
 
 // === DOM scenarios ===
 function makeDom(src) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'I63.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'I63.DSPF');
   const posted = [];
   const errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = () => {};
@@ -251,10 +236,10 @@ function runDomScenario() {
     check('removing the choice type applies without a layout alert', !r.alertMessage && !!r.applyEdit);
 
     check('no uncaught errors', errors.length === 0);
-    if (failures === 0) {
+    if (failureCount() === 0) {
       console.log('\nALL CHECKS PASSED');
     } else {
-      console.log('\n' + failures + ' CHECK(S) FAILED');
+      console.log('\n' + failureCount() + ' CHECK(S) FAILED');
       process.exitCode = 1;
     }
   }, 500);

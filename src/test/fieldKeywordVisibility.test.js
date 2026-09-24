@@ -12,15 +12,7 @@
 const path = require('path');
 const WebviewClientHelpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 function vis(usage, dataType) {
   return WebviewClientHelpers.fieldKeywordCategoryVisibility(usage, dataType);
@@ -107,5 +99,5 @@ console.log('\nWebviewClientHelpers.fieldKeywordCategoryVisibility() - D2 usage-
   check('usage P: editingKeywords hidden', p.editingKeywords === false);
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

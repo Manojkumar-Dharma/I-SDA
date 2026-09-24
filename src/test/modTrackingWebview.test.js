@@ -10,19 +10,10 @@
  * this covers the UI wiring around them. Run with:
  * node src/test/modTrackingWebview.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 function makeDom(nonce) {
   const src =
@@ -30,15 +21,9 @@ function makeDom(nonce) {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', nonce, src, 'MOD.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', nonce, src, 'MOD.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -117,8 +102,8 @@ function runEditingScenario() {
       check('no line carries content past column 80', lines2.every((l) => l.length <= 80));
       check('the field was still edited in place (length 20)', lines2.some((l) => l.includes('FLD1') && l.includes('20A')));
 
-      console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-      process.exit(failures === 0 ? 0 : 1);
+      console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+      process.exit(failureCount() === 0 ? 0 : 1);
     }, 0);
   }, 0);
 }

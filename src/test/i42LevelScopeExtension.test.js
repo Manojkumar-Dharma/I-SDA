@@ -22,15 +22,8 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { kwd, newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -39,9 +32,6 @@ global.window = dom.window;
 global.DspfWriter = DspfWriter;
 const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-function kwd(name, parameters) {
-  return { name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] };
-}
 
 function withCapturedAlert(fn) {
   let msg = null;
@@ -309,7 +299,6 @@ console.log('\nUSRDSPMGT: deliberately NOT added at record level (DDS Reference:
 // ===========================================================================
 // Part 4: the real generated webview - field-level accordions are built
 // ===========================================================================
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
 const source = [
@@ -319,15 +308,9 @@ const source = [
   buildLine({ seq: '00040', name: 'OUTFLD', length: '10', dataType: 'A', usage: 'O', line: '6', col: '2' }),
 ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', source, 'I42.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', source, 'I42.DSPF');
 const posted = [];
-const wdom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const wdom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
   },
@@ -399,6 +382,6 @@ setTimeout(() => {
   }
 
   wdom.window.alert = originalAlert;
-  console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-  process.exit(failures === 0 ? 0 : 1);
+  console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 100);

@@ -19,11 +19,8 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) console.log('  ok  -', label);
-  else { failures++; console.log('FAIL  -', label); }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { kwd, withAlertCapture } = require('./helpers/common');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -33,23 +30,12 @@ global.window = dom.window;
 global.DspfWriter = DspfWriter;
 const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-function kwd(name, parameters) {
-  return { name: name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] };
-}
 function render(keywords) {
   const panels = Helpers.recordKeywordsPanelsHtml(keywords, 'rk', new Set());
   document.getElementById('root').innerHTML = panels.general + panels.input;
 }
 function wire(getKeywords, onChange) {
   Helpers.wireRecordKeywordsPanels('rk', getKeywords, onChange, new Set(), function () {});
-}
-function withAlertCapture(fn) {
-  let msg = null;
-  const orig = global.window.alert;
-  global.window.alert = function (m) { msg = m; };
-  fn();
-  global.window.alert = orig;
-  return msg;
 }
 function setup(initial) {
   let keywords = initial;
@@ -93,5 +79,5 @@ for (const [label, base] of [['MNUBAR', [kwd('MNUBAR')]], ['plain', []]]) {
   check(label + ': removal is accepted', msg === null && unlock(ctx).length === 0);
 }
 
-console.log('\n' + (failures === 0 ? 'All I-106 checks passed.' : failures + ' I-106 check(s) FAILED.'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'All I-106 checks passed.' : failureCount() + ' I-106 check(s) FAILED.'));
+process.exit(failureCount() === 0 ? 0 : 1);

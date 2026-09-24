@@ -20,21 +20,12 @@
  * Run with: node src/test/i80SflcsrprgSfllinGuard.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const k = (name, parameters) => ({ name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] });
 const fld = (name, kws) => ({ name, keywords: kws || [] });
 const recd = (name, keywords, fields) => ({ name, keywords: keywords || [], fields: fields || [] });
@@ -108,13 +99,10 @@ const SRC = [
   R('00200', 'CTLD', 'SFLCTL(DTLD)'), K('00210', 'SFLPAG(5)'), K('00220', 'SFLSIZ(20)'), K('00230', 'SFLLIN(5)'),
 ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I80.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+const html = webviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I80.DSPF');
 const posted = [];
 const errors = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     window.alert = () => {};
@@ -222,6 +210,6 @@ setTimeout(() => {
   }
 
   check('no uncaught errors', errors.length === 0);
-  console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-  process.exit(failures === 0 ? 0 : 1);
+  console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 500);

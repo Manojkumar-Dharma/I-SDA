@@ -48,15 +48,7 @@ const ext = require(path.join(__dirname, '../../dist/extension.js'));
 const QdbrtvfdParser = require('../qdbrtvfdParser.js');
 const { buildLine } = require('../fixtures/lineBuilder.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 // The real captured FLDME entry (344 bytes: fixed 312-byte part + a 32-byte
 // CHECK(ME) validity section), base64, from Block B.txt.
@@ -211,11 +203,11 @@ async function run() {
   // Restore the default-installed mock extension for cleanliness.
   vscodeMock.__setMockExtension('halcyontechltd.code-for-ibmi', { id: 'halcyontechltd.code-for-ibmi', isActive: true, activate: () => Promise.resolve() });
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
   // extension.ts's activate() starts a 10s status-poll setInterval (see
   // sendCodeForIStatus), which would otherwise keep this process alive
   // indefinitely - same reasoning as extension.test.js's own process.exit().
-  process.exit(failures === 0 ? 0 : 1);
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 
 run();

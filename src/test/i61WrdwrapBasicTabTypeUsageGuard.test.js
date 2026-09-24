@@ -26,20 +26,11 @@
  * Runs the DSPF designer's real generated client-side script in jsdom.
  * Run with: node src/test/i61WrdwrapBasicTabTypeUsageGuard.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 const DspfWriter = require('../../dist/dspfWriter.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // === Group A: pure unit checks ===
 console.log('\nDspfWriter.wrdwrapBasicEditConflictReason: direct unit checks');
@@ -92,16 +83,10 @@ check('function is exported', typeof DspfWriter.wrdwrapBasicEditConflictReason =
 
 // === DOM scenarios ===
 function makeDom(src) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'I61.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'I61.DSPF');
   const posted = [];
   const errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = () => {};
@@ -259,10 +244,10 @@ setTimeout(() => {
   }
 
   check('no uncaught errors', errors.length === 0);
-  if (failures === 0) {
+  if (failureCount() === 0) {
     console.log('\nALL CHECKS PASSED');
   } else {
-    console.log('\n' + failures + ' CHECK(S) FAILED');
+    console.log('\n' + failureCount() + ' CHECK(S) FAILED');
     process.exitCode = 1;
   }
 }, 500);

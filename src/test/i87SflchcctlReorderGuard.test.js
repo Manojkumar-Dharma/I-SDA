@@ -19,21 +19,12 @@
  * Run with: node src/test/i87SflchcctlReorderGuard.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // ===========================================================================
 // Part 1 - the pure function
@@ -104,13 +95,10 @@ function record(kind) {
 }
 
 function withDom(src, fn) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'I87.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'I87.DSPF');
   const posted = [];
   const errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = () => {};
@@ -188,7 +176,7 @@ async function run() {
     check('no uncaught errors', errors.length === 0);
   });
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 run().catch((e) => { console.error(e); process.exit(1); });

@@ -18,11 +18,8 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) console.log('  ok  -', label);
-  else { failures++; console.log('FAIL  -', label); }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -77,8 +74,7 @@ console.log('Part 1 - helpers');
 // ===========================================================================
 console.log('Part 2 - the real template (renderRecordProps)');
 {
-  const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
-  const { buildLine } = require('../fixtures/lineBuilder');
+    const { buildLine } = require('../fixtures/lineBuilder');
   const src =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'SFLMESS', func: 'SFL' }),
@@ -92,12 +88,9 @@ console.log('Part 2 - the real template (renderRecordProps)');
       buildLine({ seq: '00090', nameType: 'R', name: 'SFLONLY', func: 'SFL' }),
       buildLine({ seq: '00100', name: 'SFLFLD', dataType: 'A', length: '5', usage: 'B', line: '2', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce16', src, 'SFLMSG.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+  const html = webviewHtml('vscode-webview://fake', 'testnonce16', src, 'SFLMSG.DSPF');
   const errors = [];
-  const wdom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const wdom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
       window.addEventListener('error', (e) => errors.push(String(e.message)));
@@ -146,7 +139,7 @@ console.log('Part 2 - the real template (renderRecordProps)');
     check('no uncaught errors in the webview', errors.length === 0);
 
     console.log('');
-    if (failures > 0) { console.log(failures + ' CHECK(S) FAILED'); process.exit(1); }
+    if (failureCount() > 0) { console.log(failureCount() + ' CHECK(S) FAILED'); process.exit(1); }
     console.log('ALL CHECKS PASSED');
     process.exit(0);
   }, 500);

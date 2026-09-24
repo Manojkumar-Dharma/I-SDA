@@ -20,20 +20,11 @@
  * Run with: node src/test/i91MsgidExclusionGuard.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const k = (name, parameters) => ({ name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] });
 const MSGID = k('MSGID', 'CPD1234 QGPL/USRMSG');
@@ -95,16 +86,10 @@ check('function is exported', typeof DspfWriter.msgidExclusionNewConflictReason 
 
 // === DOM scenarios ===
 function makeDom(src) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'I91.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'I91.DSPF');
   const posted = [];
   const errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = () => {};
@@ -149,8 +134,8 @@ let scenariosRemaining = 4;
 function finishOne() {
   scenariosRemaining--;
   if (scenariosRemaining === 0) {
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+    process.exit(failureCount() === 0 ? 0 : 1);
   }
 }
 

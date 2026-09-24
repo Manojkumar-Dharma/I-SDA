@@ -22,20 +22,11 @@
  * Runs the DSPF designer's real generated client-side script in jsdom.
  * Run with: node src/test/i22SflDisplayLayoutConditioning.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 const { buildLine } = require('../fixtures/lineBuilder.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // Two declared display sizes (*DS3/*DS4) so the new per-size rows render.
 // SFLSIZ: unconditioned primary (17) + a *DS4-conditioned value (20).
@@ -59,16 +50,10 @@ const dspfSource =
     buildLine({ seq: '00100', func: 'SFLDSPCTL' }),
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
 let posted = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({
       getState: () => null,
@@ -158,15 +143,9 @@ setTimeout(() => {
       buildLine({ seq: '00060', func: 'SFLDSP' }),
       buildLine({ seq: '00070', func: 'SFLDSPCTL' }),
     ].join('\n') + '\n';
-  const singleHtml = getWebviewHtml('vscode-webview://fake', 'testnonce2', singleSizeSource, 'MYSCR2.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const singleHtml = webviewHtml('vscode-webview://fake', 'testnonce2', singleSizeSource, 'MYSCR2.DSPF');
   let posted2 = [];
-  const dom2 = new JSDOM(singleHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom2 = newWebviewDom(singleHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({
         getState: () => null,
@@ -197,7 +176,7 @@ setTimeout(() => {
     const reparsed2 = applyEdit2 && DspfParser.parseDspf(applyEdit2.text).records.find((r) => r.name === 'SFLCTLR2');
     check('SFLPAG committed normally on a single-size file', !!reparsed2 && reparsed2.keywords.find((k) => k.name === 'SFLPAG').parameters.trim() === '9');
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+    process.exit(failureCount() === 0 ? 0 : 1);
   }, 50);
 }, 50);

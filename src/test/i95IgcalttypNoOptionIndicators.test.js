@@ -33,18 +33,10 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { kwd, newWebviewDom, webviewHtml, withAlertCapture } = require('./helpers/common');
 
 // ===========================================================================
 // Part 1 - pure unit checks
@@ -98,9 +90,6 @@ global.window = dom.window;
 global.DspfWriter = DspfWriter;
 const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-function kwd(name, parameters, conditions) {
-  return { name: name, parameters: parameters || '', conditions: conditions || [], raw: '', sourceLines: [] };
-}
 const G = (...nums) => ({ indicators: nums.map((n) => ({ number: n, not: false })) });
 
 function mount(keywords) {
@@ -114,13 +103,6 @@ function mount(keywords) {
   function onChange(next) { state.keywords = next; state.changes++; render(); }
   render();
   return state;
-}
-function withAlertCapture(fn) {
-  let msg = null;
-  const original = global.window.alert;
-  global.window.alert = function (m) { msg = m; };
-  try { fn(); } finally { global.window.alert = original; }
-  return msg;
 }
 const click = (el) => el.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
 const toggleOf = (idx) => document.querySelector('.kw-cond-toggle[data-owner="kwt"][data-idx="' + idx + '"]');
@@ -210,15 +192,9 @@ const SRC = [
   buildLine({ seq: '00050', ind1: '01', func: 'IGCALTTYP' }),
 ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I95.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I95.DSPF');
 const errors = [];
-const webDom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const webDom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     window.alert = () => {};
@@ -260,6 +236,6 @@ setTimeout(() => {
   }
 
   check('no uncaught errors', errors.length === 0);
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  if (failures) process.exitCode = 1;
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  if (failureCount()) process.exitCode = 1;
 }, 500);

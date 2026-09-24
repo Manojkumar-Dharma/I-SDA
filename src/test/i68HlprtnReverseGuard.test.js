@@ -17,19 +17,10 @@
  * HLPPNLGRP), or touch its neighbours in the same row group.
  * Run with: node src/test/i68HlprtnReverseGuard.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfWriter = require('../../dist/dspfWriter.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const KW = (text) => '     A                                      ' + text;
 const HLPDOC = KW('HLPDOC(START GENERAL.HLP HELP.F1)');
@@ -44,17 +35,11 @@ function sourceOf(fileKeywords) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function scenario(fileKeywords, fn) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', sourceOf(fileKeywords), 'MYSCR.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', sourceOf(fileKeywords), 'MYSCR.DSPF');
   const posted = [];
   const alerts = [];
   const errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = (m) => alerts.push(m);
@@ -201,7 +186,7 @@ async function main() {
     check('blocked with an alert naming HLPRTN, reverted, nothing posted', c.alerts.length === 1 && /HLPRTN/.test(c.alerts[0]) && hd.checked === false && c.lastEdit() === null);
   });
 
-  console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-  process.exit(failures === 0 ? 0 : 1);
+  console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

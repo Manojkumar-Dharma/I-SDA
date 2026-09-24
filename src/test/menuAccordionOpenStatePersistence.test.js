@@ -24,18 +24,10 @@
  * renders once Style is expanded.
  * Run with: node src/test/menuAccordionOpenStatePersistence.test.js
  */
-const { JSDOM } = require('jsdom');
 const { getMenuWebviewHtml } = require('../../dist/menuWebviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom } = require('./helpers/common');
 
 const menuSource =
   [
@@ -52,10 +44,7 @@ const html = getMenuWebviewHtml('vscode-webview://fake', 'testnonce', menuSource
   ''
 );
 
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
   },
@@ -100,6 +89,6 @@ setTimeout(() => {
   check('the outer Style panel is also still expanded (expandedOptionStyle, unrelated to this fix, was never broken)', !!doc.getElementById('opt1-colorattr-inst0-color'));
   check('the color choice itself was not lost by the same edit', doc.getElementById('opt1-colorattr-inst0-color').value === 'BLU');
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

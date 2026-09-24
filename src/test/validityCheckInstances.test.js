@@ -20,15 +20,7 @@
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('getValidityCheckInstances - no RANGE/COMP/VALUES at all');
 {
@@ -137,5 +129,5 @@ console.log('\nBug fix (Task L34 - watch for other legacy-keyword-synonym gaps b
   check('CMP is gone', !cleared.some((k) => k.name === 'CMP' || k.name === 'COMP'));
 }
 
-console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) FAILED.`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(failureCount() === 0 ? '\nAll checks passed.' : `\n${failureCount()} check(s) FAILED.`);
+process.exit(failureCount() === 0 ? 0 : 1);

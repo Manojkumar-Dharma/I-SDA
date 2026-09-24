@@ -20,15 +20,7 @@ Module._load = function (request, parent, isMain) {
 const vscodeMock = require('./vscode-mock.js');
 const ext = require(path.join(__dirname, '../../dist/extension.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 /** Scripts a sequence of showInputBox/showQuickPick answers, consumed in call order. */
 function scriptPrompts(inputBoxAnswers, quickPickAnswer) {
@@ -318,8 +310,8 @@ async function run() {
     check('surfaced the real CRTSRCPF failure text', vscodeMock.__lastError && vscodeMock.__lastError.includes('CPF3283'));
   }
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }
 
 run();

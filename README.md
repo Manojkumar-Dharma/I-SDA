@@ -193,9 +193,15 @@ npx vsce package --no-dependencies   # build a .vsix
 - Client-side JS in `buildWebviewTemplate.js` and `buildMenuWebviewTemplate.js` (and the
   helpers they embed) lives inside Node template literals: **no backticks in comments or
   strings**, or the generated template breaks silently. Run `node -c <file>` before compiling.
-- Every new test under `src/test/` must also be added to the `test` script in `package.json`.
-- Test output is TAP-style: count passes with `grep -c "^  ok"` and failures with
-  `grep -i "not ok"` (a test's own description text can contain "fail").
+- `npm test` runs `src/test/run.js`, which discovers every `src/test/*.test.js` - a new test
+  file needs no registration. Each file runs in its own process and the run continues past a
+  failing file. `node src/test/run.js i106 dspfWriter` runs only files whose name contains an
+  argument; `--list` lists them; `--slow N` shows the N slowest files in the summary.
+- Every test file uses the shared `check(label, condition)` and `failureCount()` from
+  `src/test/helpers/harness.js`; `src/test/helpers/common.js` has `kwd`, `withAlertCapture`,
+  `newWebviewDom` and the cached `webviewHtml`. Don't copy them into a test file.
+- Test output: `  ok  - label` per pass and `FAIL  - label` per failure; count them with
+  `grep -c "^  ok  -"` and `grep -n "^FAIL  -"` (a test's own description text can contain "fail").
 - See `vsc-extension-quickstart.md` for the general extension dev loop.
 
 ## Project documentation

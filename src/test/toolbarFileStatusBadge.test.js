@@ -22,17 +22,9 @@
  * Run with: node src/test/toolbarFileStatusBadge.test.js
  */
 const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -43,10 +35,7 @@ const dspfSource =
   ].join('\n') + '\n';
 
 const dom = new JSDOM(
-  getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  ),
+  webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern'),
   {
     runScripts: 'dangerously',
     resources: 'usable',
@@ -94,6 +83,6 @@ setTimeout(() => {
   check('aside badge reflects connected too', asideBadge.classList.contains('connected') && asideBadge.textContent === 'IBM i: connected');
   check('the two badges never drift onto different classes from the same message', toolbarBadge.className === asideBadge.className);
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

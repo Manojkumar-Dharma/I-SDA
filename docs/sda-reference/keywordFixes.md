@@ -25,7 +25,7 @@ authoritative landing point, not the ID.
 **Working rules** (same as `LIMITATIONS-PLAN.md`): claim a task with a `Claim I-N` commit
 and push it immediately; `git fetch` and drift-check before every push; run
 `node -c` on any file you edit before compiling; `npm test` must stay at zero failures.
-Every new test file must also be added to the `test` script in `package.json`.
+A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120); use the shared `check` from `src/test/helpers/harness.js`.
 
 **How this document is laid out**
 
@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-118 of 123 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.200**.
+119 of 123 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.201**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -159,10 +159,10 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Done | v0.10.193 |
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | Done | v0.10.198 |
-| [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | Claude |
-| [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done (v0.10.200) | Claude |
+| [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | v0.10.194 |
+| [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Not started | — |
-| [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Not started | — |
+| [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
@@ -179,13 +179,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 2 | [I-40](#i-40) | Done (v0.10.199) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
-| 3 | [I-118](#i-118) | Done (v0.10.200) | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
-| 4 | [I-120](#i-120) | Not started | Shared test harness. Size (estimate): Medium (mechanical, touches all 145 test files). |
-| 5 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
-| 6 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
-| 7 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 8 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
+| 1 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
+| 2 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
+| 3 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
 ## Deferred findings (not yet tasks)
 
@@ -5404,7 +5401,7 @@ Opened from a deferred finding raised by I-112, verbatim:
 
 ### I-117 — The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first)
 
-> **Area:** Record · **Status:** Done · **Depends on:** I-115
+> **Area:** Record · **Status:** Done (v0.10.194) · **Depends on:** I-115
 
 Opened from a deferred finding raised by I-115, verbatim:
 
@@ -5450,9 +5447,17 @@ Scope (audit section 3): the two `escapeHtml` versions (they escape different ch
 
 ### I-120 — Shared test harness
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-40
+> **Area:** Tooling · **Status:** Done (v0.10.201) · **Depends on:** I-40
 
 Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` calls rebuild the 1.65 MB page. Scope: a `src/test/helpers/` module with one `check`/failure counter (or the built-in `node:test` runner), one `makeDom`/`mount` builder that caches the generated HTML per process, and the repeated `reparsedField`, `withAlertCapture`, `lastEdit`, `kwd` helpers; a runner script that discovers `*.test.js` so a new test can no longer be forgotten in `package.json`'s `test` script. Migrate files mechanically, keep every check label, and compare check counts before and after (6,799 at v0.10.195). Report suite wall time before and after.
+
+**Done (v0.10.201).** Test-infrastructure only, no `src/` behaviour change; the suite before and after was compared per file.
+
+- **One `check`.** New `src/test/helpers/harness.js` exports `check(label, condition)` and `failureCount()`, printing the same `  ok  -` / `FAIL  -` lines. All 149 test files dropped their private `let failures` / `check()` copy (two textual variants, matched exactly with an assert per file) and now import it; every `failures` reference became `failureCount()`. No check label was touched.
+- **Shared helpers.** New `src/test/helpers/common.js`: `kwd`, `withAlertCapture`, `newWebviewDom(html, options)` (the `runScripts` / `resources` / `pretendToBeVisual` defaults every full-page test repeated) and `webviewHtml(...args)` (`getWebviewHtml` minus the CSP meta, cached per process). Only copies identical to the shared version were replaced - `kwd` in 12 files, `withAlertCapture` in 12, the `getWebviewHtml(...).replace(CSP)` idiom at 167 call sites, the JSDOM options block at 187. The other copy-pasted helpers (`reparsedField`, `lastEdit`, `mount`, `setup`, `makeDom`, `render`, `tick`) differ per file - they close over a file's own `posted` / `errors` arrays or a global `DspfParser` - so they were left in place rather than merged by guesswork.
+- **A real runner.** New `src/test/run.js`; `npm test` now runs it. It discovers `src/test/*.test.js` (a new test can no longer be forgotten in `package.json`; the old 149-entry `&&` chain is gone), runs each file in its own process, keeps going after a failing file, prints a per-file `--- file: N ok, M failed, S s` line and a summary (files, checks, wall time, slowest), and exits non-zero on any failing exit code or `FAIL  -` line. `node src/test/run.js i106 dspfWriter` filters by name, `--list` lists, `--slow N` widens the slowest list.
+- **Found while building the runner.** Reading child output through a pipe silently lost lines: `dspfWriter.test.js` reported 295 of its 490 checks in one full run, still exiting 0, because tests end in `process.exit()` and a pipe can drop its tail under load. The runner sends child output to a temp file instead (synchronous, nothing lost).
+- **Verification.** 149 files and **9,887 checks** (counted at run time; the audit's 6,799 was a static count of `check(` calls, loops excluded) before and after, identical per file, 0 failures. Wall time on a shared single core: 494 s before, 488 s after - essentially unchanged, because the cost is jsdom parsing and executing the page, which cannot be cached; the per-process HTML cache only removes the string generation. Consolidating jsdom builds (one page per suite) needs test-by-test state review and is not part of this mechanical step.
 
 *Raised by the 2026-09-21 audit. Size (estimate): Medium.*
 

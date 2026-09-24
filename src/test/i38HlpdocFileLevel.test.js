@@ -15,19 +15,10 @@
  * pre-I-38 code (none of these ids existed) while passing against the fix.
  * Run with: node src/test/i38HlpdocFileLevel.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfWriter = require('../../dist/dspfWriter.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // --- dspfWriter.js-level: hlpdocConflictReason ---
 console.log('hlpdocConflictReason: bidirectional mutual-exclusion with HLPPNLGRP/HLPRTN');
@@ -74,16 +65,10 @@ const dspfSource =
     "     A                                  1  2'MAIN SCREEN'",
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
 const posted = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     window.alert = () => {};
@@ -276,6 +261,6 @@ setTimeout(() => {
     check('no alert was raised - HLPRCD+HLPDOC together is valid DDS', alertMessage === null);
   }
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

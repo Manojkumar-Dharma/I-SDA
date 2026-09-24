@@ -16,21 +16,12 @@
  * generated webview in jsdom.
  * Run with: node src/test/i73MsgidConditioningRule.test.js
  */
-const { JSDOM } = require('jsdom');
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 function cond(n) { return { relation: 'AND', indicators: [{ number: n, not: false }], displaySizeCondition: null, sourceLines: [] }; }
 function msgid(params, conds) { return { name: 'MSGID', parameters: params, conditions: conds || [], raw: '', sourceLines: [] }; }
@@ -96,12 +87,9 @@ function kwLine(ind, text) { return A + '  ' + (ind || '  ') + ' '.repeat(35) + 
 
 function makeDom(lines) {
   const src = lines.join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'MSG.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'MSG.DSPF');
   const ctx = { posted: [], alerts: [], errors: [] };
-  ctx.dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  ctx.dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => ctx.posted.push(m) });
       window.alert = (m) => ctx.alerts.push(m);
@@ -217,8 +205,8 @@ function run() {
 }
 
 function finish() {
-  if (failures === 0) console.log('\nALL CHECKS PASSED');
-  else { console.log('\n' + failures + ' CHECK(S) FAILED'); process.exitCode = 1; }
+  if (failureCount() === 0) console.log('\nALL CHECKS PASSED');
+  else { console.log('\n' + failureCount() + ' CHECK(S) FAILED'); process.exitCode = 1; }
   setTimeout(() => process.exit(process.exitCode || 0), 50);
 }
 

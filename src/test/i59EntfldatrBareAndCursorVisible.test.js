@@ -40,15 +40,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -239,5 +231,5 @@ console.log('\nUnit: the three pre-existing CHCAVAIL/CHCUNAVAIL/CHCSLT callers a
   check('CHCSLT is still removed entirely when color/attrs are both cleared and forcePresent is omitted', removedWhenEmpty.length === 0);
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

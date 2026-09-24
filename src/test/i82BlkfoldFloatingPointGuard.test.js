@@ -26,21 +26,12 @@
  * Run with: node src/test/i82BlkfoldFloatingPointGuard.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // === Group A: pure unit checks ===
 console.log('\nDspfWriter.blkfoldFloatNewConflictReason: direct unit checks');
@@ -113,16 +104,10 @@ function reparsedField(text, name) {
 }
 const kwNames = (f) => (f ? f.keywords.map((x) => x.name) : []);
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I82.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I82.DSPF');
 const posted = [];
 const errors = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     window.alert = () => {};
@@ -267,10 +252,10 @@ setTimeout(() => {
   }
 
   check('no uncaught errors', errors.length === 0);
-  if (failures === 0) {
+  if (failureCount() === 0) {
     console.log('\nALL CHECKS PASSED');
   } else {
-    console.log('\n' + failures + ' CHECK(S) FAILED');
+    console.log('\n' + failureCount() + ' CHECK(S) FAILED');
     process.exitCode = 1;
   }
 }, 500);

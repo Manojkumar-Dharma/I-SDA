@@ -26,18 +26,9 @@
  *
  * Run with: node src/test/toolbarFindFieldSearch.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -51,14 +42,8 @@ const dspfSource =
   ].join('\n') + '\n';
 
 function buildDom(uiStyle) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', dspfSource, 'FINDFIELD.DSPF', uiStyle).replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  return new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce22', dspfSource, 'FINDFIELD.DSPF', uiStyle);
+  return newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
       window.Element.prototype.scrollIntoView = function () { this.__scrolledIntoView = true; };
@@ -144,7 +129,7 @@ setTimeout(() => {
   toolbarInput.dispatchEvent(new Event('input', { bubbles: true }));
   check('the toolbar instance still works after surviving that swap', !toolbarResults.classList.contains('hidden'));
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
 
   console.log('\nTask P5e, continued: #propsFindFieldRow is entirely hidden under classic UI (the aside keeps working there instead, unaffected)');
   const classicDom = buildDom('classic');
@@ -159,7 +144,7 @@ setTimeout(() => {
     const classicAsideResults = classicDoc.getElementById('fieldSearchResults');
     check("the aside's own Find field search still works fully under classic UI, unaffected by any of this", !classicAsideResults.classList.contains('hidden'));
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exit(failures === 0 ? 0 : 1);
+    console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+    process.exit(failureCount() === 0 ? 0 : 1);
   }, 0);
 }, 0);

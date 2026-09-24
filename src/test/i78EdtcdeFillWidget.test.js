@@ -18,15 +18,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -186,9 +178,9 @@ console.log('\nB5. a hand-written field keeps its second parameter through unrel
   check('an unrecognisable hand-written EDTCDE re-applied unchanged is written back unchanged', !m2 && ec(ctx)[0].parameters === 'J * extra');
 }
 
-if (failures === 0) {
+if (failureCount() === 0) {
   console.log('\nALL CHECKS PASSED');
 } else {
-  console.log('\n' + failures + ' CHECK(S) FAILED');
+  console.log('\n' + failureCount() + ' CHECK(S) FAILED');
   process.exitCode = 1;
 }

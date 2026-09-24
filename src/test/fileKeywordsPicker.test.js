@@ -14,15 +14,7 @@ const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('getFileFlagKeyword / setFileFlagKeyword - simple boolean keyword, no parameters');
 {
@@ -479,5 +471,5 @@ console.log('\nTask I-5: MOUBTN - repeatable, EVENT [TRAILING-EVENT] {key|EVENT-
   check('removing the last instance leaves no MOUBTN keyword at all', DspfWriter.getRepeatableKeywordInstances(kw, ['MOUBTN']).length === 0 && !kw.some((k) => k.name === 'MOUBTN'));
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

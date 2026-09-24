@@ -21,20 +21,11 @@
  *
  * Run with: node src/test/i66PshbtnchcTextValidation.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 const DspfWriter = require('../../dist/dspfWriter.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const kwd = (name, parameters) => ({ name: name, parameters: parameters, conditions: [], raw: '', sourceLines: [] });
 const chc = (id, text, extra) => kwd('PSHBTNCHC', id + " '" + text + "'" + (extra ? ' ' + extra : ''));
 
@@ -164,16 +155,10 @@ console.log('\npshbtnchcFitProblem (an estimate, per the designer\'s own layout)
 
 // === DOM scenarios ===
 function makeDom(src) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', src, 'I66.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', src, 'I66.DSPF');
   const posted = [];
   const errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = () => {};
@@ -320,10 +305,10 @@ setTimeout(() => {
   check('a &FIELD PSHBTNCHC still adds', !r.alertMessage && !!r.applyEdit);
 
   check('no uncaught errors', errors.length === 0);
-  if (failures === 0) {
+  if (failureCount() === 0) {
     console.log('\nALL CHECKS PASSED');
   } else {
-    console.log('\n' + failures + ' CHECK(S) FAILED');
+    console.log('\n' + failureCount() + ' CHECK(S) FAILED');
     process.exitCode = 1;
   }
 }, 600);

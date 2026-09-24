@@ -20,15 +20,7 @@
 const path = require('path');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('getS36ERestriction - all 6 named keywords (7 counting HLPRTN) have a table entry, and all are now verified');
 {
@@ -185,5 +177,5 @@ console.log('\nfindS36EConflictInModel (Task S36-4) - the symmetric block: scans
   check('file-level conflict is reported before scanning records', multiConflict.location === 'File-level keywords');
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);

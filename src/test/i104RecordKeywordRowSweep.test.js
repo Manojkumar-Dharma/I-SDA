@@ -41,15 +41,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 // ===========================================================================
 // The oracle - typed in from the DDS Reference
@@ -384,5 +376,5 @@ console.log('\nSummary of the known gaps this sweep asserts (reachable = the row
 gapLog.forEach((g) => console.log('  ' + g.kind.padEnd(7) + g.rowKey.padEnd(28) + g.keyword.padEnd(10) + g.gap.padEnd(10) + (g.reachable ? 'reachable' : 'latent (tab hidden by R2)') + ' [' + g.panel + ']'));
 check('every KNOWN_GAPS entry was exercised', Object.keys(KNOWN_GAPS).every((k) => gapLog.some((g) => g.kind + '|' + g.rowKey === k)));
 
-console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-process.exit(failures === 0 ? 0 : 1);
+console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+process.exit(failureCount() === 0 ? 0 : 1);

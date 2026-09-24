@@ -18,35 +18,20 @@
  * Runs the DSPF designer's real generated client-side script in jsdom.
  * Run with: node src/test/i45DspmodDspsizPrerequisite.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 function reparsedRecord(text, recordName) {
   return DspfParser.parseDspf(text).records.find((r) => r.name === recordName);
 }
 
 function runScenario(label, dspfSource, done) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
   let posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({
         getState: () => null,
@@ -209,10 +194,10 @@ let scenariosRemaining = 5;
 function finishOne() {
   scenariosRemaining--;
   if (scenariosRemaining === 0) {
-    if (failures === 0) {
+    if (failureCount() === 0) {
       console.log('\nALL CHECKS PASSED');
     } else {
-      console.log('\n' + failures + ' CHECK(S) FAILED');
+      console.log('\n' + failureCount() + ' CHECK(S) FAILED');
       process.exitCode = 1;
     }
   }

@@ -19,15 +19,8 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { kwd, withAlertCapture } = require('./helpers/common');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -36,22 +29,11 @@ global.window = dom.window;
 global.DspfWriter = DspfWriter;
 const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-function kwd(name, parameters) {
-  return { name: name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] };
-}
 function render(keywords, expandedSet) {
   document.getElementById('root').innerHTML = Helpers.recordKeywordsPanelsHtml(keywords, 'rk', expandedSet || new Set()).general;
 }
 function wire(getKeywords, onChange, expandedSet, rerender) {
   Helpers.wireRecordKeywordsPanels('rk', getKeywords, onChange, expandedSet || new Set(), rerender || function () {});
-}
-function withAlertCapture(fn) {
-  let alertMessage = null;
-  const originalAlert = global.window.alert;
-  global.window.alert = function (msg) { alertMessage = msg; };
-  fn();
-  global.window.alert = originalAlert;
-  return alertMessage;
 }
 function setup(initialKeywords) {
   let keywords = initialKeywords;
@@ -127,9 +109,9 @@ console.log('\nplain record: add, edit and remove ENTFLDATR all work');
   check('removing it: no alert, keyword gone', !r.alertMessage && ent(ctx).length === 0);
 }
 
-if (failures === 0) {
+if (failureCount() === 0) {
   console.log('\nALL CHECKS PASSED');
 } else {
-  console.log('\n' + failures + ' CHECK(S) FAILED');
+  console.log('\n' + failureCount() + ' CHECK(S) FAILED');
   process.exitCode = 1;
 }

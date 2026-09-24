@@ -28,15 +28,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -131,5 +123,5 @@ console.log('\ncolorAttrEditorHtml/wireColorAttrEditor - the single-pair legacy 
   check('toggling UL keeps the hidden field name (previously lost)', !!dspatrK && dspatrK.parameters.indexOf('FLDATR') >= 0 && dspatrK.parameters.indexOf('UL') >= 0);
 }
 
-console.log(failures === 0 ? '\nALL CHECKS PASSED' : '\n' + failures + ' CHECK(S) FAILED');
-process.exit(failures === 0 ? 0 : 1);
+console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
+process.exit(failureCount() === 0 ? 0 : 1);

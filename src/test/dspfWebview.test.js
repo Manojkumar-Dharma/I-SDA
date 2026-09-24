@@ -9,7 +9,6 @@
  * Delete/Backspace, and renaming a record format. Run with:
  * node src/test/dspfWebview.test.js
  */
-const { JSDOM } = require('jsdom');
 const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 const DspfParser = require('../../dist/dspfParser.js');
@@ -32,15 +31,8 @@ function dewrapDds(text) {
   return (text || '').replace(/[+-]\r?\n.{44}/g, '');
 }
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -54,16 +46,10 @@ const dspfSource =
 // jsdom doesn't enforce the webview CSP meta tag (and has no need to for
 // this test), so it's stripped rather than wiring up a nonce it would
 // otherwise reject.
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
 const posted = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
   },
@@ -148,15 +134,9 @@ setTimeout(() => {
       '     A                                      WINDOW(BASE)',
       "     A                                  1  2'Popup'",
     ].join('\n') + '\n';
-  const refHtml = getWebviewHtml('vscode-webview://fake', 'testnonce', refSource, 'REFTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const refHtml = webviewHtml('vscode-webview://fake', 'testnonce', refSource, 'REFTEST.DSPF');
   const refPosted = [];
-  const refDom = new JSDOM(refHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const refDom = newWebviewDom(refHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => refPosted.push(m) });
     },
@@ -187,15 +167,9 @@ function runDeleteWarningScenario() {
       buildLine({ seq: '00020', name: 'SRCFLD', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
       buildLine({ seq: '00030', name: 'OTHFLD', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2', func: 'REFFLD(SRCFLD)' }),
     ].join('\n') + '\n';
-  const delHtml = getWebviewHtml('vscode-webview://fake', 'testnonce3', delSource, 'DELTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const delHtml = webviewHtml('vscode-webview://fake', 'testnonce3', delSource, 'DELTEST.DSPF');
   const delPosted = [];
-  const delDom = new JSDOM(delHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const delDom = newWebviewDom(delHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => delPosted.push(m) });
     },
@@ -260,14 +234,8 @@ function runSizeBoundsScenario() {
       buildLine({ seq: '00030', line: '1', col: '2', func: "'Fits fine'" }),
       buildLine({ seq: '00040', line: '25', col: '2', func: "'Too far down for the 24-line size'" }),
     ].join('\n') + '\n';
-  const boundsHtml = getWebviewHtml('vscode-webview://fake', 'testnonce4', boundsSource, 'BOUNDSTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const boundsDom = new JSDOM(boundsHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const boundsHtml = webviewHtml('vscode-webview://fake', 'testnonce4', boundsSource, 'BOUNDSTEST.DSPF');
+  const boundsDom = newWebviewDom(boundsHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -308,14 +276,8 @@ function runOverlapWarningScenario() {
       buildLine({ seq: '00030', line: '5', col: '5', func: "'Second one'" }),
       buildLine({ seq: '00040', line: '10', col: '2', func: "'No overlap here'" }),
     ].join('\n') + '\n';
-  const overlapHtml = getWebviewHtml('vscode-webview://fake', 'testnonce12', overlapSource, 'OVERLAPTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const overlapDom = new JSDOM(overlapHtml, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const overlapHtml = webviewHtml('vscode-webview://fake', 'testnonce12', overlapSource, 'OVERLAPTEST.DSPF');
+  const overlapDom = newWebviewDom(overlapHtml, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -336,14 +298,8 @@ function runOverlapWarningScenario() {
         buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
         buildLine({ seq: '00020', line: '5', col: '2', func: "'Only field'" }),
       ].join('\n') + '\n';
-    const cleanHtml = getWebviewHtml('vscode-webview://fake', 'testnonce13', cleanSource, 'CLEANTEST.DSPF').replace(
-      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-      ''
-    );
-    const cleanDom = new JSDOM(cleanHtml, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const cleanHtml = webviewHtml('vscode-webview://fake', 'testnonce13', cleanSource, 'CLEANTEST.DSPF');
+    const cleanDom = newWebviewDom(cleanHtml, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
       },
@@ -385,14 +341,8 @@ function runConditionalOverlapScenario() {
       buildLine({ seq: '00040', line: '10', col: '2', ind1: '05', func: "'Fifth flag on'" }),
       buildLine({ seq: '00050', line: '10', col: '2', ind1: '07', func: "'Seventh flag on'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce14', src, 'CONDOVERLAP.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce14', src, 'CONDOVERLAP.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -440,15 +390,9 @@ function runConstantTextEditScenario() {
       '     A          R SCR1',
       "     A                                  1  2'Old text'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce5', src, 'CONSTEDIT.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce5', src, 'CONSTEDIT.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -484,15 +428,9 @@ function runCopyFieldScenario() {
       buildLine({ seq: '00020', name: 'CUSTNAME', length: '30', dataType: 'A', usage: 'B', line: '10', col: '15', func: 'DSPATR(HI)' }),
       buildLine({ seq: '00030', line: '3', col: '5', func: "'Some label'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce6', src, 'COPYTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce6', src, 'COPYTEST.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // Task L36: the Copy button now goes through the same click-to-place flow as
@@ -654,15 +592,9 @@ function runNudgeCutCopyPasteScenario() {
       buildLine({ seq: '00020', name: 'CUSTNAME', length: '30', dataType: 'A', usage: 'B', line: '10', col: '15' }),
       buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'NUDGETEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce7', src, 'NUDGETEST.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // Task L44: Ctrl+V (single-field clipboard) now goes through the
@@ -785,15 +717,9 @@ function runFileAttrsScenario() {
       buildLine({ seq: '00040', line: '2', col: '2', func: "'Second'" }),
       buildLine({ seq: '00050', line: '3', col: '2', func: "'Third'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'ATTRSTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce7', src, 'ATTRSTEST.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -848,7 +774,7 @@ function runFileAttrsScenario() {
     rows = Array.from(doc.querySelectorAll('.field-order-row[data-idx]'));
     check('the on-screen list reflects the new order too', rows.length === 3 && /Second/.test(rows[0].textContent) && /First/.test(rows[1].textContent) && /Third/.test(rows[2].textContent));
 
-    console.log('\n' + (failures === 0 ? 'FILE ATTRS / FIELD ORDER: ALL CHECKS PASSED SO FAR' : failures + ' CHECK(S) FAILED SO FAR'));
+    console.log('\n' + (failureCount() === 0 ? 'FILE ATTRS / FIELD ORDER: ALL CHECKS PASSED SO FAR' : failureCount() + ' CHECK(S) FAILED SO FAR'));
     runCommandKeysScenario();
   }, 0);
 }
@@ -862,15 +788,9 @@ function runCommandKeysScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
       buildLine({ seq: '00040', line: '1', col: '2', func: "'Bye'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce9', src, 'CMDKEYS.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce9', src, 'CMDKEYS.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -998,14 +918,8 @@ function runRulerScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce10', src, 'RULER.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce10', src, 'RULER.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -1051,14 +965,8 @@ function runCrosshairScenario() {
       buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" }),
       buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce11', src, 'CROSSHAIR.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce11', src, 'CROSSHAIR.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
       // Same 800x480-for-80x24 stub runClickToPlaceScenario already uses -
@@ -1126,15 +1034,9 @@ function runConditionsScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', name: 'NAME', length: '10', dataType: 'A', usage: 'B', line: '1', col: '5' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce8', src, 'CONDTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce8', src, 'CONDTEST.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1191,15 +1093,9 @@ function runPerKeywordConditioningScenario() {
       buildLine({ seq: '00020', name: 'NAME', length: '10', dataType: 'A', usage: 'B', line: '1', col: '5', func: 'DSPATR(HI)' }),
       buildLine({ seq: '00030', func: 'COLOR(BLU)' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce9', src, 'KWCONDTEST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce9', src, 'KWCONDTEST.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1248,15 +1144,9 @@ function runRecordCrudScenario() {
       buildLine({ seq: '00040', nameType: 'R', name: 'DETAIL' }),
       buildLine({ seq: '00050', line: '1', col: '2', func: "'Detail'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce10', src, 'RECCRUD.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce10', src, 'RECCRUD.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1333,15 +1223,9 @@ function runRecordTypeWizardScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'BOX' }),
       buildLine({ seq: '00040', func: 'WINDOW(2 2 10 40)' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce11', src, 'TYPEWIZ.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce11', src, 'TYPEWIZ.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1602,15 +1486,9 @@ function runHiddenFieldsScenario() {
       buildLine({ seq: '00030', name: 'EXIST', dataType: 'A', length: '4', usage: 'H' }),
       buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'HIDDEN.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'HIDDEN.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1692,15 +1570,9 @@ function runProgramFieldsScenario() {
       buildLine({ seq: '00030', name: 'EXISTP', dataType: 'A', length: '4', usage: 'P' }),
       buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'PROGRAM.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'PROGRAM.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -1781,15 +1653,9 @@ function runFieldPropertyHelpersScenario() {
       // names MSGFLD1.
       '     A            MSGFLD1       12A  P',
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce7', src, 'PROPHELP.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce7', src, 'PROPHELP.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -2360,14 +2226,8 @@ function runFieldKeywordVisibilityScenario() {
       buildLine({ seq: '00060', name: 'FLDFLOAT', dataType: 'F', length: '8', decimals: '2', usage: 'B', line: '8', col: '5' }),
       buildLine({ seq: '00070', name: 'FLDHID', dataType: 'A', length: '4', usage: 'H' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce13', src, 'D2VIS.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce13', src, 'D2VIS.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -2469,15 +2329,9 @@ function runD5MenuBarChoiceScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'PULLFILE', func: 'PULLDOWN' }),
       buildLine({ seq: '00040', name: 'F1', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce14', src, 'D5.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce14', src, 'D5.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -2631,15 +2485,9 @@ function runD4ConstantWiringScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
       "     A                                  1  2'>File'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce15', src, 'D4.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce15', src, 'D4.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -2698,15 +2546,9 @@ function runClickToPlaceScenario() {
       '     A          R SCR1',
       "     A                                  1  2'A short label'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce8', src, 'PLACE.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce8', src, 'PLACE.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // jsdom does no real layout, so getBoundingClientRect() is always all-zero -
@@ -2792,14 +2634,8 @@ function runWindowBorderAndDefaultColorScenario() {
       '     A                                      WDWBORDER((*COLOR RED) (*DSPATR HI))',
       "     A                                  1  2'Hello'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce16', src, 'WDWBORDER.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce16', src, 'WDWBORDER.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -2831,10 +2667,7 @@ function runDefaultColorScenario() {
       '     A            COLOREDFLD   10A  B  3  2',
       '     A                                      COLOR(RED)',
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'DEFAULTCOLOR.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce17', src, 'DEFAULTCOLOR.DSPF');
   check('the old hardcoded gray constant override is gone from the generated CSS', !/\.dspf-constant\s*\{\s*color:\s*#b7c9bf/.test(html));
   // Now reads var(--dspf-fg, var(--chrome-accent)) instead of the bare var(--chrome-accent):
   // --dspf-fg is the per-field override for an explicit COLOR keyword (see dspfEngine.js's
@@ -2842,10 +2675,7 @@ function runDefaultColorScenario() {
   // an unstyled field/constant - same modern-theming intent this check was written for.
   check('modern UI style now themes the screen\u2019s own default color, not just chrome', /body\[data-ui-style="modern"\]\s*\.dspf-field\s*\{\s*color:\s*var\(--dspf-fg,\s*var\(--chrome-accent\)\);?\s*\}/.test(html));
 
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -2878,14 +2708,8 @@ function runIndicatorListScenario() {
       buildLine({ seq: '00020', ind1: '51', func: 'ALARM' }),
       buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'INDLIST.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'INDLIST.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -2922,14 +2746,8 @@ function runSflIndicatorPairingScenario() {
       buildLine({ seq: '00070', name: 'HDRFLD', dataType: 'A', length: '10', usage: 'O', line: '1', col: '20' }),
       buildLine({ seq: '00080', ind1: '62', func: 'DSPATR(HI)' }), // indicator only ever used on the SFLCTL side
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLINDPAIR.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLINDPAIR.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -2977,14 +2795,8 @@ function runFileIndicatorScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'FILEIND.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'FILEIND.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -3014,15 +2826,9 @@ function runChgInpDftFileRecordScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', src, 'CHGINPDFT.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce22', src, 'CHGINPDFT.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -3074,15 +2880,9 @@ function runL22FollowUpFixesScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce23', src, 'L22.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce23', src, 'L22.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -3165,14 +2965,8 @@ function runCodeForIBadgeScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'BADGE.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'BADGE.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -3236,14 +3030,8 @@ function runFieldSearchScenario() {
       buildLine({ seq: '00040', nameType: 'R', name: 'SCR2' }),
       buildLine({ seq: '00050', name: 'BALANCE', length: '9', dataType: 'S', decimals: '2', usage: 'B', line: '2', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce21', src, 'SEARCH.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce21', src, 'SEARCH.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
       window.Element.prototype.scrollIntoView = function () { this.__scrolledIntoView = true; };
@@ -3316,14 +3104,8 @@ function runFieldSearchScenario() {
 
 function runFileNamePositionScenario() {
   console.log('\nBug fix - both the redundant file name label AND the "File" section-label above the IBM i badge are gone from the left panel (the filename duplicated the tab title; the "File" crumb in the properties panel - see crumb-file - already covers what this label\'s click used to do); "Screen Design" now leads straight into the badge');
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', dspfSource, 'REORDERED.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce22', dspfSource, 'REORDERED.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -3357,14 +3139,8 @@ function runDefaultWindowBorderScenario() {
       '     A                                      WINDOW(3 10 8 30)',
       "     A                                  1  2'Hello'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce24', src, 'NOBORDER.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce24', src, 'NOBORDER.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -3401,14 +3177,8 @@ function runDefaultWindowBorderScenario() {
         '     A                                      WDWBORDER((*COLOR RED))',
         "     A                                  1  2'Hello'",
       ].join('\n') + '\n';
-    const explicitHtml = getWebviewHtml('vscode-webview://fake', 'testnonce25', explicitSrc, 'EXPLICITBORDER.DSPF').replace(
-      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-      ''
-    );
-    const explicitDom = new JSDOM(explicitHtml, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const explicitHtml = webviewHtml('vscode-webview://fake', 'testnonce25', explicitSrc, 'EXPLICITBORDER.DSPF');
+    const explicitDom = newWebviewDom(explicitHtml, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
       },
@@ -3420,8 +3190,8 @@ function runDefaultWindowBorderScenario() {
       check('the rendered border characters carry the explicit red color (own *COLOR still wins), not the entirely-separate L29 blue default', explicitCharCells.every((el) => /#ff5c5c/i.test(el.getAttribute('style') || '')));
       check('the default period/colon pattern is used for the *CHAR positions themselves', explicitCharCells.some((el) => el.textContent === '.') && explicitCharCells.some((el) => el.textContent === ':'));
 
-      console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-      process.exit(failures === 0 ? 0 : 1);
+      console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+      process.exit(failureCount() === 0 ? 0 : 1);
     }, 0);
   }, 0);
 }
@@ -3435,15 +3205,9 @@ function runWindowTitleScenario() {
       "     A                                      WDWTITLE(('Old Title'))",
       "     A                                  1  2'Hello'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce9', src, 'WINTITLE.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce9', src, 'WINTITLE.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -3488,15 +3252,9 @@ function runWindowMoveResizeScenario() {
       '     A          R DFTREC',
       '     A                                      WINDOW(*DFT 6 30)',
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce11', src, 'WDWMOVE.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce11', src, 'WDWMOVE.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // Same 10px/col x 20px/row mock as runClickToPlaceScenario above.
@@ -3575,15 +3333,9 @@ function runWindowMoveOffOriginScenario() {
       '     A                                      WINDOW(3 10 8 40)',
       "     A                                  1  2'In the window'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce26', src, 'WDWDRAG.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce26', src, 'WDWDRAG.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // Same 10px/col x 20px/row mock as the other window scenarios.
@@ -3634,15 +3386,9 @@ function runFieldDragOffOriginScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '10' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce27', src, 'FLDDRAG.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce27', src, 'FLDDRAG.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // Same 10px/col x 20px/row mock the window-drag scenarios use.
@@ -3703,15 +3449,9 @@ function runSubfileControlEditScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
       buildLine({ seq: '00060', line: '1', col: '2', func: "'Header'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'SFLEDIT.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'SFLEDIT.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -3755,15 +3495,9 @@ function runWindowFieldDragBoundaryScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'WDWREC', func: 'WINDOW(5 10 6 20)' }),
       buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '5' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce39', src, 'WDWDRAG.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce39', src, 'WDWDRAG.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -3817,15 +3551,9 @@ function runSflRegionDragBoundaryScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
       buildLine({ seq: '00060', name: 'HEADER', length: '10', dataType: 'A', usage: 'O', line: '3', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce40', src, 'SFLBOUND.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce40', src, 'SFLBOUND.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -3895,15 +3623,9 @@ function runWindowNudgeBoundaryScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'WDWREC', func: 'WINDOW(5 10 6 20)' }),
       buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '5' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce39n', src, 'WDWNUDGE.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce39n', src, 'WDWNUDGE.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -3951,15 +3673,9 @@ function runSflRegionNudgeBoundaryScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
       buildLine({ seq: '00060', name: 'HEADER', length: '10', dataType: 'A', usage: 'O', line: '3', col: '2' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce40n', src, 'SFLNUDGE.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce40n', src, 'SFLNUDGE.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4014,15 +3730,9 @@ function runPulldownEditScenario() {
       // test would silently exercise the wrong field.
       buildLine({ seq: '00050', name: 'PDFLD', length: '10', dataType: 'A', usage: 'B', line: '5', col: '10' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce13', src, 'PULLEDIT.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce13', src, 'PULLEDIT.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -4083,15 +3793,9 @@ function runDimmedCompareScenario() {
       '     A          R SCR2',
       "     A                                  3  5'Screen two'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce12', src, 'DIMCOMPARE.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'DIMCOMPARE.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4170,15 +3874,9 @@ function runFullOverlayCompareScenario() {
       '     A          R SCR2',
       "     A                                  3  5'Screen two'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce14', src, 'FULLOVERLAY.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce14', src, 'FULLOVERLAY.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4253,14 +3951,8 @@ function runPanelCollapseScenario() {
   // forever, completely unaffected by P5i - which is exactly what this
   // scenario is actually testing, so pin it to the style it depends on
   // rather than an implicit default that used to happen to match.
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce15', src, 'PANELS.DSPF', 'classic').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce15', src, 'PANELS.DSPF', 'classic');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -4313,15 +4005,9 @@ function runSflMsgPickerScenario() {
       buildLine({ seq: '00070', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00080', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce16', src, 'SFLMSG.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce16', src, 'SFLMSG.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4475,15 +4161,9 @@ function runSflMsgPickerScenario() {
         buildLine({ seq: '00020', func: 'SFLMSGRCD(5)' }),
         buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
       ].join('\n') + '\n';
-    const bareHtml = getWebviewHtml('vscode-webview://fake', 'testnonce17', bareSrc, 'BARESFLM.DSPF').replace(
-      /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-      ''
-    );
+    const bareHtml = webviewHtml('vscode-webview://fake', 'testnonce17', bareSrc, 'BARESFLM.DSPF');
     const barePosted = [];
-    const bareDom = new JSDOM(bareHtml, {
-      runScripts: 'dangerously',
-      resources: 'usable',
-      pretendToBeVisual: true,
+    const bareDom = newWebviewDom(bareHtml, {
       beforeParse(window) {
         window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => barePosted.push(m) });
       },
@@ -4522,15 +4202,9 @@ function runSflMsgRcdDspsizConditioningScenario() {
       buildLine({ seq: '00070', name: 'PGMQ', dataType: 'A', length: '10', usage: 'H' }),
       buildLine({ seq: '00080', func: 'SFLPGMQ' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'SFLMSG2.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'SFLMSG2.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4621,15 +4295,9 @@ function runSflMsgRcdBothSizesConditionedScenario() {
       buildLine({ seq: '00070', name: 'PROGRAMQ', dataType: 'A', length: '10', usage: 'H' }),
       buildLine({ seq: '00080', func: 'SFLPGMQ' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'MSGSFL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'MSGSFL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4690,15 +4358,9 @@ function runSflPickerScenario() {
       buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'SFL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce17', src, 'SFL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4774,15 +4436,9 @@ function runWindowPickerScenario() {
       buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'WINDOW.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce17', src, 'WINDOW.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -4967,15 +4623,9 @@ function runUsrDfnPickerScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00040', name: 'FLD2', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce17', src, 'USRDFN.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce17', src, 'USRDFN.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5055,15 +4705,9 @@ function runApplicationHelpScenario() {
       buildLine({ seq: '00030', nameType: 'H', func: "HLPARA(*RCD) HLPPNLGRP(M1 G1 LIB1)" }),
       buildLine({ seq: '00040', line: '2', col: '2', func: "'Second'" }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'APPHELP.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'APPHELP.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5126,15 +4770,9 @@ function runSflCtlPickerScenario() {
       buildLine({ seq: '00060', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00070', name: 'FLD2', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'SFLCTL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'SFLCTL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5378,15 +5016,9 @@ function runNumericFieldPickerScenario() {
       buildLine({ seq: '00060', name: 'DESCR', dataType: 'A', length: '10', usage: 'B', line: '2', col: '1' }),
       buildLine({ seq: '00070', name: 'DATEFLD', dataType: 'L', usage: 'O', line: '3', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'NUMERIC.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'NUMERIC.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5545,15 +5177,9 @@ function runMnuBarPickerScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'MNUBAR.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'MNUBAR.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5615,7 +5241,7 @@ function runMnuBarPickerScenario() {
     check('MNUBAR written with the new parameter', reparsed.keywords.find((k) => k.name === 'MNUBAR').parameters.trim() === '*SEP');
     check('MNUBARSW/MNUCNL from earlier steps are still there (independent commits)', reparsed.keywords.some((k) => k.name === 'MNUBARSW') && reparsed.keywords.some((k) => k.name === 'MNUCNL'));
 
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED for MNUBAR - continuing to Pull-down' : failures + ' CHECK(S) FAILED so far'));
+    console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED for MNUBAR - continuing to Pull-down' : failureCount() + ' CHECK(S) FAILED so far'));
     runPulldownPickerScenario();
   }, 0);
 }
@@ -5628,15 +5254,9 @@ function runPulldownPickerScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce18', src, 'PULLDOWN.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'PULLDOWN.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5723,15 +5343,9 @@ function runSflMsgCtlPickerScenario() {
       buildLine({ seq: '00060', func: 'SFLSIZ(20)' }),
       buildLine({ seq: '00070', func: 'SFLPAG(10)' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLMSGCTL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLMSGCTL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5821,15 +5435,9 @@ function runWndSfCtlPickerScenario() {
       buildLine({ seq: '00060', func: 'WINDOW(2 2 10 40)' }),
       buildLine({ seq: '00070', func: 'RSTCSR' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFCTL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFCTL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -5909,15 +5517,9 @@ function runWndSflScenario() {
       buildLine({ seq: '00030', name: 'F1', dataType: 'A', length: '10', usage: 'O', line: '1', col: '2' }),
       buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -6007,15 +5609,9 @@ function runPuldwnsflPickerScenario() {
       buildLine({ seq: '00050', func: 'SFLSIZ(20)' }),
       buildLine({ seq: '00060', func: 'SFLPAG(10)' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce21', src, 'PDNSFL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce21', src, 'PDNSFL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -6119,15 +5715,9 @@ function runPdnSflCtlPickerScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(10)' }),
       buildLine({ seq: '00060', func: 'PULLDOWN(*SLTIND)' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', src, 'PDNSFLCTL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce22', src, 'PDNSFLCTL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -6434,15 +6024,9 @@ function runCommentsScenario() {
       "     A*This belongs to RECORD2",
       "     A                                  1  2'World'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce19', src, 'COMMENTS.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'COMMENTS.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     },
@@ -6637,15 +6221,9 @@ function runCommentsScenario() {
 function runDatabaseFieldsPickerScenario() {
   console.log('\nTask L14: "+ Fields from database file" picker (webview-side plumbing)');
   const src = [buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' })].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce20', src, 'DBFIELDS.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'DBFIELDS.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       // Task L53: "Add fields" now goes through click-to-place, which needs
@@ -6792,15 +6370,9 @@ function runSystemValueConstantScenario() {
       '     A                                  2 10DATE',
       "     A                                  3  2'Hello'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce21', src, 'SYSVAL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce21', src, 'SYSVAL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -6891,15 +6463,9 @@ function runMsgConConstantScenario() {
       '     A                                  1 10MSGCON(20 MSG0001 MYLIB/MYMSGF)',
       "     A                                  2  2'Hello'",
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce22', src, 'MSGCON.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce22', src, 'MSGCON.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -6980,14 +6546,8 @@ function runGeneralKeywordsConstantGatingScenario() {
       // output-capable fields, and this scenario is about constant vs. named.
       '     A            NAMEFLD       10A  B  2  5',
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce23', src, 'GATING.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce23', src, 'GATING.DSPF');
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -7033,15 +6593,9 @@ function runDateTimeFormatScenario() {
       buildLine({ seq: '00030', name: 'TIMEFLD', dataType: 'T', usage: 'B', line: '2', col: '5', func: "TIMFMT(*HMS) TIMSEP(':')" }),
       buildLine({ seq: '00040', name: 'NUMFLD', dataType: 'S', length: '5', decimals: '0', usage: 'B', line: '3', col: '5' }),
     ].join('\n') + '\n';
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce24', src, 'DATETIME.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce24', src, 'DATETIME.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {

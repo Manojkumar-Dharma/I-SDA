@@ -36,18 +36,10 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { kwd, newWebviewDom, webviewHtml, withAlertCapture } = require('./helpers/common');
 
 // keyword -> the levels its section(s) describe
 const LEVELS = {
@@ -180,9 +172,6 @@ global.window = dom.window;
 global.DspfWriter = DspfWriter;
 const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
-function kwd(name, parameters, conditions) {
-  return { name: name, parameters: parameters || '', conditions: conditions || [], raw: '', sourceLines: [] };
-}
 const G = (...nums) => ({ indicators: nums.map((n) => ({ number: n, not: false })) });
 const DS = (name) => ({ displaySizeCondition: { name: name, not: false }, indicators: [] });
 
@@ -199,13 +188,6 @@ function mount(keywords, owner) {
   function onChange(next) { state.keywords = next; state.changes++; render(); }
   render();
   return state;
-}
-function withAlertCapture(fn) {
-  let msg = null;
-  const original = global.window.alert;
-  global.window.alert = function (m) { msg = m; };
-  try { fn(); } finally { global.window.alert = original; }
-  return msg;
 }
 const click = (el) => el.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
 const toggleOf = (idx) => document.querySelector('.kw-cond-toggle[data-owner="' + OWNER + '"][data-idx="' + idx + '"]');
@@ -361,17 +343,11 @@ add('R2', { nameType: 'R', name: 'REC2', func: "HLPTITLE('Record help')" });
 add('R2F', { name: 'R2F', length: '5', dataType: 'A', usage: 'B', line: '2', col: '2' });
 const SRC = lines.join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce101d', SRC, 'I101D.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce101d', SRC, 'I101D.DSPF');
 const errors = [];
 const alerts = [];
 const posted = [];
-const webDom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const webDom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     window.alert = (m) => alerts.push(String(m));
@@ -454,6 +430,6 @@ setTimeout(() => {
     alerts.length === a0 + 1 && /cannot be added to a field that has option indicators/.test(alerts[alerts.length - 1]) && edits() === e0);
 
   check('no uncaught errors', errors.length === 0);
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 700);

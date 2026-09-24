@@ -10,20 +10,11 @@
  *
  * Run with: node src/test/multiSelect.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 const DspfParser = require('../../dist/dspfParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const src =
   [
@@ -55,15 +46,9 @@ function fakeRectFromGridStyle(el) {
 }
 
 function setup(customSrc) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', customSrc || src, 'MULTISEL.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', customSrc || src, 'MULTISEL.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.Element.prototype.getBoundingClientRect = function () {
@@ -473,7 +458,7 @@ setTimeout(() => {
   }
 
   function finish() {
-    console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-    process.exitCode = failures === 0 ? 0 : 1;
+    console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+    process.exitCode = failureCount() === 0 ? 0 : 1;
   }
 }, 0);

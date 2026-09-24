@@ -27,15 +27,7 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 // ===========================================================================
 // Writer layer: getRepeatableKeywordInstances / setRepeatableKeywordInstances
@@ -321,5 +313,5 @@ console.log('\nEnd-to-end: DspfWriter instances -> rendered/wired in the DOM -> 
   check('still exactly 2 COLOR keywords - editing one didn\'t drop or duplicate the other', keywords.filter((k) => k.name === 'COLOR').length === 2);
 }
 
-console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} check(s) FAILED.`);
-process.exit(failures === 0 ? 0 : 1);
+console.log(failureCount() === 0 ? '\nAll checks passed.' : `\n${failureCount()} check(s) FAILED.`);
+process.exit(failureCount() === 0 ? 0 : 1);

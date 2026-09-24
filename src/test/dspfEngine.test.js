@@ -14,15 +14,7 @@ const DspfEngine = require(path.join(__dirname, '../dspfEngine.js'));
 const DspfParser = require(path.join(__dirname, '../../dist/dspfParser.js'));
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
 
 console.log('DSPSIZ: single size (existing behavior, unchanged)');
 {
@@ -1397,7 +1389,7 @@ console.log('SFLEND blank / *PLUS-only (no *SCRBAR, no *MORE): neither visual is
   check('rendered HTML has neither new element', !html.includes('dspf-subfile-scrollbar') && !html.includes('dspf-subfile-more-line'));
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);
 
 

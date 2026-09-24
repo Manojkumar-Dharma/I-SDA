@@ -25,18 +25,9 @@
  * i10SflctlConditioningAudit.test.js).
  * Run with: node src/test/i25KeepConsolidationAudit.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // One record of each of the 4 KEEP-relevant shapes: a plain record (base
 // General tab only), a plain SFL detail record, an SFLMSG record, and an
@@ -59,15 +50,9 @@ const dspfSource =
     "     A            MSGKEY         4S 0H",
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     window.alert = () => {};
@@ -150,6 +135,6 @@ setTimeout(() => {
   const editKeepOnAfter = doc.getElementById('rk-PLAINREC-keep-on');
   check('KEEP-off committed (checkbox reflects unchecked state after re-render)', editKeepOnAfter && editKeepOnAfter.checked === false);
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

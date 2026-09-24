@@ -16,19 +16,10 @@
  * Runs the DSPF designer's real generated client-side script in jsdom.
  * Run with: node src/test/i13PulldownConflictAudit.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -41,16 +32,10 @@ const dspfSource =
     "     A                                  1  2'PLAIN SCREEN 2'",
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
 
 let posted = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({
       getState: () => null,
@@ -211,6 +196,6 @@ setTimeout(() => {
 
   console.log('\nnon-PULLDOWN record: turning PULLDOWN itself on when a conflicting keyword is present - covered at the pure-function level in dspfWriter.test.js\'s pulldownConflictReason() block, not here: the Pull-down tab/checkbox this test exercises above only renders once a record already carries PULLDOWN (added by the "+ Add record" wizard, see isPulldownRecord\'s own gating in buildWebviewTemplate.js), so there is no DOM path on a plain record to click a PULLDOWN "on" checkbox that does not exist yet.');
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 100);

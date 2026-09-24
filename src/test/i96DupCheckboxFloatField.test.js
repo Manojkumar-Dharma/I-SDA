@@ -17,20 +17,11 @@
  * jsdom. Run with: node src/test/i96DupCheckboxFloatField.test.js
  */
 const path = require('path');
-const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const k = (name, parameters) => ({ name, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] });
 const DUP = [k('DUP')];
@@ -92,14 +83,11 @@ const SRC = [
   buildLine({ seq: '00050', name: 'F4', length: '10', dataType: 'A', usage: 'B', line: '9', col: '2' }),
 ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I96.DSPF').replace(/<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
+const html = webviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I96.DSPF');
 const posted = [];
 const errors = [];
 const alerts = [];
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
     window.alert = (m) => alerts.push(m);
@@ -205,6 +193,6 @@ setTimeout(() => {
   }
 
   check('no uncaught errors', errors.length === 0);
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  setTimeout(() => process.exit(failures === 0 ? 0 : 1), 50);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  setTimeout(() => process.exit(failureCount() === 0 ? 0 : 1), 50);
 }, 500);

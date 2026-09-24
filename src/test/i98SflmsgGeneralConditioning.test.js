@@ -23,32 +23,17 @@
  * rationale as i9SflConditioningAudit.test.js).
  * Run with: node src/test/i98SflmsgGeneralConditioning.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const DspfParser = require('../../dist/dspfParser.js');
 const { buildLine } = require('../fixtures/lineBuilder');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 /** Boots the designer on `src`, selects SFLMESS and opens its SFLMSG tab. */
 function boot(src, done) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce98', src, 'SFLMSG98.DSPF').replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
+  const html = webviewHtml('vscode-webview://fake', 'testnonce98', src, 'SFLMSG98.DSPF');
   const posted = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
       window.alert = () => {};
@@ -158,8 +143,8 @@ boot(sflMsgLines(), ({ doc, Event, posted }) => {
       const rec2 = lastRecord(posted2);
       check('unticking LOGINP removes it (removal is never blocked)', !!rec2 && !rec2.keywords.some((k) => k.name === 'LOGINP'));
 
-      console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-      process.exit(failures === 0 ? 0 : 1);
+      console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+      process.exit(failureCount() === 0 ? 0 : 1);
     }
   );
 });

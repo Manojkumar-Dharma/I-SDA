@@ -21,18 +21,9 @@
  *     duplicate), moving it back home to the aside once closed
  * Run with: node src/test/toolboxFab.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -43,14 +34,8 @@ const dspfSource =
   ].join('\n') + '\n';
 
 function makeDom(uiStyle) {
-  const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', uiStyle).replace(
-    /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-    ''
-  );
-  return new JSDOM(html, {
-    runScripts: 'dangerously',
-    resources: 'usable',
-    pretendToBeVisual: true,
+  const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', uiStyle);
+  return newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
     },
@@ -208,8 +193,8 @@ setTimeout(() => {
         setTimeout(() => {
           check('...and mirrors it becoming visible again too', !fabDbItem.classList.contains('hidden'));
 
-          console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-          process.exit(failures === 0 ? 0 : 1);
+          console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+          process.exit(failureCount() === 0 ? 0 : 1);
         }, 0);
       }, 0);
     }

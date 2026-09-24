@@ -30,19 +30,10 @@
  * itself being wrong.
  * Run with: node src/test/accordionOpenStatePersistence.test.js
  */
-const { JSDOM } = require('jsdom');
-const { getWebviewHtml } = require('../../dist/webviewTemplate.js');
 const { buildLine } = require('../fixtures/lineBuilder.js');
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 // NAME already carries a COLOR keyword (so its Color & attributes accordion
 // has a real inst0 row, not just the always-present "+ Add" staging row);
@@ -55,15 +46,9 @@ const dspfSource =
     buildLine({ seq: '00040', name: 'CITY', dataType: 'A', length: '10', usage: 'B', line: '5', col: '5' }),
   ].join('\n') + '\n';
 
-const html = getWebviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern').replace(
-  /<meta http-equiv="Content-Security-Policy"[^>]*>/,
-  ''
-);
+const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF', 'modern');
 
-const dom = new JSDOM(html, {
-  runScripts: 'dangerously',
-  resources: 'usable',
-  pretendToBeVisual: true,
+const dom = newWebviewDom(html, {
   beforeParse(window) {
     window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
   },
@@ -137,6 +122,6 @@ setTimeout(() => {
   const otherColorAttrAccordion = accordion(otherOwnerKey + '::colorattr');
   check("CITY's own Color & attributes accordion starts closed, unaffected by NAME's toggling above", !!otherColorAttrAccordion && !otherColorAttrAccordion.open);
 
-  console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-  process.exit(failures === 0 ? 0 : 1);
+  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+  process.exit(failureCount() === 0 ? 0 : 1);
 }, 0);

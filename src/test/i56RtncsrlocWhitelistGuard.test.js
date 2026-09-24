@@ -29,15 +29,8 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
 
-let failures = 0;
-function check(label, condition) {
-  if (condition) {
-    console.log('  ok  -', label);
-  } else {
-    failures++;
-    console.log('FAIL  -', label);
-  }
-}
+const { check, failureCount } = require('./helpers/harness');
+const { withAlertCapture } = require('./helpers/common');
 
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
 global.document = dom.window.document;
@@ -54,14 +47,6 @@ function wire(getKeywords, onChange, expandedSet, rerender) {
   Helpers.wireRecordKeywordsPanels('rk', getKeywords, onChange, expandedSet || new Set(), rerender || function () {});
 }
 
-function withAlertCapture(fn) {
-  let alertMessage = null;
-  const originalAlert = global.window.alert;
-  global.window.alert = function (msg) { alertMessage = msg; };
-  fn();
-  global.window.alert = originalAlert;
-  return alertMessage;
-}
 
 function setup(initialKeywords) {
   let keywords = initialKeywords;
@@ -172,5 +157,5 @@ console.log('\nRTNCSRLOC: both variants independent - blocking one on SFL leaves
   check('neither variant was added (both blocked independently)', !ctx.getKeywords().some((k) => k.name === 'RTNCSRLOC'));
 }
 
-console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'));
-process.exit(failures === 0 ? 0 : 1);
+console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+process.exit(failureCount() === 0 ? 0 : 1);
