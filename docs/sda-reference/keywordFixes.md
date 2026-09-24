@@ -161,7 +161,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | Done | v0.10.198 |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | v0.10.194 |
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
-| [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Not started | — |
+| [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | In progress | Claude |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
+| 1 | [I-119](#i-119) | In progress | De-duplicate copied helpers. Size (estimate): Small-medium. |
 | 2 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
 | 3 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
