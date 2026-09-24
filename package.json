@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.10.202",
+  "version": "0.10.203",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -126,7 +126,7 @@
         },
         {
           "command": "dspfDesigner.openMenuPreview",
-          "when": "resourceExtname =~ /\\.(mnudds|MNUDDS)$/ || resourceScheme == member || resourceScheme == streamfile",
+          "when": "resourceExtname =~ /\\.(mnudds|MNUDDS|mnucmd|MNUCMD)$/ || resourceScheme == member || resourceScheme == streamfile",
           "group": "navigation"
         }
       ],

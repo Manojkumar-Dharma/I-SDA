@@ -56,6 +56,70 @@ async function run() {
   check('a menu-shaped DSPF gets both lenses', menuLenses.length === 2);
   check('one of them opens the menu designer', menuLenses.some((l) => l.command.command === 'dspfDesigner.openMenuPreview'));
 
+  console.log('\nTask L-40: narrowed CodeLens scope to specific IBM i source types (DSPF/DSPF38/DSPF36, MNUDDS/MNUCMD) instead of any member/streamfile');
+  const rpgleUri = new vscodeMock.Uri('member', '/MYLIB/QRPGLESRC/SOMEPGM.RPGLE');
+  const rpgleDoc = vscodeMock.__mockDocument(
+    "     A          R MENU\n" +
+    "     A            10 20'1. Display current library'\n" +
+    "     A            11 20'2. Change current library'\n",
+    rpgleUri
+  );
+  check('a non-DSPF-family member type gets NEITHER lens, even with menu/DSPF-shaped content', lensProvider.provideCodeLenses(rpgleDoc).length === 0);
+
+  const dspf38Uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/SCREEN1.DSPF38');
+  const dspf38Doc = vscodeMock.__mockDocument('not actually DDS-shaped text at all', dspf38Uri);
+  check('a DSPF38 member type gets the screen design lens even when content doesn\'t match the DDS sniff (type is trusted over content)', lensProvider.provideCodeLenses(dspf38Doc).some((l) => l.command.command === 'dspfDesigner.openPreview'));
+
+  const dspf36Uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/SCREEN2.DSPF36');
+  const dspf36Doc = vscodeMock.__mockDocument('not actually DDS-shaped text at all', dspf36Uri);
+  check('a DSPF36 member type also gets the screen design lens', lensProvider.provideCodeLenses(dspf36Doc).some((l) => l.command.command === 'dspfDesigner.openPreview'));
+
+  const mnuddsTypeUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
+  const mnuddsTypeDoc = vscodeMock.__mockDocument('not menu-shaped content, no numbered options', mnuddsTypeUri);
+  check('an MNUDDS member type gets the menu design lens even without the numbered-option content sniff (type is trusted)', lensProvider.provideCodeLenses(mnuddsTypeDoc).some((l) => l.command.command === 'dspfDesigner.openMenuPreview'));
+
+  const mnucmdUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENUQQ.MNUCMD');
+  const mnucmdDoc = vscodeMock.__mockDocument('0001 DSPLIBL\n', mnucmdUri);
+  const mnucmdLenses = lensProvider.provideCodeLenses(mnucmdDoc);
+  check('an MNUCMD member gets ONLY the menu design lens (not the screen design lens - MNUCMD is not DDS)', mnucmdLenses.length === 1 && mnucmdLenses[0].command.command === 'dspfDesigner.openMenuPreview');
+
+  const clleUri = new vscodeMock.Uri('member', '/MYLIB/QCLSRC/SOMECMD.CLLE');
+  const clleDoc = vscodeMock.__mockDocument('PGM\nENDPGM\n', clleUri);
+  check('a CLLE member gets no lenses at all', lensProvider.provideCodeLenses(clleDoc).length === 0);
+
+  const streamfileUri = new vscodeMock.Uri('streamfile', '/home/user/screens/customer.dspf');
+  const streamfileDoc = vscodeMock.__mockDocument('     A          R MENU\n', streamfileUri);
+  check('a streamfile with a .dspf extension still gets the screen design lens (file/streamfile schemes use the ordinary extension as the type)', lensProvider.provideCodeLenses(streamfileDoc).some((l) => l.command.command === 'dspfDesigner.openPreview'));
+
+  console.log('\nTask L-40: opening an MNUCMD member/file directly resolves to its paired MNUDDS and opens THAT in the menu designer, rather than trying to parse MNUCMD\'s own non-DDS content');
+  {
+    const openMenuPreview = vscodeMock.__registeredCommands['dspfDesigner.openMenuPreview'];
+
+    vscodeMock.window.activeTextEditor = { document: mnucmdDoc };
+    vscodeMock.__lastExecutedCommand = undefined;
+    openMenuPreview();
+    const resolvedUri = vscodeMock.__lastExecutedCommand && vscodeMock.__lastExecutedCommand.args[0];
+    check('resolves MYMENUQQ.MNUCMD to MYMENU.MNUDDS (same library/source file) and opens that, not the MNUCMD itself', !!resolvedUri && resolvedUri.path === '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
+    check('opens it in the menu designer (vscode.openWith)', vscodeMock.__lastExecutedCommand && vscodeMock.__lastExecutedCommand.id === 'vscode.openWith');
+
+    console.log('  a plain MNUDDS member (not MNUCMD) still opens itself directly, unchanged');
+    vscodeMock.window.activeTextEditor = { document: mnuddsTypeDoc };
+    vscodeMock.__lastExecutedCommand = undefined;
+    openMenuPreview();
+    const directUri = vscodeMock.__lastExecutedCommand && vscodeMock.__lastExecutedCommand.args[0];
+    check('opens the MNUDDS member itself, not a resolved companion', !!directUri && directUri.path === '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
+
+    console.log('  an MNUCMD member whose name does not follow the "<menu>QQ" convention warns instead of guessing');
+    const oddMnucmdUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/RANDOMNAME.MNUCMD');
+    const oddMnucmdDoc = vscodeMock.__mockDocument('0001 DSPLIBL\n', oddMnucmdUri);
+    vscodeMock.window.activeTextEditor = { document: oddMnucmdDoc };
+    vscodeMock.__lastWarning = undefined;
+    vscodeMock.__lastExecutedCommand = undefined;
+    openMenuPreview();
+    check('does not attempt to open anything for an unresolvable MNUCMD name', vscodeMock.__lastExecutedCommand === undefined);
+    check('warns the user instead', typeof vscodeMock.__lastWarning === 'string' && vscodeMock.__lastWarning.length > 0);
+  }
+
   console.log('\nresolveCustomTextEditor()');
   const doc = vscodeMock.__mockDocument('     A          R MENU\n');
   let htmlSet = null;

@@ -68,12 +68,16 @@ const WebviewClientHelpers: {
   ): { mainKeywords: any[]; dependent: { name: string; keywords: any[] } | null; extraFields: Array<{ name: string; usage: string; keywords: any[] }> } | null;
 } = require('./webviewClientHelpers.js');
 
-// Matches local .dspf/.mnudds files by extension/language, PLUS remote IBM i
-// source members and IFS streamfiles opened through Code for i (scheme
-// 'member' / 'streamfile' - see https://codefori.github.io/docs/dev/examples/).
-// Those don't reliably carry a matching resourceExtname in every case, so the
-// scheme match is intentionally broader; isLikelyDisplayFile()/isLikelyMenuFile()
-// below are the actual content-based filters that keep each CodeLens precise.
+// Matches local .dspf/.mnudds/.mnucmd files by extension/language, PLUS
+// remote IBM i source members and IFS streamfiles opened through Code for i
+// (scheme 'member' / 'streamfile' - see
+// https://codefori.github.io/docs/dev/examples/). Those don't reliably carry
+// a matching resourceExtname in every case, so the scheme match is
+// intentionally broader at THIS selector stage; isLikelyDisplayFile()/
+// isLikelyMenuFile() below narrow it back down to the specific source types
+// this task exists to design (DSPF/DSPF38/DSPF36 for the screen designer,
+// MNUDDS/MNUCMD for the menu designer), keeping the CodeLens from firing on
+// unrelated member types (RPGLE, CLLE, PF, ...) the way it used to (Task L-40).
 // 'dds.dspf' is the language ID the (optional) companion "IBMi Languages"
 // extension assigns to display-file source specifically - verified against
 // its package.json rather than assumed, since e.g. plain '.pf'/'.dds' map to
@@ -81,11 +85,36 @@ const WebviewClientHelpers: {
 // A MNUDDS member is *also* plain DDS (see isLikelyMenuFile), so it's matched
 // by 'dds.dspf' too when the IBMi Languages extension is present.
 const DDS_LANGUAGE_SELECTOR: vscode.DocumentSelector = [
-  { scheme: 'file', pattern: '**/*.{dspf,DSPF,dspf38,dspf36,mnudds,MNUDDS}' },
+  { scheme: 'file', pattern: '**/*.{dspf,DSPF,dspf38,dspf36,mnudds,MNUDDS,mnucmd,MNUCMD}' },
   { language: 'dds.dspf' },
   { scheme: 'member' },
   { scheme: 'streamfile' },
 ];
+
+// The IBM i source-type names (case-insensitive) that gate each designer's
+// CodeLens - see getDocumentSourceType() and Task L-40 in LIMITATIONS-PLAN.md.
+const DISPLAY_SOURCE_TYPES = new Set(['DSPF', 'DSPF38', 'DSPF36']);
+const MENU_SOURCE_TYPE = 'MNUDDS';
+const MENU_COMMAND_SOURCE_TYPE = 'MNUCMD';
+
+/**
+ * Extracts the IBM i source-type attribute a document's URI carries as its
+ * extension, uppercased. For a `member:` scheme URI (.../LIBRARY/FILE/NAME.TYPE)
+ * this IS the real source-type attribute, same convention parseMemberUri()
+ * and getMenuCommandMemberUri() already rely on. For `file:`/`streamfile:`
+ * scheme URIs it's the ordinary file extension, which this project already
+ * treats as a type-alike (see compileDspf()'s own branch on a member's
+ * '.dspf36' extension to pick CRTS36DSPF over CRTDSPF). Returns null when no
+ * extension is present to key off of (e.g. a member URI with a bare name, or
+ * an 'untitled:' document) - callers fall back to content-based sniffing in
+ * that case, same as before Task L-40 narrowed the type-known case.
+ */
+function getDocumentSourceType(uri: vscode.Uri): string | null {
+  const last = uri.path.split('/').pop() || '';
+  const dot = last.lastIndexOf('.');
+  if (dot <= 0) return null;
+  return last.slice(dot + 1).toUpperCase();
+}
 
 // Shared between the DSPF and menu designers, so toggling the UI style in
 // either one is reflected in the other next time it's opened. Defaults to
@@ -145,7 +174,20 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage('Open a menu source (MNUDDS) first.');
         return;
       }
-      openMenuDesigner(editor.document.uri);
+      const uri = editor.document.uri;
+      if (getDocumentSourceType(uri) === MENU_COMMAND_SOURCE_TYPE) {
+        const menuUri = getMenuSourceUriFromCommandUri(uri);
+        if (!menuUri) {
+          const name = uri.path.split('/').pop() || uri.path;
+          vscode.window.showWarningMessage(
+            `iSDA: couldn't find the menu paired with ${name} - expected a "<menu>QQ" name.`
+          );
+          return;
+        }
+        openMenuDesigner(menuUri);
+        return;
+      }
+      openMenuDesigner(uri);
     })
   );
 
@@ -205,30 +247,53 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 }
 
-function isLikelyDisplayFile(document: vscode.TextDocument): boolean {
-  // DDS display files declare record formats with 'R' in column 17; a quick,
-  // cheap heuristic rather than a full parse just to decide whether to show the CodeLens.
+// DDS display files declare record formats with 'R' in column 17; a quick,
+// cheap heuristic rather than a full parse just to decide whether to show the
+// CodeLens. Used only when the document's source type can't be determined
+// (see getDocumentSourceType) or is itself a DSPF-family type - a menu screen
+// IS a display file, so this is also isLikelyMenuFile's own fallback signal.
+function hasDisplayFileShapedContent(document: vscode.TextDocument): boolean {
   const text = document.getText();
   return /^.{16}R\s+\S/m.test(text) || /DSPSIZ\(/i.test(text);
+}
+
+function isLikelyDisplayFile(document: vscode.TextDocument): boolean {
+  const type = getDocumentSourceType(document.uri);
+  // A known, non-DSPF-family type (RPGLE, CLLE, PF, ...) is a hard no,
+  // regardless of what the content happens to look like (Task L-40 - this is
+  // the actual narrowing; before this, ANY member/streamfile whose content
+  // coincidentally matched the regexes below got the CodeLens).
+  if (type) return DISPLAY_SOURCE_TYPES.has(type);
+  // No extension to key off of at all - fall back to the original content sniff.
+  return hasDisplayFileShapedContent(document);
 }
 
 /**
  * An IBM i SDA-style menu (MNUDDS source) is *plain DDS* - CRTMNU just compiles
  * it into a *DSPF like any other display file - so there's no structural marker
  * that says "this is a menu" the way e.g. a MSGF source would declare its type.
- * The one thing that reliably distinguishes a menu screen is that it lays its
- * options out as constants shaped like "1. Do a thing" / "12) Do a thing" -
- * each of those numbers is what the companion MNUCMD member's option-to-command
- * mapping keys off of (see mnuCmdEngine.js). Two or more such constants is a
- * good enough signal to offer the menu designer without false-triggering on
- * ordinary numbered lists that occasionally show up on non-menu screens.
- * Also trusts a '.mnudds' extension outright, local or remote (member/streamfile
- * URIs carry the IBM i source type as the path's extension, not a real file
- * extension - see getMemberUri in codefori/vscode-ibmi).
+ * The one thing that reliably distinguishes a menu screen, absent a MNUDDS
+ * source type, is that it lays its options out as constants shaped like
+ * "1. Do a thing" / "12) Do a thing" - each of those numbers is what the
+ * companion MNUCMD member's option-to-command mapping keys off of (see
+ * mnuCmdEngine.js). Two or more such constants is a good enough signal to
+ * offer the menu designer without false-triggering on ordinary numbered lists
+ * that occasionally show up on non-menu screens.
+ * A MNUCMD source (the companion option-to-command mapping file, not DDS at
+ * all) also gets the lens - see getMenuSourceUriFromCommandUri() and the
+ * 'dspfDesigner.openMenuPreview' command, which resolve it to its paired
+ * MNUDDS member/file and open THAT in the designer, rather than trying to
+ * parse MNUCMD's own non-DDS content (Task L-40).
  */
 function isLikelyMenuFile(document: vscode.TextDocument): boolean {
-  if (/\.mnudds$/i.test(document.uri.path)) return true;
-  if (!isLikelyDisplayFile(document)) return false;
+  const type = getDocumentSourceType(document.uri);
+  if (type === MENU_SOURCE_TYPE) return true;
+  if (type === MENU_COMMAND_SOURCE_TYPE) return true;
+  // A known type that's neither MNUDDS/MNUCMD nor DSPF-family - hard no
+  // (Task L-40's narrowing; a menu screen must at least look like a display
+  // file before the numbered-option sniff below even applies).
+  if (type && !DISPLAY_SOURCE_TYPES.has(type)) return false;
+  if (!hasDisplayFileShapedContent(document)) return false;
   const matches = document.getText().match(/'\s*\d{1,2}[.)]\s+\S/g);
   return !!matches && matches.length >= 2;
 }
@@ -277,6 +342,36 @@ function getMenuCommandMemberUri(uri: vscode.Uri): vscode.Uri | null {
     if (dot <= 0) return null; // no extension to key off of
     const base = fileName.slice(0, dot);
     return uri.with({ path: dir + base + 'QQ.mnucmd' });
+  }
+  return null;
+}
+
+/**
+ * Inverse of getMenuCommandMemberUri: given the MNUCMD companion source's own
+ * URI, returns its paired MNUDDS menu source's URI, or null when the name
+ * doesn't follow the "<menu>QQ" convention (nowhere reliable to resolve to).
+ * Used so that when an MNUCMD member/file is the active editor, "Open Menu
+ * Design" still opens the actual menu DESIGN rather than trying to parse
+ * MNUCMD's own content (a completely different, non-DDS format) as if it
+ * were the menu screen itself (Task L-40).
+ */
+function getMenuSourceUriFromCommandUri(uri: vscode.Uri): vscode.Uri | null {
+  if (uri.scheme === 'member') {
+    const segments = uri.path.split('/').filter(Boolean);
+    if (segments.length < 3) return null;
+    const last = segments[segments.length - 1];
+    const m = /^(.+)QQ\.MNUCMD$/i.exec(last);
+    if (!m) return null;
+    const newSegments = segments.slice(0, -1).concat(`${m[1]}.MNUDDS`);
+    return uri.with({ path: '/' + newSegments.join('/') });
+  }
+  if (uri.scheme === 'file' || uri.scheme === 'streamfile') {
+    const lastSlash = uri.path.lastIndexOf('/');
+    const dir = uri.path.slice(0, lastSlash + 1);
+    const fileName = uri.path.slice(lastSlash + 1);
+    const m = /^(.+)QQ\.mnucmd$/i.exec(fileName);
+    if (!m) return null;
+    return uri.with({ path: dir + m[1] + '.mnudds' });
   }
   return null;
 }
