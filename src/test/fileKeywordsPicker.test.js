@@ -136,46 +136,40 @@ console.log('\ngetFileRefKeyword / setFileRefKeyword - the record-format-name su
   check('recordFormat reads back blank when not set', DspfWriter.getFileRefKeyword(kw).recordFormat === '');
 }
 
-console.log('\ngetFileHlpPnlGrpKeyword / setFileHlpPnlGrpKeyword - HLPPNLGRP(module [library/]panelgroup), Task I-4');
+console.log('\ngetFileHlpPnlGrpKeyword - HLPPNLGRP(module [library/]panelgroup), Task I-4');
 {
+  // Task I-118: setFileHlpPnlGrpKeyword itself was removed as dead code
+  // (no production caller since I-4's own picker moved to writing
+  // HLPPNLGRP via the generic setFileFlagKeyword instead - see
+  // fileKeywordsPicker's own wireFileKeywordsPanels). getFileHlpPnlGrpKeyword
+  // (the reader) is still used to populate the structured prompt fields, so
+  // its round-trip coverage stays, built from a raw keywords array instead.
+  const kwKey = (parameters) => [{ name: 'HLPPNLGRP', parameters: parameters, conditions: [], raw: '', sourceLines: [] }];
   // Confirmed order per IBM's DDS Reference: help-module-name comes
   // FIRST, then the (optionally library-qualified) panel-group-name -
   // the old picker's placeholder hint had this backwards.
-  let kw = DspfWriter.setFileHlpPnlGrpKeyword([], 'GENERAL', 'LIBA', 'PANEL1');
-  check('parameters formatted as module library/panelgroup', kw[0].parameters === 'GENERAL LIBA/PANEL1');
-  let state = DspfWriter.getFileHlpPnlGrpKeyword(kw);
+  let state = DspfWriter.getFileHlpPnlGrpKeyword(kwKey('GENERAL LIBA/PANEL1'));
   check('round-trips moduleName', state.moduleName === 'GENERAL');
   check('round-trips library', state.library === 'LIBA');
   check('round-trips panelGroup', state.panelGroup === 'PANEL1');
 
-  kw = DspfWriter.setFileHlpPnlGrpKeyword([], 'GENERAL', '', 'PANEL1');
-  check('no library qualifier when library blank', kw[0].parameters === 'GENERAL PANEL1');
-  state = DspfWriter.getFileHlpPnlGrpKeyword(kw);
-  check('library reads back empty', state.library === '');
+  state = DspfWriter.getFileHlpPnlGrpKeyword(kwKey('GENERAL PANEL1'));
+  check('library reads back empty when no qualifier', state.library === '');
   check('panelGroup still reads back', state.panelGroup === 'PANEL1');
-
-  kw = DspfWriter.setFileHlpPnlGrpKeyword([], 'GENERAL', 'LIBA', '');
-  check('blank panelGroup drops the keyword entirely (both moduleName and panelGroup are required)', kw.length === 0);
-  kw = DspfWriter.setFileHlpPnlGrpKeyword([], '', 'LIBA', 'PANEL1');
-  check('blank moduleName drops the keyword entirely', kw.length === 0);
 }
 
-console.log('\ngetFileHlpSchIdxKeyword / setFileHlpSchIdxKeyword - HLPSCHIDX([library/]searchindex), Task I-4');
+console.log('\ngetFileHlpSchIdxKeyword - HLPSCHIDX([library/]searchindex), Task I-4');
 {
-  let kw = DspfWriter.setFileHlpSchIdxKeyword([], 'LIBA', 'SEARCH1');
-  check('parameters formatted as library/searchindex', kw[0].parameters === 'LIBA/SEARCH1');
-  let state = DspfWriter.getFileHlpSchIdxKeyword(kw);
+  // Task I-118: setFileHlpSchIdxKeyword itself was removed as dead code,
+  // same reasoning as setFileHlpPnlGrpKeyword above.
+  const kwKey = (parameters) => [{ name: 'HLPSCHIDX', parameters: parameters, conditions: [], raw: '', sourceLines: [] }];
+  let state = DspfWriter.getFileHlpSchIdxKeyword(kwKey('LIBA/SEARCH1'));
   check('round-trips library', state.library === 'LIBA');
   check('round-trips searchIndex', state.searchIndex === 'SEARCH1');
 
-  kw = DspfWriter.setFileHlpSchIdxKeyword([], '', 'SEARCH1');
-  check('no library qualifier when library blank', kw[0].parameters === 'SEARCH1');
-  state = DspfWriter.getFileHlpSchIdxKeyword(kw);
-  check('library reads back empty', state.library === '');
+  state = DspfWriter.getFileHlpSchIdxKeyword(kwKey('SEARCH1'));
+  check('library reads back empty when no qualifier', state.library === '');
   check('searchIndex still reads back', state.searchIndex === 'SEARCH1');
-
-  kw = DspfWriter.setFileHlpSchIdxKeyword([], 'LIBA', '');
-  check('blank searchIndex removes HLPSCHIDX entirely', kw.length === 0);
 }
 
 console.log('\nMNUBARSW/MNUCNL via setFileFlagKeyword - confirming the fixed (valid DDS) shapes, Task I-4');

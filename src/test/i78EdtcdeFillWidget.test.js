@@ -7,7 +7,7 @@
  * "Replace leading zeros with". The designer only offered it as free text
  * in the same box as the edit-code letter.
  *
- *   A. DspfWriter: splitEditCode / joinEditCode / getEditCodeParts /
+ *   A. DspfWriter: splitEditCode / joinEditCode /
  *      editCodeFillConflictReason.
  *   B. The Edit code / word / mask panel: the new "Replace leading zeros
  *      with" input renders, is pre-populated (including from a hand-written
@@ -58,15 +58,7 @@ console.log('A1. splitEditCode / joinEditCode');
   check('a whole unrecognisable string round-trips unchanged', (() => { const p = sp('J * extra'); return jn(p.code, p.fill) === 'J * extra'; })());
 }
 
-console.log('\nA2. getEditCodeParts');
-{
-  const g = DspfWriter.getEditCodeParts;
-  check('reads code and fill from EDTCDE', (() => { const p = g([kw('EDTCDE', 'K *')]); return p.code === 'K' && p.fill === '*'; })());
-  check('no EDTCDE -> empty parts', (() => { const p = g([kw('DSPATR', 'HI')]); return p.code === '' && p.fill === ''; })());
-  check('an EDTWRD field reports empty (its string is not an edit code)', (() => { const p = g([kw('EDTWRD', "'  DR  CR'")]); return p.code === '' && p.fill === ''; })());
-}
-
-console.log('\nA3. editCodeFillConflictReason');
+console.log('\nA2. editCodeFillConflictReason');
 {
   const r = DspfWriter.editCodeFillConflictReason;
   check('a blank fill is never reported, whatever the code', r('EDTCDE', 'W', '') === null && r('EDTCDE', 'J', '  ') === null && r('EDTWRD', "'x'", '') === null && r('', '', '') === null);

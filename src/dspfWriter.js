@@ -589,18 +589,6 @@
     return result;
   }
 
-  /** @returns {{[number:string]: 'file'|'record'}} which scope has already claimed each key
-   *  number - informational only (e.g. so the UI can flag a record-level key as "overrides
-   *  the file-level Fnn"); this does NOT mean both scopes can't independently use the same
-   *  number - see the comment above. Record entries win when both scopes define a number,
-   *  matching resolveFunctionKeyLegend's own record-takes-precedence resolution. */
-  function commandKeyNumbersInUse(fileKeywords, recordKeywords) {
-    var used = {};
-    parseCommandKeys(fileKeywords).forEach(function (k) { used[k.number] = 'file'; });
-    parseCommandKeys(recordKeywords).forEach(function (k) { used[k.number] = 'record'; });
-    return used;
-  }
-
   /** Key numbers ("01".."24") not already claimed WITHIN the given scope's own keyword
    *  list - what that scope's new-key picker OFFERED before Task L31. Pass the file's
    *  keywords when adding a file-level key, or a single record's own keywords when adding
@@ -1176,14 +1164,6 @@
     var c = String(code == null ? '' : code).trim();
     var f = String(fill == null ? '' : fill).trim();
     return f ? (c + ' ' + f).trim() : c;
-  }
-
-  /** { code, fill } for the field's EDTCDE, or empty strings when it has
-   *  none (an EDTWRD field also reports empty - its parameters are not an
-   *  edit code). */
-  function getEditCodeParts(keywords) {
-    var k = (keywords || []).find(function (kw) { return kw.name === 'EDTCDE'; });
-    return k ? splitEditCode(k.parameters) : { code: '', fill: '' };
   }
 
   /** Why an EDTCDE edit code / "Replace leading zeros with" pair cannot be
@@ -1907,7 +1887,11 @@
    *  simple boolean per real DDS (DUP/BLANKS/CHANGE take a REQUIRED
    *  response indicator in real DDS, which the caller supplies via
    *  Conditioning on that specific keyword the same as any other
-   *  conditioned keyword; CHGINPDFT takes none). */
+   *  conditioned keyword; CHGINPDFT takes none).
+   *  NOTE (Task I-118): kept for backward compatibility - superseded in
+   *  the UI by inputKeywordsHtml/wireInputKeywords using
+   *  getFileFlagKeyword/setFileFlagKeyword directly (see that function's
+   *  own doc comment in webviewClientHelpers.js). */
   function getInputKeywords(keywords) {
     var names = (keywords || []).map(function (k) { return k.name; });
     return {
@@ -1924,7 +1908,9 @@
    *  preserved when a flag stays true; toggling one off removes it
    *  entirely; toggling one on where it didn't exist adds it bare (no
    *  parameters - real DDS allows DUP/BLANKS/CHANGE with just their
-   *  required response indicator, added via Conditioning). */
+   *  required response indicator, added via Conditioning). NOTE (Task
+   *  I-118): kept for backward compatibility, same as getInputKeywords
+   *  above. */
   function setInputKeywords(keywords, state) {
     var s = state || {};
     var KEEP = { dup: 'DUP', blanks: 'BLANKS', change: 'CHANGE', chginpdft: 'CHGINPDFT' };
@@ -4036,7 +4022,13 @@
    *  keyword real SDA's constant-specific General screen shows (ALIAS/
    *  INDTXT/DFT/PUTRETAIN/OVRDTA/OVRATR/NOCCSID), and Colors/Display
    *  Attributes are likewise already covered by the shared
-   *  colorAttrEditorHtml (D1) - constants were never gated out of either. */
+   *  colorAttrEditorHtml (D1) - constants were never gated out of either.
+   *  NOTE (Task I-118): kept for backward compatibility - superseded in the
+   *  UI by generalFieldKeywordsHtml/wireGeneralFieldKeywords using
+   *  getFileFlagKeyword/setFileFlagKeyword directly (see that function's
+   *  own doc comment in webviewClientHelpers.js), same as getColorAttr/
+   *  setColorAttr were kept alongside L1a's getColorAttrStates/
+   *  setColorAttrStates. */
   function getGeneralFieldKeywords(keywords) {
     var find = function (name) { var k = (keywords || []).find(function (k) { return k.name === name; }); return k ? (k.parameters || '') : ''; };
     var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
@@ -4062,7 +4054,8 @@
    *  keyword editor already works, since these vary too much in shape -
    *  e.g. ALIAS/FLDCSRPRG/HLPID take a bare name, DFT/DFTVAL/INDTXT take a
    *  quoted string - to usefully auto-quote here); blank/false removes the
-   *  keyword entirely. */
+   *  keyword entirely. NOTE (Task I-118): kept for backward compatibility,
+   *  same as getGeneralFieldKeywords above. */
   function setGeneralFieldKeywords(keywords, state) {
     var s = state || {};
     var TEXT = { alias: 'ALIAS', indtxt: 'INDTXT', dft: 'DFT', dftval: 'DFTVAL', fldcsrprg: 'FLDCSRPRG', hlpid: 'HLPID' };
@@ -5102,24 +5095,15 @@
    *  editor input shows plain text rather than DDS's own quote escaping.
    *  Kept returning a plain string (not an object) since most call sites
    *  (ALTNAME, TEXT, file-level HLPTITLE, which IBM documents as NOT
-   *  eligible for option-indicator conditioning) only ever want the text -
-   *  see getFileQuotedTextConditions below for the sibling reader Task
-   *  I-21 added for the keywords that DO need conditioning. */
+   *  eligible for option-indicator conditioning) only ever want the text.
+   *  (Task I-21 added a sibling reader, getFileQuotedTextConditions, for
+   *  the keywords that DO need conditioning; removed as dead code by
+   *  Task I-118 once I-27 replaced its only real use - record-level
+   *  HLPTITLE - with the repeatable-instance mechanism.) */
   function getFileQuotedText(keywords, name) {
     var k = (keywords || []).find(function (kw) { return kw.name === name; });
     if (!k) return '';
     return unquoteDdsLiteral(k.parameters);
-  }
-
-  /** Task I-21: sibling reader returning just the conditions array for a
-   *  getFileQuotedText-backed keyword (record-level HLPTITLE is
-   *  individually documented by IBM as eligible for option-indicator
-   *  conditioning) - kept as its own small function rather than changing
-   *  getFileQuotedText's own return shape, so getFileQuotedText's many
-   *  plain-string callers stay untouched. */
-  function getFileQuotedTextConditions(keywords, name) {
-    var k = (keywords || []).find(function (kw) { return kw.name === name; });
-    return k ? (k.conditions || []) : [];
   }
 
   /** Returns a NEW keywords array with `name` set to the quoted+escaped
@@ -5219,22 +5203,6 @@
     return { moduleName: moduleName, library: '', panelGroup: rest };
   }
 
-  /** Returns a NEW keywords array with HLPPNLGRP set from `moduleName`/
-   *  `library`/`panelGroup` (both moduleName and panelGroup are required
-   *  per the DDS Reference - a keyword with only one of them supplied
-   *  isn't valid DDS, so it's dropped entirely rather than written
-   *  half-formed), or removed if either is blank. */
-  function setFileHlpPnlGrpKeyword(keywords, moduleName, library, panelGroup) {
-    var next = (keywords || []).filter(function (kw) { return kw.name !== 'HLPPNLGRP'; });
-    var mod = (moduleName || '').trim();
-    var pg = (panelGroup || '').trim();
-    if (mod && pg) {
-      var lib = (library || '').trim();
-      next = next.concat([{ name: 'HLPPNLGRP', parameters: mod + ' ' + (lib ? lib + '/' + pg : pg), conditions: [], raw: '', sourceLines: [] }]);
-    }
-    return next;
-  }
-
   /** HLPSCHIDX - reads its Library/search-index-object sub-fields out of
    *  the documented `[library-name/]search-index-object` parameter form.
    *
@@ -5250,19 +5218,6 @@
       return { library: raw.slice(0, slashIdx).trim(), searchIndex: raw.slice(slashIdx + 1).trim() };
     }
     return { library: '', searchIndex: raw };
-  }
-
-  /** Returns a NEW keywords array with HLPSCHIDX set from `library`/
-   *  `searchIndex` (HLPSCHIDX([library/]searchIndex)), or removed
-   *  entirely if `searchIndex` is blank. */
-  function setFileHlpSchIdxKeyword(keywords, library, searchIndex) {
-    var next = (keywords || []).filter(function (kw) { return kw.name !== 'HLPSCHIDX'; });
-    var si = (searchIndex || '').trim();
-    if (si) {
-      var lib = (library || '').trim();
-      next = next.concat([{ name: 'HLPSCHIDX', parameters: lib ? lib + '/' + si : si, conditions: [], raw: '', sourceLines: [] }]);
-    }
-    return next;
   }
 
   // Task I-38 (keywordFixes.md): HLPDOC was entirely absent from iSDA -
@@ -5792,54 +5747,6 @@
     return next;
   }
 
-  // Task L76 - MNUBARDSP's own 3-name parameter shape, `keyword(a b c)`,
-  // one slot wider than getFileTwoFieldKeyword above but otherwise the
-  // same "positional, each slot independently optional for reading,
-  // trailing blanks dropped for writing" convention - plus `conditions`
-  // preserve-when-omitted support (getFileTwoFieldKeyword/
-  // setFileTwoFieldKeyword above don't carry conditions at all; MNUBARDSP
-  // needs it since real DDS allows response-indicator conditioning on
-  // this keyword and the picker already exposed a Conditioning toggle for
-  // it before this task). Real DDS actually gives MNUBARDSP TWO different
-  // formats depending on where it's coded (see IBM's own DDS reference):
-  // on a record that does NOT carry MNUBAR itself, `MNUBARDSP(menu-bar-
-  // record &choice-field [&pulldown-input-field])` - 2 required names +
-  // 1 optional trailing one, which is what this pair models; on a record
-  // that DOES carry MNUBAR, it's `MNUBARDSP[(&pulldown-input-field)]` -
-  // a single optional name, which is NOT this pair's job and keeps going
-  // through the existing generic getFileFlagKeyword/setFileFlagKeyword
-  // single-parameter shape (recordKeywordsPanelsHtml picks between the
-  // two based on whether the record's own keywords include MNUBAR - see
-  // its own comment for why a positional 3-slot reader can't safely cover
-  // both formats: leaving the first two slots blank so only the third is
-  // set would read back into slot one instead, once trim()+split()
-  // collapses the leading blanks away). */
-  function getMnubardspFields(keywords) {
-    var k = (keywords || []).find(function (kw) { return kw.name === 'MNUBARDSP'; });
-    if (!k) return { menuBarRecord: '', choiceField: '', pullDownField: '' };
-    var parts = (k.parameters || '').trim().split(/\s+/).filter(Boolean);
-    return { menuBarRecord: parts[0] || '', choiceField: parts[1] || '', pullDownField: parts[2] || '' };
-  }
-
-  /** Returns a NEW keywords array with MNUBARDSP set from `present` plus
-   *  its 3 positional name fields - removed entirely when `present` is
-   *  false. Trailing blank fields are dropped from the written parameter
-   *  string (so a blank `pullDownField` writes just "a b", not "a b ").
-   *  `conditions` (optional) follows setFileFlagKeyword's own "omitted
-   *  preserves whatever conditioning already existed, pass an explicit
-   *  array (including []) to actually change it" contract. */
-  function setMnubardspFields(keywords, present, menuBarRecord, choiceField, pullDownField, conditions) {
-    var existing = (keywords || []).find(function (kw) { return kw.name === 'MNUBARDSP'; });
-    var next = (keywords || []).filter(function (kw) { return kw.name !== 'MNUBARDSP'; });
-    if (present) {
-      var parts = [(menuBarRecord || '').trim(), (choiceField || '').trim(), (pullDownField || '').trim()];
-      while (parts.length && !parts[parts.length - 1]) parts.pop();
-      var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
-      next = next.concat([{ name: 'MNUBARDSP', parameters: parts.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
-    }
-    return next;
-  }
-
   // Task L77 - RTNCSRLOC's real DDS shape (confirmed against IBM's own DDS
   // reference, "RTNCSRLOC (Return Cursor Location) keyword for display
   // files") is NOT the plain 2-field row/col pair CSRLOC has - that
@@ -5883,7 +5790,7 @@
    *  `cursor-field` are both required together in real DDS,
    *  `cursor-position` is optional; all 3 are read positionally, same
    *  "each slot independently optional for reading" convention as
-   *  getFileTwoFieldKeyword/getMnubardspFields. */
+   *  getFileTwoFieldKeyword. */
   function getRtncsrlocRecNameFields(keywords) {
     var k = findRtncsrlocInstance(keywords, false);
     if (!k) return { present: false, cursorRecord: '', cursorField: '', cursorPosition: '' };
@@ -8700,7 +8607,6 @@
     getFileKeywordsLineRange: getFileKeywordsLineRange,
     applyFileKeywordsUpdate: applyFileKeywordsUpdate,
     parseCommandKeys: parseCommandKeys,
-    commandKeyNumbersInUse: commandKeyNumbersInUse,
     availableCommandKeyNumbers: availableCommandKeyNumbers,
     setCommandKey: setCommandKey,
     removeCommandKey: removeCommandKey,
@@ -8726,7 +8632,6 @@
     setEditKeyword: setEditKeyword,
     splitEditCode: splitEditCode,
     joinEditCode: joinEditCode,
-    getEditCodeParts: getEditCodeParts,
     editCodeFillConflictReason: editCodeFillConflictReason,
     getEditMask: getEditMask,
     setEditMask: setEditMask,
@@ -8866,7 +8771,6 @@
     getFileFlagKeyword: getFileFlagKeyword,
     setFileFlagKeyword: setFileFlagKeyword,
     getFileQuotedText: getFileQuotedText,
-    getFileQuotedTextConditions: getFileQuotedTextConditions,
     setFileQuotedText: setFileQuotedText,
     quoteDdsLiteral: quoteDdsLiteral,
     unquoteDdsLiteral: unquoteDdsLiteral,
@@ -8874,9 +8778,7 @@
     setFileRefKeyword: setFileRefKeyword,
     getFilePrintFileForm: getFilePrintFileForm,
     getFileHlpPnlGrpKeyword: getFileHlpPnlGrpKeyword,
-    setFileHlpPnlGrpKeyword: setFileHlpPnlGrpKeyword,
     getFileHlpSchIdxKeyword: getFileHlpSchIdxKeyword,
-    setFileHlpSchIdxKeyword: setFileHlpSchIdxKeyword,
     hlpdocConflictReason: hlpdocConflictReason,
     anyHelpKeywordPresentInFile: anyHelpKeywordPresentInFile,
     hlpdocHspecConflictReason: hlpdocHspecConflictReason,
@@ -8909,8 +8811,6 @@
     setUnlockKeyword: setUnlockKeyword,
     getFileTwoFieldKeyword: getFileTwoFieldKeyword,
     setFileTwoFieldKeyword: setFileTwoFieldKeyword,
-    getMnubardspFields: getMnubardspFields,
-    setMnubardspFields: setMnubardspFields,
     getRtncsrlocRecNameFields: getRtncsrlocRecNameFields,
     setRtncsrlocRecNameFields: setRtncsrlocRecNameFields,
     getRtncsrlocWindowMouseFields: getRtncsrlocWindowMouseFields,

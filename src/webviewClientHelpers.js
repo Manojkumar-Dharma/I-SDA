@@ -2765,8 +2765,8 @@
         return;
       }
       if (DFT_GROUP_KEYS[key]) {
-        // L81 - guarded wiring (alert + revert, same idiom S36-4's own
-        // guardedSimple established), instead of the generic wireFlagRow:
+        // L81 - guarded wiring (alert + revert, the same idiom S36-4's
+        // hand-rolled PRINT/HELP guards use), instead of the generic wireFlagRow:
         // turning DFT/DFTVAL ON is blocked when the field is a
         // floating-point field or already carries one of the other
         // conflicting keywords (DspfWriter.dftGroupConflictReason).
@@ -4767,42 +4767,6 @@
         return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions, altNames);
       }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
-    // Task S36-4 - hard-blocks S36-3's verified rules in this keyword's own
-    // panel (direct user request: reject, not warn). Hand-rolled rather
-    // than reusing wireFlagRow (its own commit() always calls
-    // onChange(apply(...)), even when apply "blocks" by returning the
-    // keywords array unchanged - that still round-trips through
-    // commitFileEdit and posts an edit, just a no-op one; skipping
-    // onChange entirely is the only way to make a block actually free of
-    // side effects) - window.alert(...) plus reverting the input to its
-    // last good value, same "alert on invalid, don't commit" idiom this
-    // file already uses for DSPSIZ's own try/catch above. Only meaningful
-    // for keywords S36E_KEYWORD_RESTRICTIONS marks
-    // `appliesTo: 'response-indicator'` (currently HELP and PRINT at file
-    // level - CHANGE has no file-level row at all, see
-    // wireRecordIndicatorInstances' own S36-4 guard).
-    function guardedSimple(id, name) {
-      var onEl = document.getElementById(id + '-on');
-      var paramsEl = document.getElementById(id + '-params');
-      function commit() {
-        var present = onEl.checked;
-        var params = paramsEl ? paramsEl.value : '';
-        var violation = present ? DspfWriter.checkS36EResponseIndicatorViolation(getKeywords(), name, params) : null;
-        if (violation) {
-          window.alert(violation.message);
-          var prev = DspfWriter.getFileFlagKeyword(getKeywords(), name);
-          onEl.checked = prev.present;
-          if (paramsEl) paramsEl.value = prev.parameters;
-          return;
-        }
-        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, present, params));
-      }
-      if (onEl) onEl.addEventListener('change', commit);
-      if (paramsEl) paramsEl.addEventListener('change', commit);
-      wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, function (newConditions) {
-        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), name, onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
-      }, expandedSet, rerender);
-    }
     // General
     simple('fk-invite', 'INVITE');
     simple('fk-alwgph', 'ALWGPH');
@@ -4812,7 +4776,7 @@
     // keyword value ALREADY set elsewhere in the file would violate a
     // verified S36E rule once USRDSPMGT is active - the symmetric half of
     // this task's own direct user request. Hand-wired rather than
-    // `simple()`/`guardedSimple()` since it needs the WHOLE model (every
+    // `simple()` since it needs the WHOLE model (every
     // record), not just the file's own keywords - see
     // DspfWriter.findS36EConflictInModel's own doc comment.
     (function wireUsrdspmgt() {
@@ -4897,7 +4861,7 @@
 
     // Indicator / screen-control
     // Task I-4: these rows moved from a single "-params" free-text box
-    // (what `simple`/`guardedSimple` above wire) to dedicated "-ind"/
+    // (what `simple` above wires) to dedicated "-ind"/
     // "-text" fields exposing the documented optional 'text' sub-
     // parameter (see fileKeywordsPanelsHtml's own comment) - custom
     // commit functions here build the combined `indicator ['text']`
@@ -4969,9 +4933,8 @@
     ].forEach(function (row) {
       commitIndicatorTextRow(row[0], row[1], row[2], undefined, row[3], row[4]);
     });
-    // Task S36-4: HELP's response indicator is a verified S36E rule (see
-    // guardedSimple's own comment, still used elsewhere) - split out of
-    // the forEach above so this one row alone gets the hard-block
+    // Task S36-4: HELP's response indicator is a verified S36E rule - split
+    // out of the forEach above so this one row alone gets the hard-block
     // treatment.
     commitIndicatorTextRow('fk-help', 'HELP', undefined, true);
     var indtxtOn = document.getElementById('fk-indtxt-on');
@@ -5345,22 +5308,23 @@
   // optioned. If more than one MNUBARDSP keyword is in effect when the
   // record is written, the first one in effect is used.") wasn't modeled
   // by Task L76/I-4's own single-instance fix (getFileFlagKeyword/
-  // setFileFlagKeyword + getMnubardspFields/setMnubardspFields) - this
+  // setFileFlagKeyword + the old getMnubardspFields/setMnubardspFields
+  // pair, removed as dead code by Task I-118 once this repeatable-instance
+  // approach fully replaced it) - this
   // reuses the same generic DspfWriter.getRepeatableKeywordInstances/
   // setRepeatableKeywordInstances primitive moubtnPanelHtml/
   // wireMoubtnPanel above already use for MOUBTN (a plain repeatable
   // single-keyword-name list, no pairing with another keyword the way
   // Color & attributes needs), rather than a bespoke get/set pair.
   //
-  // MNUBARDSP keeps its own two mutually-exclusive parameter SHAPES (see
-  // getMnubardspFields's own comment in dspfWriter.js for the full
-  // citation: a single optional pull-down-input name on a record that
+  // MNUBARDSP keeps its own two mutually-exclusive parameter SHAPES (a
+  // single optional pull-down-input name on a record that
   // itself carries MNUBAR, vs. 2 required + 1 optional trailing name on
   // any other record) - that per-record-type shape choice is orthogonal
   // to repeatability, so `isMnuBarRec` is threaded through unchanged from
   // recordKeywordsPanelsHtml's own existing check, and each instance's
   // raw `parameters` text is parsed/composed locally here rather than
-  // through getMnubardspFields/setMnubardspFields (which read/write the
+  // through a single-keyword get/set pair (which would read/write the
   // single keyword directly on a `keywords` array, not a bare parameter
   // string one repeatable instance owns).
   // -----------------------------------------------------------------------
@@ -5643,15 +5607,15 @@
     // mnubar/menu-bar-display-keywords/image151.png) superseded by
     // Task I-17 below - real DDS gives MNUBARDSP
     // two different parameter shapes depending on whether the record
-    // itself carries MNUBAR (see getMnubardspFields's own comment in
-    // dspfWriter.js for the full citation), AND (per Task I-17's own
+    // itself carries MNUBAR (per IBM's own DDS Reference), AND (per Task I-17's own
     // audit) allows more than one MNUBARDSP on the same record if all
     // are optioned - mnubardspPanelHtml/wireMnubardspPanel below cover
     // both: shape selection is still the same isMnuBarRec check L76
     // introduced, now threaded through a repeatable-instance list built
     // on the same generic primitive moubtnPanelHtml already uses for
-    // MOUBTN, rather than the single getFileFlagKeyword/
-    // getMnubardspFields pair this replaces.
+    // MOUBTN, rather than the old single getFileFlagKeyword/
+    // getMnubardspFields pair (removed as dead code by Task I-118) this
+    // replaces.
     if (ok('MNUBARDSP')) {
       g += '<div class="section-label">Menu-Bar display (MNUBARDSP)</div>';
       g += mnubardspPanelHtml(kw, p, expandedSet);
@@ -6261,21 +6225,6 @@
     // calls plain wireFlagRow directly anymore except the two
     // CHECK(AB)/CHECK(RL) rows and the Print row below, neither of which
     // this task's 33-keyword list names.
-    /** `ownerKey`/`condExpandedSet`/`condRerender` (optional, Task I-21) add
-     *  a Conditioning toggle identical in shape to wireFlagRow's own -
-     *  omit all three (as HLPSEQ's own guarded wrapper below still does,
-     *  since IBM documents HLPSEQ as NOT eligible for option-indicator
-     *  conditioning) to keep the plain text-only wiring unchanged. */
-    function wireTwoField(elIdA, elIdB, name, ownerKey, condExpandedSet, condRerender) {
-      var elA = document.getElementById(elIdA);
-      var elB = document.getElementById(elIdB);
-      function commit(conditions) { onChange(DspfWriter.setFileTwoFieldKeyword(getKeywords(), name, elA.value, elB.value, conditions)); }
-      if (elA) elA.addEventListener('change', function () { commit(); });
-      if (elB) elB.addEventListener('change', function () { commit(); });
-      if (ownerKey) {
-        wireFlagRowConditioning(ownerKey, DspfWriter.getFileTwoFieldKeyword(getKeywords(), name).conditions, commit, condExpandedSet, condRerender);
-      }
-    }
     // Task I-8/I-13: ALWROL/ASSUME/HLPCMDKEY are each individually
     // documented by the DDS Reference as incompatible with a USRDFN
     // record (usrdfnConflictReason), and ALWROL/ASSUME (but not
@@ -6421,9 +6370,9 @@
     // implied by either text box being non-blank, per their own doc
     // comments), so the on-transition here is "either box just became
     // non-blank" rather than a checkbox flipping true.
-    // Task I-44: three new trailing params (mirroring wireTwoField's own
-    // ownerKey/condExpandedSet/condRerender shape) so this can replace
-    // CSRLOC's own plain wireTwoField call without dropping its existing
+    // Task I-44: three new trailing params (ownerKey/condExpandedSet/
+    // condRerender) so this can replace CSRLOC's own plain wireFlagRow-style
+    // two-field wiring without dropping its existing
     // live Conditioning toggle - CSRLOC is individually documented "Option
     // indicators are valid for this keyword" (unlike HLPSEQ below, whose
     // own call site omits all three and keeps its pre-existing
@@ -6965,8 +6914,7 @@
     // Print
     // Task S36-4: PRINT's response indicator (including the literal
     // '*PGM' text) is a verified S36E rule, hard-blocked here the same
-    // hand-rolled (not wireFlagRow) way as the file-level PRINT row (see
-    // wireFileKeywordsPanels' own guardedSimple comment for why).
+    // hand-rolled (not wireFlagRow) way as the file-level PRINT row.
     // Task I-2 (keywordFixes.md): "Print file"/"Library" write PRINT's
     // own *PGM/[library/]printer-file-name parameter form (mutually
     // exclusive with the response indicator field), not a separate

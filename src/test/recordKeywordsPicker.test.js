@@ -102,44 +102,6 @@ console.log('\ngetFileTwoFieldKeyword / setFileTwoFieldKeyword - Task I-21, CSRL
   check('an explicit [] clears conditions', DspfWriter.getFileTwoFieldKeyword(kw, 'CSRLOC').conditions.length === 0);
 }
 
-console.log('\ngetMnubardspFields / setMnubardspFields - Task L76, MNUBARDSP\'s 3-name "keyword(a b c)" shape');
-{
-  let kw = [];
-  check('all blank by default', JSON.stringify(DspfWriter.getMnubardspFields(kw)) === JSON.stringify({ menuBarRecord: '', choiceField: '', pullDownField: '' }));
-
-  kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR', 'MNUCHC', 'PULL');
-  check('parameters are "a b c"', kw[0].parameters === 'MENUBAR MNUCHC PULL');
-  check('present reads back true', DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').present === true);
-  let state = DspfWriter.getMnubardspFields(kw);
-  check('menuBarRecord round-trips', state.menuBarRecord === 'MENUBAR');
-  check('choiceField round-trips', state.choiceField === 'MNUCHC');
-  check('pullDownField round-trips', state.pullDownField === 'PULL');
-
-  // Trailing pullDownField blank drops just that one token (2-required +
-  // 1-optional-trailing shape, per IBM's own MNUBARDSP(menu-bar-record
-  // &choice-field [&pulldown-input-field]) format).
-  kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR', 'MNUCHC', '');
-  check('blank trailing field drops just that token', kw[0].parameters === 'MENUBAR MNUCHC');
-  check('pullDownField reads back empty', DspfWriter.getMnubardspFields(kw).pullDownField === '');
-
-  // Conditions default-preserve (omitted) vs explicit-clear contract,
-  // same as setFileFlagKeyword's own.
-  kw = DspfWriter.setFileFlagKeyword(kw, 'MNUBARDSP', true, undefined, undefined, [{ relation: 'AND', indicators: [{ number: '30', not: false }] }]);
-  check('conditions attached via setFileFlagKeyword survive an omitted-conditions MNUBARDSP field edit', function () {
-    const before = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').conditions;
-    kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR2', 'MNUCHC2', 'PULL2');
-    const after = DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').conditions;
-    return before.length === 1 && JSON.stringify(after) === JSON.stringify(before);
-  }());
-  check('an explicit [] clears conditions', function () {
-    kw = DspfWriter.setMnubardspFields(kw, true, 'MENUBAR2', 'MNUCHC2', 'PULL2', []);
-    return DspfWriter.getFileFlagKeyword(kw, 'MNUBARDSP').conditions.length === 0;
-  }());
-
-  kw = DspfWriter.setMnubardspFields(kw, false, '', '', '');
-  check('removed entirely when present=false', kw.filter((k) => k.name === 'MNUBARDSP').length === 0);
-}
-
 console.log('\ngetRtncsrlocRecNameFields / setRtncsrlocRecNameFields - Task L77, RTNCSRLOC\'s "[*RECNAME] a b [c]" variant');
 {
   let kw = [];
@@ -221,12 +183,19 @@ console.log('\nR1 keywords reuse F1\'s generic getFileFlagKeyword/setFileFlagKey
 
 console.log('\ngetFileQuotedTextConditions / setFileQuotedText conditions param - Task I-21, record-level HLPTITLE conditioning');
 {
+  // Task I-118: DspfWriter.getFileQuotedTextConditions itself (a thin
+  // reader with no production caller since I-27 replaced record-level
+  // HLPTITLE with the repeatable-instance mechanism) was removed as dead
+  // code; the checks below still verify setFileQuotedText's own
+  // conditions-preservation behavior (still live/used elsewhere) via this
+  // inline reader instead.
+  const conditionsOf = (kw, name) => { const k = (kw || []).find((k) => k.name === name); return k ? (k.conditions || []) : []; };
   let kw = [];
-  check('no conditions by default', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 0);
+  check('no conditions by default', conditionsOf(kw, 'HLPTITLE').length === 0);
 
   kw = DspfWriter.setFileQuotedText(kw, 'HLPTITLE', 'Sample Screen 1', [{ relation: 'AND', indicators: [{ number: '90', not: false }], sourceLines: [] }]);
-  check('explicit conditions are attached', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 1);
-  check("attached indicator is '90'", DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE')[0].indicators[0].number === '90');
+  check('explicit conditions are attached', conditionsOf(kw, 'HLPTITLE').length === 1);
+  check("attached indicator is '90'", conditionsOf(kw, 'HLPTITLE')[0].indicators[0].number === '90');
   check('text itself round-trips alongside the conditioning', DspfWriter.getFileQuotedText(kw, 'HLPTITLE') === 'Sample Screen 1');
 
   // Editing just the text (conditions omitted) must NOT wipe the existing
@@ -234,12 +203,12 @@ console.log('\ngetFileQuotedTextConditions / setFileQuotedText conditions param 
   // rebuilt the keyword with `conditions: []` on every call, the same
   // class of bug setFileFlagKeyword had before its own fix.
   kw = DspfWriter.setFileQuotedText(kw, 'HLPTITLE', 'Sample Screen 1 revised');
-  check('editing text with conditions omitted preserves the existing conditioning', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 1);
+  check('editing text with conditions omitted preserves the existing conditioning', conditionsOf(kw, 'HLPTITLE').length === 1);
   check('text itself still updated', DspfWriter.getFileQuotedText(kw, 'HLPTITLE') === 'Sample Screen 1 revised');
 
   // An explicit [] deliberately clears it.
   kw = DspfWriter.setFileQuotedText(kw, 'HLPTITLE', 'Sample Screen 1 revised', []);
-  check('an explicit [] clears conditions', DspfWriter.getFileQuotedTextConditions(kw, 'HLPTITLE').length === 0);
+  check('an explicit [] clears conditions', conditionsOf(kw, 'HLPTITLE').length === 0);
 }
 
 console.log('\napplyRecordUpdate() - a batch of R1 picker keywords (one per category) round-trips through serialize + re-parse');
@@ -294,16 +263,21 @@ console.log('\nMNUBARDSP\'s 3-field form (Task L76) round-trips through serializ
   const lines = src.split(/\r\n|\r|\n/);
   const rec = model.records[0];
 
-  let kw = DspfWriter.setMnubardspFields(rec.keywords, true, 'MENUBAR', 'MNUCHC', 'PULL');
+  // Task I-118: setMnubardspFields/getMnubardspFields themselves were
+  // removed as dead code (no production caller since I-17 replaced
+  // MNUBARDSP handling with the repeatable-instance mechanism) - this
+  // still round-trips the real DDS text via a directly-constructed keyword.
+  let kw = rec.keywords.filter((k) => k.name !== 'MNUBARDSP').concat([{ name: 'MNUBARDSP', parameters: 'MENUBAR MNUCHC PULL', conditions: [], raw: '', sourceLines: [] }]);
   const newLines = DspfWriter.applyRecordUpdate(rec, lines, { keywords: kw });
   const reparsed = DspfParser.parseDspf(newLines.join('\n'));
   const reRec = reparsed.records[0];
 
   check('MNUBARDSP present after reparse', DspfWriter.getFileFlagKeyword(reRec.keywords, 'MNUBARDSP').present === true);
-  const fields = DspfWriter.getMnubardspFields(reRec.keywords);
-  check('menuBarRecord reads back after reparse', fields.menuBarRecord === 'MENUBAR');
-  check('choiceField reads back after reparse', fields.choiceField === 'MNUCHC');
-  check('pullDownField reads back after reparse', fields.pullDownField === 'PULL');
+  const mnubardspKw = reRec.keywords.find((k) => k.name === 'MNUBARDSP');
+  const fields = mnubardspKw ? (mnubardspKw.parameters || '').trim().split(/\s+/).filter(Boolean) : [];
+  check('menuBarRecord reads back after reparse', fields[0] === 'MENUBAR');
+  check('choiceField reads back after reparse', fields[1] === 'MNUCHC');
+  check('pullDownField reads back after reparse', fields[2] === 'PULL');
 }
 
 console.log('\nRTNCSRLOC\'s two independent variants (Task L77) both round-trip through serialize + re-parse, coexisting on one record');

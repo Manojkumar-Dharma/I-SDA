@@ -39,7 +39,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 
 ## Status at a glance
 
-116 of 123 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.198**.
+118 of 123 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.200**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -160,7 +160,7 @@ Every new test file must also be added to the `test` script in `package.json`.
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | Done | v0.10.198 |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | Claude |
-| [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | In progress | Claude |
+| [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done (v0.10.200) | Claude |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Not started | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Not started | — |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 2 | [I-40](#i-40) | Done (v0.10.199) | Keyword-index regeneration (after I-67 and I-76, both since landed - I-67 added a level to an indexed keyword and I-76 found no index-category changes needed). **Last, on purpose** — same rule as I-16: regenerate once, after every task that changes the keyword set has landed, or the index goes stale again. |
-| 3 | [I-118](#i-118) | In progress | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
+| 3 | [I-118](#i-118) | Done (v0.10.200) | Dead code, test-only exports, unreferenced fixture scripts. Size (estimate): Small. Picked **after I-40** (see [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md)). |
 | 4 | [I-120](#i-120) | Not started | Shared test harness. Size (estimate): Medium (mechanical, touches all 145 test files). |
 | 5 | [I-119](#i-119) | Not started | De-duplicate copied helpers. Size (estimate): Small-medium. |
 | 6 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
@@ -193,7 +193,7 @@ Every finding so far has been opened as a task (I-61 – I-117, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| - | None at the moment. |
+| I-118 | 6 of the audit's test-only-export candidates (`getValidityCheck`/`setValidityCheck`, `getMessageId`/`setMessageId`, `setCommandKey`/`removeCommandKey`, `getReferenceOverrides`/`setReferenceOverrides`, `colorAttrEditorHtml`/`wireColorAttrEditor`, `getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`) carry an explicit "kept for backward compatibility/API completeness" note, citing `getColorAttr`/`setColorAttr` as precedent - but `getColorAttr`/`setColorAttr` still has a live production caller and these don't. Whether the "kept" rationale is now stale (no live caller left to stay compatible with, since `DspfWriter` isn't a published external API) or still worth honoring needs a human decision, not made by I-118. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5426,9 +5426,13 @@ Opened from a deferred finding raised by I-115, verbatim:
 
 ### I-118 — Remove dead code, test-only exports and unreferenced fixtures
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-40
+> **Area:** Tooling · **Status:** Done (v0.10.200) · **Depends on:** I-40
 
 Opened from the maintainability audit in [`MAINTAINABILITY-AUDIT.md`](MAINTAINABILITY-AUDIT.md) (section 2). Scope: `commandKeyNumbersInUse` and `guardedSimple` (no callers); the ~22 exports referenced only by tests (list in the audit) - confirm each has no dynamic call site, then delete it together with its own test checks, or move it to a test helper if a test legitimately needs it; delete `src/fixtures/generateMenubarFixture.js`, `generateWidgetFixture.js`, `generateWindowRefsFixture.js` and `smoketest.js` if still unreferenced. Every deletion must leave `npm test` green with the same or fewer checks explained in the commit.
+
+Removed as genuinely dead, no callers anywhere: `commandKeyNumbersInUse`, `guardedSimple`, `wireTwoField` (production superseded each - S36-4's hand-rolled guards, `wireUsrdfnGuardedTwoField` in I-44); `getEditCodeParts`, `getFileQuotedTextConditions`, `setFileHlpPnlGrpKeyword`/`setFileHlpSchIdxKeyword`, `getMnubardspFields`/`setMnubardspFields`. Their own test coverage was removed alongside them, except where a still-live sibling function (`setFileQuotedText`, the HLPPNLGRP/HLPSCHIDX getters) needed the coverage kept - those tests were rewritten to exercise the live function directly instead of losing the check. 3 of the 4 fixture scripts were genuinely orphaned and removed; `smoketest.js` was kept (it's an actively-documented manual dev tool per `vsc-extension-quickstart.md`, not unreferenced) and `lineBuilder.js` was kept (still used by the real `generateFixture.js` pipeline). Full details and exact test-check-delta accounting in the CHANGELOG (v0.10.200).
+
+**Deferred finding:** 6 of the audit's ~22 test-only-export candidates turned out to carry an explicit "kept for backward compatibility/API completeness" note - in their own doc comment for 4 of them, but for 2 (`getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`) only in a *different* file's comment (the code that superseded them) or the test file's own header. Left untouched this task: `getValidityCheck`/`setValidityCheck`, `getMessageId`/`setMessageId`, `setCommandKey`/`removeCommandKey`, `getReferenceOverrides`/`setReferenceOverrides`, `colorAttrEditorHtml`/`wireColorAttrEditor`, `getInputKeywords`/`setInputKeywords`, `getGeneralFieldKeywords`/`setGeneralFieldKeywords`, and `noOptionIndicatorKeywordNames` (exists "for tests and audits", a deliberate test/audit-facing accessor, not dead code). The "kept for API completeness" rationale for the first 4 explicitly cites `getColorAttr`/`setColorAttr` as precedent, but `getColorAttr`/`setColorAttr` actually still have a live production caller (`webviewClientHelpers.js`) - these don't. Whether that makes the "kept" rationale stale (no live caller left to be compatible with, since `DspfWriter` isn't a published external API) or still worth honoring is a genuine judgment call left to a human or a dedicated follow-up task, not decided here.
 
 *Raised by the 2026-09-21 audit. Size (estimate): Small.*
 
