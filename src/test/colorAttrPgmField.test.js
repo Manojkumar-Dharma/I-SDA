@@ -10,8 +10,7 @@
  * "Program-to-system field" entry above the attribute checkboxes).
  *
  * Before this fix, WebviewClientHelpers.colorAttrStatesHtml/
- * wireColorAttrStatesEditor (and the older single-pair colorAttrEditorHtml/
- * wireColorAttrEditor) only understood the fixed DSPATR_ATTRS checkbox
+ * wireColorAttrStatesEditor only understood the fixed DSPATR_ATTRS checkbox
  * codes:
  *   - a hidden field's name never rendered as anything in the panel (bug:
  *     "not displaying it correctly"), and
@@ -100,27 +99,6 @@ console.log('\nwireColorAttrStatesEditor - typing a hidden field name into the P
 
   const dspatrK = latest.find((k) => k.name === 'DSPATR');
   check('the new state writes DSPATR with the field name, uppercased to match DDS convention', !!dspatrK && dspatrK.parameters === 'MYATTR');
-}
-
-// ===========================================================================
-// Legacy single always-unconditioned pair (colorAttrEditorHtml/
-// wireColorAttrEditor) - kept for API completeness; same fix applies.
-// ===========================================================================
-
-console.log('\ncolorAttrEditorHtml/wireColorAttrEditor - the single-pair legacy editor gets the same fix');
-{
-  let kw = DspfWriter.setColorAttr([], '', ['FLDATR']);
-  document.getElementById('root').innerHTML = Helpers.colorAttrEditorHtml(kw, 'legacy1');
-  const pgmFieldInput = document.getElementById('legacy1-pgmfield');
-  check('the Program-to-system field input is present and pre-filled', !!pgmFieldInput && pgmFieldInput.value === 'FLDATR');
-
-  let latest = kw;
-  Helpers.wireColorAttrEditor(kw, function (newKeywords) { latest = newKeywords; }, 'legacy1');
-  const ulCheck = document.querySelector('.legacy1-attr[value="UL"]');
-  ulCheck.checked = true;
-  ulCheck.dispatchEvent(new Event('change', { bubbles: true }));
-  const dspatrK = latest.find((k) => k.name === 'DSPATR');
-  check('toggling UL keeps the hidden field name (previously lost)', !!dspatrK && dspatrK.parameters.indexOf('FLDATR') >= 0 && dspatrK.parameters.indexOf('UL') >= 0);
 }
 
 console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');

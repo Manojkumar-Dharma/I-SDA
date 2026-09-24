@@ -750,14 +750,14 @@ console.log('\nDspfEngine.resolveFunctionKeyLegend() - merges file-level and rec
   let lines = src.split(/\r\n|\r|\n/);
 
   // File-level CA03 (exit, indicator 90) + CA24 (help, no indicator - always active).
-  let fileKw = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 3, '90', 'Exit');
-  fileKw = DspfWriter.setCommandKey(fileKw, 'CA', 24, null, 'Help');
+  let fileKw = DspfWriter.setCommandKeyAt(model.fileKeywords, null, 'CA', 3, '90', 'Exit');
+  fileKw = DspfWriter.setCommandKeyAt(fileKw, null, 'CA', 24, null, 'Help');
   lines = DspfWriter.applyFileKeywordsUpdate(model, lines, fileKw);
   model = DspfParser.parseDspf(lines.join('\n'));
 
   // Record-level CF05 (indicator 91) on SCR1 only.
   const scr1 = model.records.find((r) => r.name === 'SCR1');
-  const recKw = DspfWriter.setCommandKey(scr1.keywords, 'CF', 5, '91', 'Refresh');
+  const recKw = DspfWriter.setCommandKeyAt(scr1.keywords, null, 'CF', 5, '91', 'Refresh');
   lines = DspfWriter.applyRecordUpdate(scr1, lines, { keywords: recKw });
   model = DspfParser.parseDspf(lines.join('\n'));
 

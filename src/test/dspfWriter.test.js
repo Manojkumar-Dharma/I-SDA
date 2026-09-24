@@ -584,7 +584,7 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   check('all 24 key numbers available before anything is assigned', DspfWriter.availableCommandKeyNumbers(model.records[0].keywords).length === 24);
 
   // file-level CA03 with an indicator + text containing an apostrophe
-  const withFileKey = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 3, '90', "F3='Exit'");
+  const withFileKey = DspfWriter.setCommandKeyAt(model.fileKeywords, null, 'CA', 3, '90', "F3='Exit'");
   const afterFileAdd = DspfWriter.applyFileKeywordsUpdate(model, lines, withFileKey);
   const reparsed1 = DspfParser.parseDspf(afterFileAdd.join('\n'));
   const parsed1 = DspfWriter.parseCommandKeys(reparsed1.fileKeywords);
@@ -597,7 +597,7 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   const avail1 = DspfWriter.availableCommandKeyNumbers(menuRec1.keywords);
   check('a key number already used at the FILE level is still offered at the record level - a record may override it, not a conflict', avail1.includes('03') && avail1.length === 24);
 
-  const withRecKey = DspfWriter.setCommandKey(menuRec1.keywords, 'CF', 12, null, null);
+  const withRecKey = DspfWriter.setCommandKeyAt(menuRec1.keywords, null, 'CF', 12, null, null);
   const afterRecAdd = DspfWriter.applyRecordUpdate(menuRec1, afterFileAdd, { keywords: withRecKey });
   const reparsed2 = DspfParser.parseDspf(afterRecAdd.join('\n'));
   const menuRec2 = reparsed2.records.find((r) => r.name === 'MENU');
@@ -610,7 +610,7 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   check('but that same record correctly excludes its own 12 (can\'t define it twice within one record)', !avail2SameRec.includes('12'));
 
   // a record CAN override a file-level number: MENU redefines file-level key 03 as its own CF03
-  const withOverride = DspfWriter.setCommandKey(menuRec2.keywords, 'CF', 3, '91', 'Override');
+  const withOverride = DspfWriter.setCommandKeyAt(menuRec2.keywords, null, 'CF', 3, '91', 'Override');
   const afterOverride = DspfWriter.applyRecordUpdate(menuRec2, afterRecAdd, { keywords: withOverride });
   const reparsed2b = DspfParser.parseDspf(afterOverride.join('\n'));
   const menuRec2b = reparsed2b.records.find((r) => r.name === 'MENU');
@@ -621,7 +621,7 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   check("resolveFunctionKeyLegend resolves key 03 to MENU's own CF override, not the file-level CA", legend03 && legend03.type === 'CF' && legend03.indicator === '91');
 
   // switching MENU's key 12 from CF to CA overwrites rather than duplicating
-  const switched = DspfWriter.setCommandKey(menuRec2.keywords, 'CA', 12, '55', 'Help');
+  const switched = DspfWriter.setCommandKeyAt(menuRec2.keywords, DspfWriter.parseCommandKeys(menuRec2.keywords).findIndex((k) => k.number === '12'), 'CA', 12, '55', 'Help');
   const afterSwitch = DspfWriter.applyRecordUpdate(menuRec2, afterRecAdd, { keywords: switched });
   const reparsed3 = DspfParser.parseDspf(afterSwitch.join('\n'));
   const menuRec3 = reparsed3.records.find((r) => r.name === 'MENU');
@@ -629,7 +629,7 @@ console.log('\nDspfWriter command keys (CAxx/CFxx) - add/remove at file and reco
   check('switching CF12->CA12 leaves exactly one key 12, not both', key12s.length === 1 && key12s[0].name === 'CA12');
 
   // remove the file-level key entirely
-  const withoutFileKey = DspfWriter.removeCommandKey(reparsed3.fileKeywords, '03');
+  const withoutFileKey = DspfWriter.removeCommandKeyAt(reparsed3.fileKeywords, DspfWriter.parseCommandKeys(reparsed3.fileKeywords).findIndex((k) => k.number === '03'));
   const afterFileRemove = DspfWriter.applyFileKeywordsUpdate(reparsed3, afterSwitch, withoutFileKey);
   const reparsed4 = DspfParser.parseDspf(afterFileRemove.join('\n'));
   check('file-level CA03 is fully removed', DspfWriter.parseCommandKeys(reparsed4.fileKeywords).length === 0);
@@ -649,7 +649,7 @@ console.log("\nTask L27: command keys (CAnn/CFnn) can carry indicator conditioni
   check('parseCommandKeys reports an empty conditions array when there is none', DspfWriter.parseCommandKeys(model.fileKeywords).length === 0);
 
   const cond90 = [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '90', not: false }] }];
-  const withConditionedKey = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 3, '91', 'Exit', cond90);
+  const withConditionedKey = DspfWriter.setCommandKeyAt(model.fileKeywords, null, 'CA', 3, '91', 'Exit', cond90);
   const afterAdd = DspfWriter.applyFileKeywordsUpdate(model, lines, withConditionedKey);
   const reparsed1 = DspfParser.parseDspf(afterAdd.join('\n'));
   const parsed1 = DspfWriter.parseCommandKeys(reparsed1.fileKeywords);
@@ -658,12 +658,12 @@ console.log("\nTask L27: command keys (CAnn/CFnn) can carry indicator conditioni
 
   // Editing the SAME key's conditioning (e.g. via its own per-row toggle)
   // must not touch other keys, and must preserve THIS key's own
-  // indicator/text (setCommandKey replaces the whole entry, so a caller
+  // indicator/text (setCommandKeyAt replaces the whole entry, so a caller
   // that forgot to pass indicator/text along would silently blank them -
   // this is exactly what wireCommandKeysSection's own per-row Conditioning
   // wiring guards against by re-reading the existing parsed values first).
   const cond80 = [{ relation: 'AND', displaySizeCondition: null, indicators: [{ number: '80', not: true }] }];
-  const recondition = DspfWriter.setCommandKey(reparsed1.fileKeywords, 'CA', '03', '91', 'Exit', cond80);
+  const recondition = DspfWriter.setCommandKeyAt(reparsed1.fileKeywords, DspfWriter.parseCommandKeys(reparsed1.fileKeywords).findIndex((k) => k.number === '03'), 'CA', '03', '91', 'Exit', cond80);
   const afterRecondition = DspfWriter.applyFileKeywordsUpdate(reparsed1, afterAdd, recondition);
   const reparsed2 = DspfParser.parseDspf(afterRecondition.join('\n'));
   const parsed2 = DspfWriter.parseCommandKeys(reparsed2.fileKeywords);
@@ -671,9 +671,9 @@ console.log("\nTask L27: command keys (CAnn/CFnn) can carry indicator conditioni
   check('indicator/text survive the conditioning-only edit', parsed2[0].indicator === '91' && parsed2[0].text === 'Exit');
 
   // A key added with no conditions argument at all (the pre-L27 call
-  // shape, e.g. every OTHER existing caller of setCommandKey in this same
+  // shape, e.g. every OTHER existing caller of setCommandKeyAt in this same
   // file) still gets unconditioned [] - full backward compatibility.
-  const withoutConditionsArg = DspfWriter.setCommandKey(reparsed2.fileKeywords, 'CF', 12, null, null);
+  const withoutConditionsArg = DspfWriter.setCommandKeyAt(reparsed2.fileKeywords, null, 'CF', 12, null, null);
   check('omitting the conditions argument still defaults to unconditioned', DspfWriter.parseCommandKeys(withoutConditionsArg).find((k) => k.number === '12').conditions.length === 0);
 }
 
@@ -744,7 +744,7 @@ console.log("\nDspfWriter.applyFileKeywordsUpdate() - inserts a fresh block at t
   check('setup: file starts with zero file-level keywords', model.fileKeywords.length === 0);
   const lines = src.split(/\r\n|\r|\n/);
 
-  const withKey = DspfWriter.setCommandKey(model.fileKeywords, 'CA', 24, '99', null);
+  const withKey = DspfWriter.setCommandKeyAt(model.fileKeywords, null, 'CA', 24, '99', null);
   const newLines = DspfWriter.applyFileKeywordsUpdate(model, lines, withKey);
   const reparsed = DspfParser.parseDspf(newLines.join('\n'));
   check('new file-level key present after insert-from-nothing', DspfWriter.parseCommandKeys(reparsed.fileKeywords).length === 1);
@@ -1050,49 +1050,6 @@ console.log('\nDspfWriter.nextAvailableRecordName() - 10-char DDS name limit is 
   check('candidate name is genuinely unused', name !== 'VERYLONGRC');
 }
 
-console.log('\nDspfWriter.getColorAttr()/setColorAttr() - dedicated colors/attributes editor primitives');
-{
-  const empty = DspfWriter.getColorAttr([]);
-  check('no COLOR/DSPATR -> empty state', empty.color === '' && empty.attrs.length === 0);
-
-  const withBoth = DspfWriter.getColorAttr([
-    { name: 'COLOR', parameters: 'BLU', conditions: [], raw: '', sourceLines: [] },
-    { name: 'DSPATR', parameters: 'HI UL', conditions: [], raw: '', sourceLines: [] },
-    { name: 'TEXT', parameters: "'unrelated'", conditions: [], raw: '', sourceLines: [] },
-  ]);
-  check('reads the color', withBoth.color === 'BLU');
-  check('reads multiple DSPATR attributes out of one keyword', withBoth.attrs.join(',') === 'HI,UL');
-
-  const set = DspfWriter.setColorAttr(
-    [{ name: 'TEXT', parameters: "'unrelated'", conditions: [], raw: '', sourceLines: [] }],
-    'RED',
-    ['HI', 'BL']
-  );
-  check('unrelated keywords are preserved', set.some((k) => k.name === 'TEXT'));
-  check('COLOR is added with the chosen value', set.find((k) => k.name === 'COLOR').parameters === 'RED');
-  check('DSPATR is added joining every chosen attribute into one keyword', set.find((k) => k.name === 'DSPATR').parameters === 'HI BL');
-
-  const cleared = DspfWriter.setColorAttr(set, '', []);
-  check('empty color/attrs removes both keywords entirely', !cleared.some((k) => k.name === 'COLOR' || k.name === 'DSPATR'));
-  check('unrelated keywords still survive clearing', cleared.some((k) => k.name === 'TEXT'));
-}
-
-console.log('\nDspfWriter.getValidityCheck()/setValidityCheck() - RANGE/COMP/VALUES are mutually exclusive');
-{
-  const none = DspfWriter.getValidityCheck([]);
-  check('no validity keyword -> empty kind', none.kind === '');
-
-  const withRange = [{ name: 'RANGE', parameters: '1 99', conditions: [], raw: '', sourceLines: [] }];
-  check('reads an existing RANGE', DspfWriter.getValidityCheck(withRange).kind === 'RANGE' && DspfWriter.getValidityCheck(withRange).parameters === '1 99');
-
-  const switched = DspfWriter.setValidityCheck(withRange, 'COMP', 'GT 0');
-  check('switching kind removes the old RANGE', !switched.some((k) => k.name === 'RANGE'));
-  check('and adds the new COMP with its parameters', switched.find((k) => k.name === 'COMP').parameters === 'GT 0');
-
-  const cleared = DspfWriter.setValidityCheck(switched, '', '');
-  check('empty kind removes any validity-check keyword', !cleared.some((k) => ['RANGE', 'COMP', 'VALUES'].includes(k.name)));
-}
-
 console.log('\nDspfWriter.getEditKeyword()/setEditKeyword() - EDTCDE/EDTWRD are mutually exclusive');
 {
   const withCode = [{ name: 'EDTCDE', parameters: 'J', conditions: [], raw: '', sourceLines: [] }];
@@ -1226,62 +1183,11 @@ console.log('\nDspfWriter.parseCheckCodes()/formatCheckCodes() - CHECK(...) code
   check('BOTH CHECK instances coexist as separate keywords', checkInstances.length === 2);
   check('first instance keeps its own code and no conditioning', checkInstances[0].parameters === 'ME' && checkInstances[0].conditions.length === 0);
   check('second instance keeps its own code AND its own conditioning, independent of the first', checkInstances[1].parameters === 'AB' && checkInstances[1].conditions.length === 1 && checkInstances[1].conditions[0].indicators[0].number === '30');
-  check('coexists alongside a validity-check keyword (RANGE/COMP/VALUES are a separate keyword entirely)', DspfWriter.setValidityCheck(withTwoChecks, 'RANGE', '1 99').some((k) => k.name === 'CHECK'));
+  check('coexists alongside a validity-check keyword (RANGE/COMP/VALUES are a separate keyword entirely)', DspfWriter.setValidityCheckInstances(withTwoChecks, [{ conditions: [], kind: 'RANGE', parameters: '1 99' }]).some((k) => k.name === 'CHECK'));
 
   var cleared = DspfWriter.setRepeatableKeywordInstances(withTwoChecks, ['CHECK'], []);
   check('an empty instance list removes every CHECK', !cleared.some((k) => k.name === 'CHECK'));
   check('unrelated keywords still survive clearing', cleared.some((k) => k.name === 'TEXT'));
-}
-
-console.log('\nDspfWriter.getInputKeywords()/setInputKeywords() - DUP/BLANKS/CHANGE/CHGINPDFT booleans');
-{
-  const none = DspfWriter.getInputKeywords([]);
-  check('none present -> all false', !none.dup && !none.blanks && !none.change && !none.chginpdft);
-
-  const withDup = [{ name: 'DUP', parameters: '', conditions: [], raw: '', sourceLines: [] }];
-  check('reads an existing DUP', DspfWriter.getInputKeywords(withDup).dup === true);
-
-  const set = DspfWriter.setInputKeywords([], { dup: true, blanks: false, change: true, chginpdft: true });
-  check('adds DUP', set.some((k) => k.name === 'DUP'));
-  check('adds CHANGE', set.some((k) => k.name === 'CHANGE'));
-  check('adds CHGINPDFT', set.some((k) => k.name === 'CHGINPDFT'));
-  check('leaves BLANKS off', !set.some((k) => k.name === 'BLANKS'));
-
-  const toggledOff = DspfWriter.setInputKeywords(set, { dup: false, blanks: false, change: true, chginpdft: false });
-  check('toggling off removes just that keyword', !toggledOff.some((k) => k.name === 'DUP') && !toggledOff.some((k) => k.name === 'CHGINPDFT'));
-  check('leaves the still-on one alone', toggledOff.some((k) => k.name === 'CHANGE'));
-}
-
-console.log('\nDspfWriter.getGeneralFieldKeywords()/setGeneralFieldKeywords() - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/HLPID + boolean flags');
-{
-  const none = DspfWriter.getGeneralFieldKeywords([]);
-  check('none present -> empty text, false flags', none.alias === '' && none.putretain === false);
-  check('none present -> HLPID empty too', none.hlpid === '');
-
-  const set = DspfWriter.setGeneralFieldKeywords([], {
-    alias: 'CUST_NAME',
-    dft: "'N/A'",
-    fldcsrprg: 'NEXTFLD',
-    hlpid: 'FLDHELP1',
-    putretain: true,
-    ovrdta: false,
-    chrid: true,
-  });
-  check('ALIAS written as bare name (caller-supplied form)', set.find((k) => k.name === 'ALIAS').parameters === 'CUST_NAME');
-  check('DFT written with caller-supplied quoting', set.find((k) => k.name === 'DFT').parameters === "'N/A'");
-  check('FLDCSRPRG written', set.find((k) => k.name === 'FLDCSRPRG').parameters === 'NEXTFLD');
-  check('HLPID written as a bare identifier (task D4 - constant field-level keyword)', set.find((k) => k.name === 'HLPID').parameters === 'FLDHELP1');
-  check('PUTRETAIN boolean added bare', set.some((k) => k.name === 'PUTRETAIN' && k.parameters === ''));
-  check('OVRDTA left off since it was false', !set.some((k) => k.name === 'OVRDTA'));
-  check('CHRID boolean added', set.some((k) => k.name === 'CHRID'));
-
-  const roundTrip = DspfWriter.getGeneralFieldKeywords(set);
-  check('round-trips text fields back out', roundTrip.alias === 'CUST_NAME' && roundTrip.dft === "'N/A'");
-  check('round-trips HLPID back out', roundTrip.hlpid === 'FLDHELP1');
-  check('round-trips boolean flags back out', roundTrip.putretain === true && roundTrip.chrid === true && roundTrip.ovrdta === false);
-
-  const cleared = DspfWriter.setGeneralFieldKeywords(set, {});
-  check('blank/false state clears everything this pair manages', !cleared.some((k) => ['ALIAS', 'DFT', 'FLDCSRPRG', 'HLPID', 'PUTRETAIN', 'CHRID'].includes(k.name)));
 }
 
 console.log('\nDspfWriter.dftGroupConflictReason() (Task L81) - DFT/DFTVAL vs EDTCDE/EDTWRD/floating-point, confirmed against the DDS Reference');
@@ -1465,36 +1371,6 @@ console.log('\nDspfWriter.mnuBarKeyConflictReason() (Task I-18) - MNUBARSW/MNUCN
     const reason = DspfWriter.mnuBarKeyConflictReason('MNUBARSW', 'CA10', [], [recordBOwnKeywords]);
     check('record-level MNUCNL on a DIFFERENT record does not block this record\'s own MNUBARSW', reason === null);
   }
-}
-
-console.log('\nDspfWriter.getReferenceOverrides()/setReferenceOverrides() - DLTCHK/DLTEDT alongside REFFLD/REF');
-{
-  const none = DspfWriter.getReferenceOverrides([]);
-  check('none present -> both false', !none.dltchk && !none.dltedt);
-
-  const set = DspfWriter.setReferenceOverrides(
-    [{ name: 'REFFLD', parameters: 'CUSTNO', conditions: [], raw: '', sourceLines: [] }],
-    { dltchk: true, dltedt: false }
-  );
-  check('REFFLD (managed by the existing Resolve Referenced Field feature) is untouched', set.some((k) => k.name === 'REFFLD'));
-  check('DLTCHK added', set.some((k) => k.name === 'DLTCHK'));
-  check('DLTEDT left off', !set.some((k) => k.name === 'DLTEDT'));
-
-  const cleared = DspfWriter.setReferenceOverrides(set, { dltchk: false, dltedt: false });
-  check('clearing both removes them but keeps REFFLD', !cleared.some((k) => k.name === 'DLTCHK') && cleared.some((k) => k.name === 'REFFLD'));
-}
-
-console.log('\nDspfWriter.getMessageId()/setMessageId() - MSGID, caller-supplied argument form (varies too much to decompose)');
-{
-  const none = DspfWriter.getMessageId([]);
-  check('no MSGID -> empty string', none === '');
-
-  const set = DspfWriter.setMessageId([], 'USR &FLDNAME MSGF1 MYLIB');
-  check('MSGID written as supplied', set.find((k) => k.name === 'MSGID').parameters === 'USR &FLDNAME MSGF1 MYLIB');
-  check('round-trips back out', DspfWriter.getMessageId(set) === 'USR &FLDNAME MSGF1 MYLIB');
-
-  const cleared = DspfWriter.setMessageId(set, '');
-  check('blank parameters removes MSGID entirely', !cleared.some((k) => k.name === 'MSGID'));
 }
 
 console.log('\nDspfWriter.getWindowTitleText()/setWindowTitleText() - WDWTITLE, preserving any other parameters (position modifiers etc.)');

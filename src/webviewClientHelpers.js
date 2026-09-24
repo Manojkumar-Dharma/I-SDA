@@ -750,7 +750,7 @@
     // keys can also have conditionings"). Task L31: this now edits the
     // ONE instance at this row's own `data-index` via setCommandKeyAt
     // (same type/number/indicator/text, only the conditions change),
-    // rather than setCommandKey's older "replace whatever has this
+    // rather than a "replace whatever has this
     // number" behavior, which would have silently deleted a SIBLING
     // instance of the same number (e.g. editing "Exit"'s conditioning
     // would have wiped out the separate "Cancel" instance of the same
@@ -793,7 +793,7 @@
         var indicator = document.querySelector('.cmdkey-indicator[data-prefix="' + idPrefix + '"]').value.trim();
         var text = document.querySelector('.cmdkey-text[data-prefix="' + idPrefix + '"]').value.trim();
         // Task L31: append (index === current count) rather than
-        // setCommandKey's replace-by-number, so adding a second instance
+        // replace-by-number, so adding a second instance
         // of an already-used number keeps the first one intact instead
         // of overwriting it.
         var count = DspfWriter.parseCommandKeys(keywords).length;
@@ -822,7 +822,7 @@
   // SDA's own "Select Display Attributes" screen (docs/sda-reference/
   // screens/field-level/character/display-attributes) shows this as its own
   // "Program-to-system field" entry, separate from and above the HI/RI/...
-  // checkboxes. DspfWriter.getColorAttr/getColorAttrStates don't distinguish
+  // checkboxes. DspfWriter.getColorAttrStates doesn't distinguish
   // the two - `attrs` just comes back as whatever whitespace-separated
   // tokens DSPATR's parameters held - so splitAttrsAndPgmField() below picks
   // out any token that ISN'T one of the known codes and treats it as that
@@ -851,52 +851,13 @@
     return el ? el.value.trim().toUpperCase() : '';
   }
 
-  function colorAttrEditorHtml(keywords, ownerKey) {
-    var state = DspfWriter.getColorAttr(keywords);
-    var split = splitAttrsAndPgmField(state.attrs);
-    var html = '<div class="section-label">Color &amp; attributes</div>';
-    html += '<div class="field-row"><label>Color</label><select id="' + ownerKey + '-color">' +
-      COLOR_VALUES.map(function (c) {
-        return '<option value="' + c + '"' + (state.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
-      }).join('') + '</select></div>';
-    html += pgmFieldRowHtml(ownerKey, split.pgmField);
-    html += '<div class="attr-checks">';
-    DSPATR_ATTRS.forEach(function (a) {
-      var checked = split.attrs.indexOf(a) >= 0;
-      html += '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
-    });
-    html += '</div>';
-    return dataKwWrap(['COLOR', 'DSPATR'], html);
-  }
-
-  function wireColorAttrEditor(keywords, onChange, ownerKey) {
-    function commit() {
-      var colorSel = document.getElementById(ownerKey + '-color');
-      var color = colorSel ? colorSel.value : '';
-      var pgmField = readPgmField(ownerKey);
-      var attrs = Array.prototype.slice
-        .call(document.querySelectorAll('.' + ownerKey + '-attr:checked'))
-        .map(function (el) { return el.value; });
-      if (pgmField) attrs = [pgmField].concat(attrs);
-      onChange(DspfWriter.setColorAttr(keywords, color, attrs));
-    }
-    var colorSel = document.getElementById(ownerKey + '-color');
-    if (colorSel) colorSel.addEventListener('change', commit);
-    var pgmFieldEl = document.getElementById(ownerKey + '-pgmfield');
-    if (pgmFieldEl) pgmFieldEl.addEventListener('change', commit);
-    document.querySelectorAll('.' + ownerKey + '-attr').forEach(function (el) {
-      el.addEventListener('change', commit);
-    });
-  }
-
   // -----------------------------------------------------------------------
   // Task L1a - multi-instance Color & attributes editor, built on Task L1's
   // repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances
   // and DspfWriter.getColorAttrStates/setColorAttrStates. Renders each
   // independently-conditioned color/attribute state as its own card (color
   // select + DSPATR checkboxes as the payload, a Conditioning accordion
-  // per card via the L1 shell) instead of colorAttrEditorHtml/
-  // wireColorAttrEditor's single always-unconditioned pair above. Callers
+  // per card via the L1 shell) instead of a single always-unconditioned pair. Callers
   // choose between the two - this one for a full multi-state picker (see
   // its call site in the field/constant props panel), the single-pair one
   // above stays available for anywhere a simpler always-unconditioned
@@ -2383,10 +2344,8 @@
    *  this gives each its own toggle, the same fix the rest of the
    *  codebase's flagRowHtml call sites just got. Uses
    *  DspfWriter.getFileFlagKeyword/setFileFlagKeyword directly (generic
-   *  over any keywords array, despite the name) rather than the older
-   *  getInputKeywords/setInputKeywords (kept for backward compatibility,
-   *  same as every other superseded getX/setX pair from earlier L5
-   *  pieces), since a plain present/absent flag needs no dedicated
+   *  over any keywords array, despite the name) rather than a dedicated
+   *  getX/setX pair, since a plain present/absent flag needs no dedicated
    *  parsing. */
   function inputKeywordsHtml(keywords, ownerKey, expandedSet, dataType) {
     var html = '<div class="section-label">Input keywords</div>';
@@ -2441,8 +2400,8 @@
   }
 
   /** "Select General Keywords" - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/HLPID
-   *  (text-bearing, caller-supplied form - see the old getGeneralFieldKeywords'
-   *  own doc comment for why: they vary too much in shape - e.g. ALIAS/
+   *  (text-bearing, caller-supplied form - see the generic keyword
+   *  parameter handling for why: they vary too much in shape - e.g. ALIAS/
    *  FLDCSRPRG/HLPID take a bare name, DFT/DFTVAL/INDTXT take a quoted
    *  string - to usefully auto-quote here) + PUTRETAIN/OVRDTA/OVRATR/
    *  CHRID/IGCALTTYP/NOCCSID (booleans). Each its own flagRowHtml() row
@@ -2452,8 +2411,7 @@
    *  got, and the same checkbox+param-box shape the file-level keyword
    *  editor's own CHGINPDFT/ENTFLDATR rows already use for a
    *  parameter-carrying flag. Uses DspfWriter.getFileFlagKeyword/
-   *  setFileFlagKeyword directly, superseding getGeneralFieldKeywords/
-   *  setGeneralFieldKeywords (kept for backward compatibility). Unlike
+   *  setFileFlagKeyword directly, with no dedicated getX/setX pair. Unlike
    *  Task L5's other pieces (MSGID, Validity check), none of these
    *  keywords needed the FULL repeatable-instance treatment: DFT/DFTVAL
    *  set a field's single default value, not several different defaults
@@ -2516,7 +2474,7 @@
     // READS this keyword correctly for the continued-entry wrap preview
     // (see its own Task-L17-adjacent doc comment on conditioning), but
     // reading-for-render and offering-for-edit are different concerns; a
-    // stale comment on getGeneralFieldKeywords below had conflated the two,
+    // stale comment here once had conflated the two,
     // treating "rendering already handles CNTFLD" as if it meant "CNTFLD
     // editing is handled elsewhere" - it wasn't handled anywhere. See real
     // SDA's own CONSTANT general-keywords screen (.../constant/general/
@@ -2815,18 +2773,16 @@
     });
   }
 
-  /** "Define Database Reference" overrides - DLTCHK/DLTEDT. Kept as its
-   *  own function (used internally by databaseReferenceHtml below, and
-   *  exported for backward compatibility with any existing caller still
-   *  on the DLTCHK/DLTEDT-only shape) - real SDA's own "Define Database
+  /** "Define Database Reference" overrides - DLTCHK/DLTEDT. A separate
+   *  function (used by databaseReferenceHtml below, and exported so a test
+   *  can render the DLTCHK/DLTEDT rows on their own) - real SDA's own "Define Database
    *  Reference" screen (screens/field-level/character/database-reference/
    *  image170.png) shows DLTCHK/DLTEDT as single Y=Yes flags with no
    *  repeatable-instance list, same reasoning as Input keywords above -
    *  one occurrence's own indicator expression already covers every
    *  combination real DDS allows. Uses DspfWriter.getFileFlagKeyword/
    *  setFileFlagKeyword directly (generic over any keywords array),
-   *  superseding getReferenceOverrides/setReferenceOverrides (kept for
-   *  backward compatibility). */
+   *  as the one place DLTCHK/DLTEDT are edited. */
   function referenceOverridesHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label" style="margin-top:10px;">Ignore previously specified</div>';
     // Task I-30: both "Option indicators are not valid for this keyword"
@@ -4041,7 +3997,7 @@
   // `onChange(newFileKeywords)` callback the caller already uses for
   // commitFileEdit - each row's checkbox/input applies immediately on
   // change (same "no separate Apply button" convention as
-  // colorAttrEditorHtml), reading the CURRENT full fileKeywords array off
+  // the color/attribute cards), reading the CURRENT full fileKeywords array off
   // the row's own data-* attributes rather than keeping local state, so
   // rows never go stale against edits made through another row or the
   // raw Keywords accordion.
@@ -4169,7 +4125,7 @@
 
   /** flagRowHtml's own checkbox+Conditioning row for CHGINPDFT, PLUS its 9
    *  sub-flag checkboxes (same `.attr-checks`/`.attr-check` markup
-   *  colorAttrEditorHtml already uses for DSPATR, so it inherits that
+   *  the DSPATR checkboxes already use, so it inherits that
    *  styling for free). flagRowHtml itself is called with NO visible
    *  params box (paramsPlaceholder omitted) - a hidden input carries the
    *  space-joined code list instead, so wireFlagRow's existing
@@ -7197,7 +7153,7 @@
   // foundation piece any dedicated picker panel can wrap around its own
   // getX/setX pair to move from managing ONE instance of a keyword
   // (conditioned as a whole via keywordEditorHtml's own Conditioning
-  // toggle - see e.g. colorAttrEditorHtml) to managing MULTIPLE
+  // toggle - see e.g. the plain DSPATR keyword) to managing MULTIPLE
   // independently-conditioned instances - e.g. COLOR(RED) under indicator
   // 10 and COLOR(GRN) under indicator 20 on the same field. This
   // generalizes indicatorTextRowsHtml/wireIndicatorTextRows just above
@@ -8562,8 +8518,6 @@
     commandKeysSectionHtml: commandKeysSectionHtml,
     wireCommandKeysSection: wireCommandKeysSection,
     functionKeyLegendHtml: functionKeyLegendHtml,
-    colorAttrEditorHtml: colorAttrEditorHtml,
-    wireColorAttrEditor: wireColorAttrEditor,
     colorAttrStatesHtml: colorAttrStatesHtml,
     wireColorAttrStatesEditor: wireColorAttrStatesEditor,
     validityAndEditHtml: validityAndEditHtml,

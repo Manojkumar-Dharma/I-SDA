@@ -116,9 +116,6 @@ console.log('\nBug fix (Task L34 - watch for other legacy-keyword-synonym gaps b
   check('read back with kind normalized to COMP, not CMP', instances[0] && instances[0].kind === 'COMP');
   check('parameters carried over unchanged', instances[0] && instances[0].parameters === 'GT 0');
 
-  const legacy = DspfWriter.getValidityCheck(kw);
-  check('the older superseded getValidityCheck also recognizes CMP, normalized to COMP', legacy.kind === 'COMP' && legacy.parameters === 'GT 0');
-
   console.log('  editing a CMP-sourced field through the picker at all normalizes it to COMP - the dropdown never offers CMP as a kind, so any re-commit writes COMP');
   const recommitted = DspfWriter.setValidityCheckInstances(kw, instances);
   check('re-committing the read-back instances writes COMP, not CMP', recommitted.length === 1 && recommitted[0].name === 'COMP');

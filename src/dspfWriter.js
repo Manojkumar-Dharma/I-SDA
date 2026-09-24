@@ -615,48 +615,6 @@
     return available;
   }
 
-  /** Returns a NEW keywords array with key `number` set to CAnn/CFnn(indicator 'text').
-   *  Any existing CA/CF keyword for that same number is removed first, so switching a
-   *  key's type (CA<->CF) or overwriting its indicator/text never leaves a duplicate.
-   *  `conditions` (optional, defaults to unconditioned `[]`) - reported as "cmd keys can
-   *  also have conditionings": real DDS lets ANY keyword, CAnn/CFnn included, carry the
-   *  standard indicator-conditioning (position 7-16 AND/OR indicator group) that turns
-   *  the keyword itself on/off at runtime - a SEPARATE mechanism from the embedded
-   *  response indicator (the `indicator` param above, which the SYSTEM sets ON when
-   *  that key is pressed; conditioning instead reads existing indicator state to decide
-   *  whether the key definition applies at all). Before this, every command key was
-   *  silently written unconditioned regardless of what was already there. This still
-   *  keeps the existing one-definition-per-number-per-scope model (see the file header
-   *  comment above parseCommandKeys) - conditioning one key's SINGLE definition on/off,
-   *  not multiple independently-conditioned instances of the same number. Task L31 added
-   *  that (real SDA's own Design Image screen does support it too, e.g. F3 reading "Exit"
-   *  vs "Cancel" under different indicators) as setCommandKeyAt/removeCommandKeyAt below,
-   *  a separate index-based pair rather than a breaking change to this function's own
-   *  by-number signature - every existing caller here (including every test) keeps its
-   *  original single-instance-per-number behavior unchanged. */
-  function setCommandKey(keywords, type, number, indicator, text, conditions) {
-    var paddedNumber = padKeyNumber(number);
-    var filtered = (keywords || []).filter(function (k) {
-      var m = COMMAND_KEY_RE.exec(k.name);
-      return !(m && m[2] === paddedNumber);
-    });
-    var params = '';
-    if (indicator != null && String(indicator).trim() !== '') {
-      params = padKeyNumber(indicator) + (text ? " '" + String(text).replace(/'/g, "''") + "'" : '');
-    }
-    filtered.push({ name: type.toUpperCase() + paddedNumber, parameters: params, conditions: conditions || [], raw: '', sourceLines: [] });
-    return filtered;
-  }
-
-  /** Returns a NEW keywords array with the CA/CF keyword for `number` removed (whichever type it is). */
-  function removeCommandKey(keywords, number) {
-    var paddedNumber = padKeyNumber(number);
-    return (keywords || []).filter(function (k) {
-      var m = COMMAND_KEY_RE.exec(k.name);
-      return !(m && m[2] === paddedNumber);
-    });
-  }
-
   /** All 24 possible key numbers ("01".."24"), unconditionally - the
    *  multi-instance counterpart to availableCommandKeyNumbers now that a
    *  number can have more than one instance (Task L31, see that
@@ -680,12 +638,10 @@
    *  Task L31: real SDA's own Design Image screen allows multiple
    *  independently-conditioned instances of the same key number - e.g.
    *  F3 reading "Exit" under one indicator and "Cancel" under another,
-   *  each its own separate CA03 line. The older setCommandKey (still kept
-   *  above, unchanged, for every existing single-instance-per-number
-   *  caller) can't express this: it always removes EVERY existing
-   *  instance of a number before writing the one it was given, so editing
-   *  either "Exit" or "Cancel" through it would silently delete the
-   *  other. setCommandKeyAt instead targets one SPECIFIC instance by its
+   *  each its own separate CA03 line. A replace-by-number setter can't express this: it
+   *  would remove EVERY existing instance of a number before writing the
+   *  one it was given, so editing either "Exit" or "Cancel" through it
+   *  would silently delete the other. setCommandKeyAt instead targets one SPECIFIC instance by its
    *  ordinal position, leaving every other instance - same number or not
    *  - completely untouched.
    *
@@ -717,10 +673,8 @@
 
   /** Returns a NEW keywords array with the Nth (0-based, same ordinal
    *  numbering as setCommandKeyAt/parseCommandKeys) CAxx/CFxx instance
-   *  removed - Task L31's per-instance counterpart to removeCommandKey
-   *  (which removes EVERY instance sharing a number - still correct for
-   *  the single-instance-per-number callers that still use it, but wrong
-   *  here since it would delete a sibling instance too, e.g. removing the
+   *  removed - Task L31's per-instance removal (removing by
+   *  number would delete a sibling instance too, e.g. removing the
    *  "Cancel" CA03 would also take "Exit"'s CA03 with it). An
    *  out-of-range `index` is a no-op (returns a shallow copy, same
    *  "nothing to remove" convention every other bounds-checked setter in
@@ -739,7 +693,7 @@
   // validity-check / edit-keyword / error-message helpers (RANGE/COMP/
   // VALUES, EDTCDE/EDTWRD, ERRMSG) - previously these were only reachable
   // via the generic "add any keyword by name/params" box. Each pair below
-  // follows the same read/write shape as parseCommandKeys/setCommandKey:
+  // follows the same read/write shape as parseCommandKeys/setCommandKeyAt:
   // a getter that pulls the current state out of a keyword list for a panel
   // to pre-fill itself with, and a setter that returns a NEW keyword list
   // with the relevant keyword(s) replaced. Callers still have the generic
@@ -747,40 +701,12 @@
   // (conditioning either one, exotic COLOR/DSPATR combinations, etc.).
   // -----------------------------------------------------------------------
 
-  /** Reads the current COLOR/DSPATR state off a field/record/constant's keyword
-   *  list - { color: string ('' if none), attrs: string[] (DSPATR values, e.g.
-   *  ['HI','UL']) } - for the colors/attributes editor to pre-fill its controls. */
-  function getColorAttr(keywords) {
-    var colorK = (keywords || []).find(function (k) { return k.name === 'COLOR'; });
-    var attrK = (keywords || []).find(function (k) { return k.name === 'DSPATR'; });
-    return {
-      color: colorK ? (colorK.parameters || '').trim().toUpperCase() : '',
-      attrs: attrK
-        ? (attrK.parameters || '').trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); })
-        : [],
-    };
-  }
-
-  /** Returns a NEW keywords array with COLOR/DSPATR replaced: `color` (a single
-   *  color name, e.g. "BLU", or '' to remove COLOR entirely) and `attrs` (array
-   *  of DSPATR attribute names, joined into ONE DSPATR keyword the way real DDS
-   *  allows multiple attributes per keyword - e.g. DSPATR(HI UL) - or omitted
-   *  entirely if `attrs` is empty). Both keywords are written unconditioned;
-   *  conditioning either one still goes through the generic keyword editor's
-   *  own Conditioning toggle. */
-  function setColorAttr(keywords, color, attrs) {
-    var next = (keywords || []).filter(function (k) { return k.name !== 'COLOR' && k.name !== 'DSPATR'; });
-    if (color) next = next.concat([{ name: 'COLOR', parameters: color, conditions: [], raw: '', sourceLines: [] }]);
-    if (attrs && attrs.length > 0) next = next.concat([{ name: 'DSPATR', parameters: attrs.join(' '), conditions: [], raw: '', sourceLines: [] }]);
-    return next;
-  }
-
   // -----------------------------------------------------------------------
   // Task L1a - multi-instance Color & attributes, built on Task L1's
   // getRepeatableKeywordInstances/setRepeatableKeywordInstances. Real DDS
   // lets a field/record/constant carry MULTIPLE independently-conditioned
   // COLOR/DSPATR pairs - e.g. COLOR(RED) DSPATR(HI) under indicator 10,
-  // COLOR(GRN) under indicator 20 - getColorAttr/setColorAttr just above
+  // COLOR(GRN) under indicator 20 - a plain COLOR/DSPATR setter would
   // only manage ONE always-unconditioned pair (conditioning either keyword
   // still has to go through the generic keyword editor's own Conditioning
   // toggle, which conditions the pair as a whole rather than letting each
@@ -1010,37 +936,6 @@
   // already established.
   var VALIDITY_CHECK_READ_KEYWORDS = VALIDITY_CHECK_KEYWORDS.concat(['CMP']);
 
-  /** A field carries at most ONE validity-check keyword at a time, so this just
-   *  finds whichever of RANGE/COMP/VALUES is present - { kind: ''|'RANGE'|
-   *  'COMP'|'VALUES', parameters: string (the raw parenthesized argument text) }.
-   *  Superseded by getValidityCheckInstances/setValidityCheckInstances (Task
-   *  L5) for the picker itself, which now supports multiple independently-
-   *  conditioned occurrences (e.g. RANGE(1 50) under indicator 30, COMP(GT 0)
-   *  under indicator 31) the same general way Task L1's foundation already
-   *  extended to COLOR/DSPATR (L1a), ERRMSG/ERRMSGID (L1b), SFLMSG/SFLMSGID
-   *  (L1c), and CHECK (L1d) - conditioning is a general per-occurrence DDS
-   *  mechanism, not something only certain keywords opt into. Kept for
-   *  backward compatibility/API completeness, same as getColorAttr/
-   *  setColorAttr were kept alongside L1a's getColorAttrStates/
-   *  setColorAttrStates. */
-  function getValidityCheck(keywords) {
-    var k = (keywords || []).find(function (k) { return VALIDITY_CHECK_READ_KEYWORDS.indexOf(k.name) >= 0; });
-    return k ? { kind: k.name === 'CMP' ? 'COMP' : k.name, parameters: k.parameters || '' } : { kind: '', parameters: '' };
-  }
-
-  /** Returns a NEW keywords array with any existing RANGE/COMP/VALUES removed
-   *  and, if `kind` is non-empty, one new keyword of that kind added with
-   *  `parameters` (e.g. "10 99" for RANGE, "GT 0" for COMP, "'A' 'B' 'C'" for
-   *  VALUES) - left as free text since the argument shapes differ too much per
-   *  kind to model individually here; the caller supplies it already-quoted
-   *  where DDS requires quoting. Superseded by setValidityCheckInstances (Task
-   *  L5) - see getValidityCheck's own doc comment. */
-  function setValidityCheck(keywords, kind, parameters) {
-    var next = (keywords || []).filter(function (k) { return VALIDITY_CHECK_READ_KEYWORDS.indexOf(k.name) < 0; });
-    if (kind) next = next.concat([{ name: kind, parameters: parameters || '', conditions: [], raw: '', sourceLines: [] }]);
-    return next;
-  }
-
   // -----------------------------------------------------------------------
   // Task L5 (piece 1 of the still-open items listed in
   // docs/sda-reference/LIMITATIONS-PLAN.md) - Validity check's OWN
@@ -1054,7 +949,7 @@
   // here the way L1a's getColorAttrStates has to do for COLOR+DSPATR. An
   // instance is just { conditions, kind: 'RANGE'|'COMP'|'VALUES',
   // parameters: string } - `parameters` stays free text for the same
-  // reason getValidityCheck/setValidityCheck above already left it free
+  // reason the earlier single-instance accessors left it free
   // text (RANGE/COMP/VALUES argument shapes differ too much to model
   // individually, and the caller supplies VALUES/COMP string args already
   // quoted where DDS requires it).
@@ -1876,52 +1771,6 @@
    *  instance means, same as any other repeatable instance's payload). */
   function formatCheckCodes(codes) {
     return (codes || []).filter(Boolean).join(' ');
-  }
-
-  /** Reads the field's input-handling keywords - DUP (Dup key duplication,
-   *  optional response indicator via CHECK's own indicator column - here
-   *  represented simply as present/absent since the response indicator is
-   *  written through the generic Conditioning toggle same as every other
-   *  keyword here), BLANKS (numeric blank-vs-zero distinction), CHANGE
-   *  (MDT/changed detection), CHGINPDFT (change input defaults) - each a
-   *  simple boolean per real DDS (DUP/BLANKS/CHANGE take a REQUIRED
-   *  response indicator in real DDS, which the caller supplies via
-   *  Conditioning on that specific keyword the same as any other
-   *  conditioned keyword; CHGINPDFT takes none).
-   *  NOTE (Task I-118): kept for backward compatibility - superseded in
-   *  the UI by inputKeywordsHtml/wireInputKeywords using
-   *  getFileFlagKeyword/setFileFlagKeyword directly (see that function's
-   *  own doc comment in webviewClientHelpers.js). */
-  function getInputKeywords(keywords) {
-    var names = (keywords || []).map(function (k) { return k.name; });
-    return {
-      dup: names.indexOf('DUP') >= 0,
-      blanks: names.indexOf('BLANKS') >= 0,
-      change: names.indexOf('CHANGE') >= 0,
-      chginpdft: names.indexOf('CHGINPDFT') >= 0,
-    };
-  }
-
-  /** Returns a NEW keywords array with DUP/BLANKS/CHANGE/CHGINPDFT set to
-   *  match `state` ({ dup, blanks, change, chginpdft }: booleans). Existing
-   *  parameters (e.g. DUP's optional response-indicator text) are
-   *  preserved when a flag stays true; toggling one off removes it
-   *  entirely; toggling one on where it didn't exist adds it bare (no
-   *  parameters - real DDS allows DUP/BLANKS/CHANGE with just their
-   *  required response indicator, added via Conditioning). NOTE (Task
-   *  I-118): kept for backward compatibility, same as getInputKeywords
-   *  above. */
-  function setInputKeywords(keywords, state) {
-    var s = state || {};
-    var KEEP = { dup: 'DUP', blanks: 'BLANKS', change: 'CHANGE', chginpdft: 'CHGINPDFT' };
-    var toRemove = Object.keys(KEEP).filter(function (k) { return !s[k]; }).map(function (k) { return KEEP[k]; });
-    var next = (keywords || []).filter(function (k) { return toRemove.indexOf(k.name) < 0; });
-    Object.keys(KEEP).forEach(function (k) {
-      if (s[k] && !next.some(function (kw) { return kw.name === KEEP[k]; })) {
-        next = next.concat([{ name: KEEP[k], parameters: '', conditions: [], raw: '', sourceLines: [] }]);
-      }
-    });
-    return next;
   }
 
   /** L81 - DFT/DFTVAL validity check, confirmed against IBM's own DDS
@@ -4004,74 +3853,6 @@
     return 'A menu-bar record must contain exactly one menu-bar field and no other displayable fields (per the DDS Reference) - this record currently has ' + problems.join(' and ') + '.';
   }
 
-  /** Reads the field's "General keywords" (real SDA's category, not this
-   *  file's ALIAS which is just plain text here). Text-bearing keywords
-   *  come back as their raw (already-quoted-if-needed) parameter string for
-   *  the caller to display/edit; boolean ones as true/false. CNTFLD (bug
-   *  fix: previously entirely absent from this list - see
-   *  GENERAL_FIELD_KEYWORD_ROWS's own comment in webviewClientHelpers.js
-   *  for why "dspfEngine.js's continued-entry preview already handles
-   *  CNTFLD" was true for RENDERING but not for EDITING, and shouldn't have
-   *  been read as covering both) is a bare numeric parameter, same shape as
-   *  ALIAS/FLDCSRPRG. HLPID (task D4 - a CONSTANT field-level keyword per
-   *  IBM's own DDS reference, linking the constant to a HLPARA-referenced
-   *  help panel) is included here rather than as its own picker since it's
-   *  a single bare-identifier keyword, the same shape as ALIAS/FLDCSRPRG
-   *  already handled below - no separate D4 General-keywords screen was
-   *  needed since generalFieldKeywordsHtml already covers every other
-   *  keyword real SDA's constant-specific General screen shows (ALIAS/
-   *  INDTXT/DFT/PUTRETAIN/OVRDTA/OVRATR/NOCCSID), and Colors/Display
-   *  Attributes are likewise already covered by the shared
-   *  colorAttrEditorHtml (D1) - constants were never gated out of either.
-   *  NOTE (Task I-118): kept for backward compatibility - superseded in the
-   *  UI by generalFieldKeywordsHtml/wireGeneralFieldKeywords using
-   *  getFileFlagKeyword/setFileFlagKeyword directly (see that function's
-   *  own doc comment in webviewClientHelpers.js), same as getColorAttr/
-   *  setColorAttr were kept alongside L1a's getColorAttrStates/
-   *  setColorAttrStates. */
-  function getGeneralFieldKeywords(keywords) {
-    var find = function (name) { var k = (keywords || []).find(function (k) { return k.name === name; }); return k ? (k.parameters || '') : ''; };
-    var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
-    return {
-      alias: find('ALIAS'),
-      indtxt: find('INDTXT'),
-      dft: find('DFT'),
-      dftval: find('DFTVAL'),
-      fldcsrprg: find('FLDCSRPRG'),
-      hlpid: find('HLPID'),
-      putretain: has('PUTRETAIN'),
-      ovrdta: has('OVRDTA'),
-      ovratr: has('OVRATR'),
-      chrid: has('CHRID'),
-      igcalttyp: has('IGCALTTYP'),
-      noccsid: has('NOCCSID'),
-    };
-  }
-
-  /** Returns a NEW keywords array reflecting `state` (same shape as
-   *  getGeneralFieldKeywords returns) - text fields take the parameter
-   *  string as-is (caller supplies quoting, matching how the generic
-   *  keyword editor already works, since these vary too much in shape -
-   *  e.g. ALIAS/FLDCSRPRG/HLPID take a bare name, DFT/DFTVAL/INDTXT take a
-   *  quoted string - to usefully auto-quote here); blank/false removes the
-   *  keyword entirely. NOTE (Task I-118): kept for backward compatibility,
-   *  same as getGeneralFieldKeywords above. */
-  function setGeneralFieldKeywords(keywords, state) {
-    var s = state || {};
-    var TEXT = { alias: 'ALIAS', indtxt: 'INDTXT', dft: 'DFT', dftval: 'DFTVAL', fldcsrprg: 'FLDCSRPRG', hlpid: 'HLPID' };
-    var BOOL = { putretain: 'PUTRETAIN', ovrdta: 'OVRDTA', ovratr: 'OVRATR', chrid: 'CHRID', igcalttyp: 'IGCALTTYP', noccsid: 'NOCCSID' };
-    var removeNames = Object.keys(TEXT).map(function (k) { return TEXT[k]; }).concat(Object.keys(BOOL).map(function (k) { return BOOL[k]; }));
-    var next = (keywords || []).filter(function (k) { return removeNames.indexOf(k.name) < 0; });
-    Object.keys(TEXT).forEach(function (k) {
-      var v = (s[k] || '').toString().trim();
-      if (v) next = next.concat([{ name: TEXT[k], parameters: v, conditions: [], raw: '', sourceLines: [] }]);
-    });
-    Object.keys(BOOL).forEach(function (k) {
-      if (s[k]) next = next.concat([{ name: BOOL[k], parameters: '', conditions: [], raw: '', sourceLines: [] }]);
-    });
-    return next;
-  }
-
   // ---------------------------------------------------------------------
   // L79 - REFFLD (Referenced Field) itself, as a directly-editable
   // "Define Database Reference" panel (previously only reachable via the
@@ -4181,30 +3962,6 @@
         if (params) next = next.concat([{ name: 'REFFLD', parameters: params, conditions: [], raw: '', sourceLines: [] }]);
       }
     }
-    return next;
-  }
-
-  /** Reads the field's database-reference OVERRIDE flags - DLTCHK (ignore
-   *  the referenced field's own validity-check keywords) and DLTEDT
-   *  (ignore its edit keywords) - only meaningful alongside REFFLD/REF
-   *  (see getReffldState/applyReffldState above, and the "Resolve
-   *  Referenced Field" feature for populating length/type/decimals from a
-   *  live system) - not duplicated here. */
-  function getReferenceOverrides(keywords) {
-    var has = function (name) { return (keywords || []).some(function (k) { return k.name === name; }); };
-    return { dltchk: has('DLTCHK'), dltedt: has('DLTEDT') };
-  }
-
-  /** Returns a NEW keywords array with DLTCHK/DLTEDT set to match `state`
-   *  ({ dltchk, dltedt }: booleans). */
-  function setReferenceOverrides(keywords, state) {
-    var s = state || {};
-    var toRemove = [];
-    if (!s.dltchk) toRemove.push('DLTCHK');
-    if (!s.dltedt) toRemove.push('DLTEDT');
-    var next = (keywords || []).filter(function (k) { return toRemove.indexOf(k.name) < 0; });
-    if (s.dltchk && !next.some(function (k) { return k.name === 'DLTCHK'; })) next = next.concat([{ name: 'DLTCHK', parameters: '', conditions: [], raw: '', sourceLines: [] }]);
-    if (s.dltedt && !next.some(function (k) { return k.name === 'DLTEDT'; })) next = next.concat([{ name: 'DLTEDT', parameters: '', conditions: [], raw: '', sourceLines: [] }]);
     return next;
   }
 
@@ -4321,34 +4078,6 @@
     return length + ' ' + msgId + ' ' + fileToken;
   }
 
-  /** Reads the field's MSGID keyword (message-identifier-sourced field
-   *  text) as its raw parameter string - unlike ERRMSG/WDWTITLE, MSGID's
-   *  argument is either "[msg-prefix] &field-name" or "[msgid-prefix]
-   *  msg-id message-file [library/]" - too structurally varied to usefully
-   *  decompose here, so (like getGeneralFieldKeywords' text fields) this
-   *  hands back the parameter text as-is for the caller to parse/display.
-   *  NOTE: kept for backward compatibility with any caller still on the
-   *  single-instance shape; getMessageIdInstances/setMessageIdInstances
-   *  below are the Task L5 replacement (multiple independently-conditioned
-   *  MSGID keywords - a real, common DDS pattern: e.g. MSGID(&MIC001
-   *  HISLIB/HISMSGF) under one response indicator, coexisting with a
-   *  fallback MSGID(*NONE) with no conditioning at all). */
-  function getMessageId(keywords) {
-    var k = (keywords || []).find(function (k) { return k.name === 'MSGID'; });
-    return k ? (k.parameters || '') : '';
-  }
-
-  /** Returns a NEW keywords array with MSGID's parameters replaced by
-   *  `parameters` (caller-supplied, already in valid MSGID argument form),
-   *  or removed entirely if blank. NOTE: single-instance - see
-   *  setMessageIdInstances below for the Task L5 replacement. */
-  function setMessageId(keywords, parameters) {
-    var next = (keywords || []).filter(function (k) { return k.name !== 'MSGID'; });
-    var trimmed = (parameters || '').trim();
-    if (trimmed) next = next.concat([{ name: 'MSGID', parameters: trimmed, conditions: [], raw: '', sourceLines: [] }]);
-    return next;
-  }
-
   /** Task L5 - MSGID as Task L1's repeatable, independently-conditioned
    *  instances. Real DDS allows a field to carry MULTIPLE MSGID keywords,
    *  each under its own conditioning, with the first whose condition is
@@ -4357,7 +4086,7 @@
    *  common pattern (e.g. one MSGID(&fieldname msgfile) conditioned on an
    *  error indicator, alongside an unconditioned fallback MSGID(*NONE)).
    *  MSGID's own argument text stays OPAQUE here, unchanged from
-   *  getMessageId/setMessageId above - this only adds the repeatable/
+   *  the single-instance accessors that came before - this only adds the repeatable/
    *  independently-conditioned dimension Task L5 is about, layered on top
    *  via Task L1's own getRepeatableKeywordInstances/
    *  setRepeatableKeywordInstances (which already treat any keyword's
@@ -4624,7 +4353,7 @@
    *  numCol: string, numRow: string, gutter: string } - a field carries at
    *  most one of these two keywords (the two selection-type radio options
    *  on the SDA screen), same "at most one at a time" shape as
-   *  getValidityCheck's RANGE/COMP/VALUES. */
+   *  validity check's RANGE/COMP/VALUES. */
   function getChoiceSelectionType(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'SNGCHCFLD' || kw.name === 'MLTCHCFLD'; });
     var result = { kind: '', flags: [], numCol: '', numRow: '', gutter: '' };
@@ -4789,7 +4518,7 @@
    *  non-zero => unavailable) and what tells the user why if they try to
    *  pick it anyway. `messageId`/`messageFile` are themselves either a
    *  literal message ID + file name, or &variables - left as raw text
-   *  since (like getMessageId) the argument shapes vary too much to
+   *  since (like MSGID) the argument shapes vary too much to
    *  usefully decompose further. */
   function getChoiceControls(keywords) {
     return (keywords || [])
@@ -4881,7 +4610,7 @@
    *  CHOICE_COLOR_STATE_KEYWORDS, or ENTFLDATR) built from `color`/
    *  `attrs`(/`cursorVisible`, ENTFLDATR-only) - removed entirely if
    *  nothing is set AND `forcePresent` is falsy - same shape as
-   *  setColorAttr but for a caller-chosen keyword name instead of the
+   *  setColorAttrStates but for a caller-chosen keyword name instead of the
    *  fixed COLOR/DSPATR pair.
    *  `conditions` (optional, Task I-3: ENTFLDATR is documented by IBM as
    *  eligible for option-indicator conditioning - "not valid" was true for
@@ -4971,7 +4700,7 @@
   // DBCS conversion, Alternate, Window Border, Menu-bar). All of these
   // operate purely on a `keywords` array (dspfFile.fileKeywords) and hand
   // back a NEW array - same "no sourceLines here, applyFileKeywordsUpdate
-  // does the serializing" convention as getColorAttr/setColorAttr etc.
+  // does the serializing" convention as the other keyword setters
   // above, so every category panel can commit through the file props
   // panel's existing commitFileEdit/applyFileKeywordsUpdate path.
   //
@@ -5954,7 +5683,7 @@
    *  keyword in `names` removed, replaced by one keyword per entry in
    *  `instances` (`{ name, parameters, conditions }`, `name` must be one of
    *  `names`) - entries with a blank/unrecognized `name` are skipped.
-   *  Unlike setColorAttr/etc (which always write
+   *  Unlike a plain single-keyword setter (which would write
    *  `conditions: []`, leaving conditioning to the generic keyword editor's
    *  own toggle), each instance here keeps its OWN `conditions` - this is
    *  what lets e.g. COLOR(RED) conditioned on indicator 10 and COLOR(GRN)
@@ -8608,8 +8337,6 @@
     applyFileKeywordsUpdate: applyFileKeywordsUpdate,
     parseCommandKeys: parseCommandKeys,
     availableCommandKeyNumbers: availableCommandKeyNumbers,
-    setCommandKey: setCommandKey,
-    removeCommandKey: removeCommandKey,
     allCommandKeyNumbers: allCommandKeyNumbers,
     setCommandKeyAt: setCommandKeyAt,
     removeCommandKeyAt: removeCommandKeyAt,
@@ -8618,14 +8345,10 @@
     buildModTag: buildModTag,
     appendModTag: appendModTag,
     applyModificationTracking: applyModificationTracking,
-    getColorAttr: getColorAttr,
-    setColorAttr: setColorAttr,
     getColorAttrStates: getColorAttrStates,
     setColorAttrStates: setColorAttrStates,
     diffColorAttrStates: diffColorAttrStates,
     applyColorAttrStatesDiff: applyColorAttrStatesDiff,
-    getValidityCheck: getValidityCheck,
-    setValidityCheck: setValidityCheck,
     getValidityCheckInstances: getValidityCheckInstances,
     setValidityCheckInstances: setValidityCheckInstances,
     getEditKeyword: getEditKeyword,
@@ -8653,10 +8376,6 @@
     setErrorMessageInstances: setErrorMessageInstances,
     parseCheckCodes: parseCheckCodes,
     formatCheckCodes: formatCheckCodes,
-    getInputKeywords: getInputKeywords,
-    setInputKeywords: setInputKeywords,
-    getGeneralFieldKeywords: getGeneralFieldKeywords,
-    setGeneralFieldKeywords: setGeneralFieldKeywords,
     dftGroupConflictReason: dftGroupConflictReason,
     wrdwrapFieldConflictReason: wrdwrapFieldConflictReason,
     wrdwrapReverseConflictReason: wrdwrapReverseConflictReason,
@@ -8734,14 +8453,10 @@
     keepMutexConflictReason: keepMutexConflictReason,
     alwrolClrlSlnoConflictReason: alwrolClrlSlnoConflictReason,
     mnubarFieldShapeNote: mnubarFieldShapeNote,
-    getReferenceOverrides: getReferenceOverrides,
-    setReferenceOverrides: setReferenceOverrides,
     parseReffldParams: parseReffldParams,
     formatReffldParams: formatReffldParams,
     getReffldState: getReffldState,
     applyReffldState: applyReffldState,
-    getMessageId: getMessageId,
-    setMessageId: setMessageId,
     parseMsgIdParams: parseMsgIdParams,
     formatMsgIdParams: formatMsgIdParams,
     parseMsgConParams: parseMsgConParams,
