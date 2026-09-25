@@ -163,7 +163,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (WINDOW slice claimed) | v0.10.205 |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW slices done) | v0.10.206 |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice claimed; remaining record types (SFL/SFLCTL, MNUBAR, PULLDOWN, message subfile, plain record) still open. Size (estimate): Large - best done one record type at a time. |
+| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); remaining record types (SFL/SFLCTL, MNUBAR, PULLDOWN, message subfile, plain record) still open. Size (estimate): Large - best done one record type at a time. |
 | 2 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
@@ -5477,7 +5477,7 @@ Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` ca
 
 ### I-121 — One declarative rule spec per keyword
 
-> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice claimed) · **Depends on:** I-40, I-119
+> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206) · **Depends on:** I-40, I-119
 
 Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
 
@@ -5489,7 +5489,13 @@ Investigating the actual duplication before writing the spec found it narrower t
 
 New `src/test/i121UsrdfnKeywordSpec.test.js`: confirms the spec's whitelist and citation text against the DDS Reference directly; sweeps all 186 keyword names in `KEYWORD-LOOKUP.json` confirming `usrdfnConflictReason` and `usrdfnWhitelistConflictReason` still agree with the spec on every one (so a future accidental second hand-written array would be caught); and confirms `indicatorKinds` is exactly the whitelist-only subset of the ten kinds the shared Indicator-instance component supports. This is a pure refactor (data relocated, one duplicate function body removed) with no behavior change, so there is no pre-fix regression to reproduce via `git stash` the way a bug fix would have; the full suite (151 files, 9,910 checks) is the safety net instead. Full suite: zero failures.
 
-Remaining record types for I-121 (each its own future slice, per this task's own "split by record type when claiming" note): SFL/SFLCTL (largest rule surface - `sflWhitelistConflictReason` plus the message-subfile/plain-subfile split), MNUBAR (`mnubarWhitelistConflictReason` plus the `CAnn`/`CFnn` pattern-matched entries), WINDOW (`windowMutexConflictReason`'s six-keyword bidirectional exclusion, a different shape than a whitelist), PULLDOWN (`pulldownConflictReason`'s 27-keyword forbidden list - the mirror shape, an exclusion list rather than a whitelist), the message-subfile combination type, and the plain/base record and file levels (the largest and least closed-form of all - most of the 67 `*ConflictReason` functions' remaining rules).
+**WINDOW slice.** `RECORD_TYPES.WINDOW` added to `keywordSpec.js` - the first non-whitelist shape in the spec. WINDOW's own DDS Reference section (re-verified fresh against `DDS_Keyword_V7r6.txt`, unchanged from what the code already had) states a closed six-keyword **mutex**, not a whitelist: "The WINDOW keyword is not allowed on a record format that has any one of the following keywords specified: ALWROL, ASSUME, MNUBAR, PULLDOWN, SFL, USRDFN" - genuinely bidirectional in the source text itself (a record with WINDOW can't gain one of the six; a record with one of the six can't gain WINDOW), unlike USRDFN's one-directional "only these are allowed on a USRDFN record." SFLCTL is a named exception ("WINDOW keyword is allowed on a record with the SFLCTL keyword") and is deliberately not in the mutex list; PASSRCD has its own separate, already-fixed (I-24) restriction and is likewise not part of this list.
+
+New `KeywordSpec.isMutex(recordType, keywordName)` alongside the existing `isWhitelisted` - the general shape for a closed exclusion list rather than a closed inclusion list. `dspfWriter.js`'s `windowMutexConflictReason` (Task I-47's own function) now delegates both directions of its check to `KeywordSpec.isMutex('WINDOW', ...)` instead of the hand-written `WINDOW_MUTEX_KEYWORDS` array, which is gone. `windowConflictReason` (Task I-12, the older one-directional ALWROL/ASSUME checkbox guard) is untouched - it's a different call site with its own reasoning, not part of this slice.
+
+New `src/test/i121WindowKeywordSpec.test.js`: confirms the spec's mutex list and citation text against the DDS Reference directly (plus confirms WINDOW/SFLCTL/PASSRCD are each correctly absent from the list, for the reasons above); sweeps all 185 non-WINDOW keyword names in `KEYWORD-LOOKUP.json` confirming `windowMutexConflictReason` agrees with the spec in **both** directions (WINDOW-record-gains-keyword and keyword-record-gains-WINDOW) on every one; and confirms the SFLCTL exception is unaffected in either direction. Pure refactor, no behavior change - full suite (152 files, 9,921 checks) is the safety net. Full suite: zero failures.
+
+Remaining record types for I-121 (each its own future slice, per this task's own "split by record type when claiming" note): SFL/SFLCTL (largest rule surface - `sflWhitelistConflictReason` plus the message-subfile/plain-subfile split), MNUBAR (`mnubarWhitelistConflictReason` plus the `CAnn`/`CFnn` pattern-matched entries), PULLDOWN (`pulldownConflictReason`'s 27-keyword forbidden list - the same mutex shape WINDOW's own slice just added `isMutex` for), the message-subfile combination type, and the plain/base record and file levels (the largest and least closed-form of all - most of the 67 `*ConflictReason` functions' remaining rules).
 
 ---
 

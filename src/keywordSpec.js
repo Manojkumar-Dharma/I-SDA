@@ -86,6 +86,36 @@
       // Indicator (I-114) so HELP/HLPRTN, otherwise reachable only through
       // the raw keyword editor, get a proper row.
       keywordTabs: ['general', 'indicator', 'help', 'print']
+    },
+
+    // Task I-121 WINDOW slice. Unlike USRDFN's closed whitelist (a record
+    // of that type may carry ONLY the listed keywords), WINDOW's own DDS
+    // Reference section states a short closed MUTEX list instead: a
+    // record with WINDOW may not also carry any of these six, and -
+    // stated in the same sentence, so genuinely bidirectional rather than
+    // two separate rules - a record with any of these six may not also
+    // carry WINDOW. A mutex is symmetric by construction: there is no
+    // "marker keyword" whose presence is being tested for eligibility the
+    // way USRDFN's whitelist tests every OTHER keyword against one fixed
+    // record type; both keywordName and the record's existing keywords
+    // are checked against the same list from either side. WINDOW itself
+    // is deliberately absent from its own mutex list (a record cannot
+    // conflict with itself), matching the code's existing
+    // `windowMutexConflictReason`.
+    WINDOW: {
+      // DDS_Keyword_V7r6.txt, "WINDOW (Define a Window) keyword for
+      // display files" section (line ~13664): a closed six-keyword
+      // mutual-exclusion list, re-verified fresh against the DDS
+      // Reference text itself, unchanged from what the code already had.
+      // SFLCTL is explicitly named as an exception (not in this list) -
+      // "The WINDOW keyword is allowed on a record with the SFLCTL
+      // keyword" - and PASSRCD has its own separate, already-fixed (I-24)
+      // restriction, not part of this closed list.
+      ddsReference:
+        'The WINDOW keyword is not allowed on a record format that has ' +
+        'any one of the following keywords specified: ALWROL, ASSUME, ' +
+        'MNUBAR, PULLDOWN, SFL, USRDFN.',
+      mutex: ['ALWROL', 'ASSUME', 'MNUBAR', 'PULLDOWN', 'SFL', 'USRDFN']
     }
   };
 
@@ -98,8 +128,20 @@
     return spec.whitelist.indexOf(keywordName) !== -1;
   }
 
+  /** Whether `keywordName` is on `recordType`'s own closed mutex list (the
+   *  WINDOW shape: a short list of keywords forbidden on the SAME record
+   *  in EITHER direction, as opposed to `isWhitelisted`'s "only these are
+   *  allowed" shape). Returns false for a record type with no spec entry
+   *  or no mutex list - nothing to conflict with. */
+  function isMutex(recordType, keywordName) {
+    var spec = RECORD_TYPES[recordType];
+    if (!spec || !spec.mutex) return false;
+    return spec.mutex.indexOf(keywordName) !== -1;
+  }
+
   return {
     RECORD_TYPES: RECORD_TYPES,
-    isWhitelisted: isWhitelisted
+    isWhitelisted: isWhitelisted,
+    isMutex: isMutex
   };
 });

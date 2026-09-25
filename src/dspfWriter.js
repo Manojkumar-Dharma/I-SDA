@@ -2992,16 +2992,23 @@
    *  otherwise. Wired only into the record-level raw keyword editor's
    *  addGuardFn chain (buildWebviewTemplate.js), alongside the USRDFN/
    *  SFL whitelist checks - windowConflictReason's own two existing
-   *  checkbox call sites (ASSUME/ALWROL) are untouched. */
-  var WINDOW_MUTEX_KEYWORDS = ['ALWROL', 'ASSUME', 'MNUBAR', 'PULLDOWN', 'SFL', 'USRDFN'];
+   *  checkbox call sites (ASSUME/ALWROL) are untouched.
+   *
+   *  Task I-121 - the six-keyword list itself moved to keywordSpec.js's
+   *  declarative RECORD_TYPES.WINDOW.mutex (I-121's WINDOW slice,
+   *  following the USRDFN slice's own whitelist -> KeywordSpec.isWhitelisted
+   *  precedent). Unlike USRDFN's one-directional isWhitelisted, WINDOW's
+   *  rule is a genuine mutex - both directions of this function now read
+   *  KeywordSpec.isMutex('WINDOW', ...) against the same list, rather than
+   *  a hand-written array duplicated beside the doc comment above. */
   function windowMutexConflictReason(keywordName, recordKeywords) {
     var keywords = recordKeywords || [];
     var hasWindow = keywords.some(function (k) { return k.name === 'WINDOW'; });
-    if (hasWindow && WINDOW_MUTEX_KEYWORDS.indexOf(keywordName) !== -1) {
+    if (hasWindow && KeywordSpec.isMutex('WINDOW', keywordName)) {
       return keywordName + ' cannot be specified on a record format that also has the WINDOW keyword (per the DDS Reference).';
     }
     if (keywordName === 'WINDOW') {
-      var conflict = keywords.find(function (k) { return WINDOW_MUTEX_KEYWORDS.indexOf(k.name) !== -1; });
+      var conflict = keywords.find(function (k) { return KeywordSpec.isMutex('WINDOW', k.name); });
       if (conflict) {
         return 'WINDOW cannot be specified on a record format that also has the ' + conflict.name + ' keyword (per the DDS Reference).';
       }
