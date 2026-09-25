@@ -2,6 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const engineJs = fs.readFileSync(path.join(__dirname, 'dspfEngine.js'), 'utf8');
+// Task I-121: KeywordSpec must load before dspfWriter.js - see
+// buildWebviewTemplate.js's own matching comment.
+const keywordSpecJs = fs.readFileSync(path.join(__dirname, 'keywordSpec.js'), 'utf8');
 const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
 const mnuCmdEngineJs = fs.readFileSync(path.join(__dirname, 'mnuCmdEngine.js'), 'utf8');
 const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
@@ -428,6 +431,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
+<script nonce="${NONCE_TOKEN}">${keywordSpecJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${mnuCmdEngineJs}</script>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>

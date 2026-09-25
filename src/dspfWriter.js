@@ -27,11 +27,16 @@
     // both buildWebviewTemplate.js and buildMenuWebviewTemplate.js), the
     // same bare-free-variable idiom this file already uses nowhere else
     // needed until now since this was previously self-contained.
-    module.exports = factory(require('./dspfEngine.js'));
+    // Task I-121: KeywordSpec (keywordSpec.js) is the new declarative
+    // record-type rule source, loaded the same "require in Node, global in
+    // the browser" way as DspfEngine above - see that file's own doc
+    // comment for what it holds today (USRDFN's whitelist, the first I-121
+    // slice).
+    module.exports = factory(require('./dspfEngine.js'), require('./keywordSpec.js'));
   } else {
-    root.DspfWriter = factory(root.DspfEngine);
+    root.DspfWriter = factory(root.DspfEngine, root.KeywordSpec);
   }
-})(typeof self !== 'undefined' ? self : this, function (DspfEngine) {
+})(typeof self !== 'undefined' ? self : this, function (DspfEngine, KeywordSpec) {
   'use strict';
 
   var LINE_WIDTH = 80;
@@ -2734,24 +2739,40 @@
    *  whitelist; HLPCLR and INVITE were routed through that same function
    *  afterwards (I-51 wired their Conditioning toggles there), so ticking
    *  either on a USRDFN record was refused although both are on the
-   *  whitelist. It now consults USRDFN_WHITELIST_KEYWORDS itself: a
-   *  whitelisted keyword returns null. That closes the gap for every
-   *  caller by construction (wireUsrdfnGuardedFlag,
-   *  wireUsrdfnGuardedTwoField and wirePulldownGuardedFlag) instead of
-   *  depending on which keywords happen to be wired where, and the refusal
-   *  wording for everything else is unchanged. It now agrees with
-   *  usrdfnWhitelistConflictReason (below) on WHICH keywords are refused;
-   *  the two differ only in wording. */
-  function usrdfnConflictReason(keywordName, recordKeywords) {
+   *  whitelist. It now consults the whitelist itself: a whitelisted
+   *  keyword returns null. That closes the gap for every caller by
+   *  construction (wireUsrdfnGuardedFlag, wireUsrdfnGuardedTwoField and
+   *  wirePulldownGuardedFlag) instead of depending on which keywords
+   *  happen to be wired where, and the refusal wording for everything
+   *  else is unchanged. It now agrees with usrdfnWhitelistConflictReason
+   *  (below) on WHICH keywords are refused; the two differ only in
+   *  wording.
+   *
+   *  Task I-121 - both this function and usrdfnWhitelistConflictReason
+   *  read the exact same rule (USRDFN's own closed keyword whitelist) off
+   *  the exact same array; they existed as two separate functions only
+   *  because ~50 call sites across webviewClientHelpers.js already
+   *  reference one name or the other with different message wording, not
+   *  because the rule itself differs. Both now delegate to
+   *  usrdfnWhitelistCheck, and the whitelist array itself moved to
+   *  keywordSpec.js's declarative RECORD_TYPES.USRDFN.whitelist (I-121's
+   *  first slice) - this file's own USRDFN rule is now data, not a
+   *  hand-duplicated array plus prose doc comment. */
+  function usrdfnWhitelistCheck(keywordName, recordKeywords, message) {
     var hasUsrdfn = (recordKeywords || []).some(function (k) { return k.name === 'USRDFN'; });
     if (!hasUsrdfn) return null;
-    if (USRDFN_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
-    return keywordName + ' cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference).';
+    if (KeywordSpec.isWhitelisted('USRDFN', keywordName)) return null;
+    return message(keywordName);
+  }
+  function usrdfnConflictReason(keywordName, recordKeywords) {
+    return usrdfnWhitelistCheck(keywordName, recordKeywords, function (name) {
+      return name + ' cannot be specified on a user-defined (USRDFN) record format (per the DDS Reference).';
+    });
   }
 
   /** Task I-49 - the strict USRDFN whitelist itself. USRDFN's own DDS
-   *  Reference text (quoted in usrdfnConflictReason's own doc comment
-   *  above and I-44's keywordFixes.md row) is a WHITELIST: "No file- or
+   *  Reference text (see keywordSpec.js's RECORD_TYPES.USRDFN.ddsReference,
+   *  and I-44's keywordFixes.md row) is a WHITELIST: "No file- or
    *  record-level keywords apply to this record except INVITE, KEEP,
    *  PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT." Every
    *  existing USRDFN guard - usrdfnConflictReason above (ASSUME/ALWROL/
@@ -2777,15 +2798,10 @@
    *  file-level call site never passes a guard, see I-49's
    *  keywordFixes.md row), so that distinction doesn't need re-checking
    *  here. */
-  var USRDFN_WHITELIST_KEYWORDS = [
-    'INVITE', 'KEEP', 'PASSRCD', 'HLPRTN', 'HELP', 'HLPCLR', 'PRINT',
-    'OPENPRT', 'TEXT', 'USRDFN'
-  ];
   function usrdfnWhitelistConflictReason(keywordName, recordKeywords) {
-    var hasUsrdfn = (recordKeywords || []).some(function (k) { return k.name === 'USRDFN'; });
-    if (!hasUsrdfn) return null;
-    if (USRDFN_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
-    return keywordName + ' cannot be added to a user-defined (USRDFN) record format - only INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT are allowed (per the DDS Reference).';
+    return usrdfnWhitelistCheck(keywordName, recordKeywords, function (name) {
+      return name + ' cannot be added to a user-defined (USRDFN) record format - only INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT are allowed (per the DDS Reference).';
+    });
   }
 
   /** Task I-46 - re-read SFL's and SFLCTL's own DDS Reference sections

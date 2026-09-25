@@ -163,7 +163,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN slice v0.10.205) | v0.10.205 |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
+| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); remaining record types (SFL/SFLCTL, MNUBAR, WINDOW, PULLDOWN, message subfile, plain record) still open. Size (estimate): Large - best done one record type at a time. |
 | 2 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
@@ -5477,11 +5477,19 @@ Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` ca
 
 ### I-121 — One declarative rule spec per keyword
 
-> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-40, I-119
+> **Area:** Cross-level · **Status:** In progress (USRDFN slice done, v0.10.205) · **Depends on:** I-40, I-119
 
 Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
 
 *Raised by the 2026-09-21 audit. Size (estimate): Large - split by record type when claiming.*
+
+**USRDFN slice (v0.10.205).** New `src/keywordSpec.js` - a dependency-free UMD module, same shape as `dspfEngine.js`, loaded before `dspfWriter.js` in both webviews (and via `require` in Node) - holding `RECORD_TYPES.USRDFN`: the 9-keyword closed whitelist (re-verified fresh against `DDS_Keyword_V7r6.txt`'s own USRDFN section, unchanged from what the code already had), the exact DDS Reference citation text, the derived `indicatorKinds` (`HELP`/`HLPRTN` - Task I-114's own finding, now data instead of only living in a fallback-order loop's outcome), and `keywordTabs` (the General/Indicator/Help/Print subset Task R2/I-114 narrow a USRDFN record's Keywords tab to).
+
+Investigating the actual duplication before writing the spec found it narrower than the task's own framing suggested: most of USRDFN's UI-side gating (which rows render, which indicator kinds the dropdown offers, the "+ Add indicator keyword" fallback order) already reads dynamically off a single whitelist array via `recordRestrictionAllows`/`ok()` rather than re-hardcoding it - this codebase's own prior audits (I-105, I-109, I-114) had already collapsed that layer. The one real duplication left was in `dspfWriter.js` itself: `usrdfnConflictReason` and `usrdfnWhitelistConflictReason` were two separate functions holding the *same* whitelist array and the *same* lookup, differing only in their returned message's wording - kept as two names only because roughly 50 call sites across `webviewClientHelpers.js` reference one or the other. Both now delegate to a single `usrdfnWhitelistCheck(keywordName, recordKeywords, message)` helper backed by `KeywordSpec.isWhitelisted('USRDFN', ...)`; both exported names, their signatures, and their exact message wording are unchanged, so none of those ~50 call sites needed touching. `USRDFN_WHITELIST_KEYWORDS` (the old hand-written array) is gone; the array now lives once, as data, in `keywordSpec.js`.
+
+New `src/test/i121UsrdfnKeywordSpec.test.js`: confirms the spec's whitelist and citation text against the DDS Reference directly; sweeps all 186 keyword names in `KEYWORD-LOOKUP.json` confirming `usrdfnConflictReason` and `usrdfnWhitelistConflictReason` still agree with the spec on every one (so a future accidental second hand-written array would be caught); and confirms `indicatorKinds` is exactly the whitelist-only subset of the ten kinds the shared Indicator-instance component supports. This is a pure refactor (data relocated, one duplicate function body removed) with no behavior change, so there is no pre-fix regression to reproduce via `git stash` the way a bug fix would have; the full suite (151 files, 9,910 checks) is the safety net instead. Full suite: zero failures.
+
+Remaining record types for I-121 (each its own future slice, per this task's own "split by record type when claiming" note): SFL/SFLCTL (largest rule surface - `sflWhitelistConflictReason` plus the message-subfile/plain-subfile split), MNUBAR (`mnubarWhitelistConflictReason` plus the `CAnn`/`CFnn` pattern-matched entries), WINDOW (`windowMutexConflictReason`'s six-keyword bidirectional exclusion, a different shape than a whitelist), PULLDOWN (`pulldownConflictReason`'s 27-keyword forbidden list - the mirror shape, an exclusion list rather than a whitelist), the message-subfile combination type, and the plain/base record and file levels (the largest and least closed-form of all - most of the 67 `*ConflictReason` functions' remaining rules).
 
 ---
 
