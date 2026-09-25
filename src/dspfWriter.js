@@ -3685,17 +3685,21 @@
    *  themselves (a broader web of restrictions than KEEP's own list) -
    *  I-28's own title scopes this task to KEEP's restrictions only; the
    *  wider ALWROL/CLRL/SLNO-vs-ASSUME/SFL/SFLCTL/USRDFN web is a
-   *  follow-up finding, not implemented here. */
+   *  follow-up finding, not implemented here.
+   *
+   *  Task I-121 - the mutex list itself moved to keywordSpec.js's
+   *  declarative RECORD_TYPES.KEEP.mutex; this function now reads that
+   *  through KeywordSpec.isMutex/mutexKeywords instead of its own
+   *  hand-written KEEP_MUTEX array. */
   function keepMutexConflictReason(keywordName, recordKeywords) {
-    var KEEP_MUTEX = ['ALWROL', 'CLRL', 'SLNO'];
     var kws = recordKeywords || [];
     function has(name) { return kws.some(function (k) { return k.name === name; }); }
     if (keywordName === 'KEEP') {
-      var conflicting = KEEP_MUTEX.filter(has);
+      var conflicting = KeywordSpec.mutexKeywords('KEEP').filter(has);
       if (!conflicting.length) return null;
       return 'KEEP cannot be specified with ' + conflicting.join('/') + ' on the same record format (per the DDS Reference).';
     }
-    if (KEEP_MUTEX.indexOf(keywordName) !== -1 && has('KEEP')) {
+    if (KeywordSpec.isMutex('KEEP', keywordName) && has('KEEP')) {
       return keywordName + ' cannot be specified with KEEP on the same record format (per the DDS Reference).';
     }
     return null;
@@ -3731,18 +3735,26 @@
    *  CLRL/SLNO was a genuine gap alongside the SFL/SFLCTL one this task
    *  closes too. Deliberately unconditional in both wire functions below
    *  (no new alsoCheckX param needed) since this returns null for every
-   *  keywordName outside {ALWROL, CLRL, SLNO, ASSUME}. */
+   *  keywordName outside {ALWROL, CLRL, SLNO, ASSUME}.
+   *
+   *  Task I-121 - both mutex lists (ALWROL/CLRL/SLNO's own shared
+   *  four-keyword list and ASSUME's own narrowed-to-this-function's-scope
+   *  three-keyword list) moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.ALWROL/CLRL/SLNO/ASSUME entries; this function now
+   *  reads those through KeywordSpec.mutexKeywords instead of its own
+   *  hand-written TARGET and inline ['ASSUME','SFL','SFLCTL','USRDFN']
+   *  arrays. */
   function alwrolClrlSlnoConflictReason(keywordName, recordKeywords) {
     var TARGET = ['ALWROL', 'CLRL', 'SLNO'];
     var kws = recordKeywords || [];
     function has(name) { return kws.some(function (k) { return k.name === name; }); }
     if (TARGET.indexOf(keywordName) !== -1) {
-      var conflicting = ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN'].filter(has);
+      var conflicting = KeywordSpec.mutexKeywords(keywordName).filter(has);
       if (!conflicting.length) return null;
       return keywordName + ' cannot be specified with ' + conflicting.join('/') + ' on the same record format (per the DDS Reference).';
     }
     if (keywordName === 'ASSUME') {
-      var conflicting2 = TARGET.filter(has);
+      var conflicting2 = KeywordSpec.mutexKeywords('ASSUME').filter(has);
       if (!conflicting2.length) return null;
       return 'ASSUME cannot be specified with ' + conflicting2.join('/') + ' on the same record format (per the DDS Reference).';
     }

@@ -249,6 +249,88 @@
         'at the record level), SFLMSGKEY (required at the field level), ' +
         'SFLPGMQ.',
       whitelist: ['SFL', 'SFLMSGRCD']
+    },
+
+    // Task I-121 KEEP/ALWROL/CLRL/SLNO/ASSUME slice - a well-scoped piece
+    // of the "plain/base record" remainder rather than that whole
+    // undertaking, covering the existing keepMutexConflictReason (I-28)
+    // and alwrolClrlSlnoConflictReason (I-37) functions' own rule webs.
+    // Unlike WINDOW/PULLDOWN above, none of KEEP/ALWROL/CLRL/SLNO/ASSUME
+    // is a record-TYPE identifier written once by a creation wizard -
+    // they're ordinary toggleable flags any record can carry (see this
+    // codebase's own pre-existing doc comments on keepMutexConflictReason/
+    // alwrolClrlSlnoConflictReason) - but the DDS Reference states their
+    // restrictions in the exact same "cannot be specified with the
+    // following keywords" closed-mutex shape `mutex`/`isMutex` already
+    // model, just keyed by an ordinary keyword name here instead of a
+    // record-type marker. Five entries, cross-verified fresh against
+    // each keyword's own DDS Reference section AND (per I-23's/I-28's/
+    // I-37's own established cross-verification method) each mutex
+    // partner's own section restating the exclusion the other way:
+    KEEP: {
+      // DDS_Keyword_V7r6.txt, "KEEP (Keep) keyword for display files"
+      // section (line ~7826): "This keyword cannot be specified with the
+      // following keywords:" ALWROL, CLRL, SLNO - cross-verified against
+      // each of those three's own sections, which restate the same
+      // exclusion against KEEP.
+      ddsReference:
+        'This keyword cannot be specified with the following keywords: ' +
+        'ALWROL, CLRL, SLNO.',
+      mutex: ['ALWROL', 'CLRL', 'SLNO']
+    },
+    ALWROL: {
+      // DDS_Keyword_V7r6.txt, "ALWROL (Allow Roll) keyword for display
+      // files" section (line ~2102): "The ALWROL keyword cannot be
+      // specified with any of the following keywords:" ASSUME, KEEP,
+      // SFL, SFLCTL, USRDFN. KEEP is covered by the KEEP entry above
+      // already (identical bidirectional relationship, so not repeated
+      // here to avoid two sources of truth for the same pair) - this
+      // entry covers ALWROL's remaining four partners.
+      ddsReference:
+        'The ALWROL keyword cannot be specified with any of the ' +
+        'following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN.',
+      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN']
+    },
+    CLRL: {
+      // DDS_Keyword_V7r6.txt, "CLRL (Clear Line) keyword for display
+      // files" section (line ~3917): "The CLRL keyword cannot be
+      // specified with any of the following keywords:" ASSUME, KEEP,
+      // SFL, SFLCTL, USRDFN - identical partner list to ALWROL's own.
+      ddsReference:
+        'The CLRL keyword cannot be specified with any of the ' +
+        'following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN.',
+      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN']
+    },
+    SLNO: {
+      // DDS_Keyword_V7r6.txt, "SLNO (Starting Line Number) keyword for
+      // display files" section (line ~12576): "The SLNO keyword is not
+      // allowed in a record format that has one of the following
+      // keywords specified:" ASSUME, KEEP, SFL, SFLCTL, USRDFN -
+      // identical partner list to ALWROL's/CLRL's own, just phrased
+      // "not allowed... has" instead of "cannot be specified with".
+      ddsReference:
+        'The SLNO keyword is not allowed in a record format that has ' +
+        'one of the following keywords specified: ASSUME, KEEP, SFL, ' +
+        'SFLCTL, USRDFN.',
+      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN']
+    },
+    // ASSUME's own DDS Reference section states a broader six-keyword
+    // list (ALWROL, CLRL, SFL, SLNO, USRDFN, USRDSPMGT) than this entry
+    // holds - deliberately narrowed to just the ALWROL/CLRL/SLNO
+    // reciprocal pair, matching alwrolClrlSlnoConflictReason's own
+    // pre-existing scope (its own doc comment: SFL/USRDFN are record-
+    // type identifiers with no reachable reverse UI transition to guard,
+    // and USRDSPMGT is a separate S36E concern handled elsewhere) - a
+    // future slice extending ASSUME's own entry to the full six-keyword
+    // list would need to widen this comment and mutex array together,
+    // not just the array alone.
+    ASSUME: {
+      ddsReference:
+        'This keyword cannot be specified with any of the following ' +
+        'keywords: ALWROL, CLRL, SFL, SLNO, USRDFN, USRDSPMGT. (This ' +
+        'entry deliberately models only the ALWROL/CLRL/SLNO subset - ' +
+        'see the comment above.)',
+      mutex: ['ALWROL', 'CLRL', 'SLNO']
     }
   };
 
@@ -280,9 +362,20 @@
     return spec.mutex.indexOf(keywordName) !== -1;
   }
 
+  /** `recordType`'s own mutex list, in the DDS Reference's own order - a
+   *  copy, safe for the caller to `.filter()` without mutating the spec.
+   *  Returns an empty array for a record type with no spec entry or no
+   *  mutex list. Used where a caller needs the actual conflicting names
+   *  (to join into a message), not just the yes/no `isMutex` answers. */
+  function mutexKeywords(recordType) {
+    var spec = RECORD_TYPES[recordType];
+    return (spec && spec.mutex) ? spec.mutex.slice() : [];
+  }
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
-    isMutex: isMutex
+    isMutex: isMutex,
+    mutexKeywords: mutexKeywords
   };
 });
