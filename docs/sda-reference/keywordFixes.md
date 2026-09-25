@@ -163,7 +163,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW, PULLDOWN, MNUBAR, SFL, KEEP/ALWROL/CLRL/SLNO/ASSUME slices done) | v0.10.210 |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW, PULLDOWN, MNUBAR, SFL, KEEP/ALWROL/CLRL/SLNO/ASSUME done; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice claimed) | v0.10.210 |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); PULLDOWN slice done (v0.10.207); MNUBAR slice done (v0.10.208); SFL slice done (v0.10.209 - re-reading SFLCTL's own DDS Reference section confirmed it needs no separate guard, so this slice covered both the "SFL/SFLCTL" and "message subfile" remaining line items together); KEEP/ALWROL/CLRL/SLNO/ASSUME mutex-web slice done (v0.10.210 - a well-scoped piece of the "plain/base record" remainder, the existing keepMutexConflictReason (I-28) / alwrolClrlSlnoConflictReason (I-37) functions, not the full undertaking). Size (estimate): Large - best done one record type at a time. |
+| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); PULLDOWN slice done (v0.10.207); MNUBAR slice done (v0.10.208); SFL slice done (v0.10.209 - re-reading SFLCTL's own DDS Reference section confirmed it needs no separate guard, so this slice covered both the "SFL/SFLCTL" and "message subfile" remaining line items together); KEEP/ALWROL/CLRL/SLNO/ASSUME mutex-web slice done (v0.10.210 - a well-scoped piece of the "plain/base record" remainder, the existing keepMutexConflictReason (I-28) / alwrolClrlSlnoConflictReason (I-37) functions, not the full undertaking); SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice claimed (two more small, closed-form record-level pairs - sflNxtchgSflMsgRcdConflictReason (I-23) and dspmodSflConflictReason). Size (estimate): Large - best done one record type at a time. |
 | 2 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
@@ -5477,7 +5477,7 @@ Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` ca
 
 ### I-121 — One declarative rule spec per keyword
 
-> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210) · **Depends on:** I-40, I-119
+> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice claimed) · **Depends on:** I-40, I-119
 
 Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
 
