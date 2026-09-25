@@ -163,7 +163,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW, PULLDOWN, MNUBAR done; SFL slice claimed) | v0.10.208 |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW, PULLDOWN, MNUBAR, SFL slices done) | v0.10.209 |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); PULLDOWN slice done (v0.10.207); MNUBAR slice done (v0.10.208); SFL slice claimed (re-reading SFLCTL's own DDS Reference section confirms it needs no separate guard - see sflWhitelistConflictReason's own doc comment - so this slice covers both the "SFL/SFLCTL" and "message subfile" remaining line items together); only the plain/base record and file levels remain open after this. Size (estimate): Large - best done one record type at a time. |
+| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); PULLDOWN slice done (v0.10.207); MNUBAR slice done (v0.10.208); SFL slice done (v0.10.209 - re-reading SFLCTL's own DDS Reference section confirmed it needs no separate guard, so this slice covered both the "SFL/SFLCTL" and "message subfile" remaining line items together); only the plain/base record and file levels remain open. Size (estimate): Large - best done one record type at a time. |
 | 2 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
@@ -5477,7 +5477,7 @@ Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` ca
 
 ### I-121 — One declarative rule spec per keyword
 
-> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice claimed) · **Depends on:** I-40, I-119
+> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209) · **Depends on:** I-40, I-119
 
 Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
 
@@ -5505,7 +5505,15 @@ New `src/test/i121PulldownKeywordSpec.test.js`, mirroring the WINDOW slice's own
 
 New `src/test/i121MnubarKeywordSpec.test.js`: confirms the spec's whitelist array, `whitelistPatterns`, and citation text against the DDS Reference directly; directly exercises `isWhitelisted` against all 48 `CA01`..`CA24`/`CF01`..`CF24` instances plus five deliberately-non-matching near misses (`CA1`, `CAA1`, `CA100`, `CFxx`, `CB01`); sweeps all 186 keyword names in `KEYWORD-LOOKUP.json` confirming `mnubarWhitelistConflictReason` agrees with the spec on every one; and re-confirms all 48 `CAnn`/`CFnn` instances are allowed via the writer function directly, since they're not literal entries in `KEYWORD-LOOKUP.json`'s own keyword universe. Pure refactor, no behavior change - full suite (154 files, 9,941 checks) is the safety net. Full suite: zero failures.
 
-Remaining record types for I-121 (each its own future slice, per this task's own "split by record type when claiming" note): SFL/SFLCTL (largest rule surface - `sflWhitelistConflictReason` plus the message-subfile/plain-subfile split), the message-subfile combination type, and the plain/base record and file levels (the largest and least closed-form of all - most of the 67 `*ConflictReason` functions' remaining rules).
+**SFL slice.** SFL's own DDS Reference section states TWO mutually exclusive closed whitelists under one "Besides SFL, the following keywords are also valid on the subfile record format:" heading, split by whether the record is a message subfile - so this slice adds two spec entries, `RECORD_TYPES.SFL` (plain subfile) and `RECORD_TYPES.SFLMSG` (message subfile), not one. Both re-verified fresh against `DDS_Keyword_V7r6.txt`, unchanged from what the code already had: SFL's own whitelist is CHANGE, LOGINP, CHECK(AB)/CHECK(RL) (one keyword, two parameter values - matched by name only), LOGOUT, SETOF, CHGINPDFT, SETOFF, INDTXT, SFLNXTCHG, KEEP, TEXT; SFLMSG's is just SFLMSGRCD (SFLMSGKEY and SFLPGMQ are explicitly field-level per the DDS Reference's own text, not record-level, so they're outside this record-level whitelist's scope, matching the code's pre-existing behavior).
+
+SFLMSG is a genuinely new *shape* in the spec: a record type identified by **two** marker keywords present together (SFL **and** SFLMSGRCD), not one - hence a new `markerKeywords` array field (plural), distinct from every other entry's singular `markerKeyword`. SFLCTL was also re-read fresh per this task's own instruction and needs no whitelist entry of its own: its DDS Reference section introduces its keyword tables as an explicit "SUMMARY OF SUBFILE KEYWORDS", not a closed "nothing else applies" list the way USRDFN's/SFL's own sections do (already noted in `sflWhitelistConflictReason`'s pre-existing doc comment, Task I-46's original finding) - so this single slice ends up covering both the "SFL/SFLCTL" and "message subfile" record types the task's own remaining-work list had listed as two separate future slices.
+
+`dspfWriter.js`'s `sflWhitelistConflictReason` (Task I-46) now delegates to `KeywordSpec.isWhitelisted('SFL', ...)` and `KeywordSpec.isWhitelisted('SFLMSG', ...)` instead of its own hand-written `SFL_RECORD_WHITELIST_KEYWORDS` array plus inline SFL/SFLMSGRCD literal checks, both now gone.
+
+New `src/test/i121SflKeywordSpec.test.js`: confirms both spec entries' whitelists and citation text against the DDS Reference directly (including that SFLMSGRCD is absent from the plain-SFL whitelist and SFLMSGKEY/SFLPGMQ are absent from the message-subfile one); sweeps all 186 keyword names in `KEYWORD-LOOKUP.json` confirming `sflWhitelistConflictReason` agrees with the spec in both the plain-SFL and message-subfile cases; confirms CHANGE (allowed on plain SFL) is correctly blocked on a message-subfile record, since the DDS Reference's two lists are mutually exclusive; and confirms a record with SFLMSGRCD but no SFL is untouched by this function (SFL itself remains the function's own outer gate). Pure refactor, no behavior change - full suite (155 files, 9,956 checks) is the safety net. Full suite: zero failures.
+
+Remaining for I-121 after this slice: only the plain/base record and file levels (the largest and least closed-form of all - most of the 67 `*ConflictReason` functions' remaining rules), not previously split into smaller pieces.
 
 ---
 

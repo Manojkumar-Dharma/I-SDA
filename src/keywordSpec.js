@@ -185,6 +185,70 @@
         'ROLLDOWN', 'TEXT', 'UNLOCK', 'VLDCMDKEY'
       ],
       whitelistPatterns: [/^CA\d{2}$/, /^CF\d{2}$/]
+    },
+
+    // Task I-121 SFL slice. Whitelist shape again (like USRDFN's/
+    // MNUBAR's own slices), but SFL's own DDS Reference section states
+    // TWO mutually exclusive closed lists under one "Besides SFL, the
+    // following keywords are also valid on the subfile record format:"
+    // heading, split by whether the record is a message subfile - so
+    // this slice is two spec entries, not one. SFLCTL's own section was
+    // re-read fresh too (per this task's own "verify against the DDS
+    // Reference directly" instruction) and, unlike SFL's, introduces its
+    // keyword tables as an explicit SUMMARY of SFL-family keywords, not
+    // a "no other keyword applies" claim - so SFLCTL needs no whitelist
+    // entry of its own here (see sflWhitelistConflictReason's own doc
+    // comment, Task I-46's original finding). That leaves this single
+    // slice covering both the "SFL/SFLCTL" and "message subfile" record
+    // types the task's own remaining-work list had listed separately.
+    SFL: {
+      markerKeyword: 'SFL',
+
+      // DDS_Keyword_V7r6.txt, "SFL (Subfile) keyword for display files"
+      // section (line ~10515): "For all other subfiles (at the record
+      // level):" list, re-verified fresh against the DDS Reference text
+      // itself, unchanged from what the code already had. CHECK(AB) and
+      // CHECK(RL) are the same keyword name (CHECK) with two different
+      // parameter values, not two distinct keywords - matched here by
+      // name only, same as the code's own existing behavior (parameters
+      // aren't otherwise restricted by this whitelist). SETOF/SETOFF are
+      // two genuinely distinct DDS keywords (not a synonym pair the way
+      // PAGEDOWN/PAGEUP or ROLLUP/ROLLDOWN are), both listed in the DDS
+      // Reference table itself, both included.
+      ddsReference:
+        'For all other subfiles (at the record level), besides SFL the ' +
+        'following keywords are also valid on the subfile record ' +
+        'format: CHANGE, LOGINP, CHECK(AB), CHECK(RL), LOGOUT, SETOF, ' +
+        'CHGINPDFT, SETOFF, INDTXT, SFLNXTCHG, KEEP, TEXT.',
+      whitelist: [
+        'SFL', 'CHANGE', 'LOGINP', 'CHECK', 'LOGOUT', 'SETOF', 'SETOFF',
+        'CHGINPDFT', 'INDTXT', 'SFLNXTCHG', 'KEEP', 'TEXT'
+      ]
+    },
+
+    // Task I-121 SFL slice, message-subfile half. A genuinely different
+    // shape from every other entry in this file so far: a record type
+    // identified by TWO marker keywords being present TOGETHER (SFL AND
+    // SFLMSGRCD), not by one - a plain SFL record with no SFLMSGRCD
+    // falls under the SFL entry above instead; markerKeyword is
+    // deliberately an array here (singular `markerKeyword` elsewhere)
+    // to make that two-keyword identification explicit rather than
+    // implicit in calling code.
+    SFLMSG: {
+      markerKeywords: ['SFL', 'SFLMSGRCD'],
+
+      // DDS_Keyword_V7r6.txt, same SFL section as above, "For message
+      // subfiles:" list - SFLMSGKEY and SFLPGMQ are themselves field-
+      // level, not record-level (SFLMSGKEY explicitly "required at the
+      // field level" in the DDS Reference's own text), so they're
+      // outside this record-level whitelist's own scope, matching the
+      // code's pre-existing behavior (SFLMSGRCD is the only entry).
+      ddsReference:
+        'For message subfiles, besides SFL the following keywords are ' +
+        'also valid on the subfile record format: SFLMSGRCD (required ' +
+        'at the record level), SFLMSGKEY (required at the field level), ' +
+        'SFLPGMQ.',
+      whitelist: ['SFL', 'SFLMSGRCD']
     }
   };
 

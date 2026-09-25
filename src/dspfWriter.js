@@ -2849,21 +2849,24 @@
    *  undertaking - logged as its own follow-up (I-52) rather than
    *  attempted here, same "audit finds it, a separate task wires the
    *  exhaustive per-checkbox sweep" split I-44/I-49 themselves went
-   *  through. */
-  var SFL_RECORD_WHITELIST_KEYWORDS = [
-    'SFL', 'CHANGE', 'LOGINP', 'CHECK', 'LOGOUT', 'SETOF', 'SETOFF',
-    'CHGINPDFT', 'INDTXT', 'SFLNXTCHG', 'KEEP', 'TEXT'
-  ];
+   *  through.
+   *
+   *  Task I-121 - both whitelists (plain SFL and the message-subfile
+   *  SFL+SFLMSGRCD combination) moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.SFL and RECORD_TYPES.SFLMSG respectively; this
+   *  function now reads those instead of its own hand-written
+   *  SFL_RECORD_WHITELIST_KEYWORDS array plus inline SFL/SFLMSGRCD
+   *  literal checks. */
   function sflWhitelistConflictReason(keywordName, recordKeywords) {
     var kws = recordKeywords || [];
     var hasSfl = kws.some(function (k) { return k.name === 'SFL'; });
     if (!hasSfl) return null;
     var hasSflMsgRcd = kws.some(function (k) { return k.name === 'SFLMSGRCD'; });
     if (hasSflMsgRcd) {
-      if (keywordName === 'SFL' || keywordName === 'SFLMSGRCD') return null;
+      if (KeywordSpec.isWhitelisted('SFLMSG', keywordName)) return null;
       return keywordName + ' cannot be added to a message-subfile (SFL + SFLMSGRCD) record format - only SFLMSGRCD is allowed besides SFL itself (per the DDS Reference).';
     }
-    if (SFL_RECORD_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
+    if (KeywordSpec.isWhitelisted('SFL', keywordName)) return null;
     return keywordName + ' cannot be added to a subfile (SFL) record format - only CHANGE, LOGINP, CHECK, LOGOUT, SETOF/SETOFF, CHGINPDFT, INDTXT, SFLNXTCHG, KEEP, and TEXT are allowed besides SFL itself (per the DDS Reference).';
   }
 
