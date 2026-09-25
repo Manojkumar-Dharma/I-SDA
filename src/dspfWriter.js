@@ -2896,21 +2896,21 @@
    *  webviewClientHelpers.js. CLEAR is part of the repeatable Indicator-
    *  instance model (Task L5d) - flagged, not wired this task, same
    *  "shared component would need to be made kind-aware" deferral I-7
-   *  already took for VLDCMDKEY/SETOF/CHANGE. */
-  var PULLDOWN_CONFLICT_KEYWORDS = [
-    'ALARM', 'ALTNAME', 'ALWGPH', 'ALWROL', 'ASSUME', 'CLEAR', 'CLRL',
-    'ERASE', 'ERASEINP', 'FRCDTA', 'HLPCLR', 'HLPSEQ', 'INVITE', 'INZRCD',
-    'MDTOFF', 'MNUBAR', 'OVERLAY', 'OVRATR', 'OVRDTA', 'PUTOVR',
-    'PUTRETAIN', 'RTNDTA', 'SFL', 'SLNO', 'USRDFN', 'WDWTITLE', 'WINDOW'
-  ];
+   *  already took for VLDCMDKEY/SETOF/CHANGE.
+   *
+   *  Task I-121 - the 27-keyword list itself moved to keywordSpec.js's
+   *  declarative RECORD_TYPES.PULLDOWN.mutex, the same closed-mutex shape
+   *  I-121's WINDOW slice introduced KeywordSpec.isMutex for (a much
+   *  larger list, same shape) - this function now reads that instead of
+   *  a hand-written array duplicated beside the doc comment above. */
   function pulldownConflictReason(keywordName, recordKeywords) {
     var kws = recordKeywords || [];
     if (keywordName === 'PULLDOWN') {
-      var found = kws.find(function (k) { return PULLDOWN_CONFLICT_KEYWORDS.indexOf(k.name) >= 0; });
+      var found = kws.find(function (k) { return KeywordSpec.isMutex('PULLDOWN', k.name); });
       if (!found) return null;
       return 'PULLDOWN cannot be specified on a record that already has ' + found.name + ' (per the DDS Reference).';
     }
-    if (PULLDOWN_CONFLICT_KEYWORDS.indexOf(keywordName) < 0) return null;
+    if (!KeywordSpec.isMutex('PULLDOWN', keywordName)) return null;
     var hasPulldown = kws.some(function (k) { return k.name === 'PULLDOWN'; });
     if (!hasPulldown) return null;
     return keywordName + ' cannot be specified on a record with the PULLDOWN keyword (per the DDS Reference).';

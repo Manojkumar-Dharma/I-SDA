@@ -116,6 +116,33 @@
         'any one of the following keywords specified: ALWROL, ASSUME, ' +
         'MNUBAR, PULLDOWN, SFL, USRDFN.',
       mutex: ['ALWROL', 'ASSUME', 'MNUBAR', 'PULLDOWN', 'SFL', 'USRDFN']
+    },
+
+    // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
+    // closed list forbidden on the same record in either direction), just
+    // a much larger list - re-verified fresh against PULLDOWN's own DDS
+    // Reference section, unchanged from what the code already had.
+    // PULLDOWN itself is deliberately absent from its own mutex list.
+    PULLDOWN: {
+      // DDS_Keyword_V7r6.txt, "PULLDOWN (Pull-Down Menu) keyword for
+      // display files" section (line ~9772): "The following keywords
+      // cannot be specified on a record with the PULLDOWN keyword:"
+      // followed by this exact 27-entry list, explicitly bidirectional
+      // per the code's own existing pulldownConflictReason doc comment
+      // (PULLDOWN is toggled on/off interactively, unlike a record-type
+      // identifier keyword such as USRDFN's own).
+      ddsReference:
+        'The following keywords cannot be specified on a record with ' +
+        'the PULLDOWN keyword: ALARM, ALTNAME, ALWGPH, ALWROL, ASSUME, ' +
+        'CLEAR, CLRL, ERASE, ERASEINP, FRCDTA, HLPCLR, HLPSEQ, INVITE, ' +
+        'INZRCD, MDTOFF, MNUBAR, OVERLAY, OVRATR, OVRDTA, PUTOVR, ' +
+        'PUTRETAIN, RTNDTA, SFL, SLNO, USRDFN, WDWTITLE, WINDOW.',
+      mutex: [
+        'ALARM', 'ALTNAME', 'ALWGPH', 'ALWROL', 'ASSUME', 'CLEAR', 'CLRL',
+        'ERASE', 'ERASEINP', 'FRCDTA', 'HLPCLR', 'HLPSEQ', 'INVITE', 'INZRCD',
+        'MDTOFF', 'MNUBAR', 'OVERLAY', 'OVRATR', 'OVRDTA', 'PUTOVR',
+        'PUTRETAIN', 'RTNDTA', 'SFL', 'SLNO', 'USRDFN', 'WDWTITLE', 'WINDOW'
+      ]
     }
   };
 
