@@ -163,7 +163,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW, PULLDOWN done; MNUBAR slice claimed) | v0.10.207 |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW, PULLDOWN, MNUBAR slices done) | v0.10.208 |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -180,7 +180,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); PULLDOWN slice done (v0.10.207); MNUBAR slice claimed; remaining record types (SFL/SFLCTL, message subfile, plain record) still open. Size (estimate): Large - best done one record type at a time. |
+| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); PULLDOWN slice done (v0.10.207); MNUBAR slice done (v0.10.208); remaining record types (SFL/SFLCTL, message subfile, plain record) still open. Size (estimate): Large - best done one record type at a time. |
 | 2 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
@@ -5477,7 +5477,7 @@ Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` ca
 
 ### I-121 — One declarative rule spec per keyword
 
-> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice claimed) · **Depends on:** I-40, I-119
+> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208) · **Depends on:** I-40, I-119
 
 Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
 
@@ -5499,7 +5499,13 @@ New `src/test/i121WindowKeywordSpec.test.js`: confirms the spec's mutex list and
 
 New `src/test/i121PulldownKeywordSpec.test.js`, mirroring the WINDOW slice's own test shape: confirms the spec's mutex list and citation text against the DDS Reference directly; sweeps all 185 non-PULLDOWN keyword names in `KEYWORD-LOOKUP.json` confirming `pulldownConflictReason` agrees with the spec in both directions. Pure refactor, no behavior change - full suite (153 files, 9,928 checks) is the safety net. Full suite: zero failures.
 
-Remaining record types for I-121 (each its own future slice, per this task's own "split by record type when claiming" note): SFL/SFLCTL (largest rule surface - `sflWhitelistConflictReason` plus the message-subfile/plain-subfile split), MNUBAR (`mnubarWhitelistConflictReason` plus the `CAnn`/`CFnn` pattern-matched entries), the message-subfile combination type, and the plain/base record and file levels (the largest and least closed-form of all - most of the 67 `*ConflictReason` functions' remaining rules).
+**MNUBAR slice.** `RECORD_TYPES.MNUBAR` added to `keywordSpec.js` - a whitelist shape like USRDFN's own slice (not the mutex shape WINDOW/PULLDOWN used), re-verified fresh against `DDS_Keyword_V7r6.txt`'s "The following keywords are allowed on a record containing the MNUBAR keyword:" 27-entry table. Genuinely new wrinkle: two of those 27 entries, `CAnn` and `CFnn`, are written in the DDS Reference itself as a placeholder pattern (n = a two-digit number), not literal keyword names - and this codebase models each instance as an individual literal keyword (`CA01`..`CA24`/`CF01`..`CF24`), so the fixed `whitelist` array alone couldn't express membership for these two entries. New `whitelistPatterns` field (`[/^CA\d{2}$/, /^CF\d{2}$/]`) added alongside `whitelist`, and `KeywordSpec.isWhitelisted` now checks it as a fallback after the literal array - still the same "is this keyword one of the allowed ones" question, just regex-matched for these two entries. `PAGEDOWN`/`PAGEUP` and `ROLLUP`/`ROLLDOWN` are DDS synonym pairs (not four distinct keywords) and are both spelled out literally in `whitelist`, same treatment PULLDOWN's own slice gave `WINDOW`.
+
+`dspfWriter.js`'s `mnubarWhitelistConflictReason` (no prior task number - "had NO existing guard of any kind before" per its own doc comment) now delegates to `KeywordSpec.isWhitelisted('MNUBAR', ...)` instead of its own hand-written `MNUBAR_WHITELIST_KEYWORDS` array plus inline `/^CA\d{2}$/`/`/^CF\d{2}$/` regex test, both now gone.
+
+New `src/test/i121MnubarKeywordSpec.test.js`: confirms the spec's whitelist array, `whitelistPatterns`, and citation text against the DDS Reference directly; directly exercises `isWhitelisted` against all 48 `CA01`..`CA24`/`CF01`..`CF24` instances plus five deliberately-non-matching near misses (`CA1`, `CAA1`, `CA100`, `CFxx`, `CB01`); sweeps all 186 keyword names in `KEYWORD-LOOKUP.json` confirming `mnubarWhitelistConflictReason` agrees with the spec on every one; and re-confirms all 48 `CAnn`/`CFnn` instances are allowed via the writer function directly, since they're not literal entries in `KEYWORD-LOOKUP.json`'s own keyword universe. Pure refactor, no behavior change - full suite (154 files, 9,941 checks) is the safety net. Full suite: zero failures.
+
+Remaining record types for I-121 (each its own future slice, per this task's own "split by record type when claiming" note): SFL/SFLCTL (largest rule surface - `sflWhitelistConflictReason` plus the message-subfile/plain-subfile split), the message-subfile combination type, and the plain/base record and file levels (the largest and least closed-form of all - most of the 67 `*ConflictReason` functions' remaining rules).
 
 ---
 

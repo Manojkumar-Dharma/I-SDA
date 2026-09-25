@@ -143,16 +143,66 @@
         'MDTOFF', 'MNUBAR', 'OVERLAY', 'OVRATR', 'OVRDTA', 'PUTOVR',
         'PUTRETAIN', 'RTNDTA', 'SFL', 'SLNO', 'USRDFN', 'WDWTITLE', 'WINDOW'
       ]
+    },
+
+    // Task I-121 MNUBAR slice. Same closed-whitelist SHAPE as USRDFN
+    // above ("only these are allowed on a record with the marker
+    // keyword"), but with one genuinely new wrinkle USRDFN's own list
+    // didn't need: two of the DDS Reference's own 27 table entries,
+    // CAnn and CFnn, are written in the Reference itself as a
+    // placeholder pattern (n = a two-digit number), not literal keyword
+    // names - and this codebase's own model represents each one as an
+    // individual literal keyword (CA01..CA24/CF01..CF24, see
+    // DspfWriter.parseCommandKeys' own comment), so a fixed whitelist
+    // array alone can't express membership for these two entries. Hence
+    // the new `whitelistPatterns` field alongside `whitelist` below -
+    // still the same "is this keyword one of the allowed ones" question
+    // isWhitelisted already answers, just matched by regex for these two
+    // entries instead of by array membership. PAGEDOWN/PAGEUP and
+    // ROLLUP/ROLLDOWN are DDS synonym pairs for two keywords (not four
+    // distinct ones) and are both spelled out literally in `whitelist`
+    // below, same as PULLDOWN's own slice did for WINDOW itself.
+    MNUBAR: {
+      markerKeyword: 'MNUBAR',
+
+      // DDS_Keyword_V7r6.txt, "MNUBAR (Menu Bar) keyword for display
+      // files" section (line ~8171): "The following keywords are allowed
+      // on a record containing the MNUBAR keyword:" followed by this
+      // exact 27-entry table, re-verified fresh against the DDS
+      // Reference text itself, unchanged from what the code already had.
+      ddsReference:
+        'The following keywords are allowed on a record containing the ' +
+        'MNUBAR keyword: CAnn, CFnn, CLEAR, CLRL, CSRLOC, DSPMOD, HELP, ' +
+        'HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME, INDTXT, INVITE, KEEP, ' +
+        'LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL, OVERLAY, ' +
+        'PAGEDOWN/PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT, UNLOCK, ' +
+        'VLDCMDKEY.',
+      whitelist: [
+        'MNUBAR', 'CLEAR', 'CLRL', 'CSRLOC', 'DSPMOD', 'HELP', 'HLPCLR',
+        'HLPCMDKEY', 'HLPRTN', 'HLPTITLE', 'HOME', 'INDTXT', 'INVITE',
+        'KEEP', 'LOCK', 'MNUBARDSP', 'MNUBARSEP', 'MNUBARSW', 'MNUCNL',
+        'OVERLAY', 'PAGEDOWN', 'PAGEUP', 'PRINT', 'PROTECT', 'ROLLUP',
+        'ROLLDOWN', 'TEXT', 'UNLOCK', 'VLDCMDKEY'
+      ],
+      whitelistPatterns: [/^CA\d{2}$/, /^CF\d{2}$/]
     }
   };
 
   /** Whether `keywordName` is allowed on a record of `recordType` per that
    *  type's own closed whitelist. Returns true for a record type with no
-   *  spec entry (nothing to restrict) or no whitelist. */
+   *  spec entry (nothing to restrict) or no whitelist. Checks the literal
+   *  `whitelist` array first, then falls back to `whitelistPatterns` (the
+   *  MNUBAR slice's own addition, for entries the DDS Reference itself
+   *  states as a placeholder pattern - e.g. CAnn/CFnn - rather than as a
+   *  literal keyword name). */
   function isWhitelisted(recordType, keywordName) {
     var spec = RECORD_TYPES[recordType];
     if (!spec || !spec.whitelist) return true;
-    return spec.whitelist.indexOf(keywordName) !== -1;
+    if (spec.whitelist.indexOf(keywordName) !== -1) return true;
+    if (spec.whitelistPatterns) {
+      return spec.whitelistPatterns.some(function (re) { return re.test(keywordName); });
+    }
+    return false;
   }
 
   /** Whether `keywordName` is on `recordType`'s own closed mutex list (the

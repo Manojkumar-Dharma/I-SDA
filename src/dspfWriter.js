@@ -3052,19 +3052,17 @@
    *  exhaustive sweep of the structured per-keyword checkboxes across the
    *  General/Indicator/Output/Input/Overlay/Print tabs (the same "much
    *  larger undertaking" I-46 split off as I-53 for SFL's own whitelist)
-   *  is logged separately as I-54, not attempted here. */
-  var MNUBAR_WHITELIST_KEYWORDS = [
-    'CLEAR', 'CLRL', 'CSRLOC', 'DSPMOD', 'HELP', 'HLPCLR', 'HLPCMDKEY',
-    'HLPRTN', 'HLPTITLE', 'HOME', 'INDTXT', 'INVITE', 'KEEP', 'LOCK',
-    'MNUBARDSP', 'MNUBARSEP', 'MNUBARSW', 'MNUCNL', 'OVERLAY', 'PAGEDOWN',
-    'PAGEUP', 'PRINT', 'PROTECT', 'ROLLUP', 'ROLLDOWN', 'TEXT', 'UNLOCK',
-    'VLDCMDKEY', 'MNUBAR'
-  ];
+   *  is logged separately as I-54, not attempted here.
+   *
+   *  Task I-121 - the whitelist itself (both the literal array and the
+   *  CAnn/CFnn pattern check) moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.MNUBAR, via the new whitelistPatterns field
+   *  isWhitelisted now also checks - this function now reads that
+   *  instead of the hand-written array plus its own inline regex test. */
   function mnubarWhitelistConflictReason(keywordName, recordKeywords) {
     var hasMnubar = (recordKeywords || []).some(function (k) { return k.name === 'MNUBAR'; });
     if (!hasMnubar) return null;
-    if (MNUBAR_WHITELIST_KEYWORDS.indexOf(keywordName) !== -1) return null;
-    if (/^CA\d{2}$/.test(keywordName) || /^CF\d{2}$/.test(keywordName)) return null;
+    if (KeywordSpec.isWhitelisted('MNUBAR', keywordName)) return null;
     return keywordName + ' cannot be added to a menu-bar (MNUBAR) record format - only CAnn/CFnn, CLEAR, CLRL, CSRLOC, DSPMOD, HELP, HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME, INDTXT, INVITE, KEEP, LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL, OVERLAY, PAGEDOWN/PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT, UNLOCK, and VLDCMDKEY are allowed (per the DDS Reference).';
   }
 
