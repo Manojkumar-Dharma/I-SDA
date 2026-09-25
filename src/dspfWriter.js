@@ -2658,8 +2658,12 @@
    *  documents, even where real SDA lets them through. Returns a reason
    *  string if turning SFLNXTCHG on (or SFLMSGRCD on, checked from the
    *  other side) would violate the rule, or null if fine. */
+  //  Task I-121 - the SFLNXTCHG<->SFLMSGRCD pair moved to keywordSpec.js's
+  //  declarative RECORD_TYPES.SFLNXTCHG.mutex (a single-member list); this
+  //  function now reads the partner name from there through
+  //  KeywordSpec.mutexKeywords instead of its own inline ternary.
   function sflNxtchgSflMsgRcdConflictReason(keywordName, recordKeywords) {
-    var other = keywordName === 'SFLNXTCHG' ? 'SFLMSGRCD' : 'SFLNXTCHG';
+    var other = keywordName === 'SFLNXTCHG' ? KeywordSpec.mutexKeywords('SFLNXTCHG')[0] : 'SFLNXTCHG';
     var hasOther = (recordKeywords || []).some(function (k) { return k.name === other; });
     if (!hasOther) return null;
     return keywordName + ' cannot be specified together with ' + other + ' on the same subfile record (per the DDS Reference).';
@@ -5325,9 +5329,14 @@
    *  alwrolClrlSlnoConflictReason/usrdfnConflictReason above) rather than
    *  a new wireUsrdfnGuardedFlag trailing param, since it only ever
    *  returns non-null for DSPMOD. */
+  //  Task I-121 - the SFL check moved to keywordSpec.js's declarative
+  //  RECORD_TYPES.DSPMOD.mutex; this function now reads it through
+  //  KeywordSpec.isMutex, still one-directional only (DSPMOD-on-an-
+  //  SFL-record), matching the pre-existing behavior and the DDS
+  //  Reference's own one-directional wording.
   function dspmodSflConflictReason(keywordName, recordKeywords) {
     if (keywordName !== 'DSPMOD') return null;
-    var hasSfl = (recordKeywords || []).some(function (k) { return k.name === 'SFL'; });
+    var hasSfl = (recordKeywords || []).some(function (k) { return KeywordSpec.isMutex('DSPMOD', k.name); });
     if (!hasSfl) return null;
     return 'DSPMOD cannot be specified on a subfile (SFL) record - the subfile is displayed according to the DSPMOD of its corresponding subfile control (SFLCTL) record instead (per the DDS Reference).';
   }

@@ -331,6 +331,39 @@
         'entry deliberately models only the ALWROL/CLRL/SLNO subset - ' +
         'see the comment above.)',
       mutex: ['ALWROL', 'CLRL', 'SLNO']
+    },
+
+    // Task I-121 SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice - two more small,
+    // closed-form record-level pairs, each already its own dedicated
+    // guard function (sflNxtchgSflMsgRcdConflictReason, Task I-23;
+    // dspmodSflConflictReason).
+    SFLNXTCHG: {
+      // DDS_Keyword_V7r6.txt, "SFLNXTCHG (Subfile Next Changed) keyword
+      // for display files" section (line ~11826): "You cannot specify
+      // SFLNXTCHG with the SFLMSGRCD keyword." A plain, symmetric
+      // single-keyword mutex - re-verified fresh, unchanged from what
+      // the code already had.
+      ddsReference: 'You cannot specify SFLNXTCHG with the SFLMSGRCD keyword.',
+      mutex: ['SFLMSGRCD']
+    },
+    // DSPMOD/SFL is genuinely one-directional, unlike every mutex entry
+    // above: DSPMOD's own DDS Reference section states "The DSPMOD
+    // keyword cannot be specified on a subfile record (SFL keyword)" -
+    // about DSPMOD being added to an already-SFL record, not the reverse
+    // (SFL's own section says nothing about DSPMOD, and this codebase's
+    // pre-existing dspmodSflConflictReason has never checked that
+    // direction either). Modeled as an ordinary `mutex` entry anyway
+    // (reusing the same shape rather than inventing a one-directional-
+    // only variant for a single pair) - dspfWriter.js's own refactored
+    // function below simply never calls isMutex in the reverse
+    // direction, the same restraint SFL/SFLCTL/USRDFN already got in the
+    // ALWROL/CLRL/SLNO slice above.
+    DSPMOD: {
+      ddsReference:
+        'The DSPMOD keyword cannot be specified on a subfile record ' +
+        '(SFL keyword). The subfile is displayed according to the ' +
+        'DSPMOD of the corresponding subfile control record.',
+      mutex: ['SFL']
     }
   };
 
