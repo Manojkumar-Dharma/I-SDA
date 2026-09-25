@@ -945,26 +945,12 @@ const htmlTemplate = `<!DOCTYPE html>
   // file's own doc comment for the full "blocking confirmation instead of
   // a passive post-hoc warning" reasoning). Same markup/class names, same
   // Cancel-or-click-outside-dismisses-without-calling-onConfirm contract.
+  // Task I-119: was copy-pasted verbatim from the DSPF designer's own
+  // commitDelete/showConfirmDialog - now the one shared implementation
+  // lives in WebviewClientHelpers.showConfirmDialog (bare global, same
+  // load-order idiom as DspfEngine/DspfWriter elsewhere in this template).
   function showConfirmDialog(title, bodyText, confirmLabel, onConfirm) {
-    const existing = document.querySelector('.confirm-overlay');
-    if (existing) existing.remove();
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-overlay';
-    overlay.innerHTML =
-      '<div class="confirm-dialog">' +
-      '<div class="confirm-dialog-title">' + DspfEngine.escapeHtml(title) + '</div>' +
-      '<div class="confirm-dialog-body">' + DspfEngine.escapeHtml(bodyText) + '</div>' +
-      '<div class="confirm-dialog-actions">' +
-      '<button class="secondary confirm-dialog-cancel">Cancel</button>' +
-      '<button class="danger confirm-dialog-confirm">' + DspfEngine.escapeHtml(confirmLabel) + '</button>' +
-      '</div></div>';
-    document.body.appendChild(overlay);
-    overlay.querySelector('.confirm-dialog-cancel').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    overlay.querySelector('.confirm-dialog-confirm').addEventListener('click', () => {
-      overlay.remove();
-      onConfirm();
-    });
+    return WebviewClientHelpers.showConfirmDialog(title, bodyText, confirmLabel, onConfirm);
   }
 
   // Task M3 - a numbered menu option has no DDS-identifier "name" the way

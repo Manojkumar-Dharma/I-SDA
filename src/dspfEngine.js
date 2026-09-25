@@ -88,9 +88,20 @@
    *  in declaration order - either an explicit "lines cols [*qualifier]"
    *  triple, or (DDS's other valid DSPSIZ form) a bare *DS3/*DS4 condition
    *  name with no lines/cols given, whose size is then the fixed one that
-   *  name always implies. */
+   *  name always implies.
+   *  Task I-119: this is now the single canonical implementation -
+   *  dspfWriter.js's own parseDisplaySizeTriples (previously a hand-synced
+   *  duplicate; see learnings.md) delegates here via the bare `DspfEngine`
+   *  free variable that file's own UMD wrapper now injects (require() in
+   *  Node, the real webview's own script-load-order global in the
+   *  browser - dspfEngine.js's <script> tag is emitted before
+   *  dspfWriter.js's in both buildWebviewTemplate.js and
+   *  buildMenuWebviewTemplate.js, so the global is already set by the
+   *  time dspfWriter.js runs there). `paramText` is tolerated null/blank
+   *  (dspfWriter.js's own copy already was; this one previously assumed
+   *  a string) so both callers can pass it straight through unchanged. */
   function parseScreenSizes(paramText) {
-    var tokens = paramText.trim().split(/\s+/).filter(Boolean);
+    var tokens = (paramText || '').trim().split(/\s+/).filter(Boolean);
     var sizes = [];
     var i = 0;
     while (i < tokens.length) {
@@ -639,9 +650,15 @@
     return null;
   }
 
+  // Task I-119: canonical isPulldownRecord (was also copied into
+  // webviewClientHelpers.js with a defensive `record.keywords || []` that
+  // this copy lacked - harmless here since the engine always receives a
+  // freshly-parsed record, but adopted anyway so the one shared
+  // implementation is safe for both callers). webviewClientHelpers.js's
+  // own isPulldownRecord now delegates here.
   /** @returns {boolean} true if this record has the PULLDOWN keyword (an auto-sized, auto-bordered dropdown). */
   function isPulldownRecord(record) {
-    return record.keywords.some(function (k) { return k.name === 'PULLDOWN'; });
+    return (record.keywords || []).some(function (k) { return k.name === 'PULLDOWN'; });
   }
 
   // ---------------------------------------------------------------------
@@ -1826,8 +1843,18 @@
   // renderScreenHtml: ScreenModel -> HTML string (positioned via CSS grid)
   // ---------------------------------------------------------------------
 
+  // Task I-119: canonical escapeHtml (the audit's "two versions that
+  // escape different character sets" - this one used to omit the `'`
+  // -> &#39; case and null/undefined-safety that webviewClientHelpers.js's
+  // copy had). This is the one behaviour picked on purpose: escape the
+  // full &/</>/"/' set (defense-in-depth for any future single-quoted
+  // attribute) AND treat null/undefined as '' (several callers pass field
+  // names/params that can genuinely be null, and printing the literal
+  // text "null"/"undefined" into the UI would be its own bug).
+  // webviewClientHelpers.js's own escapeHtml now delegates here instead
+  // of keeping a second copy - see that file's own comment.
   function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
@@ -2253,6 +2280,7 @@
 
   return {
     conditionsSatisfied: conditionsSatisfied,
+    parseScreenSizes: parseScreenSizes,
     resolveScreen: resolveScreen,
     resolveMultiScreen: resolveMultiScreen,
     resolveReferenceTarget: resolveReferenceTarget,

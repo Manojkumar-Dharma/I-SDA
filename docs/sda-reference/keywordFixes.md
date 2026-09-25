@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-120 of 124 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.202**.
+121 of 124 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.204**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -161,7 +161,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | Done | v0.10.198 |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | v0.10.194 |
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
-| [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | In progress | Claude |
+| [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Not started | — |
@@ -180,10 +180,9 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-119](#i-119) | In progress | De-duplicate copied helpers. Size (estimate): Small-medium. |
-| 2 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
-| 3 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
+| 1 | [I-121](#i-121) | Not started | Keyword rule spec (single source of truth). Size (estimate): Large - best done one record type at a time. |
+| 2 | [I-122](#i-122) | Not started | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
 
 ## Deferred findings (not yet tasks)
 
@@ -5438,9 +5437,21 @@ Removed as genuinely dead, no callers anywhere: `commandKeyNumbersInUse`, `guard
 
 ### I-119 — De-duplicate copied helpers
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-118
+> **Area:** Tooling · **Status:** Done (v0.10.204) · **Depends on:** I-118
 
-Scope (audit section 3): the two `escapeHtml` versions (they escape different characters - pick one behaviour on purpose and test it), `isPulldownRecord`, the identical `assembleParams` and `makeDefaultInstance` pairs, `wireRemoveButtons` and `commitHlpdoc`, the getter/setter clone pairs (`getFileMsgLocLines`/`getSflMsgRcdLines`, `nextAvailableFieldName`/`nextAvailableRecordName`, `dupFloatNew`/`blkfoldFloatNew`), and a single source for `parseScreenSizes`/`parseDisplaySizeTriples` (mind the `dspfWriter.js`-is-a-plain-`<script>` constraint in `learnings.md`; a build-time step is fine). Also look at what `buildMenuWebviewTemplate.js` can share with `buildWebviewTemplate.js`. Respect the `buildWebviewTemplate.js` backtick rule.
+**Done (v0.10.204).** Scope was the audit's own section 3 list; each item below either got a real fix, was re-verified and found already resolved, or was extracted the same way:
+
+- **`escapeHtml`.** Two versions escaped different character sets (`dspfEngine.js`'s own also escaped `'`; `webviewClientHelpers.js`'s own didn't, but was null/undefined-safe where `dspfEngine.js`'s own wasn't). Picked one behaviour on purpose: escape the full `&`/`<`/`>`/`"`/`'` set AND treat null/undefined as `''` (several callers pass field names/params that can genuinely be null; printing the literal text "null"/"undefined" into the UI would be its own bug). `DspfEngine.escapeHtml` is now the canonical implementation; `WebviewClientHelpers.escapeHtml` delegates to it via a `DspfEngine` parameter its own UMD wrapper now injects (`require('./dspfEngine.js')` in Node, `root.DspfEngine` in the browser - the real webview already loads `dspfEngine.js`'s `<script>` tag before `webviewClientHelpers.js`'s, in both `buildWebviewTemplate.js` and `buildMenuWebviewTemplate.js`). No test file needed touching for this - unlike `DspfWriter`'s existing "caller sets `global.DspfWriter` before `require()`" convention, which was deliberately left alone.
+- **`isPulldownRecord`.** Same shape, `webviewClientHelpers.js`'s own had a defensive `record.keywords || []` that `dspfEngine.js`'s own lacked. Adopted the defensive version as canonical in `DspfEngine.isPulldownRecord`; `WebviewClientHelpers.isPulldownRecord` delegates.
+- **`assembleParams`.** Byte-for-byte identical between the file-level and record-level PRINT panels. Extracted to `assemblePrintParams(paramsEl, fileEl, libEl)`; both panels' own `assembleParams` now call it.
+- **`makeDefaultInstance`.** Re-checked directly (hashed every occurrence's body) rather than trusting the audit's line numbers, which had drifted. No byte-identical pair remains in the current source - apparently resolved incidentally by other work landed since the 2026-09-21 audit. Left alone rather than force a merge between bodies that are no longer actually the same.
+- **`wireRemoveButtons`.** Identical except the class-name suffix (menu-bar-choice rows vs. choice-keyword rows, both removing the row's own `.choice-row-block`). Extracted to `wireChoiceRowRemoveButtons(ownerKey, classSuffix)`.
+- **`commitHlpdoc`.** File-level and help-spec-level HLPDOC panels shared the "all three parts required" validation and the `setFileFlagKeyword` call, differing only in which conflict-reason check runs first while the checkbox is on. Extracted to `wireHlpdocFields(idPrefix, getKeywords, onChange, checkConflict)`, with `checkConflict` (a thunk) carrying the one real difference.
+- **Getter/setter clone pairs.** `getFileMsgLocLines`/`getSflMsgRcdLines` + their setters generalized to `getDisplaySizeConditionedLines`/`setDisplaySizeConditionedLines(keywords, keywordName, ...)`. `nextAvailableFieldName`/`nextAvailableRecordName` generalized to `nextAvailableName(usedNames, baseName, defaultBase)`. `dupFloatNewConflictReason`/`blkfoldFloatNewConflictReason` generalized to `floatIncompatibleKeywordNewConflictReason(keywordName, oldField, updates)`. All six original names are now thin wrappers - no call site needed changing.
+- **`parseScreenSizes`/`parseDisplaySizeTriples` single source.** `dspfWriter.js`'s own comment already named the problem ("duplicated (not required-in) rather than shared via `require()`, since this file is dropped into the webview as a plain `<script>`"). Since `dspfEngine.js`'s own `<script>` tag already loads before `dspfWriter.js`'s in both webviews (confirmed in both `buildWebviewTemplate.js` and `buildMenuWebviewTemplate.js`), the same `require()`-in-Node/global-in-browser injection used for `escapeHtml` applies here too: `dspfWriter.js`'s UMD wrapper now takes a `DspfEngine` parameter, and `parseDisplaySizeTriples` is a one-line delegate to `DspfEngine.parseScreenSizes` (now exported, and given the null-safety `parseDisplaySizeTriples` already had).
+- **`buildMenuWebviewTemplate.js` vs. `buildWebviewTemplate.js`.** Diffed the two files directly (`difflib` matching blocks) rather than guessing from the audit's 28%-shared-lines figure. Most of the overlap is small, scattered lines (CSS rules, short conditionals) not worth extracting on their own, but one genuine ~20-line function, `showConfirmDialog`, was pasted verbatim (the menu designer's own comment already said "ported verbatim from the DSPF designer's own commitDelete/showConfirmDialog"). Moved to `WebviewClientHelpers.showConfirmDialog`; both templates' own `showConfirmDialog` are now one-line wrappers, so none of their 5 combined call sites needed touching.
+
+New `i119DedupHelpers.test.js` exercises every extracted/delegating function directly - including the `escapeHtml` behaviour decision, both parse functions agreeing on several inputs, and the round-trip/leak checks for the getter/setter pairs - confirmed failing against pre-fix code via `git stash`. No behaviour change anywhere else; full suite 150 files, 9,883 checks, 0 failures.
 
 *Raised by the 2026-09-21 audit. Size (estimate): Small-medium.*
 

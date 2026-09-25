@@ -6126,26 +6126,12 @@ const htmlTemplate = `<!DOCTYPE html>
   // first (last one wins) rather than stacking them. Clicking the backdrop
   // or Cancel dismisses without calling onConfirm; only the confirm button
   // does.
+  // Task I-119: was copy-pasted verbatim into buildMenuWebviewTemplate.js's
+  // own inline script too - now the one shared implementation lives in
+  // WebviewClientHelpers.showConfirmDialog (bare global, same load-order
+  // idiom as DspfEngine/DspfWriter elsewhere in this template).
   function showConfirmDialog(title, bodyText, confirmLabel, onConfirm) {
-    const existing = document.querySelector('.confirm-overlay');
-    if (existing) existing.remove();
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-overlay';
-    overlay.innerHTML =
-      '<div class="confirm-dialog">' +
-      '<div class="confirm-dialog-title">' + DspfEngine.escapeHtml(title) + '</div>' +
-      '<div class="confirm-dialog-body">' + DspfEngine.escapeHtml(bodyText) + '</div>' +
-      '<div class="confirm-dialog-actions">' +
-      '<button class="secondary confirm-dialog-cancel">Cancel</button>' +
-      '<button class="danger confirm-dialog-confirm">' + DspfEngine.escapeHtml(confirmLabel) + '</button>' +
-      '</div></div>';
-    document.body.appendChild(overlay);
-    overlay.querySelector('.confirm-dialog-cancel').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    overlay.querySelector('.confirm-dialog-confirm').addEventListener('click', () => {
-      overlay.remove();
-      onConfirm();
-    });
+    return WebviewClientHelpers.showConfirmDialog(title, bodyText, confirmLabel, onConfirm);
   }
 
   // Task L2 (docs/sda-reference/LIMITATIONS-PLAN.md): a field with likely

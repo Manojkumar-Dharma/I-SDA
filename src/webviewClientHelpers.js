@@ -12,11 +12,19 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    // Task I-119: escapeHtml/isPulldownRecord now delegate to DspfEngine's
+    // own (see those two functions' own comments below), so this module
+    // needs DspfEngine in Node too. DspfWriter (already used as a bare
+    // free variable throughout this file) intentionally keeps its
+    // existing "caller sets global.DspfWriter before require()"
+    // convention unchanged - see e.g. colorAttrPgmField.test.js's own
+    // comment - only the new DspfEngine dependency is wired via require()
+    // here so no existing test file needed touching for it.
+    module.exports = factory(require('./dspfEngine.js'));
   } else {
-    root.WebviewClientHelpers = factory();
+    root.WebviewClientHelpers = factory(root.DspfEngine);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (DspfEngine) {
   'use strict';
 
   /**
@@ -3198,6 +3206,17 @@
     return row;
   }
 
+  // Task I-119: was copy-pasted identically (only the class-name suffix
+  // differed) into wireMenuBarChoicesEditor and wireChoiceKeywordsListEditor
+  // below - both delete the row's own `.choice-row-block` ancestor, so the
+  // shared shape is the class suffix plus the fixed `.choice-row-block`
+  // removal target.
+  function wireChoiceRowRemoveButtons(ownerKey, classSuffix) {
+    document.querySelectorAll('.' + ownerKey + classSuffix + '-remove').forEach(function (btn) {
+      btn.onclick = function () { btn.closest('.choice-row-block').remove(); };
+    });
+  }
+
   function wireMenuBarChoicesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
     var container = document.getElementById(ownerKey + '-mnubarchc-rows');
     if (!container) return;
@@ -3208,9 +3227,7 @@
       wireRemoveButtons();
     });
     function wireRemoveButtons() {
-      document.querySelectorAll('.' + ownerKey + '-mnubarchc-remove').forEach(function (btn) {
-        btn.onclick = function () { btn.closest('.choice-row-block').remove(); };
-      });
+      wireChoiceRowRemoveButtons(ownerKey, '-mnubarchc');
     }
     wireRemoveButtons();
     if (applyBtn) applyBtn.addEventListener('click', function () {
@@ -3647,9 +3664,7 @@
       wireRemoveButtons();
     });
     function wireRemoveButtons() {
-      document.querySelectorAll('.' + ownerKey + '-choicekw-remove').forEach(function (btn) {
-        btn.onclick = function () { btn.closest('.choice-row-block').remove(); };
-      });
+      wireChoiceRowRemoveButtons(ownerKey, '-choicekw');
     }
     wireRemoveButtons();
     if (applyBtn) applyBtn.addEventListener('click', function () {
@@ -4925,15 +4940,7 @@
       var fileEl = document.getElementById('fk-print-file');
       var libEl = document.getElementById('fk-print-library');
       function assembleParams() {
-        var respInd = (paramsEl ? paramsEl.value : '').trim();
-        if (respInd) return respInd;
-        var printFile = (fileEl ? fileEl.value : '').trim();
-        if (/^\*PGM$/i.test(printFile)) return '*PGM';
-        if (printFile) {
-          var lib = (libEl ? libEl.value : '').trim();
-          return lib ? lib + '/' + printFile : printFile;
-        }
-        return '';
+        return assemblePrintParams(paramsEl, fileEl, libEl);
       }
       function commit() {
         var present = onEl.checked;
@@ -5131,41 +5138,31 @@
     // above, checked every time the checkbox is (or stays) on - not just
     // at the moment it's first ticked - so blanking a previously-filled
     // part back out while still checked is caught too.
-    var hlpdocOn = document.getElementById('fk-hlpdoc-on');
-    var hlpdocLabel = document.getElementById('fk-hlpdoc-label');
-    var hlpdocDocument = document.getElementById('fk-hlpdoc-document');
-    var hlpdocFolder = document.getElementById('fk-hlpdoc-folder');
-    function commitHlpdoc(conditions) {
-      if (hlpdocOn.checked) {
-        var reason = DspfWriter.hlpdocConflictReason('HLPDOC', getKeywords());
-        if (reason) {
-          window.alert(reason);
-          hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
-          return;
-        }
-        // Task I-67: hlpdocConflictReason above only ever checked the
-        // file's OWN keywords for HLPPNLGRP - now that I-67 added
-        // HLPPNLGRP's (already-modelled) and HLPDOC's help-specification-
-        // level forms, a file-level HLPDOC must also be blocked while ANY
-        // H-spec on ANY record already carries HLPPNLGRP (file-wide - see
-        // hlpdocHspecConflictReason's doc comment).
-        if (getModel && DspfWriter.anyHelpKeywordPresentInFile(getModel(), 'HLPPNLGRP', null)) {
-          window.alert('HLPDOC cannot be specified in the same display file as HLPPNLGRP, wherever either appears (mutually exclusive per the DDS Reference).');
-          hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
-          return;
-        }
+    // Task I-119: commitHlpdoc's own shared body now lives in
+    // wireHlpdocFields (see its own comment, just above wireFilePrint
+    // higher up in this file) - `checkConflict` below is the one real
+    // difference from the help-spec/record-level HLPDOC panel further
+    // down (hlpdocHspecConflictReason there already covers what these
+    // two checks cover here separately).
+    var hlpdocFields = wireHlpdocFields('fk', getKeywords, onChange, function () {
+      var reason = DspfWriter.hlpdocConflictReason('HLPDOC', getKeywords());
+      if (reason) return reason;
+      // Task I-67: hlpdocConflictReason above only ever checked the
+      // file's OWN keywords for HLPPNLGRP - now that I-67 added
+      // HLPPNLGRP's (already-modelled) and HLPDOC's help-specification-
+      // level forms, a file-level HLPDOC must also be blocked while ANY
+      // H-spec on ANY record already carries HLPPNLGRP (file-wide - see
+      // hlpdocHspecConflictReason's doc comment).
+      if (getModel && DspfWriter.anyHelpKeywordPresentInFile(getModel(), 'HLPPNLGRP', null)) {
+        return 'HLPDOC cannot be specified in the same display file as HLPPNLGRP, wherever either appears (mutually exclusive per the DDS Reference).';
       }
-      var label = (hlpdocLabel.value || '').trim();
-      var doc2 = (hlpdocDocument.value || '').trim();
-      var folder = (hlpdocFolder.value || '').trim();
-      if (hlpdocOn.checked && (!label || !doc2 || !folder)) {
-        window.alert('HLPDOC requires all three parts - online help text label name, document name, and folder name (per the DDS Reference).');
-        hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
-        return;
-      }
-      var parts = [label, doc2, folder].filter(Boolean);
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPDOC', hlpdocOn.checked, parts.join(' '), undefined, conditions));
-    }
+      return null;
+    });
+    var hlpdocOn = hlpdocFields.on;
+    var hlpdocLabel = hlpdocFields.label;
+    var hlpdocDocument = hlpdocFields.document;
+    var hlpdocFolder = hlpdocFields.folder;
+    var commitHlpdoc = hlpdocFields.commit;
     // Task I-43 fix: same catch-22 as HLPRCD's own sub-fields just above -
     // see that fix's comment for the full mechanism (unconditional
     // onChange(...present:false...) -> synchronous render() wipes the
@@ -6882,15 +6879,7 @@
       var fileEl = document.getElementById(p + '-print-file');
       var libEl = document.getElementById(p + '-print-library');
       function assembleParams() {
-        var respInd = (paramsEl ? paramsEl.value : '').trim();
-        if (respInd) return respInd;
-        var printFile = (fileEl ? fileEl.value : '').trim();
-        if (/^\*PGM$/i.test(printFile)) return '*PGM';
-        if (printFile) {
-          var lib = (libEl ? libEl.value : '').trim();
-          return lib ? lib + '/' + printFile : printFile;
-        }
-        return '';
+        return assemblePrintParams(paramsEl, fileEl, libEl);
       }
       function commit() {
         var present = onEl.checked;
@@ -7054,30 +7043,16 @@
     // hlpdocHspecConflictReason (HLPBDY same-spec, HLPPNLGRP file-wide) on
     // every commit, not just the moment the checkbox is first ticked, so
     // blanking a required part back out while still checked is caught too.
-    var hlpdocOn = document.getElementById(p + '-hlpdoc-on');
-    var hlpdocLabel = document.getElementById(p + '-hlpdoc-label');
-    var hlpdocDocument = document.getElementById(p + '-hlpdoc-document');
-    var hlpdocFolder = document.getElementById(p + '-hlpdoc-folder');
-    function commitHlpdoc(conditions) {
-      if (hlpdocOn.checked) {
-        var reason = DspfWriter.hlpdocHspecConflictReason('HLPDOC', getKeywords(), getModel ? getModel() : null, ownSourceLine);
-        if (reason) {
-          window.alert(reason);
-          hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
-          return;
-        }
-      }
-      var label = (hlpdocLabel.value || '').trim();
-      var doc2 = (hlpdocDocument.value || '').trim();
-      var folder = (hlpdocFolder.value || '').trim();
-      if (hlpdocOn.checked && (!label || !doc2 || !folder)) {
-        window.alert('HLPDOC requires all three parts - online help text label name, document name, and folder name (per the DDS Reference).');
-        hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
-        return;
-      }
-      var parts = [label, doc2, folder].filter(Boolean);
-      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPDOC', hlpdocOn.checked, parts.join(' '), undefined, conditions));
-    }
+    // Task I-119: shared with the file-level HLPDOC panel above via
+    // wireHlpdocFields - see that call site's own comment.
+    var hlpdocFields = wireHlpdocFields(p, getKeywords, onChange, function () {
+      return DspfWriter.hlpdocHspecConflictReason('HLPDOC', getKeywords(), getModel ? getModel() : null, ownSourceLine);
+    });
+    var hlpdocOn = hlpdocFields.on;
+    var hlpdocLabel = hlpdocFields.label;
+    var hlpdocDocument = hlpdocFields.document;
+    var hlpdocFolder = hlpdocFields.folder;
+    var commitHlpdoc = hlpdocFields.commit;
     // Task I-43's catch-22 fix applies here too - only the checkbox's own
     // listener commits unconditionally; the three sub-field listeners
     // no-op while the checkbox is off (see the file-level HLPDOC/HLPRCD
@@ -7749,9 +7724,12 @@
 
   /** Whether `rec` carries a PULLDOWN keyword - drives whether
    *  renderRecordProps shows the "Pull-down" tab at all (parallel to
-   *  isWindowRecord above for the Window tab). */
+   *  isWindowRecord above for the Window tab).
+   *  Task I-119: delegates to DspfEngine's canonical isPulldownRecord
+   *  (bare free variable, same `DspfEngine`/`DspfWriter` idiom as
+   *  escapeHtml above) instead of keeping a second copy. */
   function isPulldownRecord(rec) {
-    return (rec.keywords || []).some(function (k) { return k.name === 'PULLDOWN'; });
+    return DspfEngine.isPulldownRecord(rec);
   }
 
   /**
@@ -8473,8 +8451,112 @@
     wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, function () { return [getKeywords()]; });
   }
 
+  // Task I-119: was a second, slightly different (no `'` escaping)
+  // implementation - now delegates to DspfEngine's canonical one (see its
+  // own comment for which behaviour was picked and why). `DspfEngine` is a
+  // bare free variable here the same way `DspfWriter` already is
+  // throughout this file - it's the global set by dspfEngine.js's own
+  // `root.DspfEngine = factory()` when loaded as a <script> tag, in the
+  // same load order (parser, engine, writer, THEN this file) the real
+  // webview already uses. Node tests that require this module must set
+  // `global.DspfEngine = require('../dspfEngine.js')` first, the same way
+  // existing tests already do for `global.DspfWriter`.
   function escapeHtml(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return DspfEngine.escapeHtml(s);
+  }
+
+  // Task I-119: was copy-pasted (byte-for-byte) into both the file-level
+  // and record-level PRINT panels' own local `assembleParams()` closures -
+  // extracted here since both read the same three DOM elements (response
+  // indicator / print file / library) and PRINT's own *PGM/[library/]file
+  // parameter shape (see I-2 in keywordFixes.md) doesn't differ between
+  // file and record level.
+  // Task I-119: HLPDOC's checkbox/label/document/folder commit logic (the
+  // "all three parts required" validation and the setFileFlagKeyword call)
+  // was copy-pasted between the file-level and help-spec/record-level
+  // HLPDOC panels, differing only in the DOM id prefix and in which
+  // conflict-reason check runs first while the checkbox is on -
+  // `checkConflict` (a thunk returning a reason string or null/undefined)
+  // carries that one real difference; everything else is shared.
+  function wireHlpdocFields(idPrefix, getKeywords, onChange, checkConflict) {
+    var hlpdocOn = document.getElementById(idPrefix + '-hlpdoc-on');
+    var hlpdocLabel = document.getElementById(idPrefix + '-hlpdoc-label');
+    var hlpdocDocument = document.getElementById(idPrefix + '-hlpdoc-document');
+    var hlpdocFolder = document.getElementById(idPrefix + '-hlpdoc-folder');
+    function commitHlpdoc(conditions) {
+      if (hlpdocOn.checked) {
+        var reason = checkConflict();
+        if (reason) {
+          window.alert(reason);
+          hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
+          return;
+        }
+      }
+      var label = (hlpdocLabel.value || '').trim();
+      var doc2 = (hlpdocDocument.value || '').trim();
+      var folder = (hlpdocFolder.value || '').trim();
+      if (hlpdocOn.checked && (!label || !doc2 || !folder)) {
+        window.alert('HLPDOC requires all three parts - online help text label name, document name, and folder name (per the DDS Reference).');
+        hlpdocOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPDOC').present;
+        return;
+      }
+      var parts = [label, doc2, folder].filter(Boolean);
+      onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPDOC', hlpdocOn.checked, parts.join(' '), undefined, conditions));
+    }
+    return { on: hlpdocOn, label: hlpdocLabel, document: hlpdocDocument, folder: hlpdocFolder, commit: commitHlpdoc };
+  }
+
+  // Task I-119: showConfirmDialog was copy-pasted verbatim between
+  // buildWebviewTemplate.js and buildMenuWebviewTemplate.js's own inline
+  // scripts (the menu designer's own comment on its copy already said so:
+  // "ported verbatim from the DSPF designer's own commitDelete/
+  // showConfirmDialog"). Moved here as the one shared implementation;
+  // each template's own showConfirmDialog is now a thin wrapper that
+  // delegates to `WebviewClientHelpers.showConfirmDialog` (bare global,
+  // same load-order idiom as `DspfEngine`/`DspfWriter` elsewhere) so
+  // none of their several call sites needed touching.
+  //
+  // Generic blocking confirmation dialog: a small modal overlay appended
+  // to <body>, used before an action whose effects the DDS model can't
+  // verify are actually safe (see commitDelete / Task L2 in
+  // docs/sda-reference/LIMITATIONS-PLAN.md). A plain window.confirm()
+  // would block the whole webview process and doesn't match this app's
+  // theme, so this is a DOM-built equivalent instead. Removes any dialog
+  // already open first (last one wins) rather than stacking them.
+  // Clicking the backdrop or Cancel dismisses without calling onConfirm;
+  // only the confirm button does.
+  function showConfirmDialog(title, bodyText, confirmLabel, onConfirm) {
+    var existing = document.querySelector('.confirm-overlay');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML =
+      '<div class="confirm-dialog">' +
+      '<div class="confirm-dialog-title">' + escapeHtml(title) + '</div>' +
+      '<div class="confirm-dialog-body">' + escapeHtml(bodyText) + '</div>' +
+      '<div class="confirm-dialog-actions">' +
+      '<button class="secondary confirm-dialog-cancel">Cancel</button>' +
+      '<button class="danger confirm-dialog-confirm">' + escapeHtml(confirmLabel) + '</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('.confirm-dialog-cancel').addEventListener('click', function () { overlay.remove(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('.confirm-dialog-confirm').addEventListener('click', function () {
+      overlay.remove();
+      onConfirm();
+    });
+  }
+
+  function assemblePrintParams(paramsEl, fileEl, libEl) {
+    var respInd = (paramsEl ? paramsEl.value : '').trim();
+    if (respInd) return respInd;
+    var printFile = (fileEl ? fileEl.value : '').trim();
+    if (/^\*PGM$/i.test(printFile)) return '*PGM';
+    if (printFile) {
+      var lib = (libEl ? libEl.value : '').trim();
+      return lib ? lib + '/' + printFile : printFile;
+    }
+    return '';
   }
 
   // Bug fix (Find keyword feature request, follow-up to the L37 quick-nav):
@@ -8604,5 +8686,7 @@
     wireIndicatorTextRows: wireIndicatorTextRows,
     repeatableConditionedInstancesHtml: repeatableConditionedInstancesHtml,
     wireRepeatableConditionedInstances: wireRepeatableConditionedInstances,
+    escapeHtml: escapeHtml,
+    showConfirmDialog: showConfirmDialog,
   };
 });

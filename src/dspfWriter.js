@@ -18,11 +18,20 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    // Task I-119: parseDisplaySizeTriples now delegates to DspfEngine's
+    // canonical parseScreenSizes (see that function's own comment in
+    // dspfEngine.js for the full story) instead of keeping a second,
+    // hand-synced copy. Required only here in Node; the real webview
+    // gets DspfEngine from the global its own script-load order already
+    // sets (dspfEngine.js's <script> tag loads before this file's in
+    // both buildWebviewTemplate.js and buildMenuWebviewTemplate.js), the
+    // same bare-free-variable idiom this file already uses nowhere else
+    // needed until now since this was previously self-contained.
+    module.exports = factory(require('./dspfEngine.js'));
   } else {
-    root.DspfWriter = factory();
+    root.DspfWriter = factory(root.DspfEngine);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (DspfEngine) {
   'use strict';
 
   var LINE_WIDTH = 80;
@@ -2530,21 +2539,35 @@
    *  hand-written file) is not re-reported, so unrelated edits to it are
    *  never blocked, and fixing it (removing DUP, or changing the data type)
    *  is always allowed. */
-  function dupFloatNewConflictReason(oldField, updates) {
+  // Task I-119: dupFloatNewConflictReason/blkfoldFloatNewConflictReason
+  // below were structural clones (I-82's own comment on
+  // blkfoldFloatNewConflictReason already says as much: "Exact same shape
+  // as I-72's dupFloatNewConflictReason") - same diff-based
+  // oldField/updates contract, same "only blame the edit that introduced
+  // the violation" logic, differing only in which keyword name is
+  // checked. Extracted into one generic check, parameterized on the
+  // keyword name; the two originally-named functions are now thin
+  // wrappers so both existing call sites (commitEdit's guard chain) keep
+  // working unchanged.
+  function floatIncompatibleKeywordNewConflictReason(keywordName, oldField, updates) {
     var o = oldField || {};
     var u = updates || {};
-    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'DUP'; }); };
+    var has = function (kws) { return (kws || []).some(function (k) { return k.name === keywordName; }); };
     var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
     var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
     var newDataType = owns('dataType') ? norm(u.dataType) : norm(o.dataType);
     var newKeywords = owns('keywords') ? u.keywords : o.keywords;
     if (newDataType !== 'F' || !has(newKeywords)) return null;
-    // The field ends up floating-point with DUP; only blame this edit if it introduced that.
+    // The field ends up floating-point with this keyword; only blame this edit if it introduced that.
     if (norm(o.dataType) === 'F' && has(o.keywords)) return null;
     if (!has(o.keywords)) {
-      return 'DUP cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
+      return keywordName + ' cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
     }
-    return 'The data type cannot be changed to F (floating point) while the field carries DUP - DUP cannot be specified on a floating-point field (per the DDS Reference). Remove DUP first.';
+    return 'The data type cannot be changed to F (floating point) while the field carries ' + keywordName + ' - ' + keywordName + ' cannot be specified on a floating-point field (per the DDS Reference). Remove ' + keywordName + ' first.';
+  }
+
+  function dupFloatNewConflictReason(oldField, updates) {
+    return floatIncompatibleKeywordNewConflictReason('DUP', oldField, updates);
   }
 
   /** Task I-96 - I-72 blocks DUP on a floating-point field (DDS Reference:
@@ -2584,20 +2607,7 @@
    *  be fixed), same two call sites (commitEdit, plus the Basic tab's
    *  Apply as an early return). */
   function blkfoldFloatNewConflictReason(oldField, updates) {
-    var o = oldField || {};
-    var u = updates || {};
-    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'BLKFOLD'; }); };
-    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
-    var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
-    var newDataType = owns('dataType') ? norm(u.dataType) : norm(o.dataType);
-    var newKeywords = owns('keywords') ? u.keywords : o.keywords;
-    if (newDataType !== 'F' || !has(newKeywords)) return null;
-    // The field ends up floating-point with BLKFOLD; only blame this edit if it introduced that.
-    if (norm(o.dataType) === 'F' && has(o.keywords)) return null;
-    if (!has(o.keywords)) {
-      return 'BLKFOLD cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
-    }
-    return 'The data type cannot be changed to F (floating point) while the field carries BLKFOLD - BLKFOLD cannot be specified on a floating-point field (per the DDS Reference). Remove BLKFOLD first.';
+    return floatIncompatibleKeywordNewConflictReason('BLKFOLD', oldField, updates);
   }
 
   function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
@@ -5300,9 +5310,16 @@
   // than a flat list since that mirrors exactly how the Display Sizes
   // picker's own sizeList already distinguishes the primary
   // (unconditioned) size from any secondary (named) ones.
-  function getFileMsgLocLines(keywords) {
+  // Task I-119: getFileMsgLocLines/setFileMsgLocLines and
+  // getSflMsgRcdLines/setSflMsgRcdLines below were structural clones -
+  // identical shape, differing only in which keyword name they read/write
+  // (MSGLOC vs SFLMSGRCD, per the comments on each pair's own original
+  // call sites). Extracted into one generic pair, parameterized on the
+  // keyword name; the four originally-named functions are now thin
+  // wrappers so every existing call site keeps working unchanged.
+  function getDisplaySizeConditionedLines(keywords, keywordName) {
     var result = { primary: '', bySizeName: {} };
-    (keywords || []).filter(function (kw) { return kw.name === 'MSGLOC'; }).forEach(function (kw) {
+    (keywords || []).filter(function (kw) { return kw.name === keywordName; }).forEach(function (kw) {
       var value = (kw.parameters || '').trim();
       var sizeGroup = (kw.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
       if (sizeGroup) {
@@ -5314,6 +5331,28 @@
     return result;
   }
 
+  function setDisplaySizeConditionedLines(keywords, keywordName, primary, bySizeName) {
+    var next = (keywords || []).filter(function (kw) { return kw.name !== keywordName; });
+    var p = (primary == null ? '' : String(primary)).trim();
+    if (p) next = next.concat([{ name: keywordName, parameters: p, conditions: [], raw: '', sourceLines: [] }]);
+    Object.keys(bySizeName || {}).forEach(function (sizeName) {
+      var v = (bySizeName[sizeName] == null ? '' : String(bySizeName[sizeName])).trim();
+      if (!v) return;
+      next = next.concat([{
+        name: keywordName,
+        parameters: v,
+        conditions: [{ relation: 'AND', indicators: [], displaySizeCondition: { name: sizeName, not: false }, sourceLines: [] }],
+        raw: '',
+        sourceLines: [],
+      }]);
+    });
+    return next;
+  }
+
+  function getFileMsgLocLines(keywords) {
+    return getDisplaySizeConditionedLines(keywords, 'MSGLOC');
+  }
+
   /** Returns a NEW keywords array with every existing MSGLOC removed and
    *  replaced by: one unconditioned MSGLOC for `primary` (if non-blank),
    *  plus one MSGLOC per non-blank entry in `bySizeName` (an object of
@@ -5323,21 +5362,7 @@
    *  buildConditionChunks/the parser already use everywhere else a
    *  display-size condition is built or read. */
   function setFileMsgLocLines(keywords, primary, bySizeName) {
-    var next = (keywords || []).filter(function (kw) { return kw.name !== 'MSGLOC'; });
-    var p = (primary == null ? '' : String(primary)).trim();
-    if (p) next = next.concat([{ name: 'MSGLOC', parameters: p, conditions: [], raw: '', sourceLines: [] }]);
-    Object.keys(bySizeName || {}).forEach(function (sizeName) {
-      var v = (bySizeName[sizeName] == null ? '' : String(bySizeName[sizeName])).trim();
-      if (!v) return;
-      next = next.concat([{
-        name: 'MSGLOC',
-        parameters: v,
-        conditions: [{ relation: 'AND', indicators: [], displaySizeCondition: { name: sizeName, not: false }, sourceLines: [] }],
-        raw: '',
-        sourceLines: [],
-      }]);
-    });
-    return next;
+    return setDisplaySizeConditionedLines(keywords, 'MSGLOC', primary, bySizeName);
   }
 
   // Task L79 (Message Record picker gap): SFLMSGRCD's own DSPSIZ
@@ -5354,17 +5379,7 @@
   // inventing a new one. Record-level (not file-level like MSGLOC), but
   // these getters are already generic over any `keywords` array.
   function getSflMsgRcdLines(keywords) {
-    var result = { primary: '', bySizeName: {} };
-    (keywords || []).filter(function (kw) { return kw.name === 'SFLMSGRCD'; }).forEach(function (kw) {
-      var value = (kw.parameters || '').trim();
-      var sizeGroup = (kw.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
-      if (sizeGroup) {
-        result.bySizeName[sizeGroup.displaySizeCondition.name] = value;
-      } else {
-        result.primary = value;
-      }
-    });
-    return result;
+    return getDisplaySizeConditionedLines(keywords, 'SFLMSGRCD');
   }
 
   /** Returns a NEW keywords array with every existing SFLMSGRCD removed and
@@ -5373,21 +5388,7 @@
    *  conditioned by that size's own display-size condition name - same
    *  shape as setFileMsgLocLines above. */
   function setSflMsgRcdLines(keywords, primary, bySizeName) {
-    var next = (keywords || []).filter(function (kw) { return kw.name !== 'SFLMSGRCD'; });
-    var p = (primary == null ? '' : String(primary)).trim();
-    if (p) next = next.concat([{ name: 'SFLMSGRCD', parameters: p, conditions: [], raw: '', sourceLines: [] }]);
-    Object.keys(bySizeName || {}).forEach(function (sizeName) {
-      var v = (bySizeName[sizeName] == null ? '' : String(bySizeName[sizeName])).trim();
-      if (!v) return;
-      next = next.concat([{
-        name: 'SFLMSGRCD',
-        parameters: v,
-        conditions: [{ relation: 'AND', indicators: [], displaySizeCondition: { name: sizeName, not: false }, sourceLines: [] }],
-        raw: '',
-        sourceLines: [],
-      }]);
-    });
-    return next;
+    return setDisplaySizeConditionedLines(keywords, 'SFLMSGRCD', primary, bySizeName);
   }
 
   // ---------------------------------------------------------------------
@@ -6329,38 +6330,12 @@
   /** Same "lines cols [*qualifier]" triple-parsing, AND the same bare
    *  "*DS3"/"*DS4" (no lines/cols at all - DDS's other valid DSPSIZ form,
    *  `DSPSIZ(*DSw [*DSx])`) handling, as DspfEngine.screenSizeFromFileKeywords's
-   *  own parseScreenSizes - duplicated (not required-in) rather than shared
-   *  via require(), since this file is dropped into the webview as a plain
-   *  <script> with no bundler (see file header) and can't assume a module
-   *  loader is present there. Keep the two in sync if DSPSIZ's grammar ever
-   *  changes. */
-  var KNOWN_DISPLAY_SIZE_NAMES = { '*DS3': { lines: 24, columns: 80 }, '*DS4': { lines: 27, columns: 132 } };
+   *  own parseScreenSizes.
+   *  Task I-119: now delegates to that canonical implementation (`DspfEngine`
+   *  bare free variable - see this file's own UMD-wrapper comment above)
+   *  instead of keeping a hand-synced duplicate. */
   function parseDisplaySizeTriples(paramText) {
-    var tokens = (paramText || '').trim().split(/\s+/).filter(Boolean);
-    var sizes = [];
-    var i = 0;
-    while (i < tokens.length) {
-      var t1 = tokens[i];
-      var t2 = tokens[i + 1];
-      if (/^\d+$/.test(t1) && t2 && /^\d+$/.test(t2)) {
-        var name = null;
-        var next = tokens[i + 2];
-        if (next && next.charAt(0) === '*') {
-          name = next;
-          i += 3;
-        } else {
-          i += 2;
-        }
-        sizes.push({ lines: parseInt(t1, 10), columns: parseInt(t2, 10), name: name });
-      } else if (KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()]) {
-        var known = KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()];
-        sizes.push({ lines: known.lines, columns: known.columns, name: t1 });
-        i++;
-      } else {
-        i++;
-      }
-    }
-    return sizes;
+    return DspfEngine.parseScreenSizes(paramText);
   }
 
   function serializeDisplaySizes(sizes) {
@@ -6484,20 +6459,29 @@
    * are scoped per record format, not file-wide) and I-SDA has no
    * cross-record model reference to check against here anyway.
    */
-  function nextAvailableFieldName(record, baseName) {
+  // Task I-119: nextAvailableFieldName/nextAvailableRecordName below were
+  // structural clones - same numeric-suffix/10-char-limit search, differing
+  // only in which name list they scan and the fallback base. Extracted
+  // into one generic search over a plain array of already-used names; the
+  // two originally-named functions are now thin wrappers.
+  function nextAvailableName(usedNames, baseName, defaultBase) {
     var MAX_LEN = 10;
     var used = {};
-    (record.fields || []).forEach(function (f) {
-      if (f.name) used[f.name.toUpperCase()] = true;
+    (usedNames || []).forEach(function (n) {
+      if (n) used[n.toUpperCase()] = true;
     });
     var n = 2;
     while (true) {
       var suffix = String(n);
-      var truncated = String(baseName || 'FLD').slice(0, Math.max(1, MAX_LEN - suffix.length));
+      var truncated = String(baseName || defaultBase).slice(0, Math.max(1, MAX_LEN - suffix.length));
       var candidate = (truncated + suffix).toUpperCase();
       if (!used[candidate]) return candidate;
       n++;
     }
+  }
+
+  function nextAvailableFieldName(record, baseName) {
+    return nextAvailableName((record.fields || []).map(function (f) { return f.name; }), baseName, 'FLD');
   }
 
   /**
