@@ -3661,6 +3661,18 @@
     return passrcdRecordConflictReason('WINDOW', passrcdName, windowRecordName);
   }
 
+  /** Task I-121 PASSRCD-restricted-keywords slice - the full list of
+   *  keyword names `passrcdRecordConflictReason` is meaningful for (WINDOW,
+   *  ALWROL, CLRL, SLNO), read from KeywordSpec's own declarative
+   *  `passrcdRestricted` flag rather than re-declared here. Re-exported off
+   *  DspfWriter (rather than only living as KeywordSpec.passrcdRestrictedKeywords)
+   *  because its one real consumer, the file-level PASSRCD-edit handler in
+   *  webviewClientHelpers.js, sees DspfWriter but not KeywordSpec directly -
+   *  same reasoning as every other KeywordSpec-backed DspfWriter function. */
+  function passrcdRestrictedKeywords() {
+    return KeywordSpec.passrcdRestrictedKeywords();
+  }
+
   /** Task I-36 - ALWROL/CLRL/SLNO's own DDS Reference sections state the
    *  identical "cannot be specified for the record format specified by
    *  the PASSRCD keyword" restriction I-24 fixed for WINDOW (flagged as
@@ -8509,6 +8521,7 @@
     pshbtnfldBasicEditConflictReason: pshbtnfldBasicEditConflictReason,
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
+    passrcdRestrictedKeywords: passrcdRestrictedKeywords,
     keepMutexConflictReason: keepMutexConflictReason,
     alwrolClrlSlnoConflictReason: alwrolClrlSlnoConflictReason,
     mnubarFieldShapeNote: mnubarFieldShapeNote,

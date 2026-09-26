@@ -115,7 +115,20 @@
         'The WINDOW keyword is not allowed on a record format that has ' +
         'any one of the following keywords specified: ALWROL, ASSUME, ' +
         'MNUBAR, PULLDOWN, SFL, USRDFN.',
-      mutex: ['ALWROL', 'ASSUME', 'MNUBAR', 'PULLDOWN', 'SFL', 'USRDFN']
+      mutex: ['ALWROL', 'ASSUME', 'MNUBAR', 'PULLDOWN', 'SFL', 'USRDFN'],
+
+      // Task I-121 PASSRCD-restricted-keywords slice - WINDOW's own DDS
+      // Reference section (line ~13673) separately states this. A
+      // genuinely different restriction from the same-record `mutex`
+      // list just above - PASSRCD is a file-level keyword naming a
+      // record by string value, not a same-record keyword-presence
+      // conflict - so it's a separate boolean field plus its own
+      // citation, not folded into `mutex`/`ddsReference`. See
+      // `passrcdRestrictedKeywords` below for the shared list this flag
+      // feeds, and passrcdRecordConflictReason's own doc comment in
+      // dspfWriter.js (Task I-24) for the consuming logic.
+      passrcdRestricted: true,
+      passrcdDdsReference: 'WINDOW cannot be specified for the record format specified by the PASSRCD keyword.'
     },
 
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
@@ -289,7 +302,14 @@
       ddsReference:
         'The ALWROL keyword cannot be specified with any of the ' +
         'following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN.',
-      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN']
+      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN'],
+
+      // Task I-121 PASSRCD-restricted-keywords slice - ALWROL's own DDS
+      // Reference section (line ~2144) separately states this - see the
+      // WINDOW entry's own comment above for why this is a separate
+      // field from `mutex`.
+      passrcdRestricted: true,
+      passrcdDdsReference: 'The ALWROL keyword cannot be specified for the record format specified by the PASSRCD keyword.'
     },
     CLRL: {
       // DDS_Keyword_V7r6.txt, "CLRL (Clear Line) keyword for display
@@ -299,7 +319,13 @@
       ddsReference:
         'The CLRL keyword cannot be specified with any of the ' +
         'following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN.',
-      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN']
+      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN'],
+
+      // Task I-121 PASSRCD-restricted-keywords slice - CLRL's own DDS
+      // Reference section (line ~3987) separately states this - see the
+      // WINDOW entry's own comment above.
+      passrcdRestricted: true,
+      passrcdDdsReference: 'The CLRL keyword cannot be specified for the record format specified by the PASSRCD keyword.'
     },
     SLNO: {
       // DDS_Keyword_V7r6.txt, "SLNO (Starting Line Number) keyword for
@@ -312,7 +338,13 @@
         'The SLNO keyword is not allowed in a record format that has ' +
         'one of the following keywords specified: ASSUME, KEEP, SFL, ' +
         'SFLCTL, USRDFN.',
-      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN']
+      mutex: ['ASSUME', 'SFL', 'SFLCTL', 'USRDFN'],
+
+      // Task I-121 PASSRCD-restricted-keywords slice - SLNO's own DDS
+      // Reference section (line ~12631) separately states this - see
+      // the WINDOW entry's own comment above.
+      passrcdRestricted: true,
+      passrcdDdsReference: 'SLNO cannot be specified for the record format specified by the PASSRCD keyword.'
     },
     // ASSUME's own DDS Reference section states a broader six-keyword
     // list (ALWROL, CLRL, SFL, SLNO, USRDFN, USRDSPMGT) than this entry
@@ -745,6 +777,30 @@
     return (spec && spec.notAllowedInRecordType) || null;
   }
 
+  /** Task I-121 PASSRCD-restricted-keywords slice - whether `keywordName`
+   *  is one of the keywords the DDS Reference forbids on the record
+   *  format named by the file-level PASSRCD keyword (the WINDOW/ALWROL/
+   *  CLRL/SLNO shape - see each entry's own `passrcdRestricted` comment
+   *  above). Returns false for a keyword with no spec entry or no such
+   *  flag. */
+  function isPassrcdRestricted(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.passrcdRestricted);
+  }
+
+  /** The full list of PASSRCD-restricted keyword names, in `RECORD_TYPES`'
+   *  own declared order (WINDOW, ALWROL, CLRL, SLNO) - the single source
+   *  of truth `passrcdRecordConflictReason`'s own callers previously each
+   *  re-derived independently (a hard-coded 'WINDOW' at its creation-time
+   *  call site, `alsoCheckPassrcd` set true only at the ALWROL/CLRL/SLNO
+   *  `wire*GuardedFlag` call sites, and a hand-written array at the
+   *  file-level PASSRCD-edit handler that swept all four at once). */
+  function passrcdRestrictedKeywords() {
+    return Object.keys(RECORD_TYPES).filter(function (name) {
+      return RECORD_TYPES[name].passrcdRestricted;
+    });
+  }
+
   /** Task I-121 (WRDWRAP/IGCALTTYP slice) - the token-matching engine
    *  moved here from dspfWriter.js's own `exclusionListHit`, now reading
    *  `recordType`'s `conditionalMutex` map instead of taking one as a
@@ -770,6 +826,8 @@
     isMutex: isMutex,
     mutexKeywords: mutexKeywords,
     notAllowedInRecordType: notAllowedInRecordType,
+    isPassrcdRestricted: isPassrcdRestricted,
+    passrcdRestrictedKeywords: passrcdRestrictedKeywords,
     conditionalMutexHit: conditionalMutexHit,
     groupMutexKeywords: groupMutexKeywords,
     requiredPartner: requiredPartner,

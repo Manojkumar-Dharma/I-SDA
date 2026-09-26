@@ -4801,13 +4801,21 @@
       // the alert names whichever keyword is actually present first,
       // but a record is only ever expected to carry one of these four
       // in practice.
+      // Task I-121 (PASSRCD-restricted-keywords slice) - the list of
+      // four names below used to be hand-written here, a second copy of
+      // the same fact windowConflictReason's own creation-time check and
+      // the wireUsrdfnGuardedFlag/wirePulldownGuardedFlag alsoCheckPassrcd
+      // call sites already encoded independently. Now read from
+      // KeywordSpec's own declarative RECORD_TYPES entries via
+      // DspfWriter.passrcdRestrictedKeywords(), in the same WINDOW-first
+      // order.
       if (newVal && getModel) {
         var targetRec = (getModel().records || []).find(function (r) {
           return r.name && r.name.toUpperCase() === newVal.toUpperCase();
         });
         var conflict = null;
         if (targetRec) {
-          ['WINDOW', 'ALWROL', 'CLRL', 'SLNO'].some(function (kwName) {
+          DspfWriter.passrcdRestrictedKeywords().some(function (kwName) {
             if ((targetRec.keywords || []).some(function (k) { return k.name === kwName; })) {
               conflict = DspfWriter.passrcdRecordConflictReason(kwName, newVal, targetRec.name);
               return true;
