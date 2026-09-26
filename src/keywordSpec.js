@@ -545,8 +545,103 @@
         RANGE: null,
         VALUES: null
       }
+    },
+
+    // Task I-121 PSHBTNFLD slice - the field-level rule web spread across
+    // four existing functions: pshbtnfldConflictReason (I-57, the
+    // whitelist itself plus the PSHBTNCHC requirement), pshbtnfldNew-
+    // ConflictReason (I-64, the same whitelist's diff-based backstop),
+    // pshbtnfldRemovalConflictReason (I-85, the requirement's reverse/
+    // removal direction), and pshbtnfldBasicEditConflictReason (I-62, the
+    // field-definition rule) - each independently re-embedding the same
+    // DDS-Reference-stated facts as bare arrays/literals.
+    //
+    // DDS_Keyword_V7r6.txt, "PSHBTNFLD (Push Button Field) keyword for
+    // display files" section (line ~9670), re-verified fresh, unchanged
+    // from what the code already had: "The following keywords can be
+    // specified on a field with the PSHBTNFLD keyword: ALIAS, CHANGE,
+    // CHCAVAIL, CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC,
+    // DSPATR(PC), TEXT." - the closed-whitelist SHAPE USRDFN/MNUBAR/SFL
+    // already established, but with a wrinkle none of those needed:
+    // DSPATR is listed with a required parameter, "DSPATR(PC)" - not a
+    // bare keyword name the way every other entry in the table is. A
+    // fixed `whitelist` array alone answers "is DSPATR one of the allowed
+    // names" (yes) but not "is THIS use of DSPATR allowed" (only with
+    // PC). The new `whitelistRequiredTokens` field alongside `whitelist`
+    // below names the one entry that needs its parameters checked too -
+    // still the same "is this keyword allowed" question `isWhitelisted`
+    // already answers, just also consulting the instance's own
+    // parameters (token-split the same way `conditionalMutexHit` already
+    // does) for that one name.
+    PSHBTNFLD: {
+      markerKeyword: 'PSHBTNFLD',
+      ddsReference:
+        'The following keywords can be specified on a field with the ' +
+        'PSHBTNFLD keyword: ALIAS, CHANGE, CHCAVAIL, CHCUNAVAIL, CHCCTL, ' +
+        'INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC), TEXT. A field containing ' +
+        'the PSHBTNFLD keyword must also contain one or more PSHBTNCHC ' +
+        'keywords defining the choices for the field. The field ' +
+        'containing the PSHBTNFLD keyword must be defined as an ' +
+        'input-capable field with data type Y, length equal to 2, and ' +
+        'decimal positions of 0.',
+      whitelist: [
+        'PSHBTNFLD', 'ALIAS', 'CHANGE', 'CHCAVAIL', 'CHCUNAVAIL', 'CHCCTL',
+        'INDTXT', 'NOCCSID', 'PSHBTNCHC', 'DSPATR', 'TEXT'
+      ],
+      whitelistRequiredTokens: {
+        DSPATR: ['PC']
+      },
+
+      // "The field containing the PSHBTNFLD keyword must be defined as
+      // an input-capable field with data type Y, length equal to 2, and
+      // decimal positions of 0" - re-verified fresh, unchanged from what
+      // the code already had (usage I or B both count as input-capable;
+      // `usageDefault` is the value the pre-existing code corrects a
+      // non-conforming usage TO, matching every one of IBM's own
+      // examples, kept as its own fact since "B" specifically, not just
+      // "any conforming value", is what a correcting rewrite should
+      // produce).
+      definitionRequirements: {
+        dataType: 'Y',
+        length: 2,
+        decimalPositions: 0,
+        usage: ['I', 'B'],
+        usageDefault: 'B'
+      }
     }
   };
+
+  // Task I-121 PSHBTNFLD slice - the PSHBTNFLD/PSHBTNCHC mutual
+  // requirement ("A field containing the PSHBTNFLD keyword must also
+  // contain one or more PSHBTNCHC keywords"; PSHBTNCHC's own section
+  // states the reverse: "When the PSHBTNCHC keyword is specified on a
+  // field, the PSHBTNFLD keyword must also be specified"). A genuinely
+  // different relationship shape from MUTEX_GROUPS above - "each member
+  // requires the other's presence" rather than "each member excludes the
+  // others" - but the same symmetric-pair-list idiom, so it gets its own
+  // list rather than overloading MUTEX_GROUPS with an inverted meaning.
+  var REQUIRE_PAIRS = [
+    ['PSHBTNFLD', 'PSHBTNCHC']
+  ];
+
+  /** The keyword that `keywordName` mutually requires the presence of
+   *  (the PSHBTNFLD/PSHBTNCHC shape - each requires the other), or null
+   *  if `keywordName` is in no `REQUIRE_PAIRS` entry. Symmetric: either
+   *  member of a pair maps to the other. */
+  function requiredPartner(keywordName) {
+    var pair = REQUIRE_PAIRS.filter(function (p) { return p.indexOf(keywordName) !== -1; })[0];
+    if (!pair) return null;
+    return pair[0] === keywordName ? pair[1] : pair[0];
+  }
+
+  /** `recordType`'s own field-definition requirements (the PSHBTNFLD
+   *  shape - data type, length, decimal positions and allowed usage
+   *  values a field carrying this keyword must conform to), or null for
+   *  a record type with no spec entry or no such rule. */
+  function definitionRequirements(recordType) {
+    var spec = RECORD_TYPES[recordType];
+    return (spec && spec.definitionRequirements) || null;
+  }
 
   // Task I-121 DFT/DFTVAL/EDTCDE/EDTWRD slice - dftGroupConflictReason's
   // (L81/L82) own DFT_DFTVAL_CONFLICT_GROUP array: a genuinely different
@@ -591,11 +686,26 @@
    *  `whitelist` array first, then falls back to `whitelistPatterns` (the
    *  MNUBAR slice's own addition, for entries the DDS Reference itself
    *  states as a placeholder pattern - e.g. CAnn/CFnn - rather than as a
-   *  literal keyword name). */
-  function isWhitelisted(recordType, keywordName) {
+   *  literal keyword name).
+   *
+   *  `parameters` (optional, the PSHBTNFLD slice's own addition) narrows
+   *  a whitelisted NAME to a required parameter TOKEN set via
+   *  `whitelistRequiredTokens` - e.g. DSPATR is a whitelisted name on
+   *  PSHBTNFLD, but only a `DSPATR(PC)` instance is actually allowed;
+   *  every other DSPATR use is not, even though the bare name matches.
+   *  Token-split the same way `conditionalMutexHit` splits parameters.
+   *  Ignored for any keyword with no `whitelistRequiredTokens` entry, so
+   *  every pre-existing call site (none of which passes `parameters`) is
+   *  unaffected. */
+  function isWhitelisted(recordType, keywordName, parameters) {
     var spec = RECORD_TYPES[recordType];
     if (!spec || !spec.whitelist) return true;
-    if (spec.whitelist.indexOf(keywordName) !== -1) return true;
+    if (spec.whitelist.indexOf(keywordName) !== -1) {
+      var required = spec.whitelistRequiredTokens && spec.whitelistRequiredTokens[keywordName];
+      if (!required) return true;
+      var tokens = String(parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
+      return tokens.length > 0 && tokens.every(function (t) { return required.indexOf(t) !== -1; });
+    }
     if (spec.whitelistPatterns) {
       return spec.whitelistPatterns.some(function (re) { return re.test(keywordName); });
     }
@@ -661,6 +771,8 @@
     mutexKeywords: mutexKeywords,
     notAllowedInRecordType: notAllowedInRecordType,
     conditionalMutexHit: conditionalMutexHit,
-    groupMutexKeywords: groupMutexKeywords
+    groupMutexKeywords: groupMutexKeywords,
+    requiredPartner: requiredPartner,
+    definitionRequirements: definitionRequirements
   };
 });

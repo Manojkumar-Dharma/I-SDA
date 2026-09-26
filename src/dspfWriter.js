@@ -3400,14 +3400,16 @@
    *  a closed whitelist, the same shape as USRDFN's/SFL's/MNUBAR's
    *  record-level ones (I-49/I-46/I-48), just at field level. DSPATR is
    *  allowed ONLY with the PC parameter. PSHBTNFLD itself is implicitly
-   *  allowed. */
-  var PSHBTNFLD_ALLOWED_KEYWORDS = ['ALIAS', 'CHANGE', 'CHCAVAIL', 'CHCUNAVAIL', 'CHCCTL', 'INDTXT', 'NOCCSID', 'PSHBTNCHC', 'DSPATR', 'TEXT', 'PSHBTNFLD'];
-
+   *  allowed.
+   *
+   *  Task I-121 (PSHBTNFLD slice) - now reads `keywordSpec.js`'s
+   *  `RECORD_TYPES.PSHBTNFLD` instead of a hand-written array plus its
+   *  own inline DSPATR(PC) token check; both are now data on the spec
+   *  (`whitelist` and `whitelistRequiredTokens`), consulted via
+   *  `isWhitelisted`'s own new optional `parameters` argument. Behavior
+   *  is unchanged. */
   function pshbtnfldKeywordAllowed(name, parameters) {
-    if (PSHBTNFLD_ALLOWED_KEYWORDS.indexOf(name) < 0) return false;
-    if (name !== 'DSPATR') return true;
-    var tokens = String(parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
-    return tokens.length > 0 && tokens.every(function (t) { return t === 'PC'; });
+    return KeywordSpec.isWhitelisted('PSHBTNFLD', name, parameters);
   }
 
   /** Task I-57 - the three field-level PSHBTNFLD rules, in one
@@ -3437,7 +3439,8 @@
       return null;
     }
     if (keywordName === 'PSHBTNCHC') {
-      return hasPshbtnfld ? null : 'PSHBTNCHC can only be specified on a field that also has PSHBTNFLD (per the DDS Reference).';
+      return hasPshbtnfld ? null : keywordName + ' can only be specified on a field that also has ' +
+        KeywordSpec.requiredPartner('PSHBTNCHC') + ' (per the DDS Reference).';
     }
     if (hasPshbtnfld && !pshbtnfldKeywordAllowed(keywordName, parameters)) {
       return keywordName + (keywordName === 'DSPATR' ? '(' + (parameters || '') + ')' : '') +
@@ -3511,12 +3514,12 @@
     var hasChc = has(newKeywords, 'PSHBTNCHC');
     // A: PSHBTNFLD removed while a PSHBTNCHC is left behind.
     if (hadFld && !hasFld && hasChc) {
-      return 'PSHBTNFLD cannot be removed while the field still carries PSHBTNCHC, which requires it (per the DDS Reference) - remove the push-button choices too (turning the push-button field off does both).';
+      return KeywordSpec.requiredPartner('PSHBTNCHC') + ' cannot be removed while the field still carries PSHBTNCHC, which requires it (per the DDS Reference) - remove the push-button choices too (turning the push-button field off does both).';
     }
     // B: the last PSHBTNCHC removed while PSHBTNFLD stays. Only when the field
     // was valid before (had at least one PSHBTNCHC).
     if (hadFld && hasFld && hadChc && !hasChc) {
-      return 'The last PSHBTNCHC cannot be removed from a push-button (PSHBTNFLD) field, which must contain one or more of them (per the DDS Reference) - turn the push-button field off instead.';
+      return 'The last ' + KeywordSpec.requiredPartner('PSHBTNFLD') + ' cannot be removed from a push-button (PSHBTNFLD) field, which must contain one or more of them (per the DDS Reference) - turn the push-button field off instead.';
     }
     return null;
   }
@@ -3527,15 +3530,21 @@
    *  decimalPositions, usage }, only the keys that need to change) that
    *  bring a field into line, or null when it already conforms. An
    *  already-input-capable usage (I/B) is kept; anything else becomes B
-   *  (matching every one of IBM's own examples). */
+   *  (matching every one of IBM's own examples).
+   *
+   *  Task I-121 (PSHBTNFLD slice) - now reads
+   *  KeywordSpec.definitionRequirements('PSHBTNFLD') instead of its own
+   *  hand-written Y/2/0/I-B literals; behavior (including the specific
+   *  "becomes B" default) is unchanged. */
   function pshbtnfldDefinitionUpdates(field) {
     var f = field || {};
+    var req = KeywordSpec.definitionRequirements('PSHBTNFLD');
     var updates = {};
-    if ((f.dataType || '').toUpperCase() !== 'Y') updates.dataType = 'Y';
-    if (Number(f.length) !== 2) updates.length = 2;
-    if (Number(f.decimalPositions) !== 0 || f.decimalPositions == null) updates.decimalPositions = 0;
+    if ((f.dataType || '').toUpperCase() !== req.dataType) updates.dataType = req.dataType;
+    if (Number(f.length) !== req.length) updates.length = req.length;
+    if (Number(f.decimalPositions) !== req.decimalPositions || f.decimalPositions == null) updates.decimalPositions = req.decimalPositions;
     var u = (f.usage || '').toUpperCase();
-    if (u !== 'I' && u !== 'B') updates.usage = 'B';
+    if (req.usage.indexOf(u) < 0) updates.usage = req.usageDefault;
     return Object.keys(updates).length ? updates : null;
   }
 
