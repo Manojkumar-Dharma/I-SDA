@@ -2374,12 +2374,15 @@
    *  excluded - so this is a plain name set, not a token list. MSGCON only
    *  applies to constants, which cannot carry MSGID, so it is out of practical
    *  reach, but it is on IBM's list and costs nothing here. MSGID may be
-   *  specified several times on a field; ONE of them is enough to exclude. */
-  var MSGID_EXCLUDED_KEYWORDS = ['DFT', 'DFTVAL', 'FLTFIXDEC', 'FLTPCN', 'MSGCON'];
+   *  specified several times on a field; ONE of them is enough to exclude.
+   *
+   *  Task I-121 - the five partner names now come from keywordSpec.js's
+   *  declarative RECORD_TYPES.MSGID.mutex instead of the hand-written
+   *  MSGID_EXCLUDED_KEYWORDS array. */
   function msgidExcludedHits(keywords) {
     var hits = [];
     (keywords || []).forEach(function (k) {
-      if (k && MSGID_EXCLUDED_KEYWORDS.indexOf(k.name) >= 0) hits.push(k.name);
+      if (k && KeywordSpec.isMutex('MSGID', k.name)) hits.push(k.name);
     });
     return hits;
   }
@@ -2398,9 +2401,14 @@
    *  RECORD's keywords rather than the field's (same as htmlConflictReason's
    *  SFL branch, I-41). Only the SFL record itself: SFLCTL is the subfile
    *  CONTROL record, an ordinary display record whose fields are not subfile
-   *  detail fields, and is not what this sentence names. */
+   *  detail fields, and is not what this sentence names.
+   *
+   *  Task I-121 - the excluded record type now comes from keywordSpec.js's
+   *  declarative RECORD_TYPES.MSGID.notAllowedInRecordType instead of a
+   *  bare 'SFL' literal. */
   function msgidRecordIsSubfile(recordKeywords) {
-    return (recordKeywords || []).some(function (k) { return k && k.name === 'SFL'; });
+    var excludedRecordType = KeywordSpec.notAllowedInRecordType('MSGID');
+    return (recordKeywords || []).some(function (k) { return k && k.name === excludedRecordType; });
   }
   function msgidSflRecordReason(recordKeywords) {
     return msgidRecordIsSubfile(recordKeywords)
@@ -2437,7 +2445,7 @@
       var hits = msgidExcludedHits(fieldKeywords);
       return hits.length ? msgidExclusionForwardReason(hits) : null;
     }
-    if (MSGID_EXCLUDED_KEYWORDS.indexOf(name) < 0) return null;
+    if (!KeywordSpec.isMutex('MSGID', name)) return null;
     return msgidHasMsgid(fieldKeywords) ? msgidExclusionReverseReason([name]) : null;
   }
 

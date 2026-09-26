@@ -452,6 +452,31 @@
         'MSGCON', 'NOCCSID', 'OVRATR', 'PUTRETAIN', 'SYSNAME', 'TIME', 'USER'
       ],
       notAllowedInRecordType: 'SFL'
+    },
+
+    // Task I-121 MSGID slice - msgidExclusionConflictReason/
+    // msgidExclusionNewConflictReason's (I-91) own MSGID_EXCLUDED_KEYWORDS
+    // array plus msgidSflRecordReason's (I-92) separate SFL exclusion,
+    // same shape as the HTML entry just above (a field-level mutex list
+    // plus a one-directional "not allowed in a field of this record
+    // type" restriction) - re-verified fresh against
+    // DDS_Keyword_V7r6.txt's own MSGID section.
+    MSGID: {
+      // DDS_Keyword_V7r6.txt, "MSGID (Message Identifier) keyword for
+      // display files" section (line ~8967): "The following keywords
+      // cannot be specified on a field with the MSGID keyword:" DFT,
+      // DFTVAL, FLTFIXDEC, FLTPCN, MSGCON - re-verified fresh, unchanged
+      // from what the code already had. "You cannot specify MSGID in a
+      // subfile record format (SFL keyword)" (same section) - SFL's own
+      // section states nothing about MSGID, so this is one-directional,
+      // same restraint as the HTML/DSPMOD entries above.
+      ddsReference:
+        'The following keywords cannot be specified on a field with ' +
+        'the MSGID keyword: DFT, DFTVAL, FLTFIXDEC, FLTPCN, MSGCON. ' +
+        '... You cannot specify MSGID in a subfile record format (SFL ' +
+        'keyword).',
+      mutex: ['DFT', 'DFTVAL', 'FLTFIXDEC', 'FLTPCN', 'MSGCON'],
+      notAllowedInRecordType: 'SFL'
     }
   };
 
