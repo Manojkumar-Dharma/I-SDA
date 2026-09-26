@@ -3085,21 +3085,24 @@
    *  isn't known/relevant, e.g. a brand-new field being created from
    *  scratch that can't yet be on an SFL record) - the SFL check is
    *  simply skipped when it's not supplied, matching every other
-   *  optional-context-arg guard in this file. */
-  var HTML_MUTUAL_EXCLUSION_KEYWORDS = [
-    'COLOR', 'DATE', 'DFT', 'DSPATR', 'EDTCDE', 'EDTWRD', 'HLPID',
-    'MSGCON', 'NOCCSID', 'OVRATR', 'PUTRETAIN', 'SYSNAME', 'TIME', 'USER'
-  ];
+   *  optional-context-arg guard in this file.
+   *
+   *  Task I-121 - both the field-level mutex list and the SFL record
+   *  restriction now come from keywordSpec.js's declarative
+   *  RECORD_TYPES.HTML (`mutex` and the new `notAllowedInRecordType`
+   *  field respectively) instead of the hand-written
+   *  HTML_MUTUAL_EXCLUSION_KEYWORDS array plus a bare 'SFL' literal. */
   function htmlConflictReason(keywordName, fieldKeywords, recordKeywords) {
     var kws = fieldKeywords || [];
     if (keywordName === 'HTML') {
-      var hasSfl = (recordKeywords || []).some(function (k) { return k.name === 'SFL'; });
+      var excludedRecordType = KeywordSpec.notAllowedInRecordType('HTML');
+      var hasSfl = (recordKeywords || []).some(function (k) { return k.name === excludedRecordType; });
       if (hasSfl) return 'HTML is not allowed in a field of a subfile (SFL) record (per the DDS Reference).';
-      var conflict = kws.find(function (k) { return HTML_MUTUAL_EXCLUSION_KEYWORDS.indexOf(k.name) !== -1; });
+      var conflict = kws.find(function (k) { return KeywordSpec.isMutex('HTML', k.name); });
       if (conflict) return 'HTML is not allowed with the ' + conflict.name + ' keyword on the same field (per the DDS Reference).';
       return null;
     }
-    if (HTML_MUTUAL_EXCLUSION_KEYWORDS.indexOf(keywordName) !== -1) {
+    if (KeywordSpec.isMutex('HTML', keywordName)) {
       var hasHtml = kws.some(function (k) { return k.name === 'HTML'; });
       if (hasHtml) return keywordName + ' is not allowed with the HTML keyword on the same field (per the DDS Reference).';
     }

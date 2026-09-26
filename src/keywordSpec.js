@@ -415,6 +415,43 @@
         'only the HLPRCD half - the HLPDOC half is already modeled on ' +
         'the HLPDOC entry above.)',
       mutex: ['HLPRCD']
+    },
+
+    // Task I-121 HTML slice - htmlConflictReason's (I-41) own
+    // HTML_MUTUAL_EXCLUSION_KEYWORDS array, plus its separate SFL
+    // record-level restriction, folded into one entry. HTML's own DDS
+    // Reference section states two independent restrictions: a 14-keyword
+    // field-level mutex (the SAME field, unlike every RECORD_TYPES entry
+    // above which is scoped to a record) and a same-record exclusion
+    // against SFL (one-directional, like DSPMOD's own entry above - SFL's
+    // own section says nothing about HTML). `isMutex`/`mutexKeywords`
+    // don't care what array the caller checks membership against, so
+    // both restrictions fit under the ordinary `mutex` shape; the new
+    // `notAllowedInRecordType` field is a separate, single-value slot
+    // (not folded into `mutex` itself) so a future keyword-index
+    // generator (I-121's own eventual I-40-replacing goal) can tell "same
+    // field" partners apart from "same record" ones without re-parsing
+    // this comment.
+    HTML: {
+      // DDS_Keyword_V7r6.txt, "HTML (Hypertext Markup Language) keyword
+      // for display files" section (line ~7416): "The following keywords
+      // are not allowed with the HTML keyword:" COLOR, DATE, DFT,
+      // DSPATR, EDTCDE, EDTWRD, HLPID, MSGCON, NOCCSID, OVRATR,
+      // PUTRETAIN, SYSNAME, TIME, USER - re-verified fresh, unchanged
+      // from what the code already had. "The HTML keyword is not allowed
+      // in a field of a subfile record" (line ~7454) - SFL's own section
+      // states nothing about HTML, so this is one-directional, same
+      // restraint as the DSPMOD/SFL entry above.
+      ddsReference:
+        'The following keywords are not allowed with the HTML keyword: ' +
+        'COLOR, DATE, DFT, DSPATR, EDTCDE, EDTWRD, HLPID, MSGCON, ' +
+        'NOCCSID, OVRATR, PUTRETAIN, SYSNAME, TIME, USER. ... The HTML ' +
+        'keyword is not allowed in a field of a subfile record.',
+      mutex: [
+        'COLOR', 'DATE', 'DFT', 'DSPATR', 'EDTCDE', 'EDTWRD', 'HLPID',
+        'MSGCON', 'NOCCSID', 'OVRATR', 'PUTRETAIN', 'SYSNAME', 'TIME', 'USER'
+      ],
+      notAllowedInRecordType: 'SFL'
     }
   };
 
@@ -456,10 +493,23 @@
     return (spec && spec.mutex) ? spec.mutex.slice() : [];
   }
 
+  /** The single record type `keywordName` is excluded from being used
+   *  within (the HTML/SFL shape: a field-level keyword forbidden from
+   *  appearing on a field belonging to a record of this type), or null if
+   *  `keywordName` has no spec entry or no such restriction. One-
+   *  directional by construction - there is no reverse "which field-level
+   *  keywords does record type X forbid" query, since only HTML needs
+   *  this today. */
+  function notAllowedInRecordType(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return (spec && spec.notAllowedInRecordType) || null;
+  }
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
     isMutex: isMutex,
-    mutexKeywords: mutexKeywords
+    mutexKeywords: mutexKeywords,
+    notAllowedInRecordType: notAllowedInRecordType
   };
 });
