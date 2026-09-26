@@ -5028,14 +5028,21 @@
   // HLPDOC while HLPPNLGRP/HLPRTN is already present, and vice versa) -
   // see wireUsrdfnGuardedFlag's own callers in webviewClientHelpers.js
   // for where each direction is wired.
+  //
+  // Task I-121 (Help-keyword mutex web slice): the HLPPNLGRP/HLPRTN
+  // partner names now come from keywordSpec.js's RECORD_TYPES.HLPDOC.mutex
+  // instead of being bare string literals in the two `if` conditions
+  // below - same behavior, single declarative source shared with
+  // hlpdocHspecConflictReason below (which checks the H-spec-level half
+  // of this same rule).
   function hlpdocConflictReason(keywordName, keywords) {
     var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
     if (keywordName === 'HLPDOC') {
-      if (present('HLPPNLGRP')) return 'HLPDOC cannot be specified in the same file as HLPPNLGRP (mutually exclusive per the DDS Reference).';
-      if (present('HLPRTN')) return 'HLPDOC cannot be specified in the same file as HLPRTN (mutually exclusive per the DDS Reference).';
+      if (present('HLPPNLGRP') && KeywordSpec.isMutex('HLPDOC', 'HLPPNLGRP')) return 'HLPDOC cannot be specified in the same file as HLPPNLGRP (mutually exclusive per the DDS Reference).';
+      if (present('HLPRTN') && KeywordSpec.isMutex('HLPDOC', 'HLPRTN')) return 'HLPDOC cannot be specified in the same file as HLPRTN (mutually exclusive per the DDS Reference).';
       return '';
     }
-    if ((keywordName === 'HLPPNLGRP' || keywordName === 'HLPRTN') && present('HLPDOC')) {
+    if ((keywordName === 'HLPPNLGRP' || keywordName === 'HLPRTN') && present('HLPDOC') && KeywordSpec.isMutex('HLPDOC', keywordName)) {
       return keywordName + ' cannot be specified in the same file as HLPDOC (mutually exclusive per the DDS Reference).';
     }
     return '';
@@ -5088,18 +5095,25 @@
    * is this help entry's own sourceLine, excluded from the file-wide
    * search so an H-spec's own not-yet-committed HLPDOC/HLPPNLGRP never
    * conflicts with itself.
+   *
+   * Task I-121 (Help-keyword mutex web slice): the HLPBDY/HLPPNLGRP
+   * partner names now come from keywordSpec.js's RECORD_TYPES.HLPDOC.mutex
+   * (same entry hlpdocConflictReason above reads) instead of bare string
+   * literals - HLPRTN is deliberately absent from every check in this
+   * function, unchanged from before (I-90's own finding, see this
+   * function's own doc comment above).
    */
   function hlpdocHspecConflictReason(keywordName, ownKeywords, model, ownSourceLine) {
     var presentOwn = function (n) { return (ownKeywords || []).some(function (kw) { return kw.name === n; }); };
     if (keywordName === 'HLPDOC') {
-      if (presentOwn('HLPBDY')) return 'HLPDOC cannot be specified on the same help specification as HLPBDY (mutually exclusive per the DDS Reference).';
-      if (anyHelpKeywordPresentInFile(model, 'HLPPNLGRP', ownSourceLine)) return 'HLPDOC cannot be specified in the same display file as HLPPNLGRP, wherever either appears (mutually exclusive per the DDS Reference).';
+      if (presentOwn('HLPBDY') && KeywordSpec.isMutex('HLPDOC', 'HLPBDY')) return 'HLPDOC cannot be specified on the same help specification as HLPBDY (mutually exclusive per the DDS Reference).';
+      if (anyHelpKeywordPresentInFile(model, 'HLPPNLGRP', ownSourceLine) && KeywordSpec.isMutex('HLPDOC', 'HLPPNLGRP')) return 'HLPDOC cannot be specified in the same display file as HLPPNLGRP, wherever either appears (mutually exclusive per the DDS Reference).';
       return '';
     }
-    if (keywordName === 'HLPBDY' && presentOwn('HLPDOC')) {
+    if (keywordName === 'HLPBDY' && presentOwn('HLPDOC') && KeywordSpec.isMutex('HLPDOC', 'HLPBDY')) {
       return 'HLPBDY cannot be specified on the same help specification as HLPDOC (mutually exclusive per the DDS Reference).';
     }
-    if (keywordName === 'HLPPNLGRP' && (presentOwn('HLPDOC') || anyHelpKeywordPresentInFile(model, 'HLPDOC', ownSourceLine))) {
+    if (keywordName === 'HLPPNLGRP' && (presentOwn('HLPDOC') || anyHelpKeywordPresentInFile(model, 'HLPDOC', ownSourceLine)) && KeywordSpec.isMutex('HLPDOC', 'HLPPNLGRP')) {
       return 'HLPPNLGRP cannot be specified in the same display file as HLPDOC, wherever either appears (mutually exclusive per the DDS Reference).';
     }
     return '';
@@ -5131,13 +5145,17 @@
    *  rule, not a prohibition (unlike HLPDOC's own separate, explicitly-
    *  worded "You cannot specify HLPDOC with ... HLPRTN" rule above) - so
    *  HLPRTN and HLPRCD coexisting is valid DDS and nothing here blocks
-   *  it. */
+   *  it.
+   *
+   *  Task I-121 (Help-keyword mutex web slice): the HLPPNLGRP partner
+   *  name now comes from keywordSpec.js's RECORD_TYPES.HLPPNLGRP.mutex
+   *  instead of a bare string literal - same behavior. */
   function hlprcdConflictReason(keywordName, keywords) {
     var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
-    if (keywordName === 'HLPRCD' && present('HLPPNLGRP')) {
+    if (keywordName === 'HLPRCD' && present('HLPPNLGRP') && KeywordSpec.isMutex('HLPPNLGRP', 'HLPRCD')) {
       return 'HLPRCD cannot be specified in the same file as HLPPNLGRP (mutually exclusive per the DDS Reference).';
     }
-    if (keywordName === 'HLPPNLGRP' && present('HLPRCD')) {
+    if (keywordName === 'HLPPNLGRP' && present('HLPRCD') && KeywordSpec.isMutex('HLPPNLGRP', 'HLPRCD')) {
       return 'HLPPNLGRP cannot be specified in the same file as HLPRCD (mutually exclusive per the DDS Reference).';
     }
     return '';

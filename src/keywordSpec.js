@@ -364,6 +364,57 @@
         '(SFL keyword). The subfile is displayed according to the ' +
         'DSPMOD of the corresponding subfile control record.',
       mutex: ['SFL']
+    },
+
+    // Task I-121 Help-keyword mutex web slice - HLPDOC (I-38/I-67),
+    // HLPBDY/HLPPNLGRP/HLPRCD/HLPRTN's own cross-exclusions, currently
+    // spread across three functions (hlpdocConflictReason,
+    // hlpdocHspecConflictReason, hlprcdConflictReason), each re-embedding
+    // the same DDS-Reference-stated pairings as bare string-literal
+    // comparisons rather than reading them from one place. Four distinct
+    // pairwise relationships, each modeled ONCE (one owner entry, same
+    // "avoid two sources of truth for the same pair" principle the
+    // ALWROL/CLRL/SLNO/ASSUME slice above already established) even
+    // though some of them are independently restated from both sides in
+    // the DDS Reference's own prose:
+    //  1. HLPDOC <-> HLPBDY (help-specification-level scope only - HLPBDY
+    //     doesn't exist at file level in this codebase)
+    //  2. HLPDOC <-> HLPPNLGRP (file-wide scope - HLPPNLGRP's own section
+    //     states this "a display file cannot contain both..." regardless
+    //     of which level either keyword lives at)
+    //  3. HLPDOC <-> HLPRTN (file-level scope only - I-90's own research
+    //     found the H-spec-level question unsettled by the DDS Reference
+    //     alone and deliberately left unchecked there; not re-litigated
+    //     by this slice)
+    //  4. HLPPNLGRP <-> HLPRCD (file-level scope)
+    // HLPRTN's OWN section states a priority rule ("HLPRTN... takes
+    // priority over any HLPRCD, HLPPNLGRP, or HLPDOC keywords"), not a
+    // prohibition - deliberately not modeled as a mutex partner of
+    // HLPRCD or HLPPNLGRP here, matching this codebase's own pre-existing
+    // scope decision (hlprcdConflictReason's own doc comment).
+    HLPDOC: {
+      // DDS_Keyword_V7r6.txt, "HLPDOC (Help Document) keyword for
+      // display files" section (line ~6937): "You cannot specify HLPDOC
+      // with HLPBDY, HLPPNLGRP, or HLPRTN." Covers relationships 1-3
+      // above; relationship 4 (HLPPNLGRP<->HLPRCD, which doesn't involve
+      // HLPDOC at all) is on the HLPPNLGRP entry below instead.
+      ddsReference: 'You cannot specify HLPDOC with HLPBDY, HLPPNLGRP, or HLPRTN.',
+      mutex: ['HLPBDY', 'HLPPNLGRP', 'HLPRTN']
+    },
+    HLPPNLGRP: {
+      // DDS_Keyword_V7r6.txt, "HLPPNLGRP (Help Panel Group) keyword for
+      // display files" section (line ~7099): "a display file cannot
+      // contain both HLPPNLGRP and HLPRCD keywords, nor HLPPNLGRP and
+      // HLPDOC keywords." The HLPDOC half is relationship 2, already
+      // modeled on the HLPDOC entry above (not repeated here); this
+      // entry only adds HLPRCD (relationship 4), HLPPNLGRP's other
+      // stated exclusion.
+      ddsReference:
+        'a display file cannot contain both HLPPNLGRP and HLPRCD ' +
+        'keywords, nor HLPPNLGRP and HLPDOC keywords. (This entry adds ' +
+        'only the HLPRCD half - the HLPDOC half is already modeled on ' +
+        'the HLPDOC entry above.)',
+      mutex: ['HLPRCD']
     }
   };
 
