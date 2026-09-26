@@ -1805,13 +1805,23 @@
    *  if it's fine. EDTCDE/EDTWRD's own panel (`editKeywordSectionHtml`)
    *  is a separate, later-loaded picker and is NOT symmetrically guarded
    *  here - out of this task's scope, which is DFT itself; the DFT/DFTVAL
-   *  side of the relationship is what this function enforces. */
-  var DFT_DFTVAL_CONFLICT_GROUP = ['DFT', 'DFTVAL', 'EDTCDE', 'EDTWRD'];
+   *  side of the relationship is what this function enforces.
+   *
+   *  L82 - generic over any of the four - not DFT/DFTVAL-specific - since
+   *  L82 reuses this unchanged for EDTCDE/EDTWRD's own guard too. EDTCDE's
+   *  own page states "The DFT and DFTVAL keywords cannot be specified with
+   *  the EDTCDE keyword."
+   *
+   *  Task I-121 - the group itself (formerly the local
+   *  DFT_DFTVAL_CONFLICT_GROUP array here) now lives on keywordSpec.js's
+   *  declarative MUTEX_GROUPS, evaluated via KeywordSpec.groupMutexKeywords -
+   *  a new shape from every other RECORD_TYPES entry (a full N-way mutual
+   *  exclusion rather than a pairwise owner-and-partners relationship). */
   function dftGroupConflictReason(keywordName, keywords, dataType) {
     if ((dataType || '').toUpperCase() === 'F') {
       return keywordName + ' is not valid on floating-point fields (per the DDS Reference).';
     }
-    var others = DFT_DFTVAL_CONFLICT_GROUP.filter(function (n) { return n !== keywordName; });
+    var others = KeywordSpec.groupMutexKeywords(keywordName);
     var present = (keywords || [])
       .filter(function (k) { return others.indexOf(k.name) >= 0; })
       .map(function (k) { return k.name; });

@@ -548,6 +548,43 @@
     }
   };
 
+  // Task I-121 DFT/DFTVAL/EDTCDE/EDTWRD slice - dftGroupConflictReason's
+  // (L81/L82) own DFT_DFTVAL_CONFLICT_GROUP array: a genuinely different
+  // shape from every RECORD_TYPES entry above - a full N-WAY mutual
+  // exclusion (every member excludes every OTHER member), not a pairwise
+  // owner-and-partners relationship. Modeling it as four separate
+  // RECORD_TYPES.<NAME>.mutex entries would mean the same 4-choose-2 = 6
+  // pairings stated 8 times over (each entry repeating the other three) -
+  // a `MUTEX_GROUPS` list of the group itself, consulted via
+  // `groupMutexKeywords` below, states each pairing exactly once instead.
+  //
+  // DFT's own DDS Reference section (line ~4687) states "The DFTVAL,
+  // EDTCDE, and EDTWRD keywords cannot be specified with the DFT
+  // keyword"; DFTVAL's own section restates the identical rule from its
+  // side; EDTCDE's own section (line ~5596) states "The DFT and DFTVAL
+  // keywords cannot be specified with the EDTCDE keyword" - all
+  // re-verified fresh. Between them, DFT/DFTVAL/EDTCDE/EDTWRD's sections
+  // establish DFT<->DFTVAL, DFT<->EDTCDE, DFT<->EDTWRD, DFTVAL<->EDTCDE,
+  // and DFTVAL<->EDTWRD explicitly; none of the four sections states
+  // EDTCDE<->EDTWRD as a "cannot be specified with" sentence in so many
+  // words, but this codebase's own `editKeywordSectionHtml` already
+  // models EDTCDE/EDTWRD as a single mutually-exclusive dropdown choice
+  // (you pick one "kind" or the other), so the full 4-way group -
+  // unchanged from what L81/L82 already implemented - is kept as-is
+  // rather than narrowed on the strength of one missing sentence.
+  var MUTEX_GROUPS = [
+    ['DFT', 'DFTVAL', 'EDTCDE', 'EDTWRD']
+  ];
+
+  /** The other members of whichever MUTEX_GROUPS group contains
+   *  `keywordName`, or an empty array if it's in none. A copy, safe for
+   *  the caller to `.filter()`/`.map()` without mutating the spec. */
+  function groupMutexKeywords(keywordName) {
+    var group = MUTEX_GROUPS.filter(function (g) { return g.indexOf(keywordName) !== -1; })[0];
+    if (!group) return [];
+    return group.filter(function (n) { return n !== keywordName; });
+  }
+
   /** Whether `keywordName` is allowed on a record of `recordType` per that
    *  type's own closed whitelist. Returns true for a record type with no
    *  spec entry (nothing to restrict) or no whitelist. Checks the literal
@@ -623,6 +660,7 @@
     isMutex: isMutex,
     mutexKeywords: mutexKeywords,
     notAllowedInRecordType: notAllowedInRecordType,
-    conditionalMutexHit: conditionalMutexHit
+    conditionalMutexHit: conditionalMutexHit,
+    groupMutexKeywords: groupMutexKeywords
   };
 });
