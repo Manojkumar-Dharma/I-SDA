@@ -1881,33 +1881,19 @@
    *  fieldKeywordCategoryVisibility's own blank-usage branch).
    *  Returns a reason string, or null when WRDWRAP is fine to add. */
   var WRDWRAP_BLOCKED_SHIFTS = ['S', 'Y', 'D', 'M', 'F', 'J', 'O', 'E', 'G'];
-  var WRDWRAP_KEYWORD_CONFLICTS = {
-    AUTO: ['RAZ', 'RAB'],
-    CHECK: ['MF', 'M10F', 'M11F', 'RB', 'RZ', 'RL', 'RLTB'],
-    CHGINPDFT: ['MF'],
-    DSPATR: ['OID', 'SP'],
-    DUP: null,
-    FLTFIXDEC: null,
-    IGCALTTYP: null,
-  };
   /** Task I-58 - shared by both directions: the label ("CHECK(RB)", "DUP")
    *  when ONE keyword instance is on WRDWRAP's own conflict list, else
    *  null. Token-matched (split on whitespace/commas/parens) rather than
-   *  substring-matched, so e.g. CHECK(RB) hits but CHECK(AB) doesn't. */
+   *  substring-matched, so e.g. CHECK(RB) hits but CHECK(AB) doesn't.
+   *
+   *  Task I-121 - WRDWRAP's own conflict map (formerly
+   *  WRDWRAP_KEYWORD_CONFLICTS here) and the token-matching engine itself
+   *  (formerly this file's own exclusionListHit, shared with
+   *  igcalttypKeywordHits below) both moved to keywordSpec.js's
+   *  declarative RECORD_TYPES.WRDWRAP.conditionalMutex, evaluated via
+   *  KeywordSpec.conditionalMutexHit. */
   function wrdwrapKeywordHit(k) {
-    return exclusionListHit(WRDWRAP_KEYWORD_CONFLICTS, k);
-  }
-  /** Task I-71 - the token-matching core of wrdwrapKeywordHit, made generic
-   *  so IGCALTTYP's own exclusion list (below) shares it. `list` maps a
-   *  keyword NAME to null (any use of it is excluded) or to the array of
-   *  parameter tokens that are (a use with none of them is fine). */
-  function exclusionListHit(list, k) {
-    if (!k || !Object.prototype.hasOwnProperty.call(list, k.name)) return null;
-    var bad = list[k.name];
-    if (bad === null) return k.name;
-    var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
-    var matched = bad.filter(function (b) { return tokens.indexOf(b) >= 0; });
-    return matched.length ? k.name + '(' + matched.join(', ') + ')' : null;
+    return KeywordSpec.conditionalMutexHit('WRDWRAP', k);
   }
   function wrdwrapKeywordHits(keywords) {
     var hits = [];
@@ -1969,21 +1955,17 @@
    *  NG NL is the whole set), so any use of them is excluded (null). AUTO is
    *  only excluded with RAZ (AUTO(RAB) is fine) and CHECK only with the eight
    *  codes listed (CHECK(ME), CHECK(AB), CHECK(FE)... are fine). Token-matched,
-   *  never substring-matched, exactly as wrdwrapKeywordHit does. */
-  var IGCALTTYP_KEYWORD_CONFLICTS = {
-    AUTO: ['RAZ'],
-    BLKFOLD: null,
-    CHECK: ['M10', 'M11', 'M10F', 'M11F', 'RL', 'RZ', 'VN', 'VNE'],
-    CMP: null,
-    COMP: null,
-    DUP: null,
-    RANGE: null,
-    VALUES: null,
-  };
+   *  never substring-matched, exactly as wrdwrapKeywordHit does.
+   *
+   *  Task I-121 - IGCALTTYP's own conflict map (formerly
+   *  IGCALTTYP_KEYWORD_CONFLICTS here) now lives on keywordSpec.js's
+   *  declarative RECORD_TYPES.IGCALTTYP.conditionalMutex, evaluated via
+   *  the same KeywordSpec.conditionalMutexHit engine WRDWRAP's own entry
+   *  uses above. */
   function igcalttypKeywordHits(keywords) {
     var hits = [];
     (keywords || []).forEach(function (k) {
-      var h = exclusionListHit(IGCALTTYP_KEYWORD_CONFLICTS, k);
+      var h = KeywordSpec.conditionalMutexHit('IGCALTTYP', k);
       if (h) hits.push(h);
     });
     return hits;
@@ -2099,7 +2081,7 @@
       return hits.length ? igcalttypForwardReason(hits) : null;
     }
     if (!kws.some(function (k) { return k.name === 'IGCALTTYP'; })) return null;
-    var hit = exclusionListHit(IGCALTTYP_KEYWORD_CONFLICTS, { name: name, parameters: parameters });
+    var hit = KeywordSpec.conditionalMutexHit('IGCALTTYP', { name: name, parameters: parameters });
     return hit ? igcalttypReverseReason([hit]) : null;
   }
 
@@ -2629,7 +2611,7 @@
     if (usageReason) return usageReason;
     var dataTypeReason = wrdwrapDataTypeReason(dataType);
     if (dataTypeReason) return dataTypeReason;
-    if ((recordKeywords || []).some(function (k) { return k.name === 'SFL'; })) {
+    if ((recordKeywords || []).some(function (k) { return k.name === KeywordSpec.notAllowedInRecordType('WRDWRAP'); })) {
       return 'WRDWRAP is not supported on subfile (SFL) record fields (per the DDS Reference).';
     }
     var hits = wrdwrapKeywordHits(fieldKeywords);

@@ -477,6 +477,74 @@
         'keyword).',
       mutex: ['DFT', 'DFTVAL', 'FLTFIXDEC', 'FLTPCN', 'MSGCON'],
       notAllowedInRecordType: 'SFL'
+    },
+
+    // Task I-121 WRDWRAP/IGCALTTYP slice - wrdwrapKeywordHit's (I-58) own
+    // WRDWRAP_KEYWORD_CONFLICTS map and igcalttypKeywordHits's (I-71) own
+    // IGCALTTYP_KEYWORD_CONFLICTS map, both shared through the same
+    // generic `exclusionListHit` token-matching engine in dspfWriter.js.
+    // A genuinely new shape from every entry above: not a plain keyword
+    // NAME set (`mutex`), but a map from keyword name to either null (any
+    // use of it is excluded) or an array of the specific PARAMETER TOKENS
+    // that are excluded (a use with none of them is fine) - e.g.
+    // AUTO(RAB) is fine on a WRDWRAP field but AUTO(RAZ)/AUTO(RAB) both
+    // conflict, while CMP is excluded outright regardless of its operator
+    // since every comparison operator it can take is on the list. Named
+    // `conditionalMutex` to distinguish it from the unconditional `mutex`
+    // shape; evaluated by the new `conditionalMutexHit` accessor below,
+    // which IS the token-matching engine itself now (moved out of
+    // dspfWriter.js's own `exclusionListHit`, the same "evaluation logic
+    // lives beside the data it evaluates" split `isMutex`/`isWhitelisted`
+    // already established).
+    WRDWRAP: {
+      // DDS_Keyword_V7r6.txt, "WRDWRAP (Word Wrap) keyword for display
+      // files" section (line ~13788): "WRDWRAP cannot be specified with
+      // the following keywords: AUTO(RAZ, RAB), CHECK(MF, M10F, M11F,
+      // RB, RZ, RL, RLTB), CHGINPDFT(MF), DSPATR(OID, SP), DUP,
+      // FLTFIXDEC, IGCALTTYP." Re-verified fresh, unchanged from what the
+      // code already had.
+      ddsReference:
+        'WRDWRAP cannot be specified with the following keywords: ' +
+        'AUTO(RAZ, RAB), CHECK(MF, M10F, M11F, RB, RZ, RL, RLTB), ' +
+        'CHGINPDFT(MF), DSPATR(OID, SP), DUP, FLTFIXDEC, IGCALTTYP. ' +
+        '... Notes: ... 3. Subfiles do not support WRDWRAP.',
+      conditionalMutex: {
+        AUTO: ['RAZ', 'RAB'],
+        CHECK: ['MF', 'M10F', 'M11F', 'RB', 'RZ', 'RL', 'RLTB'],
+        CHGINPDFT: ['MF'],
+        DSPATR: ['OID', 'SP'],
+        DUP: null,
+        FLTFIXDEC: null,
+        IGCALTTYP: null
+      },
+      notAllowedInRecordType: 'SFL'
+    },
+    IGCALTTYP: {
+      // DDS_Keyword_V7r6.txt, "IGCALTTYP (Alternative Data Type) keyword"
+      // section (line ~14968): "The following keywords are not allowed
+      // with the IGCALTTYP keyword: AUTO(RAZ), BLKFOLD, CHECK(M10 M11
+      // M10F M11F RL RZ VN VNE), CMP(EQ GE GT LE LT NE NG NL), COMP(EQ GE
+      // GT LE LT NE NG NL), DUP, RANGE, VALUES." Re-verified fresh,
+      // unchanged from what the code already had. IGCALTTYP-vs-WRDWRAP is
+      // already covered from WRDWRAP's own entry above (WRDWRAP.
+      // conditionalMutex.IGCALTTYP === null) and deliberately not
+      // repeated here - single source of truth for that pair, same
+      // principle the HLPDOC/HLPPNLGRP slice established.
+      ddsReference:
+        'The following keywords are not allowed with the IGCALTTYP ' +
+        'keyword: AUTO(RAZ), BLKFOLD, CHECK(M10 M11 M10F M11F RL RZ VN ' +
+        'VNE), CMP(EQ GE GT LE LT NE NG NL), COMP(EQ GE GT LE LT NE NG ' +
+        'NL), DUP, RANGE, VALUES.',
+      conditionalMutex: {
+        AUTO: ['RAZ'],
+        BLKFOLD: null,
+        CHECK: ['M10', 'M11', 'M10F', 'M11F', 'RL', 'RZ', 'VN', 'VNE'],
+        CMP: null,
+        COMP: null,
+        DUP: null,
+        RANGE: null,
+        VALUES: null
+      }
     }
   };
 
@@ -530,11 +598,31 @@
     return (spec && spec.notAllowedInRecordType) || null;
   }
 
+  /** Task I-121 (WRDWRAP/IGCALTTYP slice) - the token-matching engine
+   *  moved here from dspfWriter.js's own `exclusionListHit`, now reading
+   *  `recordType`'s `conditionalMutex` map instead of taking one as a
+   *  plain argument. Returns the matched label (e.g. "CHECK(RB)", "DUP")
+   *  when `k` (a `{name, parameters}` keyword instance) hits
+   *  `recordType`'s own conditional-mutex map, else null. Token-matched
+   *  (split on whitespace/commas/parens) rather than substring-matched,
+   *  so e.g. CHECK(RB) hits but CHECK(AB) doesn't. */
+  function conditionalMutexHit(recordType, k) {
+    var spec = RECORD_TYPES[recordType];
+    var list = spec && spec.conditionalMutex;
+    if (!list || !k || !Object.prototype.hasOwnProperty.call(list, k.name)) return null;
+    var bad = list[k.name];
+    if (bad === null) return k.name;
+    var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
+    var matched = bad.filter(function (b) { return tokens.indexOf(b) >= 0; });
+    return matched.length ? k.name + '(' + matched.join(', ') + ')' : null;
+  }
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
     isMutex: isMutex,
     mutexKeywords: mutexKeywords,
-    notAllowedInRecordType: notAllowedInRecordType
+    notAllowedInRecordType: notAllowedInRecordType,
+    conditionalMutexHit: conditionalMutexHit
   };
 });
