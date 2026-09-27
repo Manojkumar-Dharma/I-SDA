@@ -807,6 +807,30 @@
       mustBeFirstField: true,
       onePerRecord: true,
       mutex: ['SFLNXTCHG']
+    },
+
+    // Task I-125 - RANGE's own DDS Reference section (line ~10007),
+    // COMP's own (line ~4381), and VALUES' own (line ~13201) each
+    // independently state the identical restriction as DUP/BLKFOLD
+    // above - all three are field-level-only keywords (per their own
+    // sections), and each is a plain named keyword occurrence (per
+    // getValidityCheckInstances' own doc comment: mutually exclusive
+    // alternative keyword NAMES, not two keywords paired into one
+    // state), so floatIncompatibleKeywordNewConflictReason (I-72/I-96)
+    // applies to them unchanged - see rangeFloatNewConflictReason/
+    // compFloatNewConflictReason/valuesFloatNewConflictReason in
+    // dspfWriter.js.
+    RANGE: {
+      floatDdsReference: 'You cannot specify RANGE on a floating-point field (F in position 35).',
+      notAllowedOnFloatingPointField: true
+    },
+    COMP: {
+      floatDdsReference: 'You cannot specify the COMP keyword on a floating-point field (F in position 35).',
+      notAllowedOnFloatingPointField: true
+    },
+    VALUES: {
+      floatDdsReference: 'You cannot specify VALUES on a floating-point field (F in position 35).',
+      notAllowedOnFloatingPointField: true
     }
   };
 

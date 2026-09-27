@@ -4711,6 +4711,34 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(blkfoldFloatEditReason);
           return;
         }
+        // Task I-125: RANGE/COMP/VALUES cannot be specified on a
+        // floating-point field, same restriction and same shape as the
+        // DUP/BLKFOLD checks just above. The commitEdit backstop covers
+        // this too; repeated here as an early return, same reasoning.
+        const rangeFloatEditReason = DspfWriter.rangeFloatNewConflictReason(field, updates);
+        if (rangeFloatEditReason) {
+          window.alert(rangeFloatEditReason);
+          return;
+        }
+        const compFloatEditReason = DspfWriter.compFloatNewConflictReason(field, updates);
+        if (compFloatEditReason) {
+          window.alert(compFloatEditReason);
+          return;
+        }
+        const valuesFloatEditReason = DspfWriter.valuesFloatNewConflictReason(field, updates);
+        if (valuesFloatEditReason) {
+          window.alert(valuesFloatEditReason);
+          return;
+        }
+        // Task I-125: CHECK(AB) specifically (not CHECK's other codes)
+        // cannot be specified on a floating-point field. The commitEdit
+        // backstop covers this too; repeated here as an early return,
+        // same reasoning as the RANGE/COMP/VALUES checks above.
+        const checkAbFloatEditReason = DspfWriter.checkAbFloatIncompatibleNewConflictReason(field, updates);
+        if (checkAbFloatEditReason) {
+          window.alert(checkAbFloatEditReason);
+          return;
+        }
         // Task I-69: CHKMSGID also requires an input-capable field (usage B
         // or I) - blocks a usage CHANGE to O/H/M/P on a field that already
         // carries it. Same diff-based idiom as the WRDWRAP check above.
@@ -6565,6 +6593,33 @@ const htmlTemplate = `<!DOCTYPE html>
     const blkfoldFloatReason = DspfWriter.blkfoldFloatNewConflictReason(field, updates);
     if (blkfoldFloatReason) {
       window.alert(blkfoldFloatReason);
+      render();
+      return;
+    }
+    // Task I-125: RANGE/COMP/VALUES/CHECK(AB) cannot be specified on a
+    // floating-point field (DDS Reference) - same shape and same
+    // reasoning as the DUP/BLKFOLD checks just above.
+    const rangeFloatReason = DspfWriter.rangeFloatNewConflictReason(field, updates);
+    if (rangeFloatReason) {
+      window.alert(rangeFloatReason);
+      render();
+      return;
+    }
+    const compFloatReason = DspfWriter.compFloatNewConflictReason(field, updates);
+    if (compFloatReason) {
+      window.alert(compFloatReason);
+      render();
+      return;
+    }
+    const valuesFloatReason = DspfWriter.valuesFloatNewConflictReason(field, updates);
+    if (valuesFloatReason) {
+      window.alert(valuesFloatReason);
+      render();
+      return;
+    }
+    const checkAbFloatReason = DspfWriter.checkAbFloatIncompatibleNewConflictReason(field, updates);
+    if (checkAbFloatReason) {
+      window.alert(checkAbFloatReason);
       render();
       return;
     }

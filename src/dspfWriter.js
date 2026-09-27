@@ -2640,6 +2640,76 @@
     return floatIncompatibleKeywordNewConflictReason('BLKFOLD', oldField, updates);
   }
 
+  /** Task I-125 - RANGE's/COMP's/VALUES' own DDS Reference sections each
+   *  independently state the identical "cannot be specified on a
+   *  floating-point field (F in position 35)" restriction DUP/BLKFOLD's
+   *  own sections state. All three are field-level-only keywords, and
+   *  each is a plain named keyword occurrence (per
+   *  getValidityCheckInstances' own doc comment: mutually exclusive
+   *  alternative keyword NAMES, not two keywords paired into one state),
+   *  so floatIncompatibleKeywordNewConflictReason's (I-72/I-96) existing
+   *  name-presence diff logic applies unchanged - same shape as
+   *  dupFloatNewConflictReason/blkfoldFloatNewConflictReason just above,
+   *  same two call sites (commitEdit, plus the Basic tab's Apply as an
+   *  early return). */
+  function rangeFloatNewConflictReason(oldField, updates) {
+    return floatIncompatibleKeywordNewConflictReason('RANGE', oldField, updates);
+  }
+  function compFloatNewConflictReason(oldField, updates) {
+    return floatIncompatibleKeywordNewConflictReason('COMP', oldField, updates);
+  }
+  function valuesFloatNewConflictReason(oldField, updates) {
+    return floatIncompatibleKeywordNewConflictReason('VALUES', oldField, updates);
+  }
+
+  /** Task I-125 - CHECK(AB) specifically (not CHECK's other validity-
+   *  check codes) cannot be specified on a floating-point field (F in
+   *  position 35, per CHECK's own DDS Reference section). CHECK's own
+   *  keyword NAME never changes across its many codes - only the code
+   *  within its `parameters` string does (e.g. `CHECK(M10 ME)` vs
+   *  `CHECK(AB)`) - so the plain by-name presence check
+   *  floatIncompatibleKeywordNewConflictReason's other three callers
+   *  reuse unchanged doesn't fit here; this tokenizes `parameters` the
+   *  same way hasChkmsgidQualifier (I-69) already does for its own
+   *  CHECK-code check, testing for the AB token specifically. Not
+   *  spec-driven, unlike RANGE/COMP/VALUES above - CHECK's own
+   *  RECORD_TYPES entry, if it existed, would have to describe one code
+   *  among several, not a whole-keyword fact - so 'AB' is hard-coded
+   *  here, mirroring CHKMSGID_QUALIFYING_CHECK_CODES's own precedent for
+   *  exactly this reason. Same diff-based shape and two call sites
+   *  (commitEdit, plus the Basic tab's Apply as an early return) as the
+   *  other three floating-point guards above.
+   *
+   *  File/record-level CHECK(AB) needs no separate guard: it only
+   *  "applies for all input-capable fields... for which a validity
+   *  checking keyword is coded" (CHECK's own section), and every
+   *  validity-checking keyword (COMP/RANGE/VALUES/CHECK's own other
+   *  codes) is itself floating-point-incompatible, so a floating-point
+   *  field can never legally carry one for a file/record-level
+   *  CHECK(AB) to apply to - the restriction is structurally moot at
+   *  those two levels. */
+  function checkAbFloatIncompatibleNewConflictReason(oldField, updates) {
+    var o = oldField || {};
+    var u = updates || {};
+    var hasAb = function (kws) {
+      return (kws || []).some(function (k) {
+        if (!k || k.name !== 'CHECK') return false;
+        var tokens = String(k.parameters == null ? '' : k.parameters).toUpperCase().split(/[\s,()]+/).filter(Boolean);
+        return tokens.indexOf('AB') >= 0;
+      });
+    };
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
+    var newDataType = owns('dataType') ? norm(u.dataType) : norm(o.dataType);
+    var newKeywords = owns('keywords') ? u.keywords : o.keywords;
+    if (newDataType !== 'F' || !hasAb(newKeywords)) return null;
+    if (norm(o.dataType) === 'F' && hasAb(o.keywords)) return null;
+    if (!hasAb(o.keywords)) {
+      return 'CHECK(AB) cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
+    }
+    return 'The data type cannot be changed to F (floating point) while the field carries CHECK(AB) - CHECK(AB) cannot be specified on a floating-point field (per the DDS Reference). Remove CHECK(AB) first.';
+  }
+
   function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {
     if (keywordName !== 'WRDWRAP') return null;
     var usageReason = wrdwrapUsageReason(usage);
@@ -8522,6 +8592,10 @@
     dupFloatFieldNote: dupFloatFieldNote,
     blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,
     floatIncompatibleKeywordNewConflictReason: floatIncompatibleKeywordNewConflictReason,
+    rangeFloatNewConflictReason: rangeFloatNewConflictReason,
+    compFloatNewConflictReason: compFloatNewConflictReason,
+    valuesFloatNewConflictReason: valuesFloatNewConflictReason,
+    checkAbFloatIncompatibleNewConflictReason: checkAbFloatIncompatibleNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,

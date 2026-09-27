@@ -51,10 +51,15 @@ console.log('\nkeywordSpec.js RECORD_TYPES.{DUP,BLKFOLD}.notAllowedOnFloatingPoi
     check(name + '.floatDdsReference matches its own DDS Reference wording verbatim', spec.floatDdsReference === expectedCitations[name]);
   });
 
+  // Task I-125 later extended this same flag to COMP/RANGE/VALUES (a
+  // deferred finding this slice itself raised) - DUP and BLKFOLD are
+  // still the only two flagged by asserting membership directly, since
+  // "no OTHER entry is ever flagged" is no longer this slice's own fact
+  // to assert once a later task legitimately extends the same field.
   const flaggedNames = Object.keys(KeywordSpec.RECORD_TYPES).filter(function (name) {
     return KeywordSpec.RECORD_TYPES[name].notAllowedOnFloatingPointField;
   });
-  check('no RECORD_TYPES entry other than DUP/BLKFOLD carries notAllowedOnFloatingPointField', flaggedNames.length === 2);
+  check('DUP and BLKFOLD both carry notAllowedOnFloatingPointField', flaggedNames.indexOf('DUP') >= 0 && flaggedNames.indexOf('BLKFOLD') >= 0);
 }
 
 // ===========================================================================
@@ -67,7 +72,10 @@ console.log('\nKeywordSpec.isNotAllowedOnFloatingPointField');
   });
   check('an unrelated keyword (TEXT) is not flagged', KeywordSpec.isNotAllowedOnFloatingPointField('TEXT') === false);
   check('a keyword with no spec entry at all is not flagged (fails open, false)', KeywordSpec.isNotAllowedOnFloatingPointField('NOSUCHKEYWORD') === false);
-  check('COMP (a real DDS Reference floating-point restriction, not yet wired to any guard - see the Deferred findings table) is deliberately NOT flagged by this slice', KeywordSpec.isNotAllowedOnFloatingPointField('COMP') === false);
+  // Task I-125 closed this gap - COMP IS now flagged too (see
+  // i125FloatIncompatibleValidityCheckGuard.test.js for that task's own
+  // coverage). This slice's own scope was only ever DUP/BLKFOLD.
+  check('COMP is flagged too, since I-125 (this test\'s own deferred finding)', KeywordSpec.isNotAllowedOnFloatingPointField('COMP') === true);
 }
 
 // ===========================================================================
