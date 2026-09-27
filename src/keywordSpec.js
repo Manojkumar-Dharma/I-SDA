@@ -694,8 +694,75 @@
       },
       ineligibleWhenDecimalsSpecified: true,
       ineligibleOnConstant: true
+    },
+
+    // Task I-121 date/time-keyword slice - DATFMT/DATSEP (date fields,
+    // data type L) and TIMFMT/TIMSEP (time fields, data type T). Each
+    // pair's own DDS Reference section re-verified fresh: DATFMT (line
+    // ~4531), DATSEP (line ~4602), TIMFMT (line ~12864), TIMSEP (line
+    // ~12927) - unchanged from what dateSeparatorConflictReason/
+    // timeSeparatorConflictReason already had as their own hard-coded
+    // FIXED_SEPARATOR_DATE_FORMATS/FIXED_SEPARATOR_TIME_FORMATS arrays.
+    //
+    // A shape distinct from CHRID's `mutex` (a fixed list of keyword
+    // NAMES forbidden outright): here DATSEP/TIMSEP aren't forbidden by a
+    // sibling keyword's mere PRESENCE, but by that sibling's own
+    // PARAMETER value being one of four fixed-separator formats -
+    // `fixedSeparatorPartner` names the sibling keyword to check,
+    // `fixedSeparatorFormats` the values that forbid this one.
+    DATFMT: {
+      ddsReference:
+        'You use this field-level keyword to specify the format of a ' +
+        'date field. This keyword is valid only for date fields (data ' +
+        'type L).',
+      validDataType: 'L'
+    },
+    DATSEP: {
+      ddsReference:
+        'You use this field-level keyword to specify the separator ' +
+        'character for a date field. This keyword is valid only for ' +
+        'date fields (data type L). If you specify the *ISO, *USA, ' +
+        '*EUR, or *JIS date format value for the DATFMT keyword, you ' +
+        'should not specify the DATSEP keyword. These formats have ' +
+        'fixed date separators.',
+      validDataType: 'L',
+      fixedSeparatorPartner: 'DATFMT',
+      fixedSeparatorFormats: ['*ISO', '*USA', '*EUR', '*JIS']
+    },
+    TIMFMT: {
+      ddsReference:
+        'You use this field-level keyword to specify the format of a ' +
+        'time field. This keyword is valid for time fields (data type ' +
+        'T).',
+      validDataType: 'T'
+    },
+    TIMSEP: {
+      ddsReference:
+        'You use this field-level keyword to specify the separator ' +
+        'character used for a time field. This keyword is valid only ' +
+        'for time fields (data type T). If you specify the *ISO, *USA, ' +
+        '*EUR, or *JIS time-format values for the TIMFMT keyword, you ' +
+        'should not specify the TIMSEP keyword. These formats have ' +
+        'fixed separators.',
+      validDataType: 'T',
+      fixedSeparatorPartner: 'TIMFMT',
+      fixedSeparatorFormats: ['*ISO', '*USA', '*EUR', '*JIS']
     }
   };
+
+  // Task I-121 date/time-keyword slice - the L/T/Z usage restriction the
+  // DDS Reference states once, for all three date/time data types
+  // together, in the general field-description text ("Date (L), Time
+  // (T), and Timestamp (Z)", page 18, re-verified fresh): "Valid field
+  // usage (DDS position 38) can be O, B, or I" - unchanged from what
+  // dateTimeUsageConflictReason already enforced. Keyed by data-type
+  // letter rather than by keyword name, since this restricts a FIELD
+  // PROPERTY (its data type), not any one keyword's own use - a
+  // genuinely different axis from every RECORD_TYPES entry above, so it
+  // gets its own small map rather than an awkward fourth "record type"
+  // named after a data-type letter.
+  var DATE_TIME_DATA_TYPES = { L: true, T: true, Z: true };
+  var DATE_TIME_ALLOWED_USAGE = ['O', 'B', 'I'];
 
   // Task I-121 PSHBTNFLD slice - the PSHBTNFLD/PSHBTNCHC mutual
   // requirement ("A field containing the PSHBTNFLD keyword must also
@@ -910,6 +977,46 @@
     return matched.length ? k.name + '(' + matched.join(', ') + ')' : null;
   }
 
+  /** Whether `dataType` is one of the Date(L)/Time(T)/Timestamp(Z) types
+   *  the DDS Reference restricts to usage O/B/I only (see
+   *  DATE_TIME_DATA_TYPES' own comment above). */
+  function isDateTimeDataType(dataType) {
+    return !!DATE_TIME_DATA_TYPES[dataType];
+  }
+
+  /** The allowed usage values (O, B, I) for a Date/Time/Timestamp field -
+   *  a copy, safe for the caller to inspect without mutating the spec. */
+  function dateTimeAllowedUsage() {
+    return DATE_TIME_ALLOWED_USAGE.slice();
+  }
+
+  /** `keywordName`'s own single valid data-type letter (the DATFMT/
+   *  DATSEP/TIMFMT/TIMSEP shape - e.g. 'L' for DATFMT), or null for a
+   *  keyword with no spec entry or no such restriction. */
+  function validDataType(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return (spec && spec.validDataType) || null;
+  }
+
+  /** Whether `format` (e.g. '*ISO') is one of `keywordName`'s own
+   *  fixed-separator format values (the DATSEP/TIMSEP shape, checked
+   *  against the sibling format keyword named by `fixedSeparatorPartner`
+   *  below). Returns false for a keyword with no such list. */
+  function isFixedSeparatorFormat(keywordName, format) {
+    var spec = RECORD_TYPES[keywordName];
+    var list = spec && spec.fixedSeparatorFormats;
+    if (!list) return false;
+    return list.indexOf(String(format == null ? '' : format).toUpperCase()) !== -1;
+  }
+
+  /** The sibling format keyword (e.g. 'DATFMT' for 'DATSEP') whose value
+   *  `isFixedSeparatorFormat` should be checked against, or null for a
+   *  keyword with no spec entry or no such partner. */
+  function fixedSeparatorPartner(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return (spec && spec.fixedSeparatorPartner) || null;
+  }
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
@@ -925,6 +1032,11 @@
     definitionRequirements: definitionRequirements,
     ineligibleUsageLabel: ineligibleUsageLabel,
     ineligibleWhenDecimalsSpecified: ineligibleWhenDecimalsSpecified,
-    ineligibleOnConstant: ineligibleOnConstant
+    ineligibleOnConstant: ineligibleOnConstant,
+    isDateTimeDataType: isDateTimeDataType,
+    dateTimeAllowedUsage: dateTimeAllowedUsage,
+    validDataType: validDataType,
+    isFixedSeparatorFormat: isFixedSeparatorFormat,
+    fixedSeparatorPartner: fixedSeparatorPartner
   };
 });

@@ -1149,11 +1149,13 @@
    *  `usage` is invalid for `dataType`, or null if it's fine (including
    *  for every non-L/T/Z data type, which this check doesn't apply to
    *  at all). */
+  // Task I-121 date/time-keyword slice - now reads
+  // KeywordSpec.isDateTimeDataType/dateTimeAllowedUsage instead of its own
+  // hard-coded 'L'/'T'/'Z' and 'O'/'B'/'I' checks.
   function dateTimeUsageConflictReason(dataType, usage) {
-    var isDateTimeType = dataType === 'L' || dataType === 'T' || dataType === 'Z';
-    if (!isDateTimeType) return null;
+    if (!KeywordSpec.isDateTimeDataType(dataType)) return null;
     var u = (usage || '').toUpperCase();
-    if (u === 'O' || u === 'B' || u === 'I') return null;
+    if (KeywordSpec.dateTimeAllowedUsage().indexOf(u) !== -1) return null;
     return 'Date/Time/Timestamp fields (data type L/T/Z) must be usage O, B, or I (per the DDS Reference).';
   }
 
@@ -1180,8 +1182,9 @@
   // getEditMask/setEditMask's own pattern directly.
   // ---------------------------------------------------------------------
 
-  var FIXED_SEPARATOR_DATE_FORMATS = ['*ISO', '*USA', '*EUR', '*JIS'];
-  var FIXED_SEPARATOR_TIME_FORMATS = ['*ISO', '*USA', '*EUR', '*JIS'];
+  // Task I-121 date/time-keyword slice - these two arrays moved to
+  // keywordSpec.js's own DATSEP/TIMSEP `fixedSeparatorFormats` entries
+  // (identical values, now declared once each instead of twice here).
 
   /** DATFMT's own parameter is a bare special value (e.g. "*JUL") with no
    *  quoting - unlike DATSEP/TIMSEP below, there's no free text to parse
@@ -1255,7 +1258,7 @@
    *  blank/unspecified dateFormat, which defaults to *ISO per DATFMT's
    *  own text but hasn't been explicitly chosen yet). */
   function dateSeparatorConflictReason(dateFormat) {
-    if (FIXED_SEPARATOR_DATE_FORMATS.indexOf((dateFormat || '').toUpperCase()) !== -1) {
+    if (KeywordSpec.isFixedSeparatorFormat('DATSEP', dateFormat)) {
       return 'DATSEP cannot be specified with DATFMT(' + dateFormat + ') - this format has a fixed date separator (per the DDS Reference).';
     }
     return null;
@@ -1294,7 +1297,7 @@
    *  keyword. These formats have fixed separators." Enforced the same
    *  way as dateSeparatorConflictReason above. */
   function timeSeparatorConflictReason(timeFormat) {
-    if (FIXED_SEPARATOR_TIME_FORMATS.indexOf((timeFormat || '').toUpperCase()) !== -1) {
+    if (KeywordSpec.isFixedSeparatorFormat('TIMSEP', timeFormat)) {
       return 'TIMSEP cannot be specified with TIMFMT(' + timeFormat + ') - this format has a fixed time separator (per the DDS Reference).';
     }
     return null;
