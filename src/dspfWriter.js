@@ -2554,7 +2554,21 @@
   // keyword name; the two originally-named functions are now thin
   // wrappers so both existing call sites (commitEdit's guard chain) keep
   // working unchanged.
+  /** Task I-72/I-96 - generic diff-based guard shared by dupFloatNewConflictReason
+   *  and blkfoldFloatNewConflictReason: given a field's state before an edit
+   *  and the edit's own updates, returns a reason string if the edit either
+   *  introduces `keywordName` onto an already-floating-point field or
+   *  changes the data type to F while `keywordName` is already present,
+   *  else null. Diff-based (only an edit that INTRODUCES the violation is
+   *  blocked; an already-invalid hand-written field is not re-reported).
+   *
+   *  Task I-121 DUP/BLKFOLD-floating-point slice - `keywordName` is now
+   *  asserted against KeywordSpec.isNotAllowedOnFloatingPointField before
+   *  proceeding, rather than trusting every caller to only ever pass one
+   *  of the (previously unwritten-down) valid names - harmless to both
+   *  existing callers, DUP and BLKFOLD, since both are spec-flagged. */
   function floatIncompatibleKeywordNewConflictReason(keywordName, oldField, updates) {
+    if (!KeywordSpec.isNotAllowedOnFloatingPointField(keywordName)) return null;
     var o = oldField || {};
     var u = updates || {};
     var has = function (kws) { return (kws || []).some(function (k) { return k.name === keywordName; }); };
@@ -8474,6 +8488,7 @@
     dupCheckboxOffered: dupCheckboxOffered,
     dupFloatFieldNote: dupFloatFieldNote,
     blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,
+    floatIncompatibleKeywordNewConflictReason: floatIncompatibleKeywordNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,

@@ -640,6 +640,22 @@
         usage: ['I', 'B'],
         usageDefault: 'B'
       }
+    },
+
+    // Task I-121 DUP/BLKFOLD-floating-point slice - DUP's own DDS
+    // Reference section (line ~5490) and BLKFOLD's own (line ~2392) each
+    // independently state the identical restriction, re-verified fresh,
+    // unchanged from what floatIncompatibleKeywordNewConflictReason
+    // (I-72/I-96) already enforced for both - only the "which keywords"
+    // fact itself, previously living solely as each of these two
+    // one-line wrapper functions' own hard-coded name, is new here.
+    DUP: {
+      floatDdsReference: 'You cannot specify the DUP keyword on a floating-point field (F in position 35).',
+      notAllowedOnFloatingPointField: true
+    },
+    BLKFOLD: {
+      floatDdsReference: 'You cannot specify the BLKFOLD keyword on a floating-point field (F in position 35).',
+      notAllowedOnFloatingPointField: true
     }
   };
 
@@ -788,6 +804,16 @@
     return !!(spec && spec.passrcdRestricted);
   }
 
+  /** Task I-121 DUP/BLKFOLD-floating-point slice - whether `keywordName`
+   *  is one of the keywords the DDS Reference forbids on a floating-point
+   *  field (F in position 35) - see each entry's own `floatDdsReference`
+   *  comment above. Returns false for a keyword with no spec entry or no
+   *  such flag. */
+  function isNotAllowedOnFloatingPointField(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.notAllowedOnFloatingPointField);
+  }
+
   /** The full list of PASSRCD-restricted keyword names, in `RECORD_TYPES`'
    *  own declared order (WINDOW, ALWROL, CLRL, SLNO) - the single source
    *  of truth `passrcdRecordConflictReason`'s own callers previously each
@@ -828,6 +854,7 @@
     notAllowedInRecordType: notAllowedInRecordType,
     isPassrcdRestricted: isPassrcdRestricted,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
+    isNotAllowedOnFloatingPointField: isNotAllowedOnFloatingPointField,
     conditionalMutexHit: conditionalMutexHit,
     groupMutexKeywords: groupMutexKeywords,
     requiredPartner: requiredPartner,
