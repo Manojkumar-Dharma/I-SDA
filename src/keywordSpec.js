@@ -747,6 +747,66 @@
       validDataType: 'T',
       fixedSeparatorPartner: 'TIMFMT',
       fixedSeparatorFormats: ['*ISO', '*USA', '*EUR', '*JIS']
+    },
+
+    // Task I-121 SFLCHCCTL slice - SFLCHCCTL's own DDS Reference section
+    // (line ~10566) states four independent rules, previously spread
+    // across sflchcctlDefinitionUpdates (I-79, the field-shape rule) and
+    // sflchcctlFieldConflictReason (I-79's own first-field/one-per-record
+    // pair, plus I-86's SFLNXTCHG cross-check folded in later), each
+    // re-embedding the same facts as its own hard-coded literals -
+    // sflchcctlReorderConflictReason (I-87) and sflNxtchgSflchcctlConflictReason/
+    // sflctlNxtchgSflchcctlConflictReason (I-86) read the first-field and
+    // SFLNXTCHG facts too, from the other direction.
+    //
+    // Re-verified fresh against DDS_Keyword_V7r6.txt, unchanged from what
+    // the code already had: "When the SFLCHCCTL keyword is specified on a
+    // field, that field will be considered the control field for that
+    // record. That field must be the first field defined in the subfile
+    // record. That field must have a length of 1, data type of Y, decimal
+    // positions of zero, and have a usage of H... SFLNXTCHC keyword cannot
+    // be specified in a record that contains a field with the SFLCHCCTL
+    // keyword. Only one SFLCHCCTL keyword can be used in one subfile
+    // record." ("SFLNXTCHC" is the single-dropped-letter SFLNXTCHG typo
+    // I-86's own doc comment already identified - the DDS Reference spells
+    // SFLNXTCHG correctly 15 other times in the same document.)
+    //
+    // `definitionRequirements` reuses PSHBTNFLD's own shape unchanged - a
+    // single-value `usage: ['H']` array is exactly as well-formed a case
+    // of "the allowed usage values" as PSHBTNFLD's two-value ['I', 'B'].
+    // `mustBeFirstField` and `onePerRecord` are two genuinely new shapes -
+    // no prior RECORD_TYPES entry needed either fact - each a plain
+    // boolean flag, consulted by name so a future keyword needing the
+    // same rule (SFLSCROLL's own "only one per record" restriction,
+    // enforced today only as sflScrollFieldConflictReason's own inline
+    // siblingFieldsKeywords check, is a candidate - not migrated here,
+    // outside this slice's scope, logged in the Deferred findings table).
+    // `mutex: ['SFLNXTCHG']` reuses the DSPMOD/SFL shape - a one-
+    // directional-in-the-DDS-Reference's-own-wording pair (SFLCHCCTL's own
+    // section states the restriction; SFLNXTCHG's own section, modeled
+    // separately above, states only its own SFLMSGRCD exclusion) modeled
+    // as an ordinary mutex entry, read from both directions in
+    // dspfWriter.js exactly as DSPMOD/SFL already is.
+    SFLCHCCTL: {
+      ddsReference:
+        'When the SFLCHCCTL keyword is specified on a field, that field ' +
+        'will be considered the control field for that record. That ' +
+        'field must be the first field defined in the subfile record. ' +
+        'That field must have a length of 1, data type of Y, decimal ' +
+        'positions of zero, and have a usage of H. ... SFLNXTCHC keyword ' +
+        'cannot be specified in a record that contains a field with the ' +
+        'SFLCHCCTL keyword. Only one SFLCHCCTL keyword can be used in ' +
+        'one subfile record.',
+      definitionRequirements: {
+        dataType: 'Y',
+        length: 1,
+        decimalPositions: 0,
+        usage: ['H'],
+        usageDefault: 'H'
+      },
+      mustBeFirstField: true,
+      onePerRecord: true,
+      mutex: ['SFLNXTCHG']
     }
   };
 
@@ -1017,6 +1077,23 @@
     return (spec && spec.fixedSeparatorPartner) || null;
   }
 
+  /** Task I-121 SFLCHCCTL slice - whether `keywordName` must be on the
+   *  first (named, non-constant) field defined in its record (the
+   *  SFLCHCCTL shape). Returns false for a keyword with no spec entry or
+   *  no such flag. */
+  function mustBeFirstField(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.mustBeFirstField);
+  }
+
+  /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
+   *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
+   *  for a keyword with no spec entry or no such flag. */
+  function isOnePerRecord(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.onePerRecord);
+  }
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
@@ -1037,6 +1114,8 @@
     dateTimeAllowedUsage: dateTimeAllowedUsage,
     validDataType: validDataType,
     isFixedSeparatorFormat: isFixedSeparatorFormat,
-    fixedSeparatorPartner: fixedSeparatorPartner
+    fixedSeparatorPartner: fixedSeparatorPartner,
+    mustBeFirstField: mustBeFirstField,
+    isOnePerRecord: isOnePerRecord
   };
 });

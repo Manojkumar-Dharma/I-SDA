@@ -7533,27 +7533,37 @@
    *  this Reference calls constants out separately from fields, and IBM's
    *  own SFLCHCCTL example places the control field before any other
    *  field with no constant in between. */
+  //  Task I-121 (SFLCHCCTL slice) - now reads
+  //  KeywordSpec.definitionRequirements('SFLCHCCTL') instead of its own
+  //  hand-written Y/1/0/H literals, mirroring pshbtnfldDefinitionUpdates's
+  //  own I-121 refactor; behavior is unchanged.
   function sflchcctlDefinitionUpdates(field) {
     var f = field || {};
+    var req = KeywordSpec.definitionRequirements('SFLCHCCTL');
     var updates = {};
-    if ((f.dataType || '').toUpperCase() !== 'Y') updates.dataType = 'Y';
-    if (Number(f.length) !== 1) updates.length = 1;
-    if (Number(f.decimalPositions) !== 0 || f.decimalPositions == null) updates.decimalPositions = 0;
-    if ((f.usage || '').toUpperCase() !== 'H') updates.usage = 'H';
+    if ((f.dataType || '').toUpperCase() !== req.dataType) updates.dataType = req.dataType;
+    if (Number(f.length) !== req.length) updates.length = req.length;
+    if (Number(f.decimalPositions) !== req.decimalPositions || f.decimalPositions == null) updates.decimalPositions = req.decimalPositions;
+    if (req.usage.indexOf((f.usage || '').toUpperCase()) < 0) updates.usage = req.usageDefault;
     return Object.keys(updates).length ? updates : null;
   }
 
+  //  Task I-121 - the first-field, one-per-record and SFLNXTCHG facts
+  //  moved to keywordSpec.js's declarative RECORD_TYPES.SFLCHCCTL entry
+  //  (mustBeFirstField, onePerRecord, mutex); this function now reads them
+  //  through KeywordSpec.mustBeFirstField/isOnePerRecord/isMutex instead of
+  //  its own inline literals - behavior and message text unchanged.
   function sflchcctlFieldConflictReason(isFirstField, siblingFieldsKeywords, recordKeywords) {
-    if (!isFirstField) return 'SFLCHCCTL must be on the first field defined in the subfile record (per the DDS Reference).';
+    if (KeywordSpec.mustBeFirstField('SFLCHCCTL') && !isFirstField) return 'SFLCHCCTL must be on the first field defined in the subfile record (per the DDS Reference).';
     var alreadyElsewhere = (siblingFieldsKeywords || []).some(function (fk) {
       return (fk || []).some(function (kw) { return kw.name === 'SFLCHCCTL'; });
     });
-    if (alreadyElsewhere) return 'Only one SFLCHCCTL keyword is allowed in the subfile record - another field already has it.';
+    if (KeywordSpec.isOnePerRecord('SFLCHCCTL') && alreadyElsewhere) return 'Only one SFLCHCCTL keyword is allowed in the subfile record - another field already has it.';
     // Task I-86 - the reverse direction of sflNxtchgSflchcctlConflictReason
     // below: the same DDS Reference sentence blocks SFLCHCCTL from being
     // added when the record already has SFLNXTCHG, just as it blocks
     // SFLNXTCHG from being added when a field already has SFLCHCCTL.
-    var hasNxtchg = (recordKeywords || []).some(function (kw) { return kw.name === 'SFLNXTCHG'; });
+    var hasNxtchg = (recordKeywords || []).some(function (kw) { return KeywordSpec.isMutex('SFLCHCCTL', kw.name); });
     if (hasNxtchg) return 'SFLCHCCTL cannot be added to a record that already has SFLNXTCHG (per the DDS Reference).';
     return '';
   }
@@ -7577,9 +7587,16 @@
    *  SFLNXTCHG is already present) is sflchcctlFieldConflictReason's own
    *  recordKeywords check above. Returns a reason string, or '' - same
    *  convention as sflchcctlFieldConflictReason/sflScrollFieldConflictReason. */
+  //  Task I-121 - reads the same RECORD_TYPES.SFLCHCCTL.mutex fact as
+  //  sflchcctlFieldConflictReason above, from the other side: a field
+  //  keyword is a conflict here when THAT keyword's own mutex list names
+  //  SFLNXTCHG (SFLCHCCTL is the only one that does today) - same
+  //  KeywordSpec.isMutex(owner, other) shape dspmodSflConflictReason
+  //  already established, just with the arguments the other way round
+  //  since the caller has an SFLNXTCHG side, not an SFLCHCCTL side.
   function sflNxtchgSflchcctlConflictReason(fieldsKeywords) {
     var hasChcctl = (fieldsKeywords || []).some(function (fk) {
-      return (fk || []).some(function (kw) { return kw.name === 'SFLCHCCTL'; });
+      return (fk || []).some(function (kw) { return KeywordSpec.isMutex(kw.name, 'SFLNXTCHG'); });
     });
     if (hasChcctl) return 'SFLNXTCHG cannot be added to a record that contains a field with the SFLCHCCTL keyword (per the DDS Reference).';
     return '';
@@ -7606,7 +7623,12 @@
    *  allowed. Moving a constant past the SFLCHCCTL field, or reordering fields
    *  that carry no SFLCHCCTL, is never blocked. Returns a reason string, or
    *  null. */
+  //  Task I-121 - gated on KeywordSpec.mustBeFirstField('SFLCHCCTL')
+  //  instead of assuming it unconditionally; behavior unchanged (the flag
+  //  is always true today), but the reorder check now shares its one
+  //  source of truth with sflchcctlFieldConflictReason's own check above.
   function sflchcctlReorderConflictReason(record, orderedSourceLines) {
+    if (!KeywordSpec.mustBeFirstField('SFLCHCCTL')) return null;
     var fields = (record && record.fields) || [];
     if (!fields.length) return null;
     var hasChcctl = function (f) { return (f.keywords || []).some(function (k) { return k.name === 'SFLCHCCTL'; }); };
