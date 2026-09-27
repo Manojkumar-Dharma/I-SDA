@@ -1625,8 +1625,12 @@
   // The option-indicator side ("Option indicators are not valid for this
   // keyword") was already handled by I-30.
   // -----------------------------------------------------------------------
+  // Task I-121 (CHRID slice) - CHRID_USAGE_LABELS is gone; chridUsageReason
+  // now reads KeywordSpec.ineligibleUsageLabel('CHRID', ...) instead.
+  // CHRID_DUP_TEXT/CHRID_NUMERIC_TEXT remain local message text (the
+  // underlying "which values are ineligible" facts moved to the spec; the
+  // wording did not need to).
   var CHRID_DUP_TEXT = 'CHRID cannot be specified together with DUP on the same field (per the DDS Reference).';
-  var CHRID_USAGE_LABELS = { H: 'hidden (H)', M: 'message (M)', P: 'program-to-system (P)' };
   var CHRID_NUMERIC_TEXT = 'CHRID is not valid on numeric fields, i.e. fields with decimal positions specified (per the DDS Reference).';
 
   /** True when a field's decimal positions are specified (positions 36-37
@@ -1638,22 +1642,26 @@
     return t !== '' && !isNaN(Number(t));
   }
 
+  /** Task I-121 (CHRID slice) - reads KeywordSpec.ineligibleUsageLabel
+   *  instead of the local CHRID_USAGE_LABELS map (now removed). */
   function chridUsageReason(usage) {
-    var u = String(usage == null ? '' : usage).trim().toUpperCase();
-    if (Object.prototype.hasOwnProperty.call(CHRID_USAGE_LABELS, u)) {
-      return 'CHRID is not valid on ' + CHRID_USAGE_LABELS[u] + ' fields (per the DDS Reference).';
-    }
-    return null;
+    var label = KeywordSpec.ineligibleUsageLabel('CHRID', usage);
+    return label ? 'CHRID is not valid on ' + label + ' fields (per the DDS Reference).' : null;
   }
 
   /** Why CHRID cannot be on a field of this kind, or null when the field
    *  is eligible: constant, usage H/M/P, or decimal positions specified.
-   *  (DUP is a keyword-vs-keyword rule, checked separately.) */
+   *  (DUP is a keyword-vs-keyword rule, checked separately.)
+   *
+   *  Task I-121 (CHRID slice) - the constant/numeric restrictions now read
+   *  KeywordSpec.ineligibleOnConstant/ineligibleWhenDecimalsSpecified
+   *  instead of being unconditional; behavior is unchanged since both are
+   *  true for CHRID. */
   function chridEligibilityReason(usage, decimalPositions, isConstant) {
-    if (isConstant) return 'CHRID is not valid on constant fields (per the DDS Reference).';
+    if (isConstant && KeywordSpec.ineligibleOnConstant('CHRID')) return 'CHRID is not valid on constant fields (per the DDS Reference).';
     var usageReason = chridUsageReason(usage);
     if (usageReason) return usageReason;
-    if (chridDecimalsSpecified(decimalPositions)) return CHRID_NUMERIC_TEXT;
+    if (chridDecimalsSpecified(decimalPositions) && KeywordSpec.ineligibleWhenDecimalsSpecified('CHRID')) return CHRID_NUMERIC_TEXT;
     return null;
   }
 
@@ -1672,10 +1680,10 @@
     if (name === 'CHRID') {
       var eligibility = chridEligibilityReason(usage, decimalPositions, isConstant);
       if (eligibility) return eligibility;
-      return chridHas(fieldKeywords, 'DUP') ? CHRID_DUP_TEXT : null;
+      return (chridHas(fieldKeywords, 'DUP') && KeywordSpec.isMutex('CHRID', 'DUP')) ? CHRID_DUP_TEXT : null;
     }
     if (name === 'DUP') {
-      return chridHas(fieldKeywords, 'CHRID') ? 'DUP cannot be specified on a field that already has CHRID (per the DDS Reference).' : null;
+      return (chridHas(fieldKeywords, 'CHRID') && KeywordSpec.isMutex('CHRID', 'DUP')) ? 'DUP cannot be specified on a field that already has CHRID (per the DDS Reference).' : null;
     }
     return null;
   }
@@ -1693,9 +1701,9 @@
     if (!chridHas(oldKeywords, 'CHRID')) {
       var eligibility = chridEligibilityReason(c.usage, c.decimalPositions, c.isConstant);
       if (eligibility) return eligibility;
-      return chridHas(newKeywords, 'DUP') ? CHRID_DUP_TEXT : null;
+      return (chridHas(newKeywords, 'DUP') && KeywordSpec.isMutex('CHRID', 'DUP')) ? CHRID_DUP_TEXT : null;
     }
-    if (chridHas(newKeywords, 'DUP') && !chridHas(oldKeywords, 'DUP')) {
+    if (chridHas(newKeywords, 'DUP') && !chridHas(oldKeywords, 'DUP') && KeywordSpec.isMutex('CHRID', 'DUP')) {
       return 'DUP cannot be specified on a field that already has CHRID (per the DDS Reference).';
     }
     return null;

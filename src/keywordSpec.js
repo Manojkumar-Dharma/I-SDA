@@ -656,6 +656,44 @@
     BLKFOLD: {
       floatDdsReference: 'You cannot specify the BLKFOLD keyword on a floating-point field (F in position 35).',
       notAllowedOnFloatingPointField: true
+    },
+
+    // Task I-121 CHRID slice - chridNewConflictReason (I-59, the field-
+    // eligibility rule and its DUP mutex) and chridBasicEditConflictReason
+    // (I-73, the Basic-tab-edit direction of the same eligibility rule)
+    // each independently re-embed the same DDS-Reference-stated facts as
+    // their own local constants (CHRID_USAGE_LABELS, CHRID_NUMERIC_TEXT,
+    // CHRID_DUP_TEXT).
+    //
+    // DDS_Keyword_V7r6.txt, CHRID's own section (line ~3848), re-verified
+    // fresh, unchanged from what the code already had: "The CHRID keyword
+    // is not valid on constant fields, numeric fields (fields with decimal
+    // positions specified in positions 36 through 37), message fields (M
+    // specified in position 38), hidden fields (H specified in position
+    // 38), or program-to-system fields (P in Position 38) ... The CHRID
+    // keyword cannot be specified with the DUP (Duplication) keyword."
+    // A new shape - field-eligibility restrictions (which USAGE values,
+    // and which other field properties, a keyword is incompatible with) -
+    // distinct from every existing shape (`whitelist` is keyword-vs-
+    // keyword membership; `definitionRequirements` states what a field
+    // MUST be; this states what it must NOT be). `mutex: ['DUP']` reuses
+    // the existing shape unchanged for the keyword-vs-keyword half.
+    CHRID: {
+      ddsReference:
+        'The CHRID keyword is not valid on constant fields, numeric ' +
+        'fields (fields with decimal positions specified in positions 36 ' +
+        'through 37), message fields (M specified in position 38), ' +
+        'hidden fields (H specified in position 38), or ' +
+        'program-to-system fields (P in Position 38). ... The CHRID ' +
+        'keyword cannot be specified with the DUP (Duplication) keyword.',
+      mutex: ['DUP'],
+      ineligibleUsage: {
+        H: 'hidden (H)',
+        M: 'message (M)',
+        P: 'program-to-system (P)'
+      },
+      ineligibleWhenDecimalsSpecified: true,
+      ineligibleOnConstant: true
     }
   };
 
@@ -689,6 +727,32 @@
   function definitionRequirements(recordType) {
     var spec = RECORD_TYPES[recordType];
     return (spec && spec.definitionRequirements) || null;
+  }
+
+  /** `recordType`'s own human-readable label for why `usage` makes a
+   *  field ineligible for it (the CHRID shape - e.g. "hidden (H)" for
+   *  usage H), or null when `recordType` has no such restriction or
+   *  `usage` isn't one of the restricted values. */
+  function ineligibleUsageLabel(recordType, usage) {
+    var spec = RECORD_TYPES[recordType];
+    var map = spec && spec.ineligibleUsage;
+    if (!map) return null;
+    var u = String(usage == null ? '' : usage).trim().toUpperCase();
+    return Object.prototype.hasOwnProperty.call(map, u) ? map[u] : null;
+  }
+
+  /** Whether `recordType`'s keyword is ineligible on a field whose decimal
+   *  positions are specified (the CHRID shape - "numeric fields"). */
+  function ineligibleWhenDecimalsSpecified(recordType) {
+    var spec = RECORD_TYPES[recordType];
+    return !!(spec && spec.ineligibleWhenDecimalsSpecified);
+  }
+
+  /** Whether `recordType`'s keyword is ineligible on a constant field (the
+   *  CHRID shape). */
+  function ineligibleOnConstant(recordType) {
+    var spec = RECORD_TYPES[recordType];
+    return !!(spec && spec.ineligibleOnConstant);
   }
 
   // Task I-121 DFT/DFTVAL/EDTCDE/EDTWRD slice - dftGroupConflictReason's
@@ -858,6 +922,9 @@
     conditionalMutexHit: conditionalMutexHit,
     groupMutexKeywords: groupMutexKeywords,
     requiredPartner: requiredPartner,
-    definitionRequirements: definitionRequirements
+    definitionRequirements: definitionRequirements,
+    ineligibleUsageLabel: ineligibleUsageLabel,
+    ineligibleWhenDecimalsSpecified: ineligibleWhenDecimalsSpecified,
+    ineligibleOnConstant: ineligibleOnConstant
   };
 });
