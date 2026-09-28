@@ -831,6 +831,42 @@
     VALUES: {
       floatDdsReference: 'You cannot specify VALUES on a floating-point field (F in position 35).',
       notAllowedOnFloatingPointField: true
+    },
+
+    // Task I-121 CHKMSGID slice - chkmsgidNewConflictReason (I-69, the
+    // qualifying-keyword dependency, both directions) and
+    // chkmsgidBasicEditConflictReason (I-69, the Basic-tab-edit direction
+    // of the usage rule) each independently re-embed the same
+    // DDS-Reference-stated facts as their own local constants
+    // (CHKMSGID_QUALIFYING_NAMES, CHKMSGID_QUALIFYING_CHECK_CODES,
+    // CHKMSGID_LIST_TEXT). The message-data-field rule (I-89/I-97, shared
+    // with ERRMSGID/SFLMSGID) is a separate, larger web - deliberately out
+    // of scope for this slice.
+    //
+    // DDS_Keyword_V7r6.txt, CHKMSGID's own section, re-verified fresh,
+    // unchanged from what the code already had: "CHKMSGID is allowed only
+    // on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN),
+    // CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword. The field must be
+    // input-capable (usage B or I)." A new shape - a DEPENDENCY on one of
+    // several qualifying keywords, one of which (CHECK) only counts when
+    // parameterized with one of several specific codes - distinct from
+    // `mutex` (excludes) and `REQUIRE_PAIRS` (a fixed single partner).
+    // `definitionRequirements.usage` reuses the PSHBTNFLD shape unchanged
+    // for the input-capable rule (only the `usage` key is populated here;
+    // CHKMSGID has no data-type/length/decimals rule of its own).
+    CHKMSGID: {
+      ddsReference:
+        'CHKMSGID is allowed only on fields which also contain a ' +
+        'CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, ' +
+        'RANGE, or VALUES keyword. The field must be input-capable ' +
+        '(usage B or I).',
+      qualifyingNames: ['CMP', 'COMP', 'RANGE', 'VALUES'],
+      qualifyingCheckKeyword: 'CHECK',
+      qualifyingCheckCodes: ['M10', 'M11', 'VN', 'VNE'],
+      qualifyingListText: 'CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, RANGE, or VALUES',
+      definitionRequirements: {
+        usage: ['I', 'B']
+      }
     }
   };
 
@@ -904,6 +940,30 @@
   function ineligibleOnConstant(recordType) {
     var spec = RECORD_TYPES[recordType];
     return !!(spec && spec.ineligibleOnConstant);
+  }
+
+  /** Whether `keywords` carries a keyword `recordType` may accompany (the
+   *  CHKMSGID shape - a dependency on one of several qualifying keyword
+   *  NAMES, or a qualifying keyword parameterized with one of several
+   *  specific CODES - e.g. CHECK only qualifies via CHECK(M10)/CHECK(M11)/
+   *  CHECK(VN)/CHECK(VNE), matched by token so CHECK(ME VN) also
+   *  qualifies). False for a record type with no `qualifyingNames`. */
+  function hasQualifyingKeyword(recordType, keywords) {
+    var spec = RECORD_TYPES[recordType];
+    if (!spec || !spec.qualifyingNames) return false;
+    return (keywords || []).some(function (k) {
+      if (spec.qualifyingNames.indexOf(k.name) !== -1) return true;
+      if (!spec.qualifyingCheckKeyword || k.name !== spec.qualifyingCheckKeyword) return false;
+      var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
+      return tokens.some(function (t) { return (spec.qualifyingCheckCodes || []).indexOf(t) !== -1; });
+    });
+  }
+
+  /** `recordType`'s own human-readable list of its qualifying keywords
+   *  (the CHKMSGID shape), for use in a message, or '' when it has none. */
+  function qualifyingListText(recordType) {
+    var spec = RECORD_TYPES[recordType];
+    return (spec && spec.qualifyingListText) || '';
   }
 
   // Task I-121 DFT/DFTVAL/EDTCDE/EDTWRD slice - dftGroupConflictReason's
@@ -1140,6 +1200,8 @@
     isFixedSeparatorFormat: isFixedSeparatorFormat,
     fixedSeparatorPartner: fixedSeparatorPartner,
     mustBeFirstField: mustBeFirstField,
-    isOnePerRecord: isOnePerRecord
+    isOnePerRecord: isOnePerRecord,
+    hasQualifyingKeyword: hasQualifyingKeyword,
+    qualifyingListText: qualifyingListText
   };
 });

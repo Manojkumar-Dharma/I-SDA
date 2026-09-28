@@ -1375,32 +1375,31 @@
   //              so the user's message id/file are never deleted behind
   //              their back - remove CHKMSGID first).
   // -----------------------------------------------------------------------
-  var CHKMSGID_QUALIFYING_NAMES = ['CMP', 'COMP', 'RANGE', 'VALUES'];
-  var CHKMSGID_QUALIFYING_CHECK_CODES = ['M10', 'M11', 'VN', 'VNE'];
-  var CHKMSGID_LIST_TEXT = 'CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, RANGE, or VALUES';
+  // Task I-121 (CHKMSGID slice) - the qualifying-names/check-codes/list-
+  // text local constants are gone; hasChkmsgidQualifier and every message
+  // below now read KeywordSpec's own RECORD_TYPES.CHKMSGID entry.
 
   /** True when `keywords` carries a keyword CHKMSGID may accompany. CHECK
    *  only qualifies with one of its four message-producing codes (so
    *  CHECK(ME) or CHECK(AB) alone do not); the sub-parameters are matched
    *  by token, so CHECK(ME VN) does. */
   function hasChkmsgidQualifier(keywords) {
-    return (keywords || []).some(function (k) {
-      if (CHKMSGID_QUALIFYING_NAMES.indexOf(k.name) >= 0) return true;
-      if (k.name !== 'CHECK') return false;
-      var tokens = String(k.parameters || '').toUpperCase().split(/[\s,()]+/).filter(Boolean);
-      return tokens.some(function (t) { return CHKMSGID_QUALIFYING_CHECK_CODES.indexOf(t) >= 0; });
-    });
+    return KeywordSpec.hasQualifyingKeyword('CHKMSGID', keywords);
   }
 
+  /** Task I-121 (CHKMSGID slice) - the allowed-usage set now reads
+   *  KeywordSpec.definitionRequirements('CHKMSGID').usage instead of the
+   *  hard-coded 'I'/'B' literals. */
   function chkmsgidUsageReason(usage) {
     var u = String(usage == null ? '' : usage).trim().toUpperCase();
-    if (u && u !== 'I' && u !== 'B') {
+    var allowedUsage = KeywordSpec.definitionRequirements('CHKMSGID').usage;
+    if (u && allowedUsage.indexOf(u) < 0) {
       return 'CHKMSGID can only be specified on an input-capable field (usage B or I, per the DDS Reference).';
     }
     return null;
   }
 
-  var CHKMSGID_NEEDS_QUALIFIER_TEXT = 'CHKMSGID is allowed only on fields which also contain a ' + CHKMSGID_LIST_TEXT + ' keyword (per the DDS Reference). Add one of those first.';
+  var CHKMSGID_NEEDS_QUALIFIER_TEXT = 'CHKMSGID is allowed only on fields which also contain a ' + KeywordSpec.qualifyingListText('CHKMSGID') + ' keyword (per the DDS Reference). Add one of those first.';
 
   /** Diff-based check for EVERY field-level panel (the commitEdit choke
    *  point): given the field's keywords before and after an edit, returns
@@ -1415,7 +1414,7 @@
       return newQual ? null : CHKMSGID_NEEDS_QUALIFIER_TEXT;
     }
     if (hasChkmsgidQualifier(oldKeywords) && !newQual) {
-      return 'This would remove the last of ' + CHKMSGID_LIST_TEXT + ' from a field that still has CHKMSGID, which is only allowed alongside one of them (per the DDS Reference). Remove CHKMSGID first.';
+      return 'This would remove the last of ' + KeywordSpec.qualifyingListText('CHKMSGID') + ' from a field that still has CHKMSGID, which is only allowed alongside one of them (per the DDS Reference). Remove CHKMSGID first.';
     }
     return null;
   }
