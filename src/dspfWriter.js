@@ -7553,8 +7553,11 @@
    *  blocked, and fixing it (adding a choice keyword or removing SFLRTNSEL)
    *  is always allowed. */
   function sflrtnselNewConflictReason(oldKeywords, newKeywords) {
+    //  Task I-121 (SFLRTNSEL slice) - the two qualifying choice keywords
+    //  now come from KeywordSpec.hasQualifyingKeyword('SFLRTNSEL', ...)
+    //  instead of being hard-coded here; behavior and wording unchanged.
     var has = function (kws, n) { return (kws || []).some(function (kw) { return kw.name === n; }); };
-    var hasChoice = function (kws) { return has(kws, 'SFLSNGCHC') || has(kws, 'SFLMLTCHC'); };
+    var hasChoice = function (kws) { return KeywordSpec.hasQualifyingKeyword('SFLRTNSEL', kws); };
     if (!has(newKeywords, 'SFLRTNSEL')) return null;
     if (hasChoice(newKeywords)) return null;
     // The record ends up invalid; only blame this edit if it introduced that.

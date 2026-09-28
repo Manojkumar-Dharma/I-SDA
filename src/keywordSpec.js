@@ -865,6 +865,20 @@
       msgDataField: MSG_DATA_FIELD_RULE
     },
 
+    // Task I-121 SFLRTNSEL slice - SFLRTNSEL's own DDS Reference section
+    // (re-verified fresh against DDS_Keyword_V7r6.txt, unchanged from what
+    // the code already had) states "If this keyword is specified then
+    // SFLMLTCHC or SFLSNGCHC must be specified." - the CHKMSGID
+    // dependency-on-qualifying-keywords shape (`qualifyingNames`), reused
+    // unchanged with no CHECK-code variant. Previously the two names were
+    // hard-coded in sflrtnselNewConflictReason (I-81).
+    SFLRTNSEL: {
+      ddsReference:
+        'If this keyword is specified then SFLMLTCHC or SFLSNGCHC must be specified.',
+      qualifyingNames: ['SFLSNGCHC', 'SFLMLTCHC'],
+      qualifyingListText: 'SFLSNGCHC or SFLMLTCHC'
+    },
+
     // Task I-121 message-data-field slice - ERRMSGID's and SFLMSGID's own
     // optional `&msg-data` parameter states the SAME rule as CHKMSGID's
     // `&message-data-field` (see MSG_DATA_FIELD_RULE above). Their other
