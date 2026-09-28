@@ -170,6 +170,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
 | [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | Done | v0.10.232 |
 | [I-127](#i-127) | Record | `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced | I-121 | Done | v0.10.232 |
+| [I-128](#i-128) | Record | `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction) | I-121, I-26 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -189,11 +190,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-127, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-128, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121 (SFLSNGCHC/SFLMLTCHC slice, v0.10.231) | SFLMLTCHC's and SFLSNGCHC's DDS Reference sections each say SFLDROP, SFLFOLD and the other choice keyword "cannot be specified on a record with" them, and SFLDROP/SFLFOLD's own sections do not restate it. Only the choice-keyword side is guarded (`sflChoiceListConflictReason`, run when the SFLCTL panel's type selector turns SFLSNGCHC/SFLMLTCHC on). Adding SFLDROP or SFLFOLD (SFLCTL panel rows, raw keyword editor) to a record that already carries SFLSNGCHC/SFLMLTCHC is not blocked anywhere; `sflChoiceListConflictReason`'s own doc comment has flagged the missing reverse direction since I-26. Needs a diff-based backstop at `commitRecordEdit` (same shape as I-81's `sflrtnselNewConflictReason`) reading the new spec `mutex` lists. |
 | I-126 / I-127 | SFLSCROLL's own DDS Reference section (line ~12332) states "This keyword is valid only for the subfile-control record format", but its checkbox lives in the Subfile keywords panel, which `buildWebviewTemplate.js` offers for a field in an SFL detail record as well as an SFLCTL record (`isSflOrSflCtlRecord`) - nothing blocks turning SFLSCROLL on in an SFL record. The same panel also serves SFLRCDNBR/SFLROLVAL, whose own sections were not re-read here. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
