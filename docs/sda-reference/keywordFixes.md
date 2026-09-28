@@ -171,7 +171,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | Done | v0.10.232 |
 | [I-127](#i-127) | Record | `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced | I-121 | Done | v0.10.232 |
 | [I-128](#i-128) | Record | `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction) | I-121, I-26 | Done | v0.10.236 |
-| [I-129](#i-129) | Field | `SFLSCROLL` (and, once re-read, `SFLRCDNBR`/`SFLROLVAL`): "valid only for the subfile-control record format" is unenforced - the panel is offered on SFL detail records too | I-126, I-127 | In progress | — |
+| [I-129](#i-129) | Field | `SFLSCROLL` (and, once re-read, `SFLRCDNBR`/`SFLROLVAL`): "valid only for the subfile-control record format" is unenforced - the panel is offered on SFL detail records too | I-126, I-127 | Done | v0.10.237 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -5805,5 +5805,21 @@ Opened from the deferred finding raised by I-121's SFLSNGCHC/SFLMLTCHC slice (v0
 New `DspfWriter.sflChoiceListNewConflictReason(oldKeywords, newKeywords)`: a diff-based backstop called from `commitRecordEdit` in `buildWebviewTemplate.js` - the same choke point and shape as I-81's `sflrtnselNewConflictReason`, so one call covers every record-level path (panel checkbox, raw editor, type selector). It reads its partner lists from `KeywordSpec.mutexKeywords` for both choice keywords, so the forward and reverse directions cannot disagree. Compared per (choice keyword, partner) pair: a hand-written already-invalid record is not re-reported on an unrelated edit, either side of an existing pair can always be removed (which is how such a record is fixed), and switching SFLSNGCHC for SFLMLTCHC in one edit is allowed, but introducing a NEW bad pair on an already-invalid record is still blocked. The message names the keyword the edit ADDED first, in the same wording as the forward direction.
 
 New `src/test/i128SflChoiceListReverseGuard.test.js` (41 checks): direct unit checks of the function (every blocked and allowed shape, the per-pair diff cases, null/undefined inputs), and in jsdom against the real generated client script the raw keyword editor and the SFLCTL panel's SFLDROP/SFLFOLD checkboxes being blocked with an alert and reverted, allowed edits still committing, and a hand-written already-invalid record. The test fails without the guard (14 failures). Pure guard addition; nothing that was allowed before and is valid is newly refused.
+
+---
+
+### I-129 — `SFLSCROLL`/`SFLRCDNBR`/`SFLROLVAL`: "valid only for the subfile-control record format" is unenforced
+
+> **Area:** Field · **Status:** Done (v0.10.237) · **Depends on:** I-126, I-127
+
+Opened from the last deferred finding, raised by I-126 / I-127's SFLSCROLL slices: SFLSCROLL's own DDS Reference section (line ~12311) states "This keyword is valid only for the subfile-control record format", but its checkbox lives in the Subfile keywords panel, which `buildWebviewTemplate.js` offers for a field in an SFL detail record as well as an SFLCTL record (`isSflOrSflCtlRecord`); nothing blocked turning it on in an SFL record. The finding noted that the same panel serves SFLRCDNBR and SFLROLVAL, whose sections had not been re-read. Re-read fresh against `DDS_Keyword_V7r6.txt`: SFLRCDNBR (line ~12062, "This optional keyword is valid only for the subfile-control record format") and SFLROLVAL (line ~12173, "This keyword is valid only for the subfile-control record format") state the identical restriction, so all three are in scope. SFLCHCCTL and SFLCSRPRG, the panel's other two rows, are subfile-record keywords and were not touched.
+
+New declarative fact `validOnlyInSubfileControlRecord: { ddsReference }` - a new shape (a field-level keyword restricted to fields of one record kind) - on `RECORD_TYPES.SFLSCROLL` and on new `RECORD_TYPES.SFLRCDNBR` / `SFLROLVAL` entries that carry only that fact (their same-field mutex with SFLSCROLL stays stated once, on SFLSCROLL's entry), plus a `KeywordSpec.validOnlyInSubfileControlRecord` accessor. New `DspfWriter.subfileControlOnlyFieldNewConflictReason(oldKeywords, newKeywords, isSubfileControlRecord)`: a diff-based backstop called from `commitEdit` in `buildWebviewTemplate.js`, ahead of the I-126 SFLSCROLL shape check so the fundamental record-kind reason is the one shown - one choke point for the panel checkboxes/select and the raw keyword editor alike. Which keywords count is read from the spec, not a literal list. It refuses a keyword newly introduced on a field of any record that is not a subfile-control record (an SFL detail record, or a plain record reached through the raw editor); a hand-written file that already has it in the wrong record is not re-reported on an unrelated edit, and turning it OFF is never blocked. The panel gained a one-line hint saying the three are control-record-only.
+
+New `src/test/i129SubfileControlOnlyFieldKeywords.test.js` (44 checks): the spec fact and its citations for all three keywords, the exact set that carries it, the function's blocked / allowed / per-diff / null-safe cases, and in jsdom the panel's SFLSCROLL and SFLROLVAL checkboxes and SFLRCDNBR select refused on a field of an SFL record (checkbox reverted), all allowed on a field of the control record, and turning a hand-written wrong-record SFLSCROLL off still working. Without the change the test does not run past its first check. Nothing that was valid before is newly refused.
+
+The Deferred findings table is empty again.
+
+Full suite: 186 files, 10,912 checks, zero failures.
 
 ---

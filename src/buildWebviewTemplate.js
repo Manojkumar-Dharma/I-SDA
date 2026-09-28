@@ -6827,6 +6827,17 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
+      // Task I-129: SFLSCROLL / SFLRCDNBR / SFLROLVAL are valid only for
+      // the subfile-control record format; the panel is also offered on a
+      // field in an SFL detail record, and the raw editor on any field.
+      const sflCtlOnlyReason = DspfWriter.subfileControlOnlyFieldNewConflictReason(
+        field.keywords, updates.keywords,
+        WebviewClientHelpers.isSflCtlRecord(model.records.find((r) => r.name === recordName)));
+      if (sflCtlOnlyReason) {
+        window.alert(sflCtlOnlyReason);
+        render();
+        return;
+      }
       // Task I-126 / I-127: same choke point for SFLSCROLL - an edit that
       // INTRODUCES it must leave the field as a 5-digit signed numeric,
       // 0-decimal, hidden field (taken as it will be AFTER this edit), and

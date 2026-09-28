@@ -993,6 +993,31 @@
       notAllowedWhenEqual: {
         keywords: ['SFLSIZ', 'SFLPAG'],
         ddsReference: 'SFLSCROLL is not allowed when SFLSIZ equals SFLPAG.'
+      },
+      // Task I-129 - see SFLRCDNBR / SFLROLVAL just below.
+      validOnlyInSubfileControlRecord: {
+        ddsReference: 'This keyword is valid only for the subfile-control record format.'
+      }
+    },
+
+    // Task I-129 - SFLRCDNBR's and SFLROLVAL's own DDS Reference sections
+    // (lines ~12062 and ~12173, re-read fresh alongside SFLSCROLL's, line
+    // ~12311) each state the same field-level restriction SFLSCROLL does:
+    // "This [optional] keyword is valid only for the subfile-control record
+    // format." A new shape (`validOnlyInSubfileControlRecord`): a
+    // field-level keyword restricted to fields of ONE record kind - the
+    // subfile-control record (the one carrying SFLCTL) - so it is refused on
+    // a field of an SFL detail record or of a plain record. These two
+    // entries carry only that fact; their same-field mutex with SFLSCROLL
+    // stays stated once, on SFLSCROLL's entry.
+    SFLRCDNBR: {
+      validOnlyInSubfileControlRecord: {
+        ddsReference: 'This optional keyword is valid only for the subfile-control record format.'
+      }
+    },
+    SFLROLVAL: {
+      validOnlyInSubfileControlRecord: {
+        ddsReference: 'This keyword is valid only for the subfile-control record format.'
       }
     }
   };
@@ -1315,6 +1340,14 @@
     return (spec && spec.msgDataField) || null;
   }
 
+  /** Task I-129 - whether `keywordName` is a field-level keyword valid only
+   *  in the subfile-control record format (SFLSCROLL, SFLRCDNBR,
+   *  SFLROLVAL). */
+  function validOnlyInSubfileControlRecord(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.validOnlyInSubfileControlRecord);
+  }
+
   /** Task I-121 SFLLIN/SFLCSRPRG slice - the cross-record exclusion fact
    *  (`controlRecordKeyword`, `subfileFieldKeyword`, `associatedVia`,
    *  `ddsReference`) `keywordName` takes part in, or null. */
@@ -1366,6 +1399,7 @@
     qualifyingListText: qualifyingListText,
     msgDataFieldRule: msgDataFieldRule,
     crossRecordExclusion: crossRecordExclusion,
+    validOnlyInSubfileControlRecord: validOnlyInSubfileControlRecord,
     msgDataFieldKeywords: msgDataFieldKeywords,
     notAllowedWhenEqual: notAllowedWhenEqual
   };

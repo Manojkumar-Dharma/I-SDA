@@ -7627,6 +7627,35 @@
     return null;
   }
 
+  /** Task I-129: SFLSCROLL's, SFLRCDNBR's and SFLROLVAL's own DDS Reference
+   *  sections each say the keyword "is valid only for the subfile-control
+   *  record format" (KeywordSpec `validOnlyInSubfileControlRecord`), but the
+   *  Subfile keywords panel is also offered for a field in an SFL detail
+   *  record and the raw keyword editor takes any keyword on any field, so
+   *  nothing blocked them there. Given a field's keyword list before and
+   *  after an edit and whether its owning record is a subfile-control
+   *  record (the one carrying SFLCTL), returns a reason string when the
+   *  edit INTRODUCES one of those keywords on a field of any other kind of
+   *  record, else null.
+   *
+   *  Diff-based, same shape as I-70's chridNewConflictReason and I-127's
+   *  sibling backstops, for ONE choke point (commitEdit) that covers the
+   *  panel and the raw editor at once: a hand-written file that already
+   *  has the keyword in the wrong record is not re-reported on an unrelated
+   *  edit, and turning it OFF is never blocked. Which keywords count comes
+   *  from the spec, not a literal list. */
+  function subfileControlOnlyFieldNewConflictReason(oldKeywords, newKeywords, isSubfileControlRecord) {
+    if (isSubfileControlRecord) return null;
+    var had = function (n) { return (oldKeywords || []).some(function (kw) { return kw.name === n; }); };
+    var list = newKeywords || [];
+    for (var i = 0; i < list.length; i++) {
+      var n = list[i].name;
+      if (!KeywordSpec.validOnlyInSubfileControlRecord(n) || had(n)) continue;
+      return n + ' is valid only for the subfile-control record format (the record that carries SFLCTL) - this field is in a record that is not a subfile-control record (see the DDS Reference).';
+    }
+    return null;
+  }
+
   /** Whether turning SFLSCROLL ON on this field would conflict with
    *  something already there. Per SFLSCROLL's own DDS Reference text,
    *  "You cannot specify the SFLROLVAL, the SFLSCROLL and the SFLRCDNBR
@@ -8938,6 +8967,7 @@
     sflChoiceListConflictReason: sflChoiceListConflictReason,
     sflrtnselNewConflictReason: sflrtnselNewConflictReason,
     sflChoiceListNewConflictReason: sflChoiceListNewConflictReason,
+    subfileControlOnlyFieldNewConflictReason: subfileControlOnlyFieldNewConflictReason,
     sfllinRecordEditConflictReason: sfllinRecordEditConflictReason,
     sflcsrprgFieldEditConflictReason: sflcsrprgFieldEditConflictReason,
     sflScrollFieldConflictReason: sflScrollFieldConflictReason,
