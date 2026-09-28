@@ -1098,6 +1098,62 @@
    *    that line takes up SFLPAG+1 total lines on screen.
    */
   /**
+   * Task P7 - SFLEND end-of-subfile state (IBM DDS Reference, "SFLEND"). The
+   * keyword's own option indicator is the program's end-of-subfile switch:
+   * "Set the indicators off to display the plus sign or the More text. Set the
+   * indicators on to remove the plus sign from the display or to display the
+   * Bottom text" (and, for *SCRBAR, the scroll box sits one page above the
+   * bottom button with the indicator off, on top of it with the indicator on).
+   * So for an indicator-conditioned SFLEND:
+   *  - an active instance conditioned ON a (non-negated) indicator -> 'bottom';
+   *  - an active instance that only holds through a NEGATED indicator (N49), or
+   *    no active instance at all while an indicator-conditioned one exists
+   *    (indicator off) -> 'more' (the plus / More text / scroll box one page up);
+   *  - an unconditioned (or only display-size-conditioned) active instance ->
+   *    'more' - the operating system pages the subfile itself, and a design-time
+   *    preview cannot know which page is showing.
+   * Parameters: none or *PLUS -> plus sign; *MORE -> More/Bottom text;
+   * *SCRBAR [*SCRBAR|*PLUS|*MORE] -> scroll bar, and the optional second
+   * parameter is the non-graphical fallback (drawn alongside, as before P7).
+   * Returns null when the record has no SFLEND that applies.
+   */
+  function resolveSflEndState(record, activeIndicators, activeSizeName) {
+    var all = record.keywords.filter(function (k) { return k.name === 'SFLEND'; });
+    if (all.length === 0) return null;
+    function usesIndicator(kw) {
+      return (kw.conditions || []).some(function (g) { return !g.displaySizeCondition && g.indicators && g.indicators.length > 0; });
+    }
+    function requiresIndicatorOn(kw) {
+      return (kw.conditions || []).some(function (g) {
+        if (g.displaySizeCondition || !g.indicators || g.indicators.length === 0) return false;
+        var holds = g.indicators.every(function (ind) { return ind.not ? !activeIndicators.has(ind.number) : activeIndicators.has(ind.number); });
+        return holds && g.indicators.some(function (ind) { return !ind.not; });
+      });
+    }
+    var active = all.find(function (k) { return conditionsSatisfied(k.conditions, activeIndicators, activeSizeName); }) || null;
+    var kw = active;
+    var state = 'more';
+    var viaIndicator = false;
+    if (active) {
+      viaIndicator = usesIndicator(active);
+      if (requiresIndicatorOn(active)) state = 'bottom';
+    } else {
+      kw = all.find(function (k) { return usesIndicator(k); }) || null; // indicator off -> More/plus
+      if (!kw) return null; // only display-size-conditioned instances, none for this size
+      viaIndicator = true;
+    }
+    var params = (kw.parameters || '').toUpperCase();
+    return {
+      params: params,
+      state: state,
+      viaIndicator: viaIndicator,
+      scrbar: /\*SCRBAR/.test(params),
+      more: /\*MORE/.test(params),
+      plus: /\*PLUS/.test(params) || params.trim() === '',
+    };
+  }
+
+  /**
    * Task P6 - SFLDROP / SFLFOLD design-time state (IBM DDS Reference, "SFLDROP"
    * and "SFLFOLD" keyword sections). Both are record-level keywords on the
    * SFLCTL record that pick how a MULTI-LINE subfile record is first shown:
@@ -1210,12 +1266,12 @@
     // subfile takes up one more line on the screen"). Only the currently
     // ACTIVE instance counts - same conditionsSatisfied() gate every other
     // conditioned keyword here goes through.
-    var sflEndKw = record.keywords.find(function (k) {
-      return k.name === 'SFLEND' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
-    });
-    var sflEndParams = sflEndKw ? sflEndKw.parameters.toUpperCase() : '';
-    var hasScrbar = /\*SCRBAR/.test(sflEndParams);
-    var hasMoreText = /\*MORE/.test(sflEndParams);
+    // Task P7: resolveSflEndState also covers the indicator-OFF case (More/plus)
+    // and the indicator-ON case (Bottom), not just "active instance present".
+    var sflEnd = resolveSflEndState(record, activeIndicators, activeSizeName);
+    var hasScrbar = !!(sflEnd && sflEnd.scrbar);
+    var hasMoreText = !!(sflEnd && sflEnd.more);
+    var hasPlus = !!(sflEnd && sflEnd.plus);
 
     // Only fields that actually occupy a VISIBLE row position count toward
     // row height - hidden/program-to-system fields (usage H/P, matching the
@@ -1327,6 +1383,9 @@
         col: Math.max(1, sbRightCol - 2),
         height: Math.max(sbHeight, 1),
         undersized: sbHeight < 3, // real SDA requires >=3 lines for a usable scroll bar
+        // Task P7: 'bottom' = scroll box on the bottom button, 'more' = one page above it,
+        // null = end state unknown (unconditioned SFLEND: the OS pages the subfile itself).
+        boxState: sflEnd.viaIndicator ? sflEnd.state : null,
       };
     }
 
@@ -1341,7 +1400,20 @@
         line: lineOffset + firstFieldLine + shownRows * shownRowHeight,
         col: mlLeftCol,
         width: Math.max(mlRightCol - mlLeftCol + 1, 1),
+        text: sflEnd.state === 'bottom' ? 'Bottom' : 'More...',
       };
+    }
+
+    // Task P7 - SFLEND / SFLEND(*PLUS): a plus sign on the LAST line the subfile
+    // occupies at columns 78-80 (24x80) / 130-132 (27x132): attribute, "+",
+    // attribute - so the "+" sits one column in from the display's right edge.
+    // Omitted when the end-of-subfile indicator is on. In a window the display
+    // edge is not the subfile's, so the plus rides the subfile's own right edge.
+    var plusMark = null;
+    if (hasPlus && sflEnd.state === 'more' && firstRowFields && firstRowFields.length > 0) {
+      var plusRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
+      var plusCol = (totalColumns != null && !resolveWindow(record, dspfFile)) ? totalColumns - 1 : plusRightCol;
+      plusMark = { line: lineOffset + firstFieldLine + shownRows * shownRowHeight - 1, col: plusCol };
     }
 
     return {
@@ -1352,6 +1424,8 @@
       fields: fields,
       scrollbar: scrollbar,
       moreLine: moreLine,
+      plusMark: plusMark,
+      sflEnd: sflEnd ? { state: sflEnd.state, viaIndicator: sflEnd.viaIndicator, params: sflEnd.params, plus: hasPlus, more: hasMoreText, scrbar: hasScrbar } : null,
     };
   }
 
@@ -2308,7 +2382,7 @@
           sb.col +
           ' / span 3;" title="SFLEND(*SCRBAR) - reserves the subfile\'s last 3 columns for a graphical scroll bar">' +
           '<div class="dspf-scrollbar-arrow dspf-scrollbar-arrow-up">\u25B2</div>' +
-          '<div class="dspf-scrollbar-track"><div class="dspf-scrollbar-thumb"></div></div>' +
+          '<div class="dspf-scrollbar-track"><div class="dspf-scrollbar-thumb' + (sb.boxState ? ' dspf-scrollbar-thumb-' + sb.boxState : '') + '"></div></div>' +
           '<div class="dspf-scrollbar-arrow dspf-scrollbar-arrow-down">\u25BC</div>' +
           '</div>\n';
       }
@@ -2323,7 +2397,13 @@
           ml.col +
           ' / span ' +
           ml.width +
-          ';" title="SFLEND(*MORE) - shows More... / Bottom below the subfile">More...</div>\n';
+          ';" title="SFLEND(*MORE) - shows More... / Bottom below the subfile">' + ml.text + '</div>\n';
+      }
+      // Task P7 - SFLEND / SFLEND(*PLUS): the "+" on the subfile's last line.
+      if (sfp.plusMark) {
+        subfilePreviewHtml +=
+          '<div class="dspf-subfile-plus" style="grid-row:' + sfp.plusMark.line + ';grid-column:' + sfp.plusMark.col +
+          ';" title="SFLEND - a plus sign shows while more records can be paged in (hidden once the end-of-subfile indicator is on)">+</div>\n';
       }
     }
 

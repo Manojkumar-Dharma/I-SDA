@@ -303,6 +303,19 @@ const htmlTemplate = `<!DOCTYPE html>
     white-space: pre; text-align: right; color: var(--chrome-accent); opacity: 0.85;
     font-style: italic; pointer-events: none; z-index: 1; overflow: hidden;
   }
+  /* Task P7 - SFLEND end-of-subfile state. The scroll box sits one page above
+   * the bottom button while the SFLEND indicator is off ("more"), and on top of
+   * the bottom button when it is on ("bottom"). Unconditioned SFLEND (state
+   * unknown) keeps the default top position. */
+  .dspf-scrollbar-track { position: relative; }
+  .dspf-scrollbar-thumb-more, .dspf-scrollbar-thumb-bottom { position: absolute; left: 0; }
+  .dspf-scrollbar-thumb-more { bottom: 35%; }
+  .dspf-scrollbar-thumb-bottom { bottom: 0; }
+  /* Task P7 - SFLEND / SFLEND(*PLUS): the "+" on the subfile's last line. */
+  .dspf-subfile-plus {
+    color: var(--chrome-accent); opacity: 0.85; text-align: center; font-weight: bold;
+    pointer-events: none; z-index: 1; overflow: hidden;
+  }
   .dspf-field.dspf-widget-button { background: transparent; z-index: 1; }
   .dspf-widget-button {
     width: 100%; height: 100%; background: #14261c; color: var(--chrome-accent);
@@ -3213,6 +3226,14 @@ const htmlTemplate = `<!DOCTYPE html>
       let sflEndNote = '';
       if (screen.subfilePreview.scrollbar) sflEndNote += ' A scroll bar (SFLEND(*SCRBAR)) reserves its own last 3 columns.';
       if (screen.subfilePreview.moreLine) sflEndNote += ' A "More.../Bottom" line (SFLEND(*MORE)) is reserved just below it.';
+      const sfe = screen.subfilePreview.sflEnd;
+      if (sfe) {
+        const shows = [];
+        if (sfe.plus) shows.push(sfe.state === 'bottom' ? 'the "+" is hidden' : 'a "+" shows on the last line');
+        if (sfe.more) shows.push(sfe.state === 'bottom' ? 'the text reads "Bottom"' : 'the text reads "More..."');
+        if (sfe.scrbar) shows.push(sfe.state === 'bottom' ? 'the scroll box sits on the bottom button' : 'the scroll box sits one page above the bottom button');
+        sflEndNote += ' SFLEND ' + (sfe.viaIndicator ? '(end-of-subfile indicator ' + (sfe.state === 'bottom' ? 'ON' : 'OFF') + ')' : '(system-paged; end state not knowable at design time)') + ': ' + shows.join(', ') + '.';
+      }
       mainHint.textContent = 'Showing ' + screen.subfilePreview.pageRows + ' subfile rows from ' + screen.subfilePreview.sflRecordName +
         '. Drag any field here to move the whole row template - edits apply to ' + screen.subfilePreview.sflRecordName + ', not this control record.' + sflEndNote;
       // Task P6 - SFLDROP/SFLFOLD: say which form is drawn and, when the key
