@@ -42,6 +42,22 @@
   // only because ~50 existing call sites across webviewClientHelpers.js
   // already reference one name or the other with slightly different
   // message wording).
+  // Task I-121 message-data-field slice - the one rule CHKMSGID,
+  // ERRMSGID and SFLMSGID each state for their message data field
+  // parameter (`&message-data-field` / `&msg-data`), re-verified against
+  // DDS_Keyword_V7r6.txt (CHKMSGID ~line 3721, ERRMSGID ~6215, SFLMSGID
+  // ~11617): "The field name must exist in the record format, and the
+  // field must be defined as a character field (data type A) with usage
+  // P." One shared object, so the three keywords cannot drift apart.
+  var MSG_DATA_FIELD_RULE = {
+    mustExistInRecord: true,
+    dataType: 'A',
+    usage: 'P',
+    ddsReference:
+      'The field name must exist in the record format, and the field ' +
+      'must be defined as a character field (data type A) with usage P.'
+  };
+
   var RECORD_TYPES = {
     USRDFN: {
       // The keyword that identifies a record as this type (see
@@ -845,7 +861,21 @@
       qualifyingListText: 'CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP, COMP, RANGE, or VALUES',
       definitionRequirements: {
         usage: ['I', 'B']
-      }
+      },
+      msgDataField: MSG_DATA_FIELD_RULE
+    },
+
+    // Task I-121 message-data-field slice - ERRMSGID's and SFLMSGID's own
+    // optional `&msg-data` parameter states the SAME rule as CHKMSGID's
+    // `&message-data-field` (see MSG_DATA_FIELD_RULE above). Their other
+    // rules (MSGID's mutual exclusions, SFLMSGID's record-level shape)
+    // are separate, already-migrated or out-of-scope facts and are not
+    // part of these entries.
+    ERRMSGID: {
+      msgDataField: MSG_DATA_FIELD_RULE
+    },
+    SFLMSGID: {
+      msgDataField: MSG_DATA_FIELD_RULE
     },
 
     // Task I-121 SFLSCROLL slice - the deferred finding the SFLCHCCTL
@@ -1185,6 +1215,23 @@
     return !!(spec && spec.mustBeFirstField);
   }
 
+  /** Task I-121 message-data-field slice - the rule a keyword's message
+   *  data field parameter must satisfy (the CHKMSGID/ERRMSGID/SFLMSGID
+   *  shape: must exist in the record, data type A, usage P), or null for
+   *  a keyword with no such parameter. */
+  function msgDataFieldRule(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return (spec && spec.msgDataField) || null;
+  }
+
+  /** Task I-121 message-data-field slice - every keyword that carries a
+   *  message data field parameter, in spec order. */
+  function msgDataFieldKeywords() {
+    return Object.keys(RECORD_TYPES).filter(function (k) {
+      return !!RECORD_TYPES[k].msgDataField;
+    });
+  }
+
   /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
    *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
    *  for a keyword with no spec entry or no such flag. */
@@ -1217,6 +1264,8 @@
     mustBeFirstField: mustBeFirstField,
     isOnePerRecord: isOnePerRecord,
     hasQualifyingKeyword: hasQualifyingKeyword,
-    qualifyingListText: qualifyingListText
+    qualifyingListText: qualifyingListText,
+    msgDataFieldRule: msgDataFieldRule,
+    msgDataFieldKeywords: msgDataFieldKeywords
   };
 });

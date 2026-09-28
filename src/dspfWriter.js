@@ -1487,6 +1487,12 @@
   function messageDataFieldProblem(keywordName, name, recordFields) {
     var shown = '&' + String(name || '').replace(/^&/, '').trim().toUpperCase();
     if (shown === '&') return null;
+    // Task I-121 message-data-field slice: the rule itself (must exist,
+    // data type, usage) is KeywordSpec's own fact for the keyword, shared
+    // by CHKMSGID/ERRMSGID/SFLMSGID; a keyword with no spec fact is not
+    // checked (fail open).
+    var rule = KeywordSpec.msgDataFieldRule(keywordName);
+    if (!rule) return null;
     var f = msgDataFieldFind(recordFields, name);
     if (!f) {
       return keywordName + ' message data field ' + shown + ' does not exist in this record format - the field name must exist in the record format (per the DDS Reference).';
@@ -1495,12 +1501,12 @@
     if (!f.isReference) {
       var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
       var numeric = dt === '' && chridDecimalsSpecified(f.decimalPositions);
-      if ((dt !== '' && dt !== 'A') || numeric) issues.push('it is ' + (numeric ? 'a numeric field' : 'data type ' + dt));
+      if ((dt !== '' && dt !== rule.dataType) || numeric) issues.push('it is ' + (numeric ? 'a numeric field' : 'data type ' + dt));
     }
     var usage = String(f.usage == null ? '' : f.usage).trim().toUpperCase();
-    if (usage !== 'P') issues.push('its usage is ' + (usage || 'blank (output)'));
+    if (usage !== rule.usage) issues.push('its usage is ' + (usage || 'blank (output)'));
     if (!issues.length) return null;
-    return keywordName + ' message data field ' + shown + ' must be a character field (data type A) with usage P (per the DDS Reference), but ' + issues.join(' and ') + '.';
+    return keywordName + ' message data field ' + shown + ' must be a character field (data type ' + rule.dataType + ') with usage ' + rule.usage + ' (per the DDS Reference), but ' + issues.join(' and ') + '.';
   }
 
   function chkmsgidMsgDataFieldProblem(name, recordFields) {
@@ -1550,7 +1556,11 @@
   // record), so "the record format" is the field's own record / the
   // control record itself.
   // -----------------------------------------------------------------------
-  var MSGID_MSGDATA_KEYWORDS = ['ERRMSGID', 'SFLMSGID'];
+  // Task I-121 message-data-field slice: derived from KeywordSpec (every
+  // keyword with a message-data-field fact except CHKMSGID, whose
+  // parameter has its own structured getter above) instead of a
+  // hand-written array.
+  var MSGID_MSGDATA_KEYWORDS = KeywordSpec.msgDataFieldKeywords().filter(function (k) { return k !== 'CHKMSGID'; });
 
   /** The `&msg-data` names (upper case, no &) across every instance of
    *  `keywordName` in `keywords`, in order. */
