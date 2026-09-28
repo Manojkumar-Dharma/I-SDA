@@ -33,6 +33,12 @@
  *     pass unchanged; this file only adds the spec-level checks and a
  *     handful of representative pass-through checks.
  *
+ * Updated by the I-121 SFLSCROLL slice: this slice's own onePerRecord fact
+ * is no longer exclusive to SFLCHCCTL once SFLSCROLL's own analogous rule
+ * (the deferred finding this slice itself raised) is migrated too - the
+ * "no other entry" assertion below now names both, matching how I-125
+ * updated this same file's `notAllowedOnFloatingPointField` precedent.
+ *
  * Run with: node src/test/i121SflchcctlKeywordSpec.test.js
  */
 const path = require('path');
@@ -61,7 +67,8 @@ console.log('\nkeywordSpec.js RECORD_TYPES.SFLCHCCTL');
   const flaggedFirst = Object.keys(KeywordSpec.RECORD_TYPES).filter((n) => KeywordSpec.RECORD_TYPES[n].mustBeFirstField);
   check('no RECORD_TYPES entry other than SFLCHCCTL carries mustBeFirstField', flaggedFirst.length === 1 && flaggedFirst[0] === 'SFLCHCCTL');
   const flaggedOnePerRecord = Object.keys(KeywordSpec.RECORD_TYPES).filter((n) => KeywordSpec.RECORD_TYPES[n].onePerRecord);
-  check('no RECORD_TYPES entry other than SFLCHCCTL carries onePerRecord', flaggedOnePerRecord.length === 1 && flaggedOnePerRecord[0] === 'SFLCHCCTL');
+  check('SFLCHCCTL and SFLSCROLL (I-121 SFLSCROLL slice) are the only RECORD_TYPES entries carrying onePerRecord', flaggedOnePerRecord.length === 2 &&
+    flaggedOnePerRecord.indexOf('SFLCHCCTL') !== -1 && flaggedOnePerRecord.indexOf('SFLSCROLL') !== -1);
 }
 
 // ===========================================================================

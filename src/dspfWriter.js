@@ -7567,14 +7567,19 @@
    *  keywords array in the same record, needed only for that
    *  record-wide uniqueness check. Returns a reason string, or '' if
    *  there's no conflict. */
+  //  Task I-121 (SFLSCROLL slice) - the same-field mutex and one-per-
+  //  record facts now read from KeywordSpec.isMutex('SFLSCROLL', ...)
+  //  and KeywordSpec.isOnePerRecord('SFLSCROLL') instead of this
+  //  function's own hard-coded literals; behavior and message wording
+  //  are unchanged. Flagged as a deferred finding by the SFLCHCCTL slice.
   function sflScrollFieldConflictReason(fieldKeywords, siblingFieldsKeywords) {
     var present = function (n) { return (fieldKeywords || []).some(function (kw) { return kw.name === n; }); };
-    if (present('SFLROLVAL')) return 'SFLSCROLL cannot be specified on the same field as SFLROLVAL (mutually exclusive per the DDS Reference).';
-    if (present('SFLRCDNBR')) return 'SFLSCROLL cannot be specified on the same field as SFLRCDNBR (mutually exclusive per the DDS Reference).';
+    if (KeywordSpec.isMutex('SFLSCROLL', 'SFLROLVAL') && present('SFLROLVAL')) return 'SFLSCROLL cannot be specified on the same field as SFLROLVAL (mutually exclusive per the DDS Reference).';
+    if (KeywordSpec.isMutex('SFLSCROLL', 'SFLRCDNBR') && present('SFLRCDNBR')) return 'SFLSCROLL cannot be specified on the same field as SFLRCDNBR (mutually exclusive per the DDS Reference).';
     var alreadyElsewhere = (siblingFieldsKeywords || []).some(function (fk) {
       return (fk || []).some(function (kw) { return kw.name === 'SFLSCROLL'; });
     });
-    if (alreadyElsewhere) return 'Only one SFLSCROLL keyword is allowed in the subfile control record - another field already has it.';
+    if (KeywordSpec.isOnePerRecord('SFLSCROLL') && alreadyElsewhere) return 'Only one SFLSCROLL keyword is allowed in the subfile control record - another field already has it.';
     return '';
   }
 

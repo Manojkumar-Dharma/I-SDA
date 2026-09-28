@@ -833,27 +833,6 @@
       notAllowedOnFloatingPointField: true
     },
 
-    // Task I-121 CHKMSGID slice - chkmsgidNewConflictReason (I-69, the
-    // qualifying-keyword dependency, both directions) and
-    // chkmsgidBasicEditConflictReason (I-69, the Basic-tab-edit direction
-    // of the usage rule) each independently re-embed the same
-    // DDS-Reference-stated facts as their own local constants
-    // (CHKMSGID_QUALIFYING_NAMES, CHKMSGID_QUALIFYING_CHECK_CODES,
-    // CHKMSGID_LIST_TEXT). The message-data-field rule (I-89/I-97, shared
-    // with ERRMSGID/SFLMSGID) is a separate, larger web - deliberately out
-    // of scope for this slice.
-    //
-    // DDS_Keyword_V7r6.txt, CHKMSGID's own section, re-verified fresh,
-    // unchanged from what the code already had: "CHKMSGID is allowed only
-    // on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN),
-    // CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword. The field must be
-    // input-capable (usage B or I)." A new shape - a DEPENDENCY on one of
-    // several qualifying keywords, one of which (CHECK) only counts when
-    // parameterized with one of several specific codes - distinct from
-    // `mutex` (excludes) and `REQUIRE_PAIRS` (a fixed single partner).
-    // `definitionRequirements.usage` reuses the PSHBTNFLD shape unchanged
-    // for the input-capable rule (only the `usage` key is populated here;
-    // CHKMSGID has no data-type/length/decimals rule of its own).
     CHKMSGID: {
       ddsReference:
         'CHKMSGID is allowed only on fields which also contain a ' +
@@ -867,6 +846,42 @@
       definitionRequirements: {
         usage: ['I', 'B']
       }
+    },
+
+    // Task I-121 SFLSCROLL slice - the deferred finding the SFLCHCCTL
+    // slice itself raised: SFLSCROLL's own DDS Reference section (line
+    // ~12311) states the identical one-per-record shape SFLCHCCTL's
+    // onePerRecord fact already models, plus a same-field mutex,
+    // previously living only as sflScrollFieldConflictReason's own
+    // inline literals.
+    //
+    // Re-verified fresh against DDS_Keyword_V7r6.txt, unchanged from
+    // what the code already had: "You cannot specify the SFLROLVAL, the
+    // SFLSCROLL and the SFLRCDNBR keywords for the same field. Only one
+    // SFLSCROLL keyword is allowed in the subfile control record."
+    // `mutex: ['SFLROLVAL', 'SFLRCDNBR']` reuses the plain same-field
+    // mutex shape CHRID's own DUP entry already established; `onePerRecord`
+    // reuses SFLCHCCTL's shape unchanged.
+    //
+    // Two further rules in the same DDS Reference section are NOT part of
+    // this entry, because neither is enforced anywhere in the codebase
+    // today - adding them here would be new behavior, not the pure
+    // refactor of EXISTING enforcement this task is scoped to (the same
+    // line I-121's own DUP/BLKFOLD slice drew around COMP/RANGE/CHECK(AB)):
+    // (1) the field-shape requirement ("must have the keyboard shift
+    // attribute of signed numeric with zero decimal positions... 5 digits
+    // in length... a hidden field") - SFLSCROLL is wired today as a plain
+    // setFileFlagKeyword checkbox with no shape rewrite, unlike SFLCHCCTL's
+    // own sflchcctlDefinitionUpdates; and (2) "SFLSCROLL is not allowed
+    // when SFLSIZ equals SFLPAG" - no guard of any kind exists for this.
+    // Both logged fresh in the Deferred findings table.
+    SFLSCROLL: {
+      ddsReference:
+        'You cannot specify the SFLROLVAL, the SFLSCROLL and the ' +
+        'SFLRCDNBR keywords for the same field. Only one SFLSCROLL ' +
+        'keyword is allowed in the subfile control record.',
+      mutex: ['SFLROLVAL', 'SFLRCDNBR'],
+      onePerRecord: true
     }
   };
 
