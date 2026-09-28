@@ -1282,6 +1282,16 @@
     var hasMoreText = !!(sflEnd && sflEnd.more);
     var hasPlus = !!(sflEnd && sflEnd.plus);
 
+    // Task P10 - selection-list subfile (SFLSNGCHC / SFLMLTCHC on the control
+    // record, honouring option indicators / display-size conditions like every
+    // other keyword here). IBM's SFLEND section: "For selection lists, the plus
+    // will be positioned to the right of the choices for the list" - and the
+    // same for the More/Bottom text and the scroll bar.
+    var selListKw = record.keywords.find(function (k) {
+      return (k.name === 'SFLSNGCHC' || k.name === 'SFLMLTCHC') && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
+    }) || null;
+    var selectionList = selListKw ? { kind: selListKw.name === 'SFLSNGCHC' ? 'single' : 'multiple' } : null;
+
     // Only fields that actually occupy a VISIBLE row position count toward
     // row height - hidden/program-to-system fields (usage H/P, matching the
     // same exclusion resolveRecordFields uses when deciding what to draw at
@@ -1393,9 +1403,14 @@
       // those columns" - so no field may cross them, nor span more than one line.
       // Inside a window the reference gives no positions: pre-P9 placement (the
       // row's own last 3 columns) is kept there and no collision check is made.
-      var sbAtDisplayEdge = totalColumns != null && !resolveWindow(record, dspfFile);
-      var sbCol = sbAtDisplayEdge ? totalColumns - 3 : Math.max(1, sbRightCol - 2);
-      var sbWidth = sbAtDisplayEdge ? 4 : 3;
+      // Task P10 - selection lists: the bar sits immediately to the RIGHT OF THE
+      // CHOICES (the reference gives no column numbers - design call: the four
+      // reserved positions start right after the choice field's last column), so
+      // nothing of the subfile can collide with it and it is not tied to the
+      // display edge; `fitsDisplay` is false when it would run off the screen.
+      var sbAtDisplayEdge = !selectionList && totalColumns != null && !resolveWindow(record, dspfFile);
+      var sbCol = selectionList ? sbRightCol + 1 : (sbAtDisplayEdge ? totalColumns - 3 : Math.max(1, sbRightCol - 2));
+      var sbWidth = (sbAtDisplayEdge || selectionList) ? 4 : 3;
       var sbCollisions = [];
       if (sbAtDisplayEdge) {
         firstRowFields.forEach(function (f) {
@@ -1419,6 +1434,8 @@
         col: sbCol,
         width: sbWidth,
         atDisplayEdge: sbAtDisplayEdge,
+        rightOfChoices: !!selectionList,
+        fitsDisplay: totalColumns == null || sbCol + sbWidth - 1 <= totalColumns,
         collisions: sbCollisions,
         height: Math.max(sbHeight, 1),
         undersized: sbHeight < 3, // real SDA requires >=3 lines for a usable scroll bar
@@ -1443,16 +1460,22 @@
     if (hasMoreText && firstRowFields && firstRowFields.length > 0) {
       var mlLeftCol = Math.min.apply(null, firstRowFields.map(function (f) { return f.column; }));
       var mlRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
-      var mlAtDisplayEdge = totalColumns != null && !resolveWindow(record, dspfFile);
-      var mlCol = mlAtDisplayEdge ? totalColumns - 13 : mlLeftCol;
-      var mlWidth = mlAtDisplayEdge ? 14 : Math.max(mlRightCol - mlLeftCol + 1, 1);
+      // Task P10 - selection lists: the same 14 positions (attribute, right-aligned
+      // text, attribute) start right after the choices instead of at the display edge.
+      var mlAtChoices = !!selectionList;
+      var mlAtDisplayEdge = !mlAtChoices && totalColumns != null && !resolveWindow(record, dspfFile);
+      var mlCol = mlAtChoices ? mlRightCol + 1 : (mlAtDisplayEdge ? totalColumns - 13 : mlLeftCol);
+      var mlWidth = (mlAtDisplayEdge || mlAtChoices) ? 14 : Math.max(mlRightCol - mlLeftCol + 1, 1);
+      var mlBlock = mlAtDisplayEdge || mlAtChoices;
       moreLine = {
         line: lineOffset + firstFieldLine + shownRows * shownRowHeight,
         col: mlCol,
         width: mlWidth,
-        textCol: mlAtDisplayEdge ? mlCol + 1 : mlCol,
-        textWidth: mlAtDisplayEdge ? mlWidth - 2 : mlWidth,
+        textCol: mlBlock ? mlCol + 1 : mlCol,
+        textWidth: mlBlock ? mlWidth - 2 : mlWidth,
         atDisplayEdge: mlAtDisplayEdge,
+        rightOfChoices: mlAtChoices,
+        fitsDisplay: totalColumns == null || mlCol + mlWidth - 1 <= totalColumns,
         text: sflEnd.state === 'bottom' ? 'Bottom' : 'More...',
       };
     }
@@ -1466,11 +1489,20 @@
     if (hasPlus && sflEnd.state === 'more' && firstRowFields && firstRowFields.length > 0) {
       var plusRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
       var plusCol = (totalColumns != null && !resolveWindow(record, dspfFile)) ? totalColumns - 1 : plusRightCol;
-      plusMark = { line: lineOffset + firstFieldLine + shownRows * shownRowHeight - 1, col: plusCol };
+      // Task P10 - selection lists: beginning attribute character right after the
+      // choices, the "+" one column further (same attr / + / attr triple as IBM's).
+      if (selectionList) plusCol = plusRightCol + 2;
+      plusMark = {
+        line: lineOffset + firstFieldLine + shownRows * shownRowHeight - 1,
+        col: plusCol,
+        rightOfChoices: !!selectionList,
+        fitsDisplay: totalColumns == null || plusCol + 1 <= totalColumns,
+      };
     }
 
     return {
       sflRecordName: sflRecord.name,
+      selectionList: selectionList,
       pageRows: shownRows,
       declaredPageRows: declaredSflPag,
       foldDrop: foldDrop,
@@ -2434,7 +2466,7 @@
           ';grid-column:' +
           sb.col +
           ' / span ' + sb.width + ';" title="SFLEND(*SCRBAR) - reserves ' +
-          (sb.atDisplayEdge ? 'positions ' + sb.col + '-' + (sb.col + sb.width - 1) + ' of every subfile line' : 'the subfile\'s last 3 columns') +
+          (sb.rightOfChoices ? 'positions ' + sb.col + '-' + (sb.col + sb.width - 1) + ', to the right of the selection-list choices' : sb.atDisplayEdge ? 'positions ' + sb.col + '-' + (sb.col + sb.width - 1) + ' of every subfile line' : 'the subfile\'s last 3 columns') +
           ' for a graphical scroll bar">' +
           '<div class="dspf-scrollbar-arrow dspf-scrollbar-arrow-up">\u25B2</div>' +
           '<div class="dspf-scrollbar-track"><div class="dspf-scrollbar-thumb' + (sb.boxState ? ' dspf-scrollbar-thumb-' + sb.boxState : '') + '"></div></div>' +
@@ -2453,7 +2485,7 @@
           ' / span ' +
           ml.textWidth +
           ';" title="SFLEND(*MORE) - shows More... / Bottom below the subfile' +
-          (ml.atDisplayEdge ? ' (right-aligned in positions ' + ml.col + '-' + (ml.col + ml.width - 1) + ', attribute characters at both ends)' : '') +
+          ((ml.atDisplayEdge || ml.rightOfChoices) ? ' (right-aligned in positions ' + ml.col + '-' + (ml.col + ml.width - 1) + ', attribute characters at both ends' + (ml.rightOfChoices ? ', to the right of the selection-list choices' : '') + ')' : '') +
           '">' + ml.text + '</div>\n';
       }
       // Task P7 - SFLEND / SFLEND(*PLUS): the "+" on the subfile's last line.

@@ -3240,11 +3240,14 @@ const htmlTemplate = `<!DOCTYPE html>
       let sflEndNote = '';
       if (screen.subfilePreview.scrollbar) {
         const sbr = screen.subfilePreview.scrollbar;
-        sflEndNote += sbr.atDisplayEdge
+        sflEndNote += sbr.rightOfChoices
+          ? ' A scroll bar (SFLEND(*SCRBAR)) sits to the right of the selection-list choices, positions ' + sbr.col + '-' + (sbr.col + sbr.width - 1) + (sbr.fitsDisplay ? '.' : ' - past the right edge of the display, so the choices need to be narrower.')
+          : sbr.atDisplayEdge
           ? ' A scroll bar (SFLEND(*SCRBAR)) reserves positions ' + sbr.col + '-' + (sbr.col + sbr.width - 1) + ' of every subfile line.'
           : ' A scroll bar (SFLEND(*SCRBAR)) reserves the subfile\\'s own last 3 columns.';
       }
-      if (screen.subfilePreview.moreLine) sflEndNote += ' A "More.../Bottom" line (SFLEND(*MORE)) is reserved just below it.';
+      if (screen.subfilePreview.moreLine) sflEndNote += ' A "More.../Bottom" line (SFLEND(*MORE)) is reserved just below it' + (screen.subfilePreview.moreLine.rightOfChoices ? ', to the right of the choices' + (screen.subfilePreview.moreLine.fitsDisplay ? '.' : ' (past the right edge of the display).') : '.');
+      if (screen.subfilePreview.selectionList && screen.subfilePreview.plusMark) sflEndNote += ' The "+" follows the last choice.';
       const sfe = screen.subfilePreview.sflEnd;
       if (sfe) {
         const shows = [];
