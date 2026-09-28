@@ -168,6 +168,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
+| [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | In progress | — |
+| [I-127](#i-127) | Record | `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced | I-121 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -187,12 +189,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-125, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-127, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121 (SFLSCROLL slice) | SFLSCROLL's own DDS Reference section (line ~12311) also states a field-shape requirement ("must have the keyboard shift attribute of signed numeric with zero decimal positions... 5 digits in length... a hidden field") - no guard of any kind exists for this today; SFLSCROLL is wired as a plain checkbox with no shape rewrite, unlike SFLCHCCTL's own `sflchcctlDefinitionUpdates`. |
-| I-121 (SFLSCROLL slice) | SFLSCROLL's own DDS Reference section also states "SFLSCROLL is not allowed when SFLSIZ equals SFLPAG" - no guard of any kind exists for this restriction anywhere in the codebase. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
