@@ -296,8 +296,9 @@ const htmlTemplate = `<!DOCTYPE html>
     width: 100%; height: 35%; min-height: 4px; background: rgba(var(--accent-rgb),0.55); border-radius: 2px;
   }
   /* SFLEND(*MORE) - the reserved "More.../Bottom" line right below the
-   * last rendered subfile row, right-justified within the subfile's own
-   * column width (see IBM's SFLEND doc). Design-time-only, like the
+   * last rendered subfile row, right-aligned at the display's right edge
+   * (task P8: positions 67-80 / 119-132 with the attribute characters at both
+   * ends; inside a window, the subfile's own column span). Design-time-only, like the
    * scroll-bar strip above - not an editable field. */
   .dspf-subfile-more-line {
     white-space: pre; text-align: right; color: var(--chrome-accent); opacity: 0.85;

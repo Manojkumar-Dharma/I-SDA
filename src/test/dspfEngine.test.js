@@ -1291,13 +1291,13 @@ console.log('SFLEND(*MORE): reserves one extra "More.../Bottom" line below the l
 
   check('declared SFLPAG(20) still fits (with the +1 line reserved) and renders unclamped', sfp.pageRows === 20);
   check('More.../Bottom line sits immediately below the last rendered row (3 + 20 = 23)', sfp.moreLine && sfp.moreLine.line === 23);
-  check('More.../Bottom line starts at the subfile\'s own left column (2)', sfp.moreLine.col === 2);
-  check('More.../Bottom line spans the subfile\'s own column width (20)', sfp.moreLine.width === 20);
+  check('More.../Bottom line reserves positions 67-80 of a 24x80 display (P8, per IBM SFLEND doc)', sfp.moreLine.col === 67 && sfp.moreLine.width === 14);
+  check('...text sits in the 12 positions between the two attribute characters (68-79)', sfp.moreLine.textCol === 68 && sfp.moreLine.textWidth === 12);
   check('no *SCRBAR parameter -> scrollbar is not resolved', sfp.scrollbar === null);
 
   const html = DspfEngine.renderScreenHtml(screen);
   check('rendered HTML includes the More.../Bottom line', html.includes('dspf-subfile-more-line') && html.includes('More...'));
-  check('More.../Bottom line is positioned via the same grid coordinates', /dspf-subfile-more-line" style="grid-row:23;grid-column:2 \/ span 20;/.test(html));
+  check('More.../Bottom line is positioned via the same grid coordinates', /dspf-subfile-more-line" style="grid-row:23;grid-column:68 \/ span 12;/.test(html));
 }
 
 console.log('SFLEND(*MORE): the reserved extra line comes OUT of the row-fitting budget, not tacked on past the bottom of the screen');

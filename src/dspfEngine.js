@@ -1093,7 +1093,8 @@
    *  - `scrollbar` (SFLEND(*SCRBAR)): the geometry of a reference vertical
    *    scroll-bar strip reserving the subfile's own last 3 columns.
    *  - `moreLine` (SFLEND(*MORE), either as SFLEND's first or second
-   *    parameter): the geometry of the reserved "More.../Bottom" line -
+   *    parameter): the geometry of the reserved "More.../Bottom" line (P8: at
+   *    the display's right edge, positions 67-80 / 119-132, outside windows) -
    *    ALSO consumed one row earlier, by `sflPag`'s own computation, since
    *    that line takes up SFLPAG+1 total lines on screen.
    */
@@ -1390,16 +1391,30 @@
     }
 
     // "More.../Bottom" line (SFLEND(*MORE)): one extra, protected line
-    // immediately below the last rendered subfile row, right-justified
-    // within the subfile's own column width (per IBM's SFLEND doc).
+    // immediately below the last rendered subfile row.
+    // Task P8 - position per IBM (DDS Reference, SFLEND, "Position of More and
+    // Bottom text with *MORE option"): on the line right after the subfile's last
+    // line, positions 67-80 (24x80) / 119-132 (27x132) hold the beginning
+    // attribute character, the RIGHT-ALIGNED More/Bottom text and the ending
+    // attribute character - i.e. `col`/`width` describe those 14 reserved
+    // positions and the text itself occupies the 12 in between (`textCol`/
+    // `textWidth`), so it ends one column short of the display edge. Inside a
+    // window the reference gives no positions, so the pre-P8 placement (the
+    // subfile's own column span) is kept there.
     var moreLine = null;
     if (hasMoreText && firstRowFields && firstRowFields.length > 0) {
       var mlLeftCol = Math.min.apply(null, firstRowFields.map(function (f) { return f.column; }));
       var mlRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
+      var mlAtDisplayEdge = totalColumns != null && !resolveWindow(record, dspfFile);
+      var mlCol = mlAtDisplayEdge ? totalColumns - 13 : mlLeftCol;
+      var mlWidth = mlAtDisplayEdge ? 14 : Math.max(mlRightCol - mlLeftCol + 1, 1);
       moreLine = {
         line: lineOffset + firstFieldLine + shownRows * shownRowHeight,
-        col: mlLeftCol,
-        width: Math.max(mlRightCol - mlLeftCol + 1, 1),
+        col: mlCol,
+        width: mlWidth,
+        textCol: mlAtDisplayEdge ? mlCol + 1 : mlCol,
+        textWidth: mlAtDisplayEdge ? mlWidth - 2 : mlWidth,
+        atDisplayEdge: mlAtDisplayEdge,
         text: sflEnd.state === 'bottom' ? 'Bottom' : 'More...',
       };
     }
@@ -2394,10 +2409,12 @@
           '<div class="dspf-subfile-more-line" style="grid-row:' +
           ml.line +
           ';grid-column:' +
-          ml.col +
+          ml.textCol +
           ' / span ' +
-          ml.width +
-          ';" title="SFLEND(*MORE) - shows More... / Bottom below the subfile">' + ml.text + '</div>\n';
+          ml.textWidth +
+          ';" title="SFLEND(*MORE) - shows More... / Bottom below the subfile' +
+          (ml.atDisplayEdge ? ' (right-aligned in positions ' + ml.col + '-' + (ml.col + ml.width - 1) + ', attribute characters at both ends)' : '') +
+          '">' + ml.text + '</div>\n';
       }
       // Task P7 - SFLEND / SFLEND(*PLUS): the "+" on the subfile's last line.
       if (sfp.plusMark) {
