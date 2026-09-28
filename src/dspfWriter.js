@@ -7434,12 +7434,17 @@
    *  already present) - left for a follow-up, same convention Task R3's
    *  own CHGINPDFT/etc. partial guards took where only one direction was
    *  built first. Returns a reason string, or '' if there's no conflict. */
+  //  Task I-121 (SFLSNGCHC/SFLMLTCHC slice) - the partner list (the other
+  //  choice keyword, SFLDROP, SFLFOLD) and its report order now come from
+  //  KeywordSpec.mutexKeywords(name) instead of being hard-coded here;
+  //  behavior and message wording are unchanged for the two names this is
+  //  called with. A name with no spec entry is fail-safe (no conflict).
   function sflChoiceListConflictReason(name, keywords) {
-    var other = name === 'SFLSNGCHC' ? 'SFLMLTCHC' : 'SFLSNGCHC';
     var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
-    if (present(other)) return name + ' cannot be specified on the same record as ' + other + ' (mutually exclusive per the DDS Reference).';
-    if (present('SFLDROP')) return name + ' cannot be specified on the same record as SFLDROP (mutually exclusive per the DDS Reference).';
-    if (present('SFLFOLD')) return name + ' cannot be specified on the same record as SFLFOLD (mutually exclusive per the DDS Reference).';
+    var partners = KeywordSpec.mutexKeywords(name);
+    for (var i = 0; i < partners.length; i++) {
+      if (present(partners[i])) return name + ' cannot be specified on the same record as ' + partners[i] + ' (mutually exclusive per the DDS Reference).';
+    }
     return '';
   }
 

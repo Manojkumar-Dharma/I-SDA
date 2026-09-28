@@ -906,6 +906,28 @@
       qualifyingListText: 'SFLSNGCHC or SFLMLTCHC'
     },
 
+    // Task I-121 SFLSNGCHC/SFLMLTCHC slice - SFLMLTCHC's own DDS Reference
+    // section (line ~11398) and SFLSNGCHC's (line ~12500), re-verified
+    // fresh against DDS_Keyword_V7r6.txt, each state: "The following
+    // subfile control record keywords cannot be specified on a record with
+    // the [SFLMLTCHC | SFLSNGCHC] keyword: SFLDROP, SFLFOLD, [the other
+    // choice keyword]". A plain record-level mutex - the existing `mutex`
+    // shape reused unchanged. Each section states it from its own side, so
+    // each keyword gets its own entry (as with every other one-directional
+    // mutex entry); order matches the order the guard reports in.
+    SFLSNGCHC: {
+      ddsReference:
+        'The following subfile control record keywords cannot be specified ' +
+        'on a record with the SFLSNGCHC keyword: SFLDROP, SFLFOLD, SFLMLTCHC.',
+      mutex: ['SFLMLTCHC', 'SFLDROP', 'SFLFOLD']
+    },
+    SFLMLTCHC: {
+      ddsReference:
+        'The following subfile control record keywords cannot be specified ' +
+        'on a record with the SFLMLTCHC keyword: SFLDROP, SFLFOLD, SFLSNGCHC.',
+      mutex: ['SFLSNGCHC', 'SFLDROP', 'SFLFOLD']
+    },
+
     // Task I-121 message-data-field slice - ERRMSGID's and SFLMSGID's own
     // optional `&msg-data` parameter states the SAME rule as CHKMSGID's
     // `&message-data-field` (see MSG_DATA_FIELD_RULE above). Their other
