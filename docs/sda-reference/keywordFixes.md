@@ -170,7 +170,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
 | [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | Done | v0.10.232 |
 | [I-127](#i-127) | Record | `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced | I-121 | Done | v0.10.232 |
-| [I-128](#i-128) | Record | `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction) | I-121, I-26 | In progress | — |
+| [I-128](#i-128) | Record | `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction) | I-121, I-26 | Done | v0.10.236 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -5793,5 +5793,17 @@ New `src/test/i127SflscrollSizPagGuard.test.js` (46 checks): the spec fact and c
 While re-reading SFLSCROLL's section for both tasks, one more unenforced rule turned up ("valid only for the subfile-control record format" - the panel is offered on SFL detail records too); logged in the Deferred findings table rather than fixed.
 
 Full suite (after merging with the P6/P7 and I-121 SFLRTNSEL, SFLLIN/SFLCSRPRG, SFLSNGCHC/SFLMLTCHC work pushed in parallel): 180 files, 10,759 checks, zero failures.
+
+---
+
+### I-128 — `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction)
+
+> **Area:** Record · **Status:** Done (v0.10.236) · **Depends on:** I-121, I-26
+
+Opened from the deferred finding raised by I-121's SFLSNGCHC/SFLMLTCHC slice (v0.10.231). SFLMLTCHC's and SFLSNGCHC's own DDS Reference sections (lines ~11398 and ~12500, re-verified fresh in that slice) each state that SFLDROP, SFLFOLD and the other choice keyword "cannot be specified on a record with" them; the new `mutex` lists on `RECORD_TYPES.SFLSNGCHC`/`SFLMLTCHC` carry that. `sflChoiceListConflictReason` (I-26) only runs when the choice keyword is being turned ON, so adding SFLDROP or SFLFOLD (the SFLCTL panel's rows, or the raw keyword editor) to a record that already carried SFLSNGCHC/SFLMLTCHC was unblocked anywhere; the function's own doc comment had flagged the missing direction since I-26.
+
+New `DspfWriter.sflChoiceListNewConflictReason(oldKeywords, newKeywords)`: a diff-based backstop called from `commitRecordEdit` in `buildWebviewTemplate.js` - the same choke point and shape as I-81's `sflrtnselNewConflictReason`, so one call covers every record-level path (panel checkbox, raw editor, type selector). It reads its partner lists from `KeywordSpec.mutexKeywords` for both choice keywords, so the forward and reverse directions cannot disagree. Compared per (choice keyword, partner) pair: a hand-written already-invalid record is not re-reported on an unrelated edit, either side of an existing pair can always be removed (which is how such a record is fixed), and switching SFLSNGCHC for SFLMLTCHC in one edit is allowed, but introducing a NEW bad pair on an already-invalid record is still blocked. The message names the keyword the edit ADDED first, in the same wording as the forward direction.
+
+New `src/test/i128SflChoiceListReverseGuard.test.js` (41 checks): direct unit checks of the function (every blocked and allowed shape, the per-pair diff cases, null/undefined inputs), and in jsdom against the real generated client script the raw keyword editor and the SFLCTL panel's SFLDROP/SFLFOLD checkboxes being blocked with an alert and reverted, allowed edits still committing, and a hand-written already-invalid record. The test fails without the guard (14 failures). Pure guard addition; nothing that was allowed before and is valid is newly refused.
 
 ---

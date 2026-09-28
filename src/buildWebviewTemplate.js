@@ -6930,6 +6930,16 @@ const htmlTemplate = `<!DOCTYPE html>
         renderRecordProps(recordName);
         return;
       }
+      // Task I-128: the reverse direction of I-26's choice-list mutex -
+      // SFLDROP/SFLFOLD (or the other choice keyword) added to a record
+      // that already carries SFLSNGCHC/SFLMLTCHC. Same choke point and
+      // diff-based shape as SFLRTNSEL just above.
+      const sflChoiceReason = DspfWriter.sflChoiceListNewConflictReason(rec.keywords, updates.keywords);
+      if (sflChoiceReason) {
+        window.alert(sflChoiceReason);
+        renderRecordProps(recordName);
+        return;
+      }
       // Task I-80: SFLLIN is not allowed with SFLCSRPRG. This is the
       // record-level side (introducing SFLLIN on a control record, or
       // pointing one that has it at a subfile record via SFLCTL, when that

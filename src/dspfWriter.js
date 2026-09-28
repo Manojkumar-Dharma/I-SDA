@@ -7584,6 +7584,49 @@
     return null;
   }
 
+  /** Task I-128: the REVERSE direction of the I-26 choice-list exclusion.
+   *  SFLMLTCHC's and SFLSNGCHC's own DDS Reference sections say SFLDROP,
+   *  SFLFOLD and the other choice keyword cannot be specified on a record
+   *  with them (KeywordSpec `mutex` on each choice keyword).
+   *  sflChoiceListConflictReason only runs when the choice keyword is being
+   *  turned ON, so adding SFLDROP or SFLFOLD to a record that already has a
+   *  choice keyword - through the SFLCTL panel's SFLDROP/SFLFOLD rows or
+   *  the raw keyword editor - was unblocked. Given the record's keyword
+   *  list before and after an edit, returns a reason string when the edit
+   *  INTRODUCES a (choice keyword, partner) pair that was not already on
+   *  the record, else null.
+   *
+   *  Diff-based backstop, same shape as I-81's sflrtnselNewConflictReason,
+   *  for ONE choke point (commitRecordEdit) that covers every record-level
+   *  path at once. Compared PER PAIR: a record that was already invalid (a
+   *  hand-written file) is not re-reported on an unrelated edit, removing
+   *  either side of an existing pair is always allowed, but introducing a
+   *  NEW bad pair on an already-invalid record is still blocked. Reads the
+   *  partner lists from KeywordSpec.mutexKeywords, so the forward and
+   *  reverse directions can never disagree; report order is the choice
+   *  keyword order below, then the spec's partner order. The wording names
+   *  the keyword being ADDED first, matching sflChoiceListConflictReason. */
+  var SFL_CHOICE_KEYWORDS = ['SFLSNGCHC', 'SFLMLTCHC'];
+  function sflChoiceListNewConflictReason(oldKeywords, newKeywords) {
+    var has = function (kws, n) { return (kws || []).some(function (kw) { return kw.name === n; }); };
+    for (var i = 0; i < SFL_CHOICE_KEYWORDS.length; i++) {
+      var choice = SFL_CHOICE_KEYWORDS[i];
+      if (!has(newKeywords, choice)) continue;
+      var partners = KeywordSpec.mutexKeywords(choice);
+      for (var j = 0; j < partners.length; j++) {
+        var partner = partners[j];
+        if (!has(newKeywords, partner)) continue;
+        if (has(oldKeywords, choice) && has(oldKeywords, partner)) continue;
+        // Name the keyword the edit ADDED; when both are new (or the edit
+        // added the choice keyword), the partner is the one blamed.
+        var added = has(oldKeywords, partner) ? choice : partner;
+        var other = added === choice ? partner : choice;
+        return added + ' cannot be specified on the same record as ' + other + ' (mutually exclusive per the DDS Reference).';
+      }
+    }
+    return null;
+  }
+
   /** Whether turning SFLSCROLL ON on this field would conflict with
    *  something already there. Per SFLSCROLL's own DDS Reference text,
    *  "You cannot specify the SFLROLVAL, the SFLSCROLL and the SFLRCDNBR
@@ -8894,6 +8937,7 @@
     setSflMltChcKeyword: setSflMltChcKeyword,
     sflChoiceListConflictReason: sflChoiceListConflictReason,
     sflrtnselNewConflictReason: sflrtnselNewConflictReason,
+    sflChoiceListNewConflictReason: sflChoiceListNewConflictReason,
     sfllinRecordEditConflictReason: sfllinRecordEditConflictReason,
     sflcsrprgFieldEditConflictReason: sflcsrprgFieldEditConflictReason,
     sflScrollFieldConflictReason: sflScrollFieldConflictReason,
