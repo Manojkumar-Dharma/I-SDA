@@ -1097,7 +1097,96 @@
    *    ALSO consumed one row earlier, by `sflPag`'s own computation, since
    *    that line takes up SFLPAG+1 total lines on screen.
    */
-  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines, activeSizeName) {
+  /**
+   * Task P6 - SFLDROP / SFLFOLD design-time state (IBM DDS Reference, "SFLDROP"
+   * and "SFLFOLD" keyword sections). Both are record-level keywords on the
+   * SFLCTL record that pick how a MULTI-LINE subfile record is first shown:
+   *  - SFLDROP(CAnn|CFnn): starts TRUNCATED (one display line per record,
+   *    more records than SFLPAG on screen); the key switches to folded.
+   *  - SFLFOLD(CAnn|CFnn): starts FOLDED (each record continues onto the
+   *    following lines, SFLPAG records on screen); the key switches to truncated.
+   *  - Both active: SFLFOLD is used; both must use the same key.
+   *  - Ignored when SFLSIZ equals SFLPAG (per display size, so the SFLSIZ/SFLPAG
+   *    considered are the ones active for the current DSPSIZ size).
+   *  - Only the currently ACTIVE instance counts (same conditionsSatisfied()
+   *    gate as every other conditioned keyword), so flipping the preview
+   *    indicators that condition SFLDROP/SFLFOLD changes the drawn state.
+   * Returns null when neither keyword is active. `ignoredReason` is '' when the
+   * keyword has an effect.
+   */
+  function resolveFoldDropState(record, activeIndicators, activeSizeName) {
+    function activeKw(name) {
+      return record.keywords.find(function (k) {
+        return k.name === name && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
+      }) || null;
+    }
+    function keyOf(kw) {
+      var m = /^\s*(C[AF]\d{2})\s*$/i.exec((kw && kw.parameters) || '');
+      return m ? m[1].toUpperCase() : null;
+    }
+    function numOf(name) {
+      var kw = activeKw(name);
+      if (!kw) return null;
+      var n = parseInt(kw.parameters.trim(), 10);
+      return Number.isNaN(n) ? null : n;
+    }
+    var dropKw = activeKw('SFLDROP');
+    var foldKw = activeKw('SFLFOLD');
+    if (!dropKw && !foldKw) return null;
+    var used = foldKw || dropKw; // "If both keywords are active, the SFLFOLD keyword is used."
+    var notes = [];
+    if (dropKw && foldKw) {
+      notes.push('Both SFLDROP and SFLFOLD are active - SFLFOLD is used.');
+      var dk = keyOf(dropKw);
+      var fk = keyOf(foldKw);
+      if (dk && fk && dk !== fk) notes.push('SFLDROP (' + dk + ') and SFLFOLD (' + fk + ') must use the same key.');
+    }
+    var sflSiz = numOf('SFLSIZ');
+    var sflPagNum = numOf('SFLPAG');
+    var ignoredReason = '';
+    if (sflSiz != null && sflPagNum != null && sflSiz === sflPagNum) {
+      ignoredReason = 'ignored because SFLSIZ equals SFLPAG';
+    }
+    return {
+      keyword: foldKw ? 'SFLFOLD' : 'SFLDROP',
+      key: keyOf(used),
+      initialState: foldKw ? 'folded' : 'truncated',
+      ignoredReason: ignoredReason,
+      notes: notes,
+      sflSiz: sflSiz,
+    };
+  }
+
+  /**
+   * Task P6 - the truncated form of one repeated subfile row: only the fields on
+   * the record's FIRST display line survive (a field spanning several lines needs
+   * more than one), and a field running past the screen's right edge is cut
+   * there if it is output-only, or omitted whole if it is input-capable (IBM:
+   * "truncates subfile records in the middle of output-only fields. However, if
+   * the truncation is in the middle of an input-capable field, the whole field
+   * is omitted"). Constants and O/M-usage fields count as output-only.
+   */
+  function truncateRowToFirstLine(rowFields, firstFieldLine, totalColumns) {
+    var out = [];
+    rowFields.forEach(function (f) {
+      if (f.anchorLine !== firstFieldLine) return; // continues on a later line: dropped
+      if ((f.height || 1) > 1) return;
+      var end = f.column + f.length - 1;
+      if (totalColumns != null && end > totalColumns) {
+        if (f.usage === 'I' || f.usage === 'B') return; // input-capable: whole field omitted
+        var newLen = totalColumns - f.column + 1;
+        if (newLen < 1) return;
+        var clipped = Object.assign({}, f, { length: newLen });
+        if (typeof f.text === 'string') clipped.text = f.text.slice(0, newLen);
+        out.push(clipped);
+        return;
+      }
+      out.push(f);
+    });
+    return out;
+  }
+
+  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines, activeSizeName, totalColumns, foldFlipped) {
     var sflCtlKw = record.keywords.find(function (k) { return k.name === 'SFLCTL'; });
     if (!sflCtlKw) return null;
     var sflName = sflCtlKw.parameters.trim();
@@ -1158,13 +1247,69 @@
       sflPag = Math.min(declaredSflPag, maxRowsWithinWorkArea(lineOffset + firstFieldLine, rowHeight, rowBudgetLines));
     }
 
+    // Task P6 - SFLDROP/SFLFOLD: pick the drawn form (folded = SFLPAG records,
+    // each rowHeight lines tall; truncated = one line per record, as many
+    // records as the folded page had LINES, bounded by SFLSIZ and the screen).
+    // `foldFlipped` is the design-time "user pressed the key" toggle.
+    var foldDrop = resolveFoldDropState(record, activeIndicators, activeSizeName);
+    var truncatedRowCount = null;
+    var shownState = 'folded';
+    if (foldDrop) {
+      var truncBudget = declaredSflPag * rowHeight;
+      if (foldDrop.sflSiz != null) truncBudget = Math.min(truncBudget, foldDrop.sflSiz);
+      if (totalLines != null) {
+        truncBudget = Math.min(truncBudget, maxRowsWithinWorkArea(lineOffset + firstFieldLine, 1, hasMoreText ? totalLines - 1 : totalLines));
+      }
+      truncatedRowCount = truncBudget;
+      if (rowHeight <= 1) {
+        // IBM: a warning is sent when the entire record fits on one display line.
+        foldDrop.ignoredReason = foldDrop.ignoredReason || 'no effect: the whole subfile record fits on one display line';
+      }
+      foldDrop.canToggle = !foldDrop.ignoredReason;
+      if (foldDrop.canToggle) {
+        var otherState = foldDrop.initialState === 'folded' ? 'truncated' : 'folded';
+        shownState = foldFlipped ? otherState : foldDrop.initialState;
+      }
+    }
+
+    var shownRows = sflPag;
+    var shownRowHeight = rowHeight;
     var fields = [];
     var firstRowFields = null;
-    for (var row = 0; row < sflPag; row++) {
-      var rowOffset = lineOffset + row * rowHeight;
-      var rowFields = resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-edit-row-' + row, activeSizeName, dspfFile);
-      if (row === 0) firstRowFields = rowFields;
-      fields = fields.concat(rowFields);
+    if (shownState === 'truncated') {
+      shownRows = truncatedRowCount;
+      shownRowHeight = 1;
+      for (var trow = 0; trow < shownRows; trow++) {
+        var trowFields = truncateRowToFirstLine(
+          resolveRecordFields(sflRecord, activeIndicators, lineOffset + trow, colOffset, 'subfile-edit-row-' + trow, activeSizeName, dspfFile),
+          firstFieldLine, totalColumns);
+        if (trow === 0) firstRowFields = trowFields;
+        fields = fields.concat(trowFields);
+      }
+      if (!firstRowFields || firstRowFields.length === 0) {
+        // IBM: truncation that would omit the entire record is an error and the
+        // record is displayed folded instead.
+        shownState = 'folded';
+        foldDrop.notes.push('Truncating would omit the entire record (an input-capable field would be cut) - shown folded instead.');
+        shownRows = sflPag;
+        shownRowHeight = rowHeight;
+        fields = [];
+        firstRowFields = null;
+      }
+    }
+    if (shownState === 'folded') {
+      for (var row = 0; row < sflPag; row++) {
+        var rowOffset = lineOffset + row * rowHeight;
+        var rowFields = resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-edit-row-' + row, activeSizeName, dspfFile);
+        if (row === 0) firstRowFields = rowFields;
+        fields = fields.concat(rowFields);
+      }
+    }
+    if (foldDrop) {
+      foldDrop.state = shownState;
+      foldDrop.foldedRows = sflPag;
+      foldDrop.truncatedRows = truncatedRowCount;
+      delete foldDrop.sflSiz;
     }
 
     // Vertical scroll bar (SFLEND(*SCRBAR)): a narrow, non-interactive
@@ -1176,7 +1321,7 @@
     var scrollbar = null;
     if (hasScrbar && firstRowFields && firstRowFields.length > 0) {
       var sbRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
-      var sbHeight = sflPag * rowHeight;
+      var sbHeight = shownRows * shownRowHeight;
       scrollbar = {
         line: lineOffset + firstFieldLine,
         col: Math.max(1, sbRightCol - 2),
@@ -1193,7 +1338,7 @@
       var mlLeftCol = Math.min.apply(null, firstRowFields.map(function (f) { return f.column; }));
       var mlRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
       moreLine = {
-        line: lineOffset + firstFieldLine + sflPag * rowHeight,
+        line: lineOffset + firstFieldLine + shownRows * shownRowHeight,
         col: mlLeftCol,
         width: Math.max(mlRightCol - mlLeftCol + 1, 1),
       };
@@ -1201,8 +1346,9 @@
 
     return {
       sflRecordName: sflRecord.name,
-      pageRows: sflPag,
+      pageRows: shownRows,
       declaredPageRows: declaredSflPag,
+      foldDrop: foldDrop,
       fields: fields,
       scrollbar: scrollbar,
       moreLine: moreLine,
@@ -1534,7 +1680,7 @@
     return out;
   }
 
-  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex) {
+  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex, foldFlipped) {
     activeIndicators = activeIndicators || new Set();
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
     var record = dspfFile.records.find(function (r) {
@@ -1642,7 +1788,7 @@
 
     // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
     // like the pulldown overlay below, it doesn't compete for cells with the base screen.
-    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name);
+    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name, size.columns, foldFlipped);
 
     // Pulldown overlay: rendered as a SEPARATE layer, not subject to the overlap
     // resolution above, since a real pulldown genuinely draws on top of whatever
@@ -1763,7 +1909,7 @@
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName }, windowBox));
 
-      var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name);
+      var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name, size.columns);
       if (preview) {
         preview.fields.forEach(function (f) { f.sourceRecord = recordName; });
         allFields = allFields.concat(preview.fields);

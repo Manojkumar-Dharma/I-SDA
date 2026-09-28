@@ -1191,6 +1191,8 @@ const htmlTemplate = `<!DOCTYPE html>
   let compareFullOverlay = false;
   const compareSelectedRecords = new Set();
   let previewMultipleRows = false;
+  // Task P6 - design-time "user pressed the SFLDROP/SFLFOLD key" toggle; resets on record change.
+  let sflFoldFlipped = false;
   // Ruler overlay (Task L11): session-only, matching real SDA's own F14
   // toggle - never persisted, always starts off when the designer reopens.
   let rulerEnabled = false;
@@ -3196,7 +3198,8 @@ const htmlTemplate = `<!DOCTYPE html>
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
 
-    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex);
+    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped);
+    if (!(screen.subfilePreview && screen.subfilePreview.foldDrop && screen.subfilePreview.foldDrop.canToggle)) sflFoldFlipped = false;
     lastScreen = screen;
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; updateRuler(screen); updateOverlapWarning(null); return; }
     previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
@@ -3212,6 +3215,26 @@ const htmlTemplate = `<!DOCTYPE html>
       if (screen.subfilePreview.moreLine) sflEndNote += ' A "More.../Bottom" line (SFLEND(*MORE)) is reserved just below it.';
       mainHint.textContent = 'Showing ' + screen.subfilePreview.pageRows + ' subfile rows from ' + screen.subfilePreview.sflRecordName +
         '. Drag any field here to move the whole row template - edits apply to ' + screen.subfilePreview.sflRecordName + ', not this control record.' + sflEndNote;
+      // Task P6 - SFLDROP/SFLFOLD: say which form is drawn and, when the key
+      // has an effect, offer a button that simulates pressing it.
+      const fd = screen.subfilePreview.foldDrop;
+      if (fd) {
+        let fdText = ' ' + fd.keyword + (fd.key ? '(' + fd.key + ')' : '') + ': ';
+        if (fd.ignoredReason) fdText += fd.ignoredReason + '.';
+        else fdText += 'shown ' + fd.state + (fd.state === 'truncated' ? ' (one line per record, ' + fd.truncatedRows + ' records)' : ' (' + fd.foldedRows + ' records, each on its own lines)') + '.';
+        if (fd.notes.length) fdText += ' ' + fd.notes.join(' ');
+        mainHint.textContent += fdText;
+        if (fd.canToggle) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.id = 'sflFoldToggleBtn';
+          btn.textContent = 'Press ' + (fd.key || 'key') + ': ' + (fd.state === 'truncated' ? 'fold' : 'truncate');
+          btn.style.marginLeft = '8px';
+          btn.title = 'Design-time only - simulates the user pressing the ' + fd.keyword + ' key';
+          btn.addEventListener('click', () => { sflFoldFlipped = !sflFoldFlipped; render(); });
+          mainHint.appendChild(btn);
+        }
+      }
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     updateRuler(screen);
@@ -7096,7 +7119,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   });
 
-  recordSelect.addEventListener('change', () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; render(); });
+  recordSelect.addEventListener('change', () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; sflFoldFlipped = false; render(); });
   // Task P5d - toolbarRecordSelect forwards to recordSelect's own real
   // listener above, same "set the authoritative element's value then
   // re-dispatch 'change'" pattern as toolbarSizeSelect - exactly one
