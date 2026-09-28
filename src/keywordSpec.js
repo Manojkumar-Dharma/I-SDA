@@ -58,6 +58,26 @@
       'must be defined as a character field (data type A) with usage P.'
   };
 
+  // Task I-121 SFLLIN/SFLCSRPRG slice - SFLCSRPRG's own DDS Reference
+  // section (line ~10670, re-verified fresh, unchanged from what the code
+  // already had) ends: "The SFLLIN keyword is not allowed in a record
+  // that contains the SFLCSRPRG." Read literally that is unsatisfiable
+  // (SFLCSRPRG is FIELD-level on the subfile record, SFLLIN is
+  // RECORD-level on the control record), so I-80 enforces it through the
+  // association the two records already have: a control record's
+  // SFLCTL(subfile-record) parameter. A genuinely new shape - an
+  // exclusion between a RECORD-level keyword on one record and a
+  // FIELD-level keyword on a field of a DIFFERENT, associated record
+  // (not `mutex`, which is same-record/same-field). One shared object,
+  // referenced by both keywords, so the two cannot drift apart.
+  var SFLLIN_SFLCSRPRG_RULE = {
+    controlRecordKeyword: 'SFLLIN',
+    subfileFieldKeyword: 'SFLCSRPRG',
+    associatedVia: 'SFLCTL',
+    ddsReference:
+      'The SFLLIN keyword is not allowed in a record that contains the SFLCSRPRG.'
+  };
+
   var RECORD_TYPES = {
     USRDFN: {
       // The keyword that identifies a record as this type (see
@@ -865,6 +885,13 @@
       msgDataField: MSG_DATA_FIELD_RULE
     },
 
+    SFLLIN: {
+      crossRecordExclusion: SFLLIN_SFLCSRPRG_RULE
+    },
+    SFLCSRPRG: {
+      crossRecordExclusion: SFLLIN_SFLCSRPRG_RULE
+    },
+
     // Task I-121 SFLRTNSEL slice - SFLRTNSEL's own DDS Reference section
     // (re-verified fresh against DDS_Keyword_V7r6.txt, unchanged from what
     // the code already had) states "If this keyword is specified then
@@ -1238,6 +1265,14 @@
     return (spec && spec.msgDataField) || null;
   }
 
+  /** Task I-121 SFLLIN/SFLCSRPRG slice - the cross-record exclusion fact
+   *  (`controlRecordKeyword`, `subfileFieldKeyword`, `associatedVia`,
+   *  `ddsReference`) `keywordName` takes part in, or null. */
+  function crossRecordExclusion(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return (spec && spec.crossRecordExclusion) || null;
+  }
+
   /** Task I-121 message-data-field slice - every keyword that carries a
    *  message data field parameter, in spec order. */
   function msgDataFieldKeywords() {
@@ -1280,6 +1315,7 @@
     hasQualifyingKeyword: hasQualifyingKeyword,
     qualifyingListText: qualifyingListText,
     msgDataFieldRule: msgDataFieldRule,
+    crossRecordExclusion: crossRecordExclusion,
     msgDataFieldKeywords: msgDataFieldKeywords
   };
 });

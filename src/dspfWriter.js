@@ -7489,14 +7489,21 @@
     return sflNxtchgSflchcctlConflictReason((sflRec.fields || []).map(function (f) { return f.keywords; }));
   }
 
+  //  Task I-121 (SFLLIN/SFLCSRPRG slice) - the two keyword names below
+  //  now come from KeywordSpec.crossRecordExclusion('SFLLIN') instead of
+  //  being hard-coded in all three functions; behavior and message
+  //  wording are unchanged. sflctlTargetName stays the shared resolver
+  //  (the spec's `associatedVia` names the SFLCTL association it reads).
+  var SFLLIN_RULE = KeywordSpec.crossRecordExclusion('SFLLIN');
+
   function sfllinAssociatedViolation(keywords, records) {
-    if (!(keywords || []).some(function (kw) { return kw.name === 'SFLLIN'; })) return null;
+    if (!(keywords || []).some(function (kw) { return kw.name === SFLLIN_RULE.controlRecordKeyword; })) return null;
     var target = sflctlTargetName(keywords);
     if (!target) return null;
     var sflRec = (records || []).find(function (r) { return r.name === target; });
     if (!sflRec) return null;
     var f = (sflRec.fields || []).find(function (fld) {
-      return (fld.keywords || []).some(function (kw) { return kw.name === 'SFLCSRPRG'; });
+      return (fld.keywords || []).some(function (kw) { return kw.name === SFLLIN_RULE.subfileFieldKeyword; });
     });
     return f ? { recordName: target, fieldName: f.name || '' } : null;
   }
@@ -7511,9 +7518,10 @@
     var after = sfllinAssociatedViolation(newKeywords, records);
     if (!after) return null;
     if (sfllinAssociatedViolation(rec && rec.keywords, records)) return null;
-    return 'SFLLIN cannot be used with subfile record ' + after.recordName + ', which has ' +
+    var ctlKw = SFLLIN_RULE.controlRecordKeyword, fldKw = SFLLIN_RULE.subfileFieldKeyword;
+    return ctlKw + ' cannot be used with subfile record ' + after.recordName + ', which has ' +
       (after.fieldName ? 'field ' + after.fieldName + ' with ' : 'a field with ') +
-      'SFLCSRPRG - the DDS Reference does not allow SFLLIN together with SFLCSRPRG. Remove SFLCSRPRG first.';
+      fldKw + ' - the DDS Reference does not allow ' + ctlKw + ' together with ' + fldKw + '. Remove ' + fldKw + ' first.';
   }
 
   /** Field-level side (commitEdit): `subfileRecordName` is the record that
@@ -7522,14 +7530,15 @@
    *  SFLCSRPRG on the field while a control record pointing at this record
    *  (SFLCTL(subfileRecordName)) carries SFLLIN. Returns a reason or null. */
   function sflcsrprgFieldEditConflictReason(subfileRecordName, oldKeywords, newKeywords, records) {
-    var has = function (kws) { return (kws || []).some(function (kw) { return kw.name === 'SFLCSRPRG'; }); };
+    var ctlKw = SFLLIN_RULE.controlRecordKeyword, fldKw = SFLLIN_RULE.subfileFieldKeyword;
+    var has = function (kws) { return (kws || []).some(function (kw) { return kw.name === fldKw; }); };
     if (!has(newKeywords) || has(oldKeywords)) return null;
     var ctl = (records || []).find(function (r) {
-      return sflctlTargetName(r.keywords) === subfileRecordName && (r.keywords || []).some(function (kw) { return kw.name === 'SFLLIN'; });
+      return sflctlTargetName(r.keywords) === subfileRecordName && (r.keywords || []).some(function (kw) { return kw.name === ctlKw; });
     });
     if (!ctl) return null;
-    return 'SFLCSRPRG cannot be specified on a field of subfile record ' + subfileRecordName + ' because its control record ' + ctl.name +
-      ' carries SFLLIN - the DDS Reference does not allow SFLLIN together with SFLCSRPRG. Remove SFLLIN first.';
+    return fldKw + ' cannot be specified on a field of subfile record ' + subfileRecordName + ' because its control record ' + ctl.name +
+      ' carries ' + ctlKw + ' - the DDS Reference does not allow ' + ctlKw + ' together with ' + fldKw + '. Remove ' + ctlKw + ' first.';
   }
 
   /** Task I-81 - SFLRTNSEL's own DDS Reference section says "If this keyword
