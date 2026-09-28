@@ -4820,6 +4820,13 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(sflchcctlEditReason);
           return;
         }
+        // Task I-126: SFLSCROLL requires a 5-digit signed numeric, 0-decimal,
+        // hidden field - blocks an Apply that would change it away from that.
+        const sflscrollEditReason = DspfWriter.sflscrollBasicEditConflictReason(field.keywords, field, updates);
+        if (sflscrollEditReason) {
+          window.alert(sflscrollEditReason);
+          return;
+        }
       }
       commitEdit(ownerRecordName, field, updates);
     });
@@ -6789,6 +6796,23 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
+      // Task I-126 / I-127: same choke point for SFLSCROLL - an edit that
+      // INTRODUCES it must leave the field as a 5-digit signed numeric,
+      // 0-decimal, hidden field (taken as it will be AFTER this edit), and
+      // the owning record's SFLSIZ must not equal its SFLPAG. The checkbox
+      // folds the shape rewrite into the same edit; this covers every path
+      // that does not (the raw keyword editor's add).
+      const sflscrollNewReason = DspfWriter.sflscrollNewConflictReason(field.keywords, updates.keywords, {
+        dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
+        length: Object.prototype.hasOwnProperty.call(updates, 'length') ? updates.length : field.length,
+        decimalPositions: Object.prototype.hasOwnProperty.call(updates, 'decimalPositions') ? updates.decimalPositions : field.decimalPositions,
+        usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
+      }, (model.records.find((r) => r.name === recordName) || {}).keywords);
+      if (sflscrollNewReason) {
+        window.alert(sflscrollNewReason);
+        render();
+        return;
+      }
       // Task I-70: same choke point once more, for CHRID's own rules -
       // introducing it on a constant/hidden/message/program-to-system/
       // numeric field or together with DUP, and adding DUP to a field
@@ -6884,6 +6908,16 @@ const htmlTemplate = `<!DOCTYPE html>
       const sfllinReason = DspfWriter.sfllinRecordEditConflictReason(rec, updates.keywords, model.records);
       if (sfllinReason) {
         window.alert(sfllinReason);
+        renderRecordProps(recordName);
+        return;
+      }
+      // Task I-127: SFLSCROLL is not allowed when SFLSIZ equals SFLPAG -
+      // the record-level side (an edit that makes the two equal on a
+      // control record that has a SFLSCROLL field); the field-level side
+      // is the checkbox and commitEdit. Diff-based.
+      const sflscrollSizeReason = DspfWriter.sflscrollSizeRecordEditConflictReason(rec, updates.keywords);
+      if (sflscrollSizeReason) {
+        window.alert(sflscrollSizeReason);
         renderRecordProps(recordName);
         return;
       }

@@ -7599,7 +7599,10 @@
   //  and KeywordSpec.isOnePerRecord('SFLSCROLL') instead of this
   //  function's own hard-coded literals; behavior and message wording
   //  are unchanged. Flagged as a deferred finding by the SFLCHCCTL slice.
-  function sflScrollFieldConflictReason(fieldKeywords, siblingFieldsKeywords) {
+  //  Task I-127 - an optional third argument, the control record's own
+  //  keywords, adds the "not allowed when SFLSIZ equals SFLPAG" check
+  //  (sflsizPagEqualReason); omitted, that check is skipped (fail open).
+  function sflScrollFieldConflictReason(fieldKeywords, siblingFieldsKeywords, recordKeywords) {
     var present = function (n) { return (fieldKeywords || []).some(function (kw) { return kw.name === n; }); };
     if (KeywordSpec.isMutex('SFLSCROLL', 'SFLROLVAL') && present('SFLROLVAL')) return 'SFLSCROLL cannot be specified on the same field as SFLROLVAL (mutually exclusive per the DDS Reference).';
     if (KeywordSpec.isMutex('SFLSCROLL', 'SFLRCDNBR') && present('SFLRCDNBR')) return 'SFLSCROLL cannot be specified on the same field as SFLRCDNBR (mutually exclusive per the DDS Reference).';
@@ -7607,7 +7610,162 @@
       return (fk || []).some(function (kw) { return kw.name === 'SFLSCROLL'; });
     });
     if (KeywordSpec.isOnePerRecord('SFLSCROLL') && alreadyElsewhere) return 'Only one SFLSCROLL keyword is allowed in the subfile control record - another field already has it.';
+    if (recordKeywords) {
+      var sizeReason = sflsizPagEqualReason(recordKeywords);
+      if (sizeReason) return sizeReason;
+    }
     return '';
+  }
+
+  // -----------------------------------------------------------------------
+  // Task I-127 - SFLSCROLL's own DDS Reference section: "SFLSCROLL is not
+  // allowed when SFLSIZ equals SFLPAG." (SFLSIZ's own section explains the
+  // case: "When you specify the same parameter values for SFLSIZ and the
+  // SFLPAG keyword..." - the subfile is then the field-selection kind.)
+  // Nothing enforced it. The rule lives in KeywordSpec
+  // (`notAllowedWhenEqual`); this is the comparison.
+  //
+  // "Equal parameter values" is read as equal NUMBERS: SFLPAG only takes a
+  // number, SFLSIZ may take a program-to-system field (&name), and a field
+  // name is never "the same parameter value" as a number, so a non-numeric
+  // side never counts as equal (fail open - the same posture I-22 takes for
+  // that form). Display-size conditioned instances are compared per size:
+  // for each size name that either keyword conditions, the effective value
+  // is that size's own value, else the unconditioned one - which is what
+  // the record really is at run time on that display.
+  // -----------------------------------------------------------------------
+  function sflsizPagEqualPair(recordKeywords) {
+    var pair = KeywordSpec.notAllowedWhenEqual('SFLSCROLL');
+    if (!pair) return null;
+    var layout = getSflDisplayLayout(recordKeywords || []);
+    var a = layout[pair.keywords[0].toLowerCase()];
+    var b = layout[pair.keywords[1].toLowerCase()];
+    var num = function (v) {
+      var t = (v == null ? '' : String(v)).trim();
+      return /^\d+$/.test(t) ? Number(t) : null;
+    };
+    var same = function (x, y) { var nx = num(x); return nx !== null && nx === num(y); };
+    if (same(a.primary, b.primary)) return { size: '', value: num(a.primary) };
+    var names = Object.keys(a.bySizeName).concat(Object.keys(b.bySizeName)).filter(function (n, i, all) { return all.indexOf(n) === i; });
+    for (var i = 0; i < names.length; i++) {
+      var ea = a.bySizeName[names[i]] || a.primary;
+      var eb = b.bySizeName[names[i]] || b.primary;
+      if (same(ea, eb)) return { size: names[i], value: num(ea) };
+    }
+    return null;
+  }
+
+  /** A reason string when `recordKeywords` has SFLSIZ equal to SFLPAG (per
+   *  sflsizPagEqualPair), else null. */
+  function sflsizPagEqualReason(recordKeywords) {
+    var eq = sflsizPagEqualPair(recordKeywords);
+    if (!eq) return null;
+    return 'SFLSCROLL is not allowed when SFLSIZ equals SFLPAG (per the DDS Reference) - both are ' + eq.value + (eq.size ? ' for display size ' + eq.size : '') + ' in this record.';
+  }
+
+  /** Record-level side of the same rule (commitRecordEdit's choke point):
+   *  blocks an edit to a subfile-control record that carries a SFLSCROLL
+   *  field when it would make SFLSIZ equal SFLPAG. Diff-based - a record
+   *  that was already equal (hand-written) is not re-reported, and an
+   *  unrelated edit never trips it. `rec` is the parsed record (its
+   *  `keywords` and `fields`), `newKeywords` the keywords after the edit. */
+  function sflscrollSizeRecordEditConflictReason(rec, newKeywords) {
+    var r = rec || {};
+    var scrollField = (r.fields || []).filter(function (f) {
+      return f && f.nameType !== 'CONSTANT' && (f.keywords || []).some(function (k) { return k.name === 'SFLSCROLL'; });
+    })[0];
+    if (!scrollField) return null;
+    var after = sflsizPagEqualPair(newKeywords);
+    if (!after) return null;
+    var before = sflsizPagEqualPair(r.keywords);
+    if (before && before.size === after.size && before.value === after.value) return null;
+    return 'SFLSIZ equals SFLPAG (both ' + after.value + (after.size ? ' for display size ' + after.size : '') + ') while ' + (scrollField.name || 'a field') + ' carries SFLSCROLL - SFLSCROLL is not allowed when SFLSIZ equals SFLPAG (per the DDS Reference).';
+  }
+
+  // -----------------------------------------------------------------------
+  // Task I-126 - SFLSCROLL's own DDS Reference section: "This field must
+  // have the keyboard shift attribute of signed numeric with zero decimal
+  // positions. It has to be 5 digits in length, and it must be defined as
+  // a hidden field." Nothing enforced any of it (SFLSCROLL was a bare
+  // checkbox). Same split I-57/I-62/I-79 use: the shape is the field's OWN
+  // definition, so turning the keyword ON silently REWRITES the field to
+  // the required S / 5 / 0 / H shape (sflscrollDefinitionUpdates), and a
+  // later change AWAY from it is blocked (sflscrollBasicEditConflictReason,
+  // diff-based, so an already-invalid hand-written field never blocks an
+  // unrelated edit). The facts live in KeywordSpec's
+  // definitionRequirements('SFLSCROLL'), verified against IBM's own
+  // example (`F3  5S 0H  SFLSCROLL`). A blank data type WITH decimal
+  // positions specified is DDS's default signed numeric, so it conforms.
+  // -----------------------------------------------------------------------
+  function sflscrollDefinitionUpdates(field) {
+    var f = field || {};
+    var req = KeywordSpec.definitionRequirements('SFLSCROLL');
+    var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
+    var dp = f.decimalPositions;
+    var decSpecified = dp != null && String(dp).trim() !== '' && !isNaN(Number(dp));
+    var updates = {};
+    if (!(dt === req.dataType || (dt === '' && req.dataTypeBlankWithDecimals && decSpecified))) updates.dataType = req.dataType;
+    if (Number(f.length) !== req.length) updates.length = req.length;
+    if (!decSpecified || Number(dp) !== req.decimalPositions) updates.decimalPositions = req.decimalPositions;
+    if (req.usage.indexOf(String(f.usage == null ? '' : f.usage).trim().toUpperCase()) < 0) updates.usage = req.usageDefault;
+    return Object.keys(updates).length ? updates : null;
+  }
+
+  var SFLSCROLL_SHAPE_TEXT = 'SFLSCROLL requires a 5-digit, signed numeric (data type S), 0-decimal, hidden (usage H) field (per the DDS Reference)';
+
+  function sflscrollShapeIssues(field, wrong) {
+    var str = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var shown = function (v) { return v == null || v === '' ? 'blank' : v; };
+    var f = field || {};
+    var issues = [];
+    if (wrong.dataType !== undefined) issues.push('data type ' + shown(str(f.dataType)) + ' (must be S)');
+    if (wrong.length !== undefined) issues.push('length ' + shown(f.length) + ' (must be 5)');
+    if (wrong.decimalPositions !== undefined) issues.push('decimal positions ' + shown(f.decimalPositions) + ' (must be 0)');
+    if (wrong.usage !== undefined) issues.push('usage ' + shown(str(f.usage)) + ' (must be H)');
+    return issues;
+  }
+
+  /** A data type, length, decimals or usage CHANGE (Basic tab Apply,
+   *  Resolve Referenced Field) on a field that ALREADY carries SFLSCROLL.
+   *  Same shape as sflchcctlBasicEditConflictReason. Returns a reason
+   *  string, or null. */
+  function sflscrollBasicEditConflictReason(fieldKeywords, oldField, updates) {
+    if (!(fieldKeywords || []).some(function (k) { return k.name === 'SFLSCROLL'; })) return null;
+    var oldF = oldField || {};
+    var upd = updates || {};
+    var has = function (key) { return Object.prototype.hasOwnProperty.call(upd, key); };
+    var before = { dataType: oldF.dataType, length: oldF.length, decimalPositions: oldF.decimalPositions, usage: oldF.usage };
+    var after = {
+      dataType: has('dataType') ? upd.dataType : before.dataType,
+      length: has('length') ? upd.length : before.length,
+      decimalPositions: has('decimalPositions') ? upd.decimalPositions : before.decimalPositions,
+      usage: has('usage') ? upd.usage : before.usage
+    };
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var wrong = sflscrollDefinitionUpdates(after) || {};
+    var changedWrong = {};
+    Object.keys(wrong).forEach(function (key) {
+      if (norm(after[key]) !== norm(before[key])) changedWrong[key] = wrong[key];
+    });
+    var issues = sflscrollShapeIssues(after, changedWrong);
+    if (!issues.length) return null;
+    return SFLSCROLL_SHAPE_TEXT + ' - cannot set ' + issues.join(', ') + '.';
+  }
+
+  /** Commit choke point (commitEdit): an edit that INTRODUCES SFLSCROLL on
+   *  a field (the checkbox, the raw keyword editor, ...). Checks the field
+   *  as it will be AFTER the edit (`resultingField`: dataType, length,
+   *  decimalPositions, usage) against the required shape (I-126) and the
+   *  record's own SFLSIZ / SFLPAG against equality (I-127). The checkbox
+   *  brings the shape into line in the same edit, so it passes here; this
+   *  is what covers every path that does not. Diff-based: a field that
+   *  already had SFLSCROLL is never re-reported. */
+  function sflscrollNewConflictReason(oldKeywords, newKeywords, resultingField, recordKeywords) {
+    var hasIt = function (kws) { return (kws || []).some(function (k) { return k.name === 'SFLSCROLL'; }); };
+    if (hasIt(oldKeywords) || !hasIt(newKeywords)) return null;
+    var wrong = sflscrollDefinitionUpdates(resultingField);
+    if (wrong) return SFLSCROLL_SHAPE_TEXT + ' - this field has ' + sflscrollShapeIssues(resultingField, wrong).join(', ') + '.';
+    return recordKeywords ? sflsizPagEqualReason(recordKeywords) : null;
   }
 
   /** Task I-79 - SFLCHCCTL's own DDS Reference section: "That field must be
@@ -7840,6 +7998,7 @@
       chridBasicEditConflictReason(kws, f, u) ||
       igcalttypBasicEditConflictReason(kws, f, u) ||
       sflchcctlBasicEditConflictReason(kws, f, u) ||
+      sflscrollBasicEditConflictReason(kws, f, u) ||
       null;
   }
 
@@ -8738,6 +8897,11 @@
     sfllinRecordEditConflictReason: sfllinRecordEditConflictReason,
     sflcsrprgFieldEditConflictReason: sflcsrprgFieldEditConflictReason,
     sflScrollFieldConflictReason: sflScrollFieldConflictReason,
+    sflsizPagEqualReason: sflsizPagEqualReason,
+    sflscrollSizeRecordEditConflictReason: sflscrollSizeRecordEditConflictReason,
+    sflscrollDefinitionUpdates: sflscrollDefinitionUpdates,
+    sflscrollBasicEditConflictReason: sflscrollBasicEditConflictReason,
+    sflscrollNewConflictReason: sflscrollNewConflictReason,
     sflchcctlDefinitionUpdates: sflchcctlDefinitionUpdates,
     sflchcctlFieldConflictReason: sflchcctlFieldConflictReason,
     sflchcctlBasicEditConflictReason: sflchcctlBasicEditConflictReason,

@@ -3046,7 +3046,7 @@
       '</select>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflrolval" ' + (rolval.present ? 'checked' : '') + '/>Operator can specify the number of records to roll (SFLROLVAL)</label>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflscroll" ' + (scroll.present ? 'checked' : '') + '/>Return top-of-subfile record number on scroll (SFLSCROLL)</label>';
-    html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot share one field, and only one field in the whole record can carry SFLSCROLL.</div>';
+    html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot share one field, and only one field in the whole record can carry SFLSCROLL. SFLSCROLL needs a 5-digit signed numeric (S), 0-decimal, hidden (H) field - turning it on sets that shape - and is not allowed when SFLSIZ equals SFLPAG.</div>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflchcctl" ' + (chcctl.present ? 'checked' : '') + '/>Choice control field for a selection list (SFLCHCCTL)</label>';
     html += '<div class="hint-small">Must be the first field in the subfile record: length 1, data type Y (zoned numeric), 0 decimal positions, usage H (hidden). Only one field per record can carry this.</div>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflcsrprg" ' + (csrprg.present ? 'checked' : '') + '/>Cursor progresses to same field in next subfile record (SFLCSRPRG)</label>';
@@ -3071,14 +3071,21 @@
     if (scrollEl) {
       scrollEl.addEventListener('change', function () {
         if (scrollEl.checked) {
-          var reason = DspfWriter.sflScrollFieldConflictReason(keywords, siblingFieldsKeywords);
+          // Task I-127: recordKeywords adds the SFLSIZ-equals-SFLPAG check.
+          var reason = DspfWriter.sflScrollFieldConflictReason(keywords, siblingFieldsKeywords, recordKeywords);
           if (reason) {
             window.alert(reason);
             scrollEl.checked = false;
             return;
           }
+          // Task I-126: the field is brought into SFLSCROLL's required
+          // signed-numeric / 5 / 0 / hidden shape in the SAME edit
+          // (sflscrollDefinitionUpdates, mirroring SFLCHCCTL's own I-79
+          // rewrite-on-enable just below).
+          onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLSCROLL', true), DspfWriter.sflscrollDefinitionUpdates(getField ? getField() : null));
+          return;
         }
-        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLSCROLL', scrollEl.checked));
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLSCROLL', false), null);
       });
     }
     // Task I-39 - SFLCHCCTL/SFLCSRPRG (see subfileFieldKeywordsHtml's own

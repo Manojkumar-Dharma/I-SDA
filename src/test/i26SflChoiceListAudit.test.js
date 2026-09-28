@@ -37,7 +37,9 @@ const dspfSource =
     '     A          R SFLREC                     SFL',
     "     A            FLD1          10A  O  4  2",
     '     A          R SFLCTLR                    SFLCTL(SFLREC)',
-    '     A                                      SFLSIZ(17)',
+    // Task I-127: SFLSCROLL is not allowed when SFLSIZ equals SFLPAG, and
+    // this record's SCRL1 gets SFLSCROLL below - so its SFLSIZ differs.
+    '     A                                      SFLSIZ(34)',
     '     A                                      SFLPAG(17)',
     "     A            NUMSEL         4S 0H",
     "     A            SCRL1          5S 0H",

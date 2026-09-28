@@ -168,8 +168,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
-| [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | In progress | — |
-| [I-127](#i-127) | Record | `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced | I-121 | In progress | — |
+| [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | Done | v0.10.232 |
+| [I-127](#i-127) | Record | `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced | I-121 | Done | v0.10.232 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -189,11 +189,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-127, see the tables above). A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-127, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
 | I-121 (SFLSNGCHC/SFLMLTCHC slice, v0.10.231) | SFLMLTCHC's and SFLSNGCHC's DDS Reference sections each say SFLDROP, SFLFOLD and the other choice keyword "cannot be specified on a record with" them, and SFLDROP/SFLFOLD's own sections do not restate it. Only the choice-keyword side is guarded (`sflChoiceListConflictReason`, run when the SFLCTL panel's type selector turns SFLSNGCHC/SFLMLTCHC on). Adding SFLDROP or SFLFOLD (SFLCTL panel rows, raw keyword editor) to a record that already carries SFLSNGCHC/SFLMLTCHC is not blocked anywhere; `sflChoiceListConflictReason`'s own doc comment has flagged the missing reverse direction since I-26. Needs a diff-based backstop at `commitRecordEdit` (same shape as I-81's `sflrtnselNewConflictReason`) reading the new spec `mutex` lists. |
+| I-126 / I-127 | SFLSCROLL's own DDS Reference section (line ~12332) states "This keyword is valid only for the subfile-control record format", but its checkbox lives in the Subfile keywords panel, which `buildWebviewTemplate.js` offers for a field in an SFL detail record as well as an SFLCTL record (`isSflOrSflCtlRecord`) - nothing blocks turning SFLSCROLL on in an SFL record. The same panel also serves SFLRCDNBR/SFLROLVAL, whose own sections were not re-read here. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5649,7 +5650,7 @@ No new spec shapes needed: `mutex: ['SFLROLVAL', 'SFLRCDNBR']` reuses the plain 
 
 New `src/test/i121SflscrollKeywordSpec.test.js` (18 checks): confirms the new spec entry's `mutex`/`onePerRecord` fields directly (plus that it carries no `definitionRequirements`/`mustBeFirstField`, since neither rule is enforced today, and that SFLCHCCTL/SFLSCROLL are now the only two `onePerRecord` entries); confirms `isMutex`/`isOnePerRecord` agree with the spec, including fail-safe behavior for an unrelated/unknown keyword and that the mutex is one-directional (matching every other mutex entry's own modeling); and exercises `sflScrollFieldConflictReason` unchanged (both mutex partners, the one-per-record case, and the no-conflict cases). `git stash` confirmed the new test genuinely fails against pre-fix code (spec entry undefined). Also updated one now-stale assertion in the pre-existing `i121SflchcctlKeywordSpec.test.js` (its "no other keyword is flagged" `onePerRecord`-exclusivity check) to name both SFLCHCCTL and SFLSCROLL, reflecting that this task legitimately extends the same field - not a behavior change to that slice, mirroring how the I-125 slice handled the identical situation for `notAllowedOnFloatingPointField`. Merged against I-121's own concurrent CHKMSGID slice landing in parallel. Pure refactor, no behavior change. Full suite: 172 files, 10,460 checks, zero failures.
 
-While re-reading SFLSCROLL's own DDS Reference section in full to re-verify these two facts, two further rules in the same section turned out to have no guard anywhere in the codebase - the field-shape requirement (signed numeric, 0 decimals, 5 digits, hidden) and "SFLSCROLL is not allowed when SFLSIZ equals SFLPAG" - logged fresh in the Deferred findings table rather than fixed, staying within this slice's pure-refactor scope.
+While re-reading SFLSCROLL's own DDS Reference section in full to re-verify these two facts, two further rules in the same section turned out to have no guard anywhere in the codebase - the field-shape requirement (signed numeric, 0 decimals, 5 digits, hidden) and "SFLSCROLL is not allowed when SFLSIZ equals SFLPAG" - logged fresh in the Deferred findings table (since opened and closed as I-126 and I-127) rather than fixed, staying within this slice's pure-refactor scope.
 
 Remaining for I-121 after this slice: the rest of the plain/base record and file levels (the largest and least closed-form piece of all - most of the remaining `*ConflictReason` functions' rules), still not split into smaller pieces.
 
@@ -5762,5 +5763,35 @@ New `src/test/i125FloatIncompatibleValidityCheckGuard.test.js`: spec-vs-DDS-Refe
 I-121's own `i121DupBlkfoldFloatKeywordSpec.test.js` needed two small updates once this task's spec entries landed: its "no RECORD_TYPES entry other than DUP/BLKFOLD carries `notAllowedOnFloatingPointField`" assertion (now legitimately false, since this task extends the same field to three more keywords) became a direct membership check on DUP/BLKFOLD alone, and its "COMP is deliberately NOT flagged" assertion (the exact deferred finding this task closes) was flipped to assert COMP now IS flagged, with a comment pointing at this task's own test for the fuller coverage. Neither is a behavior change to I-121's own slice - both are the same kind of "a later task legitimately extends the same fact" update every prior slice's own tests would need if a later slice ever did the same to their own flagged keyword sets.
 
 Full suite (after merging with I-121's own concurrent CHRID/DATFMT-DATSEP-TIMFMT-TIMSEP/SFLCHCCTL slices): 170 files, 10,412 checks, zero failures.
+
+---
+
+### I-126 — `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced
+
+> **Area:** Field · **Status:** Done (v0.10.232) · **Depends on:** I-121
+
+Opened from a deferred finding raised by I-121's SFLSCROLL slice. `SFLSCROLL`'s own DDS Reference section (`DDS_Keyword_V7r6.txt` line ~12311, re-verified fresh) states: "This field must have the keyboard shift attribute of signed numeric with zero decimal positions. It has to be 5 digits in length, and it must be defined as a hidden field." IBM's own example in the same section is `F3  5S 0H  SFLSCROLL`. Nothing enforced any of it - SFLSCROLL was a bare checkbox (`setFileFlagKeyword`) with no shape rewrite, unlike SFLCHCCTL's own I-79 handling.
+
+Same split I-57/I-62/I-79 use. New `definitionRequirements` fact on `RECORD_TYPES.SFLSCROLL` (`dataType: 'S'`, `length: 5`, `decimalPositions: 0`, `usage: ['H']`, the DDS citation, plus a new `dataTypeBlankWithDecimals` flag - a blank data type with decimal positions specified IS signed numeric in DDS, so it conforms as-is). Turning SFLSCROLL ON silently rewrites the field to that shape in the same edit (`DspfWriter.sflscrollDefinitionUpdates`, the checkbox now passes it as `onChange`'s second argument, mirroring SFLCHCCTL). A later Basic-tab Apply or Resolve Referenced Field that changes data type/length/decimals/usage away from it is blocked (`sflscrollBasicEditConflictReason`, diff-based, also in `referencedFieldResolveConflictReason`'s chain). `commitEdit`'s backstop (`sflscrollNewConflictReason`) judges the field as it will be AFTER the edit for any other path that introduces the keyword (the raw keyword editor's add). A hand-written invalid field is never re-reported by an unrelated edit.
+
+New `src/test/i126SflscrollFieldShape.test.js` (45 checks): the spec fact and its citation verbatim against the DDS Reference; `sflscrollDefinitionUpdates` (conforming, lower-case, blank type with/without decimals, alpha, each single wrong property, packed); the diff-based Basic-edit guard; the commitEdit backstop; the resolve chain; and, in jsdom through the real designer script, the checkbox rewriting an alpha length-3 hidden field to 5S 0H and leaving a conforming one alone. `git stash` confirmed the test fails against pre-fix code. The now-stale "carries no definitionRequirements" assertion in `i121SflscrollKeywordSpec.test.js` was updated (a later task legitimately extends the entry, the same kind of update I-125 made to the DUP/BLKFOLD slice's test).
+
+Full suite (after merging with the P6/P7 and I-121 SFLRTNSEL, SFLLIN/SFLCSRPRG, SFLSNGCHC/SFLMLTCHC work pushed in parallel): 180 files, 10,759 checks, zero failures.
+
+---
+
+### I-127 — `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced
+
+> **Area:** Record · **Status:** Done (v0.10.232) · **Depends on:** I-121
+
+Opened from the other deferred finding raised by I-121's SFLSCROLL slice. `SFLSCROLL`'s own DDS Reference section (re-verified fresh) states "SFLSCROLL is not allowed when SFLSIZ equals SFLPAG." (`SFLSIZ`'s own section, "Subfile size equals subfile page", explains the field-selection subfile this describes.) No guard existed anywhere.
+
+New declarative fact `notAllowedWhenEqual: { keywords: ['SFLSIZ', 'SFLPAG'], ddsReference }` on `RECORD_TYPES.SFLSCROLL` - a genuinely new shape (a restriction on two OTHER record-level keywords' parameter values, not on the SFLSCROLL field itself) with a `KeywordSpec.notAllowedWhenEqual` accessor. "Equal" is read as equal NUMBERS: SFLPAG only takes a number, SFLSIZ may take a program-to-system field (`&name`), and a field name is never "the same parameter value" as a number, so a non-numeric side fails open (the same posture I-22 takes for that form). Display-size conditioned instances are compared per size (each size name either keyword conditions, effective value = that size's own value else the unconditioned one). Enforced at three points, all diff-based: the SFLSCROLL checkbox (`sflScrollFieldConflictReason`'s new optional third argument), `commitEdit`'s backstop (`sflscrollNewConflictReason`), and the record-level side in `commitRecordEdit` (`sflscrollSizeRecordEditConflictReason` - an edit on a control record that has a SFLSCROLL field and would make SFLSIZ equal SFLPAG; already-equal-and-unchanged is not re-reported).
+
+New `src/test/i127SflscrollSizPagGuard.test.js` (46 checks): the spec fact and citation, the comparison (equal, unequal, leading zeros, `&SIZ`, missing keywords, per-display-size cases), all three enforcement points, and in jsdom the checkbox being blocked and reverted, a Display Layout SFLSIZ edit being blocked and put back, an allowed edit posting `SFLSIZ(30)`, and a record with no SFLSCROLL field being unaffected. `git stash` confirmed the test fails against pre-fix code. One existing fixture was itself in violation of the rule - `i26SflChoiceListAudit.test.js`'s SFLCTLR had `SFLSIZ(17) SFLPAG(17)` while turning SFLSCROLL on - so its SFLSIZ became 34 (no other check in that test depends on it).
+
+While re-reading SFLSCROLL's section for both tasks, one more unenforced rule turned up ("valid only for the subfile-control record format" - the panel is offered on SFL detail records too); logged in the Deferred findings table rather than fixed.
+
+Full suite (after merging with the P6/P7 and I-121 SFLRTNSEL, SFLLIN/SFLCSRPRG, SFLSNGCHC/SFLMLTCHC work pushed in parallel): 180 files, 10,759 checks, zero failures.
 
 ---

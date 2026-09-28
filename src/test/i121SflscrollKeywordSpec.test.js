@@ -51,8 +51,10 @@ console.log('\nkeywordSpec.js RECORD_TYPES.SFLSCROLL');
   check('mutex names SFLROLVAL and SFLRCDNBR, nothing else',
     Array.isArray(spec.mutex) && spec.mutex.length === 2 &&
     spec.mutex.indexOf('SFLROLVAL') !== -1 && spec.mutex.indexOf('SFLRCDNBR') !== -1);
-  check('carries no definitionRequirements or mustBeFirstField (neither rule is enforced today)',
-    spec.definitionRequirements === undefined && spec.mustBeFirstField === undefined);
+  // Task I-126 added definitionRequirements (the field-shape rule) and I-127
+  // added notAllowedWhenEqual; mustBeFirstField is still not a SFLSCROLL rule.
+  check('carries no mustBeFirstField (SFLSCROLL has no first-field rule)',
+    spec.mustBeFirstField === undefined);
   const flaggedOnePerRecord = Object.keys(KeywordSpec.RECORD_TYPES).filter((n) => KeywordSpec.RECORD_TYPES[n].onePerRecord);
   check('SFLCHCCTL and SFLSCROLL are the only RECORD_TYPES entries carrying onePerRecord',
     flaggedOnePerRecord.length === 2 && flaggedOnePerRecord.indexOf('SFLCHCCTL') !== -1 && flaggedOnePerRecord.indexOf('SFLSCROLL') !== -1);

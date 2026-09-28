@@ -956,25 +956,44 @@
     // mutex shape CHRID's own DUP entry already established; `onePerRecord`
     // reuses SFLCHCCTL's shape unchanged.
     //
-    // Two further rules in the same DDS Reference section are NOT part of
-    // this entry, because neither is enforced anywhere in the codebase
-    // today - adding them here would be new behavior, not the pure
-    // refactor of EXISTING enforcement this task is scoped to (the same
-    // line I-121's own DUP/BLKFOLD slice drew around COMP/RANGE/CHECK(AB)):
-    // (1) the field-shape requirement ("must have the keyboard shift
-    // attribute of signed numeric with zero decimal positions... 5 digits
-    // in length... a hidden field") - SFLSCROLL is wired today as a plain
-    // setFileFlagKeyword checkbox with no shape rewrite, unlike SFLCHCCTL's
-    // own sflchcctlDefinitionUpdates; and (2) "SFLSCROLL is not allowed
-    // when SFLSIZ equals SFLPAG" - no guard of any kind exists for this.
-    // Both logged fresh in the Deferred findings table.
+    // Task I-126 / I-127 - the two further rules in the same DDS Reference
+    // section, previously unenforced anywhere (logged as deferred findings
+    // by this slice, then opened as their own tasks), now enforced and
+    // stated here:
+    //  - `definitionRequirements` (I-126): "This field must have the
+    //    keyboard shift attribute of signed numeric with zero decimal
+    //    positions. It has to be 5 digits in length, and it must be
+    //    defined as a hidden field." Same shape as SFLCHCCTL's own
+    //    definitionRequirements, plus `dataTypeBlankWithDecimals`: a
+    //    blank data type with decimal positions specified IS signed
+    //    numeric in DDS (the default), so it satisfies the rule as-is.
+    //  - `notAllowedWhenEqual` (I-127): "SFLSCROLL is not allowed when
+    //    SFLSIZ equals SFLPAG." A new shape - a restriction on two OTHER
+    //    record-level keywords' parameter values, not on the SFLSCROLL
+    //    field itself; see KeywordSpec.notAllowedWhenEqual.
     SFLSCROLL: {
       ddsReference:
         'You cannot specify the SFLROLVAL, the SFLSCROLL and the ' +
         'SFLRCDNBR keywords for the same field. Only one SFLSCROLL ' +
         'keyword is allowed in the subfile control record.',
       mutex: ['SFLROLVAL', 'SFLRCDNBR'],
-      onePerRecord: true
+      onePerRecord: true,
+      definitionRequirements: {
+        dataType: 'S',
+        dataTypeBlankWithDecimals: true,
+        length: 5,
+        decimalPositions: 0,
+        usage: ['H'],
+        usageDefault: 'H',
+        ddsReference:
+          'This field must have the keyboard shift attribute of signed ' +
+          'numeric with zero decimal positions. It has to be 5 digits in ' +
+          'length, and it must be defined as a hidden field.'
+      },
+      notAllowedWhenEqual: {
+        keywords: ['SFLSIZ', 'SFLPAG'],
+        ddsReference: 'SFLSCROLL is not allowed when SFLSIZ equals SFLPAG.'
+      }
     }
   };
 
@@ -1278,6 +1297,15 @@
     return !!(spec && spec.mustBeFirstField);
   }
 
+  /** Task I-127 - the pair of record-level keywords whose EQUAL parameter
+   *  values forbid `keywordName` (the SFLSCROLL shape: "not allowed when
+   *  SFLSIZ equals SFLPAG"), as `{ keywords: [a, b], ddsReference }`, or
+   *  null for a keyword with no such fact. */
+  function notAllowedWhenEqual(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return (spec && spec.notAllowedWhenEqual) || null;
+  }
+
   /** Task I-121 message-data-field slice - the rule a keyword's message
    *  data field parameter must satisfy (the CHKMSGID/ERRMSGID/SFLMSGID
    *  shape: must exist in the record, data type A, usage P), or null for
@@ -1338,6 +1366,7 @@
     qualifyingListText: qualifyingListText,
     msgDataFieldRule: msgDataFieldRule,
     crossRecordExclusion: crossRecordExclusion,
-    msgDataFieldKeywords: msgDataFieldKeywords
+    msgDataFieldKeywords: msgDataFieldKeywords,
+    notAllowedWhenEqual: notAllowedWhenEqual
   };
 });
