@@ -1207,6 +1207,8 @@ const htmlTemplate = `<!DOCTYPE html>
   let previewMultipleRows = false;
   // Task P6 - design-time "user pressed the SFLDROP/SFLFOLD key" toggle; resets on record change.
   let sflFoldFlipped = false;
+  // Task P11 - design-time "show the last page" toggle for an UNCONDITIONED SFLEND (no indicator drives Bottom).
+  let sflEndLastPage = false;
   // Ruler overlay (Task L11): session-only, matching real SDA's own F14
   // toggle - never persisted, always starts off when the designer reopens.
   let rulerEnabled = false;
@@ -3212,8 +3214,9 @@ const htmlTemplate = `<!DOCTYPE html>
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
 
-    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped);
+    const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped, sflEndLastPage);
     if (!(screen.subfilePreview && screen.subfilePreview.foldDrop && screen.subfilePreview.foldDrop.canToggle)) sflFoldFlipped = false;
+    if (!(screen.subfilePreview && screen.subfilePreview.sflEnd && screen.subfilePreview.sflEnd.canShowLastPage)) sflEndLastPage = false;
     lastScreen = screen;
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + screen.error + '</div>'; updateRuler(screen); updateOverlapWarning(null); return; }
     previewRowsRow.classList.toggle('hidden', !screen.isSflRecord);
@@ -3233,7 +3236,7 @@ const htmlTemplate = `<!DOCTYPE html>
         if (sfe.plus) shows.push(sfe.state === 'bottom' ? 'the "+" is hidden' : 'a "+" shows on the last line');
         if (sfe.more) shows.push(sfe.state === 'bottom' ? 'the text reads "Bottom"' : 'the text reads "More..."');
         if (sfe.scrbar) shows.push(sfe.state === 'bottom' ? 'the scroll box sits on the bottom button' : 'the scroll box sits one page above the bottom button');
-        sflEndNote += ' SFLEND ' + (sfe.viaIndicator ? '(end-of-subfile indicator ' + (sfe.state === 'bottom' ? 'ON' : 'OFF') + ')' : '(system-paged; end state not knowable at design time)') + ': ' + shows.join(', ') + '.';
+        sflEndNote += ' SFLEND ' + (sfe.viaIndicator ? '(end-of-subfile indicator ' + (sfe.state === 'bottom' ? 'ON' : 'OFF') + ')' : (sfe.lastPage ? '(system-paged; last page shown)' : '(system-paged; first page shown - the end state is not knowable at design time)')) + ': ' + shows.join(', ') + '.';
       }
       mainHint.textContent = 'Showing ' + screen.subfilePreview.pageRows + ' subfile rows from ' + screen.subfilePreview.sflRecordName +
         '. Drag any field here to move the whole row template - edits apply to ' + screen.subfilePreview.sflRecordName + ', not this control record.' + sflEndNote;
@@ -3256,6 +3259,18 @@ const htmlTemplate = `<!DOCTYPE html>
           btn.addEventListener('click', () => { sflFoldFlipped = !sflFoldFlipped; render(); });
           mainHint.appendChild(btn);
         }
+      }
+      // Task P11 - unconditioned SFLEND: a toggle to preview the last page (Bottom).
+      // Appended AFTER the P6 text: assigning mainHint.textContent above would drop an earlier button.
+      if (sfe && sfe.canShowLastPage) {
+        const lpBtn = document.createElement('button');
+        lpBtn.type = 'button';
+        lpBtn.id = 'sflEndLastPageBtn';
+        lpBtn.textContent = sfe.lastPage ? 'Show first page' : 'Show last page';
+        lpBtn.style.marginLeft = '8px';
+        lpBtn.title = 'Design-time only - previews the subfile after the user has paged to its end (Bottom text, no plus sign, scroll box on the bottom button)';
+        lpBtn.addEventListener('click', () => { sflEndLastPage = !sflEndLastPage; render(); });
+        mainHint.appendChild(lpBtn);
       }
     }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
@@ -7175,7 +7190,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
   });
 
-  recordSelect.addEventListener('change', () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; sflFoldFlipped = false; render(); });
+  recordSelect.addEventListener('change', () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; activePulldown = null; previewMultipleRows = false; previewRowsToggle.checked = false; sflFoldFlipped = false; sflEndLastPage = false; render(); });
   // Task P5d - toolbarRecordSelect forwards to recordSelect's own real
   // listener above, same "set the authoritative element's value then
   // re-dispatch 'change'" pattern as toolbarSizeSelect - exactly one

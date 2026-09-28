@@ -1118,7 +1118,7 @@
    * parameter is the non-graphical fallback (drawn alongside, as before P7).
    * Returns null when the record has no SFLEND that applies.
    */
-  function resolveSflEndState(record, activeIndicators, activeSizeName) {
+  function resolveSflEndState(record, activeIndicators, activeSizeName, showLastPage) {
     var all = record.keywords.filter(function (k) { return k.name === 'SFLEND'; });
     if (all.length === 0) return null;
     function usesIndicator(kw) {
@@ -1143,11 +1143,18 @@
       if (!kw) return null; // only display-size-conditioned instances, none for this size
       viaIndicator = true;
     }
+    // Task P11: with no option indicator the OS pages the subfile itself, so the
+    // design-time "show last page" toggle is the only way to see the Bottom form.
+    var canShowLastPage = !viaIndicator;
+    var lastPage = canShowLastPage && !!showLastPage;
+    if (lastPage) state = 'bottom';
     var params = (kw.parameters || '').toUpperCase();
     return {
       params: params,
       state: state,
       viaIndicator: viaIndicator,
+      canShowLastPage: canShowLastPage,
+      lastPage: lastPage,
       scrbar: /\*SCRBAR/.test(params),
       more: /\*MORE/.test(params),
       plus: /\*PLUS/.test(params) || params.trim() === '',
@@ -1243,7 +1250,7 @@
     return out;
   }
 
-  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines, activeSizeName, totalColumns, foldFlipped) {
+  function resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, totalLines, activeSizeName, totalColumns, foldFlipped, sflEndLastPage) {
     var sflCtlKw = record.keywords.find(function (k) { return k.name === 'SFLCTL'; });
     if (!sflCtlKw) return null;
     var sflName = sflCtlKw.parameters.trim();
@@ -1269,7 +1276,7 @@
     // conditioned keyword here goes through.
     // Task P7: resolveSflEndState also covers the indicator-OFF case (More/plus)
     // and the indicator-ON case (Bottom), not just "active instance present".
-    var sflEnd = resolveSflEndState(record, activeIndicators, activeSizeName);
+    var sflEnd = resolveSflEndState(record, activeIndicators, activeSizeName, sflEndLastPage);
     var hasScrbar = !!(sflEnd && sflEnd.scrbar);
     var hasMoreText = !!(sflEnd && sflEnd.more);
     var hasPlus = !!(sflEnd && sflEnd.plus);
@@ -1386,7 +1393,7 @@
         undersized: sbHeight < 3, // real SDA requires >=3 lines for a usable scroll bar
         // Task P7: 'bottom' = scroll box on the bottom button, 'more' = one page above it,
         // null = end state unknown (unconditioned SFLEND: the OS pages the subfile itself).
-        boxState: sflEnd.viaIndicator ? sflEnd.state : null,
+        boxState: (sflEnd.viaIndicator || sflEnd.lastPage) ? sflEnd.state : null,
       };
     }
 
@@ -1440,7 +1447,7 @@
       scrollbar: scrollbar,
       moreLine: moreLine,
       plusMark: plusMark,
-      sflEnd: sflEnd ? { state: sflEnd.state, viaIndicator: sflEnd.viaIndicator, params: sflEnd.params, plus: hasPlus, more: hasMoreText, scrbar: hasScrbar } : null,
+      sflEnd: sflEnd ? { state: sflEnd.state, viaIndicator: sflEnd.viaIndicator, canShowLastPage: sflEnd.canShowLastPage, lastPage: sflEnd.lastPage, params: sflEnd.params, plus: hasPlus, more: hasMoreText, scrbar: hasScrbar } : null,
     };
   }
 
@@ -1769,7 +1776,7 @@
     return out;
   }
 
-  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex, foldFlipped) {
+  function resolveScreen(dspfFile, recordName, activeIndicators, activePulldown, previewMultipleRows, sizeIndex, foldFlipped, sflEndLastPage) {
     activeIndicators = activeIndicators || new Set();
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
     var record = dspfFile.records.find(function (r) {
@@ -1877,7 +1884,7 @@
 
     // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
     // like the pulldown overlay below, it doesn't compete for cells with the base screen.
-    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name, size.columns, foldFlipped);
+    var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name, size.columns, foldFlipped, sflEndLastPage);
 
     // Pulldown overlay: rendered as a SEPARATE layer, not subject to the overlap
     // resolution above, since a real pulldown genuinely draws on top of whatever
