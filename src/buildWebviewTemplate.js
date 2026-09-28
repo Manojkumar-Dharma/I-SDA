@@ -3024,16 +3024,26 @@ const htmlTemplate = `<!DOCTYPE html>
    */
   function updateOverlapWarning(screen) {
     const overlaps = (screen && screen.overlaps) || [];
-    if (overlaps.length === 0) {
+    // Task P9 - subfile fields that use the columns SFLEND(*SCRBAR) reserves.
+    const sbCollisions = (screen && screen.subfilePreview && screen.subfilePreview.scrollbar && screen.subfilePreview.scrollbar.collisions) || [];
+    if (overlaps.length === 0 && sbCollisions.length === 0) {
       overlapWarning.classList.add('hidden');
       overlapWarning.textContent = '';
       return;
     }
     overlapWarning.classList.remove('hidden');
+    if (overlaps.length === 0) {
+      overlapWarning.textContent = sbCollisions.length + (sbCollisions.length === 1 ? ' subfile field conflicts' : ' subfile fields conflict') +
+        ' with the scroll bar (SFLEND(*SCRBAR) reserves those columns on every subfile line; no subfile field may use them or span more than one line):\\n' +
+        sbCollisions.map((c) => '\\u2022 ' + c.field + ' (line ' + c.line + ', col ' + c.column + ') ' + c.reason + '.').join('\\n');
+      return;
+    }
     const lines = overlaps.map((o) => '\\u2022 ' + o.field + ' (line ' + o.line + ', col ' + o.column + ') is hidden behind ' + o.blockedBy + ' - they occupy the same screen cells.');
     overlapWarning.textContent =
       overlaps.length + (overlaps.length === 1 ? ' field is' : ' fields are') +
-      " hidden by overlapping another field (DDS shows only the first one placed):\\n" + lines.join('\\n');
+      " hidden by overlapping another field (DDS shows only the first one placed):\\n" + lines.join('\\n') +
+      (sbCollisions.length ? '\\n\\n' + sbCollisions.length + ' subfile field(s) conflict with the SFLEND(*SCRBAR) scroll bar:\\n' +
+        sbCollisions.map((c) => '\\u2022 ' + c.field + ' (line ' + c.line + ', col ' + c.column + ') ' + c.reason + '.').join('\\n') : '');
   }
 
   function rebuildIndicatorList(recordName) {
@@ -3228,7 +3238,12 @@ const htmlTemplate = `<!DOCTYPE html>
         : 'Previewing ' + screen.previewRowCount + ' subfile rows (SFLPAG). Drag any field to move the whole row - they all come from the same template.';
     } else if (screen.subfilePreview) {
       let sflEndNote = '';
-      if (screen.subfilePreview.scrollbar) sflEndNote += ' A scroll bar (SFLEND(*SCRBAR)) reserves its own last 3 columns.';
+      if (screen.subfilePreview.scrollbar) {
+        const sbr = screen.subfilePreview.scrollbar;
+        sflEndNote += sbr.atDisplayEdge
+          ? ' A scroll bar (SFLEND(*SCRBAR)) reserves positions ' + sbr.col + '-' + (sbr.col + sbr.width - 1) + ' of every subfile line.'
+          : ' A scroll bar (SFLEND(*SCRBAR)) reserves the subfile\\'s own last 3 columns.';
+      }
       if (screen.subfilePreview.moreLine) sflEndNote += ' A "More.../Bottom" line (SFLEND(*MORE)) is reserved just below it.';
       const sfe = screen.subfilePreview.sflEnd;
       if (sfe) {

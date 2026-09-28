@@ -1091,7 +1091,8 @@
    * SFLCTL record's own (currently-active) SFLEND keyword - see the
    * `hasScrbar`/`hasMoreText` computation below for the exact grammar:
    *  - `scrollbar` (SFLEND(*SCRBAR)): the geometry of a reference vertical
-   *    scroll-bar strip reserving the subfile's own last 3 columns.
+   *    scroll-bar strip (P9: positions 77-80 / 129-132 outside windows, plus
+   *    `collisions` - subfile fields that use those columns or span lines).
    *  - `moreLine` (SFLEND(*MORE), either as SFLEND's first or second
    *    parameter): the geometry of the reserved "More.../Bottom" line (P8: at
    *    the display's right edge, positions 67-80 / 119-132, outside windows) -
@@ -1386,9 +1387,39 @@
     if (hasScrbar && firstRowFields && firstRowFields.length > 0) {
       var sbRightCol = Math.max.apply(null, firstRowFields.map(function (f) { return f.column + f.length - 1; }));
       var sbHeight = shownRows * shownRowHeight;
+      // Task P9 - position per IBM (DDS Reference, SFLEND, "Position of the scroll
+      // bar with *SCRBAR option"): positions 77-80 (24x80) / 129-132 (27x132) of
+      // EVERY subfile line are reserved and "no fields of the subfile can use
+      // those columns" - so no field may cross them, nor span more than one line.
+      // Inside a window the reference gives no positions: pre-P9 placement (the
+      // row's own last 3 columns) is kept there and no collision check is made.
+      var sbAtDisplayEdge = totalColumns != null && !resolveWindow(record, dspfFile);
+      var sbCol = sbAtDisplayEdge ? totalColumns - 3 : Math.max(1, sbRightCol - 2);
+      var sbWidth = sbAtDisplayEdge ? 4 : 3;
+      var sbCollisions = [];
+      if (sbAtDisplayEdge) {
+        firstRowFields.forEach(function (f) {
+          var fEnd = f.column + f.length - 1;
+          var crosses = fEnd >= sbCol && f.column <= sbCol + sbWidth - 1;
+          var multiLine = (f.height || 1) > 1;
+          if (crosses || multiLine) {
+            sbCollisions.push({
+              field: f.name || f.text || '(unnamed constant)',
+              sourceLine: f.sourceLine,
+              line: f.line,
+              column: f.column,
+              length: f.length,
+              reason: crosses ? 'uses the scroll-bar columns ' + sbCol + '-' + (sbCol + sbWidth - 1) : 'occupies more than one line',
+            });
+          }
+        });
+      }
       scrollbar = {
         line: lineOffset + firstFieldLine,
-        col: Math.max(1, sbRightCol - 2),
+        col: sbCol,
+        width: sbWidth,
+        atDisplayEdge: sbAtDisplayEdge,
+        collisions: sbCollisions,
         height: Math.max(sbHeight, 1),
         undersized: sbHeight < 3, // real SDA requires >=3 lines for a usable scroll bar
         // Task P7: 'bottom' = scroll box on the bottom button, 'more' = one page above it,
@@ -2402,7 +2433,9 @@
           sb.height +
           ';grid-column:' +
           sb.col +
-          ' / span 3;" title="SFLEND(*SCRBAR) - reserves the subfile\'s last 3 columns for a graphical scroll bar">' +
+          ' / span ' + sb.width + ';" title="SFLEND(*SCRBAR) - reserves ' +
+          (sb.atDisplayEdge ? 'positions ' + sb.col + '-' + (sb.col + sb.width - 1) + ' of every subfile line' : 'the subfile\'s last 3 columns') +
+          ' for a graphical scroll bar">' +
           '<div class="dspf-scrollbar-arrow dspf-scrollbar-arrow-up">\u25B2</div>' +
           '<div class="dspf-scrollbar-track"><div class="dspf-scrollbar-thumb' + (sb.boxState ? ' dspf-scrollbar-thumb-' + sb.boxState : '') + '"></div></div>' +
           '<div class="dspf-scrollbar-arrow dspf-scrollbar-arrow-down">\u25BC</div>' +

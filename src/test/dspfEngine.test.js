@@ -1241,10 +1241,10 @@ console.log('\nTask L49: field usage (I/O/B) and data-type (char/num) CSS classe
   });
 }
 
-console.log('SFLEND(*SCRBAR): reserves a vertical scroll-bar strip along the subfile\'s own right edge');
+console.log('SFLEND(*SCRBAR): reserves a vertical scroll-bar strip at positions 77-80 of every subfile line (P9)');
 {
   // ROWNAME occupies columns 2-21 (length 20) on line 3 - the scroll bar
-  // should land on the row's own last 3 columns: 19-21.
+  // reserves positions 77-80 of the 24x80 display (P9, per IBM's SFLEND doc).
   const src = [
     buildLine({ seq: '00010', func: 'DSPSIZ(24 80 *DS3)' }),
     buildLine({ seq: '00100', nameType: 'R', name: 'SFLREC', func: 'SFL' }),
@@ -1263,12 +1263,12 @@ console.log('SFLEND(*SCRBAR): reserves a vertical scroll-bar strip along the sub
   check('scroll bar geometry is present', !!sb);
   check('scroll bar starts on the subfile\'s own first line (3)', sb.line === 3);
   check('scroll bar spans the full rendered SFLPAG height (5 rows x 1 line)', sb.height === 5);
-  check('scroll bar occupies the row\'s own last 3 columns (19-21)', sb.col === 19);
+  check('scroll bar reserves positions 77-80 (col 77, 4 wide)', sb.col === 77 && sb.width === 4 && sb.atDisplayEdge === true);
   check('no *MORE parameter -> moreLine is not resolved', screen.subfilePreview.moreLine === null);
 
   const html = DspfEngine.renderScreenHtml(screen);
   check('rendered HTML includes the scroll-bar strip', html.includes('dspf-subfile-scrollbar'));
-  check('scroll-bar strip is positioned via the same grid coordinates', /dspf-subfile-scrollbar" style="grid-row:3 \/ span 5;grid-column:19 \/ span 3;/.test(html));
+  check('scroll-bar strip is positioned via the same grid coordinates', /dspf-subfile-scrollbar" style="grid-row:3 \/ span 5;grid-column:77 \/ span 4;/.test(html));
   check('scroll-bar strip renders an up arrow, track/thumb, and down arrow', html.includes('dspf-scrollbar-arrow-up') && html.includes('dspf-scrollbar-track') && html.includes('dspf-scrollbar-thumb') && html.includes('dspf-scrollbar-arrow-down'));
 }
 
