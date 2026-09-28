@@ -8316,7 +8316,13 @@
    *  if fine. Only applies to SFLSIZ - SFLPAG/SFLLIN have no
    *  program-to-system field form at all (see this section's own doc
    *  comment above), so there's nothing to conflict with for either. */
+  //  Task I-121 (SFLSIZ slice) - whether SFLSIZ's size-conditioned values
+  //  must be plain numbers now comes from
+  //  KeywordSpec.sizeConditionedValueMustBeNumber('SFLSIZ') instead of
+  //  being implied by this function's own existence; behavior and message
+  //  wording are unchanged.
   function sflsizConditionedFieldNameConflictReason(value) {
+    if (!KeywordSpec.sizeConditionedValueMustBeNumber('SFLSIZ')) return null;
     var v = (value == null ? '' : String(value)).trim();
     if (!v) return null;
     if (/^\d+$/.test(v)) return null;

@@ -1019,6 +1019,27 @@
       validOnlyInSubfileControlRecord: {
         ddsReference: 'This keyword is valid only for the subfile-control record format.'
       }
+    },
+
+    // Task I-121 SFLSIZ slice - SFLSIZ's own DDS Reference section (line
+    // ~12367), re-verified fresh against DDS_Keyword_V7r6.txt, unchanged
+    // from what I-22 already enforced: "You cannot use display size
+    // condition names for this keyword when a program-to-system field is
+    // used as a parameter for it." A new shape
+    // (`sizeConditionedValueMustBeNumber`): the keyword's UNCONDITIONED
+    // value may be a number or a program-to-system field (&name), but a
+    // display-size-CONDITIONED instance's value may not be a field, so it
+    // must be a plain number. SFLSIZ had no RECORD_TYPES entry before; this
+    // one carries only that fact. Its other facts are not restated here:
+    // "not allowed with SFLSCROLL when equal to SFLPAG" lives on SFLSCROLL,
+    // and "option indicators are not valid" is a NO_OPTION_INDICATOR_KEYWORDS
+    // entry.
+    SFLSIZ: {
+      sizeConditionedValueMustBeNumber: {
+        ddsReference:
+          'You cannot use display size condition names for this keyword ' +
+          'when a program-to-system field is used as a parameter for it.'
+      }
     }
   };
 
@@ -1340,6 +1361,14 @@
     return (spec && spec.msgDataField) || null;
   }
 
+  /** Task I-121 SFLSIZ slice - whether `keywordName`'s display-size-
+   *  conditioned instances must carry a plain number rather than a
+   *  program-to-system field (SFLSIZ). */
+  function sizeConditionedValueMustBeNumber(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.sizeConditionedValueMustBeNumber);
+  }
+
   /** Task I-129 - whether `keywordName` is a field-level keyword valid only
    *  in the subfile-control record format (SFLSCROLL, SFLRCDNBR,
    *  SFLROLVAL). */
@@ -1400,6 +1429,7 @@
     msgDataFieldRule: msgDataFieldRule,
     crossRecordExclusion: crossRecordExclusion,
     validOnlyInSubfileControlRecord: validOnlyInSubfileControlRecord,
+    sizeConditionedValueMustBeNumber: sizeConditionedValueMustBeNumber,
     msgDataFieldKeywords: msgDataFieldKeywords,
     notAllowedWhenEqual: notAllowedWhenEqual
   };
