@@ -171,6 +171,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | Done | v0.10.232 |
 | [I-127](#i-127) | Record | `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced | I-121 | Done | v0.10.232 |
 | [I-128](#i-128) | Record | `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction) | I-121, I-26 | Done | v0.10.236 |
+| [I-129](#i-129) | Field | `SFLSCROLL` (and, once re-read, `SFLRCDNBR`/`SFLROLVAL`): "valid only for the subfile-control record format" is unenforced - the panel is offered on SFL detail records too | I-126, I-127 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -190,11 +191,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-128, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-129, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-126 / I-127 | SFLSCROLL's own DDS Reference section (line ~12332) states "This keyword is valid only for the subfile-control record format", but its checkbox lives in the Subfile keywords panel, which `buildWebviewTemplate.js` offers for a field in an SFL detail record as well as an SFLCTL record (`isSflOrSflCtlRecord`) - nothing blocks turning SFLSCROLL on in an SFL record. The same panel also serves SFLRCDNBR/SFLROLVAL, whose own sections were not re-read here. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
