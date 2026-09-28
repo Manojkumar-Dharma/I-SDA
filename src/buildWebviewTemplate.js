@@ -3950,6 +3950,7 @@ const htmlTemplate = `<!DOCTYPE html>
         currentModel = DspfParser.parseDspf(lines.join('\\n'));
       });
 
+      if (scrbarGuardBlocks(lines)) { render(); return; }
       sourceText = lines.join('\\n');
       model = currentModel;
 
@@ -4011,6 +4012,7 @@ const htmlTemplate = `<!DOCTYPE html>
         currentModel = DspfParser.parseDspf(lines.join('\\n'));
       });
 
+      if (scrbarGuardBlocks(lines)) { render(); return; }
       sourceText = lines.join('\\n');
       model = currentModel;
 
@@ -4066,6 +4068,7 @@ const htmlTemplate = `<!DOCTYPE html>
         currentModel = DspfParser.parseDspf(lines.join('\\n'));
       });
 
+      if (scrbarGuardBlocks(lines)) { render(); return; }
       sourceText = lines.join('\\n');
       model = currentModel;
 
@@ -6212,11 +6215,28 @@ const htmlTemplate = `<!DOCTYPE html>
   // what to reselect afterward - this is that skeleton, written once.
   // transform() returning null/undefined is treated as "nothing to do"
   // (e.g. the record wasn't found) - no message is posted, no re-render.
+  // Task P12: SFLEND(*SCRBAR) reserves the scroll-bar columns of every
+  // subfile line - no subfile field may use them or span more than one line
+  // (DDS Reference, SFLEND). One post-edit check on the RESULTING source,
+  // shared by every path that writes it (single edits, record edits, group
+  // move/align, multi-field keyword edits, paste), so no entry point is
+  // missed. Diff-based against the current model: only a collision this edit
+  // introduces blocks. Returns true (after alerting) when the edit is blocked.
+  function scrbarGuardBlocks(newLines) {
+    let candidate;
+    try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
+    const reason = DspfWriter.scrbarReservedNewConflictReason(model, candidate);
+    if (!reason) return false;
+    window.alert(reason);
+    return true;
+  }
+
   function commitSourceChange(transform, afterReparse) {
     try {
       const lines = sourceText.split(/\\r\\n|\\r|\\n/);
       let newLines = transform(lines);
       if (!newLines) return;
+      if (scrbarGuardBlocks(newLines)) { render(); return; }
       // Task L38 - a single post-processing step over every edit's own
       // (before, after) line-array pair, rather than threading tracking
       // options through each individual DspfWriter call above - see
@@ -6373,6 +6393,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
       if (newField) insertedSourceLines.push(newField.sourceLine);
     });
+    if (scrbarGuardBlocks(lines)) return [];
     sourceText = lines.join('\\n');
     model = currentModel;
     return insertedSourceLines;

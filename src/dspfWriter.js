@@ -7755,6 +7755,104 @@
   }
 
   // -----------------------------------------------------------------------
+  // Task P12 - SFLEND(*SCRBAR)'s reserved columns. IBM's SFLEND section
+  // ("Position of the scroll bar with *SCRBAR option") is unconditional: on
+  // 24 x 80 positions 77-80 (27 x 132: 129-132) of every subfile line are
+  // reserved, "No fields of the subfile can use those columns. Thus no
+  // fields can occupy more than one line of the subfile." P9 already WARNS
+  // (banner) by resolving those collisions in DspfEngine's subfile preview;
+  // this turns the same resolution into an edit-time guard, the shape every
+  // other unconditional "cannot / not allowed" DDS Reference rule got (I-70,
+  // I-127, I-129). Design call (the reference does not say whether SDA itself
+  // rejects at edit time or only CRTDSPF does): enforce, as those did.
+  //
+  // ONE post-edit check instead of per-entry-point wiring: the collision set
+  // is a property of the resulting source, so it covers, at once, the
+  // *SCRBAR parameter edit on the SFLCTL record, position/length edits and
+  // drag-move on the SFL record, group move/align, paste and the raw keyword
+  // editors. It reuses DspfEngine's own resolution (relative columns, row
+  // heights, display-size conditions, windows and selection lists - where the
+  // bar is not at the display edge - are already excluded there), evaluated
+  // for every declared display size and for two indicator states (none on /
+  // every referenced indicator on). Diff-based like I-70/I-127: only a
+  // collision the edit INTRODUCES blocks - a hand-written one is never
+  // re-reported on an unrelated edit, and fixing one is never blocked.
+  // -----------------------------------------------------------------------
+  function scrbarCollisionCounts(model) {
+    var counts = {};
+    var detail = {};
+    if (!model || !model.records || !model.fileKeywords) return { counts: counts, detail: detail };
+    var candidates = model.records.filter(function (r) {
+      return (r.keywords || []).some(function (k) { return k.name === 'SFLCTL'; }) &&
+        (r.keywords || []).some(function (k) { return k.name === 'SFLEND' && /\*SCRBAR/i.test(k.parameters || ''); });
+    });
+    if (!candidates.length) return { counts: counts, detail: detail };
+    var referenced = {};
+    var noteConds = function (conds) {
+      (conds || []).forEach(function (g) { (g.indicators || []).forEach(function (i) { referenced[i.number] = true; }); });
+    };
+    model.records.forEach(function (r) {
+      noteConds(r.conditions);
+      (r.keywords || []).forEach(function (k) { noteConds(k.conditions); });
+      (r.fields || []).forEach(function (f) {
+        noteConds(f.conditions);
+        (f.keywords || []).forEach(function (k) { noteConds(k.conditions); });
+      });
+    });
+    var indicatorStates = [new Set(), new Set(Object.keys(referenced))];
+    var sizes = DspfEngine.availableScreenSizes(model);
+    var sizeCount = Math.max(1, (sizes || []).length);
+    candidates.forEach(function (rec) {
+      for (var si = 0; si < sizeCount; si++) {
+        var seen = {};
+        indicatorStates.forEach(function (inds) {
+          var screen = DspfEngine.resolveScreen(model, rec.name, inds, null, false, si);
+          var sb = screen && screen.subfilePreview && screen.subfilePreview.scrollbar;
+          if (!sb || !sb.collisions) return;
+          sb.collisions.forEach(function (c) {
+            var kind = /more than one line/.test(c.reason) ? 'lines' : 'cols';
+            var key = rec.name + '|' + si + '|' + c.field + '|' + kind;
+            seen[key] = (seen[key] || 0) + 1;
+            if (!detail[key]) {
+              detail[key] = {
+                record: rec.name, field: c.field, kind: kind, line: c.line, column: c.column, length: c.length,
+                barCol: sb.col, barWidth: sb.width,
+                size: (sizes && sizes[si]) ? sizes[si].lines + ' x ' + sizes[si].columns : null,
+              };
+            }
+          });
+        });
+        Object.keys(seen).forEach(function (k) {
+          // one indicator state or both count once per field occurrence
+          counts[k] = Math.max(counts[k] || 0, Math.ceil(seen[k] / indicatorStates.length) || 1);
+        });
+      }
+    });
+    return { counts: counts, detail: detail };
+  }
+
+  /** Reason string when going from `oldModel` to `newModel` (both parsed)
+   *  INTRODUCES a subfile field on SFLEND(*SCRBAR)'s reserved columns (or a
+   *  multi-line field in a scroll-bar subfile), else null. See the P12
+   *  comment above. */
+  function scrbarReservedNewConflictReason(oldModel, newModel) {
+    var after = scrbarCollisionCounts(newModel);
+    var keys = Object.keys(after.counts);
+    if (!keys.length) return null;
+    var before = scrbarCollisionCounts(oldModel).counts;
+    for (var i = 0; i < keys.length; i++) {
+      if (after.counts[keys[i]] > (before[keys[i]] || 0)) {
+        var d = after.detail[keys[i]];
+        var where = 'line ' + d.line + ', column ' + d.column + ', length ' + d.length;
+        return d.kind === 'cols'
+          ? 'SFLEND(*SCRBAR) reserves columns ' + d.barCol + '-' + (d.barCol + d.barWidth - 1) + ' of every line of the subfile' + (d.size ? ' on the ' + d.size + ' display' : '') + ' (record ' + d.record + ') - "No fields of the subfile can use those columns" (DDS Reference, SFLEND). ' + d.field + ' (' + where + ') would use them; move or shorten it first.'
+          : 'SFLEND(*SCRBAR) in record ' + d.record + ': "no fields can occupy more than one line of the subfile" (DDS Reference, SFLEND) - ' + d.field + ' (' + where + ') spans more than one line' + (d.size ? ' on the ' + d.size + ' display' : '') + '.';
+      }
+    }
+    return null;
+  }
+
+  // -----------------------------------------------------------------------
   // Task I-126 - SFLSCROLL's own DDS Reference section: "This field must
   // have the keyboard shift attribute of signed numeric with zero decimal
   // positions. It has to be 5 digits in length, and it must be defined as
@@ -8973,6 +9071,7 @@
     sflScrollFieldConflictReason: sflScrollFieldConflictReason,
     sflsizPagEqualReason: sflsizPagEqualReason,
     sflscrollSizeRecordEditConflictReason: sflscrollSizeRecordEditConflictReason,
+    scrbarReservedNewConflictReason: scrbarReservedNewConflictReason,
     sflscrollDefinitionUpdates: sflscrollDefinitionUpdates,
     sflscrollBasicEditConflictReason: sflscrollBasicEditConflictReason,
     sflscrollNewConflictReason: sflscrollNewConflictReason,
