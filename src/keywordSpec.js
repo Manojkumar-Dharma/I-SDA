@@ -1071,6 +1071,51 @@
       }
     },
 
+    // Task I-121 EDTCDE/EDTMSK slice - EDTCDE's own DDS Reference section
+    // (line ~5618), re-verified fresh against DDS_Keyword_V7r6.txt,
+    // unchanged from what the code already had: "You can optionally
+    // specify asterisk fill or floating currency symbol with edit codes 1
+    // through 4, A through D, and J through Q." Only W, X, Y and Z (the
+    // other IBM edit codes) are therefore excluded; user-defined codes 5-9
+    // are not mentioned either way and are left alone. A new shape
+    // (`noFillCodes`): a list of the keyword's own parameter values that
+    // cannot take the optional fill argument, plus the allowed-codes
+    // wording the message quotes. Previously the hand-written
+    // EDTCDE_NO_FILL_CODES array in dspfWriter.js. EDTCDE's DFT/DFTVAL/
+    // EDTWRD exclusions live in MUTEX_GROUPS, not here.
+    EDTCDE: {
+      noFillCodes: {
+        codes: ['W', 'X', 'Y', 'Z'],
+        allowedText: '1-4, A-D and J-Q',
+        ddsReference:
+          'You can optionally specify asterisk fill or floating currency ' +
+          'symbol with edit codes 1 through 4, A through D, and J ' +
+          'through Q.'
+      }
+    },
+
+    // Task I-121 EDTCDE/EDTMSK slice - EDTMSK's own DDS Reference section
+    // (line ~5782), re-verified fresh, unchanged from what I-31 already
+    // enforced: "The field containing the EDTMSK keyword must be usage I
+    // or usage B. It must also contain the EDTCDE or EDTWRD keywords."
+    // Both facts reuse existing shapes unchanged - the CHKMSGID
+    // `qualifyingNames`/`qualifyingListText` dependency and
+    // `definitionRequirements.usage`. The section's further list of
+    // keywords that cannot be specified on an EDTMSK field (AUTO(RAB, RAZ),
+    // CHECK(AB, MF, RB, RZ, RLTB), CHOICE, CNTFLD, DSPATR(OID SP)) is not
+    // enforced anywhere and is not restated here - logged in the Deferred
+    // findings table.
+    EDTMSK: {
+      ddsReference:
+        'The field containing the EDTMSK keyword must be usage I or usage ' +
+        'B. It must also contain the EDTCDE or EDTWRD keywords.',
+      qualifyingNames: ['EDTCDE', 'EDTWRD'],
+      qualifyingListText: 'EDTCDE or EDTWRD',
+      definitionRequirements: {
+        usage: ['I', 'B']
+      }
+    },
+
     // Task I-121 MNUBARSW/MNUCNL slice - MNUBARSW's own DDS Reference
     // section (line ~8626) and MNUCNL's (line ~8684), re-verified fresh
     // against DDS_Keyword_V7r6.txt, each state: "Within a record, the CAnn
@@ -1436,6 +1481,25 @@
     return !!(spec && spec.sizeConditionedValueMustBeNumber);
   }
 
+  /** Task I-121 EDTCDE/EDTMSK slice - whether `code` is one of
+   *  `keywordName`'s own parameter values that cannot take the optional
+   *  fill argument (EDTCDE's W/X/Y/Z). Case-insensitive; false for a
+   *  keyword with no such fact or a blank/unknown code. */
+  function isNoFillEditCode(keywordName, code) {
+    var spec = RECORD_TYPES[keywordName];
+    var rule = spec && spec.noFillCodes;
+    if (!rule) return false;
+    var c = String(code == null ? '' : code).trim().toUpperCase();
+    return !!c && rule.codes.indexOf(c) >= 0;
+  }
+
+  /** The human-readable list of codes that CAN take the fill argument
+   *  (for a message), or '' for a keyword with no `noFillCodes` fact. */
+  function fillAllowedCodesText(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return (spec && spec.noFillCodes && spec.noFillCodes.allowedText) || '';
+  }
+
   /** Task I-121 SFLMSGKEY/SFLPGMQ slice - whether a field carrying
    *  `keywordName` takes no option indicators of its own (SFLMSGKEY's
    *  "or with the associated field" half). */
@@ -1513,6 +1577,8 @@
     validOnlyInSubfileControlRecord: validOnlyInSubfileControlRecord,
     sizeConditionedValueMustBeNumber: sizeConditionedValueMustBeNumber,
     caKeyPartner: caKeyPartner,
+    isNoFillEditCode: isNoFillEditCode,
+    fillAllowedCodesText: fillAllowedCodesText,
     noOptionIndicatorsOnField: noOptionIndicatorsOnField,
     noDisplaySizeCondition: noDisplaySizeCondition,
     msgDataFieldKeywords: msgDataFieldKeywords,

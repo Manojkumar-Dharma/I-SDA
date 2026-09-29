@@ -1054,7 +1054,8 @@
   // (5-9) are not mentioned either way and are left alone, as is any
   // parameter string that does not look like `<code> [<char>]` at all.
   // -----------------------------------------------------------------------
-  var EDTCDE_NO_FILL_CODES = ['W', 'X', 'Y', 'Z'];
+  //  Task I-121 (EDTCDE/EDTMSK slice): the no-fill code list (W, X, Y, Z) is
+  //  now KeywordSpec's RECORD_TYPES.EDTCDE.noFillCodes.
 
   /** Splits an EDTCDE parameter string into { code, fill }. A string that
    *  is not `<one character>` optionally followed by `<one character>`
@@ -1089,8 +1090,8 @@
     }
     var c = String(code == null ? '' : code).trim().toUpperCase();
     if (!c) return 'Enter an edit code before choosing what replaces leading zeros.';
-    if (EDTCDE_NO_FILL_CODES.indexOf(c) >= 0) {
-      return 'Asterisk fill or a floating currency symbol can be specified only with edit codes 1-4, A-D and J-Q, not ' + c + ' (per the DDS Reference).';
+    if (KeywordSpec.isNoFillEditCode('EDTCDE', c)) {
+      return 'Asterisk fill or a floating currency symbol can be specified only with edit codes ' + KeywordSpec.fillAllowedCodesText('EDTCDE') + ', not ' + c + ' (per the DDS Reference).';
     }
     return null;
   }
@@ -1127,13 +1128,15 @@
    *  either rule (checked in the order IBM's own text states them), or
    *  null if it's fine. */
   function editMaskConflictReason(keywords, usage) {
+    // Task I-121 (EDTCDE/EDTMSK slice): the allowed usage set and the
+    // qualifying keyword names now read RECORD_TYPES.EDTMSK.
     var u = (usage || '').toUpperCase();
-    if (u !== 'I' && u !== 'B') {
-      return 'EDTMSK requires field usage I or B (per the DDS Reference).';
+    var allowedUsage = KeywordSpec.definitionRequirements('EDTMSK').usage;
+    if (allowedUsage.indexOf(u) < 0) {
+      return 'EDTMSK requires field usage ' + allowedUsage.join(' or ') + ' (per the DDS Reference).';
     }
-    var hasEditCode = (keywords || []).some(function (k) { return k.name === 'EDTCDE' || k.name === 'EDTWRD'; });
-    if (!hasEditCode) {
-      return 'EDTMSK requires the field to also carry EDTCDE or EDTWRD (per the DDS Reference).';
+    if (!KeywordSpec.hasQualifyingKeyword('EDTMSK', keywords)) {
+      return 'EDTMSK requires the field to also carry ' + KeywordSpec.qualifyingListText('EDTMSK') + ' (per the DDS Reference).';
     }
     return null;
   }
