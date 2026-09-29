@@ -1647,6 +1647,11 @@
       if (emText) {
         var maskReason = DspfWriter.editMaskConflictReason(pendingKeywords, usage);
         if (maskReason) { window.alert(maskReason); revert(); return; }
+        // Task I-130 - EDTMSK's own "cannot be specified with" list, judged
+        // on what the field carries after this apply (the pending EDTCDE/
+        // EDTWRD change never adds a listed keyword, so `keywords` is enough).
+        var maskExclReason = DspfWriter.edtmskConflictReason('EDTMSK', '', pendingKeywords);
+        if (maskExclReason) { window.alert(maskExclReason); revert(); return; }
       }
       onChange(DspfWriter.setEditMask(pendingKeywords, emText));
     });

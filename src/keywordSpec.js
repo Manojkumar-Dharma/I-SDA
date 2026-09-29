@@ -1105,14 +1105,35 @@
     // CHECK(AB, MF, RB, RZ, RLTB), CHOICE, CNTFLD, DSPATR(OID SP)) is not
     // enforced anywhere and is not restated here - logged in the Deferred
     // findings table.
+    //
+    // Task I-130 - that Deferred finding, now closed: the same section
+    // (re-verified fresh) states "The following keywords cannot be
+    // specified on a field with the EDTMSK keyword: AUTO (RAB, RAZ),
+    // CHECK(AB, MF, RB, RZ, RLTB), CHOICE, CNTFLD, DSPATR(OID SP)." Three
+    // of the five are parameter-restricted, so it reuses the token-
+    // qualified `conditionalMutex` shape (WRDWRAP/IGCALTTYP slice) rather
+    // than the plain name-only `mutex`: AUTO(RAB)/AUTO(RAZ) conflict but a
+    // bare AUTO or AUTO(...) with no listed token does not, CHECK(ME) is
+    // fine but CHECK(AB) is not, DSPATR(HI) is fine but DSPATR(OID)/
+    // DSPATR(SP) are not; CHOICE and CNTFLD are excluded outright (null).
     EDTMSK: {
       ddsReference:
         'The field containing the EDTMSK keyword must be usage I or usage ' +
-        'B. It must also contain the EDTCDE or EDTWRD keywords.',
+        'B. It must also contain the EDTCDE or EDTWRD keywords. The ' +
+        'following keywords cannot be specified on a field with the ' +
+        'EDTMSK keyword: AUTO (RAB, RAZ), CHECK(AB, MF, RB, RZ, RLTB), ' +
+        'CHOICE, CNTFLD, DSPATR(OID SP).',
       qualifyingNames: ['EDTCDE', 'EDTWRD'],
       qualifyingListText: 'EDTCDE or EDTWRD',
       definitionRequirements: {
         usage: ['I', 'B']
+      },
+      conditionalMutex: {
+        AUTO: ['RAB', 'RAZ'],
+        CHECK: ['AB', 'MF', 'RB', 'RZ', 'RLTB'],
+        CHOICE: null,
+        CNTFLD: null,
+        DSPATR: ['OID', 'SP']
       }
     },
 

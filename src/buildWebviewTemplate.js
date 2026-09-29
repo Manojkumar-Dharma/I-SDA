@@ -4878,7 +4878,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.messageIdMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.edtmskConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.messageIdMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
@@ -6800,6 +6800,16 @@ const htmlTemplate = `<!DOCTYPE html>
       });
       if (igcalttypReason) {
         window.alert(igcalttypReason);
+        render();
+        return;
+      }
+      // Task I-130: same choke point again, for EDTMSK's own "cannot be
+      // specified with" list (AUTO(RAB, RAZ), CHECK(AB, MF, RB, RZ, RLTB),
+      // CHOICE, CNTFLD, DSPATR(OID SP)), both directions. Covers every
+      // panel that writes keywords, including the edit-mask panel itself.
+      const edtmskReason = DspfWriter.edtmskNewConflictReason(field.keywords, updates.keywords);
+      if (edtmskReason) {
+        window.alert(edtmskReason);
         render();
         return;
       }

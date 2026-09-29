@@ -1141,6 +1141,70 @@
     return null;
   }
 
+  /** Task I-130 - EDTMSK's own DDS Reference section: "The following
+   *  keywords cannot be specified on a field with the EDTMSK keyword:
+   *  AUTO (RAB, RAZ), CHECK(AB, MF, RB, RZ, RLTB), CHOICE, CNTFLD,
+   *  DSPATR(OID SP)." A bidirectional mutual exclusion on the SAME field,
+   *  same shape as igcalttypConflictReason; the conflict map itself lives on
+   *  keywordSpec.js's RECORD_TYPES.EDTMSK.conditionalMutex and is token-
+   *  matched by KeywordSpec.conditionalMutexHit (AUTO(RAB) hits, a bare
+   *  DSPATR(HI) does not). Returns the labels ("CHECK(AB)", "CHOICE") of
+   *  every keyword instance in `keywords` on EDTMSK's own list. */
+  function edtmskKeywordHits(keywords) {
+    var hits = [];
+    (keywords || []).forEach(function (k) {
+      var h = KeywordSpec.conditionalMutexHit('EDTMSK', k);
+      if (h) hits.push(h);
+    });
+    return hits;
+  }
+
+  function edtmskForwardReason(hits) {
+    return 'EDTMSK cannot be specified on a field that has ' + hits.join(', ') + ' (per the DDS Reference).';
+  }
+
+  function edtmskReverseReason(hits) {
+    return hits.join(', ') + ' cannot be specified on a field that already has EDTMSK (per the DDS Reference).';
+  }
+
+  /** Task I-130 - add-time check, BOTH directions, for one keyword being
+   *  added (name + parameters): adding EDTMSK to a field that already
+   *  carries a listed keyword, or adding a listed keyword to a field that
+   *  already carries EDTMSK. A no-op for every other keyword. */
+  function edtmskConflictReason(keywordName, parameters, fieldKeywords) {
+    var name = String(keywordName || '').toUpperCase();
+    var kws = fieldKeywords || [];
+    if (name === 'EDTMSK') {
+      var hits = edtmskKeywordHits(kws);
+      return hits.length ? edtmskForwardReason(hits) : null;
+    }
+    if (!kws.some(function (k) { return k.name === 'EDTMSK'; })) return null;
+    var hit = KeywordSpec.conditionalMutexHit('EDTMSK', { name: name, parameters: parameters });
+    return hit ? edtmskReverseReason([hit]) : null;
+  }
+
+  /** Task I-130 - diff-based backstop for EVERY field-level panel (all
+   *  commit through commitEdit's keywords update), same shape as
+   *  igcalttypNewConflictReason: only a conflict the edit INTRODUCES is
+   *  reported. EDTMSK not on the field after the edit: null. EDTMSK newly
+   *  added: any listed keyword now on the field (forward message). EDTMSK
+   *  already there: only a listed keyword the edit ADDED (reverse
+   *  message). Conflicts already present in a hand-written file are not
+   *  re-reported, so unrelated edits stay possible. */
+  function edtmskNewConflictReason(oldKeywords, newKeywords) {
+    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'EDTMSK'; }); };
+    if (!has(newKeywords)) return null;
+    var nowHits = edtmskKeywordHits(newKeywords);
+    if (!has(oldKeywords)) return nowHits.length ? edtmskForwardReason(nowHits) : null;
+    var before = edtmskKeywordHits(oldKeywords);
+    var added = nowHits.filter(function (h) {
+      var i = before.indexOf(h);
+      if (i >= 0) { before.splice(i, 1); return false; }
+      return true;
+    });
+    return added.length ? edtmskReverseReason(added) : null;
+  }
+
   /** Task I-31 - the named sub-check keywordFixes.md's own I-31 write-up
    *  calls out: L/T/Z (Date/Time/Timestamp) data types have their own,
    *  narrower Usage restriction than every other data type. IBM's DDS
@@ -8926,6 +8990,8 @@
     getEditMask: getEditMask,
     setEditMask: setEditMask,
     editMaskConflictReason: editMaskConflictReason,
+    edtmskConflictReason: edtmskConflictReason,
+    edtmskNewConflictReason: edtmskNewConflictReason,
     dateTimeUsageConflictReason: dateTimeUsageConflictReason,
     getDateFormat: getDateFormat,
     setDateFormat: setDateFormat,
