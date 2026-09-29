@@ -3248,6 +3248,10 @@ const htmlTemplate = `<!DOCTYPE html>
       }
       if (screen.subfilePreview.moreLine) sflEndNote += ' A "More.../Bottom" line (SFLEND(*MORE)) is reserved just below it' + (screen.subfilePreview.moreLine.rightOfChoices ? ', to the right of the choices' + (screen.subfilePreview.moreLine.fitsDisplay ? '.' : ' (past the right edge of the display).') : '.');
       if (screen.subfilePreview.selectionList && screen.subfilePreview.plusMark) sflEndNote += ' The "+" follows the last choice.';
+      if (screen.subfilePreview.plusMark && screen.subfilePreview.plusMark.inputOverlap && screen.subfilePreview.plusMark.inputOverlap.length) {
+        sflEndNote += ' ' + screen.subfilePreview.plusMark.inputOverlap.map(function (o) { return o.field; }).join(', ') +
+          " occupies the plus sign's columns - if changed, the plus sign is returned as data in the field (DDS Reference, SFLEND).";
+      }
       const sfe = screen.subfilePreview.sflEnd;
       if (sfe) {
         const shows = [];

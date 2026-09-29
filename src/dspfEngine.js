@@ -1492,11 +1492,41 @@
       // Task P10 - selection lists: beginning attribute character right after the
       // choices, the "+" one column further (same attr / + / attr triple as IBM's).
       if (selectionList) plusCol = plusRightCol + 2;
+      // Task P13 - IBM DDS Reference (SFLEND, "Position of plus sign with *PLUS
+      // option"): "If an input field occupies the location of the plus sign and
+      // the field is changed, the plus sign and its attribute characters are
+      // returned to the program as data in the field." The reserved block is the
+      // beginning attribute character, the plus sign, and the ending attribute
+      // character - one column either side of the plus itself - wherever the
+      // reference actually gives that 3-column layout (the display edge, or the
+      // selection-list "right of the choices" anchor per P10); inside a window
+      // there is no reference position at all (pre-P9/P10 fallback of a single
+      // column), so only that one column is checked there.
+      // This is IBM-documented, expected behaviour, not a DDS violation, so it
+      // is an INFORMATIONAL note (`inputOverlap`), never a P12-style block - and
+      // it applies equally when *PLUS is combined with *SCRBAR (decision 3): the
+      // plus position above is already computed the same way in that combination,
+      // so reusing it here needs no extra branching.
+      var plusAtDisplayEdge = totalColumns != null && !resolveWindow(record, dspfFile);
+      var plusAttrSpan = (plusAtDisplayEdge || selectionList) ? 1 : 0;
+      var plusAttrBegin = plusCol - plusAttrSpan;
+      var plusAttrEnd = plusCol + plusAttrSpan;
+      var plusInputOverlap = [];
+      firstRowFields.forEach(function (f) {
+        if (f.usage !== 'I' && f.usage !== 'B') return;
+        var fEnd = f.column + f.length - 1;
+        if (fEnd >= plusAttrBegin && f.column <= plusAttrEnd) {
+          plusInputOverlap.push({ field: f.name || '(unnamed field)', sourceLine: f.sourceLine, line: f.line, column: f.column, length: f.length });
+        }
+      });
       plusMark = {
         line: lineOffset + firstFieldLine + shownRows * shownRowHeight - 1,
         col: plusCol,
         rightOfChoices: !!selectionList,
         fitsDisplay: totalColumns == null || plusCol + 1 <= totalColumns,
+        attrBegin: plusAttrBegin,
+        attrEnd: plusAttrEnd,
+        inputOverlap: plusInputOverlap,
       };
     }
 
@@ -2489,10 +2519,18 @@
           '">' + ml.text + '</div>\n';
       }
       // Task P7 - SFLEND / SFLEND(*PLUS): the "+" on the subfile's last line.
+      // Task P13 - an input-capable field occupying the plus sign's own columns:
+      // informational only (IBM-documented, not a violation), so it is added to
+      // the title rather than drawn as a warning banner like P9's collisions.
       if (sfp.plusMark) {
+        var plusTitle = 'SFLEND - a plus sign shows while more records can be paged in (hidden once the end-of-subfile indicator is on)';
+        if (sfp.plusMark.inputOverlap && sfp.plusMark.inputOverlap.length) {
+          plusTitle += '. ' + sfp.plusMark.inputOverlap.map(function (o) { return o.field; }).join(', ') +
+            ' occupies the plus sign\'s columns (' + sfp.plusMark.attrBegin + '-' + sfp.plusMark.attrEnd + ') - if the workstation user changes it, the plus sign and its attribute characters are returned as data in the field (DDS Reference, SFLEND)';
+        }
         subfilePreviewHtml +=
           '<div class="dspf-subfile-plus" style="grid-row:' + sfp.plusMark.line + ';grid-column:' + sfp.plusMark.col +
-          ';" title="SFLEND - a plus sign shows while more records can be paged in (hidden once the end-of-subfile indicator is on)">+</div>\n';
+          ';" title="' + plusTitle + '">+</div>\n';
       }
     }
 
