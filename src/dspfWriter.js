@@ -1977,7 +1977,8 @@
    *  set" and never blocks (same fail-open posture as
    *  fieldKeywordCategoryVisibility's own blank-usage branch).
    *  Returns a reason string, or null when WRDWRAP is fine to add. */
-  var WRDWRAP_BLOCKED_SHIFTS = ['S', 'Y', 'D', 'M', 'F', 'J', 'O', 'E', 'G'];
+  // Task I-121 (WRDWRAP/IGCALTTYP eligibility slice) - the nine blocked
+  // keyboard shifts now live in keywordSpec.js (RECORD_TYPES.WRDWRAP.blockedDataTypes).
   /** Task I-58 - shared by both directions: the label ("CHECK(RB)", "DUP")
    *  when ONE keyword instance is on WRDWRAP's own conflict list, else
    *  null. Token-matched (split on whitespace/commas/parens) rather than
@@ -2103,17 +2104,18 @@
   // the Basic tab's Apply refuses a usage / data type change that would leave
   // a field carrying IGCALTTYP ineligible.
   // -----------------------------------------------------------------------
-  var IGCALTTYP_ALLOWED_SHIFTS = ['A', 'N', 'X', 'W', 'I'];
+  // Task I-121 - the allowed usage (B) and keyboard shifts (A/N/X/W/I) now live in
+  // keywordSpec.js (RECORD_TYPES.IGCALTTYP.allowedUsage / allowedDataTypes).
   function igcalttypUsageReason(usage) {
     var u = String(usage == null ? '' : usage).trim().toUpperCase();
-    if (u && u !== 'B') {
+    if (u && KeywordSpec.allowedUsage('IGCALTTYP').indexOf(u) < 0) {
       return 'IGCALTTYP can only be specified on input- and output-capable (usage B) fields (per the DDS Reference).';
     }
     return null;
   }
   function igcalttypDataTypeReason(dataType) {
     var dt = String(dataType == null ? '' : dataType).trim().toUpperCase();
-    if (dt && IGCALTTYP_ALLOWED_SHIFTS.indexOf(dt) < 0) {
+    if (dt && KeywordSpec.allowedDataTypes('IGCALTTYP').indexOf(dt) < 0) {
       return 'IGCALTTYP can only be specified on a field whose keyboard shift type is A, N, X, W or I, not ' + dt +
         ' (per the DDS Reference; DBCS fields J, E, O and G are not allowed either).';
     }
@@ -2562,14 +2564,14 @@
    *  wording. A blank value returns null here (fail-open, "not yet set"). */
   function wrdwrapUsageReason(usage) {
     var u = (usage || '').toUpperCase();
-    if (u && u !== 'I' && u !== 'B') {
+    if (u && KeywordSpec.allowedUsage('WRDWRAP').indexOf(u) < 0) {
       return 'WRDWRAP can only be specified on input-only (I) or input/output (B) fields (per the DDS Reference).';
     }
     return null;
   }
   function wrdwrapDataTypeReason(dataType) {
     var dt = (dataType || '').toUpperCase();
-    if (dt && WRDWRAP_BLOCKED_SHIFTS.indexOf(dt) >= 0) {
+    if (dt && KeywordSpec.blockedDataTypes('WRDWRAP').indexOf(dt) >= 0) {
       return 'WRDWRAP cannot be specified on a field with keyboard shift/data type ' + dt + ' (per the DDS Reference: not valid on S, Y, D, M, F, J, O, E, or G).';
     }
     return null;
@@ -9042,6 +9044,7 @@
     valuesFloatNewConflictReason: valuesFloatNewConflictReason,
     checkAbFloatIncompatibleNewConflictReason: checkAbFloatIncompatibleNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
+    wrdwrapDataTypeReason: wrdwrapDataTypeReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,
     chkmsgidFieldAddReason: chkmsgidFieldAddReason,

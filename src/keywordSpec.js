@@ -585,7 +585,20 @@
         FLTFIXDEC: null,
         IGCALTTYP: null
       },
-      notAllowedInRecordType: 'SFL'
+      notAllowedInRecordType: 'SFL',
+      // Task I-121 WRDWRAP/IGCALTTYP eligibility slice - the two
+      // field-eligibility facts from the same DDS Reference section (line
+      // ~13788), previously the hard-coded WRDWRAP_BLOCKED_SHIFTS array and
+      // a literal I/B test in dspfWriter.js plus a second copy of the nine
+      // shifts in webviewClientHelpers.js's generalFieldKeywordRowMatches-
+      // DataType: "This keyword can only be specified on fields that have a
+      // usage of input-only (I) or input/output (B)" and "You cannot specify
+      // the WRDWRAP keyword on the following keyboard shifts: Signed Numeric
+      // (S), Numeric Only (Y), Digits Only (D), Numeric Only Character (M),
+      // Floating Point (F), DBCS Only (J), DBCS Open (O), DBCS Either (E),
+      // Graphic (G)". Re-verified fresh, unchanged from what the code had.
+      allowedUsage: ['I', 'B'],
+      blockedDataTypes: ['S', 'Y', 'D', 'M', 'F', 'J', 'O', 'E', 'G']
     },
     IGCALTTYP: {
       // DDS_Keyword_V7r6.txt, "IGCALTTYP (Alternative Data Type) keyword"
@@ -612,7 +625,17 @@
         DUP: null,
         RANGE: null,
         VALUES: null
-      }
+      },
+      // Task I-121 WRDWRAP/IGCALTTYP eligibility slice - IGCALTTYP's own
+      // "Specify this keyword only for input- and output-capable fields
+      // whose keyboard shift type is A, N, X, W, or I. Do not specify this
+      // keyword for DBCS fields." (line ~14968 section). Previously the
+      // hard-coded IGCALTTYP_ALLOWED_SHIFTS array and a literal B test in
+      // dspfWriter.js. Note the opposite polarity from WRDWRAP's
+      // `blockedDataTypes`: IBM states this one as an allow-list, so it is
+      // modeled as one rather than inverted into a blocked list.
+      allowedUsage: ['B'],
+      allowedDataTypes: ['A', 'N', 'X', 'W', 'I']
     },
 
     // Task I-121 PSHBTNFLD slice - the field-level rule web spread across
@@ -1432,6 +1455,31 @@
     return DATE_TIME_ALLOWED_USAGE.slice();
   }
 
+  /** Task I-121 (WRDWRAP/IGCALTTYP eligibility slice) - the closed list of
+   *  field usages `keywordName` may be specified on (e.g. ['I', 'B'] for
+   *  WRDWRAP), or null when the keyword's spec entry states no such
+   *  restriction. Returns a copy. */
+  function allowedUsage(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return spec && spec.allowedUsage ? spec.allowedUsage.slice() : null;
+  }
+
+  /** The keyboard-shift / data-type letters `keywordName` is documented as
+   *  NOT valid on (WRDWRAP's nine), or null. Returns a copy. */
+  function blockedDataTypes(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return spec && spec.blockedDataTypes ? spec.blockedDataTypes.slice() : null;
+  }
+
+  /** The keyboard-shift / data-type letters `keywordName` is documented as
+   *  valid ONLY on (IGCALTTYP's A/N/X/W/I), or null. The allow-list twin of
+   *  `blockedDataTypes`, kept separate because IBM states each keyword one
+   *  way or the other. Returns a copy. */
+  function allowedDataTypes(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return spec && spec.allowedDataTypes ? spec.allowedDataTypes.slice() : null;
+  }
+
   /** `keywordName`'s own single valid data-type letter (the DATFMT/
    *  DATSEP/TIMFMT/TIMSEP shape - e.g. 'L' for DATFMT), or null for a
    *  keyword with no spec entry or no such restriction. */
@@ -1587,6 +1635,9 @@
     isDateTimeDataType: isDateTimeDataType,
     dateTimeAllowedUsage: dateTimeAllowedUsage,
     validDataType: validDataType,
+    allowedUsage: allowedUsage,
+    blockedDataTypes: blockedDataTypes,
+    allowedDataTypes: allowedDataTypes,
     isFixedSeparatorFormat: isFixedSeparatorFormat,
     fixedSeparatorPartner: fixedSeparatorPartner,
     mustBeFirstField: mustBeFirstField,

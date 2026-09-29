@@ -2575,7 +2575,9 @@
     if (dtScope === 'numeric-only') return (dataType || '').toUpperCase() === 'Y';
     // Task I-42 - WRDWRAP: not valid on these nine keyboard shifts. A blank
     // data type (still being drafted) fails open, like every other row.
-    if (dtScope === 'wrdwrap-shifts') return ['S', 'Y', 'D', 'M', 'F', 'J', 'O', 'E', 'G'].indexOf((dataType || '').toUpperCase()) === -1;
+    // Task I-121 - the nine shifts now come from keywordSpec.js via DspfWriter.wrdwrapDataTypeReason
+    // (null = allowed, including a blank data type).
+    if (dtScope === 'wrdwrap-shifts') return !DspfWriter.wrdwrapDataTypeReason(dataType);
     return true;
   }
 
