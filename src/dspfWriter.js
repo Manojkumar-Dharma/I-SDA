@@ -2279,13 +2279,14 @@
    *      sflmsgkeyFieldNewConflictReason below (wired into commitEdit).
    *    SFLPGMQ: "Option indicators AND DISPLAY SIZE CONDITION NAMES are not
    *      valid for this keyword." The indicator half is the entry; the display
-   *      size half is NO_DISPLAY_SIZE_CONDITION_KEYWORDS below. */
+   *      size half is keywordSpec.js's RECORD_TYPES.SFLPGMQ
+   *      `noDisplaySizeCondition` fact (Task I-121). */
   NO_OPTION_INDICATOR_KEYWORDS.SFLMSGKEY = 'Option indicators are not valid for SFLMSGKEY or with the field it is on (per the DDS Reference).';
   NO_OPTION_INDICATOR_KEYWORDS.SFLPGMQ = 'Option indicators and display size condition names are not valid for SFLPGMQ (per the DDS Reference).';
-  /** Listed keywords for which a display-size condition (*DS3/*DS4) is ALSO
-   *  invalid (every other listed keyword either takes one - MSGLOC, SFLSIZ, ...
-   *  - or its section is silent). */
-  var NO_DISPLAY_SIZE_CONDITION_KEYWORDS = ['SFLPGMQ'];
+  //  Which listed keywords ALSO reject a display-size condition (*DS3/*DS4)
+  //  is KeywordSpec.noDisplaySizeCondition (SFLPGMQ; every other listed
+  //  keyword either takes one - MSGLOC, SFLSIZ, ... - or its section is
+  //  silent). Task I-121.
   /** Keywords that take no option indicators AT THE FILE LEVEL ONLY. HLPTITLE:
    *  "Option indicators are not valid on a file-level HLPTITLE keyword.
    *  Option indicators are allowed on record-level HLPTITLE keywords ..." The
@@ -2312,7 +2313,7 @@
   }
   function noDisplaySizeConditionKeyword(keywordName) {
     var name = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
-    return NO_DISPLAY_SIZE_CONDITION_KEYWORDS.indexOf(name) >= 0;
+    return KeywordSpec.noDisplaySizeCondition(name);
   }
   /** Number of OPTION INDICATORS in a keyword's conditions (a list of OR-ed
    *  groups, each a list of AND-ed indicators). A display-size condition
@@ -2367,7 +2368,9 @@
    *  not re-reported, and removing indicators or the keyword is always fine. */
   function sflmsgkeyFieldNewConflictReason(field, updates) {
     if (!field || !updates) return null;
-    var has = function (kws) { return (kws || []).some(function (k) { return k && k.name === 'SFLMSGKEY'; }); };
+    // Task I-121: which keyword counts (SFLMSGKEY) comes from the spec's
+    // `noOptionIndicatorsOnField` fact instead of a string literal.
+    var has = function (kws) { return (kws || []).some(function (k) { return k && KeywordSpec.noOptionIndicatorsOnField(k.name); }); };
     var own = function (k) { return Object.prototype.hasOwnProperty.call(updates, k); };
     var afterKeywords = own('keywords') ? updates.keywords : field.keywords;
     var afterConditions = own('conditions') ? updates.conditions : field.conditions;

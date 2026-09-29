@@ -1042,6 +1042,35 @@
       }
     },
 
+    // Task I-121 SFLMSGKEY/SFLPGMQ slice - SFLMSGKEY's own DDS Reference
+    // section (line ~11675) and SFLPGMQ's (line ~11935), re-verified fresh
+    // against DDS_Keyword_V7r6.txt, unchanged from what I-101 (batch 4)
+    // already enforced. SFLMSGKEY: "Option indicators are not valid for
+    // this keyword or with the associated field." - the keyword half is a
+    // NO_OPTION_INDICATOR_KEYWORDS table entry; this carries the FIELD half
+    // (`noOptionIndicatorsOnField`: the field the keyword sits on takes no
+    // option indicators either), a fact the table cannot express.
+    // SFLPGMQ: "Option indicators and display size condition names are not
+    // valid for this keyword." - the indicator half is likewise a table
+    // entry; `noDisplaySizeCondition` carries the display-size half,
+    // previously the one-element NO_DISPLAY_SIZE_CONDITION_KEYWORDS array.
+    // Each entry carries only its own new fact; the option-indicator table
+    // itself is deliberately left where it is.
+    SFLMSGKEY: {
+      noOptionIndicatorsOnField: {
+        ddsReference:
+          'Option indicators are not valid for this keyword or with the ' +
+          'associated field.'
+      }
+    },
+    SFLPGMQ: {
+      noDisplaySizeCondition: {
+        ddsReference:
+          'Option indicators and display size condition names are not ' +
+          'valid for this keyword.'
+      }
+    },
+
     // Task I-121 MNUBARSW/MNUCNL slice - MNUBARSW's own DDS Reference
     // section (line ~8626) and MNUCNL's (line ~8684), re-verified fresh
     // against DDS_Keyword_V7r6.txt, each state: "Within a record, the CAnn
@@ -1407,6 +1436,21 @@
     return !!(spec && spec.sizeConditionedValueMustBeNumber);
   }
 
+  /** Task I-121 SFLMSGKEY/SFLPGMQ slice - whether a field carrying
+   *  `keywordName` takes no option indicators of its own (SFLMSGKEY's
+   *  "or with the associated field" half). */
+  function noOptionIndicatorsOnField(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.noOptionIndicatorsOnField);
+  }
+
+  /** Task I-121 SFLMSGKEY/SFLPGMQ slice - whether display size condition
+   *  names (*DS3/*DS4) are not valid for `keywordName` (SFLPGMQ). */
+  function noDisplaySizeCondition(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return !!(spec && spec.noDisplaySizeCondition);
+  }
+
   /** Task I-129 - whether `keywordName` is a field-level keyword valid only
    *  in the subfile-control record format (SFLSCROLL, SFLRCDNBR,
    *  SFLROLVAL). */
@@ -1469,6 +1513,8 @@
     validOnlyInSubfileControlRecord: validOnlyInSubfileControlRecord,
     sizeConditionedValueMustBeNumber: sizeConditionedValueMustBeNumber,
     caKeyPartner: caKeyPartner,
+    noOptionIndicatorsOnField: noOptionIndicatorsOnField,
+    noDisplaySizeCondition: noDisplaySizeCondition,
     msgDataFieldKeywords: msgDataFieldKeywords,
     notAllowedWhenEqual: notAllowedWhenEqual
   };
