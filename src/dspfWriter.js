@@ -2562,6 +2562,24 @@
    *  (turning WRDWRAP on) and wrdwrapBasicEditConflictReason (changing the
    *  type or usage of a field that already carries WRDWRAP) share one
    *  wording. A blank value returns null here (fail-open, "not yet set"). */
+  /** Task I-121 (VALNUM slice) - webview bridge over the spec's `allowedUsage`:
+   *  true when `keywordName` has no usage restriction, the usage is blank (not
+   *  yet chosen - fail-open, like fieldKeywordCategoryVisibility), or it is
+   *  one of the keyword's allowed usages. */
+  function keywordUsageAllowed(keywordName, usage) {
+    var allowed = KeywordSpec.allowedUsage(keywordName);
+    if (!allowed) return true;
+    var u = String(usage == null ? '' : usage).trim().toUpperCase();
+    return u === '' || allowed.indexOf(u) >= 0;
+  }
+  /** Bridge over the spec's `requiredDataTypes`: true when the keyword has no
+   *  required data type, else only when the field's data type is one of them
+   *  (a blank data type is NOT enough). */
+  function keywordRequiredDataTypeAllows(keywordName, dataType) {
+    var required = KeywordSpec.requiredDataTypes(keywordName);
+    if (!required) return true;
+    return required.indexOf(String(dataType == null ? '' : dataType).trim().toUpperCase()) >= 0;
+  }
   function wrdwrapUsageReason(usage) {
     var u = (usage || '').toUpperCase();
     if (u && KeywordSpec.allowedUsage('WRDWRAP').indexOf(u) < 0) {
@@ -9045,6 +9063,8 @@
     checkAbFloatIncompatibleNewConflictReason: checkAbFloatIncompatibleNewConflictReason,
     wrdwrapBasicEditConflictReason: wrdwrapBasicEditConflictReason,
     wrdwrapDataTypeReason: wrdwrapDataTypeReason,
+    keywordUsageAllowed: keywordUsageAllowed,
+    keywordRequiredDataTypeAllows: keywordRequiredDataTypeAllows,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,
     chkmsgidFieldAddReason: chkmsgidFieldAddReason,

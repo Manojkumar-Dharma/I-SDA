@@ -637,6 +637,23 @@
       allowedUsage: ['B'],
       allowedDataTypes: ['A', 'N', 'X', 'W', 'I']
     },
+    // Task I-121 VALNUM slice - VALNUM's first entry. DDS_Keyword_V7r6.txt,
+    // "VALNUM (Validate Numeric) keyword for display files" (line ~13146):
+    // "The field containing the VALNUM keyword must be defined as an
+    // input-capable field with the data type Y." Re-verified fresh. Until
+    // now this lived only as the General-tab row filter's own 'input-capable'
+    // and 'numeric-only' scopes in webviewClientHelpers.js (no writer-level
+    // guard exists - see the Deferred findings table). `allowedUsage` is the
+    // same fact WRDWRAP carries; `requiredDataTypes` is the strict twin of
+    // `allowedDataTypes` (a blank data type does NOT satisfy it - the row
+    // stays hidden until a data type is chosen, exactly as before).
+    VALNUM: {
+      ddsReference:
+        'The field containing the VALNUM keyword must be defined as an ' +
+        'input-capable field with the data type Y.',
+      allowedUsage: ['I', 'B'],
+      requiredDataTypes: ['Y']
+    },
 
     // Task I-121 PSHBTNFLD slice - the field-level rule web spread across
     // four existing functions: pshbtnfldConflictReason (I-57, the
@@ -1471,6 +1488,14 @@
     return spec && spec.blockedDataTypes ? spec.blockedDataTypes.slice() : null;
   }
 
+  /** The data-type letters `keywordName` REQUIRES (VALNUM's Y), or null.
+   *  Unlike `allowedDataTypes`, callers treat a blank data type as NOT
+   *  satisfying it. Returns a copy. */
+  function requiredDataTypes(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return spec && spec.requiredDataTypes ? spec.requiredDataTypes.slice() : null;
+  }
+
   /** The keyboard-shift / data-type letters `keywordName` is documented as
    *  valid ONLY on (IGCALTTYP's A/N/X/W/I), or null. The allow-list twin of
    *  `blockedDataTypes`, kept separate because IBM states each keyword one
@@ -1638,6 +1663,7 @@
     allowedUsage: allowedUsage,
     blockedDataTypes: blockedDataTypes,
     allowedDataTypes: allowedDataTypes,
+    requiredDataTypes: requiredDataTypes,
     isFixedSeparatorFormat: isFixedSeparatorFormat,
     fixedSeparatorPartner: fixedSeparatorPartner,
     mustBeFirstField: mustBeFirstField,

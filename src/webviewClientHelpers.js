@@ -2572,7 +2572,9 @@
     if (dtScope === 'non-float') return dataType !== 'F';
     if (dtScope === 'datetime-only') return dataType === 'L' || dataType === 'T' || dataType === 'Z';
     // Task I-42 - VALNUM: "input-capable field with the data type Y".
-    if (dtScope === 'numeric-only') return (dataType || '').toUpperCase() === 'Y';
+    // Task I-121 (VALNUM slice) - the required Y now comes from keywordSpec.js via
+    // DspfWriter.keywordRequiredDataTypeAllows; a blank data type still hides the row.
+    if (dtScope === 'numeric-only') return DspfWriter.keywordRequiredDataTypeAllows('VALNUM', dataType);
     // Task I-42 - WRDWRAP: not valid on these nine keyboard shifts. A blank
     // data type (still being drafted) fails open, like every other row.
     // Task I-121 - the nine shifts now come from keywordSpec.js via DspfWriter.wrdwrapDataTypeReason
@@ -2588,11 +2590,12 @@
    *  already takes for a field whose usage hasn't been chosen yet. Shared
    *  by generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor for the
    *  same reason generalFieldKeywordRowMatchesDataType is. */
-  function generalFieldKeywordRowMatchesUsage(usageScope, usage) {
+  function generalFieldKeywordRowMatchesUsage(usageScope, usage, keywordName) {
     if (!usageScope || usageScope === 'all') return true;
     if (usageScope === 'input-capable') {
-      var u = (usage || '').toUpperCase();
-      return u === '' || u === 'I' || u === 'B';
+      // Task I-121 (VALNUM slice) - the I/B pair is the keyword's own spec fact
+      // (keywordSpec.js allowedUsage), not a copy here; blank usage fails open.
+      return DspfWriter.keywordUsageAllowed(keywordName, usage);
     }
     return true;
   }
@@ -2649,7 +2652,7 @@
       // type (see GENERAL_FIELD_KEYWORD_ROWS's own I-39 comment).
       if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
       // Task I-42 - usageScope narrows a row to input-capable fields.
-      if (!generalFieldKeywordRowMatchesUsage(usageScope, usage)) return;
+      if (!generalFieldKeywordRowMatchesUsage(usageScope, usage, name)) return;
       // Task I-70 - CHRID is not valid on hidden or numeric fields.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
       if (key === 'igcalttyp' && igcalttypRowHidden(keywords, usage, dataType, isConstant)) return;
@@ -2685,7 +2688,7 @@
       if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
       // Task I-42 - must match generalFieldKeywordsHtml's own usageScope
       // skip logic exactly, same reasoning as the mpScope/dtScope comments.
-      if (!generalFieldKeywordRowMatchesUsage(usageScope, usage)) return;
+      if (!generalFieldKeywordRowMatchesUsage(usageScope, usage, name)) return;
       // Task I-70 - must match generalFieldKeywordsHtml's own CHRID skip
       // exactly, same reasoning as the mpScope/dtScope/usageScope comments.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
