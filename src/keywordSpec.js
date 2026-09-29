@@ -909,6 +909,20 @@
       notAllowedOnFloatingPointField: true
     },
 
+    // Task I-121 (CHECK(AB) floating-point slice) - CHECK's own DDS
+    // Reference section states "You cannot specify the CHECK(AB) keyword
+    // on a floating-point field (F in position 35)". Unlike DUP/BLKFOLD/
+    // RANGE/COMP/VALUES that is a fact about ONE CODE among CHECK's many,
+    // not the whole keyword (CHECK(ME), CHECK(MF) etc. are fine on F), so
+    // it gets its own token-qualified field, `notAllowedOnFloatingPointCodes`,
+    // and deliberately NOT `notAllowedOnFloatingPointField` (which would
+    // flag every CHECK). See floatIncompatibleCheckCodes / dspfWriter.js's
+    // checkAbFloatIncompatibleNewConflictReason.
+    CHECK: {
+      floatDdsReference: 'You cannot specify the CHECK(AB) keyword on a floating-point field (F in position 35).',
+      notAllowedOnFloatingPointCodes: ['AB']
+    },
+
     CHKMSGID: {
       ddsReference:
         'CHKMSGID is allowed only on fields which also contain a ' +
@@ -1427,6 +1441,16 @@
     return !!(spec && spec.notAllowedOnFloatingPointField);
   }
 
+  /** Task I-121 (CHECK(AB) floating-point slice) - the parameter codes of
+   *  `keywordName` the DDS Reference forbids on a floating-point field
+   *  (F in position 35) when the keyword is NOT forbidden as a whole (see
+   *  CHECK's entry above). A copy, safe to mutate; [] for a keyword with
+   *  no spec entry or no such field. */
+  function floatIncompatibleCheckCodes(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return spec && spec.notAllowedOnFloatingPointCodes ? spec.notAllowedOnFloatingPointCodes.slice() : [];
+  }
+
   /** The full list of PASSRCD-restricted keyword names, in `RECORD_TYPES`'
    *  own declared order (WINDOW, ALWROL, CLRL, SLNO) - the single source
    *  of truth `passrcdRecordConflictReason`'s own callers previously each
@@ -1650,6 +1674,7 @@
     isPassrcdRestricted: isPassrcdRestricted,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
     isNotAllowedOnFloatingPointField: isNotAllowedOnFloatingPointField,
+    floatIncompatibleCheckCodes: floatIncompatibleCheckCodes,
     conditionalMutexHit: conditionalMutexHit,
     groupMutexKeywords: groupMutexKeywords,
     requiredPartner: requiredPartner,

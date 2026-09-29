@@ -2833,12 +2833,11 @@
    *  floatIncompatibleKeywordNewConflictReason's other three callers
    *  reuse unchanged doesn't fit here; this tokenizes `parameters` the
    *  same way hasChkmsgidQualifier (I-69) already does for its own
-   *  CHECK-code check, testing for the AB token specifically. Not
-   *  spec-driven, unlike RANGE/COMP/VALUES above - CHECK's own
-   *  RECORD_TYPES entry, if it existed, would have to describe one code
-   *  among several, not a whole-keyword fact - so 'AB' is hard-coded
-   *  here, mirroring CHKMSGID_QUALIFYING_CHECK_CODES's own precedent for
-   *  exactly this reason. Same diff-based shape and two call sites
+   *  CHECK-code check, testing for the forbidden code(s) instead. Task
+   *  I-121 (CHECK(AB) slice): those codes now come from
+   *  RECORD_TYPES.CHECK's `notAllowedOnFloatingPointCodes` (a
+   *  token-qualified fact, since it describes one code among several,
+   *  not the whole keyword). Same diff-based shape and two call sites
    *  (commitEdit, plus the Basic tab's Apply as an early return) as the
    *  other three floating-point guards above.
    *
@@ -2853,11 +2852,14 @@
   function checkAbFloatIncompatibleNewConflictReason(oldField, updates) {
     var o = oldField || {};
     var u = updates || {};
+    // Task I-121 (CHECK(AB) floating-point slice) - the forbidden code
+    // comes from KeywordSpec (RECORD_TYPES.CHECK), not a literal 'AB'.
+    var badCodes = KeywordSpec.floatIncompatibleCheckCodes('CHECK');
     var hasAb = function (kws) {
       return (kws || []).some(function (k) {
         if (!k || k.name !== 'CHECK') return false;
         var tokens = String(k.parameters == null ? '' : k.parameters).toUpperCase().split(/[\s,()]+/).filter(Boolean);
-        return tokens.indexOf('AB') >= 0;
+        return badCodes.some(function (c) { return tokens.indexOf(c) >= 0; });
       });
     };
     var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
