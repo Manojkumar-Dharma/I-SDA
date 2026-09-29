@@ -3920,13 +3920,20 @@
    *  them). Same alert+revert idiom as this file's other Conflict Reason
    *  functions; turning either keyword OFF, or lowering/blanking its own
    *  CA key, is never blocked, only the on-transition/CA-key-collision. */
+  //  Task I-121 (MNUBARSW/MNUCNL slice) - the partner keyword and its
+  //  documented default CA key now come from KeywordSpec.caKeyPartner
+  //  instead of being hard-coded as inline ternaries here; the file-vs-
+  //  record scoping below (both sections' own stated behavior) is
+  //  unchanged, since it is genuinely procedural, not a per-keyword fact.
   function mnuBarKeyConflictReason(keywordName, cakey, fileKeywords, recordScopes) {
-    var otherName = keywordName === 'MNUBARSW' ? 'MNUCNL' : (keywordName === 'MNUCNL' ? 'MNUBARSW' : null);
-    if (!otherName) return null;
+    var pair = KeywordSpec.caKeyPartner(keywordName);
+    if (!pair) return null;
+    var otherName = pair.partner;
     function normalizeCakey(name, raw) {
       var first = (raw || '').trim().split(/\s+/)[0] || '';
       if (first) return first.toUpperCase();
-      return name === 'MNUBARSW' ? 'CA10' : 'CA12';
+      var p = KeywordSpec.caKeyPartner(name);
+      return p ? p.defaultCakey : '';
     }
     var thisCakey = normalizeCakey(keywordName, cakey);
     function otherCakeyIn(kwList) {

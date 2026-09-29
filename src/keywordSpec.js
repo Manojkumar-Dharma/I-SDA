@@ -1040,6 +1040,36 @@
           'You cannot use display size condition names for this keyword ' +
           'when a program-to-system field is used as a parameter for it.'
       }
+    },
+
+    // Task I-121 MNUBARSW/MNUCNL slice - MNUBARSW's own DDS Reference
+    // section (line ~8626) and MNUCNL's (line ~8684), re-verified fresh
+    // against DDS_Keyword_V7r6.txt, each state: "Within a record, the CAnn
+    // key specified by [this keyword] cannot be specified again using
+    // another keyword (such as [the other one])" and "Because [this
+    // keyword] at the file level extends to all records in the file, this
+    // must be considered when assigning a CAnn key." Each also documents
+    // its own default when the CAnn parameter is omitted (MNUBARSW: CA10,
+    // MNUCNL: CA12). A new shape - `caKeyPartner`/`caKeyDefault` - for two
+    // keywords sharing one CA-key namespace, each with its own default;
+    // deliberately NOT `mutex` (that shape is "cannot coexist at all";
+    // this is "cannot be assigned the SAME CAnn value", and the two ARE
+    // meant to coexist, per this file's own MNUBARSW/MNUCNL example). The
+    // file-vs-record scoping the two sections state stays procedural, in
+    // mnuBarKeyConflictReason (I-19) - it isn't a per-keyword fact.
+    MNUBARSW: {
+      caKeyPartner: 'MNUCNL',
+      caKeyDefault: 'CA10',
+      ddsReference:
+        'Within a record, the CAnn key specified by the MNUBARSW keyword ' +
+        'cannot be specified again using another keyword (such as MNUCNL).'
+    },
+    MNUCNL: {
+      caKeyPartner: 'MNUBARSW',
+      caKeyDefault: 'CA12',
+      ddsReference:
+        'Within a record, the CAnn key specified by the MNUCNL keyword ' +
+        'cannot be specified again using another keyword (such as MNUBARSW).'
     }
   };
 
@@ -1361,6 +1391,14 @@
     return (spec && spec.msgDataField) || null;
   }
 
+  /** Task I-121 MNUBARSW/MNUCNL slice - `{ partner, defaultCakey }` for
+   *  `keywordName`'s CA-key-collision partner, or null when it has none. */
+  function caKeyPartner(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    if (!spec || !spec.caKeyPartner) return null;
+    return { partner: spec.caKeyPartner, defaultCakey: spec.caKeyDefault };
+  }
+
   /** Task I-121 SFLSIZ slice - whether `keywordName`'s display-size-
    *  conditioned instances must carry a plain number rather than a
    *  program-to-system field (SFLSIZ). */
@@ -1430,6 +1468,7 @@
     crossRecordExclusion: crossRecordExclusion,
     validOnlyInSubfileControlRecord: validOnlyInSubfileControlRecord,
     sizeConditionedValueMustBeNumber: sizeConditionedValueMustBeNumber,
+    caKeyPartner: caKeyPartner,
     msgDataFieldKeywords: msgDataFieldKeywords,
     notAllowedWhenEqual: notAllowedWhenEqual
   };
