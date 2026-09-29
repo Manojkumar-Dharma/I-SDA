@@ -173,7 +173,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-128](#i-128) | Record | `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction) | I-121, I-26 | Done | v0.10.236 |
 | [I-129](#i-129) | Field | `SFLSCROLL` (and, once re-read, `SFLRCDNBR`/`SFLROLVAL`): "valid only for the subfile-control record format" is unenforced - the panel is offered on SFL detail records too | I-126, I-127 | Done | v0.10.237 |
 | [I-130](#i-130) | Field | `EDTMSK`: the keywords IBM lists as "cannot be specified on a field with the EDTMSK keyword" (`AUTO(RAB, RAZ)`, `CHECK(...)`, `CHOICE`, `CNTFLD`, `DSPATR(OID SP)`) are unenforced | I-121, I-31 | Done | v0.10.245 |
-| [I-131](#i-131) | Field | `VALNUM`: the DDS Reference rule (input-capable usage I/B, data type Y) is enforced only by hiding the General-tab row - raw-editor adds and Basic-tab data type / usage changes are unblocked | I-121, I-94 | In progress | — |
+| [I-131](#i-131) | Field | `VALNUM`: the DDS Reference rule (input-capable usage I/B, data type Y) is enforced only by hiding the General-tab row - raw-editor adds and Basic-tab data type / usage changes are unblocked | I-121, I-94 | Done | v0.10.248 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -5899,6 +5899,12 @@ Full suite: 194 files, 11,202 checks, zero failures.
 
 ### I-131 — `VALNUM`: the DDS Reference rule (input-capable usage I/B, data type Y) is enforced only by hiding the General-tab row
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-121, I-94
+> **Area:** Field · **Status:** Done (v0.10.248) · **Depends on:** I-121, I-94
 
 Opened from the deferred finding raised by the I-121 VALNUM slice: `VALNUM`'s own DDS Reference section (`DDS_Keyword_V7r6.txt` line ~13146) says \"The field containing the VALNUM keyword must be defined as an input-capable field with the data type Y.\" Nothing in `dspfWriter.js` or `buildWebviewTemplate.js` enforces it: adding VALNUM through the raw keyword editor to an ineligible field, or changing the data type away from Y / the usage to O, H, M or P on a field that already carries it (Basic tab Apply), is unblocked. Plan: the IGCALTTYP (I-94) diff-based pattern over `RECORD_TYPES.VALNUM`'s `allowedUsage` / `requiredDataTypes`.
+
+Implementation (the IGCALTTYP I-94 diff-based pattern, as planned): new `DspfWriter.valnumEligibilityReason(usage, dataType)` reads `RECORD_TYPES.VALNUM`'s `allowedUsage` (I, B) and `requiredDataTypes` (Y), reusing the `keywordRequiredDataTypeAllows` bridge; a blank usage is O (not input-capable) and a blank data type is not Y, the same strictness the General-tab row filter already applies. `valnumNewConflictReason(old, new, fieldKind)` is wired into `commitEdit` beside the IGCALTTYP/EDTMSK backstops, judging only an edit that INTRODUCES VALNUM against the field's kind after the edit - which is what closes the raw keyword editor's add and every other panel. `valnumBasicEditConflictReason(keywords, field, updates)` is wired into the Basic tab's Apply (and composed into `referencedFieldResolveConflictReason`), blocking a usage change to O/H/M/P or a data type change away from Y on a field that already carries VALNUM, with "Remove VALNUM first." appended. Diff-based throughout: an already-invalid hand-written field stays editable, changes TO a valid value and removing VALNUM are never blocked. This covers the FIELD-level keyword only; record- and file-level VALNUM (I-42) have no field to check.
+
+New `src/test/i131ValnumFieldEligibility.test.js` (pure functions plus the real generated webview in jsdom: raw add blocked on type A and usage O and allowed on B/Y and I/Y; Basic Apply blocked for usage B->O and type Y->A, allowed for B->I; hand-written invalid fields still editable and fixable). Without the `commitEdit` / Basic-tab wiring in `buildWebviewTemplate.js` the webview checks fail.
+
+The Deferred findings table is empty again.

@@ -4851,6 +4851,14 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(igcalttypEditReason);
           return;
         }
+        // Task I-131: VALNUM needs an input-capable (I/B) field with data
+        // type Y - blocks a usage or data type CHANGE that would leave a
+        // field carrying it ineligible. Same diff-based idiom as I-94 above.
+        const valnumEditReason = DspfWriter.valnumBasicEditConflictReason(field.keywords, field, updates);
+        if (valnumEditReason) {
+          window.alert(valnumEditReason);
+          return;
+        }
         // Task I-79: SFLCHCCTL requires the field to stay length 1, data
         // type Y, 0 decimals, usage H. I-79's own checkbox handler brings
         // a field into that shape when the keyword is turned ON; this
@@ -6800,6 +6808,19 @@ const htmlTemplate = `<!DOCTYPE html>
       });
       if (igcalttypReason) {
         window.alert(igcalttypReason);
+        render();
+        return;
+      }
+      // Task I-131: VALNUM's field-definition rule (input-capable usage I/B,
+      // data type Y) for an edit that INTRODUCES it, judged on the field's
+      // kind as it will be AFTER the edit - covers the raw keyword editor's
+      // add, which nothing else guarded.
+      const valnumReason = DspfWriter.valnumNewConflictReason(field.keywords, updates.keywords, {
+        usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
+        dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
+      });
+      if (valnumReason) {
+        window.alert(valnumReason);
         render();
         return;
       }

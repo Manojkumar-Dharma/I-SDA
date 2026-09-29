@@ -2580,6 +2580,69 @@
     if (!required) return true;
     return required.indexOf(String(dataType == null ? '' : dataType).trim().toUpperCase()) >= 0;
   }
+  /** Task I-131 - VALNUM's field-definition rule, enforced at the writer
+   *  (until now only the General-tab row filter hid the row). DDS Reference,
+   *  VALNUM section (line ~13146): "The field containing the VALNUM keyword
+   *  must be defined as an input-capable field with the data type Y." Both
+   *  facts come from RECORD_TYPES.VALNUM (`allowedUsage`, `requiredDataTypes`).
+   *  A blank usage is O (the Basic tab shows O for it) so it is NOT
+   *  input-capable; a blank data type is not Y either - the same strictness
+   *  the row filter already applies. Returns a reason string or null. */
+  function valnumUsageReason(usage) {
+    var u = String(usage == null ? '' : usage).trim().toUpperCase() || 'O';
+    if (KeywordSpec.allowedUsage('VALNUM').indexOf(u) < 0) {
+      return 'VALNUM can only be specified on input-capable fields (usage I or B) (per the DDS Reference).';
+    }
+    return null;
+  }
+  function valnumDataTypeReason(dataType) {
+    if (!keywordRequiredDataTypeAllows('VALNUM', dataType)) {
+      return 'VALNUM can only be specified on a field with data type ' + KeywordSpec.requiredDataTypes('VALNUM').join(', ') + ' (per the DDS Reference).';
+    }
+    return null;
+  }
+  function valnumEligibilityReason(usage, dataType) {
+    return valnumUsageReason(usage) || valnumDataTypeReason(dataType);
+  }
+
+  /** Task I-131 - diff-based backstop for every field-level keyword commit
+   *  (the raw editor's add, the General rows, every panel - all go through
+   *  commitEdit), same shape as igcalttypNewConflictReason's eligibility half:
+   *  only an edit that INTRODUCES VALNUM on the field is judged, against the
+   *  field's kind ({ usage, dataType } as it will be AFTER the edit). A
+   *  hand-written field that already carries VALNUM on an ineligible kind
+   *  stays editable, and removing VALNUM is always allowed. */
+  function valnumNewConflictReason(oldKeywords, newKeywords, fieldKind) {
+    var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'VALNUM'; }); };
+    if (!has(newKeywords) || has(oldKeywords)) return null;
+    var k = fieldKind || {};
+    return valnumEligibilityReason(k.usage, k.dataType);
+  }
+
+  /** Task I-131 - Basic tab Apply guard: a usage change to O/H/M/P, or a data
+   *  type change away from Y, on a field that ALREADY carries VALNUM. Diff-
+   *  based like igcalttypBasicEditConflictReason (blank usage is O on BOTH
+   *  sides; only keys present in `updates` and actually changed count), so
+   *  unrelated edits on an already-invalid field and changes TO a valid
+   *  value are never blocked. */
+  function valnumBasicEditConflictReason(fieldKeywords, field, updates) {
+    if (!(fieldKeywords || []).some(function (k) { return k.name === 'VALNUM'; })) return null;
+    var f = field || {};
+    var u = updates || {};
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
+    var reason;
+    if (owns('usage') && (norm(u.usage) || 'O') !== (norm(f.usage) || 'O')) {
+      reason = valnumUsageReason(u.usage);
+      if (reason) return reason + ' Remove VALNUM first.';
+    }
+    if (owns('dataType') && norm(u.dataType) !== norm(f.dataType)) {
+      reason = valnumDataTypeReason(u.dataType);
+      if (reason) return reason + ' Remove VALNUM first.';
+    }
+    return null;
+  }
+
   function wrdwrapUsageReason(usage) {
     var u = (usage || '').toUpperCase();
     if (u && KeywordSpec.allowedUsage('WRDWRAP').indexOf(u) < 0) {
@@ -8264,6 +8327,7 @@
       blkfoldFloatNewConflictReason(f, u) ||
       chridBasicEditConflictReason(kws, f, u) ||
       igcalttypBasicEditConflictReason(kws, f, u) ||
+      valnumBasicEditConflictReason(kws, f, u) ||
       sflchcctlBasicEditConflictReason(kws, f, u) ||
       sflscrollBasicEditConflictReason(kws, f, u) ||
       null;
@@ -9011,6 +9075,9 @@
     setEditMask: setEditMask,
     editMaskConflictReason: editMaskConflictReason,
     edtmskConflictReason: edtmskConflictReason,
+    valnumEligibilityReason: valnumEligibilityReason,
+    valnumNewConflictReason: valnumNewConflictReason,
+    valnumBasicEditConflictReason: valnumBasicEditConflictReason,
     edtmskNewConflictReason: edtmskNewConflictReason,
     dateTimeUsageConflictReason: dateTimeUsageConflictReason,
     getDateFormat: getDateFormat,
