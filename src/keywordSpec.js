@@ -976,6 +976,34 @@
       notAllowedOnFloatingPointField: true
     },
 
+    // Task I-121 (DFT/DFTVAL floating-point slice) - dftGroupConflictReason
+    // (L81/L82) blocked its four group members on a floating-point field
+    // with a literal `dataType === 'F'` test. DFT's and DFTVAL's own DDS
+    // Reference sections state it outright, re-verified fresh: DFT (line
+    // ~4688) "The DFT keyword is not valid on floating point fields.",
+    // DFTVAL (line ~4762) "You cannot specify the DFTVAL keyword on the
+    // same field with a DFT, EDTCDE (Edit Code), or EDTWRD (Edit Word)
+    // keyword, or on a floating-point field." EDTCDE and EDTWRD get
+    // the same flag on the strength of their own eligibility sentences
+    // (EDTCDE line ~5600: "valid only for fields with Y or blank in
+    // position 35"; EDTWRD line ~5933: "valid for numeric only fields (Y
+    // specified in position 35)") - F is neither, which is what the
+    // group-wide float clause was already enforcing. Their OTHER data
+    // types (e.g. A, P) fall outside those sentences too but are not
+    // enforced anywhere - logged as a finding, not folded into this slice.
+    DFT: {
+      floatDdsReference: 'The DFT keyword is not valid on floating point fields.',
+      notAllowedOnFloatingPointField: true
+    },
+    DFTVAL: {
+      floatDdsReference: 'You cannot specify the DFTVAL keyword on the same field with a DFT, EDTCDE (Edit Code), or EDTWRD (Edit Word) keyword, or on a floating-point field.',
+      notAllowedOnFloatingPointField: true
+    },
+    EDTWRD: {
+      floatDdsReference: 'The EDTWRD keyword is valid for numeric only fields (Y specified in position 35).',
+      notAllowedOnFloatingPointField: true
+    },
+
     // Task I-121 (CHECK(AB) floating-point slice) - CHECK's own DDS
     // Reference section states "You cannot specify the CHECK(AB) keyword
     // on a floating-point field (F in position 35)". Unlike DUP/BLKFOLD/
@@ -1275,6 +1303,8 @@
     // EDTCDE_NO_FILL_CODES array in dspfWriter.js. EDTCDE's DFT/DFTVAL/
     // EDTWRD exclusions live in MUTEX_GROUPS, not here.
     EDTCDE: {
+      floatDdsReference: 'The EDTCDE keyword is valid only for fields with Y or blank in position 35 (Data Type/Keyboard Shift).',
+      notAllowedOnFloatingPointField: true,
       noFillCodes: {
         codes: ['W', 'X', 'Y', 'Z'],
         allowedText: '1-4, A-D and J-Q',

@@ -59,7 +59,8 @@ console.log('\nkeywordSpec.js RECORD_TYPES.{RANGE,COMP,VALUES}.notAllowedOnFloat
   const flaggedNames = Object.keys(KeywordSpec.RECORD_TYPES).filter(function (name) {
     return KeywordSpec.RECORD_TYPES[name].notAllowedOnFloatingPointField;
   });
-  check('exactly DUP/BLKFOLD (I-121) plus RANGE/COMP/VALUES (I-125) carry notAllowedOnFloatingPointField', flaggedNames.length === 5);
+  check('exactly DUP/BLKFOLD (I-121), RANGE/COMP/VALUES (I-125) and DFT/DFTVAL/EDTCDE/EDTWRD (I-121 DFT float slice) carry notAllowedOnFloatingPointField',
+    flaggedNames.slice().sort().join() === ['BLKFOLD', 'COMP', 'DFT', 'DFTVAL', 'DUP', 'EDTCDE', 'EDTWRD', 'RANGE', 'VALUES'].join());
 }
 
 // ===========================================================================

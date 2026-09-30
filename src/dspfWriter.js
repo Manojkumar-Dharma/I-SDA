@@ -1963,7 +1963,9 @@
    *  a new shape from every other RECORD_TYPES entry (a full N-way mutual
    *  exclusion rather than a pairwise owner-and-partners relationship). */
   function dftGroupConflictReason(keywordName, keywords, dataType) {
-    if ((dataType || '').toUpperCase() === 'F') {
+    // Task I-121 (DFT/DFTVAL floating-point slice) - the floating-point clause
+    // is a spec fact (RECORD_TYPES.{DFT,DFTVAL,EDTCDE,EDTWRD}), not a literal.
+    if ((dataType || '').toUpperCase() === 'F' && KeywordSpec.isNotAllowedOnFloatingPointField(keywordName)) {
       return keywordName + ' is not valid on floating-point fields (per the DDS Reference).';
     }
     var others = KeywordSpec.groupMutexKeywords(keywordName);
