@@ -175,6 +175,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-130](#i-130) | Field | `EDTMSK`: the keywords IBM lists as "cannot be specified on a field with the EDTMSK keyword" (`AUTO(RAB, RAZ)`, `CHECK(...)`, `CHOICE`, `CNTFLD`, `DSPATR(OID SP)`) are unenforced | I-121, I-31 | Done | v0.10.245 |
 | [I-131](#i-131) | Field | `VALNUM`: the DDS Reference rule (input-capable usage I/B, data type Y) is enforced only by hiding the General-tab row - raw-editor adds and Basic-tab data type / usage changes are unblocked | I-121, I-94 | Done | v0.10.248 |
 | [I-132](#i-132) | Field | `CHECK(M10)` / `CHECK(M10F)` / `CHECK(M11)` / `CHECK(M11F)`: the DDS Reference bars all four on a floating-point field, but only `CHECK(AB)` is guarded - the modulus-check codes can be added to an F field, or a field carrying one changed to data type F | I-121, I-125 | Done | v0.10.250 |
+| [I-133](#i-133) | Field | `*GUTTER` minimum of 2 (`SNGCHCFLD` / `MLTCHCFLD` "at least 2", `PSHBTNFLD` "greater than one"): enforced by the panels' Apply but not by the writer backstops `setChoiceSelectionType` / `setPshbtnfld` (both only test `> 0`) | I-121, I-63 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -198,7 +199,7 @@ Every finding so far has been opened as a task (I-61 – I-132, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121 SNGCHCFLD/MLTCHCFLD selection-type-parameters slice | Both keywords' own DDS Reference sections (`DDS_Keyword_V7r6.txt` lines ~12652 and ~8022) say the `*GUTTER` width "must be a positive integer of at least 2". The Choice selection type panel's Apply already blocks a gutter below 2 (an alert, `webviewClientHelpers.js`), but the writer's own backstop, `setChoiceSelectionType`, only tests `gutter > 0`, so a caller that bypasses the panel can write `(*GUTTER 1)`. Not checked: whether the raw keyword editor can hand-write one. Left as is - this slice is a pure refactor - `setPshbtnfld`'s backstop has the same `> 0` test, so PSHBTNFLD likely wants the same treatment. |
+| I-133 (checked while opening it) | The raw keyword editor validates none of the layout parameters of `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD`: a hand-written `(*NUMCOL 2) (*NUMROW 3)`, a gutter below 2, or (SNGCHCFLD / MLTCHCFLD only, per their sections) a `*GUTTER` with neither `*NUMCOL` nor `*NUMROW` is accepted; only the panels' Apply buttons check them. I-133 fixes the writer backstops only. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5951,6 +5952,14 @@ Implementation: `RECORD_TYPES.CHECK.notAllowedOnFloatingPointCodes` (added by th
 New `src/test/i132CheckModulusFloatGuard.test.js` (both directions for each of the five codes, nine unrestricted codes never blocked, whole-token matching, multi-code and second-instance keywords, diff-based fail-open, fixing by changing the data type, removing the keyword). The I-125 tests that had asserted `CHECK(M10)` was NOT blocked (`i125FloatIncompatibleValidityCheckGuard`, and the real-UI `i125FloatCheckWebviewGuard` in jsdom) were the enforcement of the gap and are flipped: the webview test now raw-adds each modulus code to the float field and checks a character field with `CHECK(M11F)` cannot become F, with `CHECK(ME)` kept as the never-restricted control. The I-121 CHECK spec test follows the five-code list. Full suite: 199 files, 11,457 checks, zero failures.
 
 The Deferred findings table is empty again.
+
+---
+
+### I-133 — `*GUTTER` minimum of 2: enforced by the panels' Apply but not by the writer backstops
+
+> **Area:** Field · **Status:** In progress · **Depends on:** I-121, I-63
+
+Opened from the deferred finding raised by the I-121 SNGCHCFLD/MLTCHCFLD selection-type-parameters slice. `SNGCHCFLD`'s and `MLTCHCFLD`'s own DDS Reference sections (`DDS_Keyword_V7r6.txt` ~lines 12652 and 8022) say the gutter width "must be a positive integer of at least 2"; `PSHBTNFLD`'s (line ~35 of its section) says "The gutter value must be a number greater than one." The Choice selection type and Push-button field panels already block a gutter below 2 with an alert, but the writer backstops `setChoiceSelectionType` and `setPshbtnfld` (I-63) only test `gutter > 0`, so a caller that bypasses the panel can write `(*GUTTER 1)`. Plan: read the minimum from `keywordSpec.js` (a fact on the three entries, not a fourth literal) and have both backstops drop a gutter below it, the same silent-drop semantics the backstops already use for a gutter without `*NUMCOL` / `*NUMROW`.
 
 ---
 
