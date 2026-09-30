@@ -1162,7 +1162,13 @@
         // least 2." (SNGCHCFLD, DDS_Keyword_V7r6.txt ~line 12718; MLTCHCFLD
         // ~line 8080 says the same; PSHBTNFLD, ~line 9704, "must be a
         // number greater than one" - the same minimum.)
-        gutterMinimum: 2
+        gutterMinimum: 2,
+        // Task I-134: "It can only be specified if either *NUMCOL or
+        // *NUMROW has been specified" (SNGCHCFLD ~line 12717; MLTCHCFLD
+        // ~line 8079 says the same). PSHBTNFLD's section says the opposite
+        // ("it can be specified even if *NUMCOL or *NUMROW have not been
+        // specified", ~line 9702), so it carries no such fact.
+        gutterRequiresLayout: true
       }
     },
     MLTCHCFLD: {
@@ -1175,7 +1181,8 @@
           'MLTCHCFLD[([*RSTCSR | *NORSTCSR] [*NOSLTIND | *SLTIND] ' +
           '[[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] ' +
           '[(*GUTTER gutter-width)]])]',
-        gutterMinimum: 2
+        gutterMinimum: 2,
+        gutterRequiresLayout: true
       }
     },
 
@@ -1771,6 +1778,15 @@
     return sp && typeof sp.gutterMinimum === 'number' ? sp.gutterMinimum : 0;
   }
 
+  /** Task I-134 - whether `keywordName`'s *GUTTER may only be specified
+   *  together with *NUMCOL or *NUMROW (SNGCHCFLD / MLTCHCFLD: true;
+   *  PSHBTNFLD and every other keyword: false). */
+  function gutterRequiresLayout(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    var sp = spec && spec.selectionParameters;
+    return !!(sp && sp.gutterRequiresLayout);
+  }
+
   /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
    *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
    *  for a keyword with no spec entry or no such flag. */
@@ -2058,6 +2074,7 @@
     choiceSelectionAllFlags: choiceSelectionAllFlags,
     choiceSelectionFlagsNotOffered: choiceSelectionFlagsNotOffered,
     choiceSelectionExclusiveGroups: choiceSelectionExclusiveGroups,
-    gutterMinimum: gutterMinimum
+    gutterMinimum: gutterMinimum,
+    gutterRequiresLayout: gutterRequiresLayout
   };
 });

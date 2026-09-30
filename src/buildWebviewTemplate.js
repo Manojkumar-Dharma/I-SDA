@@ -6834,6 +6834,17 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
+      // Task I-134: same choke point again, for the layout parameters of
+      // SNGCHCFLD / MLTCHCFLD / PSHBTNFLD (*NUMCOL xor *NUMROW, the *GUTTER
+      // minimum, and - SNGCHCFLD / MLTCHCFLD only - a *GUTTER needing one of
+      // them), which only the two panels' Apply buttons checked before.
+      // Diff-based: a problem already on the field is not re-reported.
+      const layoutParamsReason = DspfWriter.layoutParametersNewConflictReason(field.keywords, updates.keywords);
+      if (layoutParamsReason) {
+        window.alert(layoutParamsReason);
+        render();
+        return;
+      }
       // Task I-91: same choke point again, for MSGID's own exclusion list (DFT,
       // DFTVAL, FLTFIXDEC, FLTPCN, MSGCON cannot be on a field with MSGID),
       // both directions - adding MSGID to a field carrying one of them, or

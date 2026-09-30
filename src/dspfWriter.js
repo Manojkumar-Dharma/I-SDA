@@ -1205,6 +1205,66 @@
     return added.length ? edtmskReverseReason(added) : null;
   }
 
+  /** Task I-134 - the layout-parameter problems in ONE SNGCHCFLD / MLTCHCFLD
+   *  / PSHBTNFLD instance's parameter string, as `[{code, reason}]` (empty
+   *  when fine or when `keywordName` is none of the three). The rules are the
+   *  ones the panels' Apply buttons already enforce: *NUMCOL and *NUMROW are
+   *  alternatives, a *GUTTER must reach the keyword's minimum (I-133), and -
+   *  where the keyword's section says so (SNGCHCFLD / MLTCHCFLD, not
+   *  PSHBTNFLD) - a *GUTTER needs one of them. Reads through
+   *  readChoiceLayoutNumber, so both the IBM shape `(*NUMCOL 3)` and the
+   *  legacy `*NUMCOL(3)` count. */
+  function layoutParameterProblems(keywordName, parameters) {
+    var minimum = KeywordSpec.gutterMinimum(keywordName);
+    if (!minimum) return [];
+    var numCol = readChoiceLayoutNumber(parameters, 'NUMCOL');
+    var numRow = readChoiceLayoutNumber(parameters, 'NUMROW');
+    var gutter = readChoiceLayoutNumber(parameters, 'GUTTER');
+    var out = [];
+    if (numCol && numRow) {
+      out.push({ code: 'colsAndRows', reason: 'Specify either *NUMCOL or *NUMROW on ' + keywordName + ', not both (per the DDS Reference).' });
+    }
+    if (gutter && parseInt(gutter, 10) < minimum) {
+      out.push({ code: 'gutterMinimum', reason: 'The *GUTTER width on ' + keywordName + ' must be at least ' + minimum + ' (per the DDS Reference).' });
+    }
+    if (gutter && !numCol && !numRow && KeywordSpec.gutterRequiresLayout(keywordName)) {
+      out.push({ code: 'gutterNeedsLayout', reason: 'The *GUTTER on ' + keywordName + ' can only be specified together with *NUMCOL or *NUMROW (per the DDS Reference).' });
+    }
+    return out;
+  }
+
+  /** Task I-134 - diff-based backstop for EVERY field-level path that writes
+   *  keywords (all commit through commitEdit), same shape as
+   *  edtmskNewConflictReason: only a layout problem the edit INTRODUCES is
+   *  reported - one already present on the same keyword before the edit
+   *  (a hand-written file, or the legacy `*NUMCOL(3)` shape) is not, so
+   *  unrelated edits stay possible and fixing a field is never blocked.
+   *  Returns the first new problem's reason, or null. */
+  function layoutParametersNewConflictReason(oldKeywords, newKeywords) {
+    var names = ['SNGCHCFLD', 'MLTCHCFLD', 'PSHBTNFLD'];
+    var codesFor = function (kws, name) {
+      var codes = [];
+      (kws || []).forEach(function (k) {
+        if (k.name !== name) return;
+        layoutParameterProblems(name, k.parameters).forEach(function (p) { codes.push(p.code); });
+      });
+      return codes;
+    };
+    for (var n = 0; n < names.length; n++) {
+      var before = codesFor(oldKeywords, names[n]);
+      var instances = (newKeywords || []).filter(function (k) { return k.name === names[n]; });
+      for (var i = 0; i < instances.length; i++) {
+        var problems = layoutParameterProblems(names[n], instances[i].parameters);
+        for (var j = 0; j < problems.length; j++) {
+          var at = before.indexOf(problems[j].code);
+          if (at >= 0) { before.splice(at, 1); continue; }
+          return problems[j].reason;
+        }
+      }
+    }
+    return null;
+  }
+
   /** Task I-31 - the named sub-check keywordFixes.md's own I-31 write-up
    *  calls out: L/T/Z (Date/Time/Timestamp) data types have their own,
    *  narrower Usage restriction than every other data type. IBM's DDS
@@ -9128,6 +9188,8 @@
     getMenubarSeparator: getMenubarSeparator,
     setMenubarSeparator: setMenubarSeparator,
     getChoiceSelectionType: getChoiceSelectionType,
+    layoutParameterProblems: layoutParameterProblems,
+    layoutParametersNewConflictReason: layoutParametersNewConflictReason,
     sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,
