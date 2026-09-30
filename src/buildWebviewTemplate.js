@@ -4841,6 +4841,13 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(checkAbFloatEditReason);
           return;
         }
+        // Task I-137: DFT/DFTVAL/EDTCDE/EDTWRD cannot be specified on a
+        // floating-point field either; same shape, same reasoning as above.
+        const dftFloatEditReason = DspfWriter.dftGroupFloatNewConflictReason(field, updates);
+        if (dftFloatEditReason) {
+          window.alert(dftFloatEditReason);
+          return;
+        }
         // Task I-69: CHKMSGID also requires an input-capable field (usage B
         // or I) - blocks a usage CHANGE to O/H/M/P on a field that already
         // carries it. Same diff-based idiom as the WRDWRAP check above.
@@ -6755,6 +6762,13 @@ const htmlTemplate = `<!DOCTYPE html>
     const checkAbFloatReason = DspfWriter.checkAbFloatIncompatibleNewConflictReason(field, updates);
     if (checkAbFloatReason) {
       window.alert(checkAbFloatReason);
+      render();
+      return;
+    }
+    // Task I-137: DFT/DFTVAL/EDTCDE/EDTWRD on a floating-point field.
+    const dftFloatReason = DspfWriter.dftGroupFloatNewConflictReason(field, updates);
+    if (dftFloatReason) {
+      window.alert(dftFloatReason);
       render();
       return;
     }

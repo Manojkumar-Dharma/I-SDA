@@ -2783,6 +2783,26 @@
     return floatIncompatibleKeywordNewConflictReason('VALUES', oldField, updates);
   }
 
+  /** Task I-137 - DFT, DFTVAL, EDTCDE and EDTWRD are barred on a
+   *  floating-point field (their RECORD_TYPES entries, I-121 DFT/DFTVAL
+   *  slice), but dftGroupConflictReason only runs when one of their rows is
+   *  switched ON. This is the diff-based guard for the other two ways in: a
+   *  raw-editor add to an F field, and a Basic-tab data type change to F
+   *  while the field carries one. Same shape and wording as the DUP/BLKFOLD/
+   *  RANGE/COMP/VALUES wrappers above (an already-invalid hand-written field
+   *  is not re-reported). The members come from the spec's mutex group,
+   *  filtered to the ones flagged float-incompatible, in group order. */
+  function dftGroupFloatNewConflictReason(oldField, updates) {
+    var names = ['DFT'].concat(KeywordSpec.groupMutexKeywords('DFT')).filter(function (n) {
+      return KeywordSpec.isNotAllowedOnFloatingPointField(n);
+    });
+    for (var i = 0; i < names.length; i++) {
+      var reason = floatIncompatibleKeywordNewConflictReason(names[i], oldField, updates);
+      if (reason) return reason;
+    }
+    return null;
+  }
+
   /** Task I-125 - CHECK(AB) specifically (not CHECK's other validity-
    *  check codes) cannot be specified on a floating-point field (F in
    *  position 35, per CHECK's own DDS Reference section). CHECK's own
@@ -9146,6 +9166,7 @@
     dupFloatFieldNote: dupFloatFieldNote,
     blkfoldFloatNewConflictReason: blkfoldFloatNewConflictReason,
     floatIncompatibleKeywordNewConflictReason: floatIncompatibleKeywordNewConflictReason,
+    dftGroupFloatNewConflictReason: dftGroupFloatNewConflictReason,
     rangeFloatNewConflictReason: rangeFloatNewConflictReason,
     compFloatNewConflictReason: compFloatNewConflictReason,
     valuesFloatNewConflictReason: valuesFloatNewConflictReason,
