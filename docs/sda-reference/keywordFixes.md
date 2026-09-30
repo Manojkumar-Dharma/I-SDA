@@ -174,7 +174,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-129](#i-129) | Field | `SFLSCROLL` (and, once re-read, `SFLRCDNBR`/`SFLROLVAL`): "valid only for the subfile-control record format" is unenforced - the panel is offered on SFL detail records too | I-126, I-127 | Done | v0.10.237 |
 | [I-130](#i-130) | Field | `EDTMSK`: the keywords IBM lists as "cannot be specified on a field with the EDTMSK keyword" (`AUTO(RAB, RAZ)`, `CHECK(...)`, `CHOICE`, `CNTFLD`, `DSPATR(OID SP)`) are unenforced | I-121, I-31 | Done | v0.10.245 |
 | [I-131](#i-131) | Field | `VALNUM`: the DDS Reference rule (input-capable usage I/B, data type Y) is enforced only by hiding the General-tab row - raw-editor adds and Basic-tab data type / usage changes are unblocked | I-121, I-94 | Done | v0.10.248 |
-| [I-132](#i-132) | Field | `CHECK(M10)` / `CHECK(M10F)` / `CHECK(M11)` / `CHECK(M11F)`: the DDS Reference bars all four on a floating-point field, but only `CHECK(AB)` is guarded - the modulus-check codes can be added to an F field, or a field carrying one changed to data type F | I-121, I-125 | In progress | — |
+| [I-132](#i-132) | Field | `CHECK(M10)` / `CHECK(M10F)` / `CHECK(M11)` / `CHECK(M11F)`: the DDS Reference bars all four on a floating-point field, but only `CHECK(AB)` is guarded - the modulus-check codes can be added to an F field, or a field carrying one changed to data type F | I-121, I-125 | Done | v0.10.250 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -5750,7 +5750,7 @@ New `RECORD_TYPES.CHECK` carrying `floatDdsReference` and a new `notAllowedOnFlo
 
 New `src/test/i121CheckFloatKeywordSpec.test.js` (16 checks): the entry, its citation, that CHECK is not whole-keyword-flagged and is the only holder of the new field; the accessor's copy semantics and fail-safe inputs; and the guard's behavior unchanged (both directions with wording intact, other codes never blocked, multi-code instance, fail-open on an already-invalid field, non-CHECK keywords ignored). `git stash` confirmed the new test fails against pre-change code. The existing `i125FloatIncompatibleValidityCheckGuard.test.js` and `i125FloatCheckWebviewGuard.test.js` are a second, independent safety net. Pure refactor, no behavior change. Full suite: 198 files, 11,409 checks, zero failures.
 
-Not fixed, deliberately: CHECK's note 3 (line ~3220) states the same restriction for CHECK(M10), CHECK(M10F), CHECK(M11) and CHECK(M11F), with no guard anywhere - logged in the Deferred findings table as a behavior gap for its own task.
+Not fixed, deliberately: CHECK's note 3 (line ~3220) states the same restriction for CHECK(M10), CHECK(M10F), CHECK(M11) and CHECK(M11F), with no guard anywhere - logged in the Deferred findings table as a behavior gap for its own task (since closed by I-132).
 
 Remaining for I-121 after this slice: the rest of the plain/base record and file levels (the largest and least closed-form piece of all - most of the remaining `*ConflictReason` functions' rules), still not split into smaller pieces.
 
@@ -5922,11 +5922,15 @@ The Deferred findings table is empty again.
 
 ### I-132 — `CHECK(M10/M10F/M11/M11F)`: the DDS Reference bars all four on a floating-point field, but only `CHECK(AB)` is guarded
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-121, I-125
+> **Area:** Field · **Status:** Done (v0.10.250) · **Depends on:** I-121, I-125
 
 Opened from the deferred finding raised by the I-121 CHECK(AB) floating-point slice: `CHECK`'s own DDS Reference section (`DDS_Keyword_V7r6.txt` line ~3220, note 3) says \"You cannot specify the CHECK(M10), CHECK(M10F), CHECK(M11), and CHECK(M11F) keywords on a floating-point field (F in position 35).\" Only `CHECK(AB)` is guarded today (I-125), so a modulus-check code can be added to an F field through the raw keyword editor, or a field carrying one changed to data type F on the Basic tab, unblocked.
 
-Plan: extend `RECORD_TYPES.CHECK.notAllowedOnFloatingPointCodes` (added by the I-121 CHECK(AB) slice) to `['AB', 'M10', 'M10F', 'M11', 'M11F']` and let the existing diff-based guard and both of its call sites (the `commitEdit` backstop and the Basic-tab Apply guard) name whichever code is present in the message, rather than the hard-coded `CHECK(AB)` wording. Re-verify the note text fresh against `DDS_Keyword_V7r6.txt` before coding, and keep the already-invalid-hand-written-field fail-open behavior.
+Implementation: `RECORD_TYPES.CHECK.notAllowedOnFloatingPointCodes` (added by the I-121 CHECK(AB) slice) now lists `['AB', 'M10', 'M10F', 'M11', 'M11F']` (its `floatDdsReference` citing both sentences, re-verified fresh against `DDS_Keyword_V7r6.txt`), so the one existing guard covers all five with no new call sites: `checkAbFloatIncompatibleNewConflictReason` (name kept for its I-125 call sites and tests - the `commitEdit` backstop and the Basic-tab Apply guard) now collects the forbidden codes present on any CHECK instance before and after the edit, blames only what the edit introduced (so a hand-written F field already carrying `CHECK(M10)` stays editable, and gaining `AB` on top is blocked for `AB`), and names the code in its message - `CHECK(AB)`'s wording is unchanged.
+
+New `src/test/i132CheckModulusFloatGuard.test.js` (both directions for each of the five codes, nine unrestricted codes never blocked, whole-token matching, multi-code and second-instance keywords, diff-based fail-open, fixing by changing the data type, removing the keyword). The I-125 tests that had asserted `CHECK(M10)` was NOT blocked (`i125FloatIncompatibleValidityCheckGuard`, and the real-UI `i125FloatCheckWebviewGuard` in jsdom) were the enforcement of the gap and are flipped: the webview test now raw-adds each modulus code to the float field and checks a character field with `CHECK(M11F)` cannot become F, with `CHECK(ME)` kept as the never-restricted control. The I-121 CHECK spec test follows the five-code list. Full suite: 199 files, 11,457 checks, zero failures.
+
+The Deferred findings table is empty again.
 
 ---
 

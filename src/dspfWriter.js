@@ -2852,26 +2852,40 @@
   function checkAbFloatIncompatibleNewConflictReason(oldField, updates) {
     var o = oldField || {};
     var u = updates || {};
-    // Task I-121 (CHECK(AB) floating-point slice) - the forbidden code
-    // comes from KeywordSpec (RECORD_TYPES.CHECK), not a literal 'AB'.
+    // Task I-121 (CHECK(AB) floating-point slice) - the forbidden codes
+    // come from KeywordSpec (RECORD_TYPES.CHECK), not a literal 'AB'.
+    // Task I-132 - that list now also holds M10, M10F, M11 and M11F (CHECK's
+    // note 3), so this one guard covers all five; the function keeps its
+    // I-125 name for its call sites and tests.
     var badCodes = KeywordSpec.floatIncompatibleCheckCodes('CHECK');
-    var hasAb = function (kws) {
-      return (kws || []).some(function (k) {
-        if (!k || k.name !== 'CHECK') return false;
-        var tokens = String(k.parameters == null ? '' : k.parameters).toUpperCase().split(/[\s,()]+/).filter(Boolean);
-        return badCodes.some(function (c) { return tokens.indexOf(c) >= 0; });
+    // The forbidden codes present on any CHECK instance in `kws`, in
+    // badCodes order (each once).
+    var codesIn = function (kws) {
+      var seen = {};
+      (kws || []).forEach(function (k) {
+        if (!k || k.name !== 'CHECK') return;
+        String(k.parameters == null ? '' : k.parameters).toUpperCase().split(/[\s,()]+/).filter(Boolean).forEach(function (t) { seen[t] = true; });
       });
+      return badCodes.filter(function (c) { return seen[c]; });
     };
     var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
     var owns = function (key) { return Object.prototype.hasOwnProperty.call(u, key); };
     var newDataType = owns('dataType') ? norm(u.dataType) : norm(o.dataType);
     var newKeywords = owns('keywords') ? u.keywords : o.keywords;
-    if (newDataType !== 'F' || !hasAb(newKeywords)) return null;
-    if (norm(o.dataType) === 'F' && hasAb(o.keywords)) return null;
-    if (!hasAb(o.keywords)) {
-      return 'CHECK(AB) cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
+    var newCodes = codesIn(newKeywords);
+    if (newDataType !== 'F' || !newCodes.length) return null;
+    var oldCodes = codesIn(o.keywords);
+    var oldIsFloat = norm(o.dataType) === 'F';
+    // Only blame this edit for what it introduced: a code the field already
+    // carried on an already-F field is a hand-written invalid field, not re-reported.
+    var carried = newCodes.filter(function (c) { return oldCodes.indexOf(c) >= 0; });
+    var introduced = newCodes.filter(function (c) { return oldCodes.indexOf(c) < 0; });
+    if (!oldIsFloat && carried.length) {
+      return 'The data type cannot be changed to F (floating point) while the field carries CHECK(' + carried[0] + ') - CHECK(' + carried[0] + ') cannot be specified on a floating-point field (per the DDS Reference). Remove CHECK(' + carried[0] + ') first.';
     }
-    return 'The data type cannot be changed to F (floating point) while the field carries CHECK(AB) - CHECK(AB) cannot be specified on a floating-point field (per the DDS Reference). Remove CHECK(AB) first.';
+    var blamed = oldIsFloat ? introduced : newCodes;
+    if (!blamed.length) return null;
+    return 'CHECK(' + blamed[0] + ') cannot be specified on a floating-point field (F in position 35, per the DDS Reference) - change the data type first.';
   }
 
   function wrdwrapFieldConflictReason(keywordName, fieldKeywords, dataType, usage, recordKeywords) {

@@ -919,8 +919,9 @@
     // flag every CHECK). See floatIncompatibleCheckCodes / dspfWriter.js's
     // checkAbFloatIncompatibleNewConflictReason.
     CHECK: {
-      floatDdsReference: 'You cannot specify the CHECK(AB) keyword on a floating-point field (F in position 35).',
-      notAllowedOnFloatingPointCodes: ['AB']
+      floatDdsReference: 'You cannot specify the CHECK(AB) keyword on a floating-point field (F in position 35). ' +
+        'You cannot specify the CHECK(M10), CHECK(M10F), CHECK(M11), and CHECK(M11F) keywords on a floating-point field (F in position 35).',
+      notAllowedOnFloatingPointCodes: ['AB', 'M10', 'M10F', 'M11', 'M11F']
     },
 
     CHKMSGID: {

@@ -18,8 +18,10 @@
  *  F5 (line 6): character (A) field WITH CHECK(AB).
  *  F6 (line 7): hand-written and ALREADY INVALID: floating-point (F)
  *               WITH RANGE.
- *  F7 (line 8): character (A) field WITH CHECK(M10) - a different code,
+ *  F7 (line 8): character (A) field WITH CHECK(ME) - a code that is
  *               never floating-point-restricted.
+ *  F8 (line 9): character (A) field WITH CHECK(M11F) - a modulus code,
+ *               floating-point-restricted since I-132 (was unguarded).
  *
  * Runs the DSPF designer's real generated client-side script in jsdom.
  * Run with: node src/test/i125FloatCheckWebviewGuard.test.js
@@ -39,7 +41,8 @@ const SRC = [
   buildLine({ seq: '00050', name: 'F4', length: '10', dataType: 'A', usage: 'B', line: '9', col: '2', func: "VALUES('A' 'B')" }),
   buildLine({ seq: '00060', name: 'F5', length: '10', dataType: 'A', usage: 'B', line: '11', col: '2', func: 'CHECK(AB)' }),
   buildLine({ seq: '00070', name: 'F6', length: '8', dataType: 'F', decimals: '2', usage: 'B', line: '13', col: '2', func: 'RANGE(1 100)' }),
-  buildLine({ seq: '00080', name: 'F7', length: '10', dataType: 'A', usage: 'B', line: '15', col: '2', func: 'CHECK(M10)' }),
+  buildLine({ seq: '00080', name: 'F7', length: '10', dataType: 'A', usage: 'B', line: '15', col: '2', func: 'CHECK(ME)' }),
+  buildLine({ seq: '00090', name: 'F8', length: '10', dataType: 'A', usage: 'B', line: '17', col: '2', func: 'CHECK(M11F)' }),
 ].join('\n') + '\n';
 
 function reparsedField(text, name) {
@@ -104,21 +107,23 @@ setTimeout(() => {
 
   // === F1 (floating-point, no validity-check keywords) - direction A ===
   console.log('\nF1 (floating-point, none of RANGE/COMP/VALUES/CHECK(AB)): adding each is blocked via the raw editor');
-  [['RANGE', '1 100'], ['COMP', 'EQ 5'], ['VALUES', "'A' 'B'"], ['CHECK', 'AB']].forEach(([name, params]) => {
+  [['RANGE', '1 100'], ['COMP', 'EQ 5'], ['VALUES', "'A' 'B'"], ['CHECK', 'AB'],
+   ['CHECK', 'M10'], ['CHECK', 'M10F'], ['CHECK', 'M11'], ['CHECK', 'M11F']].forEach(([name, params]) => {
     selectField(2);
     const r = rawAdd(2, name, params);
-    check('raw keyword editor: adding ' + name + (name === 'CHECK' ? '(AB)' : '') + ' is blocked with an alert, no applyEdit', blocked(r, new RegExp(name === 'CHECK' ? 'CHECK\\(AB\\)' : name)));
+    const label = name + (name === 'CHECK' ? '(' + params + ')' : '');
+    check('raw keyword editor: adding ' + label + ' is blocked with an alert, no applyEdit', blocked(r, new RegExp(name === 'CHECK' ? 'CHECK\\(' + params + '\\)' : name)));
   });
   selectField(2);
   {
-    const r = rawAdd(2, 'CHECK', 'M10');
-    check('raw keyword editor: adding CHECK(M10) (a different code) to the float field is NOT blocked', allowed(r));
+    const r = rawAdd(2, 'CHECK', 'ME');
+    check('raw keyword editor: adding CHECK(ME) (an unrestricted code) to the float field is NOT blocked', allowed(r));
     const f = r.applyEdit && reparsedField(r.applyEdit.text, 'F1');
-    check('  ...CHECK(M10) written', !!f && kwNames(f).includes('CHECK'));
+    check('  ...CHECK(ME) written', !!f && kwNames(f).includes('CHECK'));
   }
 
   // === F2/F3/F4/F5 (character + each keyword) - direction B via the Basic tab ===
-  [['F2', 3, 'RANGE'], ['F3', 4, 'COMP'], ['F4', 5, 'VALUES'], ['F5', 6, 'CHECK']].forEach(([fname, line, name]) => {
+  [['F2', 3, 'RANGE'], ['F3', 4, 'COMP'], ['F4', 5, 'VALUES'], ['F5', 6, 'CHECK'], ['F8', 9, 'CHECK']].forEach(([fname, line, name]) => {
     console.log('\n' + fname + ' (character field WITH ' + name + '): changing its data type to F is blocked');
     if (selectField(line)) {
       check('setup: data type is A', val('p-type') === 'A');

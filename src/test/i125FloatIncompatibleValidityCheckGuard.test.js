@@ -24,8 +24,10 @@
  *     that already carries the keyword), the not-introduced-by-this-edit
  *     fail-open case, and a non-float field is never blocked.
  *  3. checkAbFloatIncompatibleNewConflictReason: the same shape, but
- *     fires ONLY for the AB code - a CHECK(M10)/CHECK(ME) field (any
- *     other code) is never blocked, in either direction.
+ *     fires for the codes in RECORD_TYPES.CHECK (AB since I-125; M10,
+ *     M10F, M11, M11F added by I-132) - a CHECK(ME) field (any other
+ *     code) is never blocked, in either direction. The per-code
+ *     coverage lives in i132CheckModulusFloatGuard.test.js.
  *
  * Run with: node src/test/i125FloatIncompatibleValidityCheckGuard.test.js
  */
@@ -90,7 +92,7 @@ console.log('\nDspfWriter.{rangeFloatNewConflictReason,compFloatNewConflictReaso
 console.log('\nDspfWriter.checkAbFloatIncompatibleNewConflictReason');
 {
   const abKw = [kw('CHECK', 'AB')];
-  const m10Kw = [kw('CHECK', 'M10')];
+  const meKw = [kw('CHECK', 'ME')];
   const multiCodeAbKw = [kw('CHECK', 'M10 AB')];
 
   check('adding CHECK(AB) to an already-floating-point field is blocked', !!DspfWriter.checkAbFloatIncompatibleNewConflictReason({ dataType: 'F', keywords: [] }, { keywords: abKw }));
@@ -99,8 +101,8 @@ console.log('\nDspfWriter.checkAbFloatIncompatibleNewConflictReason');
   check('a non-floating-point field with CHECK(AB) is never blocked', !DspfWriter.checkAbFloatIncompatibleNewConflictReason({ dataType: 'A', keywords: [] }, { keywords: abKw }));
   check('a multi-code CHECK(M10 AB) instance is still recognized as carrying AB', !!DspfWriter.checkAbFloatIncompatibleNewConflictReason({ dataType: 'F', keywords: [] }, { keywords: multiCodeAbKw }));
 
-  check('adding CHECK(M10) (a different code) to a floating-point field is NOT blocked', !DspfWriter.checkAbFloatIncompatibleNewConflictReason({ dataType: 'F', keywords: [] }, { keywords: m10Kw }));
-  check('changing the data type to F while CHECK(M10) (a different code) is present is NOT blocked', !DspfWriter.checkAbFloatIncompatibleNewConflictReason({ dataType: 'A', keywords: m10Kw }, { dataType: 'F' }));
+  check('adding CHECK(ME) (an unrestricted code) to a floating-point field is NOT blocked', !DspfWriter.checkAbFloatIncompatibleNewConflictReason({ dataType: 'F', keywords: [] }, { keywords: meKw }));
+  check('changing the data type to F while CHECK(ME) (an unrestricted code) is present is NOT blocked', !DspfWriter.checkAbFloatIncompatibleNewConflictReason({ dataType: 'A', keywords: meKw }, { dataType: 'F' }));
 }
 
 console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : 'FAIL - ' + failureCount() + ' check(s) failed'));

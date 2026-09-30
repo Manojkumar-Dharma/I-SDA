@@ -32,10 +32,11 @@ console.log('=== 1. RECORD_TYPES.CHECK ===');
 {
   const spec = KeywordSpec.RECORD_TYPES.CHECK;
   check('CHECK has a spec entry', !!spec);
-  check('CHECK forbids exactly the AB code on a floating-point field',
-    Array.isArray(spec.notAllowedOnFloatingPointCodes) && spec.notAllowedOnFloatingPointCodes.length === 1 && spec.notAllowedOnFloatingPointCodes[0] === 'AB');
+  check('CHECK forbids AB plus (I-132) the four modulus codes on a floating-point field',
+    JSON.stringify(spec.notAllowedOnFloatingPointCodes) === '["AB","M10","M10F","M11","M11F"]');
   check('CHECK carries the DDS Reference citation text',
-    /CHECK\(AB\).*floating-point field \(F in position 35\)/.test(spec.floatDdsReference));
+    /CHECK\(AB\).*floating-point field \(F in position 35\)/.test(spec.floatDdsReference)
+    && /CHECK\(M10\), CHECK\(M10F\), CHECK\(M11\), and CHECK\(M11F\).*floating-point field/.test(spec.floatDdsReference));
   check('CHECK is NOT flagged as a whole-keyword float restriction',
     !spec.notAllowedOnFloatingPointField && KeywordSpec.isNotAllowedOnFloatingPointField('CHECK') === false);
   const holders = Object.keys(KeywordSpec.RECORD_TYPES).filter((n) => KeywordSpec.RECORD_TYPES[n].notAllowedOnFloatingPointCodes);
@@ -44,11 +45,11 @@ console.log('=== 1. RECORD_TYPES.CHECK ===');
 
 console.log('=== 2. floatIncompatibleCheckCodes ===');
 {
-  check('CHECK -> [AB]', JSON.stringify(KeywordSpec.floatIncompatibleCheckCodes('CHECK')) === '["AB"]');
+  check('CHECK -> [AB, M10, M10F, M11, M11F]', JSON.stringify(KeywordSpec.floatIncompatibleCheckCodes('CHECK')) === '["AB","M10","M10F","M11","M11F"]');
   const copy = KeywordSpec.floatIncompatibleCheckCodes('CHECK');
   copy.push('ZZ');
   check('the accessor returns a copy (mutating it does not change the spec)',
-    JSON.stringify(KeywordSpec.floatIncompatibleCheckCodes('CHECK')) === '["AB"]');
+    KeywordSpec.floatIncompatibleCheckCodes('CHECK').length === 5 && KeywordSpec.floatIncompatibleCheckCodes('CHECK').indexOf('ZZ') < 0);
   check('a whole-keyword float keyword (DUP) has no code list', KeywordSpec.floatIncompatibleCheckCodes('DUP').length === 0);
   check('an unknown keyword has no code list', KeywordSpec.floatIncompatibleCheckCodes('NOSUCH').length === 0);
 }
