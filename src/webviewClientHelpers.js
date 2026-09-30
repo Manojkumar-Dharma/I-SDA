@@ -1274,9 +1274,10 @@
   // repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances'
   // own `isConditionable` doc comment above for how a mixed list like this
   // one opts individual rows out.
-  var RECORD_INDICATOR_NO_CONDITIONING_KINDS = ['VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'];
+  //  Task I-121: which four kinds those are is the spec's noOptionIndicators
+  //  fact (read through DspfWriter), not a list kept here.
   function recordIndicatorInstanceIsConditionable(inst) {
-    return RECORD_INDICATOR_NO_CONDITIONING_KINDS.indexOf(inst.kind) < 0;
+    return DspfWriter.recordIndicatorTakesOptionIndicators(inst.kind);
   }
 
   function recordIndicatorInstanceRowHtml(inst, p, restrictTo) {
@@ -1302,7 +1303,7 @@
   /** Record-level Indicator/screen-control keywords panel (Task L5d). */
   function recordIndicatorInstancesHtml(keywords, ownerKey, expandedSet, restrictTo) {
     var instances = DspfWriter.getRecordIndicatorInstances(keywords);
-    return dataKwWrap(['CLEAR', 'PAGEDOWN', 'PAGEUP', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'], repeatableConditionedInstancesHtml(
+    return dataKwWrap(DspfWriter.recordIndicatorKeywordNames(), repeatableConditionedInstancesHtml(
       instances,
       ownerKey + '-rep',
       function renderPayload(inst, instIdPrefix) { return recordIndicatorInstanceRowHtml(inst, instIdPrefix, restrictTo); },
@@ -2377,7 +2378,7 @@
     // BLANKS and CHANGE (field-level) are both "not valid for this
     // keyword" per their own DDS Reference entries, same restriction
     // record-level CHANGE already had correctly enforced
-    // (RECORD_INDICATOR_NO_CONDITIONING_KINDS above) before this fix.
+    // (recordIndicatorInstanceIsConditionable above) before this fix.
     [
       ['dup', 'DUP', 'Dup key duplicates the previous record\u2019s value into this field', true],
       ['blanks', 'BLANKS', 'Numeric field: let the program tell blank apart from zero', false],

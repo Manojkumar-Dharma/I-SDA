@@ -1854,6 +1854,33 @@
     return !!(sp && sp.gutterRequiresLayout);
   }
 
+  /** Task I-121 record-indicator group slice - the group's keyword names in
+   *  the writer's original order (a copy). */
+  function recordIndicatorKeywordNames() {
+    return Object.keys(RECORD_INDICATOR_KEYWORDS);
+  }
+
+  /** Legacy spelling -> canonical keyword, e.g. `{ ROLLUP: 'PAGEDOWN',
+   *  ROLLDOWN: 'PAGEUP' }` (a fresh object each call). */
+  function recordIndicatorAlternateKinds() {
+    var out = {};
+    Object.keys(RECORD_INDICATOR_KEYWORDS).forEach(function (k) {
+      (RECORD_INDICATOR_KEYWORDS[k].alternateNames || []).forEach(function (alt) { out[alt] = k; });
+    });
+    return out;
+  }
+
+  /** Whether a record-level indicator row of this kind may carry option-
+   *  indicator conditions: false exactly when the keyword's own section says
+   *  option indicators are not valid for it (the noOptionIndicators fact -
+   *  VLDCMDKEY / SETOF / CHANGE / INDTXT), true for the other six and for
+   *  any kind outside the group, as the webview's old list behaved. */
+  function recordIndicatorTakesOptionIndicators(kind) {
+    var f = noOptionIndicatorsFact(kind);
+    if (!f || f.fileLevelOnly) return true;
+    return f.levels.indexOf('record') < 0;
+  }
+
   /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
    *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
    *  for a keyword with no spec entry or no such flag. */
@@ -2094,6 +2121,40 @@
       ddsReference: 'Option indicators are not valid on a file-level HLPTITLE keyword. Option indicators are allowed on record-level HLPTITLE keywords ...' },
   };
 
+  // -----------------------------------------------------------------------
+  // Task I-121 record-indicator keyword group slice
+  // -----------------------------------------------------------------------
+  //
+  // The ten keywords real SDA's "Define Indicator Keywords" screen lists as
+  // repeatable rows (CLEAR / PAGEDOWN / PAGEUP / HOME / HELP / HLPRTN /
+  // VLDCMDKEY / SETOF / CHANGE / INDTXT), in the order the writer has
+  // always read them. Previously hand-kept in dspfWriter.js
+  // (RECORD_INDICATOR_KEYWORD_NAMES, RECORD_INDICATOR_ALT_KIND) and, for the
+  // rows that take no option indicators, again in webviewClientHelpers.js
+  // (RECORD_INDICATOR_NO_CONDITIONING_KINDS). One fact per keyword:
+  //   alternateNames - legacy spellings of the SAME keyword, read back as
+  //                    it (PAGEDOWN = ROLLUP, PAGEUP = ROLLDOWN)
+  //   ddsReference   - the DDS_Keyword_V7r6.txt wording that identifies it
+  // Whether a row may carry option-indicator conditions is NOT a fact here:
+  // it is the noOptionIndicators fact above (VLDCMDKEY / SETOF / CHANGE /
+  // INDTXT have one, the other six do not), so the two can never drift.
+  // Not migrated: the row labels and the dropdown's own order (a screen
+  // presentation), and SETOFF - the reference says SETOF is equivalent to
+  // SETOFF, but the panel has never read a SETOFF instance (see
+  // keywordFixes.md's Deferred findings).
+  var RECORD_INDICATOR_KEYWORDS = {
+    CLEAR: { ddsReference: 'specify that your program is to receive control if the workstation user presses the Clear key' },
+    PAGEDOWN: { alternateNames: ['ROLLUP'], ddsReference: 'The PAGEDOWN keyword is the same as the ROLLUP keyword.' },
+    PAGEUP: { alternateNames: ['ROLLDOWN'], ddsReference: 'The PAGEUP keyword is the same as the ROLLDOWN keyword.' },
+    HOME: { ddsReference: 'specify that you want to recognize and handle the Home key through your program' },
+    HELP: { ddsReference: 'enable the Help key' },
+    HLPRTN: { ddsReference: 'return control to your program when you press the Help key' },
+    VLDCMDKEY: { ddsReference: 'set on the specified response indicator when any valid command key other than the Enter key' },
+    SETOF: { ddsReference: 'SETOF(response-indicator [\'text\'])' },
+    CHANGE: { ddsReference: 'set on the specified response indicator for an input operation' },
+    INDTXT: { ddsReference: 'associate a descriptive text (indicating intent or use) with a specific response or option indicator' }
+  };
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
@@ -2147,6 +2208,10 @@
     choiceSelectionFlagsNotOffered: choiceSelectionFlagsNotOffered,
     choiceSelectionExclusiveGroups: choiceSelectionExclusiveGroups,
     gutterMinimum: gutterMinimum,
-    gutterRequiresLayout: gutterRequiresLayout
+    gutterRequiresLayout: gutterRequiresLayout,
+    RECORD_INDICATOR_KEYWORDS: RECORD_INDICATOR_KEYWORDS,
+    recordIndicatorKeywordNames: recordIndicatorKeywordNames,
+    recordIndicatorAlternateKinds: recordIndicatorAlternateKinds,
+    recordIndicatorTakesOptionIndicators: recordIndicatorTakesOptionIndicators
   };
 });

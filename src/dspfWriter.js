@@ -6080,7 +6080,9 @@
   // layer never needs to parse/format the combined string itself.
   // -----------------------------------------------------------------------
 
-  var RECORD_INDICATOR_KEYWORD_NAMES = ['CLEAR', 'PAGEDOWN', 'PAGEUP', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'];
+  //  Task I-121: the group, its order and the legacy spellings are
+  //  keywordSpec.js's RECORD_INDICATOR_KEYWORDS (one fact per keyword).
+  var RECORD_INDICATOR_KEYWORD_NAMES = KeywordSpec.recordIndicatorKeywordNames();
 
   // Task L22 remaining item: PAGEDOWN/PAGEUP have legacy alternate
   // spellings ROLLUP/ROLLDOWN - real SDA's own "Define Indicator Keywords"
@@ -6093,8 +6095,8 @@
   // choices, same "normalize on edit" posture getFileFlagKeyword/
   // setFileFlagKeyword's own altNames now follow just below for the
   // simpler file-level checkbox version of this same screen).
-  var RECORD_INDICATOR_READ_NAMES = RECORD_INDICATOR_KEYWORD_NAMES.concat(['ROLLUP', 'ROLLDOWN']);
-  var RECORD_INDICATOR_ALT_KIND = { ROLLUP: 'PAGEDOWN', ROLLDOWN: 'PAGEUP' };
+  var RECORD_INDICATOR_ALT_KIND = KeywordSpec.recordIndicatorAlternateKinds();
+  var RECORD_INDICATOR_READ_NAMES = RECORD_INDICATOR_KEYWORD_NAMES.concat(Object.keys(RECORD_INDICATOR_ALT_KIND));
 
   /** Reads every CLEAR/PAGEDOWN/PAGEUP/HOME/HELP/HLPRTN/VLDCMDKEY/SETOF/
    *  CHANGE/INDTXT instance off `keywords` as Task L1's repeatable,
@@ -9268,6 +9270,8 @@
     getRepeatableKeywordInstances: getRepeatableKeywordInstances,
     setRepeatableKeywordInstances: setRepeatableKeywordInstances,
     getRecordIndicatorInstances: getRecordIndicatorInstances,
+    recordIndicatorKeywordNames: function () { return RECORD_INDICATOR_KEYWORD_NAMES.slice(); },
+    recordIndicatorTakesOptionIndicators: KeywordSpec.recordIndicatorTakesOptionIndicators,
     setRecordIndicatorInstances: setRecordIndicatorInstances,
     getSflDisplayLayout: getSflDisplayLayout,
     setSflDisplayLayout: setSflDisplayLayout,
