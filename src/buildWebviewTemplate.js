@@ -160,8 +160,8 @@ const htmlTemplate = `<!DOCTYPE html>
      instead of printing over it. :where() keeps this at zero specificity, so
      reverse-video (.dspf-reverse) and the selected highlight still win; the selected
      rule below re-adds the opaque base underneath its translucent tint. */
-  :where(.dspf-screen.dspf-stacked .dspf-field) { background-color: #050705; }
-  .dspf-screen.dspf-stacked .dspf-field.selected { background: linear-gradient(rgba(var(--accent-rgb),0.08), rgba(var(--accent-rgb),0.08)), #050705; }
+  :where(.dspf-screen.dspf-stacked .dspf-field) { background-color: var(--dspf-cell-bg, #050705); }
+  .dspf-screen.dspf-stacked .dspf-field.selected { background: linear-gradient(rgba(var(--accent-rgb),0.08), rgba(var(--accent-rgb),0.08)), var(--dspf-cell-bg, #050705); }
   .compare-record-row[data-order]::after { content: '  \\2190 layer ' attr(data-order); color: var(--ink-dim); font-size: 11px; }
   .dspf-field:hover { border-color: rgba(var(--accent-rgb),0.4); }
   .dspf-field.selected { border-color: var(--accent); background: rgba(var(--accent-rgb),0.08); }

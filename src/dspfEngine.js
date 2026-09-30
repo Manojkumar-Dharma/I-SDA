@@ -1914,6 +1914,8 @@
     } else {
       candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);
     }
+    // Task P15 - fields of a windowed record sit on the window's own background.
+    if (windowBox) candidates.forEach(function (f) { f.inWindow = true; });
 
     // Position-sequence overlap resolution: process in (line, column) order; the
     // first satisfied field to claim a cell range wins, later overlapping fields
@@ -2098,6 +2100,10 @@
       var record = dspfFile.records.find(function (r) { return r.name === recordName; });
       if (!record) return;
       if (!conditionsSatisfied(record.conditions, activeIndicators, size.name)) return;
+      // Task P15 - this record's stack layer: its window box (if any) paints at 2n, and
+      // everything else it owns (fields, subfile-preview fields, border chars, ERRMSG line)
+      // at 2n+1, so a later record's window hides earlier records but never its own content.
+      var layer = contributing * 2;
       contributing++;
 
       var windowBox = resolveWindow(record, dspfFile, 0, index);
@@ -2105,18 +2111,18 @@
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 
       var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);
-      fields.forEach(function (f) { f.sourceRecord = recordName; });
+      fields.forEach(function (f) { f.sourceRecord = recordName; f.stackLayer = layer + 1; if (windowBox) f.inWindow = true; });
       allFields = allFields.concat(fields);
-      if (windowBox) windows.push(Object.assign({ recordName: recordName }, windowBox));
+      if (windowBox) windows.push(Object.assign({ recordName: recordName, stackLayer: layer }, windowBox));
 
       var preview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name, size.columns);
       if (preview) {
-        preview.fields.forEach(function (f) { f.sourceRecord = recordName; });
+        preview.fields.forEach(function (f) { f.sourceRecord = recordName; f.stackLayer = layer + 1; if (windowBox) f.inWindow = true; });
         allFields = allFields.concat(preview.fields);
       }
 
       var errorMessage = resolveWindowErrorMessageLine(record, windowBox, activeIndicators, size.name);
-      if (errorMessage) errorMessages.push(Object.assign({ recordName: recordName }, errorMessage));
+      if (errorMessage) errorMessages.push(Object.assign({ recordName: recordName, stackLayer: layer + 1 }, errorMessage));
     });
 
     return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, errorMessages: errorMessages, stacked: contributing > 1 };
@@ -2311,6 +2317,10 @@
     // would see THAT instead of this field's real color. Routing it through
     // `--dspf-fg` keeps the two independent - see the .dspf-reverse rule.
     var colorStyle = f.style.color ? '--dspf-fg:' + f.style.color + ';' : '';
+    // Task P14/P15 - stacking layer (multi-record screens only) and, for a windowed
+    // record's fields, the window's own background instead of the screen frame's.
+    if (f.stackLayer != null) colorStyle += 'z-index:' + f.stackLayer + ';';
+    if (f.inWindow) colorStyle += '--dspf-cell-bg:#0a0f0c;';
     var USAGE_LABEL = { I: 'Input (I)', O: 'Output (O)', B: 'Both (B)', H: 'Hidden (H)', M: 'Message (M)', P: 'Program-to-system (P)' };
     var usageStr = f.usage ? ' · ' + (USAGE_LABEL[f.usage.toUpperCase()] || f.usage) : '';
     var dtypeStr = f.nameType === 'FIELD'
@@ -2387,6 +2397,7 @@
     // border color (when set) is applied per-cell here rather than relying
     // on CSS inheritance from the (now border-less, in char mode) window div.
     var colorStyle = w.border.color ? 'color:' + w.border.color + ';' : '';
+    if (w.stackLayer != null) colorStyle += 'z-index:' + (w.stackLayer + 1) + ';'; // Task P15: above its own window box
     var cells = [];
     function cell(line, col, ch) {
       // Blank (empty string, or a literal single space) means no character
@@ -2465,6 +2476,7 @@
           ' / span ' +
           w.width +
           ';' +
+          (w.stackLayer != null ? 'z-index:' + w.stackLayer + ';' : '') + // Task P15
           borderStyle +
           '" data-window-line="' +
           w.line +
@@ -2576,7 +2588,7 @@
           em.col +
           ' / span ' +
           em.width +
-          ';" title="ERRMSG">' +
+          ';' + (em.stackLayer != null ? 'z-index:' + em.stackLayer + ';' : '') + '" title="ERRMSG">' +
           escapeHtml(em.text) +
           '</div>'
         );

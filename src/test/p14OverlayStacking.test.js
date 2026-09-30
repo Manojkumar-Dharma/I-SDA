@@ -72,7 +72,7 @@ console.log('=== 2. webview ===');
   ].join('\n') + '\n';
   const html = webviewHtml('vscode-webview://fake', 'testnonce14', src, 'P14.DSPF');
   check('the masking CSS is zero-specificity (:where) so reverse video and the selected tint still win',
-    /:where\(\.dspf-screen\.dspf-stacked \.dspf-field\)\s*\{\s*background-color:\s*#050705/.test(html));
+    /:where\(\.dspf-screen\.dspf-stacked \.dspf-field\)\s*\{\s*background-color:\s*var\(--dspf-cell-bg, #050705\)/.test(html));
   const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
