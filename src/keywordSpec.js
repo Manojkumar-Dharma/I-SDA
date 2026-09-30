@@ -682,6 +682,9 @@
     // parameters (token-split the same way `conditionalMutexHit` already
     // does) for that one name.
     PSHBTNFLD: {
+      // Task I-133: "The gutter value must be a number greater than one."
+      // (DDS_Keyword_V7r6.txt ~line 9704.)
+      gutterMinimum: 2,
       markerKeyword: 'PSHBTNFLD',
       ddsReference:
         'The following keywords can be specified on a field with the ' +
@@ -1154,7 +1157,12 @@
           'SNGCHCFLD[([*NORSTCSR | *RSTCSR] [*NOAUTOSLT | *AUTOSLT | ' +
           '*AUTOSLTENH] [*NOSLTIND | *SLTIND] [*NOAUTOENT | *AUTOENT | ' +
           '*AUTOENTNN] [[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] ' +
-          '[(*GUTTER gutter-width)]])]'
+          '[(*GUTTER gutter-width)]])]',
+        // Task I-133: "The gutter-width must be a positive integer of at
+        // least 2." (SNGCHCFLD, DDS_Keyword_V7r6.txt ~line 12718; MLTCHCFLD
+        // ~line 8080 says the same; PSHBTNFLD, ~line 9704, "must be a
+        // number greater than one" - the same minimum.)
+        gutterMinimum: 2
       }
     },
     MLTCHCFLD: {
@@ -1166,7 +1174,8 @@
         ddsReference:
           'MLTCHCFLD[([*RSTCSR | *NORSTCSR] [*NOSLTIND | *SLTIND] ' +
           '[[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] ' +
-          '[(*GUTTER gutter-width)]])]'
+          '[(*GUTTER gutter-width)]])]',
+        gutterMinimum: 2
       }
     },
 
@@ -1751,6 +1760,17 @@
     return mine.filter(function (n) { return others.indexOf(n) < 0; });
   }
 
+  /** Task I-133 - the smallest *GUTTER width `keywordName` accepts
+   *  (SNGCHCFLD / MLTCHCFLD / PSHBTNFLD: 2), or 0 for a keyword with no
+   *  such fact. */
+  function gutterMinimum(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    if (!spec) return 0;
+    if (typeof spec.gutterMinimum === 'number') return spec.gutterMinimum;
+    var sp = spec.selectionParameters;
+    return sp && typeof sp.gutterMinimum === 'number' ? sp.gutterMinimum : 0;
+  }
+
   /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
    *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
    *  for a keyword with no spec entry or no such flag. */
@@ -2037,6 +2057,7 @@
     choiceSelectionFlagGroups: choiceSelectionFlagGroups,
     choiceSelectionAllFlags: choiceSelectionAllFlags,
     choiceSelectionFlagsNotOffered: choiceSelectionFlagsNotOffered,
-    choiceSelectionExclusiveGroups: choiceSelectionExclusiveGroups
+    choiceSelectionExclusiveGroups: choiceSelectionExclusiveGroups,
+    gutterMinimum: gutterMinimum
   };
 });

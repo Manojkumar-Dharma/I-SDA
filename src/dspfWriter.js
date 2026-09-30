@@ -3562,7 +3562,9 @@
     var gutter = parseInt(state.gutter, 10);
     if (numCol > 0) parts.push('(*NUMCOL ' + numCol + ')');
     else if (numRow > 0) parts.push('(*NUMROW ' + numRow + ')');
-    if (gutter > 0) parts.push('(*GUTTER ' + gutter + ')');
+    // Task I-133: a gutter below the documented minimum (2) is dropped, like
+    // the other invalid layout values this backstop already drops.
+    if (gutter >= Math.max(1, KeywordSpec.gutterMinimum('PSHBTNFLD'))) parts.push('(*GUTTER ' + gutter + ')');
     return next.concat([{ name: 'PSHBTNFLD', parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
   }
 
@@ -4672,7 +4674,8 @@
     var gutter = parseInt(state.gutter, 10);
     if (numCol > 0) parts.push('(*NUMCOL ' + numCol + ')');
     else if (numRow > 0) parts.push('(*NUMROW ' + numRow + ')');
-    if (gutter > 0 && (numCol > 0 || numRow > 0)) parts.push('(*GUTTER ' + gutter + ')');
+    // Task I-133: also dropped when below the documented minimum (2).
+    if (gutter >= Math.max(1, KeywordSpec.gutterMinimum(state.kind)) && (numCol > 0 || numRow > 0)) parts.push('(*GUTTER ' + gutter + ')');
     next = next.concat([{ name: state.kind, parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
     return next;
   }
