@@ -180,6 +180,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-135](#i-135) | Record | `SETOFF` (documented as equivalent to `SETOF`, "SETOF is preferred"): not read by the Define Indicator Keywords panel or the SFL/SFLMSG/PDNSFLCTL indicator-text rows, and no "option indicators not valid" guard, unlike `SETOF` | I-121, I-101 | Done | v0.10.260 |
 | [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | In progress | - |
 | [I-137](#i-137) | Field | `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: the DDS Reference bars all four on a floating-point field, but the check runs only when the keyword row is switched on - a raw-editor add to an F field, or a field carrying one changed to data type F on the Basic tab, is unblocked | I-121, I-125 | Done | v0.10.264 |
+| [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -199,11 +200,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-137, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-138, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121 DFT/DFTVAL floating-point slice | EDTCDE ("valid only for fields with Y or blank in position 35") and EDTWRD ("numeric only fields (Y specified in position 35)") also exclude every data type other than Y/blank (EDTCDE) or Y (EDTWRD), not only F; that wider eligibility is enforced nowhere. Needs a look at how this codebase's `dataType` maps to position 35 for numeric fields before it can be specified. (The floating-point half of this finding is I-137.) |
+| *(none)* | *(none)* |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6074,6 +6075,16 @@ New `DspfWriter.dftGroupFloatNewConflictReason(oldField, updates)`: it takes its
 New `src/test/i137DftGroupFloatGuard.test.js`: the pure function (both directions per keyword, wording, already-invalid not re-reported, fix by changing the type or removing the keyword, non-F untouched, two-at-once ordering, out-of-group keyword) plus the real generated webview in jsdom (raw-editor add of each of the four to an F field blocked with an alert naming it; Basic-tab type change to F blocked on a character field carrying each, typed length kept; an unrelated edit still commits; a hand-written invalid F field with DFT can be edited and fixed; an unrelated keyword on the F field is not blocked). It fails against pre-change code. Full suite: 213 files, 11,918 checks, zero failures.
 
 The Deferred findings table keeps one finding: EDTCDE/EDTWRD's wider data-type eligibility.
+
+---
+
+### I-138 — `EDTCDE` / `EDTWRD`: barred on every data type but Y (or blank), enforced nowhere except F
+
+> **Area:** Field · **Status:** In progress · **Depends on:** I-121, I-137
+
+Opened from the deferred finding logged by the I-121 DFT/DFTVAL floating-point slice. `DDS_Keyword_V7r6.txt` states EDTCDE's eligibility at line ~5600 (\"valid only for fields with Y or blank in position 35\") and EDTWRD's at line ~5933 (\"valid for numeric only fields (Y specified in position 35)\"). Since I-137 F is blocked, but an explicit A, X, N, S, I, D, M, L, T or Z is accepted by the raw editor, the Input keywords panel and a Basic-tab data type change.
+
+Plan: an `allowedDataTypes: ['Y']` fact on both `RECORD_TYPES` entries (the IGCALTTYP shape - a blank data type passes, because the DDS default section says a blank position 35 with decimal positions and an editing keyword becomes Y), a diff-based writer guard for the add path and one for the Basic-tab data type change, wired at the same sites as the VALNUM (I-131) guards. Re-verify both sentences and the position-35 default text fresh before coding.
 
 ---
 
