@@ -155,6 +155,14 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-screen-backdrop-layer { position: absolute; top: 0; left: 0; opacity: 0.32; filter: grayscale(0.5); pointer-events: none; z-index: 0; }
   .dspf-screen-backdrop-layer .dspf-screen { z-index: 0; }
   .dspf-field { white-space: pre; color: var(--dspf-fg, var(--accent)); cursor: grab; user-select: none; border: 1px solid transparent; position: relative; z-index: 1; }
+  /* Task P14 - a stacked (multi-record) screen: every field paints the screen-frame
+     background under its own cells, so a later record overwrites the earlier one
+     instead of printing over it. :where() keeps this at zero specificity, so
+     reverse-video (.dspf-reverse) and the selected highlight still win; the selected
+     rule below re-adds the opaque base underneath its translucent tint. */
+  :where(.dspf-screen.dspf-stacked .dspf-field) { background-color: #050705; }
+  .dspf-screen.dspf-stacked .dspf-field.selected { background: linear-gradient(rgba(var(--accent-rgb),0.08), rgba(var(--accent-rgb),0.08)), #050705; }
+  .compare-record-row[data-order]::after { content: '  \\2190 layer ' attr(data-order); color: var(--ink-dim); font-size: 11px; }
   .dspf-field:hover { border-color: rgba(var(--accent-rgb),0.4); }
   .dspf-field.selected { border-color: var(--accent); background: rgba(var(--accent-rgb),0.08); }
   /* Task L10: rubber-band drag-select rectangle - fixed-position (drawn in
@@ -3101,9 +3109,14 @@ const htmlTemplate = `<!DOCTYPE html>
       if (!container) return;
       const prevScroll = container.scrollTop;
       container.innerHTML = '';
+      // Task P14 - stack position (1 = bottom) of each checked record, in the order it
+      // was checked (Set insertion order); the current record always sits above them all.
+      const stackOrder = Array.from(compareSelectedRecords).filter((n) => n !== currentRecordName && model.records.some((x) => x.name === n));
       model.records.filter((r) => r.name !== currentRecordName).forEach((r) => {
         const row = document.createElement('label');
         row.className = 'compare-record-row';
+        const pos = stackOrder.indexOf(r.name);
+        if (pos >= 0) row.setAttribute('data-order', String(pos + 1));
         row.innerHTML = '<input type="checkbox" ' + (compareSelectedRecords.has(r.name) ? 'checked' : '') + ' /> ' + r.name;
         row.querySelector('input').addEventListener('change', (e) => {
           if (e.target.checked) compareSelectedRecords.add(r.name); else compareSelectedRecords.delete(r.name);
@@ -3150,6 +3163,10 @@ const htmlTemplate = `<!DOCTYPE html>
     );
     if (others.length === 0) return;
     const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex);
+    // Task P14 - the primary (current) record sits above the backdrop layer, so its
+    // fields must overwrite the dimmed cells beneath them rather than let them show through.
+    const primaryEl = screenOutput.querySelector('.dspf-screen');
+    if (primaryEl) primaryEl.classList.add('dspf-stacked');
     screenOutput.insertAdjacentHTML(
       'beforeend',
       '<div class="dspf-screen-backdrop-layer" title="Dimmed reference: ' + others.join(', ') + '">' + DspfEngine.renderScreenHtml(backdropScreen) + '</div>'
@@ -3171,15 +3188,15 @@ const htmlTemplate = `<!DOCTYPE html>
   // block below, the same way it already does for the empty "no record
   // formats found" case.
   function renderFullOverlay(recordName) {
-    const included = [recordName].concat(
-      Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n))
-    );
+    // Task P14 - checked records bottom-to-top in the order they were checked, the
+    // current record LAST so it is drawn on top (resolveMultiScreen stacks in list order).
+    const included = Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n)).concat([recordName]);
     fkeyLegendEl.innerHTML = '';
     const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex);
     lastScreen = screen;
     mainHint.classList.add('hint-readonly');
     mainHint.textContent = included.length > 1
-      ? 'Comparing ' + included.join(', ') + ' overlaid together at full brightness, read-only - switch off "Full overlay" or "Compare" to edit again.'
+      ? 'Stacked bottom to top: ' + included.join(' > ') + ' (' + recordName + ' on top; a later record overwrites the cells under it). Read-only - switch off "Full overlay" or "Compare" to edit again.'
       : 'Check another record above to overlay it here at full brightness, read-only.';
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     updateRuler(screen);

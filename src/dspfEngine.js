@@ -2075,6 +2075,15 @@
    * fields are all shown even if they'd occupy the same cells, since this mode is
    * for comparison, not simulating one specific runtime state. Each field carries
    * `.sourceRecord` so the UI can show which record format it came from.
+   *
+   * Task P14 - "no overlap resolution" still holds in the DATA (every field of
+   * every record is returned, so the same-cell collisions stay inspectable), but
+   * the fields are concatenated in `recordNames` order, which is the stacking
+   * order: a LATER record is drawn above an EARLIER one. When two or more records
+   * actually contribute, the result carries `stacked: true` and renderScreenHtml
+   * adds the `dspf-stacked` class, whose CSS gives every field an opaque
+   * background so a later field's cells overwrite the earlier field's instead of
+   * printing on top of it. Callers put the record that should be on top LAST.
    * @param {number} [sizeIndex] which DSPSIZ-declared size to use - see resolveScreen.
    */
   function resolveMultiScreen(dspfFile, recordNames, activeIndicators, sizeIndex) {
@@ -2083,11 +2092,13 @@
     var allFields = [];
     var windows = [];
     var errorMessages = [];
+    var contributing = 0;
 
     recordNames.forEach(function (recordName, index) {
       var record = dspfFile.records.find(function (r) { return r.name === recordName; });
       if (!record) return;
       if (!conditionsSatisfied(record.conditions, activeIndicators, size.name)) return;
+      contributing++;
 
       var windowBox = resolveWindow(record, dspfFile, 0, index);
       var lineOffset = windowBox ? windowBox.line - 1 : 0;
@@ -2108,7 +2119,7 @@
       if (errorMessage) errorMessages.push(Object.assign({ recordName: recordName }, errorMessage));
     });
 
-    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, errorMessages: errorMessages };
+    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, errorMessages: errorMessages, stacked: contributing > 1 };
   }
 
   // ---------------------------------------------------------------------
@@ -2573,7 +2584,7 @@
       .join('\n');
 
     return (
-      '<div class="dspf-screen" style="grid-template-columns:repeat(' +
+      '<div class="dspf-screen' + (screen.stacked ? ' dspf-stacked' : '') + '" style="grid-template-columns:repeat(' +
       screen.columns +
       ',1ch);grid-template-rows:repeat(' +
       screen.lines +
