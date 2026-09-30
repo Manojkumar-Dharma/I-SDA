@@ -177,6 +177,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-132](#i-132) | Field | `CHECK(M10)` / `CHECK(M10F)` / `CHECK(M11)` / `CHECK(M11F)`: the DDS Reference bars all four on a floating-point field, but only `CHECK(AB)` is guarded - the modulus-check codes can be added to an F field, or a field carrying one changed to data type F | I-121, I-125 | Done | v0.10.250 |
 | [I-133](#i-133) | Field | `*GUTTER` minimum of 2 (`SNGCHCFLD` / `MLTCHCFLD` "at least 2", `PSHBTNFLD` "greater than one"): enforced by the panels' Apply but not by the writer backstops `setChoiceSelectionType` / `setPshbtnfld` (both only test `> 0`) | I-121, I-63 | Done | v0.10.253 |
 | [I-134](#i-134) | Field | `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD` layout parameters (`*NUMCOL` xor `*NUMROW`, `*GUTTER` of at least 2, and for SNGCHCFLD / MLTCHCFLD a `*GUTTER` only with one of them): checked by the panels' Apply buttons only - the raw keyword editor accepts any of them | I-133, I-63 | Done | v0.10.254 |
+| [I-135](#i-135) | Record | `SETOFF` (documented as equivalent to `SETOF`, "SETOF is preferred"): not read by the Define Indicator Keywords panel or the SFL/SFLMSG/PDNSFLCTL indicator-text rows, and no "option indicators not valid" guard, unlike `SETOF` | I-121, I-101 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -200,7 +201,7 @@ Every finding so far has been opened as a task (I-61 – I-132, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121 record-indicator keyword group slice | `SETOFF` is documented as equivalent to `SETOF` (`DDS_Keyword_V7r6.txt` ~line 10476: "The SETOF keyword is preferred"; format `SETOFF(response-indicator ['text'])`), the same relationship as PAGEDOWN / ROLLUP, but `getRecordIndicatorInstances` reads only `SETOF` (no alias entry like ROLLUP / ROLLDOWN), so a hand-written `SETOFF` instance is not shown as a Set off row in the Define Indicator Keywords panel (it stays visible as a raw keyword chip), and `SETOFF` has no `noOptionIndicators` fact although its equivalent `SETOF` does. Fix would be one `alternateNames: ['SETOFF']` on the SETOF fact (the panel would then read it back as SETOF, canonicalizing on edit) plus the same fact for `SETOFF`; left as is - this slice is a pure refactor. |
+| *(none)* | *(none)* |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6007,6 +6008,14 @@ Implementation: `keywordSpec.js` gained `gutterRequiresLayout: true` on the `sel
 New `src/test/i134LayoutParametersGuard.test.js` (56 checks): the spec fact and accessor fail-safety; `layoutParameterProblems` for all three keywords (each rule, the legacy shape, flags around the layout, PSHBTNFLD's lone gutter versus SNGCHCFLD's, gutter 1 alone reporting both problems, other keywords never checked); the diff guard (already-present problem not re-reported, fixing and removal allowed, a new problem still blocked, null-safe); and a real-webview jsdom part that raw-adds bad `SNGCHCFLD` and `PSHBTNFLD` parameters (blocked with the new wording, no `applyEdit`), leaves an already-invalid hand-written field editable (an unrelated keyword add, then removal of the bad keyword) and lets a valid `SNGCHCFLD((*NUMCOL 2) (*GUTTER 2))` through. Disabling the guard fails 15 of them. Full suite: 203 files, 11,618 checks, zero failures.
 
 The Deferred findings table is empty again.
+
+---
+
+### I-135 — `SETOFF` is not treated as the alias of `SETOF` the DDS Reference says it is
+
+> **Area:** Record · **Status:** In progress · **Depends on:** I-121, I-101
+
+Opened from the deferred finding logged by the I-121 record-indicator keyword group slice. `DDS_Keyword_V7r6.txt` says `SETOFF` "is equivalent to the SETOF keyword" (`SETOFF(response-indicator ['text'])`, "The SETOF keyword is preferred", ~line 10476) and `SETOF`'s own section says the same the other way round and adds "Option indicators are not valid for this keyword" (~line 10457). The code treats `SETOF` fully - the Define Indicator Keywords panel (`getRecordIndicatorInstances`), the SFL / SFLMSG / PDNSFLCTL indicator-text rows (`getIndicatorTextRows`) and the I-95 / I-101 no-option-indicators guard - but `SETOFF` in none of them: a hand-written `SETOFF(63)` shows only as a raw keyword chip and can be given option indicators the reference forbids. Plan, following how `ROLLUP` / `ROLLDOWN` (PAGEDOWN / PAGEUP) are already handled: `alternateNames: ['SETOFF']` on the `SETOF` fact so both panels read it as `SETOF` and write the canonical spelling on the next edit (the panels have never offered an alias as a choice), plus a `SETOFF` `noOptionIndicators` fact so the guard refuses conditions on it.
 
 ---
 
