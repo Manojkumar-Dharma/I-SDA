@@ -796,6 +796,25 @@
     // region). Lists are in IBM's own order; the webview keeps its own
     // panel display order and a test ties the two together. `validValues`
     // is the fact `validValues()` / `isValidValue()` read.
+    // Task I-121 (MOUBTN parameter-domain slice) - MOUBTN(EVENT
+    // [TRAILING-EVENT] {Command key | EVENT-ID} [*QUEUE | *NOQUEUE]), from
+    // its own DDS Reference section (DDS_Keyword_V7r6.txt, ~line 8729).
+    // `validValues` is the EVENT / TRAILING-EVENT domain (the two share it),
+    // in IBM's order: unshifted then shifted, left/middle/right, each
+    // Pressed / Released / Double click.
+    MOUBTN: {
+      ddsReference: 'MOUBTN(EVENT [TRAILING-EVENT] {Command key | EVENT-ID} [*QUEUE | *NOQUEUE]). ' +
+        'EVENT and TRAILING-EVENT take *ULP *ULR *ULD *UMP *UMR *UMD *URP *URR *URD *SLP *SLR *SLD *SMP *SMR *SMD *SRP *SRR *SRD. ' +
+        'Command key: CA01-CA24, CF01-CF24, ENTER, ROLLUP, ROLLDOWN, HELP, HOME, PRINT, CLEAR; EVENT-ID: E00-E15. ' +
+        'QUEUE parameter default is *NOQUEUE.',
+      validValues: ['*ULP', '*ULR', '*ULD', '*UMP', '*UMR', '*UMD', '*URP', '*URR', '*URD',
+        '*SLP', '*SLR', '*SLD', '*SMP', '*SMR', '*SMD', '*SRP', '*SRR', '*SRD'],
+      commandKeyNames: ['ENTER', 'ROLLUP', 'ROLLDOWN', 'HELP', 'HOME', 'PRINT', 'CLEAR'],
+      commandKeyRanges: [{ prefix: 'CA', min: 1, max: 24 }, { prefix: 'CF', min: 1, max: 24 }],
+      eventIdRange: { prefix: 'E', min: 0, max: 15 },
+      queueValues: ['*QUEUE', '*NOQUEUE'],
+      queueDefault: '*NOQUEUE'
+    },
     DSPATR: {
       ddsReference: 'Valid attributes for the first format of the DSPATR keyword. ' +
         'For all fields: BL, CS, HI, ND, PC, RI, UL. For input-capable fields only: MDT, OID, PR, SP.',

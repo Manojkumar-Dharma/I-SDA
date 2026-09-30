@@ -1125,12 +1125,14 @@
   // same shape.
   // -----------------------------------------------------------------------
 
-  var MOUBTN_EVENTS = ['*ULP', '*ULR', '*ULD', '*UMP', '*UMR', '*UMD', '*URP', '*URR', '*URD',
-    '*SLP', '*SLR', '*SLD', '*SMP', '*SMR', '*SMD', '*SRP', '*SRR', '*SRD'];
+  // Task I-121: the event and *QUEUE domains come from the spec
+  // (DspfWriter.moubtnParameterDomain), in IBM's order = the order shown.
+  function moubtnEvents() { return DspfWriter.moubtnParameterDomain().events; }
+  function moubtnQueueValues() { return DspfWriter.moubtnParameterDomain().queueValues; }
 
   /** Splits one MOUBTN instance's raw `parameters` text into its 4 logical
    *  pieces. TRAILING-EVENT is optional and, when present, is itself one of
-   *  MOUBTN_EVENTS' own `*xxx` values, so token count alone (3 vs 2, after
+   *  the spec's own `*xxx` EVENT values, so token count alone (3 vs 2, after
    *  any trailing QUEUE flag is peeled off) distinguishes "two-event" from
    *  "single-event" instances without needing to inspect the token shape. */
   function parseMoubtnParams(text) {
@@ -1166,7 +1168,7 @@
     var f = parseMoubtnParams(inst.parameters);
     function eventOptions(selected, allowNone) {
       var html = allowNone ? '<option value=""' + (selected === '' ? ' selected' : '') + '>(single event)</option>' : '';
-      html += MOUBTN_EVENTS.map(function (e) {
+      html += moubtnEvents().map(function (e) {
         return '<option value="' + e + '"' + (selected === e ? ' selected' : '') + '>' + e + '</option>';
       }).join('');
       return html;
@@ -1180,8 +1182,9 @@
     html += '<input type="text" class="' + p + '-key" placeholder="Command key or EVENT-ID (CFnn/CAnn/ROLLUP/ROLLDOWN/HELP/HOME/PRINT/CLEAR/ENTER/E00-E15)" value="' + escapeHtml(f.key) + '" />';
     html += '<select class="' + p + '-queue">' +
       '<option value=""' + (f.queue === '' ? ' selected' : '') + '>(default *NOQUEUE)</option>' +
-      '<option value="*QUEUE"' + (f.queue === '*QUEUE' ? ' selected' : '') + '>*QUEUE</option>' +
-      '<option value="*NOQUEUE"' + (f.queue === '*NOQUEUE' ? ' selected' : '') + '>*NOQUEUE</option>' +
+      moubtnQueueValues().map(function (q) {
+        return '<option value="' + q + '"' + (f.queue === q ? ' selected' : '') + '>' + q + '</option>';
+      }).join('') +
       '</select>';
     html += '</div></div>';
     return html;
@@ -8642,6 +8645,9 @@
     validityAndEditHtml: validityAndEditHtml,
     wireValidityAndEdit: wireValidityAndEdit,
     dateTimeFormatHtml: dateTimeFormatHtml,
+    moubtnInstanceRowHtml: moubtnInstanceRowHtml,
+    parseMoubtnParams: parseMoubtnParams,
+    composeMoubtnParams: composeMoubtnParams,
     wireDateTimeFormat: wireDateTimeFormat,
     validityCheckInstancesHtml: validityCheckInstancesHtml,
     wireValidityCheckInstances: wireValidityCheckInstances,

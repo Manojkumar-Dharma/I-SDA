@@ -4704,6 +4704,14 @@
   function dateTimeValidValues(keywordName) {
     return KeywordSpec.validValues(keywordName);
   }
+
+  /** Task I-121 (MOUBTN parameter-domain slice) - the MOUBTN panel's EVENT /
+   *  TRAILING-EVENT values and *QUEUE flag values, read from the spec
+   *  (copies). */
+  function moubtnParameterDomain() {
+    var spec = KeywordSpec.RECORD_TYPES.MOUBTN;
+    return { events: spec.validValues.slice(), queueValues: spec.queueValues.slice() };
+  }
   function sngchcfldOnlyFlagGroups() {
     return KeywordSpec.choiceSelectionExclusiveGroups('SNGCHCFLD');
   }
@@ -9216,6 +9224,7 @@
     layoutParametersNewConflictReason: layoutParametersNewConflictReason,
     sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,
     dateTimeValidValues: dateTimeValidValues,
+    moubtnParameterDomain: moubtnParameterDomain,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,
     setChoices: setChoices,
