@@ -176,6 +176,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-131](#i-131) | Field | `VALNUM`: the DDS Reference rule (input-capable usage I/B, data type Y) is enforced only by hiding the General-tab row - raw-editor adds and Basic-tab data type / usage changes are unblocked | I-121, I-94 | Done | v0.10.248 |
 | [I-132](#i-132) | Field | `CHECK(M10)` / `CHECK(M10F)` / `CHECK(M11)` / `CHECK(M11F)`: the DDS Reference bars all four on a floating-point field, but only `CHECK(AB)` is guarded - the modulus-check codes can be added to an F field, or a field carrying one changed to data type F | I-121, I-125 | Done | v0.10.250 |
 | [I-133](#i-133) | Field | `*GUTTER` minimum of 2 (`SNGCHCFLD` / `MLTCHCFLD` "at least 2", `PSHBTNFLD` "greater than one"): enforced by the panels' Apply but not by the writer backstops `setChoiceSelectionType` / `setPshbtnfld` (both only test `> 0`) | I-121, I-63 | Done | v0.10.253 |
+| [I-134](#i-134) | Field | `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD` layout parameters (`*NUMCOL` xor `*NUMROW`, `*GUTTER` of at least 2, and for SNGCHCFLD / MLTCHCFLD a `*GUTTER` only with one of them): checked by the panels' Apply buttons only - the raw keyword editor accepts any of them | I-133, I-63 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -199,7 +200,7 @@ Every finding so far has been opened as a task (I-61 – I-132, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| I-133 (checked while opening it) | The raw keyword editor validates none of the layout parameters of `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD`: a hand-written `(*NUMCOL 2) (*NUMROW 3)`, a gutter below 2, or (SNGCHCFLD / MLTCHCFLD only, per their sections) a `*GUTTER` with neither `*NUMCOL` nor `*NUMROW` is accepted; only the panels' Apply buttons check them. I-133 fixes the writer backstops only. |
+| *(none)* | *(none)* |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5966,6 +5967,14 @@ Implementation: `keywordSpec.js` carries `gutterMinimum: 2` on `RECORD_TYPES.SNG
 New `src/test/i133GutterMinimumWriterBackstop.test.js` (27 checks): the spec fact and accessor fail-safety, both writers for gutter 0 / 1 / 2 / 5 / blank / junk on each of the three keywords, `*NUMROW`, the unchanged no-`*NUMCOL` drop for SNGCHCFLD / MLTCHCFLD versus PSHBTNFLD's lone valid gutter, flag / restrict ordering, and reading unchanged. Reverting the writers to `> 0` fails 7 of them. Full suite: 202 files, 11,562 checks, zero failures.
 
 The Deferred findings table now holds one row, the raw keyword editor's missing layout-parameter validation, which this task deliberately did not take on.
+
+---
+
+### I-134 — `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD` layout parameters are validated only by the panels' Apply buttons
+
+> **Area:** Field · **Status:** In progress · **Depends on:** I-133, I-63
+
+Opened from the deferred finding logged by I-133. The Choice selection type and Push-button field panels refuse three invalid layout combinations before writing (`webviewClientHelpers.js`): `*NUMCOL` and `*NUMROW` together, a `*GUTTER` below 2, and - SNGCHCFLD / MLTCHCFLD only - a `*GUTTER` with neither `*NUMCOL` nor `*NUMROW` (PSHBTNFLD's own section says its gutter, unlike SNGCHCFLD's, "can be specified even if *NUMCOL or *NUMROW have not been specified"). The writer backstops now drop the gutter cases (I-133), but the raw keyword editor - and every other path that writes a field's `keywords` through `commitEdit` - checks none of them, so `PSHBTNFLD((*NUMCOL 2) (*NUMROW 3))`, `SNGCHCFLD((*GUTTER 1))` and the like can be added by hand. Plan: a diff-based `commitEdit` backstop over the three keywords (only a problem the edit introduces is reported, so a hand-written file that already has one stays editable), reading the gutter minimum from `keywordSpec.js` (I-133) plus a new per-keyword "gutter needs *NUMCOL / *NUMROW" fact.
 
 ---
 
