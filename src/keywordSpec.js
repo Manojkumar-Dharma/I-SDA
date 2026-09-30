@@ -1126,6 +1126,50 @@
       }
     },
 
+    // Task I-121 SNGCHCFLD/MLTCHCFLD selection-type-parameters slice - the
+    // *param flags each keyword's own format string offers, re-verified
+    // fresh against DDS_Keyword_V7r6.txt (SNGCHCFLD ~line 12652, MLTCHCFLD
+    // ~line 8022), unchanged from what the code already had:
+    //   SNGCHCFLD[([*NORSTCSR | *RSTCSR] [*NOAUTOSLT | *AUTOSLT | *AUTOSLTENH]
+    //              [*NOSLTIND | *SLTIND] [*NOAUTOENT | *AUTOENT | *AUTOENTNN]
+    //              [[(*NUMCOL n) | (*NUMROW n)] [(*GUTTER n)]])]
+    //   MLTCHCFLD[([*RSTCSR | *NORSTCSR] [*NOSLTIND | *SLTIND]
+    //              [[(*NUMCOL n) | (*NUMROW n)] [(*GUTTER n)]])]
+    // i.e. MLTCHCFLD has no AUTOSLT / AUTOENT family at all. This was three
+    // hand-kept copies (dspfWriter.js CHOICE_SELECTION_FLAGS and
+    // SNGCHCFLD_ONLY_FLAGS, webviewClientHelpers.js SNGCHCFLD_ONLY_GROUPS).
+    // `selectionParameters.groups` lists each mutually-exclusive flag group
+    // (the same groups real SDA's "Define Choice Selection Type" screen
+    // shows); the numeric *NUMCOL / *NUMROW / *GUTTER parameters are not
+    // bare flags and are not modeled here.
+    SNGCHCFLD: {
+      selectionParameters: {
+        groups: [
+          { name: 'rstcsr', flags: ['*RSTCSR', '*NORSTCSR'] },
+          { name: 'sltind', flags: ['*SLTIND', '*NOSLTIND'] },
+          { name: 'autoslt', flags: ['*AUTOSLT', '*NOAUTOSLT', '*AUTOSLTENH'] },
+          { name: 'autoent', flags: ['*AUTOENT', '*NOAUTOENT', '*AUTOENTNN'] }
+        ],
+        ddsReference:
+          'SNGCHCFLD[([*NORSTCSR | *RSTCSR] [*NOAUTOSLT | *AUTOSLT | ' +
+          '*AUTOSLTENH] [*NOSLTIND | *SLTIND] [*NOAUTOENT | *AUTOENT | ' +
+          '*AUTOENTNN] [[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] ' +
+          '[(*GUTTER gutter-width)]])]'
+      }
+    },
+    MLTCHCFLD: {
+      selectionParameters: {
+        groups: [
+          { name: 'rstcsr', flags: ['*RSTCSR', '*NORSTCSR'] },
+          { name: 'sltind', flags: ['*SLTIND', '*NOSLTIND'] }
+        ],
+        ddsReference:
+          'MLTCHCFLD[([*RSTCSR | *NORSTCSR] [*NOSLTIND | *SLTIND] ' +
+          '[[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] ' +
+          '[(*GUTTER gutter-width)]])]'
+      }
+    },
+
     // Task I-121 EDTCDE/EDTMSK slice - EDTCDE's own DDS Reference section
     // (line ~5618), re-verified fresh against DDS_Keyword_V7r6.txt,
     // unchanged from what the code already had: "You can optionally
@@ -1658,6 +1702,55 @@
     });
   }
 
+  /** Task I-121 SNGCHCFLD/MLTCHCFLD slice - `keywordName`'s flag groups
+   *  (`[{name, flags}]`, copies), or [] for a keyword with no
+   *  `selectionParameters` fact. */
+  function choiceSelectionFlagGroups(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    var sp = spec && spec.selectionParameters;
+    if (!sp) return [];
+    return sp.groups.map(function (g) { return { name: g.name, flags: g.flags.slice() }; });
+  }
+
+  function selectionKeywordNames() {
+    return Object.keys(RECORD_TYPES).filter(function (k) { return !!RECORD_TYPES[k].selectionParameters; });
+  }
+
+  /** Every flag any selection-type keyword offers (SNGCHCFLD's group order
+   *  first), de-duplicated - what a reader of either keyword's parameters
+   *  recognizes. */
+  function choiceSelectionAllFlags() {
+    var out = [];
+    selectionKeywordNames().forEach(function (k) {
+      choiceSelectionFlagGroups(k).forEach(function (g) {
+        g.flags.forEach(function (f) { if (out.indexOf(f) < 0) out.push(f); });
+      });
+    });
+    return out;
+  }
+
+  /** The flags some OTHER selection-type keyword offers but `keywordName`
+   *  does not (MLTCHCFLD -> the six AUTOSLT / AUTOENT flags; SNGCHCFLD ->
+   *  none). [] for a keyword with no fact. */
+  function choiceSelectionFlagsNotOffered(keywordName) {
+    if (!RECORD_TYPES[keywordName] || !RECORD_TYPES[keywordName].selectionParameters) return [];
+    var own = [];
+    choiceSelectionFlagGroups(keywordName).forEach(function (g) { own = own.concat(g.flags); });
+    return choiceSelectionAllFlags().filter(function (f) { return own.indexOf(f) < 0; });
+  }
+
+  /** The flag-group names `keywordName` offers that no other selection-type
+   *  keyword does (SNGCHCFLD -> autoslt, autoent). */
+  function choiceSelectionExclusiveGroups(keywordName) {
+    var mine = choiceSelectionFlagGroups(keywordName).map(function (g) { return g.name; });
+    var others = [];
+    selectionKeywordNames().forEach(function (k) {
+      if (k === keywordName) return;
+      choiceSelectionFlagGroups(k).forEach(function (g) { others.push(g.name); });
+    });
+    return mine.filter(function (n) { return others.indexOf(n) < 0; });
+  }
+
   /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
    *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
    *  for a keyword with no spec entry or no such flag. */
@@ -1940,6 +2033,10 @@
     msgDataFieldKeywords: msgDataFieldKeywords,
     notAllowedWhenEqual: notAllowedWhenEqual,
     noOptionIndicatorsFact: noOptionIndicatorsFact,
-    noOptionIndicatorsNames: noOptionIndicatorsNames
+    noOptionIndicatorsNames: noOptionIndicatorsNames,
+    choiceSelectionFlagGroups: choiceSelectionFlagGroups,
+    choiceSelectionAllFlags: choiceSelectionAllFlags,
+    choiceSelectionFlagsNotOffered: choiceSelectionFlagsNotOffered,
+    choiceSelectionExclusiveGroups: choiceSelectionExclusiveGroups
   };
 });

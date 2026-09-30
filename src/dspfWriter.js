@@ -4599,7 +4599,9 @@
    *  grouped by the mutually-exclusive pairs the screen itself shows them
    *  in (only one of each pair applies at a time; *NUMCOL/*NUMROW/*GUTTER
    *  take a numeric argument instead of being a bare flag). */
-  var CHOICE_SELECTION_FLAGS = ['*RSTCSR', '*NORSTCSR', '*SLTIND', '*NOSLTIND', '*AUTOSLT', '*NOAUTOSLT', '*AUTOSLTENH', '*AUTOENT', '*NOAUTOENT', '*AUTOENTNN'];
+  //  Task I-121: the flag list is keywordSpec.js's SNGCHCFLD/MLTCHCFLD
+  //  `selectionParameters` fact (every flag either keyword offers).
+  var CHOICE_SELECTION_FLAGS = KeywordSpec.choiceSelectionAllFlags();
 
   /** Reads which of SNGCHCFLD/MLTCHCFLD is present and its *param list -
    *  { kind: ''|'SNGCHCFLD'|'MLTCHCFLD', flags: string[] (e.g. ['*AUTOENT']),
@@ -4631,7 +4633,14 @@
    *  MLTCHCFLD format string is `MLTCHCFLD[([*RSTCSR|*NORSTCSR]
    *  [*NOSLTIND|*SLTIND] [...*NUMCOL/*NUMROW/*GUTTER...])]` - no
    *  AUTOSLT/AUTOENT family at all. Task I-34. */
-  var SNGCHCFLD_ONLY_FLAGS = ['*AUTOSLT', '*NOAUTOSLT', '*AUTOSLTENH', '*AUTOENT', '*NOAUTOENT', '*AUTOENTNN'];
+  //  Task I-121: read from the spec - the flags SNGCHCFLD offers and
+  //  MLTCHCFLD does not.
+  var SNGCHCFLD_ONLY_FLAGS = KeywordSpec.choiceSelectionFlagsNotOffered('MLTCHCFLD');
+  /** The radio-group names only SNGCHCFLD offers (the webview hides them
+   *  for MLTCHCFLD or an unset type). */
+  function sngchcfldOnlyFlagGroups() {
+    return KeywordSpec.choiceSelectionExclusiveGroups('SNGCHCFLD');
+  }
 
   /** Returns a NEW keywords array with SNGCHCFLD/MLTCHCFLD replaced by one
    *  keyword built from `state` (same shape getChoiceSelectionType
@@ -4647,8 +4656,9 @@
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'SNGCHCFLD' && kw.name !== 'MLTCHCFLD'; });
     if (!state || !state.kind) return next;
     var parts = (state.flags || []).slice();
-    if (state.kind === 'MLTCHCFLD') {
-      parts = parts.filter(function (f) { return SNGCHCFLD_ONLY_FLAGS.indexOf(f) < 0; });
+    var notOffered = KeywordSpec.choiceSelectionFlagsNotOffered(state.kind);
+    if (notOffered.length) {
+      parts = parts.filter(function (f) { return notOffered.indexOf(f) < 0; });
     }
     // Task I-63: IBM's shape is `(*NUMCOL n)` / `(*NUMROW n)` / `(*GUTTER
     // n)` - parenthesized groups with a space, not `*NUMCOL(n)`. A field
@@ -9115,6 +9125,7 @@
     getMenubarSeparator: getMenubarSeparator,
     setMenubarSeparator: setMenubarSeparator,
     getChoiceSelectionType: getChoiceSelectionType,
+    sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,
     setChoices: setChoices,

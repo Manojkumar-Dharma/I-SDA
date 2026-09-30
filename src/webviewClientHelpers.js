@@ -3355,8 +3355,12 @@
 
   /** Task I-34: IBM's MLTCHCFLD format string has no *AUTOSLT/*AUTOENT
    *  family at all - those two radio groups exist ONLY on SNGCHCFLD.
-   *  Mirrors DspfWriter.SNGCHCFLD_ONLY_FLAGS' own group names. */
-  var SNGCHCFLD_ONLY_GROUPS = { autoslt: true, autoent: true };
+   *  Read from the spec via DspfWriter.sngchcfldOnlyFlagGroups(). */
+  //  Task I-121: which groups those are is keywordSpec.js's SNGCHCFLD /
+  //  MLTCHCFLD `selectionParameters` fact, read lazily through DspfWriter.
+  function isSngchcfldOnlyGroup(name) {
+    return DspfWriter.sngchcfldOnlyFlagGroups().indexOf(name) >= 0;
+  }
 
   /** SNGCHCFLD/MLTCHCFLD - marks a field as a single- or multiple-choice
    *  selection field and its own *param behavior flags. This is the entry
@@ -3379,7 +3383,7 @@
       // (or not yet a choice field), so there's nothing stale left in the
       // DOM for wireChoiceSelectionTypeEditor's own kind-based guard to
       // have to filter out.
-      if (state.kind !== 'SNGCHCFLD' && SNGCHCFLD_ONLY_GROUPS[group.name]) return;
+      if (state.kind !== 'SNGCHCFLD' && isSngchcfldOnlyGroup(group.name)) return;
       var current = group.options.map(function (o) { return o[0]; }).find(function (v) { return v !== '' && state.flags.indexOf(v) >= 0; }) || '';
       html += '<div class="field-row"><label>' + escapeHtml(group.label) + '</label><select class="' + ownerKey + '-cst-' + group.name + '">' +
         group.options.map(function (opt) {
@@ -3425,7 +3429,7 @@
         // is switched away from SNGCHCFLD client-side without a full
         // rerender in between, a stale autoslt/autoent <select> left
         // over from the PREVIOUS render could otherwise still be read.
-        if (kind !== 'SNGCHCFLD' && SNGCHCFLD_ONLY_GROUPS[group.name]) return;
+        if (kind !== 'SNGCHCFLD' && isSngchcfldOnlyGroup(group.name)) return;
         var sel = document.querySelector('.' + ownerKey + '-cst-' + group.name);
         if (sel && sel.value) flags.push(sel.value);
       });
