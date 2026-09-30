@@ -34,7 +34,7 @@ check('TIMSEP values (no slash)', j(KeywordSpec.validValues('TIMSEP')) === j(['*
   check(k + ' carries a citation', typeof KeywordSpec.RECORD_TYPES[k].valuesDdsReference === 'string' && KeywordSpec.RECORD_TYPES[k].valuesDdsReference.length > 20);
 });
 const holders = Object.keys(KeywordSpec.RECORD_TYPES).filter((n) => KeywordSpec.RECORD_TYPES[n].validValues);
-check('only the four date/time keywords carry validValues', holders.sort().join() === 'DATFMT,DATSEP,TIMFMT,TIMSEP');
+check('the four date/time keywords all carry validValues', ['DATFMT', 'DATSEP', 'TIMFMT', 'TIMSEP'].every((k) => holders.indexOf(k) >= 0));
 
 console.log('\n=== 2. accessors ===');
 KeywordSpec.validValues('DATFMT').push('*ZZZ');

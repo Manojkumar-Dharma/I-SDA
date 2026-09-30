@@ -789,6 +789,37 @@
     // PARAMETER value being one of four fixed-separator formats -
     // `fixedSeparatorPartner` names the sibling keyword to check,
     // `fixedSeparatorFormats` the values that forbid this one.
+    // Task I-121 (DSPATR/COLOR/WDWBORDER/CHGINPDFT value-domain slice) -
+    // the closed value sets of four display-attribute keywords, each from
+    // its own DDS Reference section (DDS_Keyword_V7r6.txt: DSPATR ~line 8603
+    // region, COLOR ~4092, WDWBORDER ~10850 region, CHGINPDFT ~3080
+    // region). Lists are in IBM's own order; the webview keeps its own
+    // panel display order and a test ties the two together. `validValues`
+    // is the fact `validValues()` / `isValidValue()` read.
+    DSPATR: {
+      ddsReference: 'Valid attributes for the first format of the DSPATR keyword. ' +
+        'For all fields: BL, CS, HI, ND, PC, RI, UL. For input-capable fields only: MDT, OID, PR, SP.',
+      validValues: ['BL', 'CS', 'HI', 'ND', 'PC', 'RI', 'UL', 'MDT', 'OID', 'PR', 'SP'],
+      inputCapableOnlyValues: ['MDT', 'OID', 'PR', 'SP']
+    },
+    COLOR: {
+      ddsReference: 'COLOR(GRN | WHT | RED | TRQ | YLW | PNK | BLU): the valid parameter values are GRN, WHT, RED, TRQ, YLW, PNK and BLU.',
+      validValues: ['GRN', 'WHT', 'RED', 'TRQ', 'YLW', 'PNK', 'BLU']
+    },
+    WDWBORDER: {
+      ddsReference: 'WDWBORDER([color] [display-attribute] [characters]): the color parameter takes the COLOR values ' +
+        '(default BLU); the display-attribute values are BL, CS, HI, ND, RI, UL.',
+      displayAttributeValues: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'],
+      colorValuesFrom: 'COLOR'
+    },
+    CHGINPDFT: {
+      ddsReference: 'CHGINPDFT[(input-default1 input-default2 . . .)]: valid parameter values are BL, CS, HI, RI, UL ' +
+        '(the equivalent DSPATR keywords) and FE, LC, ME, MF (the equivalent CHECK codes).',
+      validValues: ['BL', 'CS', 'HI', 'RI', 'UL', 'FE', 'LC', 'ME', 'MF'],
+      dspatrValues: ['BL', 'CS', 'HI', 'RI', 'UL'],
+      checkCodes: ['FE', 'LC', 'ME', 'MF']
+    },
+
     DATFMT: {
       ddsReference:
         'You use this field-level keyword to specify the format of a ' +
