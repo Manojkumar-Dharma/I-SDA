@@ -1670,20 +1670,24 @@
   // DATSEP/TIMSEP customization for Z at all in the DDS Reference.
   // -----------------------------------------------------------------------
 
-  var DATE_FORMAT_VALUES = ['', '*JOB', '*MDY', '*DMY', '*YMD', '*JUL', '*ISO', '*USA', '*EUR', '*JIS'];
+  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  function dateFormatValues() { return [''].concat(DspfWriter.dateTimeValidValues('DATFMT')); }
   var DATE_FORMAT_LABELS = { '': '(unspecified - defaults to *ISO)', '*JOB': '*JOB - job default', '*MDY': '*MDY - mm/dd/yy', '*DMY': '*DMY - dd/mm/yy', '*YMD': '*YMD - yy/mm/dd', '*JUL': '*JUL - yy/ddd (Julian)', '*ISO': '*ISO - yyyy-mm-dd', '*USA': '*USA - mm/dd/yyyy', '*EUR': '*EUR - dd.mm.yyyy', '*JIS': '*JIS - yyyy-mm-dd' };
   // TIMFMT has no *JOB value at all - confirmed by its own format table in
   // the DDS Reference, which lists only *HMS/*ISO/*USA/*EUR/*JIS.
-  var TIME_FORMAT_VALUES = ['', '*HMS', '*ISO', '*USA', '*EUR', '*JIS'];
+  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  function timeFormatValues() { return [''].concat(DspfWriter.dateTimeValidValues('TIMFMT')); }
   var TIME_FORMAT_LABELS = { '': '(unspecified - defaults to *ISO)', '*HMS': '*HMS - hh:mm:ss', '*ISO': '*ISO - hh.mm.ss', '*USA': '*USA - hh:mm AM/PM', '*EUR': '*EUR - hh.mm.ss', '*JIS': '*JIS - hh:mm:ss' };
   // DATSEP and TIMSEP share the same *JOB | 'separator-char' grammar and
   // the same documented valid-character set for the quoted form (a slash,
   // dash, period, comma, or blank for dates; a colon, period, comma, or
   // blank for times - DATSEP's own list includes the slash TIMSEP's own
   // list omits, since a slash has no meaning between hour/minute/second).
-  var DATE_SEP_VALUES = ['', '*JOB', '/', '-', '.', ',', ' '];
+  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  function dateSepValues() { return [''].concat(DspfWriter.dateTimeValidValues('DATSEP')); }
   var DATE_SEP_LABELS = { '': '(unspecified - *JOB default)', '*JOB': '*JOB', '/': '/ (slash)', '-': '- (dash)', '.': '. (period)', ',': ', (comma)', ' ': '(blank)' };
-  var TIME_SEP_VALUES = ['', '*JOB', ':', '.', ',', ' '];
+  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  function timeSepValues() { return [''].concat(DspfWriter.dateTimeValidValues('TIMSEP')); }
   var TIME_SEP_LABELS = { '': '(unspecified - *JOB default)', '*JOB': '*JOB', ':': ': (colon)', '.': '. (period)', ',': ', (comma)', ' ': '(blank)' };
 
   function dateTimeFormatHtml(keywords, ownerKey, dataType, openState) {
@@ -1692,10 +1696,10 @@
       var dsep = DspfWriter.getDateSeparator(keywords);
       var html = '<div class="two-col">' +
         '<div class="field-row"><label>DATFMT</label><select id="' + ownerKey + '-datfmt">' +
-        DATE_FORMAT_VALUES.map(function (v) { return '<option value="' + v + '"' + (dfmt === v ? ' selected' : '') + '>' + DATE_FORMAT_LABELS[v] + '</option>'; }).join('') +
+        dateFormatValues().map(function (v) { return '<option value="' + v + '"' + (dfmt === v ? ' selected' : '') + '>' + DATE_FORMAT_LABELS[v] + '</option>'; }).join('') +
         '</select></div>' +
         '<div class="field-row"><label>DATSEP</label><select id="' + ownerKey + '-datsep">' +
-        DATE_SEP_VALUES.map(function (v) { return '<option value="' + v + '"' + (dsep === v ? ' selected' : '') + '>' + DATE_SEP_LABELS[v] + '</option>'; }).join('') +
+        dateSepValues().map(function (v) { return '<option value="' + v + '"' + (dsep === v ? ' selected' : '') + '>' + DATE_SEP_LABELS[v] + '</option>'; }).join('') +
         '</select></div></div>' +
         '<div class="hint-small">DATSEP cannot be set when DATFMT is *ISO/*USA/*EUR/*JIS - those formats have a fixed separator (per the DDS Reference).</div>' +
         '<button class="secondary ' + ownerKey + '-dtfmt-apply" style="width:100%;margin-top:8px;">Apply date format</button>';
@@ -1706,10 +1710,10 @@
       var tsep = DspfWriter.getTimeSeparator(keywords);
       var html2 = '<div class="two-col">' +
         '<div class="field-row"><label>TIMFMT</label><select id="' + ownerKey + '-timfmt">' +
-        TIME_FORMAT_VALUES.map(function (v) { return '<option value="' + v + '"' + (tfmt === v ? ' selected' : '') + '>' + TIME_FORMAT_LABELS[v] + '</option>'; }).join('') +
+        timeFormatValues().map(function (v) { return '<option value="' + v + '"' + (tfmt === v ? ' selected' : '') + '>' + TIME_FORMAT_LABELS[v] + '</option>'; }).join('') +
         '</select></div>' +
         '<div class="field-row"><label>TIMSEP</label><select id="' + ownerKey + '-timsep">' +
-        TIME_SEP_VALUES.map(function (v) { return '<option value="' + v + '"' + (tsep === v ? ' selected' : '') + '>' + TIME_SEP_LABELS[v] + '</option>'; }).join('') +
+        timeSepValues().map(function (v) { return '<option value="' + v + '"' + (tsep === v ? ' selected' : '') + '>' + TIME_SEP_LABELS[v] + '</option>'; }).join('') +
         '</select></div></div>' +
         '<div class="hint-small">TIMSEP cannot be set when TIMFMT is *ISO/*USA/*EUR/*JIS - those formats have a fixed separator (per the DDS Reference). TIMFMT has no *JOB value (unlike DATFMT).</div>' +
         '<button class="secondary ' + ownerKey + '-dtfmt-apply" style="width:100%;margin-top:8px;">Apply time format</button>';

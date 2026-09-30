@@ -794,7 +794,12 @@
         'You use this field-level keyword to specify the format of a ' +
         'date field. This keyword is valid only for date fields (data ' +
         'type L).',
-      validDataType: 'L'
+      validDataType: 'L',
+      // Task I-121 (date/time value-domain slice) - the format table in
+      // DATFMT's own DDS Reference section, in IBM's order. No value is
+      // "unspecified": that is a UI state, not a DDS value.
+      validValues: ['*JOB', '*MDY', '*DMY', '*YMD', '*JUL', '*ISO', '*USA', '*EUR', '*JIS'],
+      valuesDdsReference: 'Valid date formats: *JOB, *MDY, *DMY, *YMD, *JUL, *ISO, *USA, *EUR, *JIS.'
     },
     DATSEP: {
       ddsReference:
@@ -806,14 +811,20 @@
         'fixed date separators.',
       validDataType: 'L',
       fixedSeparatorPartner: 'DATFMT',
-      fixedSeparatorFormats: ['*ISO', '*USA', '*EUR', '*JIS']
+      fixedSeparatorFormats: ['*ISO', '*USA', '*EUR', '*JIS'],
+      // DATSEP(*JOB | 'date-separator'): slash, dash, period, comma or blank.
+      validValues: ['*JOB', '/', '-', '.', ',', ' '],
+      valuesDdsReference: 'DATSEP(*JOB | \'date-separator\'): valid separators are a slash (/), dash, period (.), comma (,) or blank.'
     },
     TIMFMT: {
       ddsReference:
         'You use this field-level keyword to specify the format of a ' +
         'time field. This keyword is valid for time fields (data type ' +
         'T).',
-      validDataType: 'T'
+      validDataType: 'T',
+      // TIMFMT has no *JOB value - its format table lists only these five.
+      validValues: ['*HMS', '*ISO', '*USA', '*EUR', '*JIS'],
+      valuesDdsReference: 'Valid time formats: *HMS, *ISO, *USA, *EUR, *JIS (no *JOB).'
     },
     TIMSEP: {
       ddsReference:
@@ -825,7 +836,10 @@
         'fixed separators.',
       validDataType: 'T',
       fixedSeparatorPartner: 'TIMFMT',
-      fixedSeparatorFormats: ['*ISO', '*USA', '*EUR', '*JIS']
+      fixedSeparatorFormats: ['*ISO', '*USA', '*EUR', '*JIS'],
+      // TIMSEP(*JOB | 'time-separator'): colon, period, comma or blank (no slash).
+      validValues: ['*JOB', ':', '.', ',', ' '],
+      valuesDdsReference: 'TIMSEP(*JOB | \'time-separator\'): valid separators are a colon (:), period (.), comma (,) or blank.'
     },
 
     // Task I-121 SFLCHCCTL slice - SFLCHCCTL's own DDS Reference section
@@ -1546,6 +1560,25 @@
     return null;
   }
 
+  /** Task I-121 (date/time value-domain slice) - the values a keyword's
+   *  parameter may take, as declared in its own DDS Reference section
+   *  (DATFMT / DATSEP / TIMFMT / TIMSEP). A copy, safe to mutate; [] for a
+   *  keyword with no such fact. Does not include the UI's own
+   *  "unspecified" choice. */
+  function validValues(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return spec && spec.validValues ? spec.validValues.slice() : [];
+  }
+  /** Whether `value` is one of `keywordName`'s declared values (exact
+   *  match, case-sensitive for the separator characters; the special
+   *  *VALUES are compared upper-cased). False for a keyword with no fact. */
+  function isValidValue(keywordName, value) {
+    var list = validValues(keywordName);
+    if (!list.length || value == null) return false;
+    var v = String(value);
+    return list.indexOf(v) >= 0 || list.indexOf(v.toUpperCase()) >= 0 && v.charAt(0) === '*';
+  }
+
   /** The full list of PASSRCD-restricted keyword names, in `RECORD_TYPES`'
    *  own declared order (WINDOW, ALWROL, CLRL, SLNO) - the single source
    *  of truth `passrcdRecordConflictReason`'s own callers previously each
@@ -2072,6 +2105,8 @@
     isNotAllowedOnFloatingPointField: isNotAllowedOnFloatingPointField,
     floatIncompatibleCheckCodes: floatIncompatibleCheckCodes,
     checkCodeGroups: checkCodeGroups,
+    validValues: validValues,
+    isValidValue: isValidValue,
     checkCodes: checkCodes,
     checkCodeGroup: checkCodeGroup,
     conditionalMutexHit: conditionalMutexHit,

@@ -4698,6 +4698,12 @@
   var SNGCHCFLD_ONLY_FLAGS = KeywordSpec.choiceSelectionFlagsNotOffered('MLTCHCFLD');
   /** The radio-group names only SNGCHCFLD offers (the webview hides them
    *  for MLTCHCFLD or an unset type). */
+  /** Task I-121 (date/time value-domain slice) - the declared values of
+   *  DATFMT / DATSEP / TIMFMT / TIMSEP for the webview's selects, read from
+   *  the spec (a copy). */
+  function dateTimeValidValues(keywordName) {
+    return KeywordSpec.validValues(keywordName);
+  }
   function sngchcfldOnlyFlagGroups() {
     return KeywordSpec.choiceSelectionExclusiveGroups('SNGCHCFLD');
   }
@@ -9189,6 +9195,7 @@
     layoutParameterProblems: layoutParameterProblems,
     layoutParametersNewConflictReason: layoutParametersNewConflictReason,
     sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,
+    dateTimeValidValues: dateTimeValidValues,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,
     setChoices: setChoices,
