@@ -1985,6 +1985,11 @@
       ddsReference: 'Option indicators are not valid for this keyword.' },
     SETOF: { kind: 'notValid', levels: ['record'],
       ddsReference: 'Option indicators are not valid for this keyword.' },
+    // Task I-135: SETOFF is documented as equivalent to SETOF (its own section
+    // is only that equivalence), and SETOF's section says option indicators
+    // are not valid, so the same holds for it.
+    SETOFF: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'The SETOFF keyword is equivalent to the SETOF keyword. (SETOF: Option indicators are not valid for this keyword.)' },
     SFL: { kind: 'notValid', levels: ['record'],
       ddsReference: 'Option indicators are not valid for this keyword.' },
     SFLCTL: { kind: 'notValid', levels: ['record'],
@@ -2139,9 +2144,7 @@
   // it is the noOptionIndicators fact above (VLDCMDKEY / SETOF / CHANGE /
   // INDTXT have one, the other six do not), so the two can never drift.
   // Not migrated: the row labels and the dropdown's own order (a screen
-  // presentation), and SETOFF - the reference says SETOF is equivalent to
-  // SETOFF, but the panel has never read a SETOFF instance (see
-  // keywordFixes.md's Deferred findings).
+  // presentation). (Task I-135 later added SETOFF as SETOF's alternate name.)
   var RECORD_INDICATOR_KEYWORDS = {
     CLEAR: { ddsReference: 'specify that your program is to receive control if the workstation user presses the Clear key' },
     PAGEDOWN: { alternateNames: ['ROLLUP'], ddsReference: 'The PAGEDOWN keyword is the same as the ROLLUP keyword.' },
@@ -2150,7 +2153,9 @@
     HELP: { ddsReference: 'enable the Help key' },
     HLPRTN: { ddsReference: 'return control to your program when you press the Help key' },
     VLDCMDKEY: { ddsReference: 'set on the specified response indicator when any valid command key other than the Enter key' },
-    SETOF: { ddsReference: 'SETOF(response-indicator [\'text\'])' },
+    // Task I-135: "SETOF is equivalent to the SETOFF keyword" (and SETOFF's
+    // own section says the reverse, "The SETOF keyword is preferred").
+    SETOF: { alternateNames: ['SETOFF'], ddsReference: 'SETOF is equivalent to the SETOFF keyword.' },
     CHANGE: { ddsReference: 'set on the specified response indicator for an input operation' },
     INDTXT: { ddsReference: 'associate a descriptive text (indicating intent or use) with a specific response or option indicator' }
   };

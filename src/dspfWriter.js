@@ -5941,13 +5941,30 @@
    *  comes back empty for those, verified against IBM's DDS reference,
    *  not guessed). Order matches source order. */
   function getIndicatorTextRows(keywords, names) {
-    var list = names || [];
+    var list = withAlternateSpellings(names);
+    var alt = KeywordSpec.recordIndicatorAlternateKinds();
     return (keywords || [])
       .filter(function (k) { return list.indexOf(k.name) >= 0; })
       .map(function (k) {
         var m = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((k.parameters || '').trim()) || [];
-        return { keyword: k.name, indicator: m[1] || '', text: (m[2] || '').replace(/''/g, "'") };
+        // Task I-135: a legacy / equivalent spelling (SETOFF) reads back as
+        // its canonical keyword (SETOF), the way ROLLUP reads as PAGEDOWN.
+        return { keyword: alt[k.name] || k.name, indicator: m[1] || '', text: (m[2] || '').replace(/''/g, "'") };
       });
+  }
+
+  /** Task I-135 - `names` plus every alternate spelling of a keyword in it
+   *  (keywordSpec.js's RECORD_INDICATOR_KEYWORDS `alternateNames`: SETOF ->
+   *  SETOFF, PAGEDOWN -> ROLLUP, PAGEUP -> ROLLDOWN), so a reader / writer
+   *  of `['INDTXT', 'SETOF', 'CHANGE']` also finds and replaces a
+   *  hand-written SETOFF instead of leaving it beside the new SETOF. */
+  function withAlternateSpellings(names) {
+    var list = (names || []).slice();
+    var alt = KeywordSpec.recordIndicatorAlternateKinds();
+    Object.keys(alt).forEach(function (spelling) {
+      if (list.indexOf(alt[spelling]) >= 0 && list.indexOf(spelling) < 0) list.push(spelling);
+    });
+    return list;
   }
 
   /** Returns a NEW keywords array with every existing instance of any
@@ -5960,7 +5977,8 @@
    *  text rather than writing invalid DDS. */
   function setIndicatorTextRows(keywords, names, rows) {
     var list = names || [];
-    var next = (keywords || []).filter(function (k) { return list.indexOf(k.name) < 0; });
+    var removed = withAlternateSpellings(list);
+    var next = (keywords || []).filter(function (k) { return removed.indexOf(k.name) < 0; });
     (rows || []).forEach(function (r) {
       var indicator = (r.indicator || '').trim();
       if (!r.keyword || list.indexOf(r.keyword) < 0 || !indicator) return;

@@ -29,7 +29,8 @@ const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
 
 // The pre-refactor literals.
 const OLD_NAMES = ['CLEAR', 'PAGEDOWN', 'PAGEUP', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'];
-const OLD_ALT = { ROLLUP: 'PAGEDOWN', ROLLDOWN: 'PAGEUP' };
+// Task I-135 added SETOFF (documented as equivalent to SETOF) to the original ROLLUP / ROLLDOWN pair.
+const OLD_ALT = { ROLLUP: 'PAGEDOWN', ROLLDOWN: 'PAGEUP', SETOFF: 'SETOF' };
 const OLD_NO_COND = ['VLDCMDKEY', 'SETOF', 'CHANGE', 'INDTXT'];
 const kw = (name, parameters) => [{ name, parameters, conditions: [], raw: '', sourceLines: [] }];
 
@@ -37,7 +38,7 @@ console.log('\nspec table');
 {
   check('names equal the old list, same order', JSON.stringify(KeywordSpec.recordIndicatorKeywordNames()) === JSON.stringify(OLD_NAMES));
   check('alternate spellings equal the old map', JSON.stringify(KeywordSpec.recordIndicatorAlternateKinds()) === JSON.stringify(OLD_ALT));
-  check('only PAGEDOWN and PAGEUP carry alternate names', OLD_NAMES.filter((n) => KeywordSpec.RECORD_INDICATOR_KEYWORDS[n].alternateNames).join() === 'PAGEDOWN,PAGEUP');
+  check('only PAGEDOWN, PAGEUP and SETOF carry alternate names', OLD_NAMES.filter((n) => KeywordSpec.RECORD_INDICATOR_KEYWORDS[n].alternateNames).join() === 'PAGEDOWN,PAGEUP,SETOF');
   const names = KeywordSpec.recordIndicatorKeywordNames();
   names.push('X');
   const alt = KeywordSpec.recordIndicatorAlternateKinds(); alt.ROLLUP = 'X';

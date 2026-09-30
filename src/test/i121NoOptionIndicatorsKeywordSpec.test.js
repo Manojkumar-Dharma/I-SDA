@@ -37,7 +37,8 @@ console.log('\nspec facts');
 {
   const names = KeywordSpec.noOptionIndicatorsNames();
   const fileOnly = KeywordSpec.noOptionIndicatorsNames(true);
-  check('95 every-level keywords', names.length === 95);
+  // Task I-135 added SETOFF (documented as equivalent to SETOF) to the original 95.
+  check('96 every-level keywords (the original 95 + SETOFF from I-135)', names.length === 96 && names.indexOf('SETOFF') >= 0);
   check('HLPTITLE is the only file-level-only entry', fileOnly.join() === 'HLPTITLE');
   check('no name in both lists', names.indexOf('HLPTITLE') < 0);
   check('every fact has a known kind, levels and a citation', names.concat(fileOnly).every((n) => {
@@ -45,7 +46,7 @@ console.log('\nspec facts');
     return KINDS.indexOf(f.kind) >= 0 && Array.isArray(f.levels) && f.levels.length > 0 && /Option indicators/.test(f.ddsReference);
   }));
   const kindCount = (k) => names.filter((n) => KeywordSpec.noOptionIndicatorsFact(n).kind === k).length;
-  check('75 plain', kindCount('notValid') === 75);
+  check('76 plain (75 + SETOFF)', kindCount('notValid') === 76);
   check('5 display-size-valid', kindCount('notValidDisplaySizeValid') === 5);
   check('12 field-conditionable', kindCount('notValidFieldConditionable') === 12);
   check('1 not-allowed (IGCALTTYP)', kindCount('notAllowed') === 1 && KeywordSpec.noOptionIndicatorsFact('IGCALTTYP').kind === 'notAllowed');
@@ -66,7 +67,10 @@ console.log('\naccessors');
 console.log('\nequivalence with the pre-refactor baseline');
 {
   const names = DspfWriter.noOptionIndicatorKeywordNames();
-  check('same names in the same order', JSON.stringify(names) === JSON.stringify(Object.keys(baseline.all)));
+  // The baseline is the pre-refactor table; I-135 later added SETOFF, so the
+  // comparison is against the current names without it, and SETOFF is checked apart.
+  check('same names in the same order (SETOFF, added by I-135, aside)', JSON.stringify(names.filter((n) => n !== 'SETOFF')) === JSON.stringify(Object.keys(baseline.all)) && names.indexOf('SETOFF') === names.indexOf('SETOF') + 1);
+  check('SETOFF (I-135) says what SETOF says', DspfWriter.noOptionIndicatorsReason('SETOFF') === baseline.all.SETOF.replace(/SETOF/g, 'SETOFF'));
   let bad = [];
   Object.keys(baseline.all).forEach((n) => { if (DspfWriter.noOptionIndicatorsReason(n) !== baseline.all[n]) bad.push(n); });
   check('every every-level message identical' + (bad.length ? ' (differs: ' + bad.join() + ')' : ''), bad.length === 0);
