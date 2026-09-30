@@ -1666,6 +1666,238 @@
     return !!(spec && spec.onePerRecord);
   }
 
+  /** Task I-121 no-option-indicators slice - the fact for `keywordName`
+   *  (`{kind, levels, ddsReference[, fileLevelOnly]}`), or null. */
+  function noOptionIndicatorsFact(keywordName) {
+    var n = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
+    return Object.prototype.hasOwnProperty.call(NO_OPTION_INDICATORS, n) ? NO_OPTION_INDICATORS[n] : null;
+  }
+
+  /** Names carrying the fact; `fileLevelOnly` picks the file-level-only
+   *  entries (HLPTITLE) instead of the every-level ones. */
+  function noOptionIndicatorsNames(fileLevelOnly) {
+    return Object.keys(NO_OPTION_INDICATORS).filter(function (k) {
+      return !!NO_OPTION_INDICATORS[k].fileLevelOnly === !!fileLevelOnly;
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Task I-121 no-option-indicators slice
+  // -----------------------------------------------------------------------
+  //
+  // The 95 keywords (plus the file-level-only HLPTITLE) whose own DDS
+  // Reference section says option indicators are not valid / not allowed,
+  // previously eight hand-written arrays in dspfWriter.js (I-95 / I-101
+  // batches 1-4) feeding one NO_OPTION_INDICATOR_KEYWORDS table. One
+  // declarative fact per keyword now:
+  //   kind    - which wording the section uses (the writer maps it to the
+  //             message; the wording stays a presentation concern):
+  //     notValid                   plain "not valid for this keyword"
+  //     notValidDisplaySizeValid   ... and display size condition names ARE valid
+  //     notValidFieldConditionable ... but indicators can condition the field
+  //     notAllowed                 "not allowed with" (IGCALTTYP)
+  //     notValidOrWithField        keyword AND its field (SFLMSGKEY)
+  //     notValidAndDisplaySize     indicators AND display-size names (SFLPGMQ)
+  //     notValidFileLevelOnly      only the file-level instance (HLPTITLE)
+  //   levels  - the level(s) the section was read at (file / record /
+  //             field / help); informational, for a future generator.
+  // Held back as before: MSGCON and MSGID (conditional). Order is the
+  // original table's, so noOptionIndicatorKeywordNames() is unchanged.
+  var NO_OPTION_INDICATORS = {
+    IGCALTTYP: { kind: 'notAllowed', levels: ['field'],
+      ddsReference: 'Option indicators are not allowed with IGCALTTYP.' },
+    ALTHELP: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    ALTPAGEDWN: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    ALTPAGEUP: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    DSPRL: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    DSPSIZ: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    ERRSFL: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    HLPFULL: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    HLPSCHIDX: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    INDARA: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    MSGLOC: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    OPENPRT: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    PASSRCD: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    REF: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    USRDSPMGT: { kind: 'notValid', levels: ['file'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    ALWROL: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    ASSUME: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CLRL: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    GETRETAIN: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    GRDRCD: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    HLPCMDKEY: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    HLPSEQ: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    INZRCD: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    LOGINP: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    MNUBAR: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    PULLDOWN: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    RTNCSRLOC: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    RTNDTA: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SETOF: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFL: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLCTL: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLENTER: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLMLTCHC: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLMODE: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLRNA: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLRTNSEL: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLSNGCHC: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SLNO: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    UNLOCK: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    USRDFN: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLLIN: { kind: 'notValidDisplaySizeValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword. Display size condition names are valid.' },
+    SFLMSGRCD: { kind: 'notValidDisplaySizeValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword. Display size condition names are valid.' },
+    SFLPAG: { kind: 'notValidDisplaySizeValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword. Display size condition names are valid.' },
+    SFLSIZ: { kind: 'notValidDisplaySizeValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword. Display size condition names are valid.' },
+    WINDOW: { kind: 'notValidDisplaySizeValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword. Display size condition names are valid.' },
+    ALIAS: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    BLANKS: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    BLKFOLD: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CHCACCEL: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CHCCTL: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CHKMSGID: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CNTFLD: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    COMP: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    DLTCHK: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    DLTEDT: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    EDTCDE: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    EDTMSK: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    EDTWRD: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    FLDCSRPRG: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    FLTFIXDEC: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    HLPID: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    MLTCHCFLD: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    PSHBTNFLD: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    RANGE: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLCHCCTL: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLCSRPRG: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SNGCHCFLD: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    VALUES: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CHRID: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    DATE: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    DATFMT: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    DATSEP: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    DFT: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    HTML: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    MAPVAL: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    SYSNAME: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    TIME: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    TIMFMT: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    TIMSEP: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    USER: { kind: 'notValidFieldConditionable', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword, although option indicators can be used to condition the field on which it is specified.' },
+    ALTNAME: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CHANGE: { kind: 'notValid', levels: ['record', 'field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    CHGINPDFT: { kind: 'notValid', levels: ['file', 'record', 'field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    HLPARA: { kind: 'notValid', levels: ['help'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    INDTXT: { kind: 'notValid', levels: ['file', 'record', 'field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    REFFLD: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLRCDNBR: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLROLVAL: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLSCROLL: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    TEXT: { kind: 'notValid', levels: ['record', 'field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    VALNUM: { kind: 'notValid', levels: ['file', 'record', 'field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    VLDCMDKEY: { kind: 'notValid', levels: ['file', 'record'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    WRDWRAP: { kind: 'notValid', levels: ['file', 'record', 'field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
+    SFLMSGKEY: { kind: 'notValidOrWithField', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword or with the associated field.' },
+    SFLPGMQ: { kind: 'notValidAndDisplaySize', levels: ['field'],
+      ddsReference: 'Option indicators and display size condition names are not valid for this keyword.' },
+    HLPTITLE: { kind: 'notValidFileLevelOnly', levels: ['file', 'record'], fileLevelOnly: true,
+      ddsReference: 'Option indicators are not valid on a file-level HLPTITLE keyword. Option indicators are allowed on record-level HLPTITLE keywords ...' },
+  };
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
@@ -1706,6 +1938,8 @@
     noOptionIndicatorsOnField: noOptionIndicatorsOnField,
     noDisplaySizeCondition: noDisplaySizeCondition,
     msgDataFieldKeywords: msgDataFieldKeywords,
-    notAllowedWhenEqual: notAllowedWhenEqual
+    notAllowedWhenEqual: notAllowedWhenEqual,
+    noOptionIndicatorsFact: noOptionIndicatorsFact,
+    noOptionIndicatorsNames: noOptionIndicatorsNames
   };
 });

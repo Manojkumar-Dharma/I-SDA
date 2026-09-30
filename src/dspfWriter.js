@@ -2236,133 +2236,32 @@
    *  keyword that "cannot be conditioned itself" but sits on a field that can
    *  (DATFMT, EDTMSK, ...) and this outright "not allowed with" - only add a
    *  keyword after reading which one it is. */
-  var NO_OPTION_INDICATOR_KEYWORDS = {
-    IGCALTTYP: 'Option indicators are not allowed with IGCALTTYP (per the DDS Reference).'
+  //  Task I-121: which keywords take no option indicators - and in which of
+  //  the sections' wordings - is keywordSpec.js's `noOptionIndicators` fact
+  //  per keyword (95 every-level keywords plus the file-level-only
+  //  HLPTITLE; the I-95 / I-101 batch 1-4 arrays and their reading notes
+  //  moved there). Only the wording -> message mapping stays here.
+  var NO_OPTION_INDICATOR_MESSAGES = {
+    notValid: function (n) { return 'Option indicators are not valid for ' + n + ' (per the DDS Reference).'; },
+    notValidDisplaySizeValid: function (n) { return 'Option indicators are not valid for ' + n + ' (per the DDS Reference); display size condition names are.'; },
+    notValidFieldConditionable: function (n) { return 'Option indicators are not valid for ' + n + ' (per the DDS Reference); they can condition the field it is on.'; },
+    notAllowed: function (n) { return 'Option indicators are not allowed with ' + n + ' (per the DDS Reference).'; },
+    notValidOrWithField: function (n) { return 'Option indicators are not valid for ' + n + ' or with the field it is on (per the DDS Reference).'; },
+    notValidAndDisplaySize: function (n) { return 'Option indicators and display size condition names are not valid for ' + n + ' (per the DDS Reference).'; },
+    notValidFileLevelOnly: function (n) { return 'Option indicators are not valid on a file-level ' + n + ' keyword (per the DDS Reference); they are allowed on record-level ' + n + ' keywords.'; }
   };
-  /** Task I-101, batch 1 - the file-level-only keywords. Each of these was
-   *  read in DDS_Keyword_V7r6.txt and its own section says, plainly and with
-   *  no conditional wording, "Option indicators are not valid for this
-   *  keyword" (ALTPAGEDWN/ALTPAGEUP share one section and say "these
-   *  keywords"). A file-level-only keyword cannot appear at any other level,
-   *  so a name-keyed entry is exactly right for them. The structured File
-   *  Properties rows were already audited by I-3 - this is the raw keyword
-   *  editor's Conditioning toggle, which I-95 found is drawn on every chip.
-   *  A keyword that exists at more than one level, or whose rule is
-   *  conditional, does NOT belong in this list (later batches). */
-  var NOT_VALID_FILE_LEVEL_KEYWORDS = ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP', 'DSPRL', 'DSPSIZ', 'ERRSFL', 'HLPFULL', 'HLPSCHIDX', 'INDARA', 'MSGLOC', 'OPENPRT', 'PASSRCD', 'REF', 'USRDSPMGT'];
-  NOT_VALID_FILE_LEVEL_KEYWORDS.forEach(function (name) {
-    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
-  });
-  /** Task I-101, batch 2 - the record-level-only keywords. Each was read in
-   *  DDS_Keyword_V7r6.txt: its own section is a "record-level keyword" section
-   *  (and no section of it describes another level), and says, plainly and
-   *  with no conditional wording, "Option indicators are not valid for this
-   *  keyword". A record-level-only keyword cannot appear at any other level,
-   *  so a name-keyed entry is exactly right. None of them has a Conditioning
-   *  toggle in a structured panel (checked in the batch's test, so it stays
-   *  true); this closes the raw keyword editor's toggle, as batch 1 did for
-   *  the file level. */
-  var NOT_VALID_RECORD_LEVEL_KEYWORDS = [
-    'ALWROL', 'ASSUME', 'CLRL', 'GETRETAIN', 'GRDRCD', 'HLPCMDKEY', 'HLPSEQ',
-    'INZRCD', 'LOGINP', 'MNUBAR', 'PULLDOWN', 'RTNCSRLOC', 'RTNDTA', 'SETOF',
-    'SFL', 'SFLCTL', 'SFLENTER', 'SFLMLTCHC', 'SFLMODE', 'SFLRNA', 'SFLRTNSEL',
-    'SFLSNGCHC', 'SLNO', 'UNLOCK', 'USRDFN'
-  ];
-  NOT_VALID_RECORD_LEVEL_KEYWORDS.forEach(function (name) {
-    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
-  });
-  /** Batch 2, the record-level-only keywords whose section ALSO says display
-   *  size condition names are valid (SFLLIN, SFLPAG and SFLSIZ on the
-   *  subfile-control record, SFLMSGRCD on the message subfile record, WINDOW).
-   *  Same shape as MSGLOC (batch 1): an option indicator is refused, while a
-   *  display-size condition is not an option indicator and is left alone (the
-   *  raw editor keeps the toggle when one is present). */
-  var NOT_VALID_RECORD_LEVEL_DISPLAY_SIZE_KEYWORDS = ['SFLLIN', 'SFLMSGRCD', 'SFLPAG', 'SFLSIZ', 'WINDOW'];
-  NOT_VALID_RECORD_LEVEL_DISPLAY_SIZE_KEYWORDS.forEach(function (name) {
-    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference); display size condition names are.';
-  });
-  /** Task I-101, batch 3 - the field-level-only keywords. Each was read in
-   *  DDS_Keyword_V7r6.txt: every section of it that describes a level says
-   *  "field-level keyword", and says "Option indicators are not valid for this
-   *  keyword". Two wordings, both meaning the same for THIS table:
-   *    - plain (23): just that sentence;
-   *    - "although option indicators can be used to condition the field ..."
-   *      (12: CHRID DATE DATFMT DATSEP DFT HTML MAPVAL SYSNAME TIME TIMFMT
-   *      TIMSEP USER; HTML's section says "option indicators are allowed on the
-   *      constant field").
-   *  The second wording is why a field-level keyword needed its own read: the
-   *  FIELD may carry option indicators (they are on the field's own line and
-   *  the parser keeps them on the field, not on its first-line keyword), but a
-   *  keyword written on a continuation line of its own may not. Only the
-   *  keyword's own conditions are checked here, so a conditioned field is never
-   *  flagged. Held back: MSGCON (indicators are valid for the presence of the
-   *  message) and MSGID (conditional - I-73). CNTFLD (here) and SFLMODE
-   *  (batch 2) each show a "valid" sentence in the text extracted after their
-   *  own "not valid" one - that is the NEXT keyword's text (GRDATR; SFLMSG and
-   *  SFLMSGID) spilling past the section boundary, not their own (proved in
-   *  the i101 tests). */
-  var NOT_VALID_FIELD_LEVEL_KEYWORDS = [
-    'ALIAS', 'BLANKS', 'BLKFOLD', 'CHCACCEL', 'CHCCTL', 'CHKMSGID', 'CNTFLD', 'COMP',
-    'DLTCHK', 'DLTEDT', 'EDTCDE', 'EDTMSK', 'EDTWRD', 'FLDCSRPRG', 'FLTFIXDEC',
-    'HLPID', 'MLTCHCFLD', 'PSHBTNFLD', 'RANGE', 'SFLCHCCTL', 'SFLCSRPRG',
-    'SNGCHCFLD', 'VALUES'
-  ];
-  NOT_VALID_FIELD_LEVEL_KEYWORDS.forEach(function (name) {
-    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
-  });
-  var NOT_VALID_FIELD_LEVEL_FIELD_CONDITIONABLE_KEYWORDS = [
-    'CHRID', 'DATE', 'DATFMT', 'DATSEP', 'DFT', 'HTML', 'MAPVAL', 'SYSNAME',
-    'TIME', 'TIMFMT', 'TIMSEP', 'USER'
-  ];
-  NOT_VALID_FIELD_LEVEL_FIELD_CONDITIONABLE_KEYWORDS.forEach(function (name) {
-    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference); they can condition the field it is on.';
-  });
-  /** Task I-101, batch 4 - keywords that exist at MORE THAN ONE level but whose
-   *  section gives the SAME rule at every level, so a name-keyed entry is exactly
-   *  right for all of them. Each was read in DDS_Keyword_V7r6.txt: "Option
-   *  indicators are not valid for this keyword" with no "valid" sentence of its
-   *  own, at every level the section describes -
-   *    CHANGE (record or field), CHGINPDFT / INDTXT / VALNUM / WRDWRAP (file,
-   *    record or field), TEXT (record or field), VLDCMDKEY (file or record) -
-   *  plus the ones the earlier scan had put here by mistake but that are
-   *  single-level with a plain sentence: REFFLD, SFLRCDNBR, SFLROLVAL and
-   *  SFLSCROLL (field level), ALTNAME (record level; its statement is in
-   *  the System/36 chapter of the reference, "not valid for this keyword" and
-   *  "not allowed with this keyword") and HLPARA (the help-specification level,
-   *  the one level the earlier batches never touched; the other four help-
-   *  specification keywords - HLPPNLGRP, HLPEXCLD, HLPBDY, HLPDOC - say option
-   *  indicators ARE valid). HLPTITLE is NOT here: it is not valid on
-   *  a file-level HLPTITLE but allowed on record-level ones (see
-   *  NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS). */
-  var NOT_VALID_MULTI_LEVEL_KEYWORDS = [
-    'ALTNAME', 'CHANGE', 'CHGINPDFT', 'HLPARA', 'INDTXT', 'REFFLD', 'SFLRCDNBR',
-    'SFLROLVAL', 'SFLSCROLL', 'TEXT', 'VALNUM', 'VLDCMDKEY', 'WRDWRAP'
-  ];
-  NOT_VALID_MULTI_LEVEL_KEYWORDS.forEach(function (name) {
-    NO_OPTION_INDICATOR_KEYWORDS[name] = 'Option indicators are not valid for ' + name + ' (per the DDS Reference).';
-  });
-  /** Batch 4 - the two subfile-message field keywords whose sections word the
-   *  rule differently, followed to the letter:
-   *    SFLMSGKEY: "Option indicators are not valid for this keyword OR WITH THE
-   *      ASSOCIATED FIELD." The keyword entry is here; the field half is
-   *      sflmsgkeyFieldNewConflictReason below (wired into commitEdit).
-   *    SFLPGMQ: "Option indicators AND DISPLAY SIZE CONDITION NAMES are not
-   *      valid for this keyword." The indicator half is the entry; the display
-   *      size half is keywordSpec.js's RECORD_TYPES.SFLPGMQ
-   *      `noDisplaySizeCondition` fact (Task I-121). */
-  NO_OPTION_INDICATOR_KEYWORDS.SFLMSGKEY = 'Option indicators are not valid for SFLMSGKEY or with the field it is on (per the DDS Reference).';
-  NO_OPTION_INDICATOR_KEYWORDS.SFLPGMQ = 'Option indicators and display size condition names are not valid for SFLPGMQ (per the DDS Reference).';
-  //  Which listed keywords ALSO reject a display-size condition (*DS3/*DS4)
-  //  is KeywordSpec.noDisplaySizeCondition (SFLPGMQ; every other listed
-  //  keyword either takes one - MSGLOC, SFLSIZ, ... - or its section is
-  //  silent). Task I-121.
-  /** Keywords that take no option indicators AT THE FILE LEVEL ONLY. HLPTITLE:
-   *  "Option indicators are not valid on a file-level HLPTITLE keyword.
-   *  Option indicators are allowed on record-level HLPTITLE keywords ..." The
-   *  raw keyword editor knows its level from its owner key ('file'). */
-  var NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS = {
-    HLPTITLE: 'Option indicators are not valid on a file-level HLPTITLE keyword (per the DDS Reference); they are allowed on record-level HLPTITLE keywords.'
-  };
+  function buildNoOptionIndicatorMessages(fileLevelOnly) {
+    var table = {};
+    KeywordSpec.noOptionIndicatorsNames(fileLevelOnly).forEach(function (name) {
+      table[name] = NO_OPTION_INDICATOR_MESSAGES[KeywordSpec.noOptionIndicatorsFact(name).kind](name);
+    });
+    return table;
+  }
+  var NO_OPTION_INDICATOR_KEYWORDS = buildNoOptionIndicatorMessages(false);
+  /** Keywords that take no option indicators AT THE FILE LEVEL ONLY
+   *  (HLPTITLE) - the spec's `fileLevelOnly` entries. The raw keyword
+   *  editor knows its level from its owner key ('file'). */
+  var NO_OPTION_INDICATOR_FILE_LEVEL_KEYWORDS = buildNoOptionIndicatorMessages(true);
   /** The names in NO_OPTION_INDICATOR_KEYWORDS (a copy - the table itself is
    *  not exposed), for tests and audits. */
   function noOptionIndicatorKeywordNames() {
