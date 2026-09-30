@@ -4375,7 +4375,7 @@ const htmlTemplate = `<!DOCTYPE html>
     wireTabs(propsBody, (id) => { activeFileTab = id; });
 
     WebviewClientHelpers.wireFileKeywordsPanels(() => model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), expandedKeywordConditioning, () => renderFileProps(), () => model);
-    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), expandedKeywordConditioning, () => renderFileProps());
+    WebviewClientHelpers.wireCommandKeysSection('file', model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), expandedKeywordConditioning, () => renderFileProps(), (name) => DspfWriter.moubtnCommandKeyConflictReason({ name }, model.fileKeywords, model.records.map((r) => r.keywords || [])));
     WebviewClientHelpers.wireKeywordEditor(model.fileKeywords, (newKeywords) => commitFileEdit(newKeywords), 'file', expandedKeywordConditioning, () => renderFileProps());
     wireCommentsSection(
       'filecomments',
@@ -6184,7 +6184,7 @@ const htmlTemplate = `<!DOCTYPE html>
         commitRecordEdit(recordName, { keywords: DspfWriter.setWindowTitleText(rec.keywords, document.getElementById('p-window-title').value) });
       });
     }
-    WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName));
+    WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), (name) => DspfWriter.moubtnCommandKeyConflictReason({ name }, model.fileKeywords, [rec.keywords || []]));
     WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
     // Task I-49/I-46/I-47: guard the raw keyword editor's own "+ Add
     // keyword" against USRDFN's whitelist, SFL's whitelist, and WINDOW's

@@ -747,7 +747,10 @@
     return html;
   }
 
-  function wireCommandKeysSection(idPrefix, keywords, onChange, expandedSet, rerender) {
+  // Task I-136: optional trailing `guardFn(keywordName) -> reason|null`, called
+  // once per "+ Add" with the new CAnn / CFnn's name; a reason is alerted and
+  // the key is not added. Omitted-safe.
+  function wireCommandKeysSection(idPrefix, keywords, onChange, expandedSet, rerender, guardFn) {
     document.querySelectorAll('.cmdkey-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         onChange(DspfWriter.removeCommandKeyAt(keywords, parseInt(btn.getAttribute('data-index'), 10)));
@@ -805,6 +808,8 @@
         // of an already-used number keeps the first one intact instead
         // of overwriting it.
         var count = DspfWriter.parseCommandKeys(keywords).length;
+        var reason = guardFn ? guardFn(type.toUpperCase() + ('0' + parseInt(number, 10)).slice(-2)) : null;
+        if (reason) { window.alert(reason); return; }
         onChange(DspfWriter.setCommandKeyAt(keywords, count, type, number, indicator || null, text || null));
       });
     }
@@ -1209,7 +1214,24 @@
   // (same shape/idiom as wireMnubardspPanel's own I-55 guard): checked once
   // per "+ Add" click. Only the record-level call site passes one; the
   // file-level call site (ownerKey 'fk') omits it and is unaffected.
-  function wireMoubtnPanel(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
+  // Task I-136: every record's own keyword array, tolerant of a model-less or
+  // records-less getModel (callers and tests that pass a stub).
+  function allRecordKeywordScopes(getModel) {
+    var model = getModel ? getModel() : null;
+    return model && model.records ? model.records.map(function (r) { return r.keywords || []; }) : [];
+  }
+  // Task I-136 - optional trailing `getFileKeywords` / `getRecordScopes`
+  // (same contract as wireMenuBarKeysPanel's): the file-level list and the
+  // record keyword-arrays a MOUBTN Command key can share a record with. With
+  // them, a key edit that would put MOUBTN's CFnn / CAnn on the same number
+  // as the opposite-type ALTHELP / ALTPAGEDWN / ALTPAGEUP / CAnn / CFnn is
+  // refused (alert, then re-render to restore the row); omitted-safe.
+  function wireMoubtnPanel(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn, getFileKeywords, getRecordScopes) {
+    function keyConflict(parameters) {
+      if (!getFileKeywords && !getRecordScopes) return null;
+      return DspfWriter.moubtnCommandKeyConflictReason({ name: 'MOUBTN', parameters: parameters },
+        getFileKeywords ? getFileKeywords() : [], getRecordScopes ? getRecordScopes() : []);
+    }
     var instances = DspfWriter.getRepeatableKeywordInstances(getKeywords(), ['MOUBTN']);
     wireRepeatableConditionedInstances(
       ownerKey + '-moubtn-rep',
@@ -1222,7 +1244,14 @@
         var queueEl = document.querySelector('.' + instIdPrefix + '-queue');
         function commit() {
           var f = { event: eventEl.value, trailing: trailingEl.value, key: keyEl.value, queue: queueEl.value };
-          updatePayload({ name: 'MOUBTN', parameters: composeMoubtnParams(f) });
+          var composed = composeMoubtnParams(f);
+          var reason = composed ? keyConflict(composed) : null;
+          if (reason) {
+            window.alert(reason);
+            if (rerender) rerender();
+            return;
+          }
+          updatePayload({ name: 'MOUBTN', parameters: composed });
         }
         if (eventEl) eventEl.addEventListener('change', commit);
         if (trailingEl) trailingEl.addEventListener('change', commit);
@@ -1236,7 +1265,13 @@
         // reasoning: this component commits on every change immediately,
         // so a genuinely blank MOUBTN() would be invalid DDS and vanish
         // again on the very next re-render before the user can fill it in).
-        return { name: 'MOUBTN', conditions: [], parameters: '*ULP CF01' };
+        // Task I-136: CF01 is the placeholder unless it would clash with an
+        // ALTHELP written with no parameter (default CA01) or a CA01 - then
+        // an EVENT-ID, which no exclusion row covers, keeps the fresh
+        // instance valid until the user picks a real key.
+        var placeholder = '*ULP CF01';
+        if (keyConflict(placeholder)) placeholder = '*ULP E00';
+        return { name: 'MOUBTN', conditions: [], parameters: placeholder };
       },
       undefined,
       addGuardFn
@@ -4962,7 +4997,9 @@
     if (indtxtText) indtxtText.addEventListener('change', function () { commitIndtxt(); });
     // Task I-3: INDTXT - "Option indicators are not valid for this keyword"
     // - no Conditioning toggle wired.
-    wireMoubtnPanel(getKeywords, onChange, 'fk', expandedSet, rerender);
+    wireMoubtnPanel(getKeywords, onChange, 'fk', expandedSet, rerender, undefined, getKeywords, function () {
+      return allRecordKeywordScopes(getModel);
+    });
 
     // Print
     // Task I-2 (keywordFixes.md): PRINT's "System handles print" fields
@@ -5263,9 +5300,25 @@
     // Alternate keywords
     // Task I-3: ALTHELP - "not valid"; ALTPAGEDWN/ALTPAGEUP's shared
     // section - "Option indicators are not valid for these keywords."
-    simple('fk-althelp', 'ALTHELP', true, undefined, true);
-    simple('fk-altpageup', 'ALTPAGEUP', true, undefined, true);
-    simple('fk-altpagedwn', 'ALTPAGEDWN', true, undefined, true);
+    // Task I-136: the three alt keys claim a key number (default included)
+    // that a MOUBTN Command key of the opposite type may not share. Turning
+    // one on, or changing its key, is checked against every MOUBTN in the
+    // file; on a clash the row alerts and re-renders to its stored state.
+    ['ALTHELP', 'ALTPAGEUP', 'ALTPAGEDWN'].forEach(function (name) {
+      var id = 'fk-' + name.toLowerCase();
+      wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
+        return DspfWriter.setFileFlagKeyword(keywords, name, present, params, undefined, conditions, undefined);
+      }, undefined, undefined, undefined, function (present) {
+        if (!present) return true;
+        var paramsEl = document.getElementById(id + '-params');
+        var reason = DspfWriter.moubtnCommandKeyConflictReason({ name: name, parameters: paramsEl ? paramsEl.value.trim() : '' },
+          getKeywords(), allRecordKeywordScopes(getModel));
+        if (!reason) return true;
+        window.alert(reason);
+        rerender();
+        return false;
+      });
+    });
 
     // Window Border
     wireWindowBorderPanel('fk-wdw', getKeywords, onChange, expandedSet, rerender);
@@ -6567,7 +6620,7 @@
       return DspfWriter.usrdfnWhitelistConflictReason('MOUBTN', getKeywords()) ||
         DspfWriter.sflWhitelistConflictReason('MOUBTN', getKeywords()) ||
         DspfWriter.mnubarWhitelistConflictReason('MOUBTN', getKeywords());
-    });
+    }, getFileKeywords, function () { return [getKeywords()]; });
     // Task I-103: record-level CHGINPDFT is refused on USRDFN and MNUBAR records
     // (not on either closed whitelist); SFL's list allows it, so that stays accepted.
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender, function (kws) {

@@ -178,9 +178,9 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-133](#i-133) | Field | `*GUTTER` minimum of 2 (`SNGCHCFLD` / `MLTCHCFLD` "at least 2", `PSHBTNFLD` "greater than one"): enforced by the panels' Apply but not by the writer backstops `setChoiceSelectionType` / `setPshbtnfld` (both only test `> 0`) | I-121, I-63 | Done | v0.10.253 |
 | [I-134](#i-134) | Field | `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD` layout parameters (`*NUMCOL` xor `*NUMROW`, `*GUTTER` of at least 2, and for SNGCHCFLD / MLTCHCFLD a `*GUTTER` only with one of them): checked by the panels' Apply buttons only - the raw keyword editor accepts any of them | I-133, I-63 | Done | v0.10.254 |
 | [I-135](#i-135) | Record | `SETOFF` (documented as equivalent to `SETOF`, "SETOF is preferred"): not read by the Define Indicator Keywords panel or the SFL/SFLMSG/PDNSFLCTL indicator-text rows, and no "option indicators not valid" guard, unlike `SETOF` | I-121, I-101 | Done | v0.10.260 |
-| [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | In progress | - |
+| [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | Done | v0.10.267 |
 | [I-137](#i-137) | Field | `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: the DDS Reference bars all four on a floating-point field, but the check runs only when the keyword row is switched on - a raw-editor add to an F field, or a field carrying one changed to data type F on the Basic tab, is unblocked | I-121, I-125 | Done | v0.10.264 |
-| [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.265 |
+| [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.267 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -6060,11 +6060,15 @@ The Deferred findings table is empty again.
 
 ### I-136 — `MOUBTN` command-key exclusions with `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn` are not enforced
 
-> **Area:** File / Record · **Status:** In progress · **Depends on:** I-121
+> **Area:** File / Record · **Status:** Done (v0.10.267) · **Depends on:** I-121
 
 Opened from the deferred finding logged by the I-121 MOUBTN parameter-domain slice. `DDS_Keyword_V7r6.txt` (MOUBTN section, ~line 8822) lists the keywords that "cannot be specified when the listed Command key has been used on the MOUBTN keyword": a `CFxx` key excludes `ALTHELP(CAyy)` and `CAxx` (xx = yy); a `CAxx` key excludes `ALTPAGEDWN(CFyy)`, `ALTPAGEUP(CFyy)` and `CFxx` (xx = yy); and `CF01` / `CA07` / `CA08` exclude the alt keys written without a parameter (their defaults). Each alt-key section repeats the row from its own side. Nothing in the writer or the panels enforces any of it.
 
-Implementation notes are added when the task is done.
+Implementation: the whole table is one rule (a MOUBTN Command key and a partner claiming the same number as the opposite key type, CA vs CF), so it is one spec fact rather than nine rows: `RECORD_TYPES.MOUBTN.commandKeyExclusion` lists the partners with the key type and default each claims (ALTHELP CA01, ALTPAGEDWN CF08, ALTPAGEUP CF07, from the alt-key sections' own defaults) and that the plain `CAnn` / `CFnn` keywords claim their own type and number, exposed as `KeywordSpec.moubtnCommandKeyExclusion()`. `DspfWriter.moubtnCommandKeyConflictReason(candidate, fileKeywords, recordScopes)` checks a candidate MOUBTN instance, alt key or plain command key against the rest, from either side; each record scope is checked with the file-level list as context (a file-level keyword reaches every record, a record's own keyword only its own), a singleton alt key replaces its old value before checking, only pairs involving the candidate are reported, and the message names both keywords, the shared number and both types.
+
+Wired into: the MOUBTN row's key edit (`wireMoubtnPanel`, file and record level; a clash alerts and re-renders the row), the three alt-key rows (`ALTHELP` / `ALTPAGEUP` / `ALTPAGEDWN`, now `wireFlagRow` with a guard instead of `simple()`), and `wireCommandKeysSection`'s "+ Add command key" (file and record). A fresh MOUBTN's `*ULP CF01` placeholder falls back to `*ULP E00` when CF01 would clash, so "+ Add" never creates an instance the guard would then refuse. Same-type pairs (`MOUBTN(... CF08)` with `ALTPAGEDWN(CF08)`) are not in the table and stay allowed.
+
+Behavior change, deliberate: these combinations used to be accepted. Not covered, deliberately: the rest of the ALTHELP / ALTPAGEDWN / ALTPAGEUP exclusion lists (MNUCNL, MNUBARSW, PSHBTNCHC, SFLDROP, SFLENTER, SFLFOLD, and each other) - MOUBTN's own table is only the MOUBTN rows; the others are separate rows of the same alt-key sections and would be a follow-up task. Raw-editor and hand-typed DDS are not intercepted. New `src/test/i136MoubtnCommandKeyExclusions.test.js` covers the spec fact, the writer from both sides (including scope, queue-flag stripping and fail-safe input) and the panels in jsdom; a stash check confirmed the writer section fails against pre-change code and that the panel checks fail when only the wiring is reverted.
 
 ---
 
@@ -6086,7 +6090,7 @@ The Deferred findings table keeps one finding: EDTCDE/EDTWRD's wider data-type e
 
 ### I-138 — `EDTCDE` / `EDTWRD`: barred on every data type but Y (or blank), enforced nowhere except F
 
-> **Area:** Field · **Status:** Done (v0.10.265) · **Depends on:** I-121, I-137
+> **Area:** Field · **Status:** Done (v0.10.267) · **Depends on:** I-121, I-137
 
 Opened from the deferred finding logged by the I-121 DFT/DFTVAL floating-point slice. `DDS_Keyword_V7r6.txt` states EDTCDE's eligibility at line ~5600 (\"valid only for fields with Y or blank in position 35\") and EDTWRD's at line ~5933 (\"valid for numeric only fields (Y specified in position 35)\"). Since I-137 F is blocked, but an explicit A, X, N, S, I, D, M, L, T or Z is accepted by the raw editor, the Input keywords panel and a Basic-tab data type change.
 

@@ -4790,6 +4790,114 @@
     return KeywordSpec.validValues(keywordName);
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-136 - MOUBTN's Command-key exclusions. KeywordSpec's
+  // MOUBTN.commandKeyExclusion holds the DDS Reference table as one rule:
+  // a MOUBTN Command key and a partner claiming the SAME number as the
+  // OPPOSITE type (CA vs CF) cannot coexist. The partners are the alt
+  // keys (ALTHELP claims CAnn, default CA01; ALTPAGEDWN / ALTPAGEUP claim
+  // CFnn, defaults CF08 / CF07) and the plain CAnn / CFnn keywords.
+  // -----------------------------------------------------------------------
+
+  var COMMAND_KEY_TOKEN_RE = /^(CA|CF)(\d{2})$/;
+
+  /** The (type, number) a MOUBTN instance's Command key claims, or null when
+   *  it is not a CAnn / CFnn (ENTER, ROLLUP, an EVENT-ID, an unfinished
+   *  instance ...). MOUBTN(EVENT [TRAILING-EVENT] key [*QUEUE|*NOQUEUE]): the
+   *  key is the last token once a trailing queue flag is dropped. */
+  function moubtnClaimedKey(parameters) {
+    var tokens = String(parameters || '').trim().split(/\s+/).filter(Boolean);
+    if (tokens.length && /^\*(NO)?QUEUE$/i.test(tokens[tokens.length - 1])) tokens.pop();
+    if (tokens.length < 2) return null;
+    var m = COMMAND_KEY_TOKEN_RE.exec(tokens[tokens.length - 1].toUpperCase());
+    return m ? { type: m[1], number: m[2] } : null;
+  }
+
+  /** Every non-MOUBTN claim the exclusion table cares about in one keyword
+   *  list: each alt key (its parameter, or its documented default) and each
+   *  plain CAnn / CFnn keyword. `label` is how the keyword reads in DDS. */
+  function moubtnPartnerClaims(keywords, exclusion) {
+    var claims = [];
+    (keywords || []).forEach(function (k) {
+      var name = String(k.name || '').toUpperCase();
+      var partner = null;
+      for (var i = 0; i < exclusion.partners.length; i++) {
+        if (exclusion.partners[i].keyword === name) partner = exclusion.partners[i];
+      }
+      if (partner) {
+        var param = String(k.parameters || '').trim().split(/\s+/)[0].toUpperCase();
+        var explicit = COMMAND_KEY_TOKEN_RE.exec(param);
+        var key = explicit || COMMAND_KEY_TOKEN_RE.exec(partner.defaultKey);
+        claims.push({ type: key[1], number: key[2], label: name + (explicit ? '(' + param + ')' : ' (no parameter, default ' + partner.defaultKey + ')'), source: name });
+        return;
+      }
+      var plain = COMMAND_KEY_TOKEN_RE.exec(name);
+      if (plain && exclusion.plainKeyTypes.indexOf(plain[1]) >= 0) {
+        claims.push({ type: plain[1], number: plain[2], label: name, source: name });
+      }
+    });
+    return claims;
+  }
+
+  function moubtnKeyClaims(keywords) {
+    var claims = [];
+    (keywords || []).forEach(function (k) {
+      if (String(k.name || '').toUpperCase() !== 'MOUBTN') return;
+      var key = moubtnClaimedKey(k.parameters);
+      if (key) claims.push({ type: key.type, number: key.number, label: 'MOUBTN(' + String(k.parameters).trim() + ')' });
+    });
+    return claims;
+  }
+
+  /** The reason `candidate` (a keyword `{ name, parameters }` about to be
+   *  written: a MOUBTN instance, ALTHELP / ALTPAGEDWN / ALTPAGEUP, or a plain
+   *  CAnn / CFnn) would put a MOUBTN Command key and a partner on the same
+   *  number as opposite key types, or null. Only pairs that involve a MOUBTN
+   *  are checked - the alt keys' and CA / CF keys' rules among themselves
+   *  are their own sections' business.
+   *
+   *  Scope: `fileKeywords` is the file-level keyword list; `recordScopes` is
+   *  an array of keyword arrays, one per record the candidate can share a
+   *  record with - the caller editing a file-level keyword passes every
+   *  record's own keywords, a caller editing one record passes just that
+   *  record's. Each record is checked with the file-level list as its
+   *  context, so a MOUBTN on one record never conflicts with a CAnn on a
+   *  different record. A singleton candidate (ALTHELP ...) replaces any
+   *  existing keyword of the same name before checking, so editing it never
+   *  conflicts with its own old value. A MOUBTN never conflicts with another
+   *  MOUBTN (the table only lists other keywords). */
+  function moubtnCommandKeyConflictReason(candidate, fileKeywords, recordScopes) {
+    var exclusion = KeywordSpec.moubtnCommandKeyExclusion();
+    if (!exclusion || !candidate) return null;
+    var name = String(candidate.name || '').toUpperCase();
+    var isMoubtn = name === 'MOUBTN';
+    var isPartner = exclusion.partners.some(function (p) { return p.keyword === name; });
+    var isPlain = COMMAND_KEY_TOKEN_RE.test(name);
+    if (!isMoubtn && !isPartner && !isPlain) return null;
+    var singleton = isPartner;
+    var scopes = (recordScopes && recordScopes.length) ? recordScopes : [[]];
+    var candidateKw = { name: name, parameters: candidate.parameters || '' };
+    for (var s = 0; s < scopes.length; s++) {
+      var view = (fileKeywords || []).concat(scopes[s] || []);
+      if (singleton) view = view.filter(function (k) { return String(k.name || '').toUpperCase() !== name; });
+      view = view.concat([candidateKw]);
+      var mouse = moubtnKeyClaims(view);
+      var partners = moubtnPartnerClaims(view, exclusion);
+      for (var a = 0; a < mouse.length; a++) {
+        for (var b = 0; b < partners.length; b++) {
+          if (mouse[a].number === partners[b].number && mouse[a].type !== partners[b].type) {
+            // Report only pairs that involve the candidate itself.
+            var involvesCandidate = isMoubtn ? mouse[a].label === 'MOUBTN(' + String(candidateKw.parameters).trim() + ')' : (partners[b].source === name);
+            if (!involvesCandidate) continue;
+            return mouse[a].label + ' cannot be specified together with ' + partners[b].label + ' - both use key number ' + mouse[a].number +
+              ' as different key types (' + mouse[a].type + ' and ' + partners[b].type + '). ' + exclusion.ddsReference;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   /** Task I-121 (MOUBTN parameter-domain slice) - the MOUBTN panel's EVENT /
    *  TRAILING-EVENT values and *QUEUE flag values, read from the spec
    *  (copies). */
@@ -9315,6 +9423,7 @@
     sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,
     dateTimeValidValues: dateTimeValidValues,
     moubtnParameterDomain: moubtnParameterDomain,
+    moubtnCommandKeyConflictReason: moubtnCommandKeyConflictReason,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,
     setChoices: setChoices,

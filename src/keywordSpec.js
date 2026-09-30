@@ -813,7 +813,32 @@
       commandKeyRanges: [{ prefix: 'CA', min: 1, max: 24 }, { prefix: 'CF', min: 1, max: 24 }],
       eventIdRange: { prefix: 'E', min: 0, max: 15 },
       queueValues: ['*QUEUE', '*NOQUEUE'],
-      queueDefault: '*NOQUEUE'
+      queueDefault: '*NOQUEUE',
+      // Task I-136 - the MOUBTN section's exclusion table ("The following
+      // keywords cannot be specified when the listed Command key has been
+      // used on the MOUBTN keyword": CFxx excludes ALTHELP(CAyy) and CAxx;
+      // CAxx excludes ALTPAGEDWN(CFyy), ALTPAGEUP(CFyy) and CFxx; xx = yy;
+      // and CF01 / CA07 / CA08 exclude the alt keys written without a
+      // parameter). Every row is the same rule: a MOUBTN Command key of one
+      // type (CA or CF) and a partner claiming the SAME number as the
+      // OPPOSITE type. `partners` names the alt keys and the type + default
+      // key each one claims (the alt-key sections give the defaults: ALTHELP
+      // CA01, ALTPAGEDWN CF08, ALTPAGEUP CF07); `plainKeyTypes` are the
+      // ordinary CAnn / CFnn keywords, which claim their own type and number.
+      // Same-type pairs (MOUBTN(CF08) with ALTPAGEDWN(CF08)) are not in the
+      // table and stay allowed.
+      commandKeyExclusion: {
+        rule: 'oppositeTypeSameNumber',
+        partners: [
+          { keyword: 'ALTHELP', keyType: 'CA', defaultKey: 'CA01' },
+          { keyword: 'ALTPAGEDWN', keyType: 'CF', defaultKey: 'CF08' },
+          { keyword: 'ALTPAGEUP', keyType: 'CF', defaultKey: 'CF07' }
+        ],
+        plainKeyTypes: ['CA', 'CF'],
+        ddsReference: 'MOUBTN Command key CFxx cannot be combined with ALTHELP(CAyy) or CAxx, and CAxx cannot be combined ' +
+          'with ALTPAGEDWN(CFyy), ALTPAGEUP(CFyy) or CFxx, where xx = yy; CF01, CA07 and CA08 cannot be combined with ' +
+          'ALTHELP, ALTPAGEUP and ALTPAGEDWN written with no parameter.'
+      }
     },
     DSPATR: {
       ddsReference: 'Valid attributes for the first format of the DSPATR keyword. ' +
@@ -1668,6 +1693,19 @@
     return list.indexOf(v) >= 0 || list.indexOf(v.toUpperCase()) >= 0 && v.charAt(0) === '*';
   }
 
+  /** Task I-136 - MOUBTN's Command-key exclusion table (see the spec entry's
+   *  own comment). A copy; null if the fact is missing. */
+  function moubtnCommandKeyExclusion() {
+    var e = RECORD_TYPES.MOUBTN && RECORD_TYPES.MOUBTN.commandKeyExclusion;
+    if (!e) return null;
+    return {
+      rule: e.rule,
+      partners: e.partners.map(function (x) { return { keyword: x.keyword, keyType: x.keyType, defaultKey: x.defaultKey }; }),
+      plainKeyTypes: e.plainKeyTypes.slice(),
+      ddsReference: e.ddsReference
+    };
+  }
+
   /** The full list of PASSRCD-restricted keyword names, in `RECORD_TYPES`'
    *  own declared order (WINDOW, ALWROL, CLRL, SLNO) - the single source
    *  of truth `passrcdRecordConflictReason`'s own callers previously each
@@ -2317,6 +2355,7 @@
     floatIncompatibleCheckCodes: floatIncompatibleCheckCodes,
     checkCodeGroups: checkCodeGroups,
     validValues: validValues,
+    moubtnCommandKeyExclusion: moubtnCommandKeyExclusion,
     isValidValue: isValidValue,
     checkCodes: checkCodes,
     checkCodeGroup: checkCodeGroup,
