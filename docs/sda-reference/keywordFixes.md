@@ -179,6 +179,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-134](#i-134) | Field | `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD` layout parameters (`*NUMCOL` xor `*NUMROW`, `*GUTTER` of at least 2, and for SNGCHCFLD / MLTCHCFLD a `*GUTTER` only with one of them): checked by the panels' Apply buttons only - the raw keyword editor accepts any of them | I-133, I-63 | Done | v0.10.254 |
 | [I-135](#i-135) | Record | `SETOFF` (documented as equivalent to `SETOF`, "SETOF is preferred"): not read by the Define Indicator Keywords panel or the SFL/SFLMSG/PDNSFLCTL indicator-text rows, and no "option indicators not valid" guard, unlike `SETOF` | I-121, I-101 | Done | v0.10.260 |
 | [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | In progress | - |
+| [I-137](#i-137) | Field | `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: the DDS Reference bars all four on a floating-point field, but the check runs only when the keyword row is switched on - a raw-editor add to an F field, or a field carrying one changed to data type F on the Basic tab, is unblocked | I-121, I-125 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -198,11 +199,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-132, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-137, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121 DFT/DFTVAL floating-point slice | DFT ("not valid on floating point fields") and DFTVAL ("or on a floating-point field") state a floating-point restriction, and EDTCDE ("valid only for fields with Y or blank in position 35") / EDTWRD ("numeric only fields (Y specified in position 35)") exclude F by their own eligibility sentences. `dftGroupConflictReason` only runs when the keyword row is switched ON (DFT/DFTVAL rows, EDTCDE/EDTWRD apply), so a raw-editor add of any of the four to an F field, or changing a field that carries one to data type F, is unguarded - unlike DUP/BLKFOLD/RANGE/COMP/VALUES/CHECK(AB), which have the diff-based `commitEdit` + Basic-tab guards (I-125). Separately, EDTCDE/EDTWRD's other data-type restrictions (anything but Y/blank, and Y only) are enforced nowhere. |
+| I-121 DFT/DFTVAL floating-point slice | EDTCDE ("valid only for fields with Y or blank in position 35") and EDTWRD ("numeric only fields (Y specified in position 35)") also exclude every data type other than Y/blank (EDTCDE) or Y (EDTWRD), not only F; that wider eligibility is enforced nowhere. Needs a look at how this codebase's `dataType` maps to position 35 for numeric fields before it can be specified. (The floating-point half of this finding is I-137.) |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6057,6 +6058,16 @@ The Deferred findings table is empty again.
 Opened from the deferred finding logged by the I-121 MOUBTN parameter-domain slice. `DDS_Keyword_V7r6.txt` (MOUBTN section, ~line 8822) lists the keywords that "cannot be specified when the listed Command key has been used on the MOUBTN keyword": a `CFxx` key excludes `ALTHELP(CAyy)` and `CAxx` (xx = yy); a `CAxx` key excludes `ALTPAGEDWN(CFyy)`, `ALTPAGEUP(CFyy)` and `CFxx` (xx = yy); and `CF01` / `CA07` / `CA08` exclude the alt keys written without a parameter (their defaults). Each alt-key section repeats the row from its own side. Nothing in the writer or the panels enforces any of it.
 
 Implementation notes are added when the task is done.
+
+---
+
+### I-137 — `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: barred on a floating-point field, but only checked when the keyword row is switched on
+
+> **Area:** Field · **Status:** In progress · **Depends on:** I-121, I-125
+
+Opened from the deferred finding raised by the I-121 DFT/DFTVAL floating-point slice. `DDS_Keyword_V7r6.txt` states the restriction for DFT (line ~4688, \"not valid on floating point fields\") and DFTVAL (line ~4762, \"or on a floating-point field\"), and EDTCDE (line ~5600) / EDTWRD (line ~5933) exclude F by their Y-or-blank / Y-only eligibility sentences. `dftGroupConflictReason` (L81/L82) enforces it, but only from the DFT/DFTVAL rows and the EDTCDE/EDTWRD apply - so a raw-editor add of any of the four to an F field, or changing a field that carries one to data type F on the Basic tab, goes through unblocked. DUP, BLKFOLD, RANGE, COMP, VALUES and CHECK have the diff-based guards on both paths (I-72, I-96, I-125, I-132).
+
+Plan: one diff-based writer guard over the four spec-flagged group members (built on `floatIncompatibleKeywordNewConflictReason`, so an already-invalid hand-written field stays editable), wired at the same two sites as the existing float guards - the Basic-tab Apply handler and the `commitEdit` backstop. Re-verify the four sentences fresh against `DDS_Keyword_V7r6.txt` before coding. The wider EDTCDE/EDTWRD data-type eligibility stays in the Deferred findings table.
 
 ---
 
