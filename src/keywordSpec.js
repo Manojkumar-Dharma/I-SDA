@@ -924,7 +924,19 @@
     CHECK: {
       floatDdsReference: 'You cannot specify the CHECK(AB) keyword on a floating-point field (F in position 35). ' +
         'You cannot specify the CHECK(M10), CHECK(M10F), CHECK(M11), and CHECK(M11F) keywords on a floating-point field (F in position 35).',
-      notAllowedOnFloatingPointCodes: ['AB', 'M10', 'M10F', 'M11', 'M11F']
+      notAllowedOnFloatingPointCodes: ['AB', 'M10', 'M10F', 'M11', 'M11F'],
+      // Task I-121 (CHECK option-code table slice) - the full set of codes
+      // CHECK's own DDS Reference section lists, by the function IBM
+      // groups them under. The two-panel split the editor uses (Keying
+      // options vs Validity check) is a presentation choice and is not
+      // modelled here; RLTB is in the reference's cursor-control list.
+      codeGroups: {
+        validity: ['AB', 'ME', 'MF', 'M10', 'M10F', 'M11', 'M11F', 'VN', 'VNE'],
+        keyboard: ['ER', 'FE', 'LC', 'RB', 'RZ'],
+        cursor: ['RL', 'RLTB']
+      },
+      codesDdsReference: 'Validity checking: AB, ME, MF, M10, M10F, M11, M11F, VN, VNE. ' +
+        'Keyboard control: ER, FE, LC, RB, RZ. Cursor control: RL, RLTB.'
     },
 
     CHKMSGID: {
@@ -1512,6 +1524,28 @@
     return spec && spec.notAllowedOnFloatingPointCodes ? spec.notAllowedOnFloatingPointCodes.slice() : [];
   }
 
+  /** Task I-121 (CHECK option-code table slice) - every CHECK code, grouped
+   *  by IBM's function name. Copies; empty for a keyword with no such
+   *  fact. */
+  function checkCodeGroups(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    var out = {};
+    if (!spec || !spec.codeGroups) return out;
+    Object.keys(spec.codeGroups).forEach(function (g) { out[g] = spec.codeGroups[g].slice(); });
+    return out;
+  }
+  function checkCodes() {
+    var g = checkCodeGroups('CHECK');
+    return Object.keys(g).reduce(function (all, k) { return all.concat(g[k]); }, []);
+  }
+  /** 'validity' | 'keyboard' | 'cursor', or null for a non-CHECK code. */
+  function checkCodeGroup(code) {
+    var c = String(code == null ? '' : code).trim().toUpperCase();
+    var g = checkCodeGroups('CHECK');
+    for (var k in g) if (Object.prototype.hasOwnProperty.call(g, k) && g[k].indexOf(c) >= 0) return k;
+    return null;
+  }
+
   /** The full list of PASSRCD-restricted keyword names, in `RECORD_TYPES`'
    *  own declared order (WINDOW, ALWROL, CLRL, SLNO) - the single source
    *  of truth `passrcdRecordConflictReason`'s own callers previously each
@@ -2037,6 +2071,9 @@
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
     isNotAllowedOnFloatingPointField: isNotAllowedOnFloatingPointField,
     floatIncompatibleCheckCodes: floatIncompatibleCheckCodes,
+    checkCodeGroups: checkCodeGroups,
+    checkCodes: checkCodes,
+    checkCodeGroup: checkCodeGroup,
     conditionalMutexHit: conditionalMutexHit,
     groupMutexKeywords: groupMutexKeywords,
     requiredPartner: requiredPartner,

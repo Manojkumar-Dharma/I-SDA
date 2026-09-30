@@ -1903,8 +1903,6 @@
   // EDTCDE/EDTWRD/EDTMSK in this section remain single-instance.
   // ---------------------------------------------------------------------
 
-  var CHECK_CODES = ['ME', 'ER', 'MF', 'FE', 'RB', 'RZ', 'RL', 'LC', 'AB', 'VN', 'VNE', 'M10', 'M10F', 'M11', 'M11F'];
-
   /**
    * Task L1d - CHECK(...) is now multi-instance (real DDS lets several
    * CHECK() keywords coexist on one field, each independently conditioned
