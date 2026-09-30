@@ -178,6 +178,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-133](#i-133) | Field | `*GUTTER` minimum of 2 (`SNGCHCFLD` / `MLTCHCFLD` "at least 2", `PSHBTNFLD` "greater than one"): enforced by the panels' Apply but not by the writer backstops `setChoiceSelectionType` / `setPshbtnfld` (both only test `> 0`) | I-121, I-63 | Done | v0.10.253 |
 | [I-134](#i-134) | Field | `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD` layout parameters (`*NUMCOL` xor `*NUMROW`, `*GUTTER` of at least 2, and for SNGCHCFLD / MLTCHCFLD a `*GUTTER` only with one of them): checked by the panels' Apply buttons only - the raw keyword editor accepts any of them | I-133, I-63 | Done | v0.10.254 |
 | [I-135](#i-135) | Record | `SETOFF` (documented as equivalent to `SETOF`, "SETOF is preferred"): not read by the Define Indicator Keywords panel or the SFL/SFLMSG/PDNSFLCTL indicator-text rows, and no "option indicators not valid" guard, unlike `SETOF` | I-121, I-101 | Done | v0.10.260 |
+| [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | In progress | - |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -6036,6 +6037,16 @@ Behavior change, deliberate and small: a hand-written `SETOFF(63)` now shows as 
 New `src/test/i135SetoffAliasOfSetof.test.js` (25 checks): the spec facts, the Define Indicator Keywords panel model (SETOFF read as SETOF, replaced not duplicated, cleared, ROLLUP / ROLLDOWN unchanged), the indicator-text rows (indicator and text intact, unrelated keywords survive, a list without SETOF leaves SETOFF alone, other callers unaffected), the guard (refused with SETOFF's own name, fail-open on removal or an already-present indicator, listed right after SETOF) and jsdom renders of both panels (a Set off row, no Conditioning toggle). Removing the alias or the guard fact fails it. Full suite: 209 files, 11,786 checks, zero failures.
 
 The Deferred findings table is empty again.
+
+---
+
+### I-136 — `MOUBTN` command-key exclusions with `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn` are not enforced
+
+> **Area:** File / Record · **Status:** In progress · **Depends on:** I-121
+
+Opened from the deferred finding logged by the I-121 MOUBTN parameter-domain slice. `DDS_Keyword_V7r6.txt` (MOUBTN section, ~line 8822) lists the keywords that "cannot be specified when the listed Command key has been used on the MOUBTN keyword": a `CFxx` key excludes `ALTHELP(CAyy)` and `CAxx` (xx = yy); a `CAxx` key excludes `ALTPAGEDWN(CFyy)`, `ALTPAGEUP(CFyy)` and `CFxx` (xx = yy); and `CF01` / `CA07` / `CA08` exclude the alt keys written without a parameter (their defaults). Each alt-key section repeats the row from its own side. Nothing in the writer or the panels enforces any of it.
+
+Implementation notes are added when the task is done.
 
 ---
 
