@@ -5209,7 +5209,8 @@
     return next;
   }
 
-  var CHOICE_COLOR_STATE_KEYWORDS = ['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT'];
+  //  Task I-121: the names are keywordSpec.js's CHOICE_COLOR_STATE_KEYWORDS.
+  var CHOICE_COLOR_STATE_KEYWORDS = KeywordSpec.choiceColorStateKeywords();
 
   /** CHCAVAIL/CHCUNAVAIL/CHCSLT ((*COLOR c) (*DSPATR a a)) - the three
    *  whole-field (not per-choice) color/attribute states a SNGCHCFLD/
@@ -9532,6 +9533,8 @@
     getMenubarSeparator: getMenubarSeparator,
     setMenubarSeparator: setMenubarSeparator,
     getChoiceSelectionType: getChoiceSelectionType,
+    choiceColorStateKeywords: function () { return CHOICE_COLOR_STATE_KEYWORDS.slice(); },
+    choiceColorStateKeywordsAllowedOn: KeywordSpec.choiceColorStateKeywordsAllowedOn,
     layoutParameterProblems: layoutParameterProblems,
     layoutParametersNewConflictReason: layoutParametersNewConflictReason,
     sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,

@@ -2105,6 +2105,19 @@
     return out;
   }
 
+  /** Task I-121 choice color-state slice - the three state keyword names in
+   *  the writer's original order (a fresh array). */
+  function choiceColorStateKeywords() {
+    return Object.keys(CHOICE_COLOR_STATE_KEYWORDS);
+  }
+
+  /** The state keywords `recordType`'s own whitelist allows on a field
+   *  (`PSHBTNFLD` -> CHCAVAIL, CHCUNAVAIL; a record type with no whitelist
+   *  allows all three, as isWhitelisted does), same order. */
+  function choiceColorStateKeywordsAllowedOn(recordType) {
+    return choiceColorStateKeywords().filter(function (k) { return isWhitelisted(recordType, k); });
+  }
+
   /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
    *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
    *  for a keyword with no spec entry or no such flag. */
@@ -2422,6 +2435,32 @@
     }
   };
 
+  // -----------------------------------------------------------------------
+  // Task I-121 choice color-state keywords slice
+  // -----------------------------------------------------------------------
+  //
+  // The three whole-field (not per-choice) color / attribute states a
+  // SNGCHCFLD / MLTCHCFLD field's choices can be shown in - available,
+  // unavailable (see CHCCTL) and selected - all sharing the
+  // "(*COLOR c) (*DSPATR a a)" shape. dspfWriter.js kept the names as
+  // CHOICE_COLOR_STATE_KEYWORDS (only its doc comments referred to it),
+  // and webviewClientHelpers.js hard-coded WHICH of them a push-button
+  // field may show as `['avail', 'unavail']` in two call sites, a second
+  // copy of a rule PSHBTNFLD's own whitelist (above) already states:
+  // "CHCAVAIL, CHCUNAVAIL, CHCCTL, ..." with no CHCSLT. That subset is now
+  // asked of the whitelist (`choiceColorStateKeywordsAllowedOn`), so the
+  // panel can never offer a state the spec forbids. One fact per keyword:
+  //   ddsReference - the DDS_Keyword_V7r6.txt wording identifying it
+  // Not migrated: the webview's rows (element-id key + label, screen
+  // presentation). The DDS Reference sections (CHCAVAIL ~line 11475, CHCSLT and
+  // CHCUNAVAIL right after) themselves say CHCSLT is for "a menu bar or selection
+  // field" - no push button - and the other two include push buttons.
+  var CHOICE_COLOR_STATE_KEYWORDS = {
+    CHCAVAIL: { ddsReference: 'the color or display attributes to be used when the system is displaying the available choices in a menu bar, push button, selection field, or subfile single-choice or multiple-choice selection list' },
+    CHCUNAVAIL: { ddsReference: 'the color or display attributes to be used when the system displays the unavailable choices in a selection field or a push button field' },
+    CHCSLT: { ddsReference: 'the color or display attributes to be used when the system is displaying a selected choice in a menu bar or selection field' }
+  };
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
@@ -2479,6 +2518,9 @@
     gutterMinimum: gutterMinimum,
     gutterRequiresLayout: gutterRequiresLayout,
     RECORD_INDICATOR_KEYWORDS: RECORD_INDICATOR_KEYWORDS,
+    CHOICE_COLOR_STATE_KEYWORDS: CHOICE_COLOR_STATE_KEYWORDS,
+    choiceColorStateKeywords: choiceColorStateKeywords,
+    choiceColorStateKeywordsAllowedOn: choiceColorStateKeywordsAllowedOn,
     REPEATABLE_INSTANCE_GROUPS: REPEATABLE_INSTANCE_GROUPS,
     repeatableGroupKinds: repeatableGroupKinds,
     repeatableGroupAlternateKinds: repeatableGroupAlternateKinds,

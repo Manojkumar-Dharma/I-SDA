@@ -4678,7 +4678,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // never collide with the choice-field editors' own.
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-control', 'Push-button choice control (CHCCTL)', WebviewClientHelpers.pshbtnChoiceControlHtml(field.keywords, 'field-' + field.sourceLine + '-pbx'), false);
-        attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-colors', 'Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, ['avail', 'unavail']), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-colors', 'Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, WebviewClientHelpers.pshbtnChoiceColorStateKeys()), false);
       }
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-selection-type', 'Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
       const isChoiceField = DspfWriter.getChoiceSelectionType(field.keywords).kind !== '';
@@ -4976,7 +4976,7 @@ const htmlTemplate = `<!DOCTYPE html>
       );
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
         WebviewClientHelpers.wirePshbtnChoiceControl(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx');
-        WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, () => renderFieldProps(recordName), ['avail', 'unavail']);
+        WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, () => renderFieldProps(recordName), WebviewClientHelpers.pshbtnChoiceColorStateKeys());
       }
       WebviewClientHelpers.wireChoiceSelectionTypeEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, (kind) => DspfWriter.pshbtnfldConflictReason(kind, '', field.keywords));
       if (DspfWriter.getChoiceSelectionType(field.keywords).kind !== '') {

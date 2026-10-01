@@ -3867,9 +3867,18 @@
 
   /** Task I-65 - the subset of CHOICE_COLOR_STATES named by `stateKeys`
    *  (an array of 'avail' / 'unavail' / 'slt'); every state when omitted.
-   *  A push-button field passes ['avail', 'unavail'] - CHCSLT is NOT on
+   *  A push-button field passes pshbtnChoiceColorStateKeys() - CHCSLT is NOT on
    *  PSHBTNFLD's list of allowed keywords, so its editor must not offer it
    *  (and its shared Apply must never touch it). */
+  /** Task I-121 - the state keys ('avail' / 'unavail' / 'slt') a push-button
+   *  field may show: the rows whose keyword PSHBTNFLD's own whitelist allows
+   *  (keywordSpec.js, via DspfWriter), not a literal list kept here. */
+  function pshbtnChoiceColorStateKeys() {
+    var allowed = DspfWriter.choiceColorStateKeywordsAllowedOn('PSHBTNFLD');
+    return CHOICE_COLOR_STATES.filter(function (state) { return allowed.indexOf(state.keyword) >= 0; })
+      .map(function (state) { return state.key; });
+  }
+
   function choiceColorStatesFor(stateKeys) {
     if (!stateKeys) return CHOICE_COLOR_STATES;
     return CHOICE_COLOR_STATES.filter(function (state) { return stateKeys.indexOf(state.key) >= 0; });
@@ -8749,6 +8758,7 @@
     wirePshbtnfldPanel: wirePshbtnfldPanel,
     choiceKeywordsListHtml: choiceKeywordsListHtml,
     wireChoiceKeywordsListEditor: wireChoiceKeywordsListEditor,
+    pshbtnChoiceColorStateKeys: pshbtnChoiceColorStateKeys,
     choiceColorStatesHtml: choiceColorStatesHtml,
     wireChoiceColorStatesEditor: wireChoiceColorStatesEditor,
     isSflMsgRecord: isSflMsgRecord,
