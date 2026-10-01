@@ -54,9 +54,11 @@ console.log('\n=== 3. cross-checks ===');
     KeywordSpec.RECORD_TYPES[k].fixedSeparatorFormats.every((f) => KeywordSpec.validValues(partner).indexOf(f) >= 0));
 });
 const eng = read('dspfEngine.js');
-const table = (eng.match(/var DATFMT_LENGTHS = \{([\s\S]*?)\};/) || [])[1] || '';
-const engineKeys = (table.match(/'\*[A-Z]+'/g) || []).map((s) => s.replace(/'/g, ''));
-check('engine width table covers exactly the declared DATFMT values', engineKeys.length === 9 && j(engineKeys.slice().sort()) === j(KeywordSpec.validValues('DATFMT').slice().sort()));
+// Task I-121 (display-width slice): the width table moved from the engine's
+// own DATFMT_LENGTHS literal onto the DATFMT spec entry.
+const widthKeys = Object.keys(KeywordSpec.RECORD_TYPES.DATFMT.displayLengths);
+check('spec width table covers exactly the declared DATFMT values', widthKeys.length === 9 && j(widthKeys.slice().sort()) === j(KeywordSpec.validValues('DATFMT').slice().sort()));
+check('engine no longer hand-keeps a DATFMT width table', !/var DATFMT_LENGTHS\b/.test(eng));
 const web = read('webviewClientHelpers.js');
 [['DATE_FORMAT_LABELS', 'DATFMT'], ['TIME_FORMAT_LABELS', 'TIMFMT'], ['DATE_SEP_LABELS', 'DATSEP'], ['TIME_SEP_LABELS', 'TIMSEP']].forEach(([label, kw]) => {
   const body = (web.match(new RegExp('var ' + label + ' = \\{(.*?)\\};')) || [])[1] || '';

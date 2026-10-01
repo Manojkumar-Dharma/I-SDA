@@ -38,8 +38,8 @@ console.log('\nRECORD_TYPES.EDTCDE / EDTMSK');
   check('EDTCDE no-fill codes are exactly W, X, Y, Z', C.noFillCodes.codes.join() === 'W,X,Y,Z');
   check('EDTCDE allowed-codes wording', C.noFillCodes.allowedText === '1-4, A-D and J-Q');
   check('EDTCDE citation', /1 through 4, A through D, and J through Q/.test(C.noFillCodes.ddsReference));
-  check('EDTCDE carries only noFillCodes plus the floating-point flag and its citation (I-121 DFT float slice) and allowedDataTypes (I-138)',
-    Object.keys(C).sort().join() === 'allowedDataTypes,floatDdsReference,noFillCodes,notAllowedOnFloatingPointField');
+  check('EDTCDE carries only noFillCodes plus the floating-point flag and its citation (I-121 DFT float slice), allowedDataTypes (I-138) and editCodeDisplay (I-121 display-width slice)',
+    Object.keys(C).sort().join() === 'allowedDataTypes,editCodeDisplay,floatDdsReference,noFillCodes,notAllowedOnFloatingPointField');
   check('EDTMSK qualifying names', M.qualifyingNames.join() === 'EDTCDE,EDTWRD');
   check('EDTMSK qualifying list text', M.qualifyingListText === 'EDTCDE or EDTWRD');
   check('EDTMSK usage I/B', M.definitionRequirements.usage.join() === 'I,B');

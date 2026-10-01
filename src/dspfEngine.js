@@ -224,11 +224,9 @@
   // screen positions even though the format it resolves to at runtime
   // (*MDY/*DMY/*YMD = 8 chars, *JUL = 6) displays fewer. No DATFMT keyword
   // at all defaults to *ISO (10) - same as explicitly writing DATFMT(*ISO).
-  var DATFMT_LENGTHS = {
-    '*ISO': 10, '*USA': 10, '*EUR': 10, '*JIS': 10, '*JOB': 10,
-    '*MDY': 8, '*DMY': 8, '*YMD': 8,
-    '*JUL': 6,
-  };
+  // Task I-121 (display-width slice): the table itself now lives on
+  // keywordSpec.js's DATFMT entry (`displayLengths`), read through
+  // KeywordSpec.datfmtDisplayLength / datfmtDefaultDisplayLength below.
 
   // I-32 - DATFMT is documented as a field-level-only keyword: its own DDS
   // Reference section states "You use this field-level keyword..." and it
@@ -251,12 +249,12 @@
   function dateFieldLength(field) {
     var fieldKw = (field.keywords || []).find(function (k) { return k.name === 'DATFMT'; });
     if (fieldKw) return datfmtLength(fieldKw.parameters);
-    return DATFMT_LENGTHS['*ISO']; // unspecified defaults to *ISO
+    return KeywordSpec.datfmtDefaultDisplayLength(); // unspecified defaults to *ISO
   }
 
   function datfmtLength(paramText) {
-    var name = paramText.trim().toUpperCase();
-    return DATFMT_LENGTHS[name] != null ? DATFMT_LENGTHS[name] : DATFMT_LENGTHS['*ISO'];
+    var n = KeywordSpec.datfmtDisplayLength(paramText);
+    return n != null ? n : KeywordSpec.datfmtDefaultDisplayLength();
   }
 
   // ---------------------------------------------------------------------
@@ -280,18 +278,14 @@
   // (codes 1/2/3/4, A/B/C/D, J/K/L/M, N/O/P/Q vary by sign style across
   // rows, comma-or-not across columns; only the first two columns get
   // commas).
-  var EDTCDE_COMMAS = { 1: true, 2: true, A: true, B: true, J: true, K: true, N: true, O: true };
+  // (Task I-121 display-width slice: the comma-code list now lives on
+  // keywordSpec.js's EDTCDE entry, `editCodeDisplay.commaCodes`.)
   // Extra positions the sign itself reserves: CR is always 2 characters
   // ("CR", printed only when negative, blank otherwise, but the position
   // is reserved either way since display fields are fixed-width); a plain
   // "-" (leading or trailing) is 1; codes with no sign at all reserve 0.
-  var EDTCDE_SIGN_WIDTH = {
-    1: 0, 2: 0, 3: 0, 4: 0,
-    A: 2, B: 2, C: 2, D: 2,
-    J: 1, K: 1, L: 1, M: 1,
-    N: 1, O: 1, P: 1, Q: 1,
-    X: 0, Z: 0, // X and Z both strip the sign entirely rather than reserving space for one
-  };
+  // (Likewise `editCodeDisplay.signWidth`; X and Z strip the sign entirely
+  // rather than reserving space for one.)
 
   /** Exact display width for a numeric field carrying an EDTCDE keyword. */
   function edtcdeDisplayWidth(field, keyword) {
@@ -311,11 +305,12 @@
     // ambiguity that keeps WINDOW(*DFT) a placeholder elsewhere in this
     // file) - leave the field's own coded length untouched rather than
     // guess at a separator width we can't know at design time.
-    if (code === 'W' || code === 'Y') return len;
+    if (KeywordSpec.isRuntimeSeparatorEditCode(code)) return len;
     var extra = 0;
     if (dec > 0) extra += 1; // decimal point - every numeric edit code inserts one when there are decimals
-    if (EDTCDE_COMMAS[code] && intDigits > 3) extra += Math.floor((intDigits - 1) / 3);
-    if (EDTCDE_SIGN_WIDTH[code] != null) extra += EDTCDE_SIGN_WIDTH[code];
+    if (KeywordSpec.editCodeInsertsCommas(code) && intDigits > 3) extra += Math.floor((intDigits - 1) / 3);
+    var signWidth = KeywordSpec.editCodeSignWidth(code);
+    if (signWidth != null) extra += signWidth;
     if (floatingCurrency) extra += 1;
     return len + extra;
   }
@@ -349,7 +344,7 @@
     var t = (field.dataType || '').toUpperCase();
     if (t === 'F') return len + 7;
     if (t === 'L') return dateFieldLength(field); // honors the field's own DATFMT (field-level only - see dateFieldLength's own doc comment)
-    if (t === 'T') return 8; // every TIMFMT value is 8 chars, including the *ISO default - already exact
+    if (t === 'T') return KeywordSpec.timfmtDisplayLength(); // every TIMFMT value is 8 chars, including the *ISO default - already exact
     if (t === 'Z') return 26;
     if (t === 'S' || t === 'N' || t === 'I' || t === '') {
       // t === '' also covers DATE/TIME system-value CONSTANTs (they

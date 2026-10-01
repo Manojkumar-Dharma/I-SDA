@@ -935,7 +935,25 @@
       // DATFMT's own DDS Reference section, in IBM's order. No value is
       // "unspecified": that is a UI state, not a DDS value.
       validValues: ['*JOB', '*MDY', '*DMY', '*YMD', '*JUL', '*ISO', '*USA', '*EUR', '*JIS'],
-      valuesDdsReference: 'Valid date formats: *JOB, *MDY, *DMY, *YMD, *JUL, *ISO, *USA, *EUR, *JIS.'
+      valuesDdsReference: 'Valid date formats: *JOB, *MDY, *DMY, *YMD, *JUL, *ISO, *USA, *EUR, *JIS.',
+      // Task I-121 (display-width slice) - the "Field length" column of the
+      // same format table, plus the two sentences that complete it: "If you
+      // do not specify the DATFMT keyword, the default is *ISO", and for
+      // *JOB "There are always 10 spaces reserved on the display screen
+      // for a Date field with DATFMT(*JOB), even though 8 characters in
+      // the case of *MDY, *DMY, and *YMD, or 6 characters in the case of
+      // *JUL are displayed." (*JOB has no length of its own in the table;
+      // 10 comes from that sentence.) Previously the engine's own
+      // DATFMT_LENGTHS literal.
+      displayLengths: {
+        '*MDY': 8, '*DMY': 8, '*YMD': 8, '*JUL': 6,
+        '*ISO': 10, '*USA': 10, '*EUR': 10, '*JIS': 10, '*JOB': 10
+      },
+      defaultFormat: '*ISO',
+      displayLengthDdsReference:
+        'The Field length column of the DATFMT format table (*MDY/*DMY/*YMD ' +
+        '8, *JUL 6, *ISO/*USA/*EUR/*JIS 10); *JOB always reserves 10 ' +
+        'positions on the display; with no DATFMT the default is *ISO.'
     },
     DATSEP: {
       ddsReference:
@@ -960,7 +978,15 @@
       validDataType: 'T',
       // TIMFMT has no *JOB value - its format table lists only these five.
       validValues: ['*HMS', '*ISO', '*USA', '*EUR', '*JIS'],
-      valuesDdsReference: 'Valid time formats: *HMS, *ISO, *USA, *EUR, *JIS (no *JOB).'
+      valuesDdsReference: 'Valid time formats: *HMS, *ISO, *USA, *EUR, *JIS (no *JOB).',
+      // Task I-121 (display-width slice) - every row of TIMFMT's own format
+      // table lists a Field length of 8, and the default (no TIMFMT) is
+      // *ISO, also 8. Previously the engine's bare `return 8`.
+      displayLength: 8,
+      displayLengthDdsReference:
+        'The Field length column of the TIMFMT format table is 8 for every ' +
+        'format (*HMS, *ISO, *USA, *EUR, *JIS); with no TIMFMT the default ' +
+        'is *ISO.'
     },
     TIMSEP: {
       ddsReference:
@@ -1412,6 +1438,31 @@
       // default text says a blank entry with decimal positions and an editing
       // keyword becomes Y, and the sentence itself lists blank as valid.
       allowedDataTypes: ['Y'],
+      // Task I-121 (display-width slice) - the display-affecting columns
+      // of EDTCDE's "Table 6. Summary chart for IBM i edit codes", for the
+      // dspfEngine's exact-width calculation (previously its own
+      // EDTCDE_COMMAS / EDTCDE_SIGN_WIDTH literals). `commaCodes`: the
+      // codes with "Commas displayed" = Yes (1, 2, A, B, J, K, N, O).
+      // `signWidth`: extra positions the sign reserves - CR (A-D) is two
+      // characters, a minus (J-Q) is one, the no-sign codes (1-4) and the
+      // codes that strip it (X, Z) reserve none. `runtimeSeparatorCodes`:
+      // W and Y insert job-attribute-dependent slashes (table notes 2 and
+      // 3), so their width cannot be known at design time.
+      editCodeDisplay: {
+        commaCodes: ['1', '2', 'A', 'B', 'J', 'K', 'N', 'O'],
+        signWidth: {
+          '1': 0, '2': 0, '3': 0, '4': 0,
+          A: 2, B: 2, C: 2, D: 2,
+          J: 1, K: 1, L: 1, M: 1,
+          N: 1, O: 1, P: 1, Q: 1,
+          X: 0, Z: 0
+        },
+        runtimeSeparatorCodes: ['W', 'Y'],
+        ddsReference:
+          'Table 6. Summary chart for IBM i edit codes (Commas displayed, ' +
+          'Sign displayed when negative value) and its notes 2 and 3 on ' +
+          'the W and Y date-edit codes.'
+      },
       noFillCodes: {
         codes: ['W', 'X', 'Y', 'Z'],
         allowedText: '1-4, A-D and J-Q',
@@ -1999,6 +2050,54 @@
     return !!c && rule.codes.indexOf(c) >= 0;
   }
 
+  /** Task I-121 (display-width slice) - the number of screen positions a
+   *  DATFMT value reserves (e.g. '*MDY' -> 8, '*JOB' -> 10), case-
+   *  insensitive, or null for an unknown/blank value (the caller applies
+   *  the default - see `datfmtDefaultDisplayLength`). */
+  function datfmtDisplayLength(format) {
+    var lengths = RECORD_TYPES.DATFMT.displayLengths;
+    var f = String(format == null ? '' : format).trim().toUpperCase();
+    return Object.prototype.hasOwnProperty.call(lengths, f) ? lengths[f] : null;
+  }
+
+  /** The display length a date field gets with no DATFMT keyword (the
+   *  default format's own length - DDS: "the default is *ISO"). */
+  function datfmtDefaultDisplayLength() {
+    return datfmtDisplayLength(RECORD_TYPES.DATFMT.defaultFormat);
+  }
+
+  /** The display length of every time field (all TIMFMT formats, and the
+   *  no-TIMFMT default, are 8). */
+  function timfmtDisplayLength() {
+    return RECORD_TYPES.TIMFMT.displayLength;
+  }
+
+  function editCodeKey(code) {
+    return String(code == null ? '' : code).trim().toUpperCase();
+  }
+
+  /** Whether EDTCDE `code` inserts thousands-grouping commas. False for a
+   *  blank/unknown code. */
+  function editCodeInsertsCommas(code) {
+    var c = editCodeKey(code);
+    return !!c && RECORD_TYPES.EDTCDE.editCodeDisplay.commaCodes.indexOf(c) >= 0;
+  }
+
+  /** The extra positions EDTCDE `code`'s sign reserves (0, 1 or 2), or
+   *  null for a blank/unknown code (the caller adds nothing). */
+  function editCodeSignWidth(code) {
+    var widths = RECORD_TYPES.EDTCDE.editCodeDisplay.signWidth;
+    var c = editCodeKey(code);
+    return c && Object.prototype.hasOwnProperty.call(widths, c) ? widths[c] : null;
+  }
+
+  /** Whether EDTCDE `code` (W, Y) inserts runtime-dependent separator
+   *  characters, so its display width is unknowable at design time. */
+  function isRuntimeSeparatorEditCode(code) {
+    var c = editCodeKey(code);
+    return !!c && RECORD_TYPES.EDTCDE.editCodeDisplay.runtimeSeparatorCodes.indexOf(c) >= 0;
+  }
+
   /** The human-readable list of codes that CAN take the fill argument
    *  (for a message), or '' for a keyword with no `noFillCodes` fact. */
   function fillAllowedCodesText(keywordName) {
@@ -2560,6 +2659,12 @@
     sizeConditionedValueMustBeNumber: sizeConditionedValueMustBeNumber,
     caKeyPartner: caKeyPartner,
     isNoFillEditCode: isNoFillEditCode,
+    datfmtDisplayLength: datfmtDisplayLength,
+    datfmtDefaultDisplayLength: datfmtDefaultDisplayLength,
+    timfmtDisplayLength: timfmtDisplayLength,
+    editCodeInsertsCommas: editCodeInsertsCommas,
+    editCodeSignWidth: editCodeSignWidth,
+    isRuntimeSeparatorEditCode: isRuntimeSeparatorEditCode,
     fillAllowedCodesText: fillAllowedCodesText,
     noOptionIndicatorsOnField: noOptionIndicatorsOnField,
     noDisplaySizeCondition: noDisplaySizeCondition,
