@@ -1079,7 +1079,19 @@
     // enforced anywhere - logged as a finding, not folded into this slice.
     DFT: {
       floatDdsReference: 'The DFT keyword is not valid on floating point fields.',
-      notAllowedOnFloatingPointField: true
+      notAllowedOnFloatingPointField: true,
+      // Task I-121 (DFT output-requirement slice) - DFT's own page (line
+      // ~4683, re-verified fresh): "For output-only and input/output fields,
+      // you must also specify PUTOVR at the record level and OVRDTA at the
+      // field level with the DFT keyword." A cross-LEVEL companion rule
+      // (one record-level and one field-level keyword) on the usages that
+      // can output; surfaced as an advisory note (L83), never a hard block.
+      outputRequirement: {
+        usages: ['O', 'B'],
+        recordKeyword: 'PUTOVR',
+        fieldKeyword: 'OVRDTA',
+        ddsReference: 'For output-only and input/output fields, you must also specify PUTOVR at the record level and OVRDTA at the field level with the DFT keyword.'
+      }
     },
     DFTVAL: {
       floatDdsReference: 'You cannot specify the DFTVAL keyword on the same field with a DFT, EDTCDE (Edit Code), or EDTWRD (Edit Word) keyword, or on a floating-point field.',
@@ -1701,6 +1713,15 @@
   function isNotAllowedOnFloatingPointField(keywordName) {
     var spec = RECORD_TYPES[keywordName];
     return !!(spec && spec.notAllowedOnFloatingPointField);
+  }
+
+  /** Task I-121 (DFT output-requirement slice) - the companion-keyword rule
+   *  `keywordName` carries for output-capable usages (see DFT's entry), as a
+   *  copy safe to mutate, or null when it has none. */
+  function outputRequirement(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    var r = spec && spec.outputRequirement;
+    return r ? { usages: r.usages.slice(), recordKeyword: r.recordKeyword, fieldKeyword: r.fieldKeyword, ddsReference: r.ddsReference } : null;
   }
 
   /** Task I-121 (CHECK(AB) floating-point slice) - the parameter codes of
@@ -2471,6 +2492,7 @@
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
     isNotAllowedOnFloatingPointField: isNotAllowedOnFloatingPointField,
     floatIncompatibleCheckCodes: floatIncompatibleCheckCodes,
+    outputRequirement: outputRequirement,
     checkCodeGroups: checkCodeGroups,
     validValues: validValues,
     moubtnCommandKeyExclusion: moubtnCommandKeyExclusion,

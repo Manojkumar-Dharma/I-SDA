@@ -1998,13 +1998,16 @@
    *  them (I/H/P are exempt - only O/output and B/both need this) or both
    *  are already present. */
   function dftOutputRequirementNote(usage, fieldKeywords, recordKeywords) {
+    // Task I-121 (DFT output-requirement slice) - the usages and the two
+    // companion keyword names are a spec fact (RECORD_TYPES.DFT.outputRequirement).
+    var req = KeywordSpec.outputRequirement('DFT');
     var u = (usage || '').toUpperCase();
-    if (u !== 'O' && u !== 'B') return null;
-    var hasOvrdta = (fieldKeywords || []).some(function (k) { return k.name === 'OVRDTA'; });
-    var hasPutovr = (recordKeywords || []).some(function (k) { return k.name === 'PUTOVR'; });
+    if (req.usages.indexOf(u) < 0) return null;
+    var hasOvrdta = (fieldKeywords || []).some(function (k) { return k.name === req.fieldKeyword; });
+    var hasPutovr = (recordKeywords || []).some(function (k) { return k.name === req.recordKeyword; });
     var missing = [];
-    if (!hasPutovr) missing.push('PUTOVR (record level)');
-    if (!hasOvrdta) missing.push('OVRDTA (field level)');
+    if (!hasPutovr) missing.push(req.recordKeyword + ' (record level)');
+    if (!hasOvrdta) missing.push(req.fieldKeyword + ' (field level)');
     if (!missing.length) return null;
     return 'DFT on an output-capable field also requires ' + missing.join(' and ') + ' (per the DDS Reference).';
   }
