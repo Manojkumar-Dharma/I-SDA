@@ -1088,8 +1088,8 @@ const htmlTemplate = `<!DOCTYPE html>
 </div>
 
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
-<script nonce="${NONCE_TOKEN}">${engineJs}</script>
 <script nonce="${NONCE_TOKEN}">${keywordSpecJs}</script>
+<script nonce="${NONCE_TOKEN}">${engineJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
 <script nonce="${NONCE_TOKEN}">

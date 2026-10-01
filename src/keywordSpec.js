@@ -1715,6 +1715,39 @@
     return !!(spec && spec.notAllowedOnFloatingPointField);
   }
 
+  // Task I-121 (edit/validity keyword groups slice) - the two field-level
+  // keyword families a referenced (REF/REFFLD) field's own definition can
+  // REPLACE or DELETE, previously three separate literal copies (the
+  // engine's REFERENCE_EDIT_KEYWORDS / REFERENCE_VALIDITY_KEYWORDS and the
+  // writer's EDIT_KEYWORDS). Each carries its delete keyword. Re-verified
+  // fresh against DDS_Keyword_V7r6.txt: DLTEDT (line ~4805) "...ignore the
+  // EDTCDE or EDTWRD keyword if either of them is specified for a referenced
+  // field", and "If you specify a new editing keyword, DLTEDT is
+  // unnecessary. The new editing keyword overrides the referenced editing
+  // keyword."; DLTCHK (line ~4785) "...ignore all validity checking and
+  // CHKMSGID keywords that are specified for a referenced field", with the
+  // same override sentence. EDTMSK is deliberately not part of EDIT (it
+  // stands alone and combines with EDTCDE/EDTWRD - see dspfWriter.js).
+  var FIELD_KEYWORD_GROUPS = {
+    EDIT: {
+      keywords: ['EDTCDE', 'EDTWRD'],
+      deleteKeyword: 'DLTEDT',
+      ddsReference: 'DLTEDT: ignore the EDTCDE or EDTWRD keyword if either of them is specified for a referenced field. If you specify a new editing keyword, DLTEDT is unnecessary. The new editing keyword overrides the referenced editing keyword.'
+    },
+    VALIDITY: {
+      keywords: ['CHECK', 'COMP', 'RANGE', 'VALUES', 'CHKMSGID'],
+      deleteKeyword: 'DLTCHK',
+      ddsReference: 'DLTCHK: ignore all validity checking and CHKMSGID keywords that are specified for a referenced field. If you specify any new validity checking keywords, DLTCHK is unnecessary. The new validity checking keywords override the referenced validity checking keywords.'
+    }
+  };
+  /** Task I-121 (edit/validity keyword groups slice) - a copy of the named
+   *  group ('EDIT' or 'VALIDITY'): { keywords, deleteKeyword, ddsReference };
+   *  null for an unknown name. */
+  function fieldKeywordGroup(name) {
+    var g = FIELD_KEYWORD_GROUPS[name];
+    return g ? { keywords: g.keywords.slice(), deleteKeyword: g.deleteKeyword, ddsReference: g.ddsReference } : null;
+  }
+
   /** Task I-121 (DFT output-requirement slice) - the companion-keyword rule
    *  `keywordName` carries for output-capable usages (see DFT's entry), as a
    *  copy safe to mutate, or null when it has none. */
@@ -2493,6 +2526,7 @@
     isNotAllowedOnFloatingPointField: isNotAllowedOnFloatingPointField,
     floatIncompatibleCheckCodes: floatIncompatibleCheckCodes,
     outputRequirement: outputRequirement,
+    fieldKeywordGroup: fieldKeywordGroup,
     checkCodeGroups: checkCodeGroups,
     validValues: validValues,
     moubtnCommandKeyExclusion: moubtnCommandKeyExclusion,

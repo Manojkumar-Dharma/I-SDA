@@ -15,11 +15,16 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    // Task I-121 (edit/validity keyword groups slice): the REF edit/validity
+    // keyword families now come from keywordSpec.js (a dependency-free module
+    // of its own), required in Node and read from the global in the browser -
+    // so keywordSpec.js's <script> must load BEFORE this file's in both
+    // webview builders.
+    module.exports = factory(require('./keywordSpec.js'));
   } else {
-    root.DspfEngine = factory();
+    root.DspfEngine = factory(root.KeywordSpec);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (KeywordSpec) {
   'use strict';
 
   var DEFAULT_LINES = 24;
@@ -1690,8 +1695,10 @@
   // referenceSpecifiesOwnShape).
   // ---------------------------------------------------------------------
 
-  var REFERENCE_EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD'];
-  var REFERENCE_VALIDITY_KEYWORDS = ['CHECK', 'COMP', 'RANGE', 'VALUES', 'CHKMSGID'];
+  var REFERENCE_EDIT_KEYWORDS = KeywordSpec.fieldKeywordGroup('EDIT').keywords;
+  var REFERENCE_VALIDITY_KEYWORDS = KeywordSpec.fieldKeywordGroup('VALIDITY').keywords;
+  var REFERENCE_EDIT_DELETE = KeywordSpec.fieldKeywordGroup('EDIT').deleteKeyword;
+  var REFERENCE_VALIDITY_DELETE = KeywordSpec.fieldKeywordGroup('VALIDITY').deleteKeyword;
 
   /** Lookup key for one referenced database field (see resolveReferenceTarget). */
   function referenceKey(target) {
@@ -1765,8 +1772,8 @@
     if (!field || !field.isReference || !definition || !Array.isArray(definition.keywords)) return result;
     var effectiveType = effectiveReferenceDataType(field, definition);
     var shapeOverridden = referenceSpecifiesOwnShape(field);
-    var editingReplaced = fieldOwnsKeyword(field, REFERENCE_EDIT_KEYWORDS.concat(['DLTEDT']));
-    var validityReplaced = fieldOwnsKeyword(field, REFERENCE_VALIDITY_KEYWORDS.concat(['DLTCHK']));
+    var editingReplaced = fieldOwnsKeyword(field, REFERENCE_EDIT_KEYWORDS.concat([REFERENCE_EDIT_DELETE]));
+    var validityReplaced = fieldOwnsKeyword(field, REFERENCE_VALIDITY_KEYWORDS.concat([REFERENCE_VALIDITY_DELETE]));
     var editingDropped = false;
     var validityDropped = false;
 

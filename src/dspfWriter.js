@@ -1012,7 +1012,9 @@
   // now has its own independent get/set pair (getEditMask/setEditMask)
   // and its own conflict check (editMaskConflictReason) below, entirely
   // separate from this group.
-  var EDIT_KEYWORDS = ['EDTCDE', 'EDTWRD'];
+  // Task I-121 (edit/validity keyword groups slice): a spec fact now
+  // (KeywordSpec.fieldKeywordGroup('EDIT')), shared with the engine's REF inheritance.
+  var EDIT_KEYWORDS = KeywordSpec.fieldKeywordGroup('EDIT').keywords;
 
   /** A field can't carry more than one of an edit code or an edit word -
    *  { kind: ''|'EDTCDE'|'EDTWRD', parameters: string }. See EDIT_KEYWORDS'
