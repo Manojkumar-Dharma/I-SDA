@@ -181,6 +181,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | Done | v0.10.267 |
 | [I-137](#i-137) | Field | `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: the DDS Reference bars all four on a floating-point field, but the check runs only when the keyword row is switched on - a raw-editor add to an F field, or a field carrying one changed to data type F on the Basic tab, is unblocked | I-121, I-125 | Done | v0.10.264 |
 | [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.267 |
+| [I-139](#i-139) | File / Record / Field | `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` file-wide command-key exclusions: the three alt-key sections each list the keywords that cannot be specified in a file with them (`CAnn` / `CFnn`, `MNUCNL`, `MNUBARSW`, `MOUBTN`, `PSHBTNCHC`, `SFLDROP`, `SFLENTER`, `SFLFOLD`, and each other, by key number and defaults) - only the MOUBTN rows are enforced (I-136) | I-136 | In progress | - |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -6101,6 +6102,16 @@ New `DspfWriter.keywordAllowedDataTypeAllows` (spec bridge: no list, blank or li
 New `src/test/i138EdtDataTypeEligibility.test.js` (spec facts and bridge, both pure guards, and the real generated webview in jsdom: raw-editor add blocked on a character field and allowed on a blank-type numeric one, Basic-tab change blocked/allowed per type with the typed length kept, a hand-written invalid field editable and fixable); fails against pre-change code. Three existing tests used EDTCDE on an ineligible type and were corrected, not loosened: `dspfWebview.test.js` (AMT S -> Y), `i64PshbtnfldPanelWhitelist.test.js` (the control field 20A -> numeric-only) and `i121EdtcdeEdtmskKeywordSpec.test.js` (pinned key list gains `allowedDataTypes`). Full suite: 214 files, 11,968 checks, zero failures.
 
 The Deferred findings table is empty again.
+
+---
+
+### I-139 — `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` file-wide command-key exclusions are not enforced (beyond the MOUBTN rows)
+
+> **Area:** File / Record / Field · **Status:** In progress · **Depends on:** I-136
+
+Opened as the follow-up logged by I-136. `DDS_Keyword_V7r6.txt` (ALTHELP ~line 1884, ALTPAGEDWN/ALTPAGEUP ~line 1970) lists, for each alt key, the keywords that "cannot be specified in a file with" it, both for the alt key written with no parameter (its default: ALTHELP CA01, ALTPAGEDWN CF08, ALTPAGEUP CF07) and for an explicit `ALTHELP(CAnn)` / `ALTPAGEDWN(CFnn)` / `ALTPAGEUP(CFnn)`: the plain `CAnn` and `CFnn` keywords, `MNUCNL(CAnn)`, `MNUBARSW(CAnn)`, `SFLDROP` / `SFLENTER` / `SFLFOLD` (either key type), `MOUBTN` and `PSHBTNCHC` (the opposite key type) and the other alt keys, all on the same key number and anywhere in the file. I-136 enforced only the MOUBTN rows, in the panels that edit MOUBTN or the alt keys.
+
+Implementation notes are added when the task is done.
 
 ---
 
