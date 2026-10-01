@@ -92,7 +92,8 @@ function reparsedField(text, name) {
 const SRC = [
   '     A          R RECORD1',
   '     A            F1             2Y 0B  3  5PSHBTNFLD',
-  '     A            F2            20A  B  5  5',
+  // I-138: EDTCDE is valid only for Y (or blank) fields, so the "panels still work" control field is numeric-only, not 20A.
+  '     A            F2             8Y 0B  5  5',
 ].join('\n') + '\n';
 
 let pending = 2;

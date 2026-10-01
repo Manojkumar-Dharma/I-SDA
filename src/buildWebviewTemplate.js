@@ -4883,6 +4883,13 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(valnumEditReason);
           return;
         }
+        // Task I-138: EDTCDE (Y or blank) / EDTWRD (Y) - blocks a data type
+        // CHANGE that would leave a field carrying one on any other type.
+        const edtTypeEditReason = DspfWriter.editKeywordDataTypeBasicEditConflictReason(field.keywords, field, updates);
+        if (edtTypeEditReason) {
+          window.alert(edtTypeEditReason);
+          return;
+        }
         // Task I-79: SFLCHCCTL requires the field to stay length 1, data
         // type Y, 0 decimals, usage H. I-79's own checkbox handler brings
         // a field into that shape when the keyword is turned ON; this
@@ -6852,6 +6859,16 @@ const htmlTemplate = `<!DOCTYPE html>
       });
       if (valnumReason) {
         window.alert(valnumReason);
+        render();
+        return;
+      }
+      // Task I-138: EDTCDE / EDTWRD data type eligibility for an edit that
+      // INTRODUCES one, judged on the field's data type after the edit.
+      const edtTypeReason = DspfWriter.editKeywordDataTypeNewConflictReason(field.keywords, updates.keywords, {
+        dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
+      });
+      if (edtTypeReason) {
+        window.alert(edtTypeReason);
         render();
         return;
       }

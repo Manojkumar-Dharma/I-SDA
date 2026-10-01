@@ -1001,7 +1001,11 @@
     },
     EDTWRD: {
       floatDdsReference: 'The EDTWRD keyword is valid for numeric only fields (Y specified in position 35).',
-      notAllowedOnFloatingPointField: true
+      notAllowedOnFloatingPointField: true,
+      // Task I-138 - as EDTCDE above: Y, with a blank data type passing
+      // (a blank position 35 plus decimal positions plus an editing keyword
+      // is Y by the DDS default rules).
+      allowedDataTypes: ['Y']
     },
 
     // Task I-121 (CHECK(AB) floating-point slice) - CHECK's own DDS
@@ -1305,6 +1309,11 @@
     EDTCDE: {
       floatDdsReference: 'The EDTCDE keyword is valid only for fields with Y or blank in position 35 (Data Type/Keyboard Shift).',
       notAllowedOnFloatingPointField: true,
+      // Task I-138 - the same sentence as an allow-list. Blank passes (see
+      // the writer's keywordAllowedDataTypeAllows): the DDS position-35
+      // default text says a blank entry with decimal positions and an editing
+      // keyword becomes Y, and the sentence itself lists blank as valid.
+      allowedDataTypes: ['Y'],
       noFillCodes: {
         codes: ['W', 'X', 'Y', 'Z'],
         allowedText: '1-4, A-D and J-Q',

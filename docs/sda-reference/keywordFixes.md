@@ -180,7 +180,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-135](#i-135) | Record | `SETOFF` (documented as equivalent to `SETOF`, "SETOF is preferred"): not read by the Define Indicator Keywords panel or the SFL/SFLMSG/PDNSFLCTL indicator-text rows, and no "option indicators not valid" guard, unlike `SETOF` | I-121, I-101 | Done | v0.10.260 |
 | [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | In progress | - |
 | [I-137](#i-137) | Field | `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: the DDS Reference bars all four on a floating-point field, but the check runs only when the keyword row is switched on - a raw-editor add to an F field, or a field carrying one changed to data type F on the Basic tab, is unblocked | I-121, I-125 | Done | v0.10.264 |
-| [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | In progress | — |
+| [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.265 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -5824,7 +5824,7 @@ New `RECORD_TYPES.DFT`, `DFTVAL` and `EDTWRD` entries, and EDTCDE's existing ent
 
 New `src/test/i121DftFloatKeywordSpec.test.js` (spec flags and citations for the four keywords, the guard on F and on non-F types, message wording, float-before-mutex precedence, mutex untouched, out-of-group keyword) - fails against pre-change code. `i125FloatIncompatibleValidityCheckGuard.test.js` and `i121EdtcdeEdtmskKeywordSpec.test.js` each pinned the exact spec shape (five flagged keywords; EDTCDE carrying only `noFillCodes`) and now assert the new one. Full suite: 212 files, 11,865 checks, zero failures.
 
-Not fixed, deliberately: none of the four is guarded on the commitEdit / Basic-tab paths (raw add on an F field; data type changed to F), and EDTCDE/EDTWRD's non-F data-type restrictions are enforced nowhere - logged in the Deferred findings table.
+Not fixed, deliberately: none of the four is guarded on the commitEdit / Basic-tab paths (raw add on an F field; data type changed to F), and EDTCDE/EDTWRD's non-F data-type restrictions are enforced nowhere - logged in the Deferred findings table (the float half since closed by I-137, the data-type half by I-138).
 
 Remaining for I-121 after this slice: the rest of the plain/base record and file levels (the largest and least closed-form piece of all - most of the remaining `*ConflictReason` functions' rules), still not split into smaller pieces.
 
@@ -6080,11 +6080,17 @@ The Deferred findings table keeps one finding: EDTCDE/EDTWRD's wider data-type e
 
 ### I-138 — `EDTCDE` / `EDTWRD`: barred on every data type but Y (or blank), enforced nowhere except F
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-121, I-137
+> **Area:** Field · **Status:** Done (v0.10.265) · **Depends on:** I-121, I-137
 
 Opened from the deferred finding logged by the I-121 DFT/DFTVAL floating-point slice. `DDS_Keyword_V7r6.txt` states EDTCDE's eligibility at line ~5600 (\"valid only for fields with Y or blank in position 35\") and EDTWRD's at line ~5933 (\"valid for numeric only fields (Y specified in position 35)\"). Since I-137 F is blocked, but an explicit A, X, N, S, I, D, M, L, T or Z is accepted by the raw editor, the Input keywords panel and a Basic-tab data type change.
 
-Plan: an `allowedDataTypes: ['Y']` fact on both `RECORD_TYPES` entries (the IGCALTTYP shape - a blank data type passes, because the DDS default section says a blank position 35 with decimal positions and an editing keyword becomes Y), a diff-based writer guard for the add path and one for the Basic-tab data type change, wired at the same sites as the VALNUM (I-131) guards. Re-verify both sentences and the position-35 default text fresh before coding.
+Implementation: an `allowedDataTypes: ['Y']` fact on both `RECORD_TYPES` entries (the IGCALTTYP shape - a blank data type passes, because the DDS default section says a blank position 35 with decimal positions and an editing keyword becomes Y), a diff-based writer guard for the add path and one for the Basic-tab data type change, wired at the same sites as the VALNUM (I-131) guards. Both sentences and the position-35 default text were re-verified fresh before coding; the DDS reference also says outright (line ~1012) \"You cannot specify S in position 35 if you also specify the EDTCDE or EDTWRD keyword\" and (line ~1077) \"You can specify EDTCDE and EDTWRD only for numeric-only fields\".
+
+New `DspfWriter.keywordAllowedDataTypeAllows` (spec bridge: no list, blank or listed passes), `editKeywordDataTypeNewConflictReason` (an edit that INTRODUCES EDTCDE/EDTWRD, judged on the data type as it will be after the edit - covers the raw keyword editor and the Input keywords panel through the `commitEdit` backstop) and `editKeywordDataTypeBasicEditConflictReason` (a Basic-tab data type CHANGE on a field already carrying one; unrelated edits and changes to blank/Y are never blocked). The members are the DFT mutex group's spec-listed ones that carry an `allowedDataTypes` fact, in group order. F stays caught earlier by the I-137 float guard; this one covers every other explicit type. Wording: `EDTCDE can only be specified on a field with data type Y (or a blank data type), not A (per the DDS Reference).` (+ ` Remove EDTCDE first.` on the Basic tab).
+
+New `src/test/i138EdtDataTypeEligibility.test.js` (spec facts and bridge, both pure guards, and the real generated webview in jsdom: raw-editor add blocked on a character field and allowed on a blank-type numeric one, Basic-tab change blocked/allowed per type with the typed length kept, a hand-written invalid field editable and fixable); fails against pre-change code. Three existing tests used EDTCDE on an ineligible type and were corrected, not loosened: `dspfWebview.test.js` (AMT S -> Y), `i64PshbtnfldPanelWhitelist.test.js` (the control field 20A -> numeric-only) and `i121EdtcdeEdtmskKeywordSpec.test.js` (pinned key list gains `allowedDataTypes`). Full suite: 214 files, 11,968 checks, zero failures.
+
+The Deferred findings table is empty again.
 
 ---
 

@@ -2602,6 +2602,66 @@
     return null;
   }
 
+  /** Task I-138 - bridge over the spec's `allowedDataTypes`: true when the
+   *  keyword has no allow-list, the data type is blank (not yet chosen, or the
+   *  DDS default that the keyword itself turns into Y - fail-open), or it is
+   *  on the list. */
+  function keywordAllowedDataTypeAllows(keywordName, dataType) {
+    var allowed = KeywordSpec.allowedDataTypes(keywordName);
+    if (!allowed) return true;
+    var dt = String(dataType == null ? '' : dataType).trim().toUpperCase();
+    return dt === '' || allowed.indexOf(dt) >= 0;
+  }
+  /** Task I-138 - the members of the DFT/DFTVAL/EDTCDE/EDTWRD group that carry
+   *  an `allowedDataTypes` fact (EDTCDE and EDTWRD), in group order. */
+  function dataTypeRestrictedEditKeywords() {
+    return ['DFT'].concat(KeywordSpec.groupMutexKeywords('DFT')).filter(function (n) {
+      return !!KeywordSpec.allowedDataTypes(n);
+    });
+  }
+  function editKeywordDataTypeReason(keywordName, dataType) {
+    if (keywordAllowedDataTypeAllows(keywordName, dataType)) return null;
+    var dt = String(dataType == null ? '' : dataType).trim().toUpperCase();
+    return keywordName + ' can only be specified on a field with data type ' + KeywordSpec.allowedDataTypes(keywordName).join(', ') +
+      ' (or a blank data type), not ' + dt + ' (per the DDS Reference).';
+  }
+  /** Task I-138 - diff-based add-path backstop (the raw keyword editor, the
+   *  Input keywords panel - everything goes through commitEdit): an edit that
+   *  INTRODUCES EDTCDE or EDTWRD is judged on the field's data type as it
+   *  will be AFTER the edit. A hand-written field that already carries one
+   *  on an ineligible type stays editable, and removing it is always allowed. */
+  function editKeywordDataTypeNewConflictReason(oldKeywords, newKeywords, fieldKind) {
+    var has = function (kws, n) { return (kws || []).some(function (k) { return k.name === n; }); };
+    var names = dataTypeRestrictedEditKeywords();
+    for (var i = 0; i < names.length; i++) {
+      if (has(newKeywords, names[i]) && !has(oldKeywords, names[i])) {
+        var reason = editKeywordDataTypeReason(names[i], (fieldKind || {}).dataType);
+        if (reason) return reason;
+      }
+    }
+    return null;
+  }
+  /** Task I-138 - Basic tab Apply guard: a data type CHANGE to one outside the
+   *  allow-list on a field that ALREADY carries EDTCDE or EDTWRD. Diff-based
+   *  like valnumBasicEditConflictReason: only a changed data type counts, so
+   *  unrelated edits on an already-invalid field and changes TO a valid or
+   *  blank type are never blocked. */
+  function editKeywordDataTypeBasicEditConflictReason(fieldKeywords, field, updates) {
+    var f = field || {};
+    var u = updates || {};
+    if (!Object.prototype.hasOwnProperty.call(u, 'dataType')) return null;
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    if (norm(u.dataType) === norm(f.dataType)) return null;
+    var names = dataTypeRestrictedEditKeywords();
+    for (var i = 0; i < names.length; i++) {
+      if ((fieldKeywords || []).some(function (k) { return k.name === names[i]; })) {
+        var reason = editKeywordDataTypeReason(names[i], u.dataType);
+        if (reason) return reason + ' Remove ' + names[i] + ' first.';
+      }
+    }
+    return null;
+  }
+
   function wrdwrapUsageReason(usage) {
     var u = (usage || '').toUpperCase();
     if (u && KeywordSpec.allowedUsage('WRDWRAP').indexOf(u) < 0) {
@@ -9175,6 +9235,9 @@
     wrdwrapDataTypeReason: wrdwrapDataTypeReason,
     keywordUsageAllowed: keywordUsageAllowed,
     keywordRequiredDataTypeAllows: keywordRequiredDataTypeAllows,
+    keywordAllowedDataTypeAllows: keywordAllowedDataTypeAllows,
+    editKeywordDataTypeNewConflictReason: editKeywordDataTypeNewConflictReason,
+    editKeywordDataTypeBasicEditConflictReason: editKeywordDataTypeBasicEditConflictReason,
     hasChkmsgidQualifier: hasChkmsgidQualifier,
     chkmsgidNewConflictReason: chkmsgidNewConflictReason,
     chkmsgidFieldAddReason: chkmsgidFieldAddReason,

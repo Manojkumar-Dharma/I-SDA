@@ -5010,7 +5010,7 @@ function runNumericFieldPickerScenario() {
   const src =
     [
       buildLine({ seq: '00010', nameType: 'R', name: 'DTLCTL', func: 'SFLCTL(DETAIL)' }),
-      buildLine({ seq: '00030', name: 'AMT', dataType: 'S', length: '7', decimals: '2', usage: 'O', line: '1', col: '1' }),
+      buildLine({ seq: '00030', name: 'AMT', dataType: 'Y', length: '7', decimals: '2', usage: 'O', line: '1', col: '1' }), // I-138: EDTCDE needs data type Y (or blank), not S
       buildLine({ seq: '00040', name: 'QTY', dataType: 'S', length: '5', usage: 'H' }),
       buildLine({ seq: '00050', name: 'RECNBR', dataType: 'S', length: '5', usage: 'B', line: '1', col: '30' }),
       buildLine({ seq: '00060', name: 'DESCR', dataType: 'A', length: '10', usage: 'B', line: '2', col: '1' }),
