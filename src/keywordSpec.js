@@ -1970,6 +1970,24 @@
     return f.levels.indexOf('record') < 0;
   }
 
+  /** Task I-121 repeatable-instance groups slice - the keyword names of
+   *  `groupName` ('validityCheck' | 'errorMessages' | 'messageId') in the
+   *  writer's original order (a fresh array); [] for an unknown group. */
+  function repeatableGroupKinds(groupName) {
+    return Object.prototype.hasOwnProperty.call(REPEATABLE_INSTANCE_GROUPS, groupName)
+      ? Object.keys(REPEATABLE_INSTANCE_GROUPS[groupName]) : [];
+  }
+
+  /** Alternate spelling -> canonical keyword for `groupName`, e.g.
+   *  `{ CMP: 'COMP' }` for 'validityCheck' (a fresh object each call). */
+  function repeatableGroupAlternateKinds(groupName) {
+    var out = {};
+    repeatableGroupKinds(groupName).forEach(function (k) {
+      (REPEATABLE_INSTANCE_GROUPS[groupName][k].alternateNames || []).forEach(function (alt) { out[alt] = k; });
+    });
+    return out;
+  }
+
   /** Task I-121 SFLCHCCTL slice - whether only one field in the whole
    *  record may carry `keywordName` (the SFLCHCCTL shape). Returns false
    *  for a keyword with no spec entry or no such flag. */
@@ -2249,6 +2267,44 @@
     INDTXT: { ddsReference: 'associate a descriptive text (indicating intent or use) with a specific response or option indicator' }
   };
 
+  // -----------------------------------------------------------------------
+  // Task I-121 repeatable-instance keyword groups slice
+  // -----------------------------------------------------------------------
+  //
+  // Keyword families the writer reads as repeatable, independently-
+  // conditioned instances (Task L1 foundation), previously one hand-kept
+  // constant each in dspfWriter.js - and, for the validity check, a literal
+  // copy twice in webviewClientHelpers.js. One fact per keyword, grouped by
+  // the panel that owns the family:
+  //   validityCheck  RANGE / COMP / VALUES - mutually exclusive alternatives
+  //                  for one kind of validity check (L5). CMP is COMP's
+  //                  documented legacy spelling ("This keyword is equivalent
+  //                  to the COMP keyword... The COMP keyword is preferred",
+  //                  Task L34): read as COMP, never written back.
+  //   errorMessages  ERRMSG / ERRMSGID - one screen, two repeatable lists (L1b)
+  //   messageId      MSGID - the message-identifier keyword (L1)
+  // alternateNames - spellings read back as the keyword (as the record-
+  //                  indicator group's ROLLUP / SETOFF are)
+  // ddsReference   - the DDS_Keyword_V7r6.txt wording that identifies it
+  // The kinds' order is the writer's original one. Not migrated: the
+  // webview's per-kind placeholder text and the ERRMSG / ERRMSGID labels
+  // (screen presentation). CHKMSGID's `qualifyingNames` lists the same four
+  // spellings; it is kept as is and a test pins it to this group.
+  var REPEATABLE_INSTANCE_GROUPS = {
+    validityCheck: {
+      RANGE: { ddsReference: 'RANGE(low-value high-value)' },
+      COMP: { alternateNames: ['CMP'], ddsReference: 'CMP(relational-operator value); This keyword is equivalent to the COMP keyword. The COMP keyword is preferred.' },
+      VALUES: { ddsReference: 'VALUES(value-1 [value-2... [value-100]])' }
+    },
+    errorMessages: {
+      ERRMSG: { ddsReference: 'ERRMSG(\'message-text\' [response-indicator])' },
+      ERRMSGID: { ddsReference: 'ERRMSGID(message-identifier message-file [response-indicator])' }
+    },
+    messageId: {
+      MSGID: { ddsReference: 'You use this field-level keyword to allow an application program to identify, at program run time, the message description that contains text for a named field.' }
+    }
+  };
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     isWhitelisted: isWhitelisted,
@@ -2304,6 +2360,9 @@
     gutterMinimum: gutterMinimum,
     gutterRequiresLayout: gutterRequiresLayout,
     RECORD_INDICATOR_KEYWORDS: RECORD_INDICATOR_KEYWORDS,
+    REPEATABLE_INSTANCE_GROUPS: REPEATABLE_INSTANCE_GROUPS,
+    repeatableGroupKinds: repeatableGroupKinds,
+    repeatableGroupAlternateKinds: repeatableGroupAlternateKinds,
     recordIndicatorKeywordNames: recordIndicatorKeywordNames,
     recordIndicatorAlternateKinds: recordIndicatorAlternateKinds,
     recordIndicatorTakesOptionIndicators: recordIndicatorTakesOptionIndicators

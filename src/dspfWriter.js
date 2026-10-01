@@ -931,7 +931,10 @@
     return setColorAttrStates(keywords, states);
   }
 
-  var VALIDITY_CHECK_KEYWORDS = ['RANGE', 'COMP', 'VALUES'];
+  //  Task I-121: the three kinds and CMP's legacy spelling are keywordSpec.js's
+  //  REPEATABLE_INSTANCE_GROUPS.validityCheck (one fact per keyword).
+  var VALIDITY_CHECK_KEYWORDS = KeywordSpec.repeatableGroupKinds('validityCheck');
+  var VALIDITY_CHECK_ALT_KIND = KeywordSpec.repeatableGroupAlternateKinds('validityCheck');
   // Bug fix (Task L34 - the exploratory "watch for other legacy-keyword-
   // synonym gaps beyond ROLLUP/ROLLDOWN" follow-up): CMP is a documented
   // legacy alternate spelling of COMP too - confirmed via IBM's own DDS
@@ -948,7 +951,7 @@
   // this picker at all normalizes it to the preferred COMP spelling -
   // same "read both, always write the modern name" rule ROLLUP/ROLLDOWN
   // already established.
-  var VALIDITY_CHECK_READ_KEYWORDS = VALIDITY_CHECK_KEYWORDS.concat(['CMP']);
+  var VALIDITY_CHECK_READ_KEYWORDS = VALIDITY_CHECK_KEYWORDS.concat(Object.keys(VALIDITY_CHECK_ALT_KIND));
 
   // -----------------------------------------------------------------------
   // Task L5 (piece 1 of the still-open items listed in
@@ -976,7 +979,7 @@
   function getValidityCheckInstances(keywords) {
     var instances = getRepeatableKeywordInstances(keywords, VALIDITY_CHECK_READ_KEYWORDS);
     return instances.map(function (inst) {
-      return { conditions: inst.conditions, kind: inst.name === 'CMP' ? 'COMP' : inst.name, parameters: inst.parameters || '' };
+      return { conditions: inst.conditions, kind: VALIDITY_CHECK_ALT_KIND[inst.name] || inst.name, parameters: inst.parameters || '' };
     });
   }
 
@@ -4488,7 +4491,7 @@
    *  parameters as opaque, caller-formatted text - no new decomposition
    *  needed, unlike ERRMSG/ERRMSGID's L1b, which DID need to split out a
    *  response indicator from within the keyword's own parameters). */
-  var MESSAGE_ID_NAMES = ['MSGID'];
+  var MESSAGE_ID_NAMES = KeywordSpec.repeatableGroupKinds('messageId');
 
   function getMessageIdInstances(keywords) {
     return getRepeatableKeywordInstances(keywords, MESSAGE_ID_NAMES);
@@ -6263,7 +6266,7 @@
     return setRepeatableKeywordInstances(keywords, RECORD_INDICATOR_READ_NAMES, flat);
   }
 
-  var ERROR_MESSAGE_NAMES = ['ERRMSG', 'ERRMSGID'];
+  var ERROR_MESSAGE_NAMES = KeywordSpec.repeatableGroupKinds('errorMessages');
 
   /** Task L1b - ERRMSG/ERRMSGID wired onto the L1 foundation above. Real
    *  SDA's own "Define Error Messages" screen (docs/sda-reference/screens/
@@ -9167,6 +9170,7 @@
     diffColorAttrStates: diffColorAttrStates,
     applyColorAttrStatesDiff: applyColorAttrStatesDiff,
     getValidityCheckInstances: getValidityCheckInstances,
+    validityCheckKinds: function () { return VALIDITY_CHECK_KEYWORDS.slice(); },
     setValidityCheckInstances: setValidityCheckInstances,
     getEditKeyword: getEditKeyword,
     setEditKeyword: setEditKeyword,

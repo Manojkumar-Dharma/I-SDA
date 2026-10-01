@@ -1055,7 +1055,7 @@
     var placeholder = kind === 'RANGE' ? 'e.g. 1 99' : kind === 'COMP' ? 'e.g. GT 0' : "e.g. 'A' 'B' 'C'";
     var html = '<div class="two-col" style="margin-bottom:4px;">';
     html += '<select class="' + p + '-kind">' +
-      ['RANGE', 'COMP', 'VALUES'].map(function (k) {
+      DspfWriter.validityCheckKinds().map(function (k) {
         return '<option value="' + k + '"' + (kind === k ? ' selected' : '') + '>' + k + '</option>';
       }).join('') +
       '</select>';
@@ -1073,7 +1073,7 @@
    *  panel, which have their own separate (partial) exception. */
   function validityCheckInstancesHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getValidityCheckInstances(keywords);
-    return dataKwWrap(['RANGE', 'COMP', 'VALUES'], repeatableConditionedInstancesHtml(
+    return dataKwWrap(DspfWriter.validityCheckKinds(), repeatableConditionedInstancesHtml(
       instances,
       ownerKey + '-rep',
       function renderPayload(inst, instIdPrefix) { return validityCheckInstanceRowHtml(inst, instIdPrefix); },
