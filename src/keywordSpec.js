@@ -796,6 +796,67 @@
     // region). Lists are in IBM's own order; the webview keeps its own
     // panel display order and a test ties the two together. `validValues`
     // is the fact `validValues()` / `isValidValue()` read.
+    // Task I-139 - the three alternative-key keywords' file-wide command-key
+    // exclusions. Each alt key claims one command key (ALTHELP a CA key,
+    // default CA01; ALTPAGEDWN / ALTPAGEUP a CF key, defaults CF08 / CF07),
+    // and its own DDS Reference section (ALTHELP ~line 1884, ALTPAGEDWN/
+    // ALTPAGEUP ~line 1970) lists the keywords that "cannot be specified in
+    // a file with" it - the same list for the no-parameter (default) and
+    // the explicit-parameter forms, matched on the key NUMBER. `excluded`
+    // gives each listed keyword's relation to the alt key's number:
+    //   'any'      - listed with BOTH key types (plain CAnn / CFnn,
+    //                SFLDROP / SFLENTER / SFLFOLD (CAnn | CFnn), other alt keys)
+    //   'caOnly'   - the keyword's own parameter is a CA key, listed as CAnn
+    //                (MNUCNL, MNUBARSW) - a clash for either alt key type
+    //   'opposite' - listed only with the OPPOSITE key type (MOUBTN,
+    //                PSHBTNCHC: ALTHELP's CA key vs their CFnn, the page
+    //                keys' CF key vs their CAnn)
+    // The page keys list each other only in the no-parameter (default)
+    // rows (ALTPAGEDWN with ALTPAGEUP(CF08), ALTPAGEUP with ALTPAGEDWN(CF07));
+    // it is applied to explicit parameters too, same key-number logic.
+    ALTHELP: {
+      ddsReference: 'The following keywords cannot be specified in a file with an ALTHELP keyword that has no parameter (CA01 default), ' +
+        'or with ALTHELP(CAnn) (where nn is the same number): ALTPAGEDWN(CFnn), ALTPAGEUP(CFnn), CAnn, CFnn, MNUCNL(CAnn), MNUBARSW(CAnn), ' +
+        'MOUBTN(...CFnn), PSHBTNCHC(...CFnn), SFLDROP(CAnn | CFnn), SFLENTER(CAnn | CFnn), SFLFOLD(CAnn | CFnn).',
+      claimedKeyType: 'CA',
+      defaultKey: 'CA01',
+      excluded: [
+        { keyword: 'ALTPAGEDWN', relation: 'any' }, { keyword: 'ALTPAGEUP', relation: 'any' },
+        { keyword: 'CAnn', relation: 'any' }, { keyword: 'CFnn', relation: 'any' },
+        { keyword: 'MNUCNL', relation: 'caOnly' }, { keyword: 'MNUBARSW', relation: 'caOnly' },
+        { keyword: 'MOUBTN', relation: 'opposite' }, { keyword: 'PSHBTNCHC', relation: 'opposite' },
+        { keyword: 'SFLDROP', relation: 'any' }, { keyword: 'SFLENTER', relation: 'any' }, { keyword: 'SFLFOLD', relation: 'any' }
+      ]
+    },
+    ALTPAGEDWN: {
+      ddsReference: 'The following keywords cannot be specified in a file with an ALTPAGEDWN keyword that has no parameter (CF08 default), ' +
+        'or with ALTPAGEDWN(CFnn) (where nn is the same number): ALTHELP(CAnn), ALTPAGEUP(CFnn), CAnn, CFnn, MNUCNL(CAnn), MNUBARSW(CAnn), ' +
+        'MOUBTN(...CAnn), PSHBTNCHC(...CAnn), SFLDROP(CAnn | CFnn), SFLENTER(CAnn | CFnn), SFLFOLD(CAnn | CFnn).',
+      claimedKeyType: 'CF',
+      defaultKey: 'CF08',
+      excluded: [
+        { keyword: 'ALTHELP', relation: 'any' }, { keyword: 'ALTPAGEUP', relation: 'any' },
+        { keyword: 'CAnn', relation: 'any' }, { keyword: 'CFnn', relation: 'any' },
+        { keyword: 'MNUCNL', relation: 'caOnly' }, { keyword: 'MNUBARSW', relation: 'caOnly' },
+        { keyword: 'MOUBTN', relation: 'opposite' }, { keyword: 'PSHBTNCHC', relation: 'opposite' },
+        { keyword: 'SFLDROP', relation: 'any' }, { keyword: 'SFLENTER', relation: 'any' }, { keyword: 'SFLFOLD', relation: 'any' }
+      ]
+    },
+    ALTPAGEUP: {
+      ddsReference: 'The following keywords cannot be specified in a file with an ALTPAGEUP keyword that has no parameter (CF07 default), ' +
+        'or with ALTPAGEUP(CFnn) (where nn is the same number): ALTHELP(CAnn), ALTPAGEDWN(CFnn), CAnn, CFnn, MNUCNL(CAnn), MNUBARSW(CAnn), ' +
+        'MOUBTN(...CAnn), PSHBTNCHC(...CAnn), SFLDROP(CAnn | CFnn), SFLENTER(CAnn | CFnn), SFLFOLD(CAnn | CFnn).',
+      claimedKeyType: 'CF',
+      defaultKey: 'CF07',
+      excluded: [
+        { keyword: 'ALTHELP', relation: 'any' }, { keyword: 'ALTPAGEDWN', relation: 'any' },
+        { keyword: 'CAnn', relation: 'any' }, { keyword: 'CFnn', relation: 'any' },
+        { keyword: 'MNUCNL', relation: 'caOnly' }, { keyword: 'MNUBARSW', relation: 'caOnly' },
+        { keyword: 'MOUBTN', relation: 'opposite' }, { keyword: 'PSHBTNCHC', relation: 'opposite' },
+        { keyword: 'SFLDROP', relation: 'any' }, { keyword: 'SFLENTER', relation: 'any' }, { keyword: 'SFLFOLD', relation: 'any' }
+      ]
+    },
+
     // Task I-121 (MOUBTN parameter-domain slice) - MOUBTN(EVENT
     // [TRAILING-EVENT] {Command key | EVENT-ID} [*QUEUE | *NOQUEUE]), from
     // its own DDS Reference section (DDS_Keyword_V7r6.txt, ~line 8729).
@@ -1693,6 +1754,24 @@
     return list.indexOf(v) >= 0 || list.indexOf(v.toUpperCase()) >= 0 && v.charAt(0) === '*';
   }
 
+  /** Task I-139 - the alt keys' file-wide command-key exclusions, one entry
+   *  per alt key (ALTHELP, ALTPAGEDWN, ALTPAGEUP): { keyType, defaultKey,
+   *  excluded: [{ keyword, relation }], ddsReference }. Copies. */
+  function altKeyFileExclusions() {
+    var out = {};
+    ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP'].forEach(function (k) {
+      var e = RECORD_TYPES[k];
+      if (!e || !e.excluded) return;
+      out[k] = {
+        keyType: e.claimedKeyType,
+        defaultKey: e.defaultKey,
+        excluded: e.excluded.map(function (x) { return { keyword: x.keyword, relation: x.relation }; }),
+        ddsReference: e.ddsReference
+      };
+    });
+    return out;
+  }
+
   /** Task I-136 - MOUBTN's Command-key exclusion table (see the spec entry's
    *  own comment). A copy; null if the fact is missing. */
   function moubtnCommandKeyExclusion() {
@@ -2356,6 +2435,7 @@
     checkCodeGroups: checkCodeGroups,
     validValues: validValues,
     moubtnCommandKeyExclusion: moubtnCommandKeyExclusion,
+    altKeyFileExclusions: altKeyFileExclusions,
     isValidValue: isValidValue,
     checkCodes: checkCodes,
     checkCodeGroup: checkCodeGroup,

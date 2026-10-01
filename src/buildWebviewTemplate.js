@@ -6274,12 +6274,26 @@ const htmlTemplate = `<!DOCTYPE html>
     return true;
   }
 
+  // Task I-139: the alt keys' (ALTHELP / ALTPAGEDWN / ALTPAGEUP) file-wide
+  // command-key exclusions, checked on every committed edit - same shape and
+  // reasoning as scrbarGuardBlocks above. Returns true (after alerting) when
+  // the edit would introduce a clash.
+  function keyClaimGuardBlocks(newLines) {
+    let candidate;
+    try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
+    const reason = DspfWriter.altKeyFileExclusionNewConflictReason(model, candidate);
+    if (!reason) return false;
+    window.alert(reason);
+    return true;
+  }
+
   function commitSourceChange(transform, afterReparse) {
     try {
       const lines = sourceText.split(/\\r\\n|\\r|\\n/);
       let newLines = transform(lines);
       if (!newLines) return;
       if (scrbarGuardBlocks(newLines)) { render(); return; }
+      if (keyClaimGuardBlocks(newLines)) { render(); return; }
       // Task L38 - a single post-processing step over every edit's own
       // (before, after) line-array pair, rather than threading tracking
       // options through each individual DspfWriter call above - see

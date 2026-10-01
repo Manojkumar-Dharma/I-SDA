@@ -4898,6 +4898,120 @@
     return null;
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-139 - the alt keys' file-wide command-key exclusions. ALTHELP,
+  // ALTPAGEDWN and ALTPAGEUP each claim a command key (the written one, or
+  // the documented default), and their DDS Reference sections list the
+  // keywords that "cannot be specified in a file with" them on the same key
+  // number: KeywordSpec.altKeyFileExclusions() holds the lists (plain CAnn /
+  // CFnn, MNUCNL, MNUBARSW, SFLDROP / SFLENTER / SFLFOLD, MOUBTN, PSHBTNCHC
+  // and the other alt keys). I-136 already guards the MOUBTN rows where the
+  // MOUBTN and alt-key panels are edited; this is the whole table, as a
+  // model-diff check run on every committed edit (same shape as
+  // scrbarReservedNewConflictReason, so every UI path and the raw editor
+  // are covered and an already-invalid hand-written file is not re-reported).
+  // -----------------------------------------------------------------------
+
+  var ALT_KEY_NAMES = ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP'];
+
+  /** One claim per keyword in the model that holds a command key the
+   *  exclusion lists care about, wherever it sits in the file (file level,
+   *  a record, or a field - PSHBTNCHC). `specKey` is the name the alt keys'
+   *  `excluded` lists use for it ('CAnn' / 'CFnn' for the plain keys). */
+  function commandKeyClaimsInModel(model) {
+    var claims = [];
+    function fromKeywords(keywords, owner) {
+      (keywords || []).forEach(function (k) {
+        var name = String(k.name || '').toUpperCase();
+        var params = String(k.parameters || '').trim();
+        var first = params.split(/\s+/)[0].toUpperCase();
+        var m = COMMAND_KEY_TOKEN_RE.exec(first);
+        var spec = ALT_KEY_NAMES.indexOf(name) >= 0 ? KeywordSpec.RECORD_TYPES[name] : null;
+        var plain = COMMAND_KEY_TOKEN_RE.exec(name);
+        var key = null;
+        var specKey = name;
+        var label = name;
+        if (spec) {
+          var dk = COMMAND_KEY_TOKEN_RE.exec(spec.defaultKey);
+          key = m || dk;
+          label = name + (m ? '(' + first + ')' : ' (no parameter, default ' + spec.defaultKey + ')');
+          claims.push({ alt: true, keyword: name, specKey: name, type: key[1], number: key[2], label: label, owner: owner });
+          return;
+        }
+        if (plain) {
+          claims.push({ alt: false, keyword: name, specKey: plain[1] + 'nn', type: plain[1], number: plain[2], label: name, owner: owner });
+          return;
+        }
+        if (name === 'MNUCNL' || name === 'MNUBARSW') {
+          if (m && m[1] === 'CA') claims.push({ alt: false, keyword: name, specKey: name, type: 'CA', number: m[2], label: name + '(' + first + ')', owner: owner });
+          return;
+        }
+        if (name === 'SFLDROP' || name === 'SFLENTER' || name === 'SFLFOLD') {
+          if (m) claims.push({ alt: false, keyword: name, specKey: name, type: m[1], number: m[2], label: name + '(' + first + ')', owner: owner });
+          return;
+        }
+        if (name === 'MOUBTN') {
+          var mk = moubtnClaimedKey(params);
+          if (mk) claims.push({ alt: false, keyword: name, specKey: name, type: mk.type, number: mk.number, label: 'MOUBTN(' + params + ')', owner: owner });
+          return;
+        }
+        if (name === 'PSHBTNCHC') {
+          var ck = COMMAND_KEY_TOKEN_RE.exec(String(parsePshbtnchcParams(params).commandKey || '').toUpperCase());
+          if (ck) claims.push({ alt: false, keyword: name, specKey: name, type: ck[1], number: ck[2], label: 'PSHBTNCHC(' + params + ')', owner: owner });
+        }
+      });
+    }
+    if (!model) return claims;
+    fromKeywords(model.fileKeywords, '');
+    (model.records || []).forEach(function (r) {
+      fromKeywords(r.keywords, 'record ' + r.name);
+      (r.fields || []).forEach(function (f) { fromKeywords(f.keywords, 'field ' + (f.name || '(unnamed)') + ' of record ' + r.name); });
+    });
+    return claims;
+  }
+
+  /** Every (alt key, other keyword) pair in the model that the exclusion
+   *  lists forbid: same key number, and the listed relation holds. A pair of
+   *  alt keys is reported once. Returns { signature: { count, text } }. */
+  function altKeyExclusionClashes(model) {
+    var exclusions = KeywordSpec.altKeyFileExclusions();
+    var claims = commandKeyClaimsInModel(model);
+    var out = {};
+    claims.forEach(function (a, ai) {
+      if (!a.alt || !exclusions[a.keyword]) return;
+      var rel = {};
+      exclusions[a.keyword].excluded.forEach(function (x) { rel[x.keyword] = x.relation; });
+      claims.forEach(function (b, bi) {
+        if (bi === ai) return;
+        var relation = rel[b.specKey];
+        if (!relation || a.number !== b.number) return;
+        if (relation === 'opposite' && a.type === b.type) return;
+        if (b.alt && bi < ai) return;
+        var sig = [a.owner + '|' + a.label, b.owner + '|' + b.label].sort().join('~');
+        if (!out[sig]) {
+          out[sig] = { count: 0, text: a.label + ' cannot be specified in a file with ' + b.label +
+            (b.owner ? ' (on ' + b.owner + ')' : '') + ' - both use key number ' + a.number + '. ' + exclusions[a.keyword].ddsReference };
+        }
+        out[sig].count++;
+      });
+    });
+    return out;
+  }
+
+  /** The reason the edit that turned `oldModel` into `newModel` introduces a
+   *  command-key clash with an alt key (ALTHELP / ALTPAGEDWN / ALTPAGEUP),
+   *  or null. Diff-based: only a clash the edit adds is reported. */
+  function altKeyFileExclusionNewConflictReason(oldModel, newModel) {
+    var after = altKeyExclusionClashes(newModel);
+    var sigs = Object.keys(after);
+    if (!sigs.length) return null;
+    var before = altKeyExclusionClashes(oldModel);
+    for (var i = 0; i < sigs.length; i++) {
+      if (after[sigs[i]].count > (before[sigs[i]] ? before[sigs[i]].count : 0)) return after[sigs[i]].text;
+    }
+    return null;
+  }
+
   /** Task I-121 (MOUBTN parameter-domain slice) - the MOUBTN panel's EVENT /
    *  TRAILING-EVENT values and *QUEUE flag values, read from the spec
    *  (copies). */
@@ -9424,6 +9538,8 @@
     dateTimeValidValues: dateTimeValidValues,
     moubtnParameterDomain: moubtnParameterDomain,
     moubtnCommandKeyConflictReason: moubtnCommandKeyConflictReason,
+    altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,
+    commandKeyClaimsInModel: commandKeyClaimsInModel,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,
     setChoices: setChoices,
