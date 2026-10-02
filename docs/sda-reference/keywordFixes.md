@@ -166,7 +166,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
 | [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Claimed (in progress) | — |
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
-| [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Partly done (`SFLCTL`, v0.10.281) | — |
+| [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Partly done (`SFLCSRRRN`, v0.10.282) | — |
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Not started | — |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Not started | — |
@@ -232,6 +232,8 @@ Every finding so far has been opened as a task (I-61 – I-142, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
+| I-121c | The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`). |
+| I-121c | `SFLPAG`'s own section refuses `SFLDROP`/`SFLFOLD`/`SFLROLVAL` when SFLSIZ equals SFLPAG and `SFLDROP`/`SFLFOLD`/`SFLINZ`/`SFLLIN`/`SFLRCDNBR` under field selection; only `SFLSCROLL` (I-127) is checked against SFLSIZ = SFLPAG. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` are not validated either. The lists and grammar are in the spec (`excludedWhenSizeEqualsPage`, `excludedWithFieldSelection`, `sflendGrammar`). |
 | I-121b | `GETRETAIN` is accepted without `UNLOCK` (and with `UNLOCK(*ERASE)` etc.): its section requires `UNLOCK` without parameters. `RTNDTA` and `UNLOCK` are accepted together on one record. `INZINP` is accepted without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`. No guard exists for any of the three; the facts are in `keywordSpec.js` (`recordRequires`, `requiresBareKeyword`, `recordExcludes`). |
 | I-121b | `RETKEY` / `RETCMDKEY` accept every exclusion their section states: `RETKEY` with `CLEAR`/`HELP`/`HOME`/`PAGEUP`/`PAGEDOWN`/`ROLLDOWN`/`ROLLUP` (file or record) or `PRINT` (record); `RETCMDKEY` with `CAnn`/`CFnn` (file or record) or `SFLDROP`/`SFLENTER`/`SFLFOLD` (record); both in a file with `ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN` (the rest of I-139's open item) or without `INDARA`. Spec facts: `fileAndRecordExcludes`, `recordExcludes`, `fileExcludes`, `fileRequires`. |
 
@@ -6067,13 +6069,33 @@ New `src/test/i121bInitRetainReturnSpec.test.js` (107 checks): every entry again
 
 ### I-121c — Subfile control keywords
 
-> **Area:** Record · **Status:** Partly done (`SFLCTL`, v0.10.281) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.289) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `SFLCTL` ✓ v0.10.281, `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL`, `SFLEND`, `SFLINZ`, `SFLDLT`.
 
 `SFLEND` has preview and writer rules from P7-P12 (plus sign, More/Bottom, `*SCRBAR` columns). `SFLCTL` was found to need no whitelist (I-121 SFL slice) - record that as a fact. **Progress:** `SFLCTL` is done - v0.10.281 (I-141) gave it `RECORD_TYPES.SFLCTL` with `requiredFor: [SFLCSRRRN, SFLDLT, SFLINZ]`. I-141 also added `optionIndicatorRequiredFact` (SFLDLT: option indicators required, no display size names) as a stand-alone table - fold it into `SFLDLT`'s own entry, do not duplicate it. Still to do: `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL`, `SFLEND`, `SFLINZ`, `SFLDLT`.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.289).** The seven keywords still to do now have a `RECORD_TYPES` entry in a `// ---- I-121c: 7 ----` block of `keywordSpec.js` (`SFLCTL` was I-141's), each re-read from `DDS_Keyword_V7r6.txt` with the line cited in the entry:
+
+| Keyword | Parameters | Option indicators | Display size names | Relations the section states |
+|---------|-----------|-------------------|--------------------|------------------------------|
+| `SFLPAG` | required (number of records) | not valid | valid | required on the control record; with SFLSIZ = SFLPAG, `SFLDROP`/`SFLFOLD`/`SFLROLVAL` are not allowed; with field selection, `SFLDROP`/`SFLFOLD`/`SFLINZ`/`SFLLIN`/`SFLRCDNBR` are not valid on the control record |
+| `SFLCLR` | none | required | not valid | - |
+| `SFLDSP` | none | valid | not valid | required on the control record |
+| `SFLDSPCTL` | none | valid | not valid | - |
+| `SFLEND` | optional: `*PLUS` / `*MORE` / `*SCRBAR` plus a second `*SCRBAR`/`*PLUS`/`*MORE` only after `*SCRBAR` (defaults `*PLUS`, `*SCRBAR`) | required | silent | `*MORE` adds one line (SFLPAG + 1); `*SCRBAR` reserves the last 3 columns and needs 3 lines |
+| `SFLINZ` | none | valid | not valid | not valid with field selection; on a message subfile only with `SFLPGMQ` |
+| `SFLDLT` | none | required | not valid | - |
+
+All seven are valid only on the subfile-control record, recorded as `onRecordType: 'SFLCTL'`. That is deliberately **not** the `validOnlyInSubfileControlRecord` fact, which is the field-level shape the I-129 guard acts on.
+
+**Folded in, as the section asked.** I-141's stand-alone `OPTION_INDICATOR_REQUIRED` table is gone; `SFLDLT`'s entry carries the same fact and `optionIndicatorRequiredFact` reads it from there (only entries marked `guarded`, so `SFLCLR` and `SFLEND`, which state the same rule, are not suddenly refused).
+
+**Pure refactor, no behaviour change.** New accessors: `subfileControlKeywords`, `subfileControlRecordType`, `parameterMode`, `optionIndicatorMode`, `displaySizeNamesMode`, `requiredOnSubfileControl`, `excludedWhenSizeEqualsPage`, `excludedWithFieldSelection`, `sflendGrammar` (all return copies; null/false for other keywords).
+
+New `src/test/i121cSubfileControlKeywordSpec.test.js`: the entries against the reference text (phrases looked up in the reference file itself); sweeps against the no-option-indicators table (`SFLPAG` is the only one of the seven in it), `KEYWORD-LOOKUP.json`, and the engine's reading of every valid `SFLEND` parameter form; accessor safety; SFLDLT's fact and the I-141 guard unchanged (display size name on SFLDLT refused, same edit on SFLCLR not). Confirmed failing against the pre-change spec via stash.
 
 ---
 

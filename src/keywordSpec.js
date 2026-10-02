@@ -293,6 +293,132 @@
         'SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords used on the subfile-control record format.'
     },
 
+    // ---- I-121c: 7 ----
+    // Subfile control keywords (SFLCTL itself is the I-141 entry above).
+    // Every fact below was re-read from DDS_Keyword_V7r6.txt (line numbers are
+    // that file's), NOT taken from the code. All seven are record-level
+    // keywords of the subfile-control record format (the record carrying
+    // SFLCTL). Fields:
+    //   levels / onRecordType   - 'record' / 'SFLCTL' (the record kind)
+    //   parameters              - 'none' | 'required' | 'optional'
+    //   optionIndicators        - 'valid' | 'notValid' | 'required'
+    //   displaySizeNames        - 'valid' | 'notValid' (display size condition names)
+    //   requiredOnSubfileControl- the section says the subfile-control record must carry it
+    //   excludesWhenSizeEqualsPage / excludesWithFieldSelection - keywords the
+    //                             SFLPAG section refuses in those two situations
+    //   optionIndicatorRequired - SFLDLT's rule as the I-141 guard reads it
+    //                             (`guarded`); SFLCLR and SFLEND state the same
+    //                             \"required\" rule but no guard enforces it yet
+    //                             (finding, see keywordFixes.md I-121c)
+    // Pure refactor: nothing here adds a guard. The record-level
+    // \"valid only for the subfile-control record\" sentence is recorded as
+    // `onRecordType`; it is NOT `validOnlyInSubfileControlRecord`, which is the
+    // FIELD-level shape the I-129 guard enforces.
+    SFLPAG: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'required',
+      parameterGrammar: 'number-of-records-to-be-displayed (a number, or a program-to-system field)',
+      requiredOnSubfileControl: true,
+      optionIndicators: 'notValid',
+      displaySizeNames: 'valid',
+      excludesWhenSizeEqualsPage: ['SFLDROP', 'SFLFOLD', 'SFLROLVAL'],
+      excludesWithFieldSelection: ['SFLDROP', 'SFLFOLD', 'SFLINZ', 'SFLLIN', 'SFLRCDNBR'],
+      ddsReference:
+        'SFLPAG (~line 11845): \"You use this record-level keyword on the subfile-control record format to specify the ' +
+        'number of records in the subfile to be displayed at the same time.\" \"This keyword is required for the ' +
+        'subfile-control record format.\" If subfile size equals subfile page, SFLDROP, SFLFOLD and SFLROLVAL are not ' +
+        'allowed; with field selection SFLDROP, SFLFOLD, SFLINZ, SFLLIN and SFLRCDNBR are not valid on the subfile-control ' +
+        'record. Option indicators are not valid; display size condition names are (NO_OPTION_INDICATORS).'
+    },
+    SFLCLR: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'none',
+      optionIndicators: 'required',
+      displaySizeNames: 'notValid',
+      ddsReference:
+        'SFLCLR (~line 10620): \"This keyword has no parameters.\" \"This optional keyword is valid only for the ' +
+        'subfile-control record format. Display size condition names are not valid for this keyword.\" \"An option ' +
+        'indicator is required for this keyword to prevent the IBM i operating system from clearing the subfile on ' +
+        'every output operation to the subfile-control record format.\"'
+    },
+    SFLDSP: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'none',
+      requiredOnSubfileControl: true,
+      optionIndicators: 'valid',
+      displaySizeNames: 'notValid',
+      ddsReference:
+        'SFLDSP (~line 10907): \"This keyword has no parameters.\" \"This keyword is required and is valid only for the ' +
+        'subfile-control record format. Display size condition names are not valid for this keyword.\" \"Option ' +
+        'indicators are valid for this keyword.\"'
+    },
+    SFLDSPCTL: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'none',
+      optionIndicators: 'valid',
+      displaySizeNames: 'notValid',
+      ddsReference:
+        'SFLDSPCTL (~line 10939): \"This keyword has no parameters.\" \"This optional keyword is valid only for the ' +
+        'subfile-control record format. Display size condition names are not valid for this keyword.\" \"Option ' +
+        'indicators are valid for this keyword.\"'
+    },
+    SFLEND: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'optional',
+      // SFLEND[(*PLUS | *MORE | {*SCRBAR [*SCRBAR | *PLUS | *MORE]})] (~line 10975).
+      parameterGrammar: 'SFLEND[(*PLUS | *MORE | {*SCRBAR [*SCRBAR | *PLUS | *MORE]})]',
+      firstParameters: ['*PLUS', '*MORE', '*SCRBAR'],
+      defaultFirstParameter: '*PLUS',
+      secondParameterOnlyAfter: '*SCRBAR',
+      secondParameters: ['*SCRBAR', '*PLUS', '*MORE'],
+      defaultSecondParameter: '*SCRBAR',
+      scrollBarReservedColumns: 3,
+      scrollBarMinimumLines: 3,
+      moreAddsLines: 1,
+      optionIndicators: 'required',
+      ddsReference:
+        'SFLEND (~line 10975): format SFLEND[(*PLUS | *MORE | {*SCRBAR [*SCRBAR | *PLUS | *MORE]})]; with no parameter ' +
+        '*PLUS is used; the second set can only be specified when *SCRBAR is the first parameter and *SCRBAR is its ' +
+        'default; *MORE makes the subfile take one more line (SFLPAG + 1); *SCRBAR reserves the last 3 columns of the ' +
+        'subfile lines and the subfile must occupy at least 3 lines. \"An option indicator must be specified for this ' +
+        'keyword.\"'
+    },
+    SFLINZ: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'none',
+      optionIndicators: 'valid',
+      displaySizeNames: 'notValid',
+      excludedWithFieldSelection: true,
+      ddsReference:
+        'SFLINZ (~line 11258): \"This keyword has no parameters.\" Note 1: if field selection is used in the subfile ' +
+        'record format, SFLINZ is not valid. Note 2: on a message subfile (SFLMSGRCD) it needs SFLPGMQ at field level in ' +
+        'the same record. \"Option indicators are valid for this keyword. Display size condition names are not valid.\"'
+    },
+    SFLDLT: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'none',
+      optionIndicators: 'required',
+      displaySizeNames: 'notValid',
+      // Task I-141's stand-alone OPTION_INDICATOR_REQUIRED table, folded in here.
+      optionIndicatorRequired: {
+        required: true,
+        noDisplaySize: true,
+        guarded: true,
+        ddsReference: 'Option indicators are required for this keyword; display size condition names are not valid.'
+      },
+      ddsReference:
+        'SFLDLT (~line 10810): \"This keyword has no parameters.\" \"Option indicators are required for this keyword; ' +
+        'display size condition names are not valid.\"'
+    },
+    // ---- end I-121c ----
+
     // ---- I-121b: 7 ----
     // Initialize, retain and return keywords. Every fact below was re-read
     // from DDS_Keyword_V7r6.txt (line numbers are that file's), NOT taken
@@ -2092,16 +2218,10 @@
    *  required for this keyword; display size condition names are not valid.\"
    *  (DDS_Keyword_V7r6.txt ~line 10822). The fact is `{required, noDisplaySize,
    *  ddsReference}`; null for any other keyword. */
-  var OPTION_INDICATOR_REQUIRED = {
-    SFLDLT: {
-      required: true,
-      noDisplaySize: true,
-      ddsReference: 'Option indicators are required for this keyword; display size condition names are not valid.'
-    }
-  };
   function optionIndicatorRequiredFact(keywordName) {
     var n = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
-    return Object.prototype.hasOwnProperty.call(OPTION_INDICATOR_REQUIRED, n) ? OPTION_INDICATOR_REQUIRED[n] : null;
+    var e = Object.prototype.hasOwnProperty.call(RECORD_TYPES, n) ? RECORD_TYPES[n] : null;
+    return (e && e.optionIndicatorRequired && e.optionIndicatorRequired.guarded) ? e.optionIndicatorRequired : null;
   }
 
   function windowDependentKeywords() {
@@ -3392,6 +3512,40 @@
   }
 
 
+  // ---- I-121c: accessors ----
+  var I121C_KEYWORDS = ['SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND', 'SFLINZ', 'SFLDLT'];
+  function i121cEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I121C_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  /** The seven subfile-control keywords this slice specifies (SFLCTL is I-141's). */
+  function subfileControlKeywords() { return I121C_KEYWORDS.slice(); }
+  /** Record type the keyword is valid on ('SFLCTL'), or null. */
+  function subfileControlRecordType(name) { var e = i121cEntry(name); return e ? e.onRecordType : null; }
+  /** 'none' | 'required' | 'optional' for the keyword's parameters, or null. */
+  function parameterMode(name) { var e = i121cEntry(name); return e ? e.parameters : null; }
+  /** 'valid' | 'notValid' | 'required' for option indicators, or null. */
+  function optionIndicatorMode(name) { var e = i121cEntry(name); return e ? e.optionIndicators : null; }
+  /** 'valid' | 'notValid' for display size condition names, or null when the section is silent. */
+  function displaySizeNamesMode(name) { var e = i121cEntry(name); return (e && e.displaySizeNames) || null; }
+  /** Whether the subfile-control record must carry the keyword (SFLPAG, SFLDSP). */
+  function requiredOnSubfileControl(name) { var e = i121cEntry(name); return !!(e && e.requiredOnSubfileControl); }
+  /** Keywords SFLPAG refuses when SFLSIZ equals SFLPAG (copy; [] otherwise). */
+  function excludedWhenSizeEqualsPage() { return RECORD_TYPES.SFLPAG.excludesWhenSizeEqualsPage.slice(); }
+  /** Keywords SFLPAG refuses on the control record under field selection (copy). */
+  function excludedWithFieldSelection() { return RECORD_TYPES.SFLPAG.excludesWithFieldSelection.slice(); }
+  /** SFLEND's parameter grammar as data (copies). */
+  function sflendGrammar() {
+    var e = RECORD_TYPES.SFLEND;
+    return {
+      first: e.firstParameters.slice(), defaultFirst: e.defaultFirstParameter,
+      second: e.secondParameters.slice(), defaultSecond: e.defaultSecondParameter,
+      secondOnlyAfter: e.secondParameterOnlyAfter,
+      scrollBarReservedColumns: e.scrollBarReservedColumns, scrollBarMinimumLines: e.scrollBarMinimumLines,
+      moreAddsLines: e.moreAddsLines
+    };
+  }
+  // ---- end I-121c ----
   // ---- I-121b: accessors ----
   var I121B_KEYWORDS = ['INZRCD', 'INZINP', 'GETRETAIN', 'RTNDTA', 'RETLCKSTS', 'RETKEY', 'RETCMDKEY'];
   function i121bEntry(name) {
@@ -3540,6 +3694,16 @@
     recordReferenceLocator: recordReferenceLocator,
     sflChoiceKeywords: sflChoiceKeywords,
     alwrolClrlSlnoKeywords: alwrolClrlSlnoKeywords,
+    // ---- I-121c ----
+    subfileControlKeywords: subfileControlKeywords,
+    subfileControlRecordType: subfileControlRecordType,
+    parameterMode: parameterMode,
+    optionIndicatorMode: optionIndicatorMode,
+    displaySizeNamesMode: displaySizeNamesMode,
+    requiredOnSubfileControl: requiredOnSubfileControl,
+    excludedWhenSizeEqualsPage: excludedWhenSizeEqualsPage,
+    excludedWithFieldSelection: excludedWithFieldSelection,
+    sflendGrammar: sflendGrammar,
     // ---- I-121b ----
     initRetainReturnKeywords: initRetainReturnKeywords,
     takesNoParameters: takesNoParameters,
