@@ -56,3 +56,13 @@ python3 build_lookup_and_md.py    # writes KEYWORD-LOOKUP.json + KEYWORD-INDEX.m
 
 Requires only Python 3's standard library (`json`, `datetime`, `collections`)
 — no extra dependencies.
+
+## Checking spec coverage
+
+```bash
+python3 docs/sda-reference/keyword-index/check_spec_coverage.py   # run from the repo root
+```
+
+Lists which keywords in `KEYWORD-LOOKUP.json` still lack a `RECORD_TYPES` entry in
+`src/keywordSpec.js`, and fails if any of them is owned by no I-121 slice (or by two) in the ledger
+in [`keywordFixes.md`](../keywordFixes.md#i-121-slices). Needs Python 3 and Node.

@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-121 of 124 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.204**.
+139 of 162 tasks done; 23 open (see [Open work](#open-work)). Current version: **v0.10.284**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -163,7 +163,27 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress (USRDFN, WINDOW, PULLDOWN, MNUBAR, SFL, KEEP/ALWROL/CLRL/SLNO/ASSUME, SFLNXTCHG/SFLMSGRCD/DSPMOD, HLPDOC/HLPBDY/HLPPNLGRP/HLPRCD, HTML, MSGID, WRDWRAP/IGCALTTYP, DFT/DFTVAL/EDTCDE/EDTWRD, PSHBTNFLD, PASSRCD-restricted-keywords, DUP/BLKFOLD-floating-point, CHRID, DATFMT/DATSEP/TIMFMT/TIMSEP, SFLCHCCTL, CHKMSGID, SFLSCROLL slices done; message-data-field slice done; SFLRTNSEL slice done; SFLLIN/SFLCSRPRG slice done; SFLSNGCHC/SFLMLTCHC slice done; SFLSIZ size-conditioned-value slice done; MNUBARSW/MNUCNL, SFLMSGKEY/SFLPGMQ, EDTCDE/EDTMSK and WRDWRAP/IGCALTTYP eligibility, VALNUM, CHECK(AB) floating-point and no-option-indicators-table and SNGCHCFLD/MLTCHCFLD selection-type-parameters slices done; CHECK option-code table slice done; DATFMT/DATSEP/TIMFMT/TIMSEP value-domain slice done; DSPATR/COLOR/WDWBORDER/CHGINPDFT value-domain slice done; record-indicator keyword group slice done; MOUBTN parameter-domain slice done; repeatable-instance keyword groups slice done; choice color-state keywords, DFT output-requirement, edit/validity keyword groups, display-width, PSHBTNCHC command-key domain and command-key grammar / alt-key table, DSPSIZ display-size names and command-key parameter keywords slices done) | v0.10.278 |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
+| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Not started | — |
+| [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Not started | — |
+| [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Partly done (`SFLCTL`, v0.10.281) | — |
+| [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Partly done (`SFLCSRRRN`, v0.10.282) | — |
+| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Not started | — |
+| [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Not started | — |
+| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Not started | — |
+| [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
+| [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Not started | — |
+| [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
+| [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
+| [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
+| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Partly done (shared value-source fact, v0.10.280) | — |
+| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Partly done (position-35 table, v0.10.279) | — |
+| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
+| [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Claimed (`3fc4915`), unconfirmed | — |
+| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
+| [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Partly done (choice radio groups, v0.10.284) | — |
+| [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Partly done (`CHARACTER_TYPES` removed, v0.10.279) | — |
+| [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done, v0.10.274: the six keywords with no tests; next: batch 2) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -194,17 +214,21 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 ## Open work
 
-Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of cosmetic or decision-dependent work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements). I-40 stays last, on purpose.
+Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of cosmetic or decision-dependent work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements). **I-121t stays last, on purpose.**
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121](#i-121) | In progress | Keyword rule spec (single source of truth). USRDFN slice done (v0.10.205); WINDOW slice done (v0.10.206); PULLDOWN slice done (v0.10.207); MNUBAR slice done (v0.10.208); SFL slice done (v0.10.209 - re-reading SFLCTL's own DDS Reference section confirmed it needs no separate guard, so this slice covered both the "SFL/SFLCTL" and "message subfile" remaining line items together); KEEP/ALWROL/CLRL/SLNO/ASSUME mutex-web slice done (v0.10.210 - a well-scoped piece of the "plain/base record" remainder, the existing keepMutexConflictReason (I-28) / alwrolClrlSlnoConflictReason (I-37) functions, not the full undertaking); SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice done (v0.10.211 - two more small, closed-form record-level pairs, sflNxtchgSflMsgRcdConflictReason (I-23) and dspmodSflConflictReason); PSHBTNFLD slice done (v0.10.217 - field-level whitelist with a parameter-restricted DSPATR(PC) entry, plus the PSHBTNFLD/PSHBTNCHC mutual-requirement and field-definition rule - pshbtnfldConflictReason (I-57), pshbtnfldNewConflictReason (I-64), pshbtnfldRemovalConflictReason (I-85), pshbtnfldBasicEditConflictReason (I-62)); PASSRCD-restricted-keywords slice done (v0.10.218 - folded the WINDOW/ALWROL/CLRL/SLNO PASSRCD restriction, previously hand-duplicated across passrcdWindowConflictReason's creation-time check, the two wire*GuardedFlag alsoCheckPassrcd call sites, and a hand-written array in the file-level PASSRCD-edit handler, into one declarative fact); DUP/BLKFOLD-floating-point slice done (v0.10.219 - folded the "cannot be specified on a floating-point field" fact for DUP and BLKFOLD, previously living only as each of floatIncompatibleKeywordNewConflictReason's (I-72/I-96) two one-line wrapper functions' own hard-coded keyword name, into one declarative fact per keyword; also turned up a real gap - COMP/RANGE/CHECK(AB) state the identical restriction with no guard anywhere in the codebase - logged in the Deferred findings table rather than fixed, staying within this slice's pure-refactor scope); CHRID slice done (v0.10.220 - a new field-ELIGIBILITY shape (`ineligibleUsage`/`ineligibleWhenDecimalsSpecified`/`ineligibleOnConstant`, what a field must NOT be) distinct from `whitelist`/`definitionRequirements`, plus the DUP mutex reusing the existing `mutex` shape unchanged - chridNewConflictReason (I-59) and chridBasicEditConflictReason (I-73)); DATFMT/DATSEP/TIMFMT/TIMSEP slice done (v0.10.221 - a plain `validDataType` fact per keyword, plus a new `fixedSeparatorPartner`/`fixedSeparatorFormats` shape for DATSEP/TIMSEP's own "sibling keyword's parameter value, not just its presence" exclusion, plus a standalone `DATE_TIME_DATA_TYPES`/`DATE_TIME_ALLOWED_USAGE` pair for the L/T/Z usage restriction (a field-property fact, not a per-keyword one) - dateTimeUsageConflictReason (I-31), dateSeparatorConflictReason/timeSeparatorConflictReason (I-32)); SFLCHCCTL slice done (v0.10.222 - folded all four of SFLCHCCTL's own DDS-Reference-stated rules (field shape, first-field, one-per-record, SFLNXTCHG cross-exclusion), previously spread across sflchcctlDefinitionUpdates (I-79), sflchcctlFieldConflictReason (I-79/I-86), sflNxtchgSflchcctlConflictReason/sflctlNxtchgSflchcctlConflictReason (I-86) and sflchcctlReorderConflictReason (I-87), into one entry - `definitionRequirements` and `mutex` reused unchanged, plus two genuinely new boolean shapes, `mustBeFirstField` and `onePerRecord`; SFLSCROLL's own analogous hard-coded one-per-record check was left un-migrated, outside this slice's scope - logged in the Deferred findings table); CHKMSGID slice done (v0.10.224 - a new DEPENDENCY-on-qualifying-keywords shape (`qualifyingNames`/`qualifyingCheckKeyword`/`qualifyingCheckCodes`), distinct from `mutex`/`REQUIRE_PAIRS`, plus `definitionRequirements.usage` reused unchanged for the input-capable rule - chkmsgidNewConflictReason and chkmsgidBasicEditConflictReason (both I-69); CHKMSGID's separate message-data-field rule, I-89/I-97, shared with ERRMSGID/SFLMSGID, deliberately left for a future slice); SFLSCROLL slice done (v0.10.225 - closed that deferred finding: folded `sflScrollFieldConflictReason`'s (I-26) own SFLROLVAL/SFLRCDNBR same-field mutex and one-per-record rule into a new `RECORD_TYPES.SFLSCROLL` entry, reusing the `mutex` and `onePerRecord` shapes unchanged; re-reading SFLSCROLL's own DDS Reference section in full turned up two further stated rules with no guard anywhere in the codebase - a field-shape requirement and "not allowed when SFLSIZ equals SFLPAG" - logged fresh in the Deferred findings table, staying within this slice's pure-refactor scope); message-data-field slice done (v0.10.226 - folded the CHKMSGID/ERRMSGID/SFLMSGID `&msg-data` rule, previously hard-coded 'A'/'P' literals in `messageDataFieldProblem` plus a hand-written `MSGID_MSGDATA_KEYWORDS` array, into one shared `msgDataField` fact per keyword; closes the rule CHKMSGID's own slice deliberately left for a future slice); SFLRTNSEL slice done (v0.10.229 - folded `sflrtnselNewConflictReason`'s (I-81) "requires SFLSNGCHC or SFLMLTCHC" dependency, previously two hard-coded names, into a new `RECORD_TYPES.SFLRTNSEL` entry reusing the CHKMSGID `qualifyingNames` shape unchanged); SFLLIN/SFLCSRPRG slice done (v0.10.230 - folded I-80's cross-record exclusion, previously the keyword names hard-coded in three functions, into a new shared `crossRecordExclusion` fact on `RECORD_TYPES.SFLLIN`/`SFLCSRPRG`); SFLSNGCHC/SFLMLTCHC slice done (v0.10.231 - folded `sflChoiceListConflictReason`'s (I-26) hard-coded partner list into new `RECORD_TYPES.SFLSNGCHC`/`SFLMLTCHC` `mutex` entries, the existing shape reused unchanged; also turned up an unguarded reverse direction - SFLDROP/SFLFOLD added to a record that already has a choice keyword - logged in the Deferred findings table rather than fixed, staying within this slice's pure-refactor scope; that finding was since closed by I-128); SFLSIZ slice done (v0.10.240 - gave SFLSIZ its first `RECORD_TYPES` entry, carrying a new `sizeConditionedValueMustBeNumber` fact that I-22's `sflsizConditionedFieldNameConflictReason` now reads); MNUBARSW/MNUCNL slice done (v0.10.241 - folded `mnuBarKeyConflictReason`'s (I-19) hard-coded CA-key pairing and defaults into a new `caKeyPartner`/`caKeyDefault` fact, deliberately distinct from `mutex`)); SFLMSGKEY/SFLPGMQ slice done (v0.10.243 - gave SFLMSGKEY and SFLPGMQ their first `RECORD_TYPES` entries, carrying a new `noOptionIndicatorsOnField` fact (SFLMSGKEY's "or with the associated field" half, previously a string literal in `sflmsgkeyFieldNewConflictReason`) and a new `noDisplaySizeCondition` fact (SFLPGMQ, previously the one-element `NO_DISPLAY_SIZE_CONDITION_KEYWORDS` array); the option-indicator table itself deliberately left as is); EDTCDE/EDTMSK slice done (v0.10.244 - gave EDTCDE a first `RECORD_TYPES` entry carrying a new `noFillCodes` fact (W/X/Y/Z cannot take asterisk fill or a floating currency symbol, previously the hand-written `EDTCDE_NO_FILL_CODES` array) and EDTMSK its first entry, reusing the CHKMSGID `qualifyingNames`/`qualifyingListText` and `definitionRequirements.usage` shapes unchanged for `editMaskConflictReason`'s (I-31) two hard-coded requirements; also turned up an unguarded EDTMSK keyword-exclusion list, logged in the Deferred findings table); WRDWRAP/IGCALTTYP eligibility slice done (v0.10.246 - gave the existing entries `allowedUsage` / `blockedDataTypes` / `allowedDataTypes`, replacing two hand-written shift arrays and literal usage tests plus the webview's second copy of WRDWRAP's nine shifts); VALNUM slice done (v0.10.247 - gave VALNUM its first `RECORD_TYPES` entry, `allowedUsage` + a new strict `requiredDataTypes` fact, replacing the General-tab row filter's own hard-coded 'input-capable' and 'numeric-only' scopes; closes the Deferred finding the WRDWRAP/IGCALTTYP slice raised; also turned up VALNUM's total lack of any writer-level guard, logged in the Deferred findings table; since closed by I-131); CHECK(AB) floating-point slice done (v0.10.249 - gave CHECK its first `RECORD_TYPES` entry, carrying a new token-qualified `notAllowedOnFloatingPointCodes: ['AB']` fact that `checkAbFloatIncompatibleNewConflictReason` (I-125) now reads instead of a literal 'AB'; also turned up CHECK(M10/M10F/M11/M11F)'s identical float restriction, unguarded, logged in the Deferred findings table); no-option-indicators table slice done (v0.10.251 - moved the 95-keyword NO_OPTION_INDICATOR_KEYWORDS table, previously eight hand-written arrays across I-95/I-101 batches 1-4 plus the file-level HLPTITLE entry, into one declarative `noOptionIndicators` fact per keyword; wording stays a presentation concern in the writer); SNGCHCFLD/MLTCHCFLD selection-type-parameters slice done (v0.10.252 - gave SNGCHCFLD and MLTCHCFLD their first `RECORD_TYPES` entries, each a `selectionParameters` fact listing its own mutually-exclusive *param flag groups; replaced three hand-kept copies - the writer's `CHOICE_SELECTION_FLAGS` and `SNGCHCFLD_ONLY_FLAGS` and the webview's `SNGCHCFLD_ONLY_GROUPS`); record-indicator keyword group slice done (v0.10.259 - the ten Define Indicator Keywords kinds, their ROLLUP/ROLLDOWN spellings and the webview's four no-conditioning kinds moved into one `RECORD_INDICATOR_KEYWORDS` fact table in `keywordSpec.js`, conditioning derived from the `noOptionIndicators` fact)); DFT/DFTVAL floating-point slice done (v0.10.263 - gave DFT, DFTVAL and EDTWRD their first `RECORD_TYPES` entries and EDTCDE the same flag, each `notAllowedOnFloatingPointField` with its DDS citation, replacing the literal `dataType === 'F'` test in `dftGroupConflictReason`; also turned up that none of the four is guarded on the commitEdit / Basic-tab paths, logged in the Deferred findings table; since closed by I-137; repeatable-instance keyword groups slice done (v0.10.266 - the validity-check kinds RANGE / COMP / VALUES with CMP's legacy spelling, the error-message kinds ERRMSG / ERRMSGID and MSGID moved into one `REPEATABLE_INSTANCE_GROUPS` fact table in `keywordSpec.js`; the writer's constants and the webview's two literal copies are derived from it); choice color-state keywords slice done (v0.10.269 - CHCAVAIL / CHCUNAVAIL / CHCSLT moved into a `CHOICE_COLOR_STATE_KEYWORDS` fact table in `keywordSpec.js`, and the webview's hard-coded push-button subset `['avail', 'unavail']`, a second copy of PSHBTNFLD's own whitelist, is now asked of that whitelist)); DFT output-requirement slice done (v0.10.270 - DFT's `RECORD_TYPES` entry gained a cross-level `outputRequirement` fact - usages O/B, record-level PUTOVR, field-level OVRDTA, with its DDS citation - that `dftOutputRequirementNote` (L83) now reads instead of hard-coding all four); edit/validity keyword groups slice done (v0.10.271 - the REF-inheritable EDTCDE/EDTWRD and CHECK/COMP/RANGE/VALUES/CHKMSGID families, with their DLTEDT / DLTCHK delete keywords, moved into one `FIELD_KEYWORD_GROUPS` fact in `keywordSpec.js` that the engine's REF inheritance and the writer's edit-keyword getter/setter both read); display-width slice done (v0.10.272 - the engine's DATFMT length table, the time-field length, the EDTCDE comma/sign-width tables and the W/Y runtime-separator codes moved onto the DATFMT / TIMFMT / EDTCDE `keywordSpec.js` entries as `displayLengths` / `displayLength` / `editCodeDisplay`; PSHBTNCHC command-key domain slice done v0.10.273 - the command-key list moved onto `PSHBTNCHC_COMMAND_KEY_DOMAIN` in `keywordSpec.js`; DSPSIZ display-size names slice done v0.10.277 - the *DS3 / *DS4 sizes, the 24x80 default and the two-size maximum moved onto `DSPSIZ_DOMAIN` in `keywordSpec.js`; command-key parameter keywords slice done v0.10.278 - MNUCNL / MNUBARSW (CA only) and SFLDROP / SFLENTER / SFLFOLD (CAnn | CFnn) moved onto `COMMAND_KEY_PARAMETER_KEYWORDS` in `keywordSpec.js`; command-key grammar / alt-key table slice done v0.10.275 - the CAnn / CFnn name shape and the alt-key names moved onto `COMMAND_KEY_GRAMMAR` / `altKeyNames()`; keyboard-shift (position 35) slice done v0.10.279 - IBM's valid-entries table moved onto `KEYBOARD_SHIFT_ENTRIES`; system-value constant keywords slice done v0.10.280 - DATE / TIME / USER / SYSNAME moved onto `SYSTEM_VALUE_CONSTANT_KEYWORDS`)). Size (estimate): Large - best done one record type at a time. |
-| 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). |
+| 1 | [I-121a – I-121o](#i-121-slices) | Not started (c, d, m, n partly done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
+| 2 | [I-121p](#i-121p) | Claimed | S36E restriction table. Claim commit `3fc4915` has no landing commit - ask the claimant first. |
+| 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 4 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
+| 5 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 6 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 7 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-138, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-142, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -5439,6 +5463,8 @@ Opened from a deferred finding raised by I-115, verbatim:
 
 ---
 
+<a id="i-118"></a>
+
 ### I-118 — Remove dead code, test-only exports and unreferenced fixtures
 
 > **Area:** Tooling · **Status:** Done (v0.10.200) · **Depends on:** I-40
@@ -5452,6 +5478,8 @@ Removed as genuinely dead, no callers anywhere: `commandKeyNumbersInUse`, `guard
 *Raised by the 2026-09-21 audit. Size (estimate): Small.*
 
 ---
+
+<a id="i-119"></a>
 
 ### I-119 — De-duplicate copied helpers
 
@@ -5475,6 +5503,8 @@ New `i119DedupHelpers.test.js` exercises every extracted/delegating function dir
 
 ---
 
+<a id="i-120"></a>
+
 ### I-120 — Shared test harness
 
 > **Area:** Tooling · **Status:** Done (v0.10.201) · **Depends on:** I-40
@@ -5493,13 +5523,66 @@ Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` ca
 
 ---
 
+<a id="i-121"></a>
+
 ### I-121 — One declarative rule spec per keyword
 
-> **Area:** Cross-level · **Status:** In progress (USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice done v0.10.211; HLPDOC/HLPBDY/HLPPNLGRP/HLPRCD slice done v0.10.212; HTML slice done v0.10.213; MSGID slice done v0.10.214; WRDWRAP/IGCALTTYP slice done v0.10.215; DFT/DFTVAL/EDTCDE/EDTWRD slice done v0.10.216; PSHBTNFLD slice done v0.10.217; PASSRCD-restricted-keywords slice done v0.10.218; DUP/BLKFOLD-floating-point slice done v0.10.219; CHRID slice done v0.10.220; DATFMT/DATSEP/TIMFMT/TIMSEP + L/T/Z usage slice done v0.10.221; SFLCHCCTL slice done v0.10.222; CHKMSGID slice done v0.10.224; SFLSCROLL slice done v0.10.225; message-data-field slice done v0.10.226; SFLRTNSEL slice done v0.10.229; SFLLIN/SFLCSRPRG slice done v0.10.230; SFLSNGCHC/SFLMLTCHC slice done v0.10.231; SFLSIZ slice done v0.10.240; MNUBARSW/MNUCNL slice done v0.10.241; SFLMSGKEY/SFLPGMQ slice done v0.10.243; EDTCDE/EDTMSK slice done v0.10.244; WRDWRAP/IGCALTTYP field-eligibility slice done v0.10.246; VALNUM field-eligibility slice done v0.10.247; CHECK(AB) floating-point slice done v0.10.249; no-option-indicators table slice done v0.10.251; SNGCHCFLD/MLTCHCFLD selection-type-parameters slice done v0.10.252; record-indicator keyword group slice done v0.10.259; DFT/DFTVAL floating-point slice done v0.10.263; repeatable-instance keyword groups slice done v0.10.266; choice color-state keywords slice done v0.10.269; DFT output-requirement slice done v0.10.270; edit/validity keyword groups slice done v0.10.271; display-width slice done v0.10.272; PSHBTNCHC command-key domain slice done v0.10.273; S36E restriction table slice claimed; command-key grammar / alt-key table slice done v0.10.275; DSPSIZ display-size names slice done v0.10.277; command-key parameter keywords slice done v0.10.278; keyboard-shift (position 35) value-domain slice done v0.10.279; system-value constant keywords slice done v0.10.280; choice selection-type radio groups slice done v0.10.284) · **Depends on:** I-40, I-119
+> **Area:** Cross-level · **Status:** In progress - remaining work is split into slices I-121a – I-121t ([below](#i-121-slices)); finished slices are under *Completed slices* · **Depends on:** I-40, I-119
 
 Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
 
-*Raised by the 2026-09-21 audit. Size (estimate): Large - split by record type when claiming.*
+*Raised by the 2026-09-21 audit. Size (estimate): Large - now split into the 20 slices below.*
+
+<a id="i-121-slices"></a>
+
+#### Remaining work - split into slices
+
+`src/keywordSpec.js` exists and about forty-three slices are done (see *Completed slices* below). At v0.10.278, 111 of the 173 keywords in `KEYWORD-LOOKUP.json` (the `*` parameters excluded) still have no `RECORD_TYPES` entry. Slices **a - o** assign every one of them to exactly one slice, grouped by level and by the rules they share; slices **p - t** cover the work that is not keyword-shaped. Every slice is independent unless its row says otherwise - pick any, claim it with its own commit, and work it in parallel.
+
+<!-- slice-ledger:start -->
+| Slice | Level | Scope | Keywords | Size |
+|-------|-------|-------|----------|------|
+| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords | `ALARM`, `BLINK`, `CSRLOC`, `RTNCSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`, `UNLOCK` | Medium |
+| [I-121b](#i-121b) | Record | Initialize, retain and return keywords | `INZRCD`, `INZINP`, `GETRETAIN`, `RTNDTA`, `RETLCKSTS`, `RETKEY`, `RETCMDKEY` | Small |
+| [I-121c](#i-121c) | Record | Subfile control keywords | `SFLCTL` ✓ v0.10.281, `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL`, `SFLEND`, `SFLINZ`, `SFLDLT` | Medium |
+| [I-121d](#i-121d) | Record | Subfile mode and entry keywords | `SFLCSRRRN` ✓ v0.10.282, `SFLMODE`, `SFLRNA`, `SFLMSGRCD`, `SFLDROP`, `SFLENTER`, `SFLFOLD` | Small |
+| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords | `WDWTITLE`, `RMVWDW`, `USRRSTDSP`, `MNUBARDSP`, `ALTNAME`, `HLPCLR`, `HLPCMDKEY`, `HLPSEQ`, `LOGINP`, `LOGOUT`, `SETOF` | Medium |
+| [I-121f](#i-121f) | File | File-level display and I/O keywords | `IGCCNV`, `DSPRL`, `DSPSIZ`, `ERRSFL`, `INDARA`, `MSGLOC`, `OPENPRT`, `REF` | Medium |
+| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords | `PASSRCD`, `USRDSPMGT`, `HLPFULL`, `HLPRCD`, `HLPSCHIDX`, `CA01-CA24`, `CF01-CF24` | Medium |
+| [I-121h](#i-121h) | File / Record | Command-function keywords | `ALWGPH`, `CLEAR`, `HELP`, `HLPRTN`, `HOME`, `INVITE`, `PAGEDOWN`, `PAGEUP`, `PRINT`, `VLDCMDKEY` | Medium |
+| [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords | `CSRINPONLY`, `ENTFLDATR`, `MSGALARM`, `HLPTITLE` | Small |
+| [I-121j](#i-121j) | Cross-level | Keywords valid at several levels | `CHANGE`, `OVRATR`, `OVRDTA`, `PUTRETAIN`, `TEXT`, `INDTXT` | Small |
+| [I-121k](#i-121k) | Help-spec | Help-specification-level keywords | `HLPARA`, `HLPBDY`, `HLPEXCLD` | Small |
+| [I-121l](#i-121l) | Field | Choice and menu-bar field keywords | `MNUBARCHC`, `MNUBARSEP`, `CHOICE`, `CHCACCEL`, `CHCAVAIL`, `CHCCTL`, `CHCSLT`, `CHCUNAVAIL` | Medium |
+| [I-121m](#i-121m) | Field | Constant and system-value field keywords | `DATE`, `TIME`, `USER`, `SYSNAME`, `MSGCON`, `NOCCSID` | Small |
+| [I-121n](#i-121n) | Field | Input, format and display field keywords | `KEYBRD`, `BLANKS`, `CNTFLD`, `FLTFIXDEC`, `FLTPCN`, `MAPVAL`, `FLDCSRPRG`, `ERRMSG` | Medium |
+| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords | `ALIAS`, `REFFLD`, `DLTCHK`, `DLTEDT`, `HLPID` | Small |
+| [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | *(none - not keyword-shaped)* | Small |
+| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | *(none - not keyword-shaped)* | Large |
+| [I-121r](#i-121r) | Tooling | Webview constant tables | *(none - not keyword-shaped)* | Medium |
+| [I-121s](#i-121s) | Tooling | Engine and writer constant tables | *(none - not keyword-shaped)* | Medium |
+| [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | *(none - not keyword-shaped)* | Large |
+<!-- slice-ledger:end -->
+
+**Done when (every slice).** The method is the one the finished slices used:
+
+1. `git fetch origin`, then push a claim commit `Claim I-121x (<slice name>)` straight away.
+2. Re-read each keyword's section in `docs/sda-reference/source/DDS_Keyword_V7r6.txt`. Each spec entry is verified against the reference, **not** against the code; cite the section.
+3. Add the entry (levels, record types, data type and usage eligibility, parameter grammar and domain, requires / excludes, whitelist membership, option-indicator rule, UI row and gating) to `src/keywordSpec.js` inside its own block fenced `// ---- I-121x: <name> ----`, so parallel slices merge additively.
+4. Re-express the writer / engine / webview rule over the entry and delete the hand-written copy. No second source of truth.
+5. Add `src/test/i121x<Name>Spec.test.js`: the entry against the DDS Reference, a sweep over every `KEYWORD-LOOKUP.json` keyword confirming the guard and the spec agree in both directions, and existing behaviour unchanged. `git stash` the source and confirm the new test fails against it.
+6. `npm run compile && npm test` - zero failing files; record the check count.
+7. Write the result in the slice's own section (`### I-121x`) - not in this section. In the status table change only that slice's status cell, and keep it under about 120 characters. Add a `CHANGELOG.md` line and bump the version.
+8. Drift-check, commit, drift-check again, push. Merge conflicts in `keywordSpec.js` / `keywordFixes.md` are resolved additively: keep both sides.
+
+**Out of scope for a slice.** A rule the DDS Reference states but the code does not enforce is a *finding*, not part of a pure refactor: log it in [Deferred findings](#deferred-findings-not-yet-tasks) and open it as its own task, as the earlier slices did (I-125 – I-140 came from this).
+
+**Check nothing was missed.** `python3 docs/sda-reference/keyword-index/check_spec_coverage.py` reads the ledger above and `KeywordSpec.RECORD_TYPES` and reports keywords owned by no slice, owned by two, or owned but already specified. It exits non-zero on the first two. When it reports no unowned keyword and every slice a - o is done, the keyword coverage of I-121 is complete.
+
+#### Completed slices (history)
+
+Done so far, with versions: USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice done v0.10.211; HLPDOC/HLPBDY/HLPPNLGRP/HLPRCD slice done v0.10.212; HTML slice done v0.10.213; MSGID slice done v0.10.214; WRDWRAP/IGCALTTYP slice done v0.10.215; DFT/DFTVAL/EDTCDE/EDTWRD slice done v0.10.216; PSHBTNFLD slice done v0.10.217; PASSRCD-restricted-keywords slice done v0.10.218; DUP/BLKFOLD-floating-point slice done v0.10.219; CHRID slice done v0.10.220; DATFMT/DATSEP/TIMFMT/TIMSEP + L/T/Z usage slice done v0.10.221; SFLCHCCTL slice done v0.10.222; CHKMSGID slice done v0.10.224; SFLSCROLL slice done v0.10.225; message-data-field slice done v0.10.226; SFLRTNSEL slice done v0.10.229; SFLLIN/SFLCSRPRG slice done v0.10.230; SFLSNGCHC/SFLMLTCHC slice done v0.10.231; SFLSIZ slice done v0.10.240; MNUBARSW/MNUCNL slice done v0.10.241; SFLMSGKEY/SFLPGMQ slice done v0.10.243; EDTCDE/EDTMSK slice done v0.10.244; WRDWRAP/IGCALTTYP field-eligibility slice done v0.10.246; VALNUM field-eligibility slice done v0.10.247; CHECK(AB) floating-point slice done v0.10.249; no-option-indicators table slice done v0.10.251; SNGCHCFLD/MLTCHCFLD selection-type-parameters slice done v0.10.252; record-indicator keyword group slice done v0.10.259; DFT/DFTVAL floating-point slice done v0.10.263; repeatable-instance keyword groups slice done v0.10.266; choice color-state keywords slice done v0.10.269; DFT output-requirement slice done v0.10.270; edit/validity keyword groups slice done v0.10.271; display-width slice done v0.10.272; PSHBTNCHC command-key domain slice done v0.10.273; S36E restriction table slice claimed; command-key grammar / alt-key table slice done v0.10.275; DSPSIZ display-size names slice done v0.10.277; command-key parameter keywords slice done v0.10.278; keyboard-shift (position 35) value-domain slice done v0.10.279; system-value constant keywords slice done v0.10.280; choice selection-type radio groups slice done v0.10.284.
+
 
 **USRDFN slice (v0.10.205).** New `src/keywordSpec.js` - a dependency-free UMD module, same shape as `dspfEngine.js`, loaded before `dspfWriter.js` in both webviews (and via `require` in Node) - holding `RECORD_TYPES.USRDFN`: the 9-keyword closed whitelist (re-verified fresh against `DDS_Keyword_V7r6.txt`'s own USRDFN section, unchanged from what the code already had), the exact DDS Reference citation text, the derived `indicatorKinds` (`HELP`/`HLPRTN` - Task I-114's own finding, now data instead of only living in a fallback-order loop's outcome), and `keywordTabs` (the General/Indicator/Help/Print subset Task R2/I-114 narrow a USRDFN record's Keywords tab to).
 
@@ -5931,6 +6014,268 @@ New `src/test/i121ChoiceSelectionRadioGroupsSpec.test.js`: pins the writer re-ex
 Remaining for I-121 after this slice: the rest of the plain/base record and file levels, still not split into smaller pieces (the S36E restriction table is claimed by another session). The webview still hand-keeps the CHECK panel splits (`VALIDITY_CHECK_CODES` / `KEYING_OPTION_CODES`, a presentation choice a test already pins to the spec) and `CHOICE_COLOR_STATES` (element-id key and label per CHCAVAIL / CHCUNAVAIL / CHCSLT; the keywords themselves are already spec facts).
 ---
 
+<a id="i-121a"></a>
+
+### I-121a — Output, cursor and screen-control keywords
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (13):** `ALARM`, `BLINK`, `CSRLOC`, `RTNCSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`, `UNLOCK`.
+
+Several already have writer guards (`RTNCSRLOC` I-77/I-84, `UNLOCK` I-106); fold those into the entries. `PULLDOWN`'s mutex already names many of these - cross-check, do not duplicate.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121b"></a>
+
+### I-121b — Initialize, retain and return keywords
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+
+**Keywords (7):** `INZRCD`, `INZINP`, `GETRETAIN`, `RTNDTA`, `RETLCKSTS`, `RETKEY`, `RETCMDKEY`.
+
+`RETLCKSTS` takes no parameters (I-50). `RETKEY`/`RETCMDKEY` carry S36E notes (S36-3) - read the S36E table from I-121p once it lands, do not copy it.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121c"></a>
+
+### I-121c — Subfile control keywords
+
+> **Area:** Record · **Status:** Partly done (`SFLCTL`, v0.10.281) · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (8):** `SFLCTL` ✓ v0.10.281, `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL`, `SFLEND`, `SFLINZ`, `SFLDLT`.
+
+`SFLEND` has preview and writer rules from P7-P12 (plus sign, More/Bottom, `*SCRBAR` columns). `SFLCTL` was found to need no whitelist (I-121 SFL slice) - record that as a fact. **Progress:** `SFLCTL` is done - v0.10.281 (I-141) gave it `RECORD_TYPES.SFLCTL` with `requiredFor: [SFLCSRRRN, SFLDLT, SFLINZ]`. I-141 also added `optionIndicatorRequiredFact` (SFLDLT: option indicators required, no display size names) as a stand-alone table - fold it into `SFLDLT`'s own entry, do not duplicate it. Still to do: `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL`, `SFLEND`, `SFLINZ`, `SFLDLT`.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121d"></a>
+
+### I-121d — Subfile mode and entry keywords
+
+> **Area:** Record · **Status:** Partly done (`SFLCSRRRN`, v0.10.282) · **Depends on:** I-121 · **Size (estimate):** Small
+
+**Keywords (7):** `SFLCSRRRN` ✓ v0.10.282, `SFLMODE`, `SFLRNA`, `SFLMSGRCD`, `SFLDROP`, `SFLENTER`, `SFLFOLD`.
+
+`SFLDROP`/`SFLENTER`/`SFLFOLD` command-key parameters already live in `COMMAND_KEY_PARAMETER_KEYWORDS`; reference it, do not copy. **Progress:** `SFLCSRRRN` is done - v0.10.282 (I-142) gave it `RECORD_TYPES.SFLCSRRRN.relativeRecordField` (parameter required, leading `&`, S / 5 / 0 / H field in the record; panel convenience in v0.10.283). Still to do: `SFLMODE`, `SFLRNA`, `SFLMSGRCD`, `SFLDROP`, `SFLENTER`, `SFLFOLD`.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121e"></a>
+
+### I-121e — Window, menu-bar, help and logging record keywords
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (11):** `WDWTITLE`, `RMVWDW`, `USRRSTDSP`, `MNUBARDSP`, `ALTNAME`, `HLPCLR`, `HLPCMDKEY`, `HLPSEQ`, `LOGINP`, `LOGOUT`, `SETOF`.
+
+`RMVWDW`/`USRRSTDSP` `requiredFor: WINDOW` currently sits on the WINDOW entry (I-140) - give each its own entry and point to it. `SETOF`/`SETOFF` alias (I-135) and `ALTNAME`'s refusal on USRDFN/SFL/MNUBAR (I-108) belong here.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121f"></a>
+
+### I-121f — File-level display and I/O keywords
+
+> **Area:** File · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (8):** `IGCCNV`, `DSPRL`, `DSPSIZ`, `ERRSFL`, `INDARA`, `MSGLOC`, `OPENPRT`, `REF`.
+
+`DSPSIZ_DOMAIN` already exists - give `DSPSIZ` its entry and reference the domain. `MSGLOC` is per display size.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121g"></a>
+
+### I-121g — File-level help, program-control and command-key keywords
+
+> **Area:** File · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (7):** `PASSRCD`, `USRDSPMGT`, `HLPFULL`, `HLPRCD`, `HLPSCHIDX`, `CA01-CA24`, `CF01-CF24`.
+
+`PASSRCD`'s restricted-keyword list and `COMMAND_KEY_GRAMMAR` already exist. `USRDSPMGT` is the gate for the S36E table: coordinate with I-121p. `CA01-CA24`/`CF01-CF24` are one pattern entry each, not 48 entries.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121h"></a>
+
+### I-121h — Command-function keywords
+
+> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (10):** `ALWGPH`, `CLEAR`, `HELP`, `HLPRTN`, `HOME`, `INVITE`, `PAGEDOWN`, `PAGEUP`, `PRINT`, `VLDCMDKEY`.
+
+The ten record-indicator kinds already sit in `RECORD_INDICATOR_KEYWORDS` (I-121, v0.10.259) - make that table derive from these entries rather than the reverse. `PAGEDOWN`/`PAGEUP` and `ROLLUP`/`ROLLDOWN` are synonym pairs. `HELP`/`HLPRTN`/`PRINT` also have S36E rules (I-121p).
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121i"></a>
+
+### I-121i — Cursor, message and help-title keywords
+
+> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+
+**Keywords (4):** `CSRINPONLY`, `ENTFLDATR`, `MSGALARM`, `HLPTITLE`.
+
+`ENTFLDATR` is also field-level (I-42). `HLPTITLE` is repeatable up to 15 per record (I-27) and has a file-level no-option-indicators entry.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121j"></a>
+
+### I-121j — Keywords valid at several levels
+
+> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+
+**Keywords (6):** `CHANGE`, `OVRATR`, `OVRDTA`, `PUTRETAIN`, `TEXT`, `INDTXT`.
+
+The point of this slice is the per-level scope fact (file / record / field). `INDTXT` is valid at all three; `TEXT` is not valid at file level (I-6). `PUTRETAIN` is in `PULLDOWN`'s mutex.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121k"></a>
+
+### I-121k — Help-specification-level keywords
+
+> **Area:** Help-spec · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+
+**Keywords (3):** `HLPARA`, `HLPBDY`, `HLPEXCLD`.
+
+The `HLPBDY` mutex web already lives with `HLPDOC`/`HLPPNLGRP`/`HLPRCD` (I-121, v0.10.212); give `HLPBDY` its own entry and point to it. `HLPEXCLD` has no spec mention at all.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121l"></a>
+
+### I-121l — Choice and menu-bar field keywords
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (8):** `MNUBARCHC`, `MNUBARSEP`, `CHOICE`, `CHCACCEL`, `CHCAVAIL`, `CHCCTL`, `CHCSLT`, `CHCUNAVAIL`.
+
+`CHOICE_COLOR_STATE_KEYWORDS` already holds the colour-state trio (v0.10.269); `PSHBTNFLD`'s whitelist names `CHCCTL`/`CHCAVAIL`/`CHCUNAVAIL`. Cross-check both directions.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121m"></a>
+
+### I-121m — Constant and system-value field keywords
+
+> **Area:** Field · **Status:** Partly done (shared value-source fact, v0.10.280) · **Depends on:** I-121 · **Size (estimate):** Small
+
+**Keywords (6):** `DATE`, `TIME`, `USER`, `SYSNAME`, `MSGCON`, `NOCCSID`.
+
+Several of these appear in `HTML`'s 14-keyword mutex and `MSGID`'s exclusion list - those lists stay where they are; this slice adds each keyword's own eligibility (constant fields, system values). **Progress:** v0.10.280 moved the shared value-source list (DATE, TIME, USER, SYSNAME) into `SYSTEM_VALUE_CONSTANT_KEYWORDS`, read by the webview and engine - that is a fact, not a `RECORD_TYPES` entry, so all six keywords stay open: give each its own entry that points at it. `MSGCON` and `NOCCSID` are untouched.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121n"></a>
+
+### I-121n — Input, format and display field keywords
+
+> **Area:** Field · **Status:** Partly done (position-35 table, v0.10.279) · **Depends on:** I-121 · **Size (estimate):** Medium
+
+**Keywords (8):** `KEYBRD`, `BLANKS`, `CNTFLD`, `FLTFIXDEC`, `FLTPCN`, `MAPVAL`, `FLDCSRPRG`, `ERRMSG`.
+
+`KEYBRD` was found not to be a real DDS keyword (L79) - record that in the spec rather than inventing an entry. **Progress:** v0.10.279 put IBM's position-35 "Valid entries for display files" table into `KEYBOARD_SHIFT_ENTRIES` (the Keying options panel reads it); that is the spec-side home for what `KEYBRD` stood for, so remaining decision for `KEYBRD` is whether I-121t drops it from the index. `ERRMSG` is in `REPEATABLE_INSTANCE_GROUPS` already. `FLTPCN` is also read from `QDBRTVFD` (I-116).
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121o"></a>
+
+### I-121o — Reference and database-inherit field keywords
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+
+**Keywords (5):** `ALIAS`, `REFFLD`, `DLTCHK`, `DLTEDT`, `HLPID`.
+
+`DLTEDT`/`DLTCHK` already sit in `FIELD_KEYWORD_GROUPS`. `REFFLD` is written bare by "+ Fields from database file" (I-113) - the entry must allow that form.
+
+Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+---
+
+<a id="i-121p"></a>
+
+### I-121p — S36E restriction table into the spec
+
+> **Area:** Cross-level · **Status:** Claimed (`3fc4915`), unconfirmed · **Depends on:** I-121 · **Size (estimate):** Small
+
+Claimed in commit `3fc4915` ("Claim I-121 (S36E restriction table slice)") with no landing commit in `git log` as of v0.10.278 - **ask the claimant before starting**. Scope: `S36E_KEYWORD_RESTRICTIONS` in `dspfWriter.js` (CHANGE, HELP, HLPRTN, PRINT(*PGM) verified; ALTNAME, MSGID, RETKEY, RETCMDKEY verified but not `USRDSPMGT`-gated, `gatedByUsrdspmgt`) moves to spec facts; the S36E consumers read it. Owns no keywords - the keywords stay with their level slice.
+
+---
+
+<a id="i-121q"></a>
+
+### I-121q — Audit the remaining `*ConflictReason` functions
+
+> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-121a – I-121o (alongside) · **Size (estimate):** Large
+
+The writer has 86 `*ConflictReason`-style functions. A first pass (v0.10.284) found 36 with no direct `KeywordSpec.` call in their body - some delegate through a helper (for example `usrdfnConflictReason` goes through `usrdfnWhitelistCheck`), so this is a starting list, not a verdict: edtmskNewConflictReason, chkmsgidBasicEditConflictReason, chkmsgidMsgDataNewConflictReason, messageIdMsgDataNewConflictReason, chridBasicEditConflictReason, wrdwrapReverseConflictReason, igcalttypBasicEditConflictReason, igcalttypNewConflictReason, noOptionIndicatorsNewConflictReason, msgidSflNewConflictReason, msgidExclusionNewConflictReason, valnumNewConflictReason, valnumBasicEditConflictReason, editKeywordDataTypeNewConflictReason, editKeywordDataTypeBasicEditConflictReason, dupFloatNewConflictReason, blkfoldFloatNewConflictReason, rangeFloatNewConflictReason, compFloatNewConflictReason, valuesFloatNewConflictReason, usrdfnConflictReason, usrdfnWhitelistConflictReason, pshbtnfldNewConflictReason, pshbtnfldBasicEditConflictReason, passrcdRecordConflictReason, altKeyFileExclusionNewConflictReason, sflcsrrrnNewConflictReason, sflctlDependencyNewConflictReason, optionIndicatorRequiredNewConflictReason, sfllinRecordEditConflictReason, sflcsrprgFieldEditConflictReason, sflscrollSizeRecordEditConflictReason, scrbarReservedNewConflictReason, sflscrollBasicEditConflictReason, sflchcctlBasicEditConflictReason, referencedFieldResolveConflictReason. Deliverable: a table of all 86 marked *spec-backed* / *procedural by design* / *needs a spec fact* (and the fact moved), plus the file-vs-record scoping in `mnuBarKeyConflictReason`. Do the keyword-owning slices a-o first or in parallel; this slice only closes what they leave.
+
+---
+
+<a id="i-121r"></a>
+
+### I-121r — Webview constant tables
+
+> **Area:** Tooling · **Status:** Partly done (choice radio groups, v0.10.284) · **Depends on:** I-121 · **Size (estimate):** Medium
+
+Hand-written keyword tables in `webviewClientHelpers.js`: `RECORD_TYPES` (record-type list), `DSPATR_ATTRS`, `COLOR_VALUES`, `VALIDITY_CHECK_CODES`, `RECORD_INDICATOR_INSTANCE_KEYWORDS`, `KEYING_OPTION_CODES`, `GENERAL_FIELD_KEYWORD_ROWS`, `DFT_GROUP_KEYS`, `CHOICE_COLOR_STATES`, `CHGINPDFT_CODES`, `WDWBORDER_ATTRS`, `BORDER_POSITIONS`, and the `ROW_KEYWORD` map. Some may already derive from the spec after the value-domain slices (v0.10.256-v0.10.272): verify each, then derive or migrate. **Done:** `CHOICE_SELECTION_RADIO_GROUPS` - v0.10.284 (the panel builds its groups from `selectionParameters`; screen wording stays in `CHOICE_SELECTION_GROUP_TEXT`). Display labels (`DATE_FORMAT_LABELS`, `TIME_FORMAT_LABELS`, `DATE_SEP_LABELS`, `TIME_SEP_LABELS`, `CHGINPDFT_LABELS`) are UI text and stay.
+
+---
+
+<a id="i-121s"></a>
+
+### I-121s — Engine and writer constant tables
+
+> **Area:** Tooling · **Status:** Partly done (`CHARACTER_TYPES` removed, v0.10.279) · **Depends on:** I-121 · **Size (estimate):** Medium
+
+`dspfEngine.js` (`CHARACTER_TYPES` was removed unused in v0.10.279): `COLOR_HEX`, `NUMERIC_TYPES`, `USAGE_LABEL`, and the `edtwrdDisplayWidth` arithmetic (a rule, left in the engine by v0.10.273 - decide whether it is a spec fact). `dspfWriter.js`: the `TARGET` array in `alwrolClrlSlnoConflictReason`, `SFL_CHOICE_KEYWORDS`, `RECORD_REFERENCE_EXTRACTORS` / `RECORD_REFERENCE_LOCATORS`, and `NO_OPTION_INDICATOR_MESSAGES` (wording is presentation - say so explicitly if it stays).
+
+---
+
+<a id="i-121t"></a>
+
+### I-121t — Generate the keyword index from the spec (do last)
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-121a – I-121s · **Size (estimate):** Large
+
+The goal stated in I-121 itself: make `KEYWORD-INDEX.json` / `KEYWORD-LOOKUP.json` / `KEYWORD-INDEX.md` come from `keywordSpec.js` so I-40 is the last hand regeneration (`build_index.py`, `build_lookup_and_md.py`). Start only when a-s are done, because every earlier slice changes the spec. Acceptance: regenerated files differ from the I-40 baseline only where a spec entry is more correct, each difference explained.
+
+---
+
+<a id="i-122"></a>
+
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
 > **Area:** Tooling · **Status:** In progress (batch 1 done) · **Depends on:** I-120, I-121
@@ -5944,6 +6289,8 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 Not yet done for I-122: the generated per-keyword matrix itself (batch 2 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other 151 keywords are covered unevenly by the existing hand-written files. Next batch candidate: the keywords with 4-8 test mentions, same inventory method.
 
 ---
+
+<a id="i-123"></a>
 
 ### I-123 — Move "Task I-nn" history out of source comments
 
@@ -5981,6 +6328,8 @@ Opened from a deferred finding raised by I-118, verbatim:
 
 ---
 
+<a id="i-125"></a>
+
 ### I-125 — `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced
 
 > **Area:** Field · **Status:** Done (v0.10.223) · **Depends on:** I-72, I-96
@@ -6011,6 +6360,8 @@ Full suite (after merging with I-121's own concurrent CHRID/DATFMT-DATSEP-TIMFMT
 
 ---
 
+<a id="i-126"></a>
+
 ### I-126 — `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced
 
 > **Area:** Field · **Status:** Done (v0.10.232) · **Depends on:** I-121
@@ -6024,6 +6375,8 @@ New `src/test/i126SflscrollFieldShape.test.js` (45 checks): the spec fact and it
 Full suite (after merging with the P6/P7 and I-121 SFLRTNSEL, SFLLIN/SFLCSRPRG, SFLSNGCHC/SFLMLTCHC work pushed in parallel): 180 files, 10,759 checks, zero failures.
 
 ---
+
+<a id="i-127"></a>
 
 ### I-127 — `SFLSCROLL`: not allowed when `SFLSIZ` equals `SFLPAG` - unenforced
 
@@ -6041,6 +6394,8 @@ Full suite (after merging with the P6/P7 and I-121 SFLRTNSEL, SFLLIN/SFLCSRPRG, 
 
 ---
 
+<a id="i-128"></a>
+
 ### I-128 — `SFLDROP`/`SFLFOLD` added to a record that already has `SFLSNGCHC`/`SFLMLTCHC` is unblocked (choice-list mutex reverse direction)
 
 > **Area:** Record · **Status:** Done (v0.10.236) · **Depends on:** I-121, I-26
@@ -6052,6 +6407,8 @@ New `DspfWriter.sflChoiceListNewConflictReason(oldKeywords, newKeywords)`: a dif
 New `src/test/i128SflChoiceListReverseGuard.test.js` (41 checks): direct unit checks of the function (every blocked and allowed shape, the per-pair diff cases, null/undefined inputs), and in jsdom against the real generated client script the raw keyword editor and the SFLCTL panel's SFLDROP/SFLFOLD checkboxes being blocked with an alert and reverted, allowed edits still committing, and a hand-written already-invalid record. The test fails without the guard (14 failures). Pure guard addition; nothing that was allowed before and is valid is newly refused.
 
 ---
+
+<a id="i-129"></a>
 
 ### I-129 — `SFLSCROLL`/`SFLRCDNBR`/`SFLROLVAL`: "valid only for the subfile-control record format" is unenforced
 
@@ -6071,6 +6428,8 @@ Full suite: 186 files, 10,912 checks, zero failures.
 
 ---
 
+<a id="i-130"></a>
+
 ### I-130 — `EDTMSK`: the keywords IBM lists as "cannot be specified on a field with the EDTMSK keyword" are unenforced
 
 > **Area:** Field · **Status:** Done (v0.10.245) · **Depends on:** I-121, I-31
@@ -6087,6 +6446,8 @@ Full suite: 194 files, 11,202 checks, zero failures.
 
 ---
 
+<a id="i-131"></a>
+
 ### I-131 — `VALNUM`: the DDS Reference rule (input-capable usage I/B, data type Y) is enforced only by hiding the General-tab row
 
 > **Area:** Field · **Status:** Done (v0.10.248) · **Depends on:** I-121, I-94
@@ -6098,6 +6459,8 @@ Implementation (the IGCALTTYP I-94 diff-based pattern, as planned): new `DspfWri
 New `src/test/i131ValnumFieldEligibility.test.js` (pure functions plus the real generated webview in jsdom: raw add blocked on type A and usage O and allowed on B/Y and I/Y; Basic Apply blocked for usage B->O and type Y->A, allowed for B->I; hand-written invalid fields still editable and fixable). Without the `commitEdit` / Basic-tab wiring in `buildWebviewTemplate.js` the webview checks fail.
 
 The Deferred findings table is empty again.
+
+<a id="i-132"></a>
 
 ### I-132 — `CHECK(M10/M10F/M11/M11F)`: the DDS Reference bars all four on a floating-point field, but only `CHECK(AB)` is guarded
 
@@ -6113,6 +6476,8 @@ The Deferred findings table is empty again.
 
 ---
 
+<a id="i-133"></a>
+
 ### I-133 — `*GUTTER` minimum of 2: enforced by the panels' Apply but not by the writer backstops
 
 > **Area:** Field · **Status:** Done (v0.10.253) · **Depends on:** I-121, I-63
@@ -6127,6 +6492,8 @@ The Deferred findings table now holds one row, the raw keyword editor's missing 
 
 ---
 
+<a id="i-134"></a>
+
 ### I-134 — `SNGCHCFLD` / `MLTCHCFLD` / `PSHBTNFLD` layout parameters are validated only by the panels' Apply buttons
 
 > **Area:** Field · **Status:** Done (v0.10.254) · **Depends on:** I-133, I-63
@@ -6140,6 +6507,8 @@ New `src/test/i134LayoutParametersGuard.test.js` (56 checks): the spec fact and 
 The Deferred findings table is empty again.
 
 ---
+
+<a id="i-135"></a>
 
 ### I-135 — `SETOFF` is not treated as the alias of `SETOF` the DDS Reference says it is
 
@@ -6157,6 +6526,8 @@ The Deferred findings table is empty again.
 
 ---
 
+<a id="i-136"></a>
+
 ### I-136 — `MOUBTN` command-key exclusions with `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn` are not enforced
 
 > **Area:** File / Record · **Status:** Done (v0.10.267) · **Depends on:** I-121
@@ -6170,6 +6541,8 @@ Wired into: the MOUBTN row's key edit (`wireMoubtnPanel`, file and record level;
 Behavior change, deliberate: these combinations used to be accepted. Not covered, deliberately: the rest of the ALTHELP / ALTPAGEDWN / ALTPAGEUP exclusion lists (MNUCNL, MNUBARSW, PSHBTNCHC, SFLDROP, SFLENTER, SFLFOLD, and each other) - MOUBTN's own table is only the MOUBTN rows; the others are separate rows of the same alt-key sections and would be a follow-up task. Raw-editor and hand-typed DDS are not intercepted. New `src/test/i136MoubtnCommandKeyExclusions.test.js` covers the spec fact, the writer from both sides (including scope, queue-flag stripping and fail-safe input) and the panels in jsdom; a stash check confirmed the writer section fails against pre-change code and that the panel checks fail when only the wiring is reverted.
 
 ---
+
+<a id="i-137"></a>
 
 ### I-137 — `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: barred on a floating-point field, but only checked when the keyword row is switched on
 
@@ -6187,6 +6560,8 @@ The Deferred findings table keeps one finding: EDTCDE/EDTWRD's wider data-type e
 
 ---
 
+<a id="i-138"></a>
+
 ### I-138 — `EDTCDE` / `EDTWRD`: barred on every data type but Y (or blank), enforced nowhere except F
 
 > **Area:** Field · **Status:** Done (v0.10.267) · **Depends on:** I-121, I-137
@@ -6203,6 +6578,8 @@ The Deferred findings table is empty again.
 
 ---
 
+<a id="i-139"></a>
+
 ### I-139 — `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` file-wide command-key exclusions are not enforced (beyond the MOUBTN rows)
 
 > **Area:** File / Record / Field · **Status:** Done (v0.10.268) · **Depends on:** I-136
@@ -6217,6 +6594,8 @@ Behavior change, deliberate: these combinations were previously accepted. One ge
 
 ---
 
+<a id="i-140"></a>
+
 ### I-140 — `RMVWDW` / `USRRSTDSP` are accepted without a `WINDOW` keyword on the record
 
 > **Area:** Record · **Status:** Done (v0.10.276) · **Depends on:** I-122
@@ -6230,6 +6609,8 @@ Found by the I-122 batch 1 tests. `DDS_Keyword_V7r6.txt` (RMVWDW ~line 181, USRR
 New `src/test/i140WindowDependency.test.js` (27 checks): the spec fact, the pure function (add / remove / both removed together / geometry edit / reference form / already-invalid not re-reported / second new violation / fail-safe) and the real generated webview in jsdom (raw-editor add on a plain and a window record, remove WINDOW with and without dependents). Mutation-checked: removing only the `commitSourceChange` hook fails the refusal checks.
 
 ---
+
+<a id="i-141"></a>
 
 ### I-141 — `SFLDLT` option indicator and record-type scope
 
@@ -6246,6 +6627,8 @@ Not changed: SFLINZ's own \"display size condition names not valid\" is a separa
 New `src/test/i141SubfileControlKeywords.test.js` (40 checks): spec facts, the pure guards (add, remove, parameter change, already-invalid, second violation, fail-safe, display size vs indicator) and the real generated webview in jsdom (raw-editor adds on a plain record, unchecking SFLCTL, the SFLDLT note appearing / disappearing, accepted paths). Mutation-checked: removing only the SFLCTL clause from the hook fails four refusal checks. The I-140 test is unchanged and still passes on the generalised helper.
 
 ---
+
+<a id="i-142"></a>
 
 ### I-142 — `SFLCSRRRN` parameter form
 
