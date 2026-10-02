@@ -207,6 +207,12 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Done | v0.10.282 |
 | [I-143](#i-143) | Field | `MSGCON` rules from its DDS section are not enforced: the DATE/DFT/EDTCDE/EDTWRD/TIME exclusion, constant-only, and the 1-132 length | I-121m | Claimed (in progress) | — |
 | [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Not started | — |
+| [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Not started | — |
+| [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Not started | — |
+| [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Not started | — |
+| [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
+| [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
+| [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -232,17 +238,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-144, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-150, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121d | `SFLRNA` is accepted without `SFLINZ`, on a message subfile (`SFLMSGRCD`) and with field selection; `SFLMODE`'s field (A, length 1, usage H, in the control record) and `SFLMSGRCD`'s line number (not above the display's last line) and predefined fields (A4 + `SFLMSGKEY`, A10 + `SFLPGMQ`) are not validated; `SFLINZ` is accepted with `SFLMSGRCD` and no `SFLPGMQ`. No guard was found in `dspfWriter.js`. The facts are in `keywordSpec.js` (`requiresOnRecord`, `notOnMessageSubfile`, `modeField`, `predefinedFields`, `requiresWithSflinz`). |
-| I-121d | `SFLDROP` and `SFLFOLD` on one record must use the same key, and `SFLDROP` / `SFLFOLD` are ignored when SFLSIZ equals SFLPAG or refused with field selection; none of that is checked (only the `SFLSNGCHC`/`SFLMLTCHC` exclusion and the command-key clash are). Facts: `foldDropRules`. |
-| I-121c | The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`). |
-| I-121c | `SFLPAG`'s own section refuses `SFLDROP`/`SFLFOLD`/`SFLROLVAL` when SFLSIZ equals SFLPAG and `SFLDROP`/`SFLFOLD`/`SFLINZ`/`SFLLIN`/`SFLRCDNBR` under field selection; only `SFLSCROLL` (I-127) is checked against SFLSIZ = SFLPAG. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` are not validated either. The lists and grammar are in the spec (`excludedWhenSizeEqualsPage`, `excludedWithFieldSelection`, `sflendGrammar`). |
-| I-121b | `GETRETAIN` is accepted without `UNLOCK` (and with `UNLOCK(*ERASE)` etc.): its section requires `UNLOCK` without parameters. `RTNDTA` and `UNLOCK` are accepted together on one record. `INZINP` is accepted without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`. No guard exists for any of the three; the facts are in `keywordSpec.js` (`recordRequires`, `requiresBareKeyword`, `recordExcludes`). |
-| I-121b | `RETKEY` / `RETCMDKEY` accept every exclusion their section states: `RETKEY` with `CLEAR`/`HELP`/`HOME`/`PAGEUP`/`PAGEDOWN`/`ROLLDOWN`/`ROLLUP` (file or record) or `PRINT` (record); `RETCMDKEY` with `CAnn`/`CFnn` (file or record) or `SFLDROP`/`SFLENTER`/`SFLFOLD` (record); both in a file with `ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN` (the rest of I-139's open item) or without `INDARA`. Spec facts: `fileAndRecordExcludes`, `recordExcludes`, `fileExcludes`, `fileRequires`. |
-| I-121n | Field rules the DDS Reference states and the panel / writer do not enforce (no guard found by searching the writer, engine and panels; now stated in the spec, behaviour unchanged): `CNTFLD` needs an input-capable field of data type A, not in a subfile, with a width smaller than the field length - its row is offered for every data type and usage; `FLDCSRPRG` needs an input-capable field not in a subfile, naming an input-capable field of the same record, and is not allowed with `SNGCHCFLD` / `MLTCHCFLD`; `FLTFIXDEC` needs usage B or O (its row is gated on data type F only); `BLANKS` is for input-capable fields (I, B). |
+| *(none)* | *(none)* |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6789,5 +6789,77 @@ Found by the I-121m probe (raw keyword editor on a constant and on a named field
 > **Area:** Field · **Status:** Not started · **Depends on:** I-121m
 
 Found by the I-121m probe and an engine measurement. (1) **Constant-only.** Each section says "Positions 17 through 38 must be blank" (an unnamed constant); the raw editor accepts `DATE`, `USER` and `SYSNAME` on a named field. (2) **Parameters.** `TIME`, `USER`, `SYSNAME` and `NOCCSID` "have no parameters"; `USER(JUNK)` and `NOCCSID(X)` are accepted. `DATE`'s parameters (`*JOB|*SYS`, `*Y|*YY`) are not validated. (3) **Preview width.** `DspfEngine.resolveScreen` gives every system-value constant length 1 (measured: `USER`, `SYSNAME`, `TIME`, `DATE` all `len` 1), so the field is drawn one column wide with its placeholder text overflowing, and `previousColumnEnd` under-counts, which shifts every later relatively-positioned field on the line. The reference states `USER` is 10 characters and `SYSNAME` 8; `TIME` is 8 (edit word `0_:__:__`); `DATE`'s length depends on the job `DATFMT`, on `EDTCDE(Y)` separators and on `*Y`/`*YY`. The entries hold `fixedLength` for `USER` and `SYSNAME` and `dateParameters` for `DATE` already. Open question, not a rule: only the `TIME` section says the companion keywords are the "only" ones allowed; the `DATE`, `USER` and `SYSNAME` sections say "you can specify ... and, optionally, ...", so whether those lists are closed is not decided - raise it rather than guess.
+
+---
+
+<a id="i-145"></a>
+
+### I-145 — Message-subfile and `SFLINZ`/`SFLRNA` keyword rules are not enforced
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121d
+
+Raised by the I-121d slice (subfile mode and entry keywords). `SFLRNA` is accepted without `SFLINZ`, on a message subfile (`SFLMSGRCD`) and with field selection; `SFLMODE`'s field (A, length 1, usage H, in the control record) and `SFLMSGRCD`'s line number (not above the display's last line) and predefined fields (A4 + `SFLMSGKEY`, A10 + `SFLPGMQ`) are not validated; `SFLINZ` is accepted with `SFLMSGRCD` and no `SFLPGMQ`. No guard was found in `dspfWriter.js`. The facts are in `keywordSpec.js` (`requiresOnRecord`, `notOnMessageSubfile`, `modeField`, `predefinedFields`, `requiresWithSflinz`).
+
+To do: confirm each case with a probe in the raw keyword editor (not yet run), decide per case whether it is a refusal in the writer backstop or an audit warning (as I-141 did for `SFLDLT`), and add the guards with tests. The `SFLINZ`-without-`SFLPGMQ` case is shared with I-147; do it in whichever task lands first.
+
+---
+
+<a id="i-146"></a>
+
+### I-146 — `SFLDROP` / `SFLFOLD` pairing and the SFLSIZ = SFLPAG / field-selection exclusions are not enforced
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121c, I-121d
+
+Raised by the I-121d and I-121c slices. (1) `SFLDROP` and `SFLFOLD` on one record must use the same key, and `SFLDROP` / `SFLFOLD` are ignored when SFLSIZ equals SFLPAG or refused with field selection; none of that is checked (only the `SFLSNGCHC`/`SFLMLTCHC` exclusion and the command-key clash are). Facts: `foldDropRules`. (2) `SFLPAG`'s own section refuses `SFLDROP`/`SFLFOLD`/`SFLROLVAL` when SFLSIZ equals SFLPAG and `SFLDROP`/`SFLFOLD`/`SFLINZ`/`SFLLIN`/`SFLRCDNBR` under field selection; only `SFLSCROLL` (I-127) is checked against SFLSIZ = SFLPAG. The lists are in the spec (`excludedWhenSizeEqualsPage`, `excludedWithFieldSelection`).
+
+To do: extend the SFLSIZ = SFLPAG check I-127 built for `SFLSCROLL` to the other keywords, add the field-selection exclusions and the same-key rule for the `SFLDROP` / `SFLFOLD` pair, each reporting only violations the edit adds (the I-140 / I-141 pattern), with tests.
+
+---
+
+<a id="i-147"></a>
+
+### I-147 — Subfile-control keywords are accepted without `SFLCTL`, without required companions and with display size names
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121c
+
+Raised by the I-121c slice (subfile control keywords). The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` are not validated either. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`, `sflendGrammar`).
+
+To do: widen the I-141 `recordDependencyViolations` helper to the five keywords above, refuse display size names where the reference says they are not valid, and decide, as I-141 did for `SFLDLT`, which of the option-indicator and required-companion rules are refusals and which are notes (a bare keyword that the panel checkbox writes cannot be refused without making the row unusable).
+
+---
+
+<a id="i-148"></a>
+
+### I-148 — `GETRETAIN` / `UNLOCK` / `RTNDTA` / `INZINP` requirements are not enforced
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121b
+
+Raised by the I-121b slice (record-level keywords). `GETRETAIN` is accepted without `UNLOCK` (and with `UNLOCK(*ERASE)` etc.): its section requires `UNLOCK` without parameters. `RTNDTA` and `UNLOCK` are accepted together on one record. `INZINP` is accepted without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`. No guard exists for any of the three; the facts are in `keywordSpec.js` (`recordRequires`, `requiresBareKeyword`, `recordExcludes`).
+
+To do: add a spec-driven record-level "requires" / "excludes" check (the I-140 shape: refuse only violations the edit adds) covering the three cases, and test both the refusals and the accepted paths.
+
+---
+
+<a id="i-149"></a>
+
+### I-149 — `RETKEY` / `RETCMDKEY` exclusions and file-level requirements are not enforced
+
+> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-121b, I-139
+
+Raised by the I-121b slice, and the rest of I-139's open item. `RETKEY` / `RETCMDKEY` accept every exclusion their section states: `RETKEY` with `CLEAR`/`HELP`/`HOME`/`PAGEUP`/`PAGEDOWN`/`ROLLDOWN`/`ROLLUP` (file or record) or `PRINT` (record); `RETCMDKEY` with `CAnn`/`CFnn` (file or record) or `SFLDROP`/`SFLENTER`/`SFLFOLD` (record); both in a file with `ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN` or without `INDARA`. Spec facts: `fileAndRecordExcludes`, `recordExcludes`, `fileExcludes`, `fileRequires`.
+
+To do: the exclusions span the file and record levels, so the check needs the file-level keywords and the record's together; check how I-139 did the file-and-record command-key clash and reuse it, add the `INDARA` requirement, and test refusals and accepted paths at both levels.
+
+---
+
+<a id="i-150"></a>
+
+### I-150 — `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` / `BLANKS` usage, data type and subfile rules are not enforced
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-121n
+
+Raised by the I-121n slice (found while writing the spec entries; a search of the writer, engine and panels found no guard, no probe has been run). The DDS Reference states, and the spec now holds as facts: `CNTFLD` needs an input-capable field of data type A, not in a subfile, with a width smaller than the field length - its row is offered for every data type and usage; `FLDCSRPRG` needs an input-capable field not in a subfile, naming an input-capable field of the same record, and is not allowed with `SNGCHCFLD` / `MLTCHCFLD`; `FLTFIXDEC` needs usage B or O (its row is gated on data type F only); `BLANKS` is for input-capable fields (I, B). The spec entries hold `allowedUsage` and `requiredDataTypes`; the subfile and `FLDCSRPRG` rules are in the reference text cited there.
+
+To do: follow the I-131 `VALNUM` pattern - hide the row (General tab) where the reference does not allow the keyword, and add a writer backstop so raw-editor adds and Basic-tab data type / usage changes cannot create an invalid combination; the subfile and `SNGCHCFLD` / `MLTCHCFLD` rules need the record context.
 
 ---
