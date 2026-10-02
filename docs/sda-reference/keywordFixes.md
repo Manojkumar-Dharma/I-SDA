@@ -177,7 +177,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Claimed (in progress) | — |
-| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Partly done (position-35 table, v0.10.279) | — |
+| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Claimed (in progress); position-35 table done v0.10.279 | — |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Claimed (`3fc4915`), unconfirmed | — |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
