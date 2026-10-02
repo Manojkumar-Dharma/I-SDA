@@ -2379,6 +2379,44 @@
     maxSizes: 2
   };
 
+  // Task I-121 (command-key parameter keywords slice) - the keywords whose
+  // one parameter IS a command key, and which key types that parameter may
+  // be (DDS_Keyword_V7r6.txt: MNUCNL ~line 8669 and MNUBARSW ~line 8611 "assign
+  // a command attention (CA) key"; SFLDROP ~10849, SFLENTER ~11159 and
+  // SFLFOLD ~11200 are "SFLxxx(CAnn | CFnn)"). The writer's command-key claim
+  // collector (commandKeyClaimsInModel) named the five inline; the alt keys'
+  // `excluded` lists above record the same split as `caOnly` / `any`.
+  // PSHBTNCHC and MOUBTN carry their command key inside a longer parameter
+  // list and have their own facts, so they are not in this table.
+  var COMMAND_KEY_PARAMETER_KEYWORDS = {
+    MNUCNL: { keyTypes: ['CA'], ddsReference: 'You use this file- or record-level keyword to assign a command attention (CA) key to be the cancel key for menu bars or pull-down menus.' },
+    MNUBARSW: { keyTypes: ['CA'], ddsReference: 'You use this file- or record-level keyword to assign a command attention (CA) key to be the Switch-to-menu-bar key.' },
+    SFLDROP: { keyTypes: ['CA', 'CF'], ddsReference: 'The format of the keyword is: SFLDROP(CAnn | CFnn)' },
+    SFLENTER: { keyTypes: ['CA', 'CF'], ddsReference: 'The format of the keyword is: SFLENTER(CAnn | CFnn)' },
+    SFLFOLD: { keyTypes: ['CA', 'CF'], ddsReference: 'The format of the keyword is: SFLFOLD(CAnn | CFnn)' }
+  };
+
+  /** The keywords whose parameter is a command key, in declared order. */
+  function commandKeyParameterKeywords() {
+    return Object.keys(COMMAND_KEY_PARAMETER_KEYWORDS);
+  }
+
+  /** The key types ('CA' / 'CF') `name`'s parameter accepts, as a fresh
+   *  array, or null if `name` (any case) is not such a keyword. */
+  function commandKeyParameterKeyTypes(name) {
+    if (typeof name !== 'string') return null;
+    var e = Object.prototype.hasOwnProperty.call(COMMAND_KEY_PARAMETER_KEYWORDS, name.toUpperCase())
+      ? COMMAND_KEY_PARAMETER_KEYWORDS[name.toUpperCase()] : null;
+    return e ? e.keyTypes.slice() : null;
+  }
+
+  /** The DDS Reference wording behind `name`'s key types, or null. */
+  function commandKeyParameterReference(name) {
+    if (typeof name !== 'string') return null;
+    var up = name.toUpperCase();
+    return Object.prototype.hasOwnProperty.call(COMMAND_KEY_PARAMETER_KEYWORDS, up) ? COMMAND_KEY_PARAMETER_KEYWORDS[up].ddsReference : null;
+  }
+
   /** The two standard display sizes (*DS3 24x80, *DS4 27x132) as fresh
    *  `{ name, lines, columns }` copies, in DDS's table order. */
   function standardDisplaySizes() {
@@ -2879,6 +2917,9 @@
     defaultDisplaySize: defaultDisplaySize,
     maxDisplaySizes: maxDisplaySizes,
     displaySizeReference: displaySizeReference,
+    commandKeyParameterKeywords: commandKeyParameterKeywords,
+    commandKeyParameterKeyTypes: commandKeyParameterKeyTypes,
+    commandKeyParameterReference: commandKeyParameterReference,
     choiceColorStateKeywordsAllowedOn: choiceColorStateKeywordsAllowedOn,
     REPEATABLE_INSTANCE_GROUPS: REPEATABLE_INSTANCE_GROUPS,
     repeatableGroupKinds: repeatableGroupKinds,

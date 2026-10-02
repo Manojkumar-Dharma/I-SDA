@@ -4945,12 +4945,9 @@
           claims.push({ alt: false, keyword: name, specKey: plain[1] + 'nn', type: plain[1], number: plain[2], label: name, owner: owner });
           return;
         }
-        if (name === 'MNUCNL' || name === 'MNUBARSW') {
-          if (m && m[1] === 'CA') claims.push({ alt: false, keyword: name, specKey: name, type: 'CA', number: m[2], label: name + '(' + first + ')', owner: owner });
-          return;
-        }
-        if (name === 'SFLDROP' || name === 'SFLENTER' || name === 'SFLFOLD') {
-          if (m) claims.push({ alt: false, keyword: name, specKey: name, type: m[1], number: m[2], label: name + '(' + first + ')', owner: owner });
+        var paramKeyTypes = KeywordSpec.commandKeyParameterKeyTypes(name);
+        if (paramKeyTypes) {
+          if (m && paramKeyTypes.indexOf(m[1]) !== -1) claims.push({ alt: false, keyword: name, specKey: name, type: m[1], number: m[2], label: name + '(' + first + ')', owner: owner });
           return;
         }
         if (name === 'MOUBTN') {
