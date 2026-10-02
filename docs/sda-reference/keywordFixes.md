@@ -182,7 +182,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-137](#i-137) | Field | `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: the DDS Reference bars all four on a floating-point field, but the check runs only when the keyword row is switched on - a raw-editor add to an F field, or a field carrying one changed to data type F on the Basic tab, is unblocked | I-121, I-125 | Done | v0.10.264 |
 | [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.267 |
 | [I-139](#i-139) | File / Record / Field | `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` file-wide command-key exclusions: the three alt-key sections each list the keywords that cannot be specified in a file with them (`CAnn` / `CFnn`, `MNUCNL`, `MNUBARSW`, `MOUBTN`, `PSHBTNCHC`, `SFLDROP`, `SFLENTER`, `SFLFOLD`, and each other, by key number and defaults) - only the MOUBTN rows are enforced (I-136) | I-136 | Done | v0.10.268 |
-| [I-140](#i-140) | Record | `RMVWDW` / `USRRSTDSP` are accepted by the raw keyword editor on a record that has no `WINDOW` keyword, and stay after `WINDOW` is removed; IBM requires `WINDOW` on the same record | I-122 | Not started | - |
+| [I-140](#i-140) | Record | `RMVWDW` / `USRRSTDSP` are accepted by the raw keyword editor on a record that has no `WINDOW` keyword, and stay after `WINDOW` is removed; IBM requires `WINDOW` on the same record | I-122 | Done | v0.10.276 |
 | [I-141](#i-141) | Record | `SFLDLT` is written with no option indicator (IBM: option indicators are required, display size condition names not valid); `SFLDLT` / `SFLINZ` / `SFLCSRRRN` are accepted by the raw editor on records that are not a subfile-control record | I-122 | Not started | - |
 | [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Not started | - |
 
@@ -6183,9 +6183,15 @@ Behavior change, deliberate: these combinations were previously accepted. One ge
 
 ### I-140 — `RMVWDW` / `USRRSTDSP` are accepted without a `WINDOW` keyword on the record
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-122
+> **Area:** Record · **Status:** Done (v0.10.276) · **Depends on:** I-122
 
 Found by the I-122 batch 1 tests. `DDS_Keyword_V7r6.txt` (RMVWDW ~line 181, USRRSTDSP): "a WINDOW keyword must be specified on the same record format" and the keyword "functions only when the WINDOW keyword defines a window" (not when WINDOW names a record format). The panel only offers the two rows on a window record, but the raw keyword editor accepts `RMVWDW` and `USRRSTDSP` on a plain record (verified: written with no alert), and removing `WINDOW` leaves them behind. Open question for the task: whether the `WINDOW(record-format-name)` form should also be refused or only warned.
+
+**Fix (v0.10.276).** `RECORD_TYPES.WINDOW` in `keywordSpec.js` gains a `requiredFor: ['RMVWDW', 'USRRSTDSP']` fact with its DDS citation (`KeywordSpec.windowDependentKeywords()`) - a third relation beside `mutex` (cannot coexist) and `passrcdRestricted` (names a record by value): these keywords *require* WINDOW on the same record. `DspfWriter.windowDependencyNewConflictReason(oldModel, newModel)` finds every record that carries one of them without WINDOW and reports only a pair the edit adds, so an already-invalid hand-written file never blocks an unrelated edit (same diff shape as I-139). It is hooked into `commitSourceChange` (`windowDependencyGuardBlocks`, beside the SFLEND scroll-bar and alt-key guards): alert, re-render, nothing written. One choke point covers both ways in - raw-adding the keyword to a record with no WINDOW, and removing WINDOW from a record that still carries one; removing RMVWDW / USRRSTDSP themselves is never blocked.
+
+**Open question, decided:** the `WINDOW(record-format-name)` form is *not* refused. IBM words it as a runtime \"does not function\" for that form, not as \"cannot be specified\", and a WINDOW keyword is present, so the \"must be specified\" rule is met. The Window tab keeps offering both rows in the reference mode. Say if you would rather have a warning there.
+
+New `src/test/i140WindowDependency.test.js` (27 checks): the spec fact, the pure function (add / remove / both removed together / geometry edit / reference form / already-invalid not re-reported / second new violation / fail-safe) and the real generated webview in jsdom (raw-editor add on a plain and a window record, remove WINDOW with and without dependents). Mutation-checked: removing only the `commitSourceChange` hook fails the refusal checks.
 
 ---
 

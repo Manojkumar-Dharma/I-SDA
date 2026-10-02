@@ -5015,6 +5015,43 @@
     return null;
   }
 
+  /** Task I-140 - RMVWDW and USRRSTDSP each require a WINDOW keyword on the
+   *  same record format (DDS Reference; see RECORD_TYPES.WINDOW.requiredFor).
+   *  Every (record, dependent keyword) pair in `model` whose record carries
+   *  the keyword but no WINDOW. Returns { 'RECORD|KEYWORD': message }. */
+  function windowDependencyViolations(model) {
+    var out = {};
+    var dependents = KeywordSpec.windowDependentKeywords();
+    ((model && model.records) || []).forEach(function (r) {
+      var kws = r.keywords || [];
+      if (kws.some(function (k) { return k.name === 'WINDOW'; })) return;
+      dependents.forEach(function (name) {
+        if (kws.some(function (k) { return k.name === name; })) {
+          out[r.name + '|' + name] = name + ' cannot be specified on record format ' + r.name +
+            ' without a WINDOW keyword on the same record format (per the DDS Reference).';
+        }
+      });
+    });
+    return out;
+  }
+
+  /** The reason the edit that turned `oldModel` into `newModel` leaves a
+   *  record with RMVWDW / USRRSTDSP but no WINDOW, or null. Diff-based: only
+   *  a pair the edit adds is reported, so an already-invalid hand-written
+   *  file never blocks an unrelated edit. One check covers both ways in -
+   *  adding the keyword to a record with no WINDOW (raw keyword editor) and
+   *  removing WINDOW from a record that still carries it. */
+  function windowDependencyNewConflictReason(oldModel, newModel) {
+    var after = windowDependencyViolations(newModel);
+    var keys = Object.keys(after);
+    if (!keys.length) return null;
+    var before = windowDependencyViolations(oldModel);
+    for (var i = 0; i < keys.length; i++) {
+      if (!before[keys[i]]) return after[keys[i]];
+    }
+    return null;
+  }
+
   /** Task I-121 (MOUBTN parameter-domain slice) - the MOUBTN panel's EVENT /
    *  TRAILING-EVENT values and *QUEUE flag values, read from the spec
    *  (copies). */
@@ -9547,6 +9584,7 @@
     moubtnParameterDomain: moubtnParameterDomain,
     moubtnCommandKeyConflictReason: moubtnCommandKeyConflictReason,
     altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,
+    windowDependencyNewConflictReason: windowDependencyNewConflictReason,
     commandKeyClaimsInModel: commandKeyClaimsInModel,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,

@@ -6287,6 +6287,19 @@ const htmlTemplate = `<!DOCTYPE html>
     return true;
   }
 
+  // Task I-140: RMVWDW / USRRSTDSP need a WINDOW keyword on the same record,
+  // checked on every committed edit (same shape as keyClaimGuardBlocks above).
+  // Returns true (after alerting) when the edit would leave a record with one
+  // of them and no WINDOW - whether by adding it or by removing WINDOW.
+  function windowDependencyGuardBlocks(newLines) {
+    let candidate;
+    try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
+    const reason = DspfWriter.windowDependencyNewConflictReason(model, candidate);
+    if (!reason) return false;
+    window.alert(reason);
+    return true;
+  }
+
   function commitSourceChange(transform, afterReparse) {
     try {
       const lines = sourceText.split(/\\r\\n|\\r|\\n/);
@@ -6294,6 +6307,7 @@ const htmlTemplate = `<!DOCTYPE html>
       if (!newLines) return;
       if (scrbarGuardBlocks(newLines)) { render(); return; }
       if (keyClaimGuardBlocks(newLines)) { render(); return; }
+      if (windowDependencyGuardBlocks(newLines)) { render(); return; }
       // Task L38 - a single post-processing step over every edit's own
       // (before, after) line-array pair, rather than threading tracking
       // options through each individual DspfWriter call above - see

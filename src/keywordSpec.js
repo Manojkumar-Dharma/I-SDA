@@ -164,7 +164,23 @@
       // feeds, and passrcdRecordConflictReason's own doc comment in
       // dspfWriter.js (Task I-24) for the consuming logic.
       passrcdRestricted: true,
-      passrcdDdsReference: 'WINDOW cannot be specified for the record format specified by the PASSRCD keyword.'
+      passrcdDdsReference: 'WINDOW cannot be specified for the record format specified by the PASSRCD keyword.',
+
+      // Task I-140 - the reverse dependency: these record-level keywords
+      // each REQUIRE a WINDOW keyword on the same record format. A third
+      // relation, distinct from `mutex` (cannot coexist) and from
+      // `passrcdRestricted` (names a record by string value).
+      // DDS_Keyword_V7r6.txt, RMVWDW (~line 10187): "When the RMVWDW
+      // keyword is specified, a WINDOW keyword must be specified on the same
+      // record format." USRRSTDSP (~line 13106): "The WINDOW keyword must be
+      // specified on the same record as the USRRSTDSP keyword." Both add that
+      // the keyword functions only when WINDOW defines a window (not when it
+      // names a record format) - a runtime "does not function", not a
+      // "cannot be specified" rule, so it is deliberately not enforced here.
+      requiredFor: ['RMVWDW', 'USRRSTDSP'],
+      requiredForDdsReference:
+        'RMVWDW: a WINDOW keyword must be specified on the same record format. ' +
+        'USRRSTDSP: the WINDOW keyword must be specified on the same record as the USRRSTDSP keyword.'
     },
 
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
@@ -1723,6 +1739,14 @@
     return spec.mutex.indexOf(keywordName) !== -1;
   }
 
+  /** Task I-140 - the record-level keywords that require a WINDOW keyword on
+   *  the same record (RMVWDW, USRRSTDSP), in the DDS Reference's order. A
+   *  copy, safe to filter. */
+  function windowDependentKeywords() {
+    var spec = RECORD_TYPES.WINDOW;
+    return (spec && spec.requiredFor) ? spec.requiredFor.slice() : [];
+  }
+
   /** `recordType`'s own mutex list, in the DDS Reference's own order - a
    *  copy, safe for the caller to `.filter()` without mutating the spec.
    *  Returns an empty array for a record type with no spec entry or no
@@ -2722,6 +2746,7 @@
     isWhitelisted: isWhitelisted,
     isMutex: isMutex,
     mutexKeywords: mutexKeywords,
+    windowDependentKeywords: windowDependentKeywords,
     notAllowedInRecordType: notAllowedInRecordType,
     isPassrcdRestricted: isPassrcdRestricted,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
