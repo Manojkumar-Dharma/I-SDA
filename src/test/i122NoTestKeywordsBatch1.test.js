@@ -75,6 +75,7 @@ const SOURCE = [
   dds({ ind: '31', neg: 1, fn: 'SFLDLT' }),
   dds({ fn: 'SFLCSRRRN(&RELRCD)' }),
   dds({ name: 'RELRCD', len: 5, type: 'S', dec: 0, usage: 'H' }),
+  dds({ name: 'CURREC', len: 5, type: 'S', dec: 0, usage: 'H' }),
   dds({ name: 'F2', len: 10, type: 'A', usage: 'B', line: 1, pos: 2 }),
   dds({ fn: 'LOWER' }),
 ].join('\n') + '\n';

@@ -6189,7 +6189,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // own six-keyword mutex list (rec.keywords is this render's own
     // fresh snapshot, same as every other guard/panel wired in this
     // function).
-    WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName), (name, params) => DspfWriter.usrdfnWhitelistConflictReason(name, rec.keywords) || DspfWriter.sflWhitelistConflictReason(name, rec.keywords) || DspfWriter.windowMutexConflictReason(name, rec.keywords) || DspfWriter.mnubarWhitelistConflictReason(name, rec.keywords) || DspfWriter.messageIdMsgDataAddReason(name, params, rec.fields));
+    WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName), (name, params) => DspfWriter.usrdfnWhitelistConflictReason(name, rec.keywords) || DspfWriter.sflWhitelistConflictReason(name, rec.keywords) || DspfWriter.windowMutexConflictReason(name, rec.keywords) || DspfWriter.mnubarWhitelistConflictReason(name, rec.keywords) || DspfWriter.messageIdMsgDataAddReason(name, params, rec.fields) || DspfWriter.sflcsrrrnAddReason(name, params, rec.fields));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
       WebviewClientHelpers.wireSflMsgPanels(() => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
@@ -7127,6 +7127,15 @@ const htmlTemplate = `<!DOCTYPE html>
       const sflmsgidDataReason = DspfWriter.messageIdMsgDataNewConflictReason('SFLMSGID', rec.keywords, updates.keywords, rec.fields);
       if (sflmsgidDataReason) {
         window.alert(sflmsgidDataReason);
+        renderRecordProps(recordName);
+        return;
+      }
+      // Task I-142: SFLCSRRRN(&relative-record) - parameter required, with a
+      // leading ampersand, naming an S / length 5 / 0 decimals / usage H field
+      // of this record. A NEW or changed parameter only.
+      const sflcsrrrnReason = DspfWriter.sflcsrrrnNewConflictReason(rec.keywords, updates.keywords, rec.fields);
+      if (sflcsrrrnReason) {
+        window.alert(sflcsrrrnReason);
         renderRecordProps(recordName);
         return;
       }

@@ -184,7 +184,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-139](#i-139) | File / Record / Field | `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` file-wide command-key exclusions: the three alt-key sections each list the keywords that cannot be specified in a file with them (`CAnn` / `CFnn`, `MNUCNL`, `MNUBARSW`, `MOUBTN`, `PSHBTNCHC`, `SFLDROP`, `SFLENTER`, `SFLFOLD`, and each other, by key number and defaults) - only the MOUBTN rows are enforced (I-136) | I-136 | Done | v0.10.268 |
 | [I-140](#i-140) | Record | `RMVWDW` / `USRRSTDSP` are accepted by the raw keyword editor on a record that has no `WINDOW` keyword, and stay after `WINDOW` is removed; IBM requires `WINDOW` on the same record | I-122 | Done | v0.10.276 |
 | [I-141](#i-141) | Record | `SFLDLT` is written with no option indicator (IBM: option indicators are required, display size condition names not valid); `SFLDLT` / `SFLINZ` / `SFLCSRRRN` are accepted by the raw editor on records that are not a subfile-control record | I-122 | Done | v0.10.281 |
-| [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Not started | - |
+| [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Done | v0.10.282 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -6241,9 +6241,18 @@ New `src/test/i141SubfileControlKeywords.test.js` (40 checks): spec facts, the p
 
 ### I-142 — `SFLCSRRRN` parameter form
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-122
+> **Area:** Record · **Status:** Done (v0.10.282) · **Depends on:** I-122
 
 Found by the I-122 batch 1 tests. IBM's form is `SFLCSRRRN(&relative-record)` - the parameter is required and names a program-to-system field with the leading `&` (the DDS Reference's own examples: `SFLCSRRRN(&RELRCD)`). The panel's text box, labelled "field name", writes whatever is typed: empty gives a bare `SFLCSRRRN`, `RELRCD` gives `SFLCSRRRN(RELRCD)` (both verified). Same family as the data-field parameter validation I-97 added for ERRMSGID / SFLMSGID; the task is to apply the equivalent to this row (the `&` form, and that the named field exists on the record, as a hidden field). Whether I-97's helper can be reused is for the task to check.
+
+
+**Fix (v0.10.282).** I-97's helper was not reusable as is: `messageDataFieldProblem` encodes CHKMSGID/ERRMSGID/SFLMSGID's rule (character A, usage P, optional `&` token), whereas SFLCSRRRN's is a different shape (parameter required, `&` required, signed numeric S, length 5, 0 decimals, usage H). So the spec gets its own fact, `RECORD_TYPES.SFLCSRRRN.relativeRecordField` (`KeywordSpec.sflcsrrrnFieldRule()`), citing the DDS Reference, and the writer gets `sflcsrrrnParameterProblem` (reusing only the existing `msgDataFieldFind` lookup, which already ignores constants), `sflcsrrrnNewConflictReason` (diff-based) and `sflcsrrrnAddReason`. It is checked at the same two places as I-97: `commitRecordEdit` (which the SFLCTL panel's checkbox and text box both go through) and the raw keyword editor's add guard.
+
+Refused: an empty parameter (a bare `SFLCSRRRN`), a name without the leading `&`, more than one token, a field that is not in this record format (the message says to define the hidden field first), and a field whose data type is not S, length not 5, decimal positions not 0, or usage not H (all problems listed together; a REFFLD-referenced field skips the type / length checks but still needs usage H). Checked on the way in only: an unchanged hand-written parameter is never re-reported, removing the keyword is always accepted, and a missing field list fails open on the field checks (the form is still checked).
+
+Decision: a bare or un-prefixed entry is **refused with the corrected form shown, not silently rewritten** - one behaviour across the panel and the raw editor, and the text on screen always matches the DDS. The consequence is that the hidden field has to exist before the row can be ticked; the panel does not create it. Say if you would rather have the panel add the `&` for you or offer to create the field.
+
+New `src/test/i142SflcsrrrnParameter.test.js` (40 checks): spec fact, the pure rule, the diff semantics, and the real generated webview in jsdom (panel with empty / no-`&` / missing / wrong-length / wrong-usage / valid, turning off, raw editor). Mutation-checked: removing only the `commitRecordEdit` clause fails five panel checks. Two existing tests changed for the new rule: `i122NoTestKeywordsBatch1` gained a valid `CURREC` hidden field for its `&CURREC` check, and `i141SubfileControlKeywords` now expects the parameter message first for a bare raw-added SFLCSRRRN on a plain record.
 
 ---
 

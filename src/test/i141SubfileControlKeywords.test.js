@@ -142,7 +142,9 @@ setTimeout(() => {
   selectRecord('PLAIN');
   ['SFLDLT', 'SFLINZ', 'SFLCSRRRN'].forEach((k) => {
     const msg = rawAdd('PLAIN', k);
-    check('raw-adding ' + k + ' to a plain record is refused, nothing written', new RegExp(k + ' cannot be specified on record format PLAIN without an SFLCTL').test(msg || '') && lastText() === null);
+    // SFLCSRRRN with no parameter is refused first by I-142's own parameter rule; the other two reach the SFLCTL rule.
+    const expected = k === 'SFLCSRRRN' ? /SFLCSRRRN needs a parameter/ : new RegExp(k + ' cannot be specified on record format PLAIN without an SFLCTL');
+    check('raw-adding ' + k + ' to a plain record is refused, nothing written', expected.test(msg || '') && lastText() === null);
   });
 
   console.log('  -- removing SFLCTL from a record that still has SFLINZ');

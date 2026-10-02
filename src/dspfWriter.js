@@ -5057,6 +5057,66 @@
     return firstNewViolation(windowDependencyViolations(oldModel), after);
   }
 
+  /** Task I-142 - SFLCSRRRN(&relative-record): the parameter is required, is
+   *  written with the leading `&`, and names a field of the subfile-control
+   *  record that is a signed numeric (S) field of length 5, 0 decimals, usage
+   *  H (DDS Reference; KeywordSpec.sflcsrrrnFieldRule). `parameters` is the raw
+   *  text inside the parentheses. Returns null when valid (or when the record's
+   *  field list is unavailable - fail open on the field checks), else the
+   *  reason. */
+  function sflcsrrrnParameterProblem(parameters, recordFields) {
+    var rule = KeywordSpec.sflcsrrrnFieldRule();
+    if (!rule) return null;
+    var text = String(parameters == null ? '' : parameters).trim();
+    if (!text) return 'SFLCSRRRN needs a parameter: the name of the hidden field, written with a leading & - SFLCSRRRN(&relative-record) (per the DDS Reference).';
+    if (text.charAt(0) !== '&' || text.length < 2 || /\s/.test(text)) {
+      return 'SFLCSRRRN\'s parameter must be one field name written with a leading & - SFLCSRRRN(&' + text.replace(/^&/, '').split(/\s+/)[0].toUpperCase() + ') (per the DDS Reference).';
+    }
+    if (!Array.isArray(recordFields)) return null;
+    var shown = text.toUpperCase();
+    var f = msgDataFieldFind(recordFields, text);
+    if (!f) {
+      return 'SFLCSRRRN field ' + shown + ' does not exist in this record format - define it first as a hidden field (S, length 5, 0 decimals, usage H), then name it here (per the DDS Reference).';
+    }
+    var issues = [];
+    if (!f.isReference) {
+      var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
+      if (dt !== rule.dataType) issues.push('its data type is ' + (dt || 'blank'));
+      var len = Number(f.length);
+      if (f.length != null && f.length !== '' && len !== rule.length) issues.push('its length is ' + f.length);
+      var dec = f.decimalPositions;
+      if (dec != null && String(dec).trim() !== '' && Number(dec) !== rule.decimals) issues.push('its decimal positions are ' + dec);
+    }
+    var usage = String(f.usage == null ? '' : f.usage).trim().toUpperCase();
+    if (usage !== rule.usage) issues.push('its usage is ' + (usage || 'blank (output)'));
+    if (!issues.length) return null;
+    return 'SFLCSRRRN field ' + shown + ' must be a signed numeric (S) field of length ' + rule.length + ' with ' + rule.decimals + ' decimal positions and usage ' + rule.usage + ' (per the DDS Reference), but ' + issues.join(' and ') + '.';
+  }
+
+  function sflcsrrrnParameters(keywords) {
+    var k = (keywords || []).find(function (x) { return x && x.name === 'SFLCSRRRN'; });
+    return k ? String(k.parameters == null ? '' : k.parameters).trim() : null;
+  }
+
+  /** commitRecordEdit choke point: blocks an edit that adds SFLCSRRRN or
+   *  changes its parameter to one that is not valid. Diff-based - an unchanged
+   *  hand-written parameter is never re-reported, and removing the keyword is
+   *  always fine. */
+  function sflcsrrrnNewConflictReason(oldKeywords, newKeywords, recordFields) {
+    var next = sflcsrrrnParameters(newKeywords);
+    if (next === null) return null;
+    var prev = sflcsrrrnParameters(oldKeywords);
+    if (prev !== null && prev.toUpperCase() === next.toUpperCase()) return null;
+    return sflcsrrrnParameterProblem(next, recordFields);
+  }
+
+  /** The raw keyword editor's add guard: `params` is the text typed for a new
+   *  SFLCSRRRN. Returns null for any other keyword. */
+  function sflcsrrrnAddReason(keywordName, params, recordFields) {
+    if (String(keywordName || '').toUpperCase() !== 'SFLCSRRRN') return null;
+    return sflcsrrrnParameterProblem(params, recordFields);
+  }
+
   /** Task I-141 - SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords of
    *  the subfile-control record format, i.e. a record that carries SFLCTL.
    *  Same diff-based, both-directions shape as the WINDOW check above. */
@@ -9647,6 +9707,9 @@
     altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,
     windowDependencyNewConflictReason: windowDependencyNewConflictReason,
     sflctlDependencyNewConflictReason: sflctlDependencyNewConflictReason,
+    sflcsrrrnNewConflictReason: sflcsrrrnNewConflictReason,
+    sflcsrrrnAddReason: sflcsrrrnAddReason,
+    sflcsrrrnParameterProblem: sflcsrrrnParameterProblem,
     optionIndicatorRequiredNewConflictReason: optionIndicatorRequiredNewConflictReason,
     hasOptionIndicator: hasOptionIndicator,
     standardDisplaySizes: KeywordSpec.standardDisplaySizes,

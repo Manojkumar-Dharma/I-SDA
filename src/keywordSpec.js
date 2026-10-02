@@ -183,6 +183,27 @@
         'USRRSTDSP: the WINDOW keyword must be specified on the same record as the USRRSTDSP keyword.'
     },
 
+    // Task I-142 - SFLCSRRRN's parameter. DDS_Keyword_V7r6.txt (~line 10686):
+    // \"SFLCSRRRN(&relative-record) ... The relative-record parameter is
+    // required. It specifies the name of a hidden field ... The field must
+    // be defined in the subfile-control record format as a signed numeric
+    // (S in position 35) field of length 5, with 0 decimal positions and
+    // usage H (hidden).\" The name always carries the leading `&`.
+    SFLCSRRRN: {
+      relativeRecordField: {
+        parameterRequired: true,
+        ampersandRequired: true,
+        mustExistInRecord: true,
+        dataType: 'S',
+        length: 5,
+        decimals: 0,
+        usage: 'H',
+        ddsReference:
+          'SFLCSRRRN(&relative-record): the parameter is required and names a field in the subfile-control record format ' +
+          'defined as a signed numeric (S) field of length 5 with 0 decimal positions and usage H (hidden).'
+      }
+    },
+
     // Task I-141 - SFLCTL as the marker for three subfile-control-only
     // record-level keywords. Same `requiredFor` shape as WINDOW's (I-140):
     // the keyword may only appear on a record that also carries the marker.
@@ -1870,6 +1891,12 @@
   /** Task I-140 - the record-level keywords that require a WINDOW keyword on
    *  the same record (RMVWDW, USRRSTDSP), in the DDS Reference's order. A
    *  copy, safe to filter. */
+  /** Task I-142 - SFLCSRRRN's parameter rule (a copy), or null. */
+  function sflcsrrrnFieldRule() {
+    var spec = RECORD_TYPES.SFLCSRRRN;
+    return (spec && spec.relativeRecordField) ? Object.assign({}, spec.relativeRecordField) : null;
+  }
+
   function sflctlDependentKeywords() {
     var spec = RECORD_TYPES.SFLCTL;
     return (spec && spec.requiredFor) ? spec.requiredFor.slice() : [];
@@ -2990,6 +3017,7 @@
     mutexKeywords: mutexKeywords,
     windowDependentKeywords: windowDependentKeywords,
     sflctlDependentKeywords: sflctlDependentKeywords,
+    sflcsrrrnFieldRule: sflcsrrrnFieldRule,
     optionIndicatorRequiredFact: optionIndicatorRequiredFact,
     notAllowedInRecordType: notAllowedInRecordType,
     isPassrcdRestricted: isPassrcdRestricted,
