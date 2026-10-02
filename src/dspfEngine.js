@@ -363,10 +363,13 @@
       var text = field.constantValue;
       if (text == null) {
         var kwNames = field.keywords.map(function (k) { return k.name; });
-        if (kwNames.indexOf('DATE') !== -1) text = new Date().toLocaleDateString();
-        else if (kwNames.indexOf('TIME') !== -1) text = new Date().toLocaleTimeString();
-        else if (kwNames.indexOf('USER') !== -1) text = '*USER';
-        else if (kwNames.indexOf('SYSNAME') !== -1) text = '*SYSNAME';
+        // Task I-121 (system-value constant keywords slice): which keywords
+        // supply a system value, and their precedence, are KeywordSpec's own
+        // fact; this only maps each to its design-time placeholder text.
+        var sysKw = KeywordSpec.systemValueConstantKeywords().filter(function (n) { return kwNames.indexOf(n) !== -1; })[0];
+        if (sysKw === 'DATE') text = new Date().toLocaleDateString();
+        else if (sysKw === 'TIME') text = new Date().toLocaleTimeString();
+        else if (sysKw) text = '*' + sysKw; // USER -> *USER, SYSNAME -> *SYSNAME
         else {
           // I-33 - MSGCON constants have no literal text either (their
           // display value comes from a message description at run time,

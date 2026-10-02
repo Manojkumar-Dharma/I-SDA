@@ -1563,6 +1563,47 @@
     }
   };
 
+  /** Task I-121 (system-value constant keywords slice) - the field-level
+   *  keywords that supply a CONSTANT field's value from the system rather
+   *  than from literal text: DATE, TIME, USER, SYSNAME (DDS_Keyword_V7r6.txt,
+   *  "Constant fields" ~line 671: "specify no value" for each; the HTML /
+   *  DFT / MSGCON ways to supply a constant are separate facts). Declared in
+   *  the designer's own choice order (IBM's list reads DATE, TIME, SYSNAME,
+   *  USER); the engine's placeholder preview takes the first one present in
+   *  this order. `description` is the dropdown wording. Previously the four
+   *  names were hand-copied in buildWebviewTemplate.js (the constant field's
+   *  list, the Add placeholder dropdown, and two copies of the labels) and
+   *  again as the engine's if/else chain. */
+  var SYSTEM_VALUE_CONSTANT_KEYWORDS = [
+    { name: 'DATE', description: 'current date' },
+    { name: 'TIME', description: 'current time' },
+    { name: 'USER', description: 'signed-on user profile' },
+    { name: 'SYSNAME', description: 'system name' }
+  ];
+
+  /** The system-value constant keyword names, in declared order (a fresh
+   *  array). */
+  function systemValueConstantKeywords() {
+    return SYSTEM_VALUE_CONSTANT_KEYWORDS.map(function (e) { return e.name; });
+  }
+  /** Whether `name` is exactly a system-value constant keyword (DATE, TIME,
+   *  USER, SYSNAME). Case-sensitive, like the keyword names it is compared
+   *  against; non-strings and inherited property names are not. */
+  function isSystemValueConstantKeyword(name) {
+    if (typeof name !== 'string') return false;
+    return SYSTEM_VALUE_CONSTANT_KEYWORDS.some(function (e) { return e.name === name; });
+  }
+  /** The dropdown label for a system-value keyword ('DATE - current date'),
+   *  or null for a name that is not one. */
+  function systemValueConstantLabel(name) {
+    if (typeof name !== 'string') return null;
+    for (var i = 0; i < SYSTEM_VALUE_CONSTANT_KEYWORDS.length; i++) {
+      var e = SYSTEM_VALUE_CONSTANT_KEYWORDS[i];
+      if (e.name === name) return e.name + ' - ' + e.description;
+    }
+    return null;
+  }
+
   /** Task I-121 (keyboard-shift position-35 slice) - IBM's own "Valid
    *  entries for display files" table for position 35 (DDS_Keyword_V7r6.txt
    *  ~line 930): each keyboard-shift entry and the data type it permits.
@@ -2923,6 +2964,9 @@
     validValues: validValues,
     moubtnCommandKeyExclusion: moubtnCommandKeyExclusion,
     altKeyFileExclusions: altKeyFileExclusions,
+    systemValueConstantKeywords: systemValueConstantKeywords,
+    isSystemValueConstantKeyword: isSystemValueConstantKeyword,
+    systemValueConstantLabel: systemValueConstantLabel,
     isNumericShiftDataType: isNumericShiftDataType,
     keyboardShiftValues: keyboardShiftValues,
     keyboardShiftPermitted: keyboardShiftPermitted,

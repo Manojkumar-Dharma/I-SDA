@@ -4431,7 +4431,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // numbering is a print/report-writer concern, not a display field
     // one). MSGCON is added below as its own dedicated form instead, since
     // unlike the other four it takes three parameters rather than none.
-    const SYSTEM_VALUE_KEYWORD_NAMES = ['DATE', 'TIME', 'USER', 'SYSNAME'];
+    const SYSTEM_VALUE_KEYWORD_NAMES = DspfWriter.systemValueConstantKeywords(); // Task I-121: KeywordSpec's own fact
     const isSystemValueConstant = isConstant && field.keywords.some((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) !== -1);
     // I-33 - MSGCON(length message-ID [library-name/]message-file-name) is
     // the sixth documented way to supply a constant's value: its text
@@ -4470,9 +4470,8 @@ const htmlTemplate = `<!DOCTYPE html>
       // e.g. inserting slashes into a date) still live in the Attributes
       // tab below, unaffected by this dropdown.
       const currentSysKw = field.keywords.find((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) !== -1);
-      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name' };
       basicHtml += '<div class="field-row"><label>System value</label><select id="p-const-sysval">' +
-        SYSTEM_VALUE_KEYWORD_NAMES.map((v) => '<option value="' + v + '"' + (currentSysKw && currentSysKw.name === v ? ' selected' : '') + '>' + sysValueLabels[v] + '</option>').join('') +
+        SYSTEM_VALUE_KEYWORD_NAMES.map((v) => '<option value="' + v + '"' + (currentSysKw && currentSysKw.name === v ? ' selected' : '') + '>' + DspfWriter.systemValueConstantLabel(v) + '</option>').join('') +
         '</select></div>';
       basicHtml += '<div class="hint-small">This field shows a system-supplied value, not literal text - the design preview shows a live placeholder (e.g. today\u2019s date), and the real value fills in at runtime.</div>';
     } else if (isMsgConConstant) {
@@ -5404,9 +5403,8 @@ const htmlTemplate = `<!DOCTYPE html>
         '<option value="html">HTML tag (I-41)</option>' +
         '</select></div>';
       html += '<div id="p-place-text-wrap" class="field-row"><label>Text</label><input type="text" id="p-place-text" placeholder="Constant text" /></div>';
-      const sysValueLabels = { DATE: 'DATE - current date', TIME: 'TIME - current time', USER: 'USER - signed-on user profile', SYSNAME: 'SYSNAME - system name' };
       html += '<div id="p-place-sysval-wrap" class="field-row" style="display:none;"><label>System value</label><select id="p-place-sysval">' +
-        ['DATE', 'TIME', 'USER', 'SYSNAME'].map((v) => '<option value="' + v + '">' + sysValueLabels[v] + '</option>').join('') +
+        DspfWriter.systemValueConstantKeywords().map((v) => '<option value="' + v + '">' + DspfWriter.systemValueConstantLabel(v) + '</option>').join('') +
         '</select></div>';
       html += '<div id="p-place-msgcon-wrap" style="display:none;">';
       html += '<div class="field-row"><label>Length</label><input type="number" id="p-place-msgcon-length" min="1" max="132" value="20" /></div>';
