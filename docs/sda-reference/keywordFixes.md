@@ -176,7 +176,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
-| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Partly done (shared value-source fact, v0.10.280) | — |
+| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Claimed (in progress) | — |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Partly done (position-35 table, v0.10.279) | — |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Claimed (`3fc4915`), unconfirmed | — |
@@ -6186,7 +6186,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121m — Constant and system-value field keywords
 
-> **Area:** Field · **Status:** Partly done (shared value-source fact, v0.10.280) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Claimed (in progress; shared value-source fact done v0.10.280) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (6):** `DATE`, `TIME`, `USER`, `SYSNAME`, `MSGCON`, `NOCCSID`.
 
