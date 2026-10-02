@@ -293,6 +293,118 @@
         'SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords used on the subfile-control record format.'
     },
 
+    // ---- I-121b: 7 ----
+    // Initialize, retain and return keywords. Every fact below was re-read
+    // from DDS_Keyword_V7r6.txt (line numbers are that file's), NOT taken
+    // from the code. All seven are record-level keywords with no
+    // parameters. Option-indicator validity (`optionIndicators`) is the
+    // same fact NO_OPTION_INDICATORS carries for the five that refuse them;
+    // the two that accept them (RETLCKSTS, INZINP) say so here. The
+    // RETKEY / RETCMDKEY S36E notes live in S36E_RESTRICTIONS (I-121p) and
+    // are deliberately not repeated.
+    //   levels / noParameters  - the keyword's level and its \"no parameters\"
+    //   optionIndicators       - 'valid' | 'notValid'
+    //   requiresOnRecord       - keywords that must be on the same record
+    //   excludesOnRecord       - keywords refused on the same record
+    //   excludesOnFileAndRecord- keywords refused at the file level AND on
+    //                            this record (names ending in nn are the
+    //                            CAnn / CFnn patterns)
+    //   excludesInFile         - keywords refused anywhere in the file
+    //   notOnRecordTypes       - record types (SFL / USRDFN markers) it is
+    //                            refused on
+    //   requiresInFile         - file-level keywords the file must carry
+    // Enforcement lives with the existing guards (the SFL / USRDFN
+    // whitelists already refuse RETKEY / RETCMDKEY); relations with no
+    // guard yet are recorded here and logged as findings in keywordFixes.md.
+    INZRCD: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      ddsReference:
+        'INZRCD (~line 7775): \"This keyword has no parameters.\" ... ' +
+        '\"Option indicators are not valid for this keyword.\" Does not apply to output operations.'
+    },
+    INZINP: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      // ~line 7667: \"This keyword requires the PUTOVR, OVERLAY, and
+      // ERASEINP(*ALL) keywords to be specified at the record level.\" The
+      // same section tells the reader to specify the same option indicators
+      // for INZINP as for ERASEINP(*ALL), PUTOVR and OVERLAY, so they are
+      // valid on it (no \"not valid\" sentence anywhere in the section).
+      requiresOnRecord: ['PUTOVR', 'OVERLAY', 'ERASEINP(*ALL)'],
+      ddsReference:
+        'INZINP (~line 7635): \"This keyword has no parameters.\" It requires the PUTOVR, OVERLAY and ' +
+        'ERASEINP(*ALL) keywords at the record level; option indicators are specified the same as for them.'
+    },
+    GETRETAIN: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      // ~line 6542: \"You must specify the UNLOCK keyword without any
+      // parameters when using GETRETAIN.\"
+      requiresOnRecord: ['UNLOCK'],
+      requiresBareKeyword: 'UNLOCK',
+      ddsReference:
+        'GETRETAIN (~line 6540): \"This keyword has no parameters.\" ... \"You must specify the UNLOCK keyword ' +
+        'without any parameters when using GETRETAIN.\" ... \"Option indicators are not valid for this keyword.\"'
+    },
+    RTNDTA: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      // ~line 10419: \"If the UNLOCK keyword is specified, the RTNDTA
+      // keyword cannot be specified.\"
+      excludesOnRecord: ['UNLOCK'],
+      ddsReference:
+        'RTNDTA (~line 10391): \"This keyword has no parameters.\" ... \"If the UNLOCK keyword is specified, the ' +
+        'RTNDTA keyword cannot be specified.\" ... option indicators are not valid (see NO_OPTION_INDICATORS).'
+    },
+    RETLCKSTS: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      ddsReference:
+        'RETLCKSTS (~line 10163): \"This keyword has no parameters. Option indicators are valid for this keyword.\"'
+    },
+    RETKEY: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      // ~lines 14100-14140. CLEAR/HELP/HOME/PAGEUP/PAGEDOWN/ROLLDOWN/ROLLUP
+      // are refused at the file level AND on the record; PRINT only on the
+      // same record (it is allowed at the file level, as are HLPRTN); HLPRTN
+      // on the record is merely not retained.
+      excludesOnFileAndRecord: ['CLEAR', 'HELP', 'HOME', 'PAGEUP', 'PAGEDOWN', 'ROLLDOWN', 'ROLLUP'],
+      excludesOnRecord: ['PRINT'],
+      excludesInFile: ['ALTHELP', 'ALTPAGEUP', 'ALTPAGEDWN'],
+      notOnRecordTypes: ['SFL', 'USRDFN'],
+      requiresInFile: ['INDARA'],
+      ddsReference:
+        'RETKEY (~line 14110): \"These keywords have no parameters.\" You cannot specify RETKEY with a CLEAR, HELP, ' +
+        'HOME, PAGEUP, PAGEDOWN, ROLLDOWN, or ROLLUP keyword on the file level or on this record format. PRINT is ' +
+        'not allowed on the same record format. The file must specify INDARA; neither keyword is allowed on a ' +
+        'subfile (SFL) or user-defined (USRDFN) record or in a file with ALTHELP, ALTPAGEUP or ALTPAGEDWN; ' +
+        'option indicators are not valid.'
+    },
+    RETCMDKEY: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      excludesOnFileAndRecord: ['CAnn', 'CFnn'],
+      excludesOnRecord: ['SFLDROP', 'SFLENTER', 'SFLFOLD'],
+      excludesInFile: ['ALTHELP', 'ALTPAGEUP', 'ALTPAGEDWN'],
+      notOnRecordTypes: ['SFL', 'USRDFN'],
+      requiresInFile: ['INDARA'],
+      ddsReference:
+        'RETCMDKEY (~line 14113): You cannot specify the CAnn or CFnn keywords with RETCMDKEY on the file level or ' +
+        'on this record format, nor any CAnn, CFnn, SFLDROP, SFLENTER or SFLFOLD on the record. Same file and ' +
+        'record-type rules as RETKEY (INDARA required; not on SFL / USRDFN; not with ALTHELP / ALTPAGEUP / ' +
+        'ALTPAGEDWN); option indicators are not valid.'
+    },
+    // ---- end I-121b ----
+
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
     // closed list forbidden on the same record in either direction), just
     // a much larger list - re-verified fresh against PULLDOWN's own DDS
@@ -2878,6 +2990,17 @@
       ddsReference: 'Option indicators are not valid for this keyword.' },
     UNLOCK: { kind: 'notValid', levels: ['record'],
       ddsReference: 'Option indicators are not valid for this keyword.' },
+    // ---- I-121b: option indicators (RETKEY / RETCMDKEY) ----
+    // DDS_Keyword_V7r6.txt, "RETKEY (Retain Function Keys) and RETCMDKEY"
+    // section (~line 14136), the closing line of "Considerations for
+    // specifying RETKEY and RETCMDKEY keywords": "Option indicators are not
+    // valid for these keywords." Missed until now - I-44 read the shared
+    // section as silent either way and left the Conditioning toggle on.
+    RETKEY: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for these keywords (RETKEY and RETCMDKEY).' },
+    RETCMDKEY: { kind: 'notValid', levels: ['record'],
+      ddsReference: 'Option indicators are not valid for these keywords (RETKEY and RETCMDKEY).' },
+    // ---- end I-121b ----
     USRDFN: { kind: 'notValid', levels: ['record'],
       ddsReference: 'Option indicators are not valid for this keyword.' },
     SFLLIN: { kind: 'notValidDisplaySizeValid', levels: ['record'],
@@ -3268,6 +3391,40 @@
     return r.excludedResponseValues.indexOf(v) !== -1;
   }
 
+
+  // ---- I-121b: accessors ----
+  var I121B_KEYWORDS = ['INZRCD', 'INZINP', 'GETRETAIN', 'RTNDTA', 'RETLCKSTS', 'RETKEY', 'RETCMDKEY'];
+  function i121bEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I121B_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  function i121bList(name, field) {
+    var e = i121bEntry(name);
+    return e && e[field] ? e[field].slice() : [];
+  }
+  /** The seven initialize / retain / return keywords, in the slice's order. */
+  function initRetainReturnKeywords() { return I121B_KEYWORDS.slice(); }
+  /** Whether `name` is documented as taking no parameters (all seven are). */
+  function takesNoParameters(name) { var e = i121bEntry(name); return !!(e && e.noParameters); }
+  /** Whether option indicators are valid on `name` (false for a keyword with
+   *  no such entry). */
+  function optionIndicatorsAllowed(name) { var e = i121bEntry(name); return !!(e && e.optionIndicators === 'valid'); }
+  /** Keywords that must be on the same record as `name` (copy; [] if none). */
+  function recordRequires(name) { return i121bList(name, 'requiresOnRecord'); }
+  /** The one keyword `name` needs WITHOUT parameters (GETRETAIN -> UNLOCK), or null. */
+  function requiresBareKeyword(name) { var e = i121bEntry(name); return (e && e.requiresBareKeyword) || null; }
+  /** Keywords refused on the same record as `name` (copy; [] if none). */
+  function recordExcludes(name) { return i121bList(name, 'excludesOnRecord'); }
+  /** Keywords refused at the file level AND on `name`'s record (copy). */
+  function fileAndRecordExcludes(name) { return i121bList(name, 'excludesOnFileAndRecord'); }
+  /** Keywords whose presence anywhere in the file refuses `name` (copy). */
+  function fileExcludes(name) { return i121bList(name, 'excludesInFile'); }
+  /** File-level keywords the file must carry for `name` (copy). */
+  function fileRequires(name) { return i121bList(name, 'requiresInFile'); }
+  /** Record types (SFL / USRDFN) `name` is refused on (copy). */
+  function notOnRecordTypes(name) { return i121bList(name, 'notOnRecordTypes'); }
+  // ---- end I-121b ----
+
   return {
     RECORD_TYPES: RECORD_TYPES,
     S36E_RESTRICTIONS: S36E_RESTRICTIONS,
@@ -3382,6 +3539,17 @@
     recordReferenceName: recordReferenceName,
     recordReferenceLocator: recordReferenceLocator,
     sflChoiceKeywords: sflChoiceKeywords,
-    alwrolClrlSlnoKeywords: alwrolClrlSlnoKeywords
+    alwrolClrlSlnoKeywords: alwrolClrlSlnoKeywords,
+    // ---- I-121b ----
+    initRetainReturnKeywords: initRetainReturnKeywords,
+    takesNoParameters: takesNoParameters,
+    optionIndicatorsAllowed: optionIndicatorsAllowed,
+    recordRequires: recordRequires,
+    requiresBareKeyword: requiresBareKeyword,
+    recordExcludes: recordExcludes,
+    fileAndRecordExcludes: fileAndRecordExcludes,
+    fileExcludes: fileExcludes,
+    fileRequires: fileRequires,
+    notOnRecordTypes: notOnRecordTypes
   };
 });

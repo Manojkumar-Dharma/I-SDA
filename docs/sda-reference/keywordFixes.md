@@ -165,7 +165,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
 | [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Claimed (in progress) | — |
-| [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Claimed (in progress) | — |
+| [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Partly done (`SFLCTL`, v0.10.281) | — |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Partly done (`SFLCSRRRN`, v0.10.282) | — |
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Not started | — |
@@ -232,7 +232,8 @@ Every finding so far has been opened as a task (I-61 – I-142, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| *(none)* | *(none)* |
+| I-121b | `GETRETAIN` is accepted without `UNLOCK` (and with `UNLOCK(*ERASE)` etc.): its section requires `UNLOCK` without parameters. `RTNDTA` and `UNLOCK` are accepted together on one record. `INZINP` is accepted without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`. No guard exists for any of the three; the facts are in `keywordSpec.js` (`recordRequires`, `requiresBareKeyword`, `recordExcludes`). |
+| I-121b | `RETKEY` / `RETCMDKEY` accept every exclusion their section states: `RETKEY` with `CLEAR`/`HELP`/`HOME`/`PAGEUP`/`PAGEDOWN`/`ROLLDOWN`/`ROLLUP` (file or record) or `PRINT` (record); `RETCMDKEY` with `CAnn`/`CFnn` (file or record) or `SFLDROP`/`SFLENTER`/`SFLFOLD` (record); both in a file with `ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN` (the rest of I-139's open item) or without `INDARA`. Spec facts: `fileAndRecordExcludes`, `recordExcludes`, `fileExcludes`, `fileRequires`. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6032,13 +6033,33 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121b — Initialize, retain and return keywords
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Record · **Status:** Done (v0.10.288) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (7):** `INZRCD`, `INZINP`, `GETRETAIN`, `RTNDTA`, `RETLCKSTS`, `RETKEY`, `RETCMDKEY`.
 
 `RETLCKSTS` takes no parameters (I-50). `RETKEY`/`RETCMDKEY` carry S36E notes (S36-3) - read the S36E table from I-121p once it lands, do not copy it.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.288).** All seven now have a `RECORD_TYPES` entry in a `// ---- I-121b: 7 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` (line numbers cited in the entries), not from the code:
+
+| Keyword | Level / parameters | Option indicators | Relations the section states |
+|---------|--------------------|-------------------|------------------------------|
+| `INZRCD` | record, none | not valid | not on `PULLDOWN` (already `PULLDOWN`'s mutex, not repeated) |
+| `INZINP` | record, none | valid | requires `PUTOVR`, `OVERLAY`, `ERASEINP(*ALL)` on the record |
+| `GETRETAIN` | record, none | not valid | requires `UNLOCK` without parameters |
+| `RTNDTA` | record, none | not valid | refused with `UNLOCK` |
+| `RETLCKSTS` | record, none | valid | none |
+| `RETKEY` | record, none | not valid | not with `CLEAR`/`HELP`/`HOME`/`PAGEUP`/`PAGEDOWN`/`ROLLDOWN`/`ROLLUP` at file or record level, not with `PRINT` on the record; needs `INDARA`; not on `SFL`/`USRDFN`; not in a file with `ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN` |
+| `RETCMDKEY` | record, none | not valid | not with `CAnn`/`CFnn` at file or record level, not with `SFLDROP`/`SFLENTER`/`SFLFOLD` on the record; same `INDARA` / `SFL`/`USRDFN` / alt-key rules as `RETKEY` |
+
+New accessors (re-exports on `DspfWriter` for the three the webview needs): `initRetainReturnKeywords`, `takesNoParameters`, `optionIndicatorsAllowed`, `recordRequires`, `requiresBareKeyword`, `recordExcludes`, `fileAndRecordExcludes`, `fileExcludes`, `fileRequires`, `notOnRecordTypes`. The `RETKEY`/`RETCMDKEY` S36E notes stay in `S36E_RESTRICTIONS` (I-121p) and are not copied.
+
+**One real bug found and fixed (deliberate behaviour change).** The `RETKEY`/`RETCMDKEY` section ends "Option indicators are not valid for these keywords", but I-44 read the shared section as silent either way and left a Conditioning toggle on both rows (and `NO_OPTION_INDICATORS` lacked them). Both are now in the no-option-indicators table (so the writer refuses a new indicator on either, like the other 96), and the two record rows lose the toggle. The toggle for all seven rows, and the `hasParams` flag of their guarded wirers, now come from the spec (`optionIndicatorsAllowed`, `takesNoParameters`) instead of a literal per call; `RETLCKSTS` and `INZINP` keep theirs. `i111GuardsOnRealTurnOnOnly` used `RETKEY` to prove a Conditioning edit on a USRDFN record is accepted; it now uses `RETLCKSTS`. `i121NoOptionIndicatorsKeywordSpec` pins 98 / 78 instead of 96 / 76.
+
+**Not enforced (spec facts only, logged under Deferred findings):** the relations above with no guard in the codebase. The SFL / USRDFN whitelists already refuse `RETKEY` / `RETCMDKEY` on those record types, and a test pins the spec to them in both directions.
+
+New `src/test/i121bInitRetainReturnSpec.test.js` (107 checks): every entry against the reference text, a sweep over the seven in `KEYWORD-LOOKUP.json` and `NO_OPTION_INDICATORS`, the whitelists and `PULLDOWN`'s mutex, accessor edge inputs, the writer's refusal on `RETKEY`/`RETCMDKEY`, and the rendered record panels. Confirmed failing against pre-fix source via stash (accessors missing) and against a webview-only revert (the two toggles come back). `i101MultiLevelNoOptionIndicators` also pinned the table size (now 98). Full suite: 236 files, 12,901 checks, zero failures.
 
 ---
 

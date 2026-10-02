@@ -9513,6 +9513,10 @@
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
+    // Task I-121b - initialize / retain / return keyword facts, straight off the spec.
+    initRetainReturnKeywords: function () { return KeywordSpec.initRetainReturnKeywords(); },
+    takesNoParameters: function (n) { return KeywordSpec.takesNoParameters(n); },
+    optionIndicatorsAllowed: function (n) { return KeywordSpec.optionIndicatorsAllowed(n); },
     altKeyNames: function () { return KeywordSpec.altKeyNames(); },
     systemValueConstantKeywords: function () { return KeywordSpec.systemValueConstantKeywords(); },
     isSystemValueConstantKeyword: function (name) { return KeywordSpec.isSystemValueConstantKeyword(name); },

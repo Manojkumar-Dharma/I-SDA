@@ -5683,6 +5683,11 @@
     function ok(keywordName) { return recordRestrictionAllows(restrictTo, keywordName); }
     // Row-id stem -> the DDS keyword the row writes (only used to gate).
     var ROW_KEYWORD = { 'check-ab': 'CHECK', 'check-rl': 'CHECK' };
+    // Task I-121b: whether a row shows a Conditioning toggle for these seven
+    // keywords is the spec's optionIndicators fact, not a per-call literal.
+    function i121bConds(name, conditions) {
+      return DspfWriter.optionIndicatorsAllowed(name) ? conditions : undefined;
+    }
     function gatedFlagRow(id) {
       var stem = id.slice(p.length + 1);
       if (!ok(ROW_KEYWORD[stem] || stem.toUpperCase())) return '';
@@ -5692,7 +5697,7 @@
     // --- General ---
     var g = '';
     var fInzrcd = DspfWriter.getFileFlagKeyword(kw, 'INZRCD');
-    g += gatedFlagRow(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    g += gatedFlagRow(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, i121bConds('INZRCD', fInzrcd.conditions), expandedSet);
     var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
     g += gatedFlagRow(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // I-28: option and response indicators not valid
     var fAssume = DspfWriter.getFileFlagKeyword(kw, 'ASSUME');
@@ -5700,9 +5705,9 @@
     var fAlwrol = DspfWriter.getFileFlagKeyword(kw, 'ALWROL');
     g += gatedFlagRow(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     var fRetkey = DspfWriter.getFileFlagKeyword(kw, 'RETKEY');
-    g += gatedFlagRow(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, fRetkey.conditions, expandedSet);
+    g += gatedFlagRow(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, i121bConds('RETKEY', fRetkey.conditions), expandedSet);
     var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
-    g += gatedFlagRow(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, fRetcmdkey.conditions, expandedSet);
+    g += gatedFlagRow(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, i121bConds('RETCMDKEY', fRetcmdkey.conditions), expandedSet);
     // Task I-39 - CSRINPONLY was confirmed entirely missing from iSDA (no
     // getter/setter, no row, no mention anywhere) by a full-text audit of
     // DDS_Keyword_V7r6.txt against actual code. This is the record-level
@@ -5951,7 +5956,7 @@
         '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-mdtoff" ' + (unlock.mdtoff ? 'checked' : '') + '/>Reset all modified data tags (*MDTOFF)</label></div>';
     }
     var fGetretain = DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN');
-    inp += gatedFlagRow(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    inp += gatedFlagRow(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, i121bConds('GETRETAIN', fGetretain.conditions), expandedSet);
     var retlcksts = DspfWriter.getFileFlagKeyword(kw, 'RETLCKSTS');
     // Task I-50: RETLCKSTS's own DDS Reference text states "This keyword
     // has no parameters" - the params box (previously rendered here
@@ -5959,13 +5964,13 @@
     // was a pre-existing bug, not real DDS syntax. Dropped both
     // paramsValue and paramsPlaceholder so flagRowHtml renders this as a
     // plain flag+conditioning row, same shape as LOGOUT/BLINK/etc. above.
-    inp += gatedFlagRow(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, undefined, undefined, retlcksts.conditions, expandedSet);
+    inp += gatedFlagRow(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, undefined, undefined, i121bConds('RETLCKSTS', retlcksts.conditions), expandedSet);
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
     inp += gatedFlagRow(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
     inp += gatedFlagRow(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
     var fRtndta = DspfWriter.getFileFlagKeyword(kw, 'RTNDTA');
-    inp += gatedFlagRow(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    inp += gatedFlagRow(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, i121bConds('RTNDTA', fRtndta.conditions), expandedSet);
     panels.input = inp;
 
     // --- Overlay ---
@@ -5982,7 +5987,7 @@
     var fOvratr = DspfWriter.getFileFlagKeyword(kw, 'OVRATR');
     ov += gatedFlagRow(p + '-ovratr', 'Override Attribute (OVRATR)', fOvratr.present, undefined, undefined, fOvratr.conditions, expandedSet);
     var fInzinp = DspfWriter.getFileFlagKeyword(kw, 'INZINP');
-    ov += gatedFlagRow(p + '-inzinp', 'Initialize input fields (INZINP)', fInzinp.present, undefined, undefined, fInzinp.conditions, expandedSet);
+    ov += gatedFlagRow(p + '-inzinp', 'Initialize input fields (INZINP)', fInzinp.present, undefined, undefined, i121bConds('INZINP', fInzinp.conditions), expandedSet);
     var mdtoff = DspfWriter.getFileFlagKeyword(kw, 'MDTOFF');
     ov += gatedFlagRow(p + '-mdtoff', 'Reset all modified data tags (MDTOFF)', mdtoff.present, mdtoff.parameters, '*UNPR or *ALL (optional)', mdtoff.conditions, expandedSet);
     var eraseinp = DspfWriter.getFileFlagKeyword(kw, 'ERASEINP');
@@ -6656,7 +6661,7 @@
     // Task I-13: INZRCD is on PULLDOWN's own forbidden-keyword list -
     // wirePulldownGuardedFlag replaces the plain simple() this used to
     // go through (was already noConditioning=true per I-7, unaffected).
-    wirePulldownGuardedFlag(p + '-inzrcd', 'INZRCD', false);
+    wirePulldownGuardedFlag(p + '-inzrcd', 'INZRCD', !DspfWriter.takesNoParameters('INZRCD'), false, false, DspfWriter.optionIndicatorsAllowed('INZRCD')); // I-121b
     // Task I-28: KEEP's own row no longer goes through plain simple() -
     // see wireKeepGuardedFlag's own doc comment above, and
     // recordKeywordsPanelsHtml's matching I-28 comment on the build side
@@ -6674,8 +6679,8 @@
     // for this keyword" - CSRINPONLY's own DDS Reference section says so
     // explicitly; RETKEY/RETCMDKEY's shared section doesn't say either
     // way, so their pre-existing toggle is left exactly as it was).
-    wireUsrdfnGuardedFlag(p + '-retkey', 'RETKEY', false, false, false, false, true);
-    wireUsrdfnGuardedFlag(p + '-retcmdkey', 'RETCMDKEY', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-retkey', 'RETKEY', false, false, false, !DspfWriter.takesNoParameters('RETKEY'), DspfWriter.optionIndicatorsAllowed('RETKEY')); // I-121b
+    wireUsrdfnGuardedFlag(p + '-retcmdkey', 'RETCMDKEY', false, false, false, !DspfWriter.takesNoParameters('RETCMDKEY'), DspfWriter.optionIndicatorsAllowed('RETCMDKEY')); // I-121b
     wireUsrdfnGuardedFlag(p + '-csrinponly', 'CSRINPONLY', false, false, false, false, true);
     // Task I-42 - record-level VALNUM/WRDWRAP go through the same guarded
     // wire as every other record-level flag, so USRDFN's/SFL's/MNUBAR's own
@@ -6969,7 +6974,7 @@
     // Task I-44: GETRETAIN - same shape as LOGINP just above (individually
     // record-level, no other exclusion list, was already noConditioning=
     // true per I-7 - "Option indicators are not valid for this keyword").
-    wireUsrdfnGuardedFlag(p + '-getretain', 'GETRETAIN');
+    wireUsrdfnGuardedFlag(p + '-getretain', 'GETRETAIN', false, false, false, !DspfWriter.takesNoParameters('GETRETAIN'), DspfWriter.optionIndicatorsAllowed('GETRETAIN')); // I-121b
     // Task I-44: RETLCKSTS - individually record-level, "Option
     // indicators are valid for this keyword" per its own DDS Reference
     // text, so withConditioning=true preserves the existing toggle.
@@ -6980,7 +6985,7 @@
     // already carry on this keyword is dropped the next time this row is
     // edited, matching the fact it was never valid DDS syntax to begin
     // with.
-    wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, !DspfWriter.takesNoParameters('RETLCKSTS'), DspfWriter.optionIndicatorsAllowed('RETLCKSTS')); // I-121b
     // Task I-107 (I-104 finding B): CHECK is on SFL's whitelist but on neither
     // MNUBAR's nor USRDFN's, and these two hand-wired rows had no guard. Refused only
     // when that variant (AB / RL) is not already on the record - the I-84 lesson, so a
@@ -7008,7 +7013,7 @@
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined, recordCheckGuard(p + '-check-ab', 'AB'));
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined, recordCheckGuard(p + '-check-rl', 'RL'));
     // Task I-13: RTNDTA is on PULLDOWN's own forbidden-keyword list.
-    wirePulldownGuardedFlag(p + '-rtndta', 'RTNDTA', false);
+    wirePulldownGuardedFlag(p + '-rtndta', 'RTNDTA', !DspfWriter.takesNoParameters('RTNDTA'), false, false, DspfWriter.optionIndicatorsAllowed('RTNDTA')); // I-121b
 
     // Overlay
     // Task I-13: OVERLAY/PUTRETAIN/PUTOVR/OVRDTA/OVRATR/MDTOFF/ERASEINP/
@@ -7027,7 +7032,7 @@
     wirePulldownGuardedFlag(p + '-putovr', 'PUTOVR', false, false, false, true);
     wirePulldownGuardedFlag(p + '-ovrdta', 'OVRDTA', false, false, false, true);
     wirePulldownGuardedFlag(p + '-ovratr', 'OVRATR', false, false, false, true);
-    wireUsrdfnGuardedFlag(p + '-inzinp', 'INZINP', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-inzinp', 'INZINP', false, false, false, !DspfWriter.takesNoParameters('INZINP'), DspfWriter.optionIndicatorsAllowed('INZINP')); // I-121b
     wirePulldownGuardedFlag(p + '-mdtoff', 'MDTOFF', true, false, false, true);
     wirePulldownGuardedFlag(p + '-eraseinp', 'ERASEINP', true, false, false, true);
     wirePulldownGuardedFlag(p + '-erase', 'ERASE', false, false, false, true);

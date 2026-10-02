@@ -93,9 +93,11 @@ console.log('wireUsrdfnGuardedFlag (DSPMOD with a parameter box; RETKEY with Con
   tick('rec-dspmod-on', true);
   check('turning DSPMOD ON for an SFL record is still refused', st.alerts.length === 1 && st.changes === 0 && count(st, 'DSPMOD') === 0);
 
-  st = mount([kwd('USRDFN'), kwd('RETKEY')]);
-  check('USRDFN + existing RETKEY: the Conditioning UI is reachable', addCondition('rec-retkey', '21'));
-  check('...adding a condition is accepted (no alert) and stored', st.alerts.length === 0 && st.keywords.some((k) => k.name === 'RETKEY' && k.conditions.length === 1));
+  // I-121b: RETKEY / RETCMDKEY take no option indicators (their DDS Reference
+  // section says so), so this check moved to RETLCKSTS, which does.
+  st = mount([kwd('USRDFN'), kwd('RETLCKSTS')]);
+  check('USRDFN + existing RETLCKSTS: the Conditioning UI is reachable', addCondition('rec-retlcksts', '21'));
+  check('...adding a condition is accepted (no alert) and stored', st.alerts.length === 0 && st.keywords.some((k) => k.name === 'RETLCKSTS' && k.conditions.length === 1));
   st = mount([kwd('USRDFN')]);
   tick('rec-retkey-on', true);
   check('turning RETKEY ON for a USRDFN record is still refused', st.alerts.length === 1 && count(st, 'RETKEY') === 0);

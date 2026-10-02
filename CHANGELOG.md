@@ -13,6 +13,7 @@ citations and tests live in the task's section of
 ## 0.10.79 and later — Keyword-compliance audit (I-series) and follow-ups
 
 - Docs (no version): README rewritten; this changelog condensed to one line per version; I-121 split into independent slices I-121a – I-121t in `keywordFixes.md`.
+- **0.10.288** — I-121b: the seven initialize / retain / return keywords (INZRCD, INZINP, GETRETAIN, RTNDTA, RETLCKSTS, RETKEY, RETCMDKEY) got keyword-spec entries, and their rows' Conditioning toggle and parameter box now come from the spec; **behaviour change:** RETKEY and RETCMDKEY take no option indicators (their section says so), so the toggle is gone and the writer refuses one
 - **0.10.287** — I-121r: the webview's DSPATR, COLOR, CHGINPDFT and WDWBORDER value lists now come from the keyword spec (screen order kept); the other constant tables are pinned to the spec by a new test or classified as screen text *(refactor)*
 - **0.10.286** — I-121s: the writer's record-name-reference table (SFLCTL / WINDOW / MNUBARCHC), its subfile choice-keyword pair and its ALWROL/CLRL/SLNO list moved into the keyword spec; the engine and message tables are recorded as presentation. *(refactor)*
 - **0.10.285** — I-121p: the System/36 environment restriction table (CHANGE, HELP, HLPRTN, PRINT, ALTNAME, MSGID, RETKEY, RETCMDKEY) moved from the writer into the keyword spec; PRINT's `*PGM` exemption is a spec fact. *(refactor)*
