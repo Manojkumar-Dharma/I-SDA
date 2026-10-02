@@ -13,6 +13,7 @@ citations and tests live in the task's section of
 ## 0.10.79 and later — Keyword-compliance audit (I-series) and follow-ups
 
 - Docs (no version): README rewritten; this changelog condensed to one line per version; I-121 split into independent slices I-121a – I-121t in `keywordFixes.md`.
+- **0.10.290** — I-121d *(refactor)*: the six subfile mode and entry keywords (SFLMODE, SFLRNA, SFLMSGRCD, SFLDROP, SFLENTER, SFLFOLD) got keyword-spec entries read from the DDS Reference; no behaviour change, rules no guard enforces logged as findings
 - **0.10.289** — I-121c *(refactor)*: the seven subfile control keywords (SFLPAG, SFLCLR, SFLDSP, SFLDSPCTL, SFLEND, SFLINZ, SFLDLT) got keyword-spec entries read from the DDS Reference; SFLDLT's option-indicator-required table folded into its own entry; no behaviour change, rules no guard enforces logged as findings
 - **0.10.288** — I-121b: the seven initialize / retain / return keywords (INZRCD, INZINP, GETRETAIN, RTNDTA, RETLCKSTS, RETKEY, RETCMDKEY) got keyword-spec entries, and their rows' Conditioning toggle and parameter box now come from the spec; **behaviour change:** RETKEY and RETCMDKEY take no option indicators (their section says so), so the toggle is gone and the writer refuses one
 - **0.10.287** — I-121r: the webview's DSPATR, COLOR, CHGINPDFT and WDWBORDER value lists now come from the keyword spec (screen order kept); the other constant tables are pinned to the spec by a new test or classified as screen text *(refactor)*

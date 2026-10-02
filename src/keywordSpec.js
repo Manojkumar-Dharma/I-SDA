@@ -293,6 +293,122 @@
         'SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords used on the subfile-control record format.'
     },
 
+    // ---- I-121d: 6 ----
+    // Subfile mode and entry keywords (SFLCSRRRN is I-142's entry above).
+    // Every fact below was re-read from DDS_Keyword_V7r6.txt (line numbers are
+    // that file's), NOT taken from the code. All six are record-level.
+    // SFLMSGRCD sits on the subfile record (SFL); the other five on the
+    // subfile-control record (SFLCTL). Pure refactor: nothing here adds a
+    // guard; relations no guard enforces are recorded as facts and logged as
+    // findings. The CAnn / CFnn parameter of SFLDROP / SFLENTER / SFLFOLD is
+    // COMMAND_KEY_PARAMETER_KEYWORDS' fact and is NOT repeated here.
+    SFLMODE: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'required',
+      parameterGrammar: 'SFLMODE(&mode)',
+      optionIndicators: 'notValid',
+      modeField: {
+        mustExistInRecord: true,
+        dataType: 'A',
+        length: 1,
+        usage: 'H',
+        foldedValue: '0',
+        truncatedValue: '1',
+        valueWithoutDropOrFold: '0'
+      },
+      ddsReference:
+        'SFLMODE (~line 11491): SFLMODE(&mode); \"The mode parameter is required.\" The field must be defined in the ' +
+        'subfile-control record format as a character (A in position 35) field of length 1 with usage H; it contains 0 ' +
+        'for folded mode and 1 for truncated mode, and 0 if neither SFLDROP nor SFLFOLD is specified. \"Option ' +
+        'indicators are not valid for this keyword.\"'
+    },
+    SFLRNA: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'none',
+      optionIndicators: 'notValid',
+      requiresOnRecord: ['SFLINZ'],
+      notOnMessageSubfile: true,
+      excludedWithFieldSelection: true,
+      ddsReference:
+        'SFLRNA (~line 12116): \"This keyword has no parameters.\" \"The SFLINZ keyword is required when SFLRNA is ' +
+        'specified.\" \"SFLRNA cannot be specified for a message subfile (identified by the SFLMSGRCD keyword on the ' +
+        'subfile record format).\" \"If the subfile record format contains field selection, SFLRNA is not valid.\" ' +
+        '\"Option indicators are not valid for this keyword.\"'
+    },
+    SFLMSGRCD: {
+      levels: ['record'],
+      onRecordType: 'SFL',
+      parameters: 'required',
+      parameterGrammar: 'SFLMSGRCD(line-number)',
+      parameterMaximum: 'the maximum line number of the display size in use',
+      optionIndicators: 'notValid',
+      displaySizeNames: 'valid',
+      displaySizeNamesRequiredWhen: 'the first message line changes with the display size',
+      textValidAtRecordLevel: true,
+      // The two predefined fields a message subfile record may hold (the
+      // section: \"There can be only two predefined fields\").
+      predefinedFields: [
+        { purpose: 'message identifier', position: 1, dataType: 'A', length: 4, usage: 'H', requires: 'SFLMSGKEY' },
+        { purpose: 'program queue name', position: 2, dataType: 'A', length: 10, usage: 'H', requires: 'SFLPGMQ' }
+      ],
+      requiresWithSflinz: 'SFLPGMQ',
+      mustNotOverlapDisplayableControlFields: true,
+      messageTextMaxLength: { '24x80': 76, '27x132': 128 },
+      messageStartPosition: 2,
+      ddsReference:
+        'SFLMSGRCD (~line 11718): SFLMSGRCD(line-number), the first display line for messages; \"Option indicators are ' +
+        'not valid for this keyword; display size condition names are valid.\" The record has only two predefined ' +
+        'fields (4-position A hidden message id with SFLMSGKEY; 10-position A hidden queue name with SFLPGMQ). With ' +
+        'SFLMSGRCD, SFLINZ needs SFLPGMQ; the message lines must not overlap displayable control-record fields. ' +
+        'SFLNXTCHG is refused with it (stated on SFLNXTCHG\'s entry).'
+    },
+    SFLDROP: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'required',
+      parameterGrammar: 'SFLDROP(CAnn | CFnn)',
+      optionIndicators: 'valid',
+      startsTruncated: true,
+      ignoredWhenSizeEqualsPage: true,
+      notValidWithFieldSelection: true,
+      pairedWith: { keyword: 'SFLFOLD', sameKeyRequired: true, winnerWhenBothActive: 'SFLFOLD' },
+      ddsReference:
+        'SFLDROP (~line 10849): SFLDROP(CAnn | CFnn); the subfile is first displayed truncated and the key toggles ' +
+        'folded / truncated. Note 2: ignored when subfile size equals subfile page; not valid with field selection. ' +
+        'Note 5: may be on the same record as SFLFOLD, which wins when both are active; both must use the same key. ' +
+        '\"Option indicators are valid for this keyword.\"'
+    },
+    SFLENTER: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'required',
+      parameterGrammar: 'SFLENTER(CAnn | CFnn)',
+      optionIndicators: 'notValid',
+      ddsReference:
+        'SFLENTER (~line 11159): SFLENTER(CAnn | CFnn); \"This optional keyword is valid only for the subfile-control ' +
+        'record format.\" \"The parameter value with this keyword is required.\" \"Option indicators are not valid for ' +
+        'this keyword.\"'
+    },
+    SFLFOLD: {
+      levels: ['record'],
+      onRecordType: 'SFLCTL',
+      parameters: 'required',
+      parameterGrammar: 'SFLFOLD(CAnn | CFnn)',
+      optionIndicators: 'valid',
+      startsTruncated: false,
+      ignoredWhenSizeEqualsPage: true,
+      notValidWithFieldSelection: true,
+      pairedWith: { keyword: 'SFLDROP', sameKeyRequired: true, winnerWhenBothActive: 'SFLFOLD' },
+      ddsReference:
+        'SFLFOLD (~line 11200): SFLFOLD(CAnn | CFnn); the subfile is first displayed folded and the key toggles ' +
+        'truncated / folded. Note 2: with subfile size equal to subfile page a severity-20 error is issued and SFLFOLD ' +
+        'is ignored; not valid with field selection. Note 5: may be on the same record as SFLDROP; SFLFOLD wins when ' +
+        'both are active; both must use the same key. \"Option indicators are valid for this keyword.\"'
+    },
+    // ---- end I-121d ----
+
     // ---- I-121c: 7 ----
     // Subfile control keywords (SFLCTL itself is the I-141 entry above).
     // Every fact below was re-read from DDS_Keyword_V7r6.txt (line numbers are
@@ -3512,6 +3628,41 @@
   }
 
 
+  // ---- I-121d: accessors ----
+  var I121D_KEYWORDS = ['SFLMODE', 'SFLRNA', 'SFLMSGRCD', 'SFLDROP', 'SFLENTER', 'SFLFOLD'];
+  function i121dEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I121D_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  /** The six subfile mode / entry keywords this slice specifies (SFLCSRRRN is I-142's). */
+  function subfileModeEntryKeywords() { return I121D_KEYWORDS.slice(); }
+  /** Record type ('SFLCTL' or, for SFLMSGRCD, 'SFL') the keyword sits on, or null. */
+  function subfileModeEntryRecordType(name) { var e = i121dEntry(name); return e ? e.onRecordType : null; }
+  /** 'valid' | 'notValid' option-indicator mode, or null for another keyword. */
+  function subfileModeEntryIndicatorMode(name) { var e = i121dEntry(name); return e ? e.optionIndicators : null; }
+  /** SFLMODE's mode-field definition (copy). */
+  function sflmodeField() { return JSON.parse(JSON.stringify(RECORD_TYPES.SFLMODE.modeField)); }
+  /** Keywords SFLRNA requires on the same record (copy). */
+  function sflrnaRequires() { return RECORD_TYPES.SFLRNA.requiresOnRecord.slice(); }
+  /** SFLMSGRCD's message-subfile facts: predefined fields etc. (deep copy). */
+  function messageSubfileFacts() {
+    var e = RECORD_TYPES.SFLMSGRCD;
+    return JSON.parse(JSON.stringify({
+      predefinedFields: e.predefinedFields, requiresWithSflinz: e.requiresWithSflinz,
+      messageTextMaxLength: e.messageTextMaxLength, messageStartPosition: e.messageStartPosition
+    }));
+  }
+  /** SFLDROP / SFLFOLD fold-mode facts (copy), or null for any other keyword. */
+  function foldDropRules(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    if (n !== 'SFLDROP' && n !== 'SFLFOLD') return null;
+    var e = RECORD_TYPES[n];
+    return JSON.parse(JSON.stringify({
+      startsTruncated: e.startsTruncated, ignoredWhenSizeEqualsPage: e.ignoredWhenSizeEqualsPage,
+      notValidWithFieldSelection: e.notValidWithFieldSelection, pairedWith: e.pairedWith
+    }));
+  }
+  // ---- end I-121d ----
   // ---- I-121c: accessors ----
   var I121C_KEYWORDS = ['SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND', 'SFLINZ', 'SFLDLT'];
   function i121cEntry(name) {
@@ -3694,6 +3845,14 @@
     recordReferenceLocator: recordReferenceLocator,
     sflChoiceKeywords: sflChoiceKeywords,
     alwrolClrlSlnoKeywords: alwrolClrlSlnoKeywords,
+    // ---- I-121d ----
+    subfileModeEntryKeywords: subfileModeEntryKeywords,
+    subfileModeEntryRecordType: subfileModeEntryRecordType,
+    subfileModeEntryIndicatorMode: subfileModeEntryIndicatorMode,
+    sflmodeField: sflmodeField,
+    sflrnaRequires: sflrnaRequires,
+    messageSubfileFacts: messageSubfileFacts,
+    foldDropRules: foldDropRules,
     // ---- I-121c ----
     subfileControlKeywords: subfileControlKeywords,
     subfileControlRecordType: subfileControlRecordType,

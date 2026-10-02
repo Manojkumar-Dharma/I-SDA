@@ -167,7 +167,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Claimed (in progress) | — |
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
-| [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Partly done (`SFLCSRRRN`, v0.10.282) | — |
+| [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Not started | — |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Not started | — |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Not started | — |
@@ -232,6 +232,8 @@ Every finding so far has been opened as a task (I-61 – I-142, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
+| I-121d | `SFLRNA` is accepted without `SFLINZ`, on a message subfile (`SFLMSGRCD`) and with field selection; `SFLMODE`'s field (A, length 1, usage H, in the control record) and `SFLMSGRCD`'s line number (not above the display's last line) and predefined fields (A4 + `SFLMSGKEY`, A10 + `SFLPGMQ`) are not validated; `SFLINZ` is accepted with `SFLMSGRCD` and no `SFLPGMQ`. No guard was found in `dspfWriter.js`. The facts are in `keywordSpec.js` (`requiresOnRecord`, `notOnMessageSubfile`, `modeField`, `predefinedFields`, `requiresWithSflinz`). |
+| I-121d | `SFLDROP` and `SFLFOLD` on one record must use the same key, and `SFLDROP` / `SFLFOLD` are ignored when SFLSIZ equals SFLPAG or refused with field selection; none of that is checked (only the `SFLSNGCHC`/`SFLMLTCHC` exclusion and the command-key clash are). Facts: `foldDropRules`. |
 | I-121c | The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`). |
 | I-121c | `SFLPAG`'s own section refuses `SFLDROP`/`SFLFOLD`/`SFLROLVAL` when SFLSIZ equals SFLPAG and `SFLDROP`/`SFLFOLD`/`SFLINZ`/`SFLLIN`/`SFLRCDNBR` under field selection; only `SFLSCROLL` (I-127) is checked against SFLSIZ = SFLPAG. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` are not validated either. The lists and grammar are in the spec (`excludedWhenSizeEqualsPage`, `excludedWithFieldSelection`, `sflendGrammar`). |
 | I-121b | `GETRETAIN` is accepted without `UNLOCK` (and with `UNLOCK(*ERASE)` etc.): its section requires `UNLOCK` without parameters. `RTNDTA` and `UNLOCK` are accepted together on one record. `INZINP` is accepted without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`. No guard exists for any of the three; the facts are in `keywordSpec.js` (`recordRequires`, `requiresBareKeyword`, `recordExcludes`). |
@@ -6103,13 +6105,30 @@ New `src/test/i121cSubfileControlKeywordSpec.test.js`: the entries against the r
 
 ### I-121d — Subfile mode and entry keywords
 
-> **Area:** Record · **Status:** Partly done (`SFLCSRRRN`, v0.10.282) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Record · **Status:** Done (v0.10.290) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (7):** `SFLCSRRRN` ✓ v0.10.282, `SFLMODE`, `SFLRNA`, `SFLMSGRCD`, `SFLDROP`, `SFLENTER`, `SFLFOLD`.
 
 `SFLDROP`/`SFLENTER`/`SFLFOLD` command-key parameters already live in `COMMAND_KEY_PARAMETER_KEYWORDS`; reference it, do not copy. **Progress:** `SFLCSRRRN` is done - v0.10.282 (I-142) gave it `RECORD_TYPES.SFLCSRRRN.relativeRecordField` (parameter required, leading `&`, S / 5 / 0 / H field in the record; panel convenience in v0.10.283). Still to do: `SFLMODE`, `SFLRNA`, `SFLMSGRCD`, `SFLDROP`, `SFLENTER`, `SFLFOLD`.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.290).** The six keywords still to do now have a `RECORD_TYPES` entry in a `// ---- I-121d: 6 ----` block of `keywordSpec.js` (`SFLCSRRRN` was I-142's), each re-read from `DDS_Keyword_V7r6.txt` with the line cited in the entry:
+
+| Keyword | Record | Parameter | Option indicators | Relations the section states |
+|---------|--------|-----------|-------------------|------------------------------|
+| `SFLMODE` | control | required `&mode` field: A, length 1, usage H; 0 = folded, 1 = truncated, 0 without `SFLDROP`/`SFLFOLD` | not valid | - |
+| `SFLRNA` | control | none | not valid | requires `SFLINZ`; not on a message subfile; not with field selection |
+| `SFLMSGRCD` | subfile | required line number (not above the display size's last line) | not valid (display size names valid) | only two predefined fields (A4 hidden with `SFLMSGKEY`, A10 hidden with `SFLPGMQ`); `SFLINZ` needs `SFLPGMQ`; must not overlap displayable control-record fields; messages start in position 2, at most 76 / 128 characters; `TEXT` valid |
+| `SFLDROP` | control | required `CAnn`/`CFnn` | valid | starts truncated; ignored when size = page; not with field selection; may share a record with `SFLFOLD` (which wins), same key |
+| `SFLENTER` | control | required `CAnn`/`CFnn` | not valid | - |
+| `SFLFOLD` | control | required `CAnn`/`CFnn` | valid | starts folded; ignored (severity-20 error) when size = page; not with field selection; same pairing rule |
+
+The `CAnn`/`CFnn` key types stay where I-121 put them (`COMMAND_KEY_PARAMETER_KEYWORDS`); the new entries carry only the grammar text and a test pins the two to agree. `SFLMSGRCD`'s `SFLNXTCHG` exclusion stays stated once, on `SFLNXTCHG`'s entry. Option-indicator modes agree with the existing no-option-indicators table (four of the six are in it).
+
+**Pure refactor, no behaviour change.** New accessors: `subfileModeEntryKeywords`, `subfileModeEntryRecordType`, `subfileModeEntryIndicatorMode`, `sflmodeField`, `sflrnaRequires`, `messageSubfileFacts`, `foldDropRules` (copies; null for other keywords).
+
+New `src/test/i121dSubfileModeEntryKeywordSpec.test.js`: each entry against the reference text (phrases looked up in the reference file itself), sweeps against the no-option-indicators table, the command-key table, the message-subfile whitelist, `SFLNXTCHG`'s mutex and I-121c's `SFLPAG` lists, and accessor copy / safety. Confirmed failing against the pre-change spec via stash.
 
 ---
 
