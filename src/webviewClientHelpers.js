@@ -826,8 +826,33 @@
   // Attributes" screen shows them (docs/sda-reference/screens/field-level/
   // character/display-attributes/) - CS/PR/OID/SP were missing from the
   // original 7-attribute set.
-  var DSPATR_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL', 'PC', 'MDT', 'PR', 'OID', 'SP'];
-  var COLOR_VALUES = ['', 'BLU', 'RED', 'WHT', 'GRN', 'TRQ', 'YLW', 'PNK'];
+  //  Task I-121r: WHICH values exist is the spec's fact (DspfWriter.dateTimeValidValues
+  //  reads KeywordSpec.validValues for any keyword); the ORDER is this
+  //  screen's own (real SDA's "Select Display Attributes" order, and the
+  //  color order its pick list shows), so specValuesInScreenOrder keeps the
+  //  screen order for what the spec lists and appends any value the spec
+  //  has that the screen order does not name (it can never silently drop one).
+  //  Read lazily, at first use: this module is loaded before a test (or the
+  //  webview) is guaranteed to have DspfWriter in place, and the "caller sets
+  //  global.DspfWriter before require()" convention above must keep working.
+  function specValuesInScreenOrder(specValues, screenOrder) {
+    var out = screenOrder.filter(function (v) { return specValues.indexOf(v) >= 0; });
+    specValues.forEach(function (v) { if (out.indexOf(v) < 0) out.push(v); });
+    return out;
+  }
+  function memoizedOnFirstUse(build) {
+    var value = null;
+    return function () { if (value === null) value = build(); return value; };
+  }
+  var dspatrAttrs = memoizedOnFirstUse(function () {
+    return specValuesInScreenOrder(DspfWriter.dateTimeValidValues('DSPATR'),
+      ['HI', 'RI', 'CS', 'BL', 'ND', 'UL', 'PC', 'MDT', 'PR', 'OID', 'SP']);
+  });
+  // '' is this panel's own "(none)" choice.
+  var colorValues = memoizedOnFirstUse(function () {
+    return [''].concat(specValuesInScreenOrder(DspfWriter.dateTimeValidValues('COLOR'),
+      ['BLU', 'RED', 'WHT', 'GRN', 'TRQ', 'YLW', 'PNK']));
+  });
 
   // Real DDS lets a DSPATR keyword's parameter be EITHER one or more of the
   // literal attribute codes above OR the name of a "program-to-system"
@@ -848,7 +873,7 @@
     var known = [];
     var pgmField = '';
     (attrs || []).forEach(function (a) {
-      if (DSPATR_ATTRS.indexOf(a) >= 0) known.push(a);
+      if (dspatrAttrs().indexOf(a) >= 0) known.push(a);
       else if (a && !pgmField) pgmField = a; // at most one P-field name per real DDS
     });
     return { attrs: known, pgmField: pgmField };
@@ -902,12 +927,12 @@
     html += repeatableConditionedInstancesHtml(states, ownerKey + '-colorattr', function (inst, instIdPrefix) {
       var split = splitAttrsAndPgmField(inst.attrs);
       var payload = '<div class="field-row"><label>Color</label><select id="' + instIdPrefix + '-color">' +
-        COLOR_VALUES.map(function (c) {
+        colorValues().map(function (c) {
           return '<option value="' + c + '"' + (inst.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
         }).join('') + '</select></div>';
       payload += pgmFieldRowHtml(instIdPrefix, split.pgmField);
       payload += '<div class="attr-checks">';
-      DSPATR_ATTRS.forEach(function (a) {
+      dspatrAttrs().forEach(function (a) {
         var checked = split.attrs.indexOf(a) >= 0;
         payload += '<label class="attr-check"><input type="checkbox" class="' + instIdPrefix + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
       });
@@ -920,10 +945,10 @@
       // color and no attributes checked would write nothing and simply
       // vanish on the very next re-render (see readColorAttrStaging below).
       var staging = '<div class="field-row"><label>Color</label><select id="' + stagingIdPrefix + '-color">' +
-        COLOR_VALUES.map(function (c) { return '<option value="' + c + '">' + (c || '(none)') + '</option>'; }).join('') + '</select></div>';
+        colorValues().map(function (c) { return '<option value="' + c + '">' + (c || '(none)') + '</option>'; }).join('') + '</select></div>';
       staging += pgmFieldRowHtml(stagingIdPrefix, '');
       staging += '<div class="attr-checks">';
-      DSPATR_ATTRS.forEach(function (a) {
+      dspatrAttrs().forEach(function (a) {
         staging += '<label class="attr-check"><input type="checkbox" class="' + stagingIdPrefix + '-attr" value="' + a + '"/>' + a + '</label>';
       });
       staging += '</div>';
@@ -3346,11 +3371,11 @@
     var enabled = { color: !!sep.color, attrs: sep.attrs.length > 0, chars: !!sep.char };
     var html = '<div class="section-label">Menu-bar separator (MNUBARSEP)</div>';
     html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-mnubarsep-color-on" ' + (enabled.color ? 'checked' : '') + ' /> Color</label>';
-    html += '<select id="' + ownerKey + '-mnubarsep-color">' + COLOR_VALUES.map(function (c) {
+    html += '<select id="' + ownerKey + '-mnubarsep-color">' + colorValues().map(function (c) {
       return '<option value="' + c + '"' + (sep.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
     }).join('') + '</select>';
     html += '<label style="display:flex;align-items:center;gap:6px;margin:8px 0 6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-mnubarsep-attrs-on" ' + (enabled.attrs ? 'checked' : '') + ' /> Display attributes</label>';
-    html += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+    html += '<div class="attr-checks">' + wdwBorderAttrs().map(function (a) {
       var checked = sep.attrs.indexOf(a) >= 0;
       return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-mnubarsep-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
     }).join('') + '</div>';
@@ -3924,10 +3949,10 @@
       var enabled = !!current.color || current.attrs.length > 0;
       html += '<div style="margin-bottom:10px;">';
       html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;font-weight:600;"><input type="checkbox" id="' + ownerKey + '-ccs-' + state.key + '-on" ' + (enabled ? 'checked' : '') + ' /> ' + state.label + ' (' + state.keyword + ')</label>';
-      html += '<select id="' + ownerKey + '-ccs-' + state.key + '-color">' + COLOR_VALUES.map(function (c) {
+      html += '<select id="' + ownerKey + '-ccs-' + state.key + '-color">' + colorValues().map(function (c) {
         return '<option value="' + c + '"' + (current.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
       }).join('') + '</select>';
-      html += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+      html += '<div class="attr-checks">' + wdwBorderAttrs().map(function (a) {
         var checked = current.attrs.indexOf(a) >= 0;
         return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-ccs-' + state.key + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
       }).join('') + '</div>';
@@ -4018,10 +4043,10 @@
     var html = '<div class="section-label">Entry field attribute (ENTFLDATR)</div>';
     html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-on" ' + (enabled ? 'checked' : '') + ' /> Change attributes while the cursor is in the field</label>';
     html += '<div class="hint-small">All fields below are optional - a plain ENTFLDATR with no color, attribute, or cursor setting is valid DDS (per IBM\'s own example) and uses the documented defaults (white / high intensity / cursor visible).</div>';
-    html += '<select id="' + ownerKey + '-color">' + COLOR_VALUES.map(function (c) {
+    html += '<select id="' + ownerKey + '-color">' + colorValues().map(function (c) {
       return '<option value="' + c + '"' + (current.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>';
     }).join('') + '</select>';
-    html += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+    html += '<div class="attr-checks">' + wdwBorderAttrs().map(function (a) {
       var checked = current.attrs.indexOf(a) >= 0;
       return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
     }).join('') + '</div>';
@@ -4238,7 +4263,11 @@
   // Record General, SFLMSG General, Field Input keywords) per this
   // codebase's own "build once, wire in many places" convention (see
   // PICKER-SCREENS-PLAN.md) - CHGINPDFT's shape doesn't vary by level.
-  var CHGINPDFT_CODES = ['HI', 'RI', 'CS', 'BL', 'UL', 'LC', 'ME', 'MF', 'FE'];
+  //  Task I-121r: the nine codes are CHGINPDFT's spec value domain; the order is the screen's.
+  var chgInpDftCodes = memoizedOnFirstUse(function () {
+    return specValuesInScreenOrder(DspfWriter.dateTimeValidValues('CHGINPDFT'),
+      ['HI', 'RI', 'CS', 'BL', 'UL', 'LC', 'ME', 'MF', 'FE']);
+  });
   var CHGINPDFT_LABELS = {
     HI: 'High intensity', RI: 'Reverse image', CS: 'Column separators', BL: 'Blink',
     UL: 'Underline', LC: 'Lowercase allowed', ME: 'Mandatory entry', MF: 'Mandatory fill',
@@ -4262,7 +4291,7 @@
     var html = flagRowHtml(id, label, kw.present, undefined, undefined, undefined, undefined);
     html += '<input type="hidden" id="' + id + '-params" value="' + escapeHtml(kw.parameters || '') + '" />';
     html += '<div class="attr-checks" style="margin:2px 0 10px 22px;">';
-    CHGINPDFT_CODES.forEach(function (code) {
+    chgInpDftCodes().forEach(function (code) {
       var checked = codes.indexOf(code) >= 0;
       html += '<label class="attr-check" title="' + escapeHtml(CHGINPDFT_LABELS[code]) + '"><input type="checkbox" class="' + id + '-code" value="' + code + '" ' + (checked ? 'checked' : '') + '/>' + code + '</label>';
     });
@@ -4330,7 +4359,11 @@
     });
   }
 
-  var WDWBORDER_ATTRS = ['HI', 'RI', 'CS', 'BL', 'ND', 'UL'];
+  //  Task I-121r: WDWBORDER's display-attribute values are the spec's fact; the order is the screen's.
+  var wdwBorderAttrs = memoizedOnFirstUse(function () {
+    return specValuesInScreenOrder(DspfWriter.displayAttributeValues('WDWBORDER'),
+      ['HI', 'RI', 'CS', 'BL', 'ND', 'UL']);
+  });
   var BORDER_POSITIONS = [
     { key: 0, label: 'Top-left-corner' },
     { key: 1, label: 'Top-border' },
@@ -4359,10 +4392,10 @@
     var wbEnabled = { color: !!wb.color, attrs: wb.attrs.length > 0, chars: wb.chars.some(function (c) { return c; }) };
     var win = '<div class="section-label">Color</div>';
     win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-color-on" ' + (wbEnabled.color ? 'checked' : '') + ' /> Define parameters</label>';
-    win += '<select id="' + idPrefix + '-color">' + COLOR_VALUES.map(function (c) { return '<option value="' + c + '"' + (wb.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>'; }).join('') + '</select>';
+    win += '<select id="' + idPrefix + '-color">' + colorValues().map(function (c) { return '<option value="' + c + '"' + (wb.color === c ? ' selected' : '') + '>' + (c || '(none)') + '</option>'; }).join('') + '</select>';
     win += '<div class="section-label">Display attributes</div>';
     win += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;"><input type="checkbox" id="' + idPrefix + '-attrs-on" ' + (wbEnabled.attrs ? 'checked' : '') + ' /> Define parameters</label>';
-    win += '<div class="attr-checks">' + WDWBORDER_ATTRS.map(function (a) {
+    win += '<div class="attr-checks">' + wdwBorderAttrs().map(function (a) {
       var checked = wb.attrs.indexOf(a) >= 0;
       return '<label class="attr-check"><input type="checkbox" class="' + idPrefix + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
     }).join('') + '</div>';
@@ -8759,6 +8792,11 @@
     rebuildRecordSelect: rebuildRecordSelect,
     recordTypeDependentInfo: recordTypeDependentInfo,
     RECORD_TYPES: RECORD_TYPES,
+    dspatrAttrs: dspatrAttrs,
+    colorValues: colorValues,
+    chgInpDftCodes: chgInpDftCodes,
+    wdwBorderAttrs: wdwBorderAttrs,
+    specValuesInScreenOrder: specValuesInScreenOrder,
     isSflFamilyRecordType: isSflFamilyRecordType,
     buildTypedRecordPlan: buildTypedRecordPlan,
     missingDependentMessage: missingDependentMessage,

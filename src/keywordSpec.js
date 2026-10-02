@@ -2123,6 +2123,14 @@
     var spec = RECORD_TYPES[keywordName];
     return spec && spec.validValues ? spec.validValues.slice() : [];
   }
+  /** Task I-121r - the display-attribute values WDWBORDER's own DDS Reference
+   *  section lists (BL, CS, HI, ND, RI, UL). A copy; [] for a keyword with no
+   *  such fact. The color parameter is not repeated here: it takes the COLOR
+   *  values (validValues('COLOR')). */
+  function displayAttributeValues(keywordName) {
+    var spec = RECORD_TYPES[keywordName];
+    return spec && spec.displayAttributeValues ? spec.displayAttributeValues.slice() : [];
+  }
   /** Whether `value` is one of `keywordName`'s declared values (exact
    *  match, case-sensitive for the separator characters; the special
    *  *VALUES are compared upper-cased). False for a keyword with no fact. */
@@ -3299,6 +3307,7 @@
     isAltKeyName: isAltKeyName,
     altKeyDefaultKey: altKeyDefaultKey,
     isValidValue: isValidValue,
+    displayAttributeValues: displayAttributeValues,
     checkCodes: checkCodes,
     checkCodeGroup: checkCodeGroup,
     conditionalMutexHit: conditionalMutexHit,

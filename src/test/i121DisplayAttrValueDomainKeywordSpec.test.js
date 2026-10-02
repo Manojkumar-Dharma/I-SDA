@@ -49,15 +49,30 @@ check('WDWBORDER attributes are DSPATR values', R.WDWBORDER.displayAttributeValu
 check('WDWBORDER attributes are all-field DSPATR values', R.WDWBORDER.displayAttributeValues.every((v) => R.DSPATR.inputCapableOnlyValues.indexOf(v) < 0));
 
 console.log('\n=== 3. the webview lists ===');
-const dspatr = listIn('DSPATR_ATTRS');
-const color = listIn('COLOR_VALUES');
-const border = listIn('WDWBORDER_ATTRS');
-const chg = listIn('CHGINPDFT_CODES');
-check('parsed all four lists', !!(dspatr && color && border && chg));
-check('DSPATR_ATTRS = DSPATR values', sameSet(dspatr, R.DSPATR.validValues));
-check('COLOR_VALUES = \'\' + COLOR values', color.indexOf('') === 0 && sameSet(color.slice(1), R.COLOR.validValues));
-check('WDWBORDER_ATTRS = WDWBORDER display attributes', sameSet(border, R.WDWBORDER.displayAttributeValues));
-check('CHGINPDFT_CODES = CHGINPDFT values', sameSet(chg, R.CHGINPDFT.validValues));
+// Task I-121r - the four lists are no longer literals: they are read from
+// the spec on first use (screen order kept). The test now asks the helpers
+// for them instead of regex-parsing source text.
+const DspfWriter = require(path.join(__dirname, '../dspfWriter.js'));
+global.DspfWriter = DspfWriter;
+const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
+const dspatr = Helpers.dspatrAttrs();
+const color = Helpers.colorValues();
+const border = Helpers.wdwBorderAttrs();
+const chg = Helpers.chgInpDftCodes();
+check('DSPATR list = DSPATR values', sameSet(dspatr, R.DSPATR.validValues));
+check('COLOR list = \'\' + COLOR values', color.indexOf('') === 0 && sameSet(color.slice(1), R.COLOR.validValues));
+check('WDWBORDER list = WDWBORDER display attributes', sameSet(border, R.WDWBORDER.displayAttributeValues));
+check('CHGINPDFT list = CHGINPDFT values', sameSet(chg, R.CHGINPDFT.validValues));
+// Screen order is presentation and must not move (the pre-I-121r literals, verbatim).
+check('DSPATR screen order unchanged', j(dspatr) === j(['HI', 'RI', 'CS', 'BL', 'ND', 'UL', 'PC', 'MDT', 'PR', 'OID', 'SP']));
+check('COLOR screen order unchanged', j(color) === j(['', 'BLU', 'RED', 'WHT', 'GRN', 'TRQ', 'YLW', 'PNK']));
+check('WDWBORDER screen order unchanged', j(border) === j(['HI', 'RI', 'CS', 'BL', 'ND', 'UL']));
+check('CHGINPDFT screen order unchanged', j(chg) === j(['HI', 'RI', 'CS', 'BL', 'UL', 'LC', 'ME', 'MF', 'FE']));
+check('the writer exposes the WDWBORDER accessor as a copy', j(DspfWriter.displayAttributeValues('WDWBORDER')) === j(R.WDWBORDER.displayAttributeValues) && DspfWriter.displayAttributeValues('WDWBORDER') !== R.WDWBORDER.displayAttributeValues);
+check('a keyword with no display-attribute fact gives []', DspfWriter.displayAttributeValues('DUP').length === 0);
+// The spec is the owner: a value the spec adds and the screen order does not name is appended, never dropped.
+check('specValuesInScreenOrder appends a spec value the screen order lacks', j(Helpers.specValuesInScreenOrder(['A', 'B', 'C'], ['C', 'A'])) === j(['C', 'A', 'B']));
+check('specValuesInScreenOrder drops a screen value the spec no longer has', j(Helpers.specValuesInScreenOrder(['A'], ['C', 'A'])) === j(['A']));
 const labels = (web.match(/var CHGINPDFT_LABELS = \{([\s\S]*?)\n  \}/) || [])[1] || '';
 check('every CHGINPDFT value has a label', R.CHGINPDFT.validValues.every((v) => new RegExp('\\b' + v + ':').test(labels)));
 

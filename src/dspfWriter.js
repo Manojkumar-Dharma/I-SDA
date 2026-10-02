@@ -9548,6 +9548,7 @@
     layoutParametersNewConflictReason: layoutParametersNewConflictReason,
     sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,
     dateTimeValidValues: dateTimeValidValues,
+    displayAttributeValues: KeywordSpec.displayAttributeValues,
     moubtnParameterDomain: moubtnParameterDomain,
     moubtnCommandKeyConflictReason: moubtnCommandKeyConflictReason,
     altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,

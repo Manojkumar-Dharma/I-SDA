@@ -181,7 +181,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done v0.10.285 | — |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
-| [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Claimed (in progress); choice radio groups done v0.10.284 | — |
+| [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done, v0.10.274: the six keywords with no tests; next: batch 2) | — |
@@ -6252,9 +6252,29 @@ The writer has 86 `*ConflictReason`-style functions. A first pass (v0.10.284) fo
 
 ### I-121r — Webview constant tables
 
-> **Area:** Tooling · **Status:** Partly done (choice radio groups, v0.10.284) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done v0.10.287 (choice radio groups earlier, v0.10.284) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 Hand-written keyword tables in `webviewClientHelpers.js`: `RECORD_TYPES` (record-type list), `DSPATR_ATTRS`, `COLOR_VALUES`, `VALIDITY_CHECK_CODES`, `RECORD_INDICATOR_INSTANCE_KEYWORDS`, `KEYING_OPTION_CODES`, `GENERAL_FIELD_KEYWORD_ROWS`, `DFT_GROUP_KEYS`, `CHOICE_COLOR_STATES`, `CHGINPDFT_CODES`, `WDWBORDER_ATTRS`, `BORDER_POSITIONS`, and the `ROW_KEYWORD` map. Some may already derive from the spec after the value-domain slices (v0.10.256-v0.10.272): verify each, then derive or migrate. **Done:** `CHOICE_SELECTION_RADIO_GROUPS` - v0.10.284 (the panel builds its groups from `selectionParameters`; screen wording stays in `CHOICE_SELECTION_GROUP_TEXT`). Display labels (`DATE_FORMAT_LABELS`, `TIME_FORMAT_LABELS`, `DATE_SEP_LABELS`, `TIME_SEP_LABELS`, `CHGINPDFT_LABELS`) are UI text and stay.
+
+**Result (v0.10.287).** Pure refactor; no behaviour change. Each table was checked against the spec first.
+
+Derived from the spec (the spec says which values exist; the webview keeps only its own screen order, through `specValuesInScreenOrder`, which appends any value the spec adds rather than dropping it):
+
+- `DSPATR_ATTRS`, `COLOR_VALUES` (plus the panel's own `''` "(none)" choice), `CHGINPDFT_CODES` - from `KeywordSpec.validValues` (via `DspfWriter.dateTimeValidValues`).
+- `WDWBORDER_ATTRS` - from the new `KeywordSpec.displayAttributeValues('WDWBORDER')`, re-exported by the writer.
+- They are now functions (`dspatrAttrs()` and so on) that read the spec on first use, so loading the module still needs no `DspfWriter` in place.
+
+Already consistent with the spec, now pinned by a test instead of re-derived (they carry screen wording or grouping):
+
+- `RECORD_INDICATOR_INSTANCE_KEYWORDS` is exactly the spec's ten record-indicator keywords.
+- `VALIDITY_CHECK_CODES` and `KEYING_OPTION_CODES` use only spec CHECK codes, do not overlap, and together with the immediate variants cover the spec set except `RLTB` (no checkbox is offered for it).
+- `CHOICE_COLOR_STATES` is exactly the spec's `CHCAVAIL`, `CHCUNAVAIL`, `CHCSLT`.
+
+Classified as screen text and left in place: `RECORD_TYPES` (the "+ Add record" wizard menu; `SFLCTL` is deliberately absent), `BORDER_POSITIONS` (the eight WDWBORDER character positions), `GENERAL_FIELD_KEYWORD_ROWS` (row layout and scoping), `DFT_GROUP_KEYS` (element-id to keyword map) and the `ROW_KEYWORD` map (row-id stem to keyword).
+
+Tests: `i121DisplayAttrValueDomainKeywordSpec.test.js` now calls the real getters (it used to parse the source text) and also pins screen order; new `i121rWebviewConstantTablesSpec.test.js` guards the remaining tables. Full suite: 235 files / 12,794 checks / zero failures.
+
+No new findings.
 
 ---
 
