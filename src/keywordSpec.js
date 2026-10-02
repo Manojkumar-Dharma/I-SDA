@@ -1859,12 +1859,72 @@
     return list.indexOf(v) >= 0 || list.indexOf(v.toUpperCase()) >= 0 && v.charAt(0) === '*';
   }
 
+  /** Task I-121 (command-key grammar slice) - what a command-key keyword
+   *  or token looks like: a two-letter type (CA = command attention, CF =
+   *  command function) followed by a two-digit key number, CA01..CA24 /
+   *  CF01..CF24 (DDS_Keyword_V7r6.txt, CAnn and CFnn sections; the number
+   *  range itself is PSHBTNCHC_COMMAND_KEY_DOMAIN's). Previously the same
+   *  /^(CA|CF)(\d{2})$/ was hand-copied three times (the engine's
+   *  COMMAND_KEY_RE, the writer's COMMAND_KEY_RE and its COMMAND_KEY_TOKEN_RE).
+   *  A grammar fact, not a keyword's: it describes the NAME shape shared by
+   *  the CAnn / CFnn keywords and by every command-key parameter token. */
+  var COMMAND_KEY_GRAMMAR = {
+    types: ['CA', 'CF'],
+    digits: 2
+  };
+  var COMMAND_KEY_RE = new RegExp('^(' + COMMAND_KEY_GRAMMAR.types.join('|') + ')(\\d{' + COMMAND_KEY_GRAMMAR.digits + '})$');
+
+  /** The command-key type prefixes, in declared order (a fresh array). */
+  function commandKeyTypes() {
+    return COMMAND_KEY_GRAMMAR.types.slice();
+  }
+
+  /** `{ type, number }` for an exact CAnn / CFnn token ('CA05' ->
+   *  { type: 'CA', number: '05' }), else null. Case-sensitive and not
+   *  trimmed, like the regexes it replaces - callers uppercase / trim
+   *  first where their input needs it. Non-strings are not keys. */
+  function parseCommandKey(token) {
+    if (typeof token !== 'string') return null;
+    var m = COMMAND_KEY_RE.exec(token);
+    return m ? { type: m[1], number: m[2] } : null;
+  }
+
+  /** Whether `name` is exactly a CAnn / CFnn keyword name. */
+  function isCommandKeyName(name) {
+    return parseCommandKey(name) !== null;
+  }
+
+  /** The alt-key keyword names (ALTHELP, ALTPAGEDWN, ALTPAGEUP), derived
+   *  from the RECORD_TYPES entries that claim a command key (those with a
+   *  `claimedKeyType` and a `defaultKey`), in declared order. A fresh
+   *  array; previously hand-written in the writer, here and the webview. */
+  function altKeyNames() {
+    return Object.keys(RECORD_TYPES).filter(function (k) {
+      var e = RECORD_TYPES[k];
+      return e && typeof e.claimedKeyType === 'string' && typeof e.defaultKey === 'string';
+    });
+  }
+
+  /** Whether `name` (any case) is an alt-key keyword. Own-property safe. */
+  function isAltKeyName(name) {
+    if (typeof name !== 'string') return false;
+    return altKeyNames().indexOf(name.toUpperCase()) !== -1;
+  }
+
+  /** The `{ type, number }` an alt key claims when it has no parameter
+   *  (ALTHELP -> CA01, ALTPAGEDWN -> CF08, ALTPAGEUP -> CF07), else null
+   *  for a name that is not an alt key. */
+  function altKeyDefaultKey(name) {
+    if (!isAltKeyName(name)) return null;
+    return parseCommandKey(RECORD_TYPES[name.toUpperCase()].defaultKey);
+  }
+
   /** Task I-139 - the alt keys' file-wide command-key exclusions, one entry
    *  per alt key (ALTHELP, ALTPAGEDWN, ALTPAGEUP): { keyType, defaultKey,
    *  excluded: [{ keyword, relation }], ddsReference }. Copies. */
   function altKeyFileExclusions() {
     var out = {};
-    ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP'].forEach(function (k) {
+    altKeyNames().forEach(function (k) {
       var e = RECORD_TYPES[k];
       if (!e || !e.excluded) return;
       out[k] = {
@@ -2673,6 +2733,12 @@
     validValues: validValues,
     moubtnCommandKeyExclusion: moubtnCommandKeyExclusion,
     altKeyFileExclusions: altKeyFileExclusions,
+    commandKeyTypes: commandKeyTypes,
+    parseCommandKey: parseCommandKey,
+    isCommandKeyName: isCommandKeyName,
+    altKeyNames: altKeyNames,
+    isAltKeyName: isAltKeyName,
+    altKeyDefaultKey: altKeyDefaultKey,
     isValidValue: isValidValue,
     checkCodes: checkCodes,
     checkCodeGroup: checkCodeGroup,

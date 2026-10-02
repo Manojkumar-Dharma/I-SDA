@@ -1185,8 +1185,8 @@
       }) || null;
     }
     function keyOf(kw) {
-      var m = /^\s*(C[AF]\d{2})\s*$/i.exec((kw && kw.parameters) || '');
-      return m ? m[1].toUpperCase() : null;
+      var ck = KeywordSpec.parseCommandKey(String((kw && kw.parameters) || '').trim().toUpperCase());
+      return ck ? ck.type + ck.number : null;
     }
     function numOf(name) {
       var kw = activeKw(name);
@@ -2138,7 +2138,8 @@
   // DEFINED), switching to a solid/active style only when it actually is.
   // ---------------------------------------------------------------------
 
-  var COMMAND_KEY_RE = /^(CA|CF)(\d{2})$/;
+  // Task I-121 (command-key grammar slice): the CAnn / CFnn name shape is
+  // KeywordSpec's own fact (KeywordSpec.parseCommandKey), shared with the writer.
 
   /**
    * @param {object} dspfFile parsed model
@@ -2157,7 +2158,8 @@
 
     function collect(keywords) {
       (keywords || []).forEach(function (k) {
-        var m = COMMAND_KEY_RE.exec(k.name);
+        var ck = KeywordSpec.parseCommandKey(k.name);
+        var m = ck ? [k.name, ck.type, ck.number] : null;
         if (!m) return;
         if (seen[m[2]]) return; // a more-specific scope (record, collected first) already claimed this number
         seen[m[2]] = true;

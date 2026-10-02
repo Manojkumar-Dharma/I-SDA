@@ -5313,7 +5313,7 @@
     // that a MOUBTN Command key of the opposite type may not share. Turning
     // one on, or changing its key, is checked against every MOUBTN in the
     // file; on a clash the row alerts and re-renders to its stored state.
-    ['ALTHELP', 'ALTPAGEUP', 'ALTPAGEDWN'].forEach(function (name) {
+    DspfWriter.altKeyNames().forEach(function (name) {
       var id = 'fk-' + name.toLowerCase();
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, params, undefined, conditions, undefined);

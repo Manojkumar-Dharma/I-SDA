@@ -575,7 +575,14 @@
   // never numbers used by some OTHER record.
   // ---------------------------------------------------------------------
 
-  var COMMAND_KEY_RE = /^(CA|CF)(\d{2})$/;
+  // Task I-121 (command-key grammar slice): the CAnn / CFnn name shape is
+  // KeywordSpec's own fact (parseCommandKey / isCommandKeyName); this is only
+  // the regex-exec-shaped view the callers below were written against
+  // ([token, type, number], or null).
+  function commandKeyMatch(token) {
+    var p = KeywordSpec.parseCommandKey(token);
+    return p ? [token, p.type, p.number] : null;
+  }
 
   function padKeyNumber(n) {
     var s = String(parseInt(n, 10));
@@ -586,7 +593,7 @@
   function parseCommandKeys(keywords) {
     var result = [];
     (keywords || []).forEach(function (k) {
-      var m = COMMAND_KEY_RE.exec(k.name);
+      var m = commandKeyMatch(k.name);
       if (!m) return;
       var params = (k.parameters || '').trim();
       var indicator = null;
@@ -669,7 +676,7 @@
   function setCommandKeyAt(keywords, index, type, number, indicator, text, conditions) {
     var all = keywords || [];
     var cmdIndices = [];
-    all.forEach(function (k, i) { if (COMMAND_KEY_RE.test(k.name)) cmdIndices.push(i); });
+    all.forEach(function (k, i) { if (KeywordSpec.isCommandKeyName(k.name)) cmdIndices.push(i); });
     var paddedNumber = padKeyNumber(number);
     var params = '';
     if (indicator != null && String(indicator).trim() !== '') {
@@ -696,7 +703,7 @@
   function removeCommandKeyAt(keywords, index) {
     var all = keywords || [];
     var cmdIndices = [];
-    all.forEach(function (k, i) { if (COMMAND_KEY_RE.test(k.name)) cmdIndices.push(i); });
+    all.forEach(function (k, i) { if (KeywordSpec.isCommandKeyName(k.name)) cmdIndices.push(i); });
     if (index == null || index < 0 || index >= cmdIndices.length) return all.slice();
     var removeAt = cmdIndices[index];
     return all.filter(function (k, i) { return i !== removeAt; });
@@ -4798,7 +4805,6 @@
   // CFnn, defaults CF08 / CF07) and the plain CAnn / CFnn keywords.
   // -----------------------------------------------------------------------
 
-  var COMMAND_KEY_TOKEN_RE = /^(CA|CF)(\d{2})$/;
 
   /** The (type, number) a MOUBTN instance's Command key claims, or null when
    *  it is not a CAnn / CFnn (ENTER, ROLLUP, an EVENT-ID, an unfinished
@@ -4808,7 +4814,7 @@
     var tokens = String(parameters || '').trim().split(/\s+/).filter(Boolean);
     if (tokens.length && /^\*(NO)?QUEUE$/i.test(tokens[tokens.length - 1])) tokens.pop();
     if (tokens.length < 2) return null;
-    var m = COMMAND_KEY_TOKEN_RE.exec(tokens[tokens.length - 1].toUpperCase());
+    var m = commandKeyMatch(tokens[tokens.length - 1].toUpperCase());
     return m ? { type: m[1], number: m[2] } : null;
   }
 
@@ -4825,12 +4831,12 @@
       }
       if (partner) {
         var param = String(k.parameters || '').trim().split(/\s+/)[0].toUpperCase();
-        var explicit = COMMAND_KEY_TOKEN_RE.exec(param);
-        var key = explicit || COMMAND_KEY_TOKEN_RE.exec(partner.defaultKey);
+        var explicit = commandKeyMatch(param);
+        var key = explicit || commandKeyMatch(partner.defaultKey);
         claims.push({ type: key[1], number: key[2], label: name + (explicit ? '(' + param + ')' : ' (no parameter, default ' + partner.defaultKey + ')'), source: name });
         return;
       }
-      var plain = COMMAND_KEY_TOKEN_RE.exec(name);
+      var plain = commandKeyMatch(name);
       if (plain && exclusion.plainKeyTypes.indexOf(plain[1]) >= 0) {
         claims.push({ type: plain[1], number: plain[2], label: name, source: name });
       }
@@ -4871,7 +4877,7 @@
     var name = String(candidate.name || '').toUpperCase();
     var isMoubtn = name === 'MOUBTN';
     var isPartner = exclusion.partners.some(function (p) { return p.keyword === name; });
-    var isPlain = COMMAND_KEY_TOKEN_RE.test(name);
+    var isPlain = KeywordSpec.isCommandKeyName(name);
     if (!isMoubtn && !isPartner && !isPlain) return null;
     var singleton = isPartner;
     var scopes = (recordScopes && recordScopes.length) ? recordScopes : [[]];
@@ -4911,8 +4917,6 @@
   // are covered and an already-invalid hand-written file is not re-reported).
   // -----------------------------------------------------------------------
 
-  var ALT_KEY_NAMES = ['ALTHELP', 'ALTPAGEDWN', 'ALTPAGEUP'];
-
   /** One claim per keyword in the model that holds a command key the
    *  exclusion lists care about, wherever it sits in the file (file level,
    *  a record, or a field - PSHBTNCHC). `specKey` is the name the alt keys'
@@ -4924,14 +4928,14 @@
         var name = String(k.name || '').toUpperCase();
         var params = String(k.parameters || '').trim();
         var first = params.split(/\s+/)[0].toUpperCase();
-        var m = COMMAND_KEY_TOKEN_RE.exec(first);
-        var spec = ALT_KEY_NAMES.indexOf(name) >= 0 ? KeywordSpec.RECORD_TYPES[name] : null;
-        var plain = COMMAND_KEY_TOKEN_RE.exec(name);
+        var m = commandKeyMatch(first);
+        var spec = KeywordSpec.isAltKeyName(name) ? KeywordSpec.RECORD_TYPES[name] : null;
+        var plain = commandKeyMatch(name);
         var key = null;
         var specKey = name;
         var label = name;
         if (spec) {
-          var dk = COMMAND_KEY_TOKEN_RE.exec(spec.defaultKey);
+          var dk = commandKeyMatch(spec.defaultKey);
           key = m || dk;
           label = name + (m ? '(' + first + ')' : ' (no parameter, default ' + spec.defaultKey + ')');
           claims.push({ alt: true, keyword: name, specKey: name, type: key[1], number: key[2], label: label, owner: owner });
@@ -4955,7 +4959,7 @@
           return;
         }
         if (name === 'PSHBTNCHC') {
-          var ck = COMMAND_KEY_TOKEN_RE.exec(String(parsePshbtnchcParams(params).commandKey || '').toUpperCase());
+          var ck = commandKeyMatch(String(parsePshbtnchcParams(params).commandKey || '').toUpperCase());
           if (ck) claims.push({ alt: false, keyword: name, specKey: name, type: ck[1], number: ck[2], label: 'PSHBTNCHC(' + params + ')', owner: owner });
         }
       });
@@ -9511,6 +9515,8 @@
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
+    altKeyNames: function () { return KeywordSpec.altKeyNames(); },
+    parseCommandKey: function (token) { return KeywordSpec.parseCommandKey(token); },
     keepMutexConflictReason: keepMutexConflictReason,
     alwrolClrlSlnoConflictReason: alwrolClrlSlnoConflictReason,
     mnubarFieldShapeNote: mnubarFieldShapeNote,
