@@ -6209,7 +6209,15 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireSflKeywordsPanels('sfl-' + rec.name, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.records.find((r) => r.name === recordName).fields);
     }
     if (isSflCtl) {
-      WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords, () => model.records);
+      WebviewClientHelpers.wireSflCtlPanels(sflCtlPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords, () => model.records, {
+        fieldExists: (fname) => model.records.find((r) => r.name === recordName).fields.some((f) => f.nameType !== 'CONSTANT' && String(f.name).toUpperCase() === fname),
+        createField: (fname, done) => commitSourceChange(
+          (lines) => DspfWriter.insertField(model.records.find((r) => r.name === recordName), lines, {
+            nameType: 'FIELD', name: fname, length: 5, decimalPositions: 0, dataType: 'S', usage: 'H', location: { line: null, column: null },
+          }),
+          done
+        ),
+      });
       // Task L74: SFLPGMQ is field-level even on SFLCTL (see
       // sflPgmqFieldHtml's own comment) - wired the same way L73 wired it
       // for SFLMSG, a field-level commit rather than a record-keywords one.

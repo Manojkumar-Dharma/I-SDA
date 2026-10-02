@@ -4193,10 +4193,12 @@
     var paramsEl = document.getElementById(id + '-params');
     function commit() {
       var present = onEl.checked;
-      var params = paramsEl ? paramsEl.value : '';
-      // Task I-103: optional guard (only wireChgInpDftFlag's record-level call
-      // passes one) - it alerts and reverts the row itself when it refuses.
+      // Task I-103: optional guard (wireChgInpDftFlag's record-level call; since
+      // I-142 also the SFLCSRRRN row) - it alerts and reverts the row itself
+      // when it refuses. The box is read AFTER the guard, because the
+      // SFLCSRRRN guard rewrites it (adds the leading ampersand).
       if (guard && !guard(present)) return;
+      var params = paramsEl ? paramsEl.value : '';
       onChange(apply(getKeywords(), present, params));
     }
     if (onEl) onEl.addEventListener('change', commit);
@@ -4204,8 +4206,8 @@
 
     wireFlagRowConditioning(id, conditions, function (newConditions) {
       var present = onEl.checked;
-      var params = paramsEl ? paramsEl.value : '';
       if (guard && !guard(present)) return;
+      var params = paramsEl ? paramsEl.value : '';
       onChange(apply(getKeywords(), present, params, newConditions));
     }, expandedSet, rerender);
   }
@@ -8263,14 +8265,44 @@
    *  uses. getRecords is Task I-86's own addition - see this function's
    *  SFLNXTCHG guard below for why it needs the full record list rather
    *  than just this record's own fields. */
-  function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, getRecords) {
+  function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, getRecords, relRecField) {
     var p = idPrefix;
 
     // General
     // I-10: SFLCTL - "Option indicators are not valid for this keyword."
     wireFlagRow(p + '-sflctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCTL', present, params, undefined, conditions); }, undefined, undefined, undefined);
     // I-10: SFLCSRRRN - no explicit option-indicator statement found either way in the DDS Reference; left as-is rather than guessing (I-7's RETKEY/RETCMDKEY/KEEP precedent).
-    wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCSRRRN').conditions, expandedSet, rerender);
+    // Task I-142 follow-up: two conveniences on top of the strict rule. (1) A
+    // bare field name typed in the box gets its leading ampersand added for
+    // you (the box is rewritten so what you see is what is written). (2) A
+    // well-formed name that is not a field of this record offers to create it
+    // as the hidden field IBM requires (S, length 5, 0 decimals, usage H) and
+    // then writes the keyword - one confirmation, two edits. Anything else
+    // (empty, several tokens, an existing field with the wrong attributes)
+    // falls through to the writer's own refusal message. Turning the row off
+    // is never intercepted.
+    function sflcsrrrnGuard(present) {
+      if (!present) return true;
+      var box = document.getElementById(p + '-sflcsrrrn-params');
+      if (!box) return true;
+      var v = box.value.trim();
+      if (/^[A-Za-z$#@][A-Za-z0-9_$#@]{0,9}$/.test(v)) { v = '&' + v; box.value = v; }
+      if (!relRecField || !/^&[A-Za-z$#@][A-Za-z0-9_$#@]{0,9}$/.test(v)) return true;
+      var fname = v.slice(1).toUpperCase();
+      if (relRecField.fieldExists(fname)) return true;
+      showConfirmDialog(
+        'Create the hidden field?',
+        'SFLCSRRRN names ' + v.toUpperCase() + ', but this subfile-control record has no such field. Create it as a hidden field (signed numeric S, length 5, 0 decimal positions, usage H) and use it for SFLCSRRRN?',
+        'Create field',
+        function () {
+          relRecField.createField(fname, function () {
+            onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'SFLCSRRRN', true, '&' + fname, undefined, undefined));
+          });
+        }
+      );
+      return false;
+    }
+    wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCSRRRN').conditions, expandedSet, rerender, sflcsrrrnGuard);
     // I-10: SFLMODE - "Option indicators are not valid for this keyword."
     wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params, undefined, conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-sfldsp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDSP').conditions, expandedSet, rerender);

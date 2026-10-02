@@ -8,6 +8,11 @@
  * the SFLCTL panel wrote whatever was typed (empty -> bare SFLCSRRRN, RELRCD ->
  * SFLCSRRRN(RELRCD)) and nothing checked the field.
  *
+ * Follow-up (user request): in the SFLCTL panel a bare field name gets its
+ * leading & added, and a well-formed name that is not a field of the record
+ * offers to create it as the hidden S / 5 / 0 / H field, then writes the
+ * keyword. The writer and the raw keyword editor stay strict.
+ *
  * Run with: node src/test/i142SflcsrrrnParameter.test.js
  */
 'use strict';
@@ -134,12 +139,43 @@ setTimeout(() => {
     check('ticking SFLCSRRRN with an empty box is refused (no bare keyword written)', /SFLCSRRRN needs a parameter/.test(r.msg || '') && r.text === null);
   }
   {
-    const r = panel(true, 'RELRCD');
-    check('RELRCD without the & is refused, nothing written', /leading &/.test(r.msg || '') && r.text === null);
+    const r = panel(true, 'two words');
+    check('several tokens are still refused by the writer (no auto-&)', /leading &/.test(r.msg || '') && r.text === null);
+  }
+  const dialog = () => doc.querySelector('.confirm-overlay');
+  const clickDialog = (cls) => fire(doc.querySelector('.confirm-overlay .' + cls), 'click');
+  {
+    const r = panel(true, 'NEWREC');
+    check('a well-formed name for a missing field opens the create-field dialog, writes nothing yet', r.msg === null && r.text === null && !!dialog() && /no such field/.test(dialog().textContent) && /NEWREC/.test(dialog().textContent));
+    check('the dialog states the field it will create (S, length 5, 0 decimals, usage H)', /signed numeric S, length 5, 0 decimal positions, usage H/.test(dialog().textContent));
+    check('the box was rewritten with the leading & (what you see is what is written)', doc.getElementById('sflctl-CTL-sflcsrrrn-params').value === '&NEWREC');
+    posted.length = 0;
+    clickDialog('confirm-dialog-cancel');
+    check('Cancel closes the dialog and writes nothing', !dialog() && lastText() === null);
   }
   {
-    const r = panel(true, '&NOPE');
-    check('a field that does not exist is refused', /does not exist in this record format/.test(r.msg || '') && r.text === null);
+    panel(true, '&NEWREC');
+    posted.length = 0;
+    const msg = withAlert(() => clickDialog('confirm-dialog-confirm'));
+    const rec = recordFrom(lastText(), 'CTL');
+    const f = rec && rec.fields.find((x) => x.name === 'NEWREC');
+    check('Create field adds NEWREC as a hidden S / 5 / 0 field, no alert', msg === null && !!f && f.dataType === 'S' && Number(f.length) === 5 && Number(f.decimalPositions) === 0 && f.usage === 'H');
+    check('...and writes SFLCSRRRN(&NEWREC) in the same action', sflcsrrrn(lastText()) === '&NEWREC' && /SFLCSRRRN\(&NEWREC\)/.test(lastText()));
+    check('the created field is valid by the writer\'s own rule', DspfWriter.sflcsrrrnParameterProblem('&NEWREC', recordFrom(lastText(), 'CTL').fields) === null);
+    const r2 = panel(false);
+    check('turning it off keeps the created field (never deleted for you)', r2.msg === null && sflcsrrrn(r2.text) === null && recordFrom(r2.text, 'CTL').fields.some((x) => x.name === 'NEWREC'));
+  }
+  {
+    const r = panel(true, 'RELRCD');
+    check('a bare name for an existing valid field gets the & added and is accepted, no dialog', r.msg === null && !dialog() && sflcsrrrn(r.text) === '&RELRCD' && /SFLCSRRRN\(&RELRCD\)/.test(r.text));
+    const off = panel(false);
+    check('(turned off again)', sflcsrrrn(off.text) === null);
+  }
+  {
+    const r = panel(true, '&BADLEN2');
+    const stillDialog = !!dialog();
+    if (stillDialog) clickDialog('confirm-dialog-cancel');
+    check('a missing field offers to create (it does not fall through to the refusal)', stillDialog && r.text === null);
   }
   {
     const r = panel(true, '&BADLEN');
