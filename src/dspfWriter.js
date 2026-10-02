@@ -9698,6 +9698,7 @@
     getChoiceSelectionType: getChoiceSelectionType,
     choiceColorStateKeywords: function () { return CHOICE_COLOR_STATE_KEYWORDS.slice(); },
     choiceColorStateKeywordsAllowedOn: KeywordSpec.choiceColorStateKeywordsAllowedOn,
+    choiceSelectionFlagGroups: KeywordSpec.choiceSelectionFlagGroups,
     layoutParameterProblems: layoutParameterProblems,
     layoutParametersNewConflictReason: layoutParametersNewConflictReason,
     sngchcfldOnlyFlagGroups: sngchcfldOnlyFlagGroups,

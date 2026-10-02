@@ -3403,12 +3403,27 @@
   // choice-selection-type/image205.png), grouped into the mutually-
   // exclusive radio pairs the screen itself shows them as (plus a blank
   // "not specified" option each group defaults to).
-  var CHOICE_SELECTION_RADIO_GROUPS = [
-    { name: 'rstcsr', label: 'Cursor restriction', options: [['', '(not specified)'], ['*RSTCSR', 'Restrict cursor to field'], ['*NORSTCSR', 'No restriction']] },
-    { name: 'sltind', label: 'Select indicator', options: [['', '(not specified)'], ['*SLTIND', 'Display select indicator'], ['*NOSLTIND', 'No display']] },
-    { name: 'autoslt', label: 'Auto-select', options: [['', '(not specified)'], ['*AUTOSLT', 'Select choice upon pressing Enter'], ['*NOAUTOSLT', 'No auto-select'], ['*AUTOSLTENH', 'Only with enhanced controller']] },
-    { name: 'autoent', label: 'Auto-enter', options: [['', '(not specified)'], ['*AUTOENT', 'Enable auto-enter on all display'], ['*NOAUTOENT', 'No auto-enter'], ['*AUTOENTNN', 'Only with no numeric selection']] },
-  ];
+  //  Task I-121: WHICH flags make up each group, and in what order, is
+  //  keywordSpec.js's SNGCHCFLD `selectionParameters` fact (read lazily
+  //  through DspfWriter); only the screen wording below is kept here.
+  var CHOICE_SELECTION_GROUP_TEXT = {
+    rstcsr: { label: 'Cursor restriction', flags: { '*RSTCSR': 'Restrict cursor to field', '*NORSTCSR': 'No restriction' } },
+    sltind: { label: 'Select indicator', flags: { '*SLTIND': 'Display select indicator', '*NOSLTIND': 'No display' } },
+    autoslt: { label: 'Auto-select', flags: { '*AUTOSLT': 'Select choice upon pressing Enter', '*NOAUTOSLT': 'No auto-select', '*AUTOSLTENH': 'Only with enhanced controller' } },
+    autoent: { label: 'Auto-enter', flags: { '*AUTOENT': 'Enable auto-enter on all display', '*NOAUTOENT': 'No auto-enter', '*AUTOENTNN': 'Only with no numeric selection' } },
+  };
+
+  /** The radio groups (`{name, label, options: [[value, text]]}`), every
+   *  group SNGCHCFLD offers (the superset), each with its blank "not
+   *  specified" option first. */
+  function choiceSelectionRadioGroups() {
+    return DspfWriter.choiceSelectionFlagGroups('SNGCHCFLD').map(function (group) {
+      var text = CHOICE_SELECTION_GROUP_TEXT[group.name] || { label: group.name, flags: {} };
+      var options = [['', '(not specified)']];
+      group.flags.forEach(function (flag) { options.push([flag, text.flags[flag] || flag]); });
+      return { name: group.name, label: text.label, options: options };
+    });
+  }
 
   /** Task I-34: IBM's MLTCHCFLD format string has no *AUTOSLT/*AUTOENT
    *  family at all - those two radio groups exist ONLY on SNGCHCFLD.
@@ -3434,7 +3449,7 @@
         var label = k === '' ? '(not a choice field)' : k === 'SNGCHCFLD' ? '1=SNGCHCFLD (single choice)' : '2=MLTCHCFLD (multiple choice)';
         return '<option value="' + k + '"' + (state.kind === k ? ' selected' : '') + '>' + label + '</option>';
       }).join('') + '</select></div>';
-    CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
+    choiceSelectionRadioGroups().forEach(function (group) {
       // Task I-34: *AUTOSLT/*AUTOENT only exist on SNGCHCFLD's own format
       // string - don't even render the group when the field is MLTCHCFLD
       // (or not yet a choice field), so there's nothing stale left in the
@@ -3480,7 +3495,7 @@
         if (gutterVal && !numColVal && !numRowVal) { window.alert('The gutter (*GUTTER) can only be specified together with Columns (*NUMCOL) or Rows (*NUMROW) (per the DDS Reference).'); return; }
       }
       var flags = [];
-      CHOICE_SELECTION_RADIO_GROUPS.forEach(function (group) {
+      choiceSelectionRadioGroups().forEach(function (group) {
         // Task I-34: re-check kind here too, not just by omitting the
         // <select> from the rendered HTML above - if the Type dropdown
         // is switched away from SNGCHCFLD client-side without a full
