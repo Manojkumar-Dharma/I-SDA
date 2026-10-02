@@ -179,7 +179,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Claimed (in progress) | — |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Claimed (in progress); position-35 table done v0.10.279 | — |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
-| [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Claimed (`3fc4915`), unconfirmed | — |
+| [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | In progress (re-claimed; `3fc4915` never landed) | — |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Claimed (in progress); choice radio groups done v0.10.284 | — |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Partly done (`CHARACTER_TYPES` removed, v0.10.279) | — |
@@ -219,7 +219,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-121a – I-121o](#i-121-slices) | Not started (c, d, m, n partly done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
-| 2 | [I-121p](#i-121p) | Claimed | S36E restriction table. Claim commit `3fc4915` has no landing commit - ask the claimant first. |
+| 2 | [I-121p](#i-121p) | In progress | S36E restriction table. Re-claimed by the owner after `3fc4915` never landed. |
 | 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 4 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
 | 5 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
@@ -6228,7 +6228,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121p — S36E restriction table into the spec
 
-> **Area:** Cross-level · **Status:** Claimed (`3fc4915`), unconfirmed · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Cross-level · **Status:** In progress (re-claimed; `3fc4915` never landed) · **Depends on:** I-121 · **Size (estimate):** Small
 
 Claimed in commit `3fc4915` ("Claim I-121 (S36E restriction table slice)") with no landing commit in `git log` as of v0.10.278 - **ask the claimant before starting**. Scope: `S36E_KEYWORD_RESTRICTIONS` in `dspfWriter.js` (CHANGE, HELP, HLPRTN, PRINT(*PGM) verified; ALTNAME, MSGID, RETKEY, RETCMDKEY verified but not `USRDSPMGT`-gated, `gatedByUsrdspmgt`) moves to spec facts; the S36E consumers read it. Owns no keywords - the keywords stay with their level slice.
 
