@@ -5268,9 +5268,11 @@
           '*DS4': (document.getElementById('fk-msgloc-ds4').value || '').trim(),
           '*DS3': (document.getElementById('fk-msgloc-ds3').value || '').trim(),
         };
+        var dsStd = {};
+        DspfWriter.standardDisplaySizes().forEach(function (z) { dsStd[z.name] = z; });
         var rows = [
-          { order: document.getElementById('fk-dspsiz-order-ds4').value, lines: 27, columns: 132, name: (document.getElementById('fk-dspsiz-name-ds4').value || '*DS4').trim() || '*DS4' },
-          { order: document.getElementById('fk-dspsiz-order-ds3').value, lines: 24, columns: 80, name: (document.getElementById('fk-dspsiz-name-ds3').value || '*DS3').trim() || '*DS3' },
+          { order: document.getElementById('fk-dspsiz-order-ds4').value, lines: dsStd['*DS4'].lines, columns: dsStd['*DS4'].columns, name: (document.getElementById('fk-dspsiz-name-ds4').value || '*DS4').trim() || '*DS4' },
+          { order: document.getElementById('fk-dspsiz-order-ds3').value, lines: dsStd['*DS3'].lines, columns: dsStd['*DS3'].columns, name: (document.getElementById('fk-dspsiz-name-ds3').value || '*DS3').trim() || '*DS3' },
         ].filter(function (r) { return (r.order || '').trim() !== ''; });
         rows.sort(function (a, b) { return parseInt(a.order, 10) - parseInt(b.order, 10); });
         try {

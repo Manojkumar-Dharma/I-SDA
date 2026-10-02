@@ -87,7 +87,6 @@
   // valid and distinct only in which size is primary/default). *DS3 always
   // means a fixed 24x80 and *DS4 always means a fixed 27x132 - those two
   // sizes are the only ones the bare-name form can ever mean.
-  var KNOWN_DISPLAY_SIZE_NAMES = { '*DS3': { lines: 24, columns: 80 }, '*DS4': { lines: 27, columns: 132 } };
 
   /** Walks the raw DSPSIZ parameter text and pulls out every declared size,
    *  in declaration order - either an explicit "lines cols [*qualifier]"
@@ -122,8 +121,8 @@
           i += 2;
         }
         sizes.push({ lines: parseInt(t1, 10), columns: parseInt(t2, 10), name: name });
-      } else if (KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()]) {
-        var known = KNOWN_DISPLAY_SIZE_NAMES[t1.toUpperCase()];
+      } else if (KeywordSpec.standardDisplaySize(t1)) {
+        var known = KeywordSpec.standardDisplaySize(t1);
         sizes.push({ lines: known.lines, columns: known.columns, name: t1 });
         i++;
       } else {

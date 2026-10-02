@@ -5927,7 +5927,7 @@
   function setDisplaySizesList(keywords, sizes) {
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'DSPSIZ'; });
     var list = (sizes || []).filter(function (s) { return s && s.lines > 0 && s.columns > 0; });
-    if (list.length > 2) throw new Error('DSPSIZ supports at most two display sizes.');
+    if (list.length > KeywordSpec.maxDisplaySizes()) throw new Error('DSPSIZ supports at most two display sizes.');
     if (list.length) {
       next = next.concat([{ name: 'DSPSIZ', parameters: serializeDisplaySizes(list), conditions: [], raw: '', sourceLines: [] }]);
     }
@@ -5942,7 +5942,7 @@
    *  went through plain `simple()` before I-44's own pass, then
    *  `wireUsrdfnGuardedFlag` after it - neither ever looked at DSPSIZ).
    *  `getDisplaySizesList` already normalizes both of DSPSIZ's own valid
-   *  forms - named (`*DS3`/`*DS4`, resolved via KNOWN_DISPLAY_SIZE_NAMES)
+   *  forms - named (`*DS3`/`*DS4`, resolved via KeywordSpec.standardDisplaySize)
    *  and bare numeric (`24 80`/`27 132`) - to the same `{lines, columns}`
    *  shape, so this just checks both required sizes are present in
    *  whatever order the file lists them (DSPMOD's own text only requires
@@ -5952,9 +5952,10 @@
    *  present. */
   function dspmodDspsizPrerequisiteReason(fileKeywords) {
     var sizes = getDisplaySizesList(fileKeywords);
-    var has24x80 = sizes.some(function (s) { return s.lines === 24 && s.columns === 80; });
-    var has27x132 = sizes.some(function (s) { return s.lines === 27 && s.columns === 132; });
-    if (has24x80 && has27x132) return null;
+    var hasBoth = KeywordSpec.standardDisplaySizes().every(function (z) {
+      return sizes.some(function (s) { return s.lines === z.lines && s.columns === z.columns; });
+    });
+    if (hasBoth) return null;
     return 'DSPMOD is valid only when the DSPSIZ keyword specifies both the 24x80 and 27x132 display sizes (per the DDS Reference).';
   }
 
@@ -7124,20 +7125,21 @@
     if (!newSize || !(newSize.lines > 0) || !(newSize.columns > 0)) {
       throw new Error('addDisplaySize requires newSize.lines and newSize.columns to be positive numbers.');
     }
-    var newName = newSize.name || '*DS4';
+    var newName = newSize.name || KeywordSpec.standardDisplaySizes()[1].name;
 
     var existing = (dspfFile.fileKeywords || []).find(function (k) {
       return k.name === 'DSPSIZ';
     });
     var sizes = existing ? parseDisplaySizeTriples(existing.parameters) : [];
     if (sizes.length === 0) {
-      sizes = [{ lines: 24, columns: 80, name: null }];
+      var dflt = KeywordSpec.defaultDisplaySize();
+      sizes = [{ lines: dflt.lines, columns: dflt.columns, name: null }];
     }
-    if (sizes.length >= 2) {
+    if (sizes.length >= KeywordSpec.maxDisplaySizes()) {
       throw new Error('DSPSIZ already declares two sizes - DDS does not support a third.');
     }
     if (!sizes[0].name) {
-      sizes[0] = { lines: sizes[0].lines, columns: sizes[0].columns, name: '*DS3' };
+      sizes[0] = { lines: sizes[0].lines, columns: sizes[0].columns, name: KeywordSpec.defaultDisplaySize().name };
     }
     var allSizes = sizes.concat([{ lines: newSize.lines, columns: newSize.columns, name: newName }]);
     var newKeyword = { name: 'DSPSIZ', parameters: serializeDisplaySizes(allSizes) };
@@ -9585,6 +9587,7 @@
     moubtnCommandKeyConflictReason: moubtnCommandKeyConflictReason,
     altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,
     windowDependencyNewConflictReason: windowDependencyNewConflictReason,
+    standardDisplaySizes: KeywordSpec.standardDisplaySizes,
     commandKeyClaimsInModel: commandKeyClaimsInModel,
     setChoiceSelectionType: setChoiceSelectionType,
     getChoices: getChoices,

@@ -2358,6 +2358,61 @@
     omittedMeans: 'ENTER'
   };
 
+  // Task I-121 (DSPSIZ display-size names slice) - DSPSIZ's own standard
+  // display sizes and limits (DDS_Keyword_V7r6.txt, "Display size condition
+  // names" ~line 495 and the Display size table ~line 520). Previously the
+  // engine's KNOWN_DISPLAY_SIZE_NAMES table, the writer's 24x80 default and
+  // "at most two sizes" guards, the DSPMOD prerequisite's literal sizes and
+  // the Display Sizes picker's two rows each carried their own copy.
+  // `standardSizes` is in the table's order: *DS3 (the 24x80 default) first,
+  // *DS4 (27x132) second.
+  var DSPSIZ_DOMAIN = {
+    ddsReference: 'If you want your program to open this file to display devices with display sizes other than 24 lines x 80 ' +
+      'characters, specify the DSPSIZ (Display Size) keyword at the file level. ... If you do not specify the DSPSIZ keyword, ' +
+      'your program can only open this file to display devices with a 24 x 80 display. A user-defined display size condition ' +
+      'name can be specified instead of *DS3 or *DS4.',
+    standardSizes: [
+      { name: '*DS3', lines: 24, columns: 80 },
+      { name: '*DS4', lines: 27, columns: 132 }
+    ],
+    defaultName: '*DS3',
+    maxSizes: 2
+  };
+
+  /** The two standard display sizes (*DS3 24x80, *DS4 27x132) as fresh
+   *  `{ name, lines, columns }` copies, in DDS's table order. */
+  function standardDisplaySizes() {
+    return DSPSIZ_DOMAIN.standardSizes.map(function (z) { return { name: z.name, lines: z.lines, columns: z.columns }; });
+  }
+
+  /** The standard size a bare condition name (any case) stands for, as a
+   *  fresh `{ name, lines, columns }`, or null for anything else (a
+   *  user-defined name is not a standard size). */
+  function standardDisplaySize(name) {
+    if (typeof name !== 'string') return null;
+    var up = name.toUpperCase();
+    for (var i = 0; i < DSPSIZ_DOMAIN.standardSizes.length; i++) {
+      var z = DSPSIZ_DOMAIN.standardSizes[i];
+      if (z.name === up) return { name: z.name, lines: z.lines, columns: z.columns };
+    }
+    return null;
+  }
+
+  /** The size a file without DSPSIZ opens to: 24x80, which is *DS3. */
+  function defaultDisplaySize() {
+    return standardDisplaySize(DSPSIZ_DOMAIN.defaultName);
+  }
+
+  /** Most sizes one DSPSIZ keyword may declare (DDS allows two). */
+  function maxDisplaySizes() {
+    return DSPSIZ_DOMAIN.maxSizes;
+  }
+
+  /** The DSPSIZ domain's DDS Reference citation. */
+  function displaySizeReference() {
+    return DSPSIZ_DOMAIN.ddsReference;
+  }
+
   /** PSHBTNCHC's command-key domain as a fresh ordered array (CA01..CA24,
    *  CF01..CF24, then the seven names). */
   function pshbtnchcCommandKeys() {
@@ -2819,6 +2874,11 @@
     isPshbtnchcCommandKey: isPshbtnchcCommandKey,
     pshbtnchcDefaultCommandKey: pshbtnchcDefaultCommandKey,
     pshbtnchcCommandKeyReference: pshbtnchcCommandKeyReference,
+    standardDisplaySizes: standardDisplaySizes,
+    standardDisplaySize: standardDisplaySize,
+    defaultDisplaySize: defaultDisplaySize,
+    maxDisplaySizes: maxDisplaySizes,
+    displaySizeReference: displaySizeReference,
     choiceColorStateKeywordsAllowedOn: choiceColorStateKeywordsAllowedOn,
     REPEATABLE_INSTANCE_GROUPS: REPEATABLE_INSTANCE_GROUPS,
     repeatableGroupKinds: repeatableGroupKinds,
