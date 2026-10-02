@@ -2024,7 +2024,105 @@
       ddsReference:
         'Within a record, the CAnn key specified by the MNUCNL keyword ' +
         'cannot be specified again using another keyword (such as MNUBARSW).'
+    },
+
+    // ---- I-121n: 8 ----
+    // Task I-121n - input, format and display field keywords: KEYBRD,
+    // BLANKS, CNTFLD, FLTFIXDEC, FLTPCN, MAPVAL, FLDCSRPRG, ERRMSG. Each
+    // entry below was verified against its own section of
+    // DDS_Keyword_V7r6.txt, not against the code. Only the data-type facts
+    // are consumed so far (the General-tab row filter's float-only /
+    // datetime-only scopes); the usage facts and CNTFLD's data type are
+    // stated here because the reference states them, but nothing enforces
+    // them yet - logged in the Deferred findings table, not changed here.
+
+    // KEYBRD is not a DDS keyword: the reference has no such section. It is
+    // iSDA's own name for the field's position-35 "Data type and keyboard
+    // shift" column (keywordFixes.md L79), whose valid entries live in
+    // KEYBOARD_SHIFT_ENTRIES. The entry records that, so the keyword index
+    // can drop it (I-121t) rather than anyone inventing a rule for it.
+    KEYBRD: {
+      notADdsKeyword: true,
+      ddsReference:
+        'No KEYBRD section exists in the DDS Reference for display files. ' +
+        'The keyboard shift is position 35 of the DDS specification, "Data ' +
+        'type and keyboard shift".'
+    },
+    // "BLANKS (Blanks) keyword": "when specified for a numeric, input-capable
+    // field"; "also valid for character fields". Option indicators are not
+    // valid (the option-indicator table already carries that).
+    BLANKS: {
+      ddsReference:
+        'This field-level keyword, when specified for a numeric, ' +
+        'input-capable field, enables your program to distinguish when the ' +
+        'field is blank and when the field is zero on the display. This ' +
+        'keyword is also valid for character fields, but there is ' +
+        'generally no need to specify it for them.',
+      allowedUsage: ['I', 'B']
+    },
+    // "CNTFLD (Continued-Entry Field) keyword": "The field containing the
+    // CNTFLD keyword must be defined as an input-capable field with the
+    // data type A. It cannot be defined in a subfile." One numeric
+    // parameter, the width of the column.
+    CNTFLD: {
+      ddsReference:
+        'The field containing the CNTFLD keyword must be defined as an ' +
+        'input-capable field with the data type A. It cannot be defined in ' +
+        'a subfile.',
+      allowedUsage: ['I', 'B'],
+      requiredDataTypes: ['A']
+    },
+    // "FLTFIXDEC (Floating-Point to Fixed Decimal) keyword": "to display a
+    // number in an output-capable (usage B or O) floating-point field". No
+    // parameters.
+    FLTFIXDEC: {
+      ddsReference:
+        'You use this field-level keyword to display a number in an ' +
+        'output-capable (usage B or O) floating-point field in fixed-decimal ' +
+        'notation.',
+      allowedUsage: ['B', 'O'],
+      requiredDataTypes: ['F']
+    },
+    // "FLTPCN (Floating-Point Precision) keyword": "This keyword is valid
+    // for floating-point fields only (data type F)." Parameter *SINGLE or
+    // *DOUBLE.
+    FLTPCN: {
+      ddsReference:
+        'This keyword is valid for floating-point fields only (data type F).',
+      requiredDataTypes: ['F']
+    },
+    // "MAPVAL (Map Values) keyword": "This keyword is only valid with the
+    // date (L), time (T), or timestamp (Z) data types."
+    MAPVAL: {
+      ddsReference:
+        'This keyword is only valid with the date (L), time (T), or ' +
+        'timestamp (Z) data types.',
+      requiredDataTypes: ['L', 'T', 'Z']
+    },
+    // "FLDCSRPRG (Cursor Progression Field) keyword": "The field containing
+    // the FLDCSRPRG keyword is defined as an input-capable field. It cannot
+    // be defined in a subfile." "not allowed with the SNGCHCFLD or MLTCHCFLD
+    // keywords".
+    FLDCSRPRG: {
+      ddsReference:
+        'The field containing the FLDCSRPRG keyword is defined as an ' +
+        'input-capable field. It cannot be defined in a subfile. The ' +
+        'FLDCSRPRG keyword is not allowed with the SNGCHCFLD or MLTCHCFLD ' +
+        'keywords.',
+      allowedUsage: ['I', 'B']
+    },
+    // "ERRMSG (Error Message) and ERRMSGID": "Option indicators are valid
+    // for these keywords." Parameters: 'message-text' [response-indicator].
+    // ERRMSG is already in REPEATABLE_INSTANCE_GROUPS; the shared-indicator
+    // rules stay with the response-indicator checks.
+    ERRMSG: {
+      ddsReference:
+        'You can use one of these field-level keywords to identify a ' +
+        'message that is displayed on the message line and that is ' +
+        'associated with that field. Option indicators are valid for these ' +
+        'keywords.'
     }
+    // ---- end I-121n ----
   };
 
   /** Task I-121 (system-value constant keywords slice) - the field-level

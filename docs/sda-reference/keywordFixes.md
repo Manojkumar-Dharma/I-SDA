@@ -177,7 +177,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Claimed (in progress) | — |
-| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Claimed (in progress); position-35 table done v0.10.279 | — |
+| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done (v0.10.291); 8 of 8 specified | v0.10.291 |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done v0.10.285 | — |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
@@ -238,6 +238,7 @@ Every finding so far has been opened as a task (I-61 – I-142, see the tables a
 | I-121c | `SFLPAG`'s own section refuses `SFLDROP`/`SFLFOLD`/`SFLROLVAL` when SFLSIZ equals SFLPAG and `SFLDROP`/`SFLFOLD`/`SFLINZ`/`SFLLIN`/`SFLRCDNBR` under field selection; only `SFLSCROLL` (I-127) is checked against SFLSIZ = SFLPAG. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` are not validated either. The lists and grammar are in the spec (`excludedWhenSizeEqualsPage`, `excludedWithFieldSelection`, `sflendGrammar`). |
 | I-121b | `GETRETAIN` is accepted without `UNLOCK` (and with `UNLOCK(*ERASE)` etc.): its section requires `UNLOCK` without parameters. `RTNDTA` and `UNLOCK` are accepted together on one record. `INZINP` is accepted without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`. No guard exists for any of the three; the facts are in `keywordSpec.js` (`recordRequires`, `requiresBareKeyword`, `recordExcludes`). |
 | I-121b | `RETKEY` / `RETCMDKEY` accept every exclusion their section states: `RETKEY` with `CLEAR`/`HELP`/`HOME`/`PAGEUP`/`PAGEDOWN`/`ROLLDOWN`/`ROLLUP` (file or record) or `PRINT` (record); `RETCMDKEY` with `CAnn`/`CFnn` (file or record) or `SFLDROP`/`SFLENTER`/`SFLFOLD` (record); both in a file with `ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN` (the rest of I-139's open item) or without `INDARA`. Spec facts: `fileAndRecordExcludes`, `recordExcludes`, `fileExcludes`, `fileRequires`. |
+| I-121n | Field rules the DDS Reference states and the panel / writer do not enforce (no guard found by searching the writer, engine and panels; now stated in the spec, behaviour unchanged): `CNTFLD` needs an input-capable field of data type A, not in a subfile, with a width smaller than the field length - its row is offered for every data type and usage; `FLDCSRPRG` needs an input-capable field not in a subfile, naming an input-capable field of the same record, and is not allowed with `SNGCHCFLD` / `MLTCHCFLD`; `FLTFIXDEC` needs usage B or O (its row is gated on data type F only); `BLANKS` is for input-capable fields (I, B). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6262,13 +6263,20 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121n — Input, format and display field keywords
 
-> **Area:** Field · **Status:** Partly done (position-35 table, v0.10.279) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Field · **Status:** Done (v0.10.291) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `KEYBRD`, `BLANKS`, `CNTFLD`, `FLTFIXDEC`, `FLTPCN`, `MAPVAL`, `FLDCSRPRG`, `ERRMSG`.
 
 `KEYBRD` was found not to be a real DDS keyword (L79) - record that in the spec rather than inventing an entry. **Progress:** v0.10.279 put IBM's position-35 "Valid entries for display files" table into `KEYBOARD_SHIFT_ENTRIES` (the Keying options panel reads it); that is the spec-side home for what `KEYBRD` stood for, so remaining decision for `KEYBRD` is whether I-121t drops it from the index. `ERRMSG` is in `REPEATABLE_INSTANCE_GROUPS` already. `FLTPCN` is also read from `QDBRTVFD` (I-116).
 
-Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+**Result (v0.10.291).** All eight keywords now have a `RECORD_TYPES` entry, in the block fenced `// ---- I-121n: 8 ----` in `keywordSpec.js`; `check_spec_coverage.py` reports `I-121n 8/8`. Each entry was written from its own section of `DDS_Keyword_V7r6.txt`, and the new test checks every cited sentence appears verbatim in that file.
+
+- `KEYBRD`: not a DDS keyword (the string occurs nowhere in the reference). Its entry says `notADdsKeyword: true` and points at the position-35 column, whose valid entries are `KEYBOARD_SHIFT_ENTRIES` (v0.10.279). I-121t can drop it from the index.
+- `CNTFLD`: input-capable (I, B), data type A. `FLTFIXDEC`: output-capable (B, O), data type F. `FLTPCN`: data type F only. `MAPVAL`: data types L, T, Z. `BLANKS` and `FLDCSRPRG`: input-capable (I, B). `ERRMSG`: no usage or data-type restriction, so its entry carries the citation only (it is already in `REPEATABLE_INSTANCE_GROUPS`, and option indicators for BLANKS / the others stay in the option-indicator table).
+- Consumed: the General keywords panel's `float-only` (FLTFIXDEC, FLTPCN) and `datetime-only` (MAPVAL) row scopes now read `requiredDataTypes` from the spec instead of their own `=== 'F'` / `L`-`T`-`Z` literals (`generalFieldKeywordRowMatchesDataType` takes the keyword name as a third argument). The `non-float` scope (BLKFOLD) is that slice's own fact and is unchanged. Pure refactor: `i121nInputFormatFieldKeywordsSpec.test.js` renders the panel for 20 data types and checks the four scoped rows appear for exactly the data types they did before. It fails against the previous source (stash check).
+- Not consumed (stated by the reference, enforced nowhere): see the Deferred findings row raised by I-121n. They are in the spec as facts but change no behaviour, as the slice rules require.
+
+Full suite: 239 files, 13,132 checks, zero failures.
 
 ---
 

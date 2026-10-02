@@ -2648,11 +2648,14 @@
    *  omits it, defaulting to 'all') included. Shared by
    *  generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor so the two
    *  can never disagree about which rows are visible for a given field. */
-  function generalFieldKeywordRowMatchesDataType(dtScope, dataType) {
+  function generalFieldKeywordRowMatchesDataType(dtScope, dataType, keywordName) {
     if (!dtScope || dtScope === 'all') return true;
-    if (dtScope === 'float-only') return dataType === 'F';
+    // Task I-121n - 'float-only' (FLTFIXDEC, FLTPCN) and 'datetime-only' (MAPVAL)
+    // now read the keyword's own required data types from keywordSpec.js; a
+    // blank data type still hides the row. 'non-float' (BLKFOLD) is the
+    // BLKFOLD slice's own fact and is unchanged.
+    if (dtScope === 'float-only' || dtScope === 'datetime-only') return DspfWriter.keywordRequiredDataTypeAllows(keywordName, dataType);
     if (dtScope === 'non-float') return dataType !== 'F';
-    if (dtScope === 'datetime-only') return dataType === 'L' || dataType === 'T' || dataType === 'Z';
     // Task I-42 - VALNUM: "input-capable field with the data type Y".
     // Task I-121 (VALNUM slice) - the required Y now comes from keywordSpec.js via
     // DspfWriter.keywordRequiredDataTypeAllows; a blank data type still hides the row.
@@ -2732,7 +2735,7 @@
       if (usage === 'P' && mpScope !== 'all') return;
       // Task I-39 - dtScope narrows a row to fields of a particular data
       // type (see GENERAL_FIELD_KEYWORD_ROWS's own I-39 comment).
-      if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
+      if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType, name)) return;
       // Task I-42 - usageScope narrows a row to input-capable fields.
       if (!generalFieldKeywordRowMatchesUsage(usageScope, usage, name)) return;
       // Task I-70 - CHRID is not valid on hidden or numeric fields.
@@ -2767,7 +2770,7 @@
       if (usage === 'P' && mpScope !== 'all') return;
       // Task I-39 - must match generalFieldKeywordsHtml's own dtScope skip
       // logic exactly, same reasoning as the mpScope comment just above.
-      if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType)) return;
+      if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType, name)) return;
       // Task I-42 - must match generalFieldKeywordsHtml's own usageScope
       // skip logic exactly, same reasoning as the mpScope/dtScope comments.
       if (!generalFieldKeywordRowMatchesUsage(usageScope, usage, name)) return;
