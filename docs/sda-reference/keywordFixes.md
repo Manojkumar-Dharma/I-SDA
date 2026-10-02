@@ -164,7 +164,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
-| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Not started | — |
+| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Claimed (in progress) | — |
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Not started | — |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Partly done (`SFLCTL`, v0.10.281) | — |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Partly done (`SFLCSRRRN`, v0.10.282) | — |
