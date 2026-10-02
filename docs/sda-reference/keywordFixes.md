@@ -164,7 +164,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
-| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Claimed (in progress) | — |
+| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Done v0.10.294 (13 entries; relations not enforced logged as deferred findings) | v0.10.294 |
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
@@ -228,7 +228,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-143](#i-143) | Not started | `MSGCON` rules not enforced - found by I-121m. Real bug, proven fix shape (the MSGCON entry already holds the facts). |
 | 2 | [I-144](#i-144) | Not started | DATE/TIME/USER/SYSNAME rules not enforced and one-column preview - found by I-121m. |
-| 3 | [I-121a – I-121o](#i-121-slices) | In progress (b, c, d, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
+| 3 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
 | 4 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
 | 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 6 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
@@ -242,7 +242,7 @@ Every finding so far has been opened as a task (I-61 – I-150, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| *(none)* | *(none)* |
+| I-121a | **Output-control keyword relations are not enforced.** The DDS Reference (and the spec now) states: `ERASE`, `ERASEINP`, `MDTOFF` and `PROTECT` need `OVERLAY` on the same record; `PUTOVR` cannot be with `PUTRETAIN`; `ERASE` takes at most 20 record names; `CSRLOC` and `FRCDTA` may appear once per record format. A search of the writer and panels found no guard (no probe run). The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are already I-148. `PROTECT` also sits outside `PULLDOWN`'s forbidden list although it needs `OVERLAY`, which `PULLDOWN` forbids - an indirect exclusion, worth confirming when the guards are added. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6028,13 +6028,37 @@ Remaining for I-121 after this slice: the rest of the plain/base record and file
 
 ### I-121a — Output, cursor and screen-control keywords
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.294) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (13):** `ALARM`, `BLINK`, `CSRLOC`, `RTNCSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`, `UNLOCK`.
 
 Several already have writer guards (`RTNCSRLOC` I-77/I-84, `UNLOCK` I-106); fold those into the entries. `PULLDOWN`'s mutex already names many of these - cross-check, do not duplicate.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.294).** All thirteen now have a `RECORD_TYPES` entry in a `// ---- I-121a ----` block of `keywordSpec.js`. Each entry names its own DDS section heading and quotes the sentences its facts come from, re-read from `DDS_Keyword_V7r6.txt`, not from the code:
+
+| Keyword | Parameters | Option indicators | Relations the section states |
+|---------|------------|-------------------|------------------------------|
+| `ALARM`, `BLINK`, `LOCK` | none | valid | none (`ALARM` is already on `PULLDOWN`'s mutex; not repeated) |
+| `OVERLAY` | none | valid | none (also on `PULLDOWN`'s mutex) |
+| `CSRLOC` | exactly two field names | valid, display size names not | once per record format; not on `SFL` or `USRDFN` |
+| `RTNCSRLOC` | `*RECNAME` format, or `*WINDOW`/`*MOUSE` format | not valid (`NO_OPTION_INDICATORS`) | none |
+| `ERASE` | 1 to 20 record names; may repeat | valid | needs `OVERLAY` |
+| `ERASEINP` | optional `*MDTON` or `*ALL` | valid | needs `OVERLAY` |
+| `MDTOFF` | optional `*UNPR` or `*ALL` | valid | needs `OVERLAY`; not on `SFL` |
+| `PUTOVR` | none | valid | not with `PUTRETAIN` |
+| `FRCDTA` | none | valid | once per record format |
+| `PROTECT` | none | valid | needs `OVERLAY` |
+| `UNLOCK` | optional `*ERASE`, `*MDTOFF`, or both | not valid (`NO_OPTION_INDICATORS`) | see below |
+
+New accessors `outputControlKeywords()` and `recordKeywordFacts()` (copies; `null` outside the thirteen). Pure refactor, no behaviour change. The writer's `UNLOCK` reader/writer now takes its `*ERASE`/`*MDTOFF` values from the spec (and writes them in spec order), and `findRtncsrlocInstance` takes the `*WINDOW`/`*MOUSE` pair from `RTNCSRLOC`'s entry. The I-77/I-84 (`RTNCSRLOC`) and I-106 (`UNLOCK`) guards turned out to be the generic `USRDFN` / `SFL` / `MNUBAR` / `PULLDOWN` list guards already reading the spec, so there was no hand-written copy to delete; the test pins those lists against the new facts in both directions.
+
+**`UNLOCK`'s `GETRETAIN` / `RTNDTA` relations are not repeated.** I-121b already holds them on those two entries (`GETRETAIN` needs a bare `UNLOCK`; `RTNDTA` excludes `UNLOCK`). They are not a plain mutex - `GETRETAIN` with a bare `UNLOCK` is the legal form - so a mutex on `UNLOCK` would have been wrong as well as a second source of truth. The test checks the I-121b entries instead.
+
+**Not enforced (spec facts only, logged under Deferred findings):** `OVERLAY` required by `ERASE` / `ERASEINP` / `MDTOFF` / `PROTECT`; `PUTOVR` with `PUTRETAIN`; the 20-name limit on `ERASE`; `CSRLOC` and `FRCDTA` once per record format. A pure refactor does not add guards.
+
+New `src/test/i121aOutputCursorScreenControlSpec.test.js` (164 checks): every heading and cited sentence against the reference text, the facts, a sweep over `KEYWORD-LOOKUP.json` (ownership, the option-indicator partition, the `USRDFN` / `SFL` / `MNUBAR` guards against their whitelists, `PULLDOWN`'s mutex), and the `UNLOCK` / `RTNCSRLOC` reader round trips. Confirmed failing against the pre-change source via stash. Full suite: 242 files, 13,393 checks, zero failures..
 
 ---
 

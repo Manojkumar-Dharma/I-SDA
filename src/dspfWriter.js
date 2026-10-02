@@ -6307,11 +6307,17 @@
   /** UNLOCK - present/absent plus its two independent option VALUES
    *  (*ERASE, *MDTOFF), both optional, space-separated within the one
    *  keyword's own parameter list rather than separate keyword instances. */
+  //  Task I-121a: the two values are UNLOCK's spec fact (KeywordSpec.validValues);
+  //  only the mapping of each onto this reader's erase / mdtoff flag is here.
+  function unlockHasValue(text, value) {
+    return KeywordSpec.validValues('UNLOCK').indexOf(value) >= 0
+      && new RegExp(value.replace('*', '\\*') + '\\b').test(text);
+  }
   function getUnlockKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'UNLOCK'; });
     if (!k) return { present: false, erase: false, mdtoff: false, conditions: [] };
     var text = (k.parameters || '').toUpperCase();
-    return { present: true, erase: /\*ERASE\b/.test(text), mdtoff: /\*MDTOFF\b/.test(text), conditions: k.conditions || [] };
+    return { present: true, erase: unlockHasValue(text, '*ERASE'), mdtoff: unlockHasValue(text, '*MDTOFF'), conditions: k.conditions || [] };
   }
 
   /** Returns a NEW keywords array with UNLOCK set from `present`/`erase`/
@@ -6323,9 +6329,10 @@
     var existing = (keywords || []).find(function (kw) { return kw.name === 'UNLOCK'; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'UNLOCK'; });
     if (present) {
-      var vals = [];
-      if (erase) vals.push('*ERASE');
-      if (mdtoff) vals.push('*MDTOFF');
+      // Spec order (*ERASE then *MDTOFF), keeping only the values asked for.
+      var vals = KeywordSpec.validValues('UNLOCK').filter(function (v) {
+        return (v === '*ERASE' && erase) || (v === '*MDTOFF' && mdtoff);
+      });
       var nextConditions = conditions !== undefined ? conditions : (existing ? (existing.conditions || []) : []);
       next = next.concat([{ name: 'UNLOCK', parameters: vals.join(' '), conditions: nextConditions, raw: '', sourceLines: [] }]);
     }
@@ -6401,7 +6408,8 @@
     return (keywords || []).find(function (k) {
       if (k.name !== 'RTNCSRLOC') return false;
       var first = ((k.parameters || '').trim().split(/\s+/)[0] || '').toUpperCase();
-      var isWm = first === '*WINDOW' || first === '*MOUSE';
+      //  Task I-121a: *WINDOW / *MOUSE are RTNCSRLOC's spec fact.
+      var isWm = KeywordSpec.recordKeywordFacts('RTNCSRLOC').windowMouseValues.indexOf(first) >= 0;
       return wantWindowMouse ? isWm : !isWm;
     });
   }

@@ -2244,7 +2244,182 @@
         'of the field is not done. This keyword has no parameters.',
       noParameters: true,
       fieldLevel: true
+    },
+
+    // ---- I-121a: output, cursor and screen-control keywords ----
+    // Thirteen record-level keywords, each re-read in its OWN section of
+    // DDS_Keyword_V7r6.txt (`ddsSection` names the heading; `ddsReference`
+    // quotes the sentences the facts come from, joined by ' ... '). Facts
+    // are flat fields on the entry, read through recordKeywordFacts():
+    //   levels                  ['record'] for all thirteen
+    //   noParameters            "This keyword has no parameters."
+    //   optionIndicatorsValid   "Option indicators are valid for this keyword."
+    //                           (true only; where the section says they are
+    //                           NOT valid - RTNCSRLOC, UNLOCK - the fact is
+    //                           NO_OPTION_INDICATORS below, not repeated)
+    //   displaySizeNamesValid   false where the section says they are not
+    //   requiresRecordKeyword   a keyword the section says must be on the
+    //                           same record format
+    //   oncePerRecordFormat     "only once per record format" (NOT the
+    //                           field-level `onePerRecord`)
+    //   repeatable              "can be specified more than once"
+    //   parameterCount          {min, max} of the keyword's parameter list
+    //   validValues             the keyword's literal parameter values
+    //   notAllowedInRecordTypes record formats (by their keyword) it is not
+    //                           valid on
+    //   mutex                   keywords the section says cannot be on the
+    //                           same record format (bidirectional as KEEP's)
+    // Cross-checks, not copies: PULLDOWN's mutex above already lists ALARM,
+    // ERASE, ERASEINP, FRCDTA, MDTOFF, OVERLAY, PUTOVR; the USRDFN, SFL and
+    // MNUBAR whitelists decide where the thirteen may go. The test pins
+    // every one of those lists against the facts here.
+    ALARM: {
+      ddsSection: 'ALARM (Audible Alarm) keyword for display files',
+      ddsReference: 'This keyword has no parameters. ... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      noParameters: true,
+      optionIndicatorsValid: true
+    },
+    BLINK: {
+      ddsSection: 'BLINK (Blink) keyword for display files',
+      ddsReference: 'This keyword has no parameters. ... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      noParameters: true,
+      optionIndicatorsValid: true
+    },
+    CSRLOC: {
+      ddsSection: 'CSRLOC (Cursor Location) keyword for display files',
+      ddsReference:
+        'CSRLOC(field-name-1 field-name-2) ... Field-name-1 and field-name-2 are 3-byte, zoned decimal, hidden fields. ' +
+        '... Specify the CSRLOC keyword only once per record format. ... ' +
+        'The CSRLOC keyword is not valid for the following record formats: ... ' +
+        'Subfile record formats (identified by the SFL keyword) ... ' +
+        'User-defined record formats (identified by the USRDFN keyword) ... ' +
+        'Option indicators are valid for this keyword. Display size condition names are not valid.',
+      levels: ['record'],
+      parameterCount: { min: 2, max: 2 },
+      oncePerRecordFormat: true,
+      notAllowedInRecordTypes: ['SFL', 'USRDFN'],
+      optionIndicatorsValid: true,
+      displaySizeNamesValid: false
+    },
+    RTNCSRLOC: {
+      ddsSection: 'RTNCSRLOC (Return Cursor Location) keyword for display files',
+      ddsReference:
+        'The *RECNAME parameter indicates that RTNCSRLOC should return the name of the record and field on which the cursor is positioned. ' +
+        '... The *WINDOW or *MOUSE parameter is used to qualify the cursor-row2 and cursor-column-2 parameters.',
+      levels: ['record'],
+      // The two formats are told apart by their FIRST token: *WINDOW / *MOUSE
+      // means the row/column format, anything else (with or without a
+      // leading *RECNAME) the record/field format. Option indicators:
+      // NO_OPTION_INDICATORS.RTNCSRLOC.
+      validValues: ['*RECNAME', '*WINDOW', '*MOUSE'],
+      windowMouseValues: ['*WINDOW', '*MOUSE'],
+      valuesDdsReference:
+        'RTNCSRLOC([*RECNAME] &cursor-record &cursor-field [&cursor-position]) or ' +
+        'RTNCSRLOC({*WINDOW | *MOUSE} &cursor-row &cursor-column [&cursor-row2 [&cursor-column2]])'
+    },
+    ERASE: {
+      ddsSection: 'ERASE (Erase) keyword for display files',
+      ddsReference:
+        'ERASE(record-name-1 [record-name-2 ...[record-name-20]]) ... ERASE can be specified more than once. ' +
+        'The OVERLAY keyword must be specified whenever the ERASE keyword is specified. ' +
+        '... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      parameterCount: { min: 1, max: 20 },
+      repeatable: true,
+      requiresRecordKeyword: 'OVERLAY',
+      optionIndicatorsValid: true
+    },
+    ERASEINP: {
+      ddsSection: 'ERASEINP (Erase Input) keyword for display files',
+      ddsReference:
+        'ERASEINP[(*MDTON | *ALL)] ... The OVERLAY keyword must be specified whenever ERASEINP is specified. ' +
+        '... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      parameterCount: { min: 0, max: 1 },
+      validValues: ['*MDTON', '*ALL'],
+      valuesDdsReference: 'ERASEINP[(*MDTON | *ALL)]',
+      requiresRecordKeyword: 'OVERLAY',
+      optionIndicatorsValid: true
+    },
+    OVERLAY: {
+      ddsSection: 'OVERLAY (Overlay) keyword for display files',
+      ddsReference: 'This keyword has no parameters. ... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      noParameters: true,
+      optionIndicatorsValid: true
+    },
+    PUTOVR: {
+      ddsSection: 'PUTOVR (Put with Explicit Override) keyword for display files',
+      ddsReference:
+        'This keyword has no parameters. ' +
+        '... The PUTRETAIN keyword and the PUTOVR keyword cannot be specified on the same record format. ' +
+        '... Option indicators are valid for the PUTOVR, OVRATR, and OVRDTA keywords.',
+      levels: ['record'],
+      noParameters: true,
+      mutex: ['PUTRETAIN'],
+      optionIndicatorsValid: true
+    },
+    FRCDTA: {
+      ddsSection: 'FRCDTA (Force Data) keyword for display files',
+      ddsReference:
+        'This keyword has no parameters. ... The FRCDTA keyword can be specified once for each record format. ' +
+        '... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      noParameters: true,
+      oncePerRecordFormat: true,
+      optionIndicatorsValid: true
+    },
+    PROTECT: {
+      ddsSection: 'PROTECT (Protect) keyword for display files',
+      ddsReference:
+        'This keyword has no parameters. ' +
+        '... The OVERLAY keyword must be specified in the record format in which PROTECT is specified. ' +
+        '... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      noParameters: true,
+      requiresRecordKeyword: 'OVERLAY',
+      optionIndicatorsValid: true
+    },
+    MDTOFF: {
+      ddsSection: 'MDTOFF (Modified Data Tag Off) keyword for display files',
+      ddsReference:
+        'MDTOFF[(*UNPR | *ALL)] ... Option indicators are valid for this keyword. ' +
+        '... MDTOFF is not valid for the subfile record format (identified by the SFL keyword). ' +
+        'It is valid for all other record formats for which OVERLAY keyword is also specified.',
+      levels: ['record'],
+      parameterCount: { min: 0, max: 1 },
+      validValues: ['*UNPR', '*ALL'],
+      valuesDdsReference: 'MDTOFF[(*UNPR | *ALL)]',
+      requiresRecordKeyword: 'OVERLAY',
+      notAllowedInRecordTypes: ['SFL'],
+      optionIndicatorsValid: true
+    },
+    LOCK: {
+      ddsSection: 'LOCK (Lock) keyword for display files',
+      ddsReference: 'This keyword has no parameters. ... Option indicators are valid for this keyword.',
+      levels: ['record'],
+      noParameters: true,
+      optionIndicatorsValid: true
+    },
+    UNLOCK: {
+      ddsSection: 'UNLOCK (Unlock) keyword for display files',
+      ddsReference:
+        'UNLOCK[(*ERASE) | (*MDTOFF)] | [(*ERASE *MDTOFF)] | [(*MDTOFF *ERASE)] ... ' +
+        'The GETRETAIN keyword is ignored and an error message results at file creation time ' +
+        'if the GETRETAIN keyword is specified with UNLOCK(any parameter). ' +
+        '... If the UNLOCK keyword is specified, the RTNDTA keyword cannot be specified.',
+      levels: ['record'],
+      parameterCount: { min: 0, max: 2 },
+      validValues: ['*ERASE', '*MDTOFF'],
+      valuesDdsReference: 'UNLOCK[(*ERASE) | (*MDTOFF)] | [(*ERASE *MDTOFF)] | [(*MDTOFF *ERASE)]'
+      // The GETRETAIN / RTNDTA relations are NOT repeated here: I-121b already
+      // holds them on those two entries (GETRETAIN `requiresOnRecord` /
+      // `requiresBareKeyword` UNLOCK; RTNDTA `excludesOnRecord` UNLOCK). They
+      // are not a plain mutex - GETRETAIN with a BARE UNLOCK is the legal form.
     }
+    // ---- end I-121a ----
   };
 
   /** Task I-121 (system-value constant keywords slice) - the field-level
@@ -2776,6 +2951,31 @@
     var spec = RECORD_TYPES[keywordName];
     return spec && spec.validValues ? spec.validValues.slice() : [];
   }
+  // ---- I-121a accessors ----
+  var I121A_FACT_KEYS = ['levels', 'noParameters', 'optionIndicatorsValid',
+    'displaySizeNamesValid', 'requiresRecordKeyword', 'oncePerRecordFormat',
+    'repeatable', 'parameterCount', 'notAllowedInRecordTypes', 'validValues',
+    'windowMouseValues', 'mutex'];
+  var OUTPUT_CONTROL_KEYWORDS = ['ALARM', 'BLINK', 'CSRLOC', 'RTNCSRLOC', 'ERASE',
+    'ERASEINP', 'OVERLAY', 'PUTOVR', 'FRCDTA', 'PROTECT', 'MDTOFF', 'LOCK', 'UNLOCK'];
+  /** Task I-121a - the thirteen output / cursor / screen-control keywords, in
+   *  the order the slice lists them. A copy. */
+  function outputControlKeywords() { return OUTPUT_CONTROL_KEYWORDS.slice(); }
+  /** Task I-121a - `keywordName`'s own-section facts (see the block comment
+   *  at the I-121a entries), as a fresh object holding only the facts it has.
+   *  null for a keyword outside the thirteen. Arrays and objects are copies. */
+  function recordKeywordFacts(keywordName) {
+    if (OUTPUT_CONTROL_KEYWORDS.indexOf(keywordName) < 0) return null;
+    var spec = RECORD_TYPES[keywordName];
+    var out = {};
+    I121A_FACT_KEYS.forEach(function (k) {
+      if (spec[k] === undefined) return;
+      var v = spec[k];
+      out[k] = Array.isArray(v) ? v.slice() : (v && typeof v === 'object' ? Object.assign({}, v) : v);
+    });
+    return out;
+  }
+  // ---- end I-121a accessors ----
   /** Task I-121r - the display-attribute values WDWBORDER's own DDS Reference
    *  section lists (BL, CS, HI, ND, RI, UL). A copy; [] for a keyword with no
    *  such fact. The color parameter is not repeated here: it takes the COLOR
@@ -4085,6 +4285,8 @@
     altKeyDefaultKey: altKeyDefaultKey,
     isValidValue: isValidValue,
     displayAttributeValues: displayAttributeValues,
+    outputControlKeywords: outputControlKeywords,
+    recordKeywordFacts: recordKeywordFacts,
     checkCodes: checkCodes,
     checkCodeGroup: checkCodeGroup,
     conditionalMutexHit: conditionalMutexHit,
