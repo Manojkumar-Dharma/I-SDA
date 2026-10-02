@@ -3451,13 +3451,7 @@
   /** PSHBTNCHC's own documented command-key list: "CA01 to CA24, CF01 to
    *  CF24, PRINT, HELP, CLEAR, ENTER, HOME, ROLLUP, and ROLLDOWN"; omitted
    *  means ENTER. */
-  var PSHBTNCHC_COMMAND_KEYS = (function () {
-    var keys = [];
-    var i;
-    for (i = 1; i <= 24; i++) keys.push('CA' + (i < 10 ? '0' : '') + i);
-    for (i = 1; i <= 24; i++) keys.push('CF' + (i < 10 ? '0' : '') + i);
-    return keys.concat(['PRINT', 'HELP', 'CLEAR', 'ENTER', 'HOME', 'ROLLUP', 'ROLLDOWN']);
-  })();
+  var PSHBTNCHC_COMMAND_KEYS = KeywordSpec.pshbtnchcCommandKeys();
 
   /** Parses PSHBTNCHC's `choice-number choice-text [command-key] [*SPACEB]`
    *  parameter text. `text` is the unquoted literal (doubled apostrophes
@@ -3485,7 +3479,7 @@
     rest.split(/\s+/).filter(Boolean).forEach(function (tok) {
       var upper = tok.toUpperCase();
       if (upper === '*SPACEB') { result.spaceBefore = true; return; }
-      if (PSHBTNCHC_COMMAND_KEYS.indexOf(upper) >= 0) result.commandKey = upper;
+      if (KeywordSpec.isPshbtnchcCommandKey(upper)) result.commandKey = upper;
     });
     return result;
   }

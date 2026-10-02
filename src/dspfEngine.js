@@ -527,7 +527,6 @@
    *  format (choice-number is REQUIRED, e.g. PSHBTNCHC(1 '>Help' HELP)) and
    *  made every button render as its own raw parameter string ("1 '>Help'
    *  HELP"). `text` is the unquoted literal or the raw &field token. */
-  var PSHBTNCHC_KEY_RE = /^(?:CA\d\d|CF\d\d|PRINT|HELP|CLEAR|ENTER|HOME|ROLLUP|ROLLDOWN)$/i;
   function parsePshbtnchc(parameters) {
     var rest = (parameters || '').trim();
     var out = { id: '', text: '', commandKey: '', spaceBefore: false };
@@ -541,7 +540,7 @@
     else if (fld) { out.text = fld[1]; rest = fld[2]; }
     rest.split(/\s+/).filter(Boolean).forEach(function (t) {
       if (t.toUpperCase() === '*SPACEB') out.spaceBefore = true;
-      else if (PSHBTNCHC_KEY_RE.test(t)) out.commandKey = t.toUpperCase();
+      else if (KeywordSpec.isPshbtnchcCommandKey(t)) out.commandKey = t.toUpperCase();
     });
     return out;
   }

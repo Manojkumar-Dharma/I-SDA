@@ -2258,6 +2258,49 @@
     return out;
   }
 
+  // Task I-121 (PSHBTNCHC command-key domain slice) - PSHBTNCHC(choice-number
+  // choice-text [command-key] [*SPACEB]): the command-key parameter's own
+  // documented domain (DDS_Keyword_V7r6.txt, PSHBTNCHC section, ~line 9633).
+  // Previously a generated array in the writer and a hand-written regex in
+  // the engine, each its own copy. `ranges` first, then `names`, in IBM's
+  // order; an omitted parameter means ENTER. MOUBTN's Command key shares the
+  // seven names (its own fact lists them in its own order, ahead of EVENT-ID).
+  var PSHBTNCHC_COMMAND_KEY_DOMAIN = {
+    ddsReference: 'The command-key parameter is optional and indicates which function key should be generated when this ' +
+      'push-button choice is selected. The following keys can be used as parameters: CA01 to CA24, CF01 to CF24, PRINT, ' +
+      'HELP, CLEAR, ENTER, HOME, ROLLUP, and ROLLDOWN. If the command-key specified is not defined then ENTER will be used.',
+    ranges: [{ prefix: 'CA', min: 1, max: 24 }, { prefix: 'CF', min: 1, max: 24 }],
+    names: ['PRINT', 'HELP', 'CLEAR', 'ENTER', 'HOME', 'ROLLUP', 'ROLLDOWN'],
+    omittedMeans: 'ENTER'
+  };
+
+  /** PSHBTNCHC's command-key domain as a fresh ordered array (CA01..CA24,
+   *  CF01..CF24, then the seven names). */
+  function pshbtnchcCommandKeys() {
+    var keys = [];
+    PSHBTNCHC_COMMAND_KEY_DOMAIN.ranges.forEach(function (r) {
+      for (var i = r.min; i <= r.max; i++) keys.push(r.prefix + (i < 10 ? '0' : '') + i);
+    });
+    return keys.concat(PSHBTNCHC_COMMAND_KEY_DOMAIN.names);
+  }
+
+  /** Whether `token` (any case) is a key the PSHBTNCHC command-key parameter
+   *  accepts. Blank / non-string tokens are not. */
+  function isPshbtnchcCommandKey(token) {
+    if (typeof token !== 'string' || !token) return false;
+    return pshbtnchcCommandKeys().indexOf(token.toUpperCase()) !== -1;
+  }
+
+  /** The key an omitted PSHBTNCHC command-key parameter stands for. */
+  function pshbtnchcDefaultCommandKey() {
+    return PSHBTNCHC_COMMAND_KEY_DOMAIN.omittedMeans;
+  }
+
+  /** The domain's DDS Reference citation. */
+  function pshbtnchcCommandKeyReference() {
+    return PSHBTNCHC_COMMAND_KEY_DOMAIN.ddsReference;
+  }
+
   /** Task I-121 choice color-state slice - the three state keyword names in
    *  the writer's original order (a fresh array). */
   function choiceColorStateKeywords() {
@@ -2681,6 +2724,10 @@
     RECORD_INDICATOR_KEYWORDS: RECORD_INDICATOR_KEYWORDS,
     CHOICE_COLOR_STATE_KEYWORDS: CHOICE_COLOR_STATE_KEYWORDS,
     choiceColorStateKeywords: choiceColorStateKeywords,
+    pshbtnchcCommandKeys: pshbtnchcCommandKeys,
+    isPshbtnchcCommandKey: isPshbtnchcCommandKey,
+    pshbtnchcDefaultCommandKey: pshbtnchcDefaultCommandKey,
+    pshbtnchcCommandKeyReference: pshbtnchcCommandKeyReference,
     choiceColorStateKeywordsAllowedOn: choiceColorStateKeywordsAllowedOn,
     REPEATABLE_INSTANCE_GROUPS: REPEATABLE_INSTANCE_GROUPS,
     repeatableGroupKinds: repeatableGroupKinds,
