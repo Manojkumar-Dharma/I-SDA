@@ -183,6 +183,21 @@
         'USRRSTDSP: the WINDOW keyword must be specified on the same record as the USRRSTDSP keyword.'
     },
 
+    // Task I-141 - SFLCTL as the marker for three subfile-control-only
+    // record-level keywords. Same `requiredFor` shape as WINDOW's (I-140):
+    // the keyword may only appear on a record that also carries the marker.
+    // DDS_Keyword_V7r6.txt: SFLDLT (~line 10810) \"You use this record-level
+    // keyword with an option indicator on the subfile-control record
+    // format\"; SFLINZ (~11258) \"You use this record-level keyword on the
+    // subfile-control record format\"; SFLCSRRRN (~10686) \"You use this
+    // record-level keyword on the subfile-control record format\". A
+    // subfile-control record is the one carrying SFLCTL.
+    SFLCTL: {
+      requiredFor: ['SFLCSRRRN', 'SFLDLT', 'SFLINZ'],
+      requiredForDdsReference:
+        'SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords used on the subfile-control record format.'
+    },
+
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
     // closed list forbidden on the same record in either direction), just
     // a much larger list - re-verified fresh against PULLDOWN's own DDS
@@ -1855,6 +1870,27 @@
   /** Task I-140 - the record-level keywords that require a WINDOW keyword on
    *  the same record (RMVWDW, USRRSTDSP), in the DDS Reference's order. A
    *  copy, safe to filter. */
+  function sflctlDependentKeywords() {
+    var spec = RECORD_TYPES.SFLCTL;
+    return (spec && spec.requiredFor) ? spec.requiredFor.slice() : [];
+  }
+
+  /** Task I-141 - SFLDLT's option-indicator rule: \"Option indicators are
+   *  required for this keyword; display size condition names are not valid.\"
+   *  (DDS_Keyword_V7r6.txt ~line 10822). The fact is `{required, noDisplaySize,
+   *  ddsReference}`; null for any other keyword. */
+  var OPTION_INDICATOR_REQUIRED = {
+    SFLDLT: {
+      required: true,
+      noDisplaySize: true,
+      ddsReference: 'Option indicators are required for this keyword; display size condition names are not valid.'
+    }
+  };
+  function optionIndicatorRequiredFact(keywordName) {
+    var n = String(keywordName == null ? '' : keywordName).trim().toUpperCase();
+    return Object.prototype.hasOwnProperty.call(OPTION_INDICATOR_REQUIRED, n) ? OPTION_INDICATOR_REQUIRED[n] : null;
+  }
+
   function windowDependentKeywords() {
     var spec = RECORD_TYPES.WINDOW;
     return (spec && spec.requiredFor) ? spec.requiredFor.slice() : [];
@@ -2953,6 +2989,8 @@
     isMutex: isMutex,
     mutexKeywords: mutexKeywords,
     windowDependentKeywords: windowDependentKeywords,
+    sflctlDependentKeywords: sflctlDependentKeywords,
+    optionIndicatorRequiredFact: optionIndicatorRequiredFact,
     notAllowedInRecordType: notAllowedInRecordType,
     isPassrcdRestricted: isPassrcdRestricted,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,

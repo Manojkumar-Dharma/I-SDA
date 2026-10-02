@@ -6285,14 +6285,18 @@ const htmlTemplate = `<!DOCTYPE html>
     return true;
   }
 
-  // Task I-140: RMVWDW / USRRSTDSP need a WINDOW keyword on the same record,
-  // checked on every committed edit (same shape as keyClaimGuardBlocks above).
-  // Returns true (after alerting) when the edit would leave a record with one
-  // of them and no WINDOW - whether by adding it or by removing WINDOW.
+  // Task I-140 / I-141: record-level dependencies, checked on every committed
+  // edit (same shape as keyClaimGuardBlocks above): RMVWDW / USRRSTDSP need a
+  // WINDOW on the same record; SFLCSRRRN / SFLDLT / SFLINZ need an SFLCTL;
+  // SFLDLT takes option indicators, not display size names. Returns true
+  // (after alerting) when the edit would break one - whether by adding the
+  // dependent keyword or by removing what it depends on.
   function windowDependencyGuardBlocks(newLines) {
     let candidate;
     try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
-    const reason = DspfWriter.windowDependencyNewConflictReason(model, candidate);
+    const reason = DspfWriter.windowDependencyNewConflictReason(model, candidate) ||
+      DspfWriter.sflctlDependencyNewConflictReason(model, candidate) ||
+      DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate);
     if (!reason) return false;
     window.alert(reason);
     return true;

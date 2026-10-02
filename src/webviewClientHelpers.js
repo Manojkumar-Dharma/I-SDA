@@ -8128,6 +8128,13 @@
     g += flagRowHtml(p + '-sflinz', 'Initialize subfile fields (SFLINZ)', fSflinz.present, undefined, undefined, fSflinz.conditions, expandedSet);
     var fSfldlt = DspfWriter.getFileFlagKeyword(kw, 'SFLDLT');
     g += flagRowHtml(p + '-sfldlt', 'Delete subfile area (SFLDLT)', fSfldlt.present, undefined, undefined, fSfldlt.conditions, expandedSet);
+    // Task I-141: IBM requires an option indicator on SFLDLT (a bare SFLDLT
+    // never deletes anything useful), but the row has to be switchable on
+    // before its Conditioning editor is reachable - so this is a visible note
+    // on the row rather than a refusal of the checkbox.
+    if (fSfldlt.present && !DspfWriter.hasOptionIndicator(fSfldlt.conditions)) {
+      g += '<div id=\"' + p + '-sfldlt-needs-indicator\" class=\"kw-warning\" style=\"margin:-4px 0 10px 22px;font-size:11px;color:var(--warn, #b45309);\">SFLDLT needs an option indicator (open Conditioning above) - IBM: option indicators are required for this keyword.</div>';
+    }
     var fSflclr = DspfWriter.getFileFlagKeyword(kw, 'SFLCLR');
     g += flagRowHtml(p + '-sflclr', 'Clear subfile records (SFLCLR)', fSflclr.present, undefined, undefined, fSflclr.conditions, expandedSet);
     var fSflrna = DspfWriter.getFileFlagKeyword(kw, 'SFLRNA');

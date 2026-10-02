@@ -5012,24 +5012,37 @@
     return null;
   }
 
-  /** Task I-140 - RMVWDW and USRRSTDSP each require a WINDOW keyword on the
-   *  same record format (DDS Reference; see RECORD_TYPES.WINDOW.requiredFor).
-   *  Every (record, dependent keyword) pair in `model` whose record carries
-   *  the keyword but no WINDOW. Returns { 'RECORD|KEYWORD': message }. */
-  function windowDependencyViolations(model) {
+  /** Task I-140 / I-141 - keywords that each require a marker keyword on the
+   *  same record format. Every (record, dependent) pair in `model` whose
+   *  record carries the dependent but not the marker. Returns
+   *  { 'RECORD|KEYWORD': message }. `marker` is the required keyword, `dependents`
+   *  the keywords that need it, `article` its wording in the message. */
+  function recordDependencyViolations(model, marker, dependents, article) {
     var out = {};
-    var dependents = KeywordSpec.windowDependentKeywords();
     ((model && model.records) || []).forEach(function (r) {
       var kws = r.keywords || [];
-      if (kws.some(function (k) { return k.name === 'WINDOW'; })) return;
+      if (kws.some(function (k) { return k.name === marker; })) return;
       dependents.forEach(function (name) {
         if (kws.some(function (k) { return k.name === name; })) {
           out[r.name + '|' + name] = name + ' cannot be specified on record format ' + r.name +
-            ' without a WINDOW keyword on the same record format (per the DDS Reference).';
+            ' without ' + article + ' ' + marker + ' keyword on the same record format (per the DDS Reference).';
         }
       });
     });
     return out;
+  }
+
+  /** The first violation `after` has that `before` did not, or null. */
+  function firstNewViolation(before, after) {
+    var keys = Object.keys(after);
+    for (var i = 0; i < keys.length; i++) {
+      if (!before[keys[i]]) return after[keys[i]];
+    }
+    return null;
+  }
+
+  function windowDependencyViolations(model) {
+    return recordDependencyViolations(model, 'WINDOW', KeywordSpec.windowDependentKeywords(), 'a');
   }
 
   /** The reason the edit that turned `oldModel` into `newModel` leaves a
@@ -5040,13 +5053,57 @@
    *  removing WINDOW from a record that still carries it. */
   function windowDependencyNewConflictReason(oldModel, newModel) {
     var after = windowDependencyViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(windowDependencyViolations(oldModel), after);
+  }
+
+  /** Task I-141 - SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords of
+   *  the subfile-control record format, i.e. a record that carries SFLCTL.
+   *  Same diff-based, both-directions shape as the WINDOW check above. */
+  function sflctlDependencyViolations(model) {
+    return recordDependencyViolations(model, 'SFLCTL', KeywordSpec.sflctlDependentKeywords(), 'an');
+  }
+  function sflctlDependencyNewConflictReason(oldModel, newModel) {
+    var after = sflctlDependencyViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(sflctlDependencyViolations(oldModel), after);
+  }
+
+  /** Task I-141 - SFLDLT: \"Option indicators are required for this keyword;
+   *  display size condition names are not valid.\" Per record, the number of
+   *  display-size condition groups on its SFLDLT keywords. */
+  function displaySizeConditionsOnRequiredIndicatorKeywords(model) {
+    var out = {};
+    ((model && model.records) || []).forEach(function (r) {
+      (r.keywords || []).forEach(function (k) {
+        var fact = KeywordSpec.optionIndicatorRequiredFact(k.name);
+        if (!fact || !fact.noDisplaySize) return;
+        var n = displaySizeConditionCount(k.conditions);
+        if (n > 0) out[r.name + '|' + k.name] = { count: n, name: k.name, ddsReference: fact.ddsReference };
+      });
+    });
+    return out;
+  }
+  /** The reason the edit adds a display-size condition name to SFLDLT, or
+   *  null. Diff-based; removing one or an already-present one is fine. */
+  function optionIndicatorRequiredNewConflictReason(oldModel, newModel) {
+    var after = displaySizeConditionsOnRequiredIndicatorKeywords(newModel);
     var keys = Object.keys(after);
     if (!keys.length) return null;
-    var before = windowDependencyViolations(oldModel);
+    var before = displaySizeConditionsOnRequiredIndicatorKeywords(oldModel);
     for (var i = 0; i < keys.length; i++) {
-      if (!before[keys[i]]) return after[keys[i]];
+      if (after[keys[i]].count > (before[keys[i]] ? before[keys[i]].count : 0)) {
+        return after[keys[i]].name + ': display size condition names (*DS3 / *DS4) are not valid - use an option indicator (per the DDS Reference: ' + after[keys[i]].ddsReference + ')';
+      }
     }
     return null;
+  }
+
+  /** Whether `conditions` holds at least one option indicator (a display-size
+   *  condition does not count). For the Subfile panel's \"SFLDLT needs an
+   *  indicator\" note. */
+  function hasOptionIndicator(conditions) {
+    return optionIndicatorCount(conditions) > 0;
   }
 
   /** Task I-121 (MOUBTN parameter-domain slice) - the MOUBTN panel's EVENT /
@@ -9589,6 +9646,9 @@
     moubtnCommandKeyConflictReason: moubtnCommandKeyConflictReason,
     altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,
     windowDependencyNewConflictReason: windowDependencyNewConflictReason,
+    sflctlDependencyNewConflictReason: sflctlDependencyNewConflictReason,
+    optionIndicatorRequiredNewConflictReason: optionIndicatorRequiredNewConflictReason,
+    hasOptionIndicator: hasOptionIndicator,
     standardDisplaySizes: KeywordSpec.standardDisplaySizes,
     commandKeyClaimsInModel: commandKeyClaimsInModel,
     setChoiceSelectionType: setChoiceSelectionType,

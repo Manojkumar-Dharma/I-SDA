@@ -183,7 +183,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.267 |
 | [I-139](#i-139) | File / Record / Field | `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` file-wide command-key exclusions: the three alt-key sections each list the keywords that cannot be specified in a file with them (`CAnn` / `CFnn`, `MNUCNL`, `MNUBARSW`, `MOUBTN`, `PSHBTNCHC`, `SFLDROP`, `SFLENTER`, `SFLFOLD`, and each other, by key number and defaults) - only the MOUBTN rows are enforced (I-136) | I-136 | Done | v0.10.268 |
 | [I-140](#i-140) | Record | `RMVWDW` / `USRRSTDSP` are accepted by the raw keyword editor on a record that has no `WINDOW` keyword, and stay after `WINDOW` is removed; IBM requires `WINDOW` on the same record | I-122 | Done | v0.10.276 |
-| [I-141](#i-141) | Record | `SFLDLT` is written with no option indicator (IBM: option indicators are required, display size condition names not valid); `SFLDLT` / `SFLINZ` / `SFLCSRRRN` are accepted by the raw editor on records that are not a subfile-control record | I-122 | Not started | - |
+| [I-141](#i-141) | Record | `SFLDLT` is written with no option indicator (IBM: option indicators are required, display size condition names not valid); `SFLDLT` / `SFLINZ` / `SFLCSRRRN` are accepted by the raw editor on records that are not a subfile-control record | I-122 | Done | v0.10.281 |
 | [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Not started | - |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -6225,9 +6225,17 @@ New `src/test/i140WindowDependency.test.js` (27 checks): the spec fact, the pure
 
 ### I-141 — `SFLDLT` option indicator and record-type scope
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-122
+> **Area:** Record · **Status:** Done (v0.10.281) · **Depends on:** I-122
 
 Found by the I-122 batch 1 tests. (1) IBM, SFLDLT: "Option indicators are required for this keyword; display size condition names are not valid." The SFLCTL panel's checkbox writes a bare `SFLDLT` with no indicator (verified), and nothing flags it. (2) `SFLDLT`, `SFLINZ` and `SFLCSRRRN` are "record-level keyword[s] ... on the subfile-control record format"; the raw keyword editor accepted `SFLDLT` on a plain record (verified: no alert). Open question: whether (1) is a guard on turning the row on (needs an indicator picked first) or an audit warning, since the checkbox is the only way the UI creates it.
+
+**Fix (v0.10.281).** *(2) Record-type scope.* `keywordSpec.js` gains `RECORD_TYPES.SFLCTL.requiredFor: ['SFLCSRRRN', 'SFLDLT', 'SFLINZ']` with its DDS citation (`KeywordSpec.sflctlDependentKeywords()`), the same shape I-140 gave WINDOW. The I-140 writer check was generalised to a shared `recordDependencyViolations(model, marker, dependents, article)` / `firstNewViolation` pair; `DspfWriter.sflctlDependencyNewConflictReason(oldModel, newModel)` is the SFLCTL instance. It reports only violations the edit adds (an already-invalid hand-written file never blocks an unrelated edit) and covers both directions: raw-adding any of the three to a record with no SFLCTL, and removing SFLCTL from a record that still carries one. `commitSourceChange`'s `windowDependencyGuardBlocks` now chains the WINDOW, SFLCTL and SFLDLT checks (alert, re-render, nothing written).
+
+*(1) Option indicator.* Decision on the open question: split. A **display size condition name on SFLDLT is refused** (`KeywordSpec.optionIndicatorRequiredFact('SFLDLT')` = `{required, noDisplaySize, ddsReference}`; `DspfWriter.optionIndicatorRequiredNewConflictReason`, diff-based) - it is plainly invalid DDS and reachable through the Conditioning editor. A **bare SFLDLT is not refused**: the checkbox is the only way the UI creates the keyword and its Conditioning editor only exists once the keyword does, so refusing the toggle would make the row unusable. Instead the SFLCTL panel shows a note under the row (`sflctl-<rec>-sfldlt-needs-indicator`) while SFLDLT is on with no option indicator, and it disappears once one is added (`DspfWriter.hasOptionIndicator`: a display size name does not count). Say if you would rather have a hard block (an indicator picker on toggle-on).
+
+Not changed: SFLINZ's own \"display size condition names not valid\" is a separate fact (I-122 batch 1 noted it); SFLCSRRRN's parameter form is I-142.
+
+New `src/test/i141SubfileControlKeywords.test.js` (40 checks): spec facts, the pure guards (add, remove, parameter change, already-invalid, second violation, fail-safe, display size vs indicator) and the real generated webview in jsdom (raw-editor adds on a plain record, unchecking SFLCTL, the SFLDLT note appearing / disappearing, accepted paths). Mutation-checked: removing only the SFLCTL clause from the hook fails four refusal checks. The I-140 test is unchanged and still passes on the generalised helper.
 
 ---
 
