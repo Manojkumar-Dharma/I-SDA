@@ -30,6 +30,10 @@
   var DEFAULT_LINES = 24;
   var DEFAULT_COLUMNS = 80;
 
+  // Task I-121s - COLOR_HEX is PRESENTATION (the CSS colour each DDS COLOR
+  // value is drawn in), not a DDS rule: the value NAMES are keywordSpec.js's
+  // COLOR entry (validValues('COLOR')); i121sConstantTablesSpec.test.js pins
+  // the two key sets equal, so a value added to one cannot be missing here.
   var COLOR_HEX = {
     BLU: '#4a9eff',
     RED: '#ff5c5c',
@@ -206,6 +210,10 @@
   // Field -> display text / placeholder
   // ---------------------------------------------------------------------
 
+  // Task I-121s - NUMERIC_TYPES picks the 9-vs-X placeholder glyph the
+  // preview draws in an input box. Presentation, not a keyword rule (the
+  // keyboard-shift numeric list is keywordSpec.js's isNumericShiftDataType,
+  // a different question), so it stays with the renderer.
   var NUMERIC_TYPES = { S: true, Y: true, N: true, D: true, F: true };
 
   function placeholderChar(field) {
@@ -328,6 +336,10 @@
    * get counted as characters too, which very slightly *over*-reserves
    * width rather than under - the safe direction for overlap detection.
    */
+  // Task I-121s decision: edtwrdDisplayWidth stays in the engine. It is
+  // parameter-text arithmetic (the edit word's own length, with '' counted
+  // once), not a table of keyword facts; the DDS-level facts about EDTWRD
+  // (numeric-only, exclusions) are already on its keywordSpec.js entry.
   function edtwrdDisplayWidth(paramText) {
     var s = (paramText || '').trim();
     if (s.length >= 2 && s.charAt(0) === "'" && s.charAt(s.length - 1) === "'") {
@@ -2325,6 +2337,8 @@
     // record's fields, the window's own background instead of the screen frame's.
     if (f.stackLayer != null) colorStyle += 'z-index:' + f.stackLayer + ';';
     if (f.inWindow) colorStyle += '--dspf-cell-bg:#0a0f0c;';
+    // Task I-121s - USAGE_LABEL and the data-type words below are hover-title
+    // wording for the preview (presentation), so they stay with the renderer.
     var USAGE_LABEL = { I: 'Input (I)', O: 'Output (O)', B: 'Both (B)', H: 'Hidden (H)', M: 'Message (M)', P: 'Program-to-system (P)' };
     var usageStr = f.usage ? ' · ' + (USAGE_LABEL[f.usage.toUpperCase()] || f.usage) : '';
     var dtypeStr = f.nameType === 'FIELD'

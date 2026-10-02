@@ -42,6 +42,80 @@
   // only because ~50 existing call sites across webviewClientHelpers.js
   // already reference one name or the other with slightly different
   // message wording).
+  // ---- I-121s: engine and writer constant tables ----
+  //
+  // Task I-121s - three hand-written tables in dspfWriter.js moved here.
+  //
+  // (1) SFL_CHOICE_KEYWORDS_LIST - the two subfile selection-list keywords
+  // that exclude each other. SFLSNGCHC's and SFLMLTCHC's own DDS Reference
+  // sections (each lists the other under "cannot be specified with")
+  // establish the pair; SFLRTNSEL's qualifyingNames below uses the same
+  // list, so the two can no longer drift. Declared order is the order
+  // sflChoiceListNewConflictReason reports in.
+  var SFL_CHOICE_KEYWORDS_LIST = ['SFLSNGCHC', 'SFLMLTCHC'];
+
+  // (2) ALWROL_CLRL_SLNO_KEYWORDS - the three keywords whose DDS Reference
+  // sections each state "cannot be specified with ... ALWROL, CLRL, SLNO"
+  // (the ALWROL / CLRL / SLNO entries' `mutex` lists below). ASSUME's own
+  // narrowed list is the same three names.
+  var ALWROL_CLRL_SLNO_KEYWORDS = ['ALWROL', 'CLRL', 'SLNO'];
+
+  // (3) RECORD_REFERENCES - the keywords whose parameter text names another
+  // RECORD FORMAT, so renaming that record format must rewrite them
+  // (renameRecordReferences). Not a DDS rule table: the DDS Reference
+  // gives each keyword's parameter grammar, and these entries say where
+  // the record-name token sits in it (verified: SFLCTL(record-format-name),
+  // WINDOW(record-format-name | reference-line ...), MNUBARCHC(choice-
+  // number record-name 'text')). `kind` is how the token is found in the
+  // `parameters` text; `locator` is the source of the regex, scoped to that
+  // keyword's own invocation, whose group 2 is the token to replace.
+  //   whole          - the entire trimmed parameter text is the record name
+  //   singleToken    - exactly one whitespace-separated token that is not a
+  //                    number (a reference line) and not *DFT (inline
+  //                    geometry), else the keyword carries no reference
+  //   afterLeadingNumber - `<digits> <record-name> '<text>'`
+  var RECORD_REFERENCES = {
+    SFLCTL: { kind: 'whole', locator: '(\\bSFLCTL\\(\\s*)(\\S+?)(\\s*\\))' },
+    WINDOW: { kind: 'singleToken', locator: '(\\bWINDOW\\(\\s*)(\\S+)(\\s*\\))' },
+    MNUBARCHC: { kind: 'afterLeadingNumber', locator: '(\\bMNUBARCHC\\(\\s*\\d+\\s+)(\\S+)(\\s+\')' }
+  };
+
+  /** The keywords that carry a record-format-name reference, in table order. */
+  function recordReferenceKeywords() { return Object.keys(RECORD_REFERENCES); }
+
+  /** The record-format name `keywordName`'s `parameters` text references, or
+   *  null when the keyword is not a record reference or this occurrence
+   *  does not carry one (e.g. WINDOW with inline geometry). */
+  function recordReferenceName(keywordName, parameters) {
+    if (!Object.prototype.hasOwnProperty.call(RECORD_REFERENCES, keywordName)) return null;
+    var params = parameters == null ? '' : String(parameters);
+    var kind = RECORD_REFERENCES[keywordName].kind;
+    if (kind === 'whole') {
+      return params.trim() || null;
+    }
+    if (kind === 'singleToken') {
+      var parts = params.trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') return parts[0];
+      return null;
+    }
+    if (kind === 'afterLeadingNumber') {
+      var m = params.trim().match(/^(\d+)\s+(\S+)\s+'/);
+      return m ? m[2] : null;
+    }
+    return null;
+  }
+
+  /** A fresh case-insensitive RegExp locating the record-name token within
+   *  `keywordName`'s own invocation (token = group 2), or null. */
+  function recordReferenceLocator(keywordName) {
+    if (!Object.prototype.hasOwnProperty.call(RECORD_REFERENCES, keywordName)) return null;
+    return new RegExp(RECORD_REFERENCES[keywordName].locator, 'i');
+  }
+
+  function sflChoiceKeywords() { return SFL_CHOICE_KEYWORDS_LIST.slice(); }
+  function alwrolClrlSlnoKeywords() { return ALWROL_CLRL_SLNO_KEYWORDS.slice(); }
+  // ---- end I-121s ----
+
   // Task I-121 message-data-field slice - the one rule CHKMSGID,
   // ERRMSGID and SFLMSGID each state for their message data field
   // parameter (`&message-data-field` / `&msg-data`), re-verified against
@@ -1244,7 +1318,7 @@
     SFLRTNSEL: {
       ddsReference:
         'If this keyword is specified then SFLMLTCHC or SFLSNGCHC must be specified.',
-      qualifyingNames: ['SFLSNGCHC', 'SFLMLTCHC'],
+      qualifyingNames: SFL_CHOICE_KEYWORDS_LIST.slice(),
       qualifyingListText: 'SFLSNGCHC or SFLMLTCHC'
     },
 
@@ -3293,6 +3367,12 @@
     repeatableGroupAlternateKinds: repeatableGroupAlternateKinds,
     recordIndicatorKeywordNames: recordIndicatorKeywordNames,
     recordIndicatorAlternateKinds: recordIndicatorAlternateKinds,
-    recordIndicatorTakesOptionIndicators: recordIndicatorTakesOptionIndicators
+    recordIndicatorTakesOptionIndicators: recordIndicatorTakesOptionIndicators,
+    RECORD_REFERENCES: RECORD_REFERENCES,
+    recordReferenceKeywords: recordReferenceKeywords,
+    recordReferenceName: recordReferenceName,
+    recordReferenceLocator: recordReferenceLocator,
+    sflChoiceKeywords: sflChoiceKeywords,
+    alwrolClrlSlnoKeywords: alwrolClrlSlnoKeywords
   };
 });

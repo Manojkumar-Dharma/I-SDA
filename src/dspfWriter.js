@@ -2316,6 +2316,9 @@
   //  per keyword (95 every-level keywords plus the file-level-only
   //  HLPTITLE; the I-95 / I-101 batch 1-4 arrays and their reading notes
   //  moved there). Only the wording -> message mapping stays here.
+  //  Task I-121s decision: this wording -> message mapping is PRESENTATION
+  //  (the error text shown to the user), so it deliberately stays here; the
+  //  facts it renders are the spec's `kind` per keyword.
   var NO_OPTION_INDICATOR_MESSAGES = {
     notValid: function (n) { return 'Option indicators are not valid for ' + n + ' (per the DDS Reference).'; },
     notValidDisplaySizeValid: function (n) { return 'Option indicators are not valid for ' + n + ' (per the DDS Reference); display size condition names are.'; },
@@ -4096,7 +4099,7 @@
    *  hand-written TARGET and inline ['ASSUME','SFL','SFLCTL','USRDFN']
    *  arrays. */
   function alwrolClrlSlnoConflictReason(keywordName, recordKeywords) {
-    var TARGET = ['ALWROL', 'CLRL', 'SLNO'];
+    var TARGET = KeywordSpec.alwrolClrlSlnoKeywords();
     var kws = recordKeywords || [];
     function has(name) { return kws.some(function (k) { return k.name === name; }); }
     if (TARGET.indexOf(keywordName) !== -1) {
@@ -6924,43 +6927,14 @@
     return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
   }
 
-  // Each entry locates the record-name TOKEN within a keyword's own
-  // `parameters` text for one specific, well-known DDS keyword shape - not
-  // a heuristic guess, the same parsing logic dspfEngine.js already uses to
-  // resolve these keywords at render time (resolveWindow, findSflPairing,
-  // parseMenubarChoice). Returns the token string if this occurrence
-  // genuinely references a record name, or null if it doesn't (e.g. WINDOW
-  // with inline geometry instead of a record reference).
-  var RECORD_REFERENCE_EXTRACTORS = {
-    SFLCTL: function (params) {
-      var name = params.trim();
-      return name || null;
-    },
-    WINDOW: function (params) {
-      var parts = params.trim().split(/\s+/).filter(Boolean);
-      if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') {
-        return parts[0];
-      }
-      return null;
-    },
-    MNUBARCHC: function (params) {
-      var m = params.trim().match(/^(\d+)\s+(\S+)\s+'/);
-      return m ? m[2] : null;
-    },
-  };
-
-  // A regex per keyword, scoped to that keyword's own invocation, that
-  // captures the record-name token as group 2 - used only to locate and
-  // replace that exact token within the physical line(s) a keyword we've
-  // ALREADY confirmed (via the extractor above) references `oldName`
-  // occupies. Anchored to the keyword name and, for MNUBARCHC, to the
-  // digits-then-token-then-quote shape, so it can never touch the quoted
-  // display text or another keyword's parameters sharing the same line.
-  var RECORD_REFERENCE_LOCATORS = {
-    SFLCTL: /(\bSFLCTL\(\s*)(\S+?)(\s*\))/i,
-    WINDOW: /(\bWINDOW\(\s*)(\S+)(\s*\))/i,
-    MNUBARCHC: /(\bMNUBARCHC\(\s*\d+\s+)(\S+)(\s+')/i,
-  };
+  // Task I-121s - the three record-name-reference shapes (SFLCTL / WINDOW /
+  // MNUBARCHC: where the record-format-name token sits in the keyword's
+  // parameter text, and the regex that locates it for replacement) are
+  // keywordSpec.js's RECORD_REFERENCES table, read through
+  // KeywordSpec.recordReferenceName / recordReferenceLocator. They use the
+  // same parsing dspfEngine.js relies on at render time (resolveWindow,
+  // findSflPairing, parseMenubarChoice), so a comment or a constant's
+  // display text can never be mistaken for a reference.
 
   /**
    * Rewrites every keyword occurrence elsewhere in the file that
@@ -6982,9 +6956,7 @@
   function renameRecordReferences(dspfFile, sourceLines, oldName, newName) {
     var edits = [];
     function scanKeyword(kw) {
-      var extractor = RECORD_REFERENCE_EXTRACTORS[kw.name];
-      if (!extractor) return;
-      var ref = extractor(kw.parameters);
+      var ref = KeywordSpec.recordReferenceName(kw.name, kw.parameters);
       if (!ref || ref.toUpperCase() !== oldName.toUpperCase()) return;
       edits.push({ name: kw.name, sourceLines: kw.sourceLines });
     }
@@ -6995,7 +6967,7 @@
 
     var result = sourceLines.slice();
     edits.forEach(function (edit) {
-      var locator = RECORD_REFERENCE_LOCATORS[edit.name];
+      var locator = KeywordSpec.recordReferenceLocator(edit.name);
       edit.sourceLines.some(function (lineNo) {
         var idx = lineNo - 1;
         var m = result[idx].match(locator);
@@ -8250,7 +8222,7 @@
    *  reverse directions can never disagree; report order is the choice
    *  keyword order below, then the spec's partner order. The wording names
    *  the keyword being ADDED first, matching sflChoiceListConflictReason. */
-  var SFL_CHOICE_KEYWORDS = ['SFLSNGCHC', 'SFLMLTCHC'];
+  var SFL_CHOICE_KEYWORDS = KeywordSpec.sflChoiceKeywords();
   function sflChoiceListNewConflictReason(oldKeywords, newKeywords) {
     var has = function (kws, n) { return (kws || []).some(function (kw) { return kw.name === n; }); };
     for (var i = 0; i < SFL_CHOICE_KEYWORDS.length; i++) {

@@ -182,7 +182,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done v0.10.285 | — |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Claimed (in progress); choice radio groups done v0.10.284 | — |
-| [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Claimed (in progress); `CHARACTER_TYPES` removed v0.10.279 | — |
+| [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done, v0.10.274: the six keywords with no tests; next: batch 2) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
@@ -6262,9 +6262,27 @@ Hand-written keyword tables in `webviewClientHelpers.js`: `RECORD_TYPES` (record
 
 ### I-121s — Engine and writer constant tables
 
-> **Area:** Tooling · **Status:** Partly done (`CHARACTER_TYPES` removed, v0.10.279) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done v0.10.286 (`CHARACTER_TYPES` removed earlier, v0.10.279) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 `dspfEngine.js` (`CHARACTER_TYPES` was removed unused in v0.10.279): `COLOR_HEX`, `NUMERIC_TYPES`, `USAGE_LABEL`, and the `edtwrdDisplayWidth` arithmetic (a rule, left in the engine by v0.10.273 - decide whether it is a spec fact). `dspfWriter.js`: the `TARGET` array in `alwrolClrlSlnoConflictReason`, `SFL_CHOICE_KEYWORDS`, `RECORD_REFERENCE_EXTRACTORS` / `RECORD_REFERENCE_LOCATORS`, and `NO_OPTION_INDICATOR_MESSAGES` (wording is presentation - say so explicitly if it stays).
+
+**Result (v0.10.286).** Pure refactor; no behaviour change.
+
+Moved into `src/keywordSpec.js` (block `// ---- I-121s ----`):
+
+- `RECORD_REFERENCES` - `SFLCTL`, `WINDOW`, `MNUBARCHC`: where the record-format-name token sits in the parameter text (`kind`: `whole`, `singleToken`, `afterLeadingNumber`) and the locator regex source. Read through `KeywordSpec.recordReferenceName` / `recordReferenceLocator`; replaces `RECORD_REFERENCE_EXTRACTORS` / `RECORD_REFERENCE_LOCATORS`. It is a separate table, not `RECORD_TYPES.MNUBARCHC`, so it does not take I-121l's keyword ownership.
+- `sflChoiceKeywords()` - `SFLSNGCHC`, `SFLMLTCHC`; replaces the writer's `SFL_CHOICE_KEYWORDS`. `SFLRTNSEL`'s `qualifyingNames` now reads the same list.
+- `alwrolClrlSlnoKeywords()` - replaces the `TARGET` array in `alwrolClrlSlnoConflictReason`.
+
+Classified as presentation and left in place, each with a comment saying so:
+
+- `COLOR_HEX` (CSS colours; its keys are pinned equal to the spec's `COLOR` values by the new test), `NUMERIC_TYPES` (preview placeholder glyph), `USAGE_LABEL` and the data-type words in the field hover title.
+- `NO_OPTION_INDICATOR_MESSAGES` - error wording, per the task's own note; the facts it renders are already the spec's `noOptionIndicators` kinds.
+- `edtwrdDisplayWidth` - decided it is parameter-text arithmetic, not a keyword fact; EDTWRD's DDS-level facts are already on its spec entry.
+
+Test: new `src/test/i121sConstantTablesSpec.test.js` compares the spec against the removed code word for word (extractors on 18 parameter strings per keyword, locator source and flags, partner lists) and runs `renameRecordReferences` end to end. It fails against the pre-change source. Full suite: 234 files / 12,774 checks / zero failures.
+
+No new findings.
 
 ---
 
