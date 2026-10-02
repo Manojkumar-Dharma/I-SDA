@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-139 of 162 tasks done; 23 open (see [Open work](#open-work)). Current version: **v0.10.284**.
+147 of 164 tasks done; 17 open (see [Open work](#open-work)). Current version: **v0.10.292**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -176,7 +176,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
-| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Claimed (in progress) | — |
+| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done (v0.10.292); 6 of 6 specified | v0.10.292 |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done (v0.10.291); 8 of 8 specified | v0.10.291 |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done v0.10.285 | — |
@@ -205,6 +205,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-140](#i-140) | Record | `RMVWDW` / `USRRSTDSP` are accepted by the raw keyword editor on a record that has no `WINDOW` keyword, and stay after `WINDOW` is removed; IBM requires `WINDOW` on the same record | I-122 | Done | v0.10.276 |
 | [I-141](#i-141) | Record | `SFLDLT` is written with no option indicator (IBM: option indicators are required, display size condition names not valid); `SFLDLT` / `SFLINZ` / `SFLCSRRRN` are accepted by the raw editor on records that are not a subfile-control record | I-122 | Done | v0.10.281 |
 | [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Done | v0.10.282 |
+| [I-143](#i-143) | Field | `MSGCON` rules from its DDS section are not enforced: the DATE/DFT/EDTCDE/EDTWRD/TIME exclusion, constant-only, and the 1-132 length | I-121m | Not started | — |
+| [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -218,17 +220,19 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121a – I-121o](#i-121-slices) | Not started (c, d, m, n partly done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
-| 2 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
-| 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 4 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
-| 5 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 6 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 7 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 1 | [I-143](#i-143) | Not started | `MSGCON` rules not enforced - found by I-121m. Real bug, proven fix shape (the MSGCON entry already holds the facts). |
+| 2 | [I-144](#i-144) | Not started | DATE/TIME/USER/SYSNAME rules not enforced and one-column preview - found by I-121m. |
+| 3 | [I-121a – I-121o](#i-121-slices) | In progress (b, c, d, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
+| 4 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
+| 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 6 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
+| 7 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 8 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 9 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-142, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-144, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -5587,7 +5591,7 @@ Rules for one keyword currently live in `*ConflictReason` functions (67), rule t
 
 #### Completed slices (history)
 
-Done so far, with versions: USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice done v0.10.211; HLPDOC/HLPBDY/HLPPNLGRP/HLPRCD slice done v0.10.212; HTML slice done v0.10.213; MSGID slice done v0.10.214; WRDWRAP/IGCALTTYP slice done v0.10.215; DFT/DFTVAL/EDTCDE/EDTWRD slice done v0.10.216; PSHBTNFLD slice done v0.10.217; PASSRCD-restricted-keywords slice done v0.10.218; DUP/BLKFOLD-floating-point slice done v0.10.219; CHRID slice done v0.10.220; DATFMT/DATSEP/TIMFMT/TIMSEP + L/T/Z usage slice done v0.10.221; SFLCHCCTL slice done v0.10.222; CHKMSGID slice done v0.10.224; SFLSCROLL slice done v0.10.225; message-data-field slice done v0.10.226; SFLRTNSEL slice done v0.10.229; SFLLIN/SFLCSRPRG slice done v0.10.230; SFLSNGCHC/SFLMLTCHC slice done v0.10.231; SFLSIZ slice done v0.10.240; MNUBARSW/MNUCNL slice done v0.10.241; SFLMSGKEY/SFLPGMQ slice done v0.10.243; EDTCDE/EDTMSK slice done v0.10.244; WRDWRAP/IGCALTTYP field-eligibility slice done v0.10.246; VALNUM field-eligibility slice done v0.10.247; CHECK(AB) floating-point slice done v0.10.249; no-option-indicators table slice done v0.10.251; SNGCHCFLD/MLTCHCFLD selection-type-parameters slice done v0.10.252; record-indicator keyword group slice done v0.10.259; DFT/DFTVAL floating-point slice done v0.10.263; repeatable-instance keyword groups slice done v0.10.266; choice color-state keywords slice done v0.10.269; DFT output-requirement slice done v0.10.270; edit/validity keyword groups slice done v0.10.271; display-width slice done v0.10.272; PSHBTNCHC command-key domain slice done v0.10.273; S36E restriction table slice claimed; command-key grammar / alt-key table slice done v0.10.275; DSPSIZ display-size names slice done v0.10.277; command-key parameter keywords slice done v0.10.278; keyboard-shift (position 35) value-domain slice done v0.10.279; system-value constant keywords slice done v0.10.280; choice selection-type radio groups slice done v0.10.284.
+Done so far, with versions: USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice done v0.10.211; HLPDOC/HLPBDY/HLPPNLGRP/HLPRCD slice done v0.10.212; HTML slice done v0.10.213; MSGID slice done v0.10.214; WRDWRAP/IGCALTTYP slice done v0.10.215; DFT/DFTVAL/EDTCDE/EDTWRD slice done v0.10.216; PSHBTNFLD slice done v0.10.217; PASSRCD-restricted-keywords slice done v0.10.218; DUP/BLKFOLD-floating-point slice done v0.10.219; CHRID slice done v0.10.220; DATFMT/DATSEP/TIMFMT/TIMSEP + L/T/Z usage slice done v0.10.221; SFLCHCCTL slice done v0.10.222; CHKMSGID slice done v0.10.224; SFLSCROLL slice done v0.10.225; message-data-field slice done v0.10.226; SFLRTNSEL slice done v0.10.229; SFLLIN/SFLCSRPRG slice done v0.10.230; SFLSNGCHC/SFLMLTCHC slice done v0.10.231; SFLSIZ slice done v0.10.240; MNUBARSW/MNUCNL slice done v0.10.241; SFLMSGKEY/SFLPGMQ slice done v0.10.243; EDTCDE/EDTMSK slice done v0.10.244; WRDWRAP/IGCALTTYP field-eligibility slice done v0.10.246; VALNUM field-eligibility slice done v0.10.247; CHECK(AB) floating-point slice done v0.10.249; no-option-indicators table slice done v0.10.251; SNGCHCFLD/MLTCHCFLD selection-type-parameters slice done v0.10.252; record-indicator keyword group slice done v0.10.259; DFT/DFTVAL floating-point slice done v0.10.263; repeatable-instance keyword groups slice done v0.10.266; choice color-state keywords slice done v0.10.269; DFT output-requirement slice done v0.10.270; edit/validity keyword groups slice done v0.10.271; display-width slice done v0.10.272; PSHBTNCHC command-key domain slice done v0.10.273; S36E restriction table slice claimed; command-key grammar / alt-key table slice done v0.10.275; DSPSIZ display-size names slice done v0.10.277; command-key parameter keywords slice done v0.10.278; keyboard-shift (position 35) value-domain slice done v0.10.279; system-value constant keywords slice done v0.10.280; choice selection-type radio groups slice done v0.10.284; constant and system-value field keywords slice (I-121m) done v0.10.292.
 
 
 **USRDFN slice (v0.10.205).** New `src/keywordSpec.js` - a dependency-free UMD module, same shape as `dspfEngine.js`, loaded before `dspfWriter.js` in both webviews (and via `require` in Node) - holding `RECORD_TYPES.USRDFN`: the 9-keyword closed whitelist (re-verified fresh against `DDS_Keyword_V7r6.txt`'s own USRDFN section, unchanged from what the code already had), the exact DDS Reference citation text, the derived `indicatorKinds` (`HELP`/`HLPRTN` - Task I-114's own finding, now data instead of only living in a fallback-order loop's outcome), and `keywordTabs` (the General/Indicator/Help/Print subset Task R2/I-114 narrow a USRDFN record's Keywords tab to).
@@ -6249,11 +6253,20 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121m — Constant and system-value field keywords
 
-> **Area:** Field · **Status:** Claimed (in progress; shared value-source fact done v0.10.280) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.292) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (6):** `DATE`, `TIME`, `USER`, `SYSNAME`, `MSGCON`, `NOCCSID`.
 
 Several of these appear in `HTML`'s 14-keyword mutex and `MSGID`'s exclusion list - those lists stay where they are; this slice adds each keyword's own eligibility (constant fields, system values). **Progress:** v0.10.280 moved the shared value-source list (DATE, TIME, USER, SYSNAME) into `SYSTEM_VALUE_CONSTANT_KEYWORDS`, read by the webview and engine - that is a fact, not a `RECORD_TYPES` entry, so all six keywords stay open: give each its own entry that points at it. `MSGCON` and `NOCCSID` are untouched.
+
+**Result (v0.10.292).** All six keywords now have a `RECORD_TYPES` entry, in the block fenced `// ---- I-121m: constant and system-value field keywords ----` in `keywordSpec.js`; `check_spec_coverage.py` reports `I-121m 6/6`. Each entry was written from its own section of `DDS_Keyword_V7r6.txt` (DATE ~line 4480, SYSNAME ~12785, TIME ~12832, USER ~13042, MSGCON ~8922, NOCCSID ~9147; "Constant fields" ~671) and the test checks every citation sentence against that file.
+
+- **Facts per entry.** `DATE`, `TIME`, `USER`, `SYSNAME` and `MSGCON` are `constantFieldOnly`. `DATE` and `TIME` list `EDTCDE`, `EDTWRD`, `COLOR`, `DSPATR`, `TEXT` as companions, `USER` and `SYSNAME` list `COLOR`, `DSPATR`, `TEXT`; `companionsStatedAsOnly` is true for `TIME` alone, because only its section says "only". `TIME`, `USER`, `SYSNAME` and `NOCCSID` take no parameters. `DATE` carries its two parameter domains (`*JOB|*SYS`, `*Y|*YY`) and defaults (`*JOB`, `*Y`). `USER` is 10 long and `SYSNAME` 8. `MSGCON` carries its length range (1-132) and its five-keyword exclusion list (`DATE`, `DFT`, `EDTCDE`, `EDTWRD`, `TIME`). Option indicators are not restated: the four system-value keywords stay in the I-101 table (`notValidFieldConditionable`), and `MSGCON`'s note is kept as text only.
+- **One copy removed.** `MSGCON`'s `min="1" max="132"`, hand-written in the constant panel and the Add form, now comes from `KeywordSpec.msgconLengthRange()` (re-exported by the writer).
+- **Accessors.** `constantFieldOnlyKeywords`, `isConstantFieldOnlyKeyword`, `listedCompanionKeywords`, `companionsStatedAsOnly`, `constantKeywordTakesNoParameters`, `dateParameters`, `fixedDisplayLength`, `msgconLengthRange`. The no-parameters accessor has its own name because I-121b's `takesNoParameters` already exists for its seven keywords.
+- **Not changed.** The v0.10.280 `SYSTEM_VALUE_CONSTANT_KEYWORDS` list stays the single source for the four system values (the test pins that it equals the constant-only list without `MSGCON`). `HTML`'s and `MSGID`'s exclusion lists stay where they are. Nothing the writer enforces changed: a pure refactor.
+- **Tests.** New `src/test/i121mConstantKeywordSpec.test.js` (52 checks): citations against the reference text, every fact, accessor semantics (fresh copies, case, own-property safety), ties to the I-101 table, `HTML`, `MSGID` and `KEYWORD-LOOKUP.json`, and the real generated webview's two `MSGCON` length inputs. Against the pre-change source the file fails (the accessors do not exist); full suite passes.
+- **Findings, opened as tasks.** Probing the raw keyword editor on constant and named fields showed the DDS rules in the entries are not enforced: [I-143](#i-143) (`MSGCON`) and [I-144](#i-144) (the system values and their preview width).
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
 
@@ -6759,3 +6772,22 @@ New `src/test/i142SflcsrrrnParameter.test.js` (50 checks, including the auto-`&`
 
 ---
 
+<a id="i-143"></a>
+
+### I-143 — `MSGCON` rules from its DDS section are not enforced
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-121m
+
+Found by the I-121m probe (raw keyword editor on a constant and on a named field; every case below was **allowed** and wrote an edit). The `MSGCON` section of `DDS_Keyword_V7r6.txt` (~line 8922) says: (1) it "cannot be used to initialize a named field"; (2) it "cannot be specified with any of the following keywords: DATE, DFT, EDTCDE, EDTWRD, TIME"; (3) the length "can be from 1 to 132 bytes". Probe results: `MSGCON` added to a named field - allowed; `DFT`, `DATE`, `TIME`, `EDTCDE`, `EDTWRD` added to a `MSGCON` constant - all allowed; `MSGCON` added to a `DATE` constant - allowed; `MSGCON(0 ...)` and `MSGCON(500 ...)` - allowed through the raw editor (the panel inputs carry `min`/`max` only as HTML attributes). The facts are in `RECORD_TYPES.MSGCON` (`constantFieldOnly`, `mutex`, `msgconParameters`) since I-121m; this task adds the guards, in both directions for the exclusion, and covers the panel, the raw editor and a Basic-tab change, as I-130 – I-140 did. The section also says that with both `DFT` and `MSGCON` on a field the file is not created, which the exclusion list already covers.
+
+---
+
+<a id="i-144"></a>
+
+### I-144 — DATE / TIME / USER / SYSNAME: unenforced rules and one-column preview
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-121m
+
+Found by the I-121m probe and an engine measurement. (1) **Constant-only.** Each section says "Positions 17 through 38 must be blank" (an unnamed constant); the raw editor accepts `DATE`, `USER` and `SYSNAME` on a named field. (2) **Parameters.** `TIME`, `USER`, `SYSNAME` and `NOCCSID` "have no parameters"; `USER(JUNK)` and `NOCCSID(X)` are accepted. `DATE`'s parameters (`*JOB|*SYS`, `*Y|*YY`) are not validated. (3) **Preview width.** `DspfEngine.resolveScreen` gives every system-value constant length 1 (measured: `USER`, `SYSNAME`, `TIME`, `DATE` all `len` 1), so the field is drawn one column wide with its placeholder text overflowing, and `previousColumnEnd` under-counts, which shifts every later relatively-positioned field on the line. The reference states `USER` is 10 characters and `SYSNAME` 8; `TIME` is 8 (edit word `0_:__:__`); `DATE`'s length depends on the job `DATFMT`, on `EDTCDE(Y)` separators and on `*Y`/`*YY`. The entries hold `fixedLength` for `USER` and `SYSNAME` and `dateParameters` for `DATE` already. Open question, not a rule: only the `TIME` section says the companion keywords are the "only" ones allowed; the `DATE`, `USER` and `SYSNAME` sections say "you can specify ... and, optionally, ...", so whether those lists are closed is not decided - raise it rather than guess.
+
+---

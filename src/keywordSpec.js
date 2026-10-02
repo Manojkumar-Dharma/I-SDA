@@ -2121,8 +2121,111 @@
         'message that is displayed on the message line and that is ' +
         'associated with that field. Option indicators are valid for these ' +
         'keywords.'
-    }
+    },
     // ---- end I-121n ----
+
+    // ---- I-121m: constant and system-value field keywords ----
+    // DATE, TIME, USER, SYSNAME, MSGCON and NOCCSID, each re-read fresh
+    // against DDS_Keyword_V7r6.txt (DATE ~line 4480, SYSNAME ~12785, TIME
+    // ~12832, USER ~13042, MSGCON ~8922, NOCCSID ~9147; "Constant fields"
+    // ~line 671). Facts per entry (only those the keyword's own section
+    // states):
+    //   constantFieldOnly         the keyword supplies an unnamed constant
+    //                             field's value (positions 17-38 blank; for
+    //                             MSGCON: "cannot be used to initialize a
+    //                             named field")
+    //   listedCompanionKeywords   the keywords the section says the field can
+    //                             carry besides its location and the keyword;
+    //                             companionsStatedAsOnly is true only where
+    //                             the text says "only" (TIME)
+    //   noParameters / dateParameters / msgconParameters   the parameter
+    //                             grammar and domain
+    //   fixedLength               a length the section states outright
+    //   mutex                     MSGCON's field-level exclusion list
+    // Option indicators are NOT restated here: DATE / TIME / USER / SYSNAME
+    // are in the noOptionIndicators table below (notValidFieldConditionable);
+    // MSGCON may be conditioned (its note is kept as text, not a rule).
+    // The shared value-source list (DATE, TIME, USER, SYSNAME) is the
+    // SYSTEM_VALUE_CONSTANT_KEYWORDS fact (v0.10.280), asked via
+    // systemValueConstantKeywords(); the rules below are NOT enforced by the
+    // writer yet (see the I-121m section of keywordFixes.md, findings).
+    DATE: {
+      ddsReference:
+        'You use this field-level keyword to display the current date as a ' +
+        'constant (output-only) field. You can specify the location of the ' +
+        'field, the DATE keyword, and, optionally, EDTCDE , EDTWRD, COLOR, ' +
+        'DSPATR, or TEXT keywords. Positions 17 through 38 must be blank.',
+      constantFieldOnly: true,
+      listedCompanionKeywords: ['EDTCDE', 'EDTWRD', 'COLOR', 'DSPATR', 'TEXT'],
+      companionsStatedAsOnly: false,
+      // DATE([*JOB|*SYS] [*Y|*YY]): omitted = *JOB and *Y.
+      dateParameters: {
+        source: ['*JOB', '*SYS'],
+        year: ['*Y', '*YY'],
+        defaults: { source: '*JOB', year: '*Y' }
+      }
+    },
+    TIME: {
+      ddsReference:
+        'You use this field-level keyword to display the current system time ' +
+        'as a constant (output-only) field. This keyword has no parameters. ' +
+        'You can specify only the location of the field, TIME, and ' +
+        'optionally, the EDTCDE, EDTWRD, COLOR, DSPATR, or TEXT keyword. ' +
+        'Positions 17 through 38 must be blank.',
+      constantFieldOnly: true,
+      noParameters: true,
+      listedCompanionKeywords: ['EDTCDE', 'EDTWRD', 'COLOR', 'DSPATR', 'TEXT'],
+      companionsStatedAsOnly: true
+    },
+    USER: {
+      ddsReference:
+        'You use this field-level keyword to display the user profile name ' +
+        'for the current job as a constant (output-only) field that is 10 ' +
+        'characters long. You can specify the location of the field, the ' +
+        'USER keyword, and, optionally, the COLOR, DSPATR, and TEXT ' +
+        'keywords. Positions 17 through 38 must be blank. This keyword has ' +
+        'no parameters.',
+      constantFieldOnly: true,
+      noParameters: true,
+      listedCompanionKeywords: ['COLOR', 'DSPATR', 'TEXT'],
+      companionsStatedAsOnly: false,
+      fixedLength: 10
+    },
+    SYSNAME: {
+      ddsReference:
+        'You use this field-level keyword to display the current system ' +
+        'name as a constant (output-only) field that is 8 characters long. ' +
+        'You can specify the location of the field, the SYSNAME keyword, ' +
+        'and, optionally, the COLOR, DSPATR, and TEXT keywords. Positions ' +
+        '17 through 38 must be blank. This keyword has no parameters.',
+      constantFieldOnly: true,
+      noParameters: true,
+      listedCompanionKeywords: ['COLOR', 'DSPATR', 'TEXT'],
+      companionsStatedAsOnly: false,
+      fixedLength: 8
+    },
+    MSGCON: {
+      ddsReference:
+        'MSGCON(length message-ID [library-name/]message-file-name). The ' +
+        'length can be from 1 to 132 bytes. The MSGCON keyword must be ' +
+        'explicitly specified for the field. The MSGCON keyword cannot be ' +
+        'used to initialize a named field. The MSGCON keyword cannot be ' +
+        'specified with any of the following keywords: DATE DFT EDTCDE ' +
+        'EDTWRD TIME',
+      constantFieldOnly: true,
+      msgconParameters: { lengthMin: 1, lengthMax: 132 },
+      mutex: ['DATE', 'DFT', 'EDTCDE', 'EDTWRD', 'TIME'],
+      optionIndicatorNote:
+        'Option indicators are not valid for changing the value of the ' +
+        'message line, but they are valid for conditioning the presence or ' +
+        'absence of the message on the display.'
+    },
+    NOCCSID: {
+      ddsReference:
+        'You use this field-level keyword to specify that CCSID conversion ' +
+        'of the field is not done. This keyword has no parameters.',
+      noParameters: true
+    }
   };
 
   /** Task I-121 (system-value constant keywords slice) - the field-level
@@ -2164,6 +2267,62 @@
       if (e.name === name) return e.name + ' - ' + e.description;
     }
     return null;
+  }
+
+  /** Task I-121m - the entry for a constant / system-value keyword, or null
+   *  (own-property safe, case-sensitive, non-strings are not keywords). */
+  function constantKeywordEntry(name) {
+    if (typeof name !== 'string' || !Object.prototype.hasOwnProperty.call(RECORD_TYPES, name)) return null;
+    var e = RECORD_TYPES[name];
+    return (e.constantFieldOnly || e.noParameters || e.msgconParameters) ? e : null;
+  }
+
+  /** The keywords that supply an unnamed constant field's value (DATE,
+   *  TIME, USER, SYSNAME, MSGCON) in entry order (a fresh array). */
+  function constantFieldOnlyKeywords() {
+    return Object.keys(RECORD_TYPES).filter(function (k) { return RECORD_TYPES[k].constantFieldOnly === true; });
+  }
+  /** Whether `name` is one of those keywords. */
+  function isConstantFieldOnlyKeyword(name) {
+    var e = constantKeywordEntry(name);
+    return !!(e && e.constantFieldOnly === true);
+  }
+  /** The keywords the keyword's section lists as allowed on the same
+   *  field besides its location (a fresh array), or null when the section
+   *  lists none or `name` is not a constant keyword. */
+  function listedCompanionKeywords(name) {
+    var e = constantKeywordEntry(name);
+    return e && e.listedCompanionKeywords ? e.listedCompanionKeywords.slice() : null;
+  }
+  /** Whether that list is stated as exclusive ("only" - TIME alone). */
+  function companionsStatedAsOnly(name) {
+    var e = constantKeywordEntry(name);
+    return !!(e && e.companionsStatedAsOnly === true);
+  }
+  /** Whether the keyword's section says it has no parameters (TIME, USER,
+   *  SYSNAME, NOCCSID). False for DATE and MSGCON, which take some, and for
+   *  any other name. */
+  function constantKeywordTakesNoParameters(name) {
+    var e = constantKeywordEntry(name);
+    return !!(e && e.noParameters === true);
+  }
+  /** DATE([*JOB|*SYS] [*Y|*YY]) - the two parameter domains and the
+   *  defaults, as a fresh object. */
+  function dateParameters() {
+    var d = RECORD_TYPES.DATE.dateParameters;
+    return { source: d.source.slice(), year: d.year.slice(), defaults: { source: d.defaults.source, year: d.defaults.year } };
+  }
+  /** A length the keyword's section states outright (USER 10, SYSNAME 8),
+   *  or null. */
+  function fixedDisplayLength(name) {
+    var e = constantKeywordEntry(name);
+    return e && typeof e.fixedLength === 'number' ? e.fixedLength : null;
+  }
+  /** MSGCON's length parameter range, { min: 1, max: 132 } (a fresh
+   *  object). */
+  function msgconLengthRange() {
+    var m = RECORD_TYPES.MSGCON.msgconParameters;
+    return { min: m.lengthMin, max: m.lengthMax };
   }
 
   /** Task I-121 (keyboard-shift position-35 slice) - IBM's own "Valid
@@ -3856,6 +4015,14 @@
     systemValueConstantKeywords: systemValueConstantKeywords,
     isSystemValueConstantKeyword: isSystemValueConstantKeyword,
     systemValueConstantLabel: systemValueConstantLabel,
+    constantFieldOnlyKeywords: constantFieldOnlyKeywords,
+    isConstantFieldOnlyKeyword: isConstantFieldOnlyKeyword,
+    listedCompanionKeywords: listedCompanionKeywords,
+    companionsStatedAsOnly: companionsStatedAsOnly,
+    constantKeywordTakesNoParameters: constantKeywordTakesNoParameters,
+    dateParameters: dateParameters,
+    fixedDisplayLength: fixedDisplayLength,
+    msgconLengthRange: msgconLengthRange,
     isNumericShiftDataType: isNumericShiftDataType,
     keyboardShiftValues: keyboardShiftValues,
     keyboardShiftPermitted: keyboardShiftPermitted,

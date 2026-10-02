@@ -4483,7 +4483,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // for MSGCON's exact grammar).
       const msgConKw = field.keywords.find((k) => k.name === 'MSGCON');
       const parsed = DspfWriter.parseMsgConParams(msgConKw ? msgConKw.parameters : '');
-      basicHtml += '<div class="field-row"><label>Length</label><input type="number" id="p-const-msgcon-length" min="1" max="132" value="' + DspfEngine.escapeHtml(parsed.length) + '" /></div>';
+      basicHtml += '<div class="field-row"><label>Length</label><input type="number" id="p-const-msgcon-length" min="' + DspfWriter.msgconLengthRange().min + '" max="' + DspfWriter.msgconLengthRange().max + '" value="' + DspfEngine.escapeHtml(parsed.length) + '" /></div>';
       basicHtml += '<div class="field-row"><label>Message ID</label><input type="text" id="p-const-msgcon-msgid" value="' + DspfEngine.escapeHtml(parsed.msgId) + '" placeholder="MSG0001" /></div>';
       basicHtml += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-const-msgcon-msgfile" value="' + DspfEngine.escapeHtml(parsed.msgFile) + '" /></div>';
       basicHtml += '<div class="field-row"><label>Library</label><input type="text" id="p-const-msgcon-library" value="' + DspfEngine.escapeHtml(parsed.library) + '" placeholder="*LIBL" /></div></div>';
@@ -5407,7 +5407,7 @@ const htmlTemplate = `<!DOCTYPE html>
         DspfWriter.systemValueConstantKeywords().map((v) => '<option value="' + v + '">' + DspfWriter.systemValueConstantLabel(v) + '</option>').join('') +
         '</select></div>';
       html += '<div id="p-place-msgcon-wrap" style="display:none;">';
-      html += '<div class="field-row"><label>Length</label><input type="number" id="p-place-msgcon-length" min="1" max="132" value="20" /></div>';
+      html += '<div class="field-row"><label>Length</label><input type="number" id="p-place-msgcon-length" min="' + DspfWriter.msgconLengthRange().min + '" max="' + DspfWriter.msgconLengthRange().max + '" value="20" /></div>';
       html += '<div class="field-row"><label>Message ID</label><input type="text" id="p-place-msgcon-msgid" placeholder="MSG0001" /></div>';
       html += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-place-msgcon-msgfile" /></div>';
       html += '<div class="field-row"><label>Library</label><input type="text" id="p-place-msgcon-library" placeholder="*LIBL" /></div></div>';

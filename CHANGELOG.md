@@ -13,6 +13,7 @@ citations and tests live in the task's section of
 ## 0.10.79 and later — Keyword-compliance audit (I-series) and follow-ups
 
 - Docs (no version): README rewritten; this changelog condensed to one line per version; I-121 split into independent slices I-121a – I-121t in `keywordFixes.md`.
+- **0.10.292** — I-121m: DATE, TIME, USER, SYSNAME, MSGCON and NOCCSID get spec entries; MSGCON's 1-132 length comes from the spec. Findings: I-143, I-144. *(refactor)*
 - **0.10.291** — I-121n: KEYBRD (not a DDS keyword), BLANKS, CNTFLD, FLTFIXDEC, FLTPCN, MAPVAL, FLDCSRPRG and ERRMSG get spec entries from the DDS Reference; the General keywords panel's float-only and date/time-only row scopes read them. *(refactor)*
 - **0.10.290** — I-121d *(refactor)*: the six subfile mode and entry keywords (SFLMODE, SFLRNA, SFLMSGRCD, SFLDROP, SFLENTER, SFLFOLD) got keyword-spec entries read from the DDS Reference; no behaviour change, rules no guard enforces logged as findings
 - **0.10.289** — I-121c *(refactor)*: the seven subfile control keywords (SFLPAG, SFLCLR, SFLDSP, SFLDSPCTL, SFLEND, SFLINZ, SFLDLT) got keyword-spec entries read from the DDS Reference; SFLDLT's option-indicator-required table folded into its own entry; no behaviour change, rules no guard enforces logged as findings
