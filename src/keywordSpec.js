@@ -2147,8 +2147,12 @@
     // MSGCON may be conditioned (its note is kept as text, not a rule).
     // The shared value-source list (DATE, TIME, USER, SYSNAME) is the
     // SYSTEM_VALUE_CONSTANT_KEYWORDS fact (v0.10.280), asked via
-    // systemValueConstantKeywords(); the rules below are NOT enforced by the
-    // writer yet (see the I-121m section of keywordFixes.md, findings).
+    // systemValueConstantKeywords(). Task I-144 enforces constant-only, no
+    // parameters and DATE's parameter grammar
+    // (DspfWriter.systemValueKeywordNewConflictReason) and uses the display
+    // widths (systemValueConstantWidth); the companion-keyword lists below
+    // are stated as facts but not enforced (the DATE / USER / SYSNAME
+    // sections say "optionally", only TIME says "only" - left open).
     DATE: {
       ddsReference:
         'You use this field-level keyword to display the current date as a ' +
@@ -2163,7 +2167,15 @@
         source: ['*JOB', '*SYS'],
         year: ['*Y', '*YY'],
         defaults: { source: '*JOB', year: '*Y' }
-      }
+      },
+      // Task I-144 - the section says the length "is dependent on" the job
+      // DATFMT, on separators (EDTCDE(Y) adds them) and on the year digits
+      // (*Y 2, *YY 4). Its own example: "mmddyy" becomes "mm/dd/yy". The
+      // job DATFMT is not known at design time, so the width assumes a
+      // three-part format (MDY, DMY or YMD): 6 digits with *Y, 8 with *YY,
+      // plus 2 separators under EDTCDE(Y). JUL (yyddd) and the run-time
+      // DATSEP character are not modelled.
+      displayWidth: { digits: { '*Y': 6, '*YY': 8 }, separatorsWithEdtcdeY: 2 }
     },
     TIME: {
       ddsReference:
@@ -2174,8 +2186,12 @@
         'Positions 17 through 38 must be blank.',
       constantFieldOnly: true,
       noParameters: true,
+      fieldLevel: true,
       listedCompanionKeywords: ['EDTCDE', 'EDTWRD', 'COLOR', 'DSPATR', 'TEXT'],
-      companionsStatedAsOnly: true
+      companionsStatedAsOnly: true,
+      // Task I-144 - "The edit word '0_:__:__' (_ represents a blank) is
+      // assumed for a TIME field": 8 characters, overridden by EDTWRD.
+      displayWidth: { defaultEditWord: '0_:__:__' }
     },
     USER: {
       ddsReference:
@@ -2187,6 +2203,7 @@
         'no parameters.',
       constantFieldOnly: true,
       noParameters: true,
+      fieldLevel: true,
       listedCompanionKeywords: ['COLOR', 'DSPATR', 'TEXT'],
       companionsStatedAsOnly: false,
       fixedLength: 10
@@ -2200,6 +2217,7 @@
         '17 through 38 must be blank. This keyword has no parameters.',
       constantFieldOnly: true,
       noParameters: true,
+      fieldLevel: true,
       listedCompanionKeywords: ['COLOR', 'DSPATR', 'TEXT'],
       companionsStatedAsOnly: false,
       fixedLength: 8
@@ -2224,7 +2242,8 @@
       ddsReference:
         'You use this field-level keyword to specify that CCSID conversion ' +
         'of the field is not done. This keyword has no parameters.',
-      noParameters: true
+      noParameters: true,
+      fieldLevel: true
     }
   };
 
@@ -2306,6 +2325,12 @@
     var e = constantKeywordEntry(name);
     return !!(e && e.noParameters === true);
   }
+  /** Task I-144 - the field-level keywords whose section says "no
+   *  parameters" (TIME, USER, SYSNAME, NOCCSID), in entry order (a fresh
+   *  array). Not the record-level no-parameter keywords. */
+  function fieldKeywordsWithoutParameters() {
+    return Object.keys(RECORD_TYPES).filter(function (k) { return RECORD_TYPES[k].fieldLevel === true && RECORD_TYPES[k].noParameters === true; });
+  }
   /** DATE([*JOB|*SYS] [*Y|*YY]) - the two parameter domains and the
    *  defaults, as a fresh object. */
   function dateParameters() {
@@ -2317,6 +2342,29 @@
   function fixedDisplayLength(name) {
     var e = constantKeywordEntry(name);
     return e && typeof e.fixedLength === 'number' ? e.fixedLength : null;
+  }
+  /** Task I-144 - the columns a system-value constant occupies on the
+   *  display, or null for a keyword that is not one of DATE / TIME / USER /
+   *  SYSNAME. `opts` (all optional): `dateParameters` (the DATE parameter
+   *  text), `editCode` (the first EDTCDE token), `editWordWidth` (the width
+   *  of an EDTWRD template). USER / SYSNAME state their length outright;
+   *  TIME is its default edit word's length unless an edit word replaces it;
+   *  DATE is year digits (+ separators under EDTCDE(Y)) unless an edit word
+   *  replaces it. See the `displayWidth` notes on the DATE entry for what
+   *  the DATE figure assumes. */
+  function systemValueConstantWidth(name, opts) {
+    var e = constantKeywordEntry(name);
+    if (!e || SYSTEM_VALUE_CONSTANT_KEYWORDS.every(function (x) { return x.name !== name; })) return null;
+    var o = opts || {};
+    if (typeof e.fixedLength === 'number') return e.fixedLength;
+    if (typeof o.editWordWidth === 'number' && o.editWordWidth > 0) return o.editWordWidth;
+    var w = e.displayWidth;
+    if (!w) return null;
+    if (w.defaultEditWord) return w.defaultEditWord.length;
+    var tokens = String(o.dateParameters || '').toUpperCase().split(/\s+/).filter(Boolean);
+    var width = tokens.indexOf('*YY') >= 0 ? w.digits['*YY'] : w.digits['*Y'];
+    if (String(o.editCode || '').toUpperCase() === 'Y') width += w.separatorsWithEdtcdeY;
+    return width;
   }
   /** MSGCON's length parameter range, { min: 1, max: 132 } (a fresh
    *  object). */
@@ -4022,6 +4070,8 @@
     constantKeywordTakesNoParameters: constantKeywordTakesNoParameters,
     dateParameters: dateParameters,
     fixedDisplayLength: fixedDisplayLength,
+    fieldKeywordsWithoutParameters: fieldKeywordsWithoutParameters,
+    systemValueConstantWidth: systemValueConstantWidth,
     msgconLengthRange: msgconLengthRange,
     isNumericShiftDataType: isNumericShiftDataType,
     keyboardShiftValues: keyboardShiftValues,

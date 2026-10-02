@@ -6296,7 +6296,9 @@ const htmlTemplate = `<!DOCTYPE html>
   // Task I-140 / I-141: record-level dependencies, checked on every committed
   // edit (same shape as keyClaimGuardBlocks above): RMVWDW / USRRSTDSP need a
   // WINDOW on the same record; SFLCSRRRN / SFLDLT / SFLINZ need an SFLCTL;
-  // SFLDLT takes option indicators, not display size names. Returns true
+  // SFLDLT takes option indicators, not display size names; Task I-144:
+  // DATE / TIME / USER / SYSNAME only on an unnamed constant, no parameters on
+  // TIME / USER / SYSNAME / NOCCSID, DATE's parameters valid. Returns true
   // (after alerting) when the edit would break one - whether by adding the
   // dependent keyword or by removing what it depends on.
   function windowDependencyGuardBlocks(newLines) {
@@ -6304,7 +6306,8 @@ const htmlTemplate = `<!DOCTYPE html>
     try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
     const reason = DspfWriter.windowDependencyNewConflictReason(model, candidate) ||
       DspfWriter.sflctlDependencyNewConflictReason(model, candidate) ||
-      DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate);
+      DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||
+      DspfWriter.systemValueKeywordNewConflictReason(model, candidate);
     if (!reason) return false;
     window.alert(reason);
     return true;

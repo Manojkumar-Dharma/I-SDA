@@ -349,7 +349,31 @@
     return s.length;
   }
 
+  // Task I-144 - a system-value constant (DATE / TIME / USER / SYSNAME) has no
+  // LENGTH column, so it used to fall through to 0 and be drawn one column
+  // wide. Its real width is the keyword section's own fact
+  // (KeywordSpec.systemValueConstantWidth); this only gathers the field's
+  // EDTWRD / EDTCDE / DATE parameter text for it. null = not one of them.
+  function systemValueConstantDisplayLength(field) {
+    if (field.nameType !== 'CONSTANT' || field.constantValue != null) return null;
+    var kws = field.keywords || [];
+    var names = kws.map(function (k) { return k.name; });
+    var sysKw = KeywordSpec.systemValueConstantKeywords().filter(function (n) { return names.indexOf(n) !== -1; })[0];
+    if (!sysKw) return null;
+    function find(n) { return kws.find(function (k) { return k.name === n; }); }
+    var edtwrd = find('EDTWRD');
+    var edtcde = find('EDTCDE');
+    var date = find('DATE');
+    return KeywordSpec.systemValueConstantWidth(sysKw, {
+      dateParameters: date ? date.parameters : '',
+      editCode: edtcde ? String(edtcde.parameters || '').trim().split(/\s+/)[0] : '',
+      editWordWidth: edtwrd ? edtwrdDisplayWidth(edtwrd.parameters) : null
+    });
+  }
+
   function displayLength(field, record, dspfFile) {
+    var sysValueLen = systemValueConstantDisplayLength(field);
+    if (sysValueLen != null) return sysValueLen;
     var len = field.length || 0;
     var t = (field.dataType || '').toUpperCase();
     if (t === 'F') return len + 7;

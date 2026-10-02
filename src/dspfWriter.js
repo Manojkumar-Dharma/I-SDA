@@ -5162,6 +5162,81 @@
     return null;
   }
 
+  /** Task I-144 - DATE([*JOB|*SYS] [*Y|*YY]): the problem with the parameter
+   *  text, or null when it is empty (the defaults) or valid. Each token must
+   *  be one of the two groups' values and a group may appear once. */
+  function dateParameterProblem(text) {
+    var tokens = String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean);
+    if (!tokens.length) return null;
+    var p = KeywordSpec.dateParameters();
+    var seenSource = false, seenYear = false;
+    for (var i = 0; i < tokens.length; i++) {
+      var t = tokens[i].toUpperCase();
+      if (p.source.indexOf(t) >= 0) {
+        if (seenSource) return 'DATE takes one of ' + p.source.join(' / ') + ', not two';
+        seenSource = true;
+      } else if (p.year.indexOf(t) >= 0) {
+        if (seenYear) return 'DATE takes one of ' + p.year.join(' / ') + ', not two';
+        seenYear = true;
+      } else {
+        return 'DATE(' + tokens[i] + ') is not a valid parameter - the format is DATE([' + p.source.join('|') + '] [' + p.year.join('|') + '])';
+      }
+    }
+    return null;
+  }
+
+  /** Task I-144 - the DATE / TIME / USER / SYSNAME / NOCCSID rules from their
+   *  DDS Reference sections: the system-value keywords are for an unnamed
+   *  constant ("Positions 17 through 38 must be blank"), TIME / USER /
+   *  SYSNAME / NOCCSID "have no parameters", and DATE's parameters are
+   *  [*JOB|*SYS] [*Y|*YY]. Returns { signature: { count, text } } over the
+   *  model's fields. */
+  function systemValueKeywordViolations(model) {
+    var out = {};
+    var systemValue = KeywordSpec.systemValueConstantKeywords();
+    var noParams = KeywordSpec.fieldKeywordsWithoutParameters();
+    function add(sig, text) {
+      if (!out[sig]) out[sig] = { count: 0, text: text };
+      out[sig].count++;
+    }
+    ((model && model.records) || []).forEach(function (r) {
+      (r.fields || []).forEach(function (f) {
+        (f.keywords || []).forEach(function (k) {
+          var name = k.name;
+          var params = String(k.parameters == null ? '' : k.parameters).trim();
+          if (systemValue.indexOf(name) >= 0 && f.nameType !== 'CONSTANT') {
+            add(r.name + '|constant|' + name,
+              name + ' cannot be specified on the named field ' + (f.name || '') + ' (record format ' + r.name + '): it supplies the value of a constant field, so positions 17 through 38 must be blank (per the DDS Reference).');
+          }
+          if (noParams.indexOf(name) >= 0 && params) {
+            add(r.name + '|params|' + name + '|' + params.toUpperCase(),
+              name + ' has no parameters - ' + name + '(' + params + ') is not valid (per the DDS Reference).');
+          }
+          if (name === 'DATE') {
+            var problem = dateParameterProblem(params);
+            if (problem) add(r.name + '|dateparams|' + params.toUpperCase(), problem + ' (per the DDS Reference).');
+          }
+        });
+      });
+    });
+    return out;
+  }
+
+  /** The reason the edit that turned `oldModel` into `newModel` adds a
+   *  violation of the rules above, or null. Diff-based (counts per
+   *  signature), so an already-invalid hand-written file never blocks an
+   *  unrelated edit and fixing a violation is always fine. */
+  function systemValueKeywordNewConflictReason(oldModel, newModel) {
+    var after = systemValueKeywordViolations(newModel);
+    var sigs = Object.keys(after);
+    if (!sigs.length) return null;
+    var before = systemValueKeywordViolations(oldModel);
+    for (var i = 0; i < sigs.length; i++) {
+      if (after[sigs[i]].count > (before[sigs[i]] ? before[sigs[i]].count : 0)) return after[sigs[i]].text;
+    }
+    return null;
+  }
+
   /** Whether `conditions` holds at least one option indicator (a display-size
    *  condition does not count). For the Subfile panel's \"SFLDLT needs an
    *  indicator\" note. */
@@ -9563,6 +9638,8 @@
     sflcsrrrnAddReason: sflcsrrrnAddReason,
     sflcsrrrnParameterProblem: sflcsrrrnParameterProblem,
     optionIndicatorRequiredNewConflictReason: optionIndicatorRequiredNewConflictReason,
+    systemValueKeywordNewConflictReason: systemValueKeywordNewConflictReason,
+    dateParameterProblem: dateParameterProblem,
     hasOptionIndicator: hasOptionIndicator,
     standardDisplaySizes: KeywordSpec.standardDisplaySizes,
     commandKeyClaimsInModel: commandKeyClaimsInModel,
