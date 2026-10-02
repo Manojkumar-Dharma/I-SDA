@@ -181,7 +181,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Claimed (`3fc4915`), unconfirmed | — |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
-| [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Partly done (choice radio groups, v0.10.284) | — |
+| [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Claimed (in progress); choice radio groups done v0.10.284 | — |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Partly done (`CHARACTER_TYPES` removed, v0.10.279) | — |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Not started | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done, v0.10.274: the six keywords with no tests; next: batch 2) | — |
