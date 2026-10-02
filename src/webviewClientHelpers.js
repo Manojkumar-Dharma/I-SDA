@@ -2294,6 +2294,18 @@
     }, checkInstanceIsConditionable);
   }
 
+  /** Task I-121 (keyboard-shift position-35 slice) - the Data type choices
+   *  the field panels offer (Basic tab, Add field, Add placeholder): a
+   *  subset of the spec's position-35 values - no Katakana (W) and none of
+   *  the DBCS J / O / E / G, which the designer never sets (a hand-written
+   *  file can still carry them). Was three identical literal lists in
+   *  buildWebviewTemplate.js. `withBlank` prepends the blank (default). A
+   *  fresh array. */
+  function fieldDataTypeChoices(withBlank) {
+    var list = ['A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'];
+    return withBlank ? [''].concat(list) : list;
+  }
+
   /** "Select Keying Options" - CHECK's ME/ER/MF/FE/RB/RZ/RL/LC codes, sharing
    *  the same underlying CHECK(...) keyword as the Validity check panel's
    *  AB/VN/VNE/M10/M11 checkboxes (see checkInstancesHtml/
@@ -2363,8 +2375,10 @@
     // character/numeric/constant/menu-bar-choice only) - they fall under
     // "numeric" for every field-level UI purpose in real SDA, this one
     // included.
-    var isNumericField = dataType === 'S' || dataType === 'Y' || dataType === 'L' || dataType === 'T' || dataType === 'Z' || dataType === 'F';
-    var shiftValues = isNumericField ? ['', 'S', 'N', 'Y', 'I', 'D'] : ['', 'N', 'A', 'X', 'W', 'I', 'D', 'M', 'J', 'O', 'E', 'G'];
+    // Task I-121 (keyboard-shift position-35 slice): the two lists and the
+    // numeric test are keywordSpec.js's own facts (IBM's "Valid entries for
+    // display files" table), read via DspfWriter.
+    var shiftValues = [''].concat(DspfWriter.keyboardShiftValues(dataType));
     html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute</div>';
     html += '<div class="hint-small">Not a keyword - this is the field\u2019s own data type (position 35), the same value the Basic tab\u2019s Data type dropdown edits.</div>';
     html += '<select class="' + ownerKey + '-keyboard-shift">' +
@@ -8728,6 +8742,7 @@
     applicationHelpFieldsHtml: applicationHelpFieldsHtml,
     wireApplicationHelpFields: wireApplicationHelpFields,
     keyingOptionsHtml: keyingOptionsHtml,
+    fieldDataTypeChoices: fieldDataTypeChoices,
     fieldKeywordCategoryVisibility: fieldKeywordCategoryVisibility,
     wireKeyingOptionsEditor: wireKeyingOptionsEditor,
     inputKeywordsHtml: inputKeywordsHtml,

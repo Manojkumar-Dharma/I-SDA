@@ -4526,7 +4526,7 @@ const htmlTemplate = `<!DOCTYPE html>
       }
       basicHtml += '<div class="field-row"><label>Decimals</label><input type="number" id="p-dec" value="' + (field.decimalPositions != null ? field.decimalPositions : '') + '" /></div></div>';
       basicHtml += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-type">' +
-        ['', 'A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
+        WebviewClientHelpers.fieldDataTypeChoices(true).map((t) => '<option value="' + t + '"' + (field.dataType === t || (!field.dataType && t === '') ? ' selected' : '') + '>' + (t || '(blank)') + '</option>').join('') + '</select></div>';
       basicHtml += '<div class="field-row"><label>Usage</label><select id="p-usage">' + ['O', 'I', 'B', 'H', 'M', 'P'].map((u) => '<option value="' + u + '"' + (field.usage === u ? ' selected' : '') + '>' + u + '</option>').join('') + '</select></div></div>';
     }
 
@@ -5239,7 +5239,7 @@ const htmlTemplate = `<!DOCTYPE html>
       '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="' + opts.idPrefix + '-length" min="1" value="10" /></div>' +
       '<div class="field-row"><label>Decimals</label><input type="number" id="' + opts.idPrefix + '-decimals" min="0" placeholder="(none)" /></div></div>' +
       '<div class="field-row"><label>Data type</label><select id="' + opts.idPrefix + '-type">' +
-      ['A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>' +
+      WebviewClientHelpers.fieldDataTypeChoices(false).map((t) => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>' +
       '<div class="rename-error" id="' + opts.idPrefix + '-error"></div>' +
       '<button id="' + opts.idPrefix + '-confirm" style="width:100%;margin-top:8px;">Add</button>' +
       '<button id="' + opts.idPrefix + '-cancel" class="secondary" style="width:100%;margin-top:8px;">Cancel</button>' +
@@ -5437,7 +5437,7 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<div class="two-col"><div class="field-row"><label>Length</label><input type="number" id="p-place-length" min="1" value="10" /></div>';
       html += '<div class="field-row"><label>Decimals</label><input type="number" id="p-place-decimals" min="0" placeholder="(none)" /></div></div>';
       html += '<div class="two-col"><div class="field-row"><label>Data type</label><select id="p-place-type">' +
-        ['A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'].map((t) => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>';
+        WebviewClientHelpers.fieldDataTypeChoices(false).map((t) => '<option value="' + t + '">' + t + '</option>').join('') + '</select></div>';
       html += '<div class="field-row"><label>Usage</label><select id="p-place-usage">' +
         ['B', 'I', 'O', 'H', 'M', 'P'].map((u) => '<option value="' + u + '">' + u + '</option>').join('') + '</select></div></div>';
       html += '</div>';

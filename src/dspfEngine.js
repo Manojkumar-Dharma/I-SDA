@@ -206,7 +206,6 @@
   // Field -> display text / placeholder
   // ---------------------------------------------------------------------
 
-  var CHARACTER_TYPES = { '': true, X: true, A: true, W: true, M: true, I: true };
   var NUMERIC_TYPES = { S: true, Y: true, N: true, D: true, F: true };
 
   function placeholderChar(field) {

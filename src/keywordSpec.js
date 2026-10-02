@@ -1563,6 +1563,78 @@
     }
   };
 
+  /** Task I-121 (keyboard-shift position-35 slice) - IBM's own "Valid
+   *  entries for display files" table for position 35 (DDS_Keyword_V7r6.txt
+   *  ~line 930): each keyboard-shift entry and the data type it permits.
+   *  The webview hand-kept two literal lists (a character one and a numeric
+   *  one) plus the numeric-field test that picks between them, and kept the
+   *  Basic tab's Data type choices as three more copies.
+   *  Entries are in the PANEL's own display order (one global order that
+   *  yields both panel lists as subsequences: S N A X Y W I D M, then the
+   *  DBCS data types J O E G the Basic tab never sets but a hand-written
+   *  file can carry). `permitted` is IBM's "Data type permitted" column:
+   *  'character', 'numeric' or 'either' (IBM: "Character or numeric");
+   *  J / O / E / G are the DBCS data types, character. Blank (the default)
+   *  is not an entry here - the UI adds its own "(none)". */
+  var KEYBOARD_SHIFT_ENTRIES = [
+    { code: 'S', permitted: 'numeric' },
+    { code: 'N', permitted: 'either' },
+    { code: 'A', permitted: 'character' },
+    { code: 'X', permitted: 'character' },
+    { code: 'Y', permitted: 'numeric' },
+    { code: 'W', permitted: 'character' },
+    { code: 'I', permitted: 'either' },
+    { code: 'D', permitted: 'either' },
+    { code: 'M', permitted: 'character' },
+    { code: 'J', permitted: 'character' },
+    { code: 'O', permitted: 'character' },
+    { code: 'E', permitted: 'character' },
+    { code: 'G', permitted: 'character' }
+  ];
+  /** The position-35 entries that are data types rather than keyboard
+   *  shifts (IBM's "Data type" rows: F floating point, L date, T time,
+   *  Z timestamp). */
+  var POSITION_35_DATA_TYPES = ['F', 'L', 'T', 'Z'];
+  /** Which position-35 values count as a NUMERIC field for the keyboard-
+   *  shift list: S, Y and F are numeric in IBM's table; L / T / Z are kept
+   *  in this grouping on purpose - real SDA has no screen of its own for
+   *  them, so every field-level UI treats them as numeric (see the
+   *  webview's own long comment on the Keying options panel, Task I-31). */
+  var NUMERIC_SHIFT_DATA_TYPES = ['S', 'Y', 'L', 'T', 'Z', 'F'];
+
+  /** Whether `dataType` selects the numeric keyboard-shift list. A missing
+   *  or unrecognized value is NOT numeric (falls to the wider character
+   *  list, so nothing already set becomes unselectable). */
+  function isNumericShiftDataType(dataType) {
+    return typeof dataType === 'string' && NUMERIC_SHIFT_DATA_TYPES.indexOf(dataType) !== -1;
+  }
+  /** The keyboard-shift codes a field of `dataType` may carry, in panel
+   *  order, without the blank default: those IBM permits for numeric
+   *  (S N Y I D) or for character (N A X W I D M J O E G) fields. A fresh
+   *  array. */
+  function keyboardShiftValues(dataType) {
+    var want = isNumericShiftDataType(dataType) ? 'numeric' : 'character';
+    return KEYBOARD_SHIFT_ENTRIES.filter(function (e) {
+      return e.permitted === want || e.permitted === 'either';
+    }).map(function (e) { return e.code; });
+  }
+  /** 'character' | 'numeric' | 'either' for a keyboard-shift code (any
+   *  case), else null (blank, a data type, or not a position-35 value). */
+  function keyboardShiftPermitted(code) {
+    if (typeof code !== 'string') return null;
+    var c = code.toUpperCase();
+    for (var i = 0; i < KEYBOARD_SHIFT_ENTRIES.length; i++) {
+      if (KEYBOARD_SHIFT_ENTRIES[i].code === c) return KEYBOARD_SHIFT_ENTRIES[i].permitted;
+    }
+    return null;
+  }
+  /** Whether `value` (any case) is a valid non-blank position-35 entry:
+   *  a keyboard shift or one of F / L / T / Z. */
+  function isPosition35Value(value) {
+    if (typeof value !== 'string') return false;
+    return keyboardShiftPermitted(value) !== null || POSITION_35_DATA_TYPES.indexOf(value.toUpperCase()) !== -1;
+  }
+
   // Task I-121 date/time-keyword slice - the L/T/Z usage restriction the
   // DDS Reference states once, for all three date/time data types
   // together, in the general field-description text ("Date (L), Time
@@ -2851,6 +2923,10 @@
     validValues: validValues,
     moubtnCommandKeyExclusion: moubtnCommandKeyExclusion,
     altKeyFileExclusions: altKeyFileExclusions,
+    isNumericShiftDataType: isNumericShiftDataType,
+    keyboardShiftValues: keyboardShiftValues,
+    keyboardShiftPermitted: keyboardShiftPermitted,
+    isPosition35Value: isPosition35Value,
     commandKeyTypes: commandKeyTypes,
     parseCommandKey: parseCommandKey,
     isCommandKeyName: isCommandKeyName,

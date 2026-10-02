@@ -9552,6 +9552,8 @@
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
     altKeyNames: function () { return KeywordSpec.altKeyNames(); },
+    keyboardShiftValues: function (dataType) { return KeywordSpec.keyboardShiftValues(dataType); },
+    isPosition35Value: function (value) { return KeywordSpec.isPosition35Value(value); },
     parseCommandKey: function (token) { return KeywordSpec.parseCommandKey(token); },
     keepMutexConflictReason: keepMutexConflictReason,
     alwrolClrlSlnoConflictReason: alwrolClrlSlnoConflictReason,
