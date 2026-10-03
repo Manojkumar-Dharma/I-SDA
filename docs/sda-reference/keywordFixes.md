@@ -214,7 +214,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Done | v0.10.302 |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
-| [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
+| [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Claimed (in progress) | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
@@ -7054,7 +7054,7 @@ New `src/test/i151OutputControlRelations.test.js` (80 checks): each fact against
 
 ### I-152 — Window, menu-bar, help and logging relations are not enforced
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121e
+> **Area:** Record · **Status:** In progress · **Depends on:** I-121e
 
 Raised by the I-121e slice; opened as a task with a probe. **Window, menu-bar, help and logging relations are not enforced.** The spec now states them; no guard exists for: `HLPCMDKEY` on a subfile-control (`SFLCTL`) record or in a file containing `USRDSPMGT`; `WDWTITLE` on a record with no `WINDOW` definition (or with a window-reference `WINDOW`, which IBM warns about); `HLPSEQ`'s group name over 10 characters, sequence number outside 0-99 or duplicated within a group; `HLPCLR` on a record with no help specification; `MNUBARDSP`'s menu-bar record not existing in the file and its `&choice-field` / `&pull-down-input` not being the documented hidden fields (2Y0 / 2S0); more than one `MNUBARDSP` on a record when some are not optioned. Spec facts: `recordRequires`, `notOnRecordTypes`, `fileExcludes`, `hlpseqLimits`, `requiresHelpSpecification`, `mnubardspFieldShapes`.
 
