@@ -4580,7 +4580,7 @@
     // keywordFixes.md's I-3 section for the full per-keyword audit this
     // and every other conditions-omitted row below is based on).
     var fIndara = DspfWriter.getFileFlagKeyword(kw, 'INDARA');
-    g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', fIndara.present, undefined, undefined, undefined, undefined);
+    g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', fIndara.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('INDARA') ? fIndara.conditions : undefined, DspfWriter.optionIndicatorsAllowed('INDARA') ? expandedSet : undefined)  /* I-121f */;
     // Task I-3: USRDSPMGT - "Option indicators are not valid for this keyword."
     var fUsrdspmgt = DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT');
     g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, undefined, undefined);
@@ -4598,14 +4598,14 @@
     g += flagRowHtml('fk-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined);
     // Task I-3: DSPRL - "Option indicators are not valid for this keyword."
     var fDsprl = DspfWriter.getFileFlagKeyword(kw, 'DSPRL');
-    g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', fDsprl.present, undefined, undefined, undefined, undefined);
+    g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', fDsprl.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('DSPRL') ? fDsprl.conditions : undefined, DspfWriter.optionIndicatorsAllowed('DSPRL') ? expandedSet : undefined)  /* I-121f */;
     // Bug fix: dedicated sub-flag checkboxes for CHGINPDFT (see
     // chgInpDftFlagHtml's own comment) instead of a bare free-text box.
     g += chgInpDftFlagHtml(kw, 'fk-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     g += entFldAtrHtml(kw, 'fk-entfldatr', expandedSet);
     // Task I-3: ERRSFL - "Option indicators are not valid for this keyword."
     var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
-    g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, undefined, undefined);
+    g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('ERRSFL') ? fErrsfl.conditions : undefined, DspfWriter.optionIndicatorsAllowed('ERRSFL') ? expandedSet : undefined)  /* I-121f */;
     // Task I-39 - CSRINPONLY was confirmed entirely missing from iSDA (no
     // getter/setter, no row, no mention anywhere) by a full-text audit of
     // DDS_Keyword_V7r6.txt against actual code. File- or record-level flag
@@ -4734,7 +4734,7 @@
       '<input type="text" id="fk-print-library" placeholder="Library" value="' + escapeHtml(filePrintFileForm.library) + '" /></div>';
     // Task I-3: OPENPRT - "Option indicators are not valid for this keyword."
     var fOpenprt = DspfWriter.getFileFlagKeyword(kw, 'OPENPRT');
-    print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', fOpenprt.present, undefined, undefined, undefined, undefined);
+    print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', fOpenprt.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('OPENPRT') ? fOpenprt.conditions : undefined, DspfWriter.optionIndicatorsAllowed('OPENPRT') ? expandedSet : undefined)  /* I-121f */;
     panels.print = print;
 
     // --- Help ---
@@ -4836,7 +4836,7 @@
     // "not valid", but it's the same rule).
     var igccnv = DspfWriter.getFileFlagKeyword(kw, 'IGCCNV');
     var igcParts = (igccnv.parameters || '').trim().split(/\s+/);
-    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present, undefined, undefined, undefined, undefined);
+    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('IGCCNV') ? igccnv.conditions : undefined, DspfWriter.optionIndicatorsAllowed('IGCCNV') ? expandedSet : undefined); // I-121f
     dbcs += '<div class="two-col"><input type="text" id="fk-igccnv-key" placeholder="CF01-CF24" value="' + escapeHtml(igcParts[0] || '') + '" />' +
       '<input type="text" id="fk-igccnv-line" placeholder="line 1-24" value="' + escapeHtml(igcParts[1] || '') + '" /></div>';
     panels.dbcsConversion = dbcs;
@@ -4885,7 +4885,7 @@
     simple('fk-invite', 'INVITE');
     simple('fk-alwgph', 'ALWGPH');
     simple('fk-msgalarm', 'MSGALARM');
-    simple('fk-indara', 'INDARA', false, undefined, true);
+    simple('fk-indara', 'INDARA', false, undefined, !DspfWriter.optionIndicatorsAllowed('INDARA')); // I-121f
     // Task S36-4: turning USRDSPMGT ON is blocked (not just warned) when a
     // keyword value ALREADY set elsewhere in the file would violate a
     // verified S36E rule once USRDSPMGT is active - the symmetric half of
@@ -4917,10 +4917,10 @@
     wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
     wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB', conditions); }, undefined, undefined, undefined);
     wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
-    simple('fk-dsprl', 'DSPRL', false, undefined, true);
+    simple('fk-dsprl', 'DSPRL', false, undefined, !DspfWriter.optionIndicatorsAllowed('DSPRL')); // I-121f
     wireChgInpDftFlag(getKeywords, onChange, 'fk-chginpdft', expandedSet, rerender);
     wireEntFldAtrEditor(getKeywords, onChange, 'fk-entfldatr', expandedSet, rerender);
-    simple('fk-errsfl', 'ERRSFL', false, undefined, true);
+    simple('fk-errsfl', 'ERRSFL', false, undefined, !DspfWriter.optionIndicatorsAllowed('ERRSFL')); // I-121f
     simple('fk-csrinponly', 'CSRINPONLY');
     var refLib = document.getElementById('fk-ref-library');
     var refRec = document.getElementById('fk-ref-record');
@@ -5119,7 +5119,7 @@
         onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', onEl.checked, assembleParams(), undefined, newConditions));
       }, expandedSet, rerender);
     })();
-    simple('fk-openprt', 'OPENPRT', false, undefined, true);
+    simple('fk-openprt', 'OPENPRT', false, undefined, !DspfWriter.optionIndicatorsAllowed('OPENPRT')); // I-121f
 
     // Help
     // Task I-4: HLPPNLGRP/HLPSCHIDX moved from simple()'s single free-text

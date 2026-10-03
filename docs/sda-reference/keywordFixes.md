@@ -169,7 +169,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced opened as I-152) | v0.10.295 |
-| [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | In progress | — |
+| [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done v0.10.305 (8 entries; IGCCNV added to the no-indicator table; rules not enforced logged) | v0.10.305 |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Not started | — |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Not started | — |
@@ -245,7 +245,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 10 | [I-148](#i-148) | Done v0.10.303 | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
 | 11 | [I-149](#i-149) | Done v0.10.302 | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
 | 12 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
-| 13 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
+| 13 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, f, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
 | 14 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
 | 15 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 16 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
@@ -259,7 +259,7 @@ Every finding so far has been opened as a task (I-61 – I-157, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| — | None at present. (The I-147 finding, the other five control-record keywords accepted without `SFLCTL`, was opened as [I-157](#i-157).) |
+| I-121f | File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice. Not opened as a task yet. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6222,13 +6222,36 @@ Full suite: 243 files, 13,525 checks, zero failures.
 
 ### I-121f — File-level display and I/O keywords
 
-> **Area:** File · **Status:** In progress · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** File · **Status:** Done (v0.10.305) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `IGCCNV`, `DSPRL`, `DSPSIZ`, `ERRSFL`, `INDARA`, `MSGLOC`, `OPENPRT`, `REF`.
 
 `DSPSIZ_DOMAIN` already exists - give `DSPSIZ` its entry and reference the domain. `MSGLOC` is per display size.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.305).** All eight now have a `RECORD_TYPES` entry in a `// ---- I-121f: 8 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` (the cited line is that keyword's own heading; a test checks every citation against the raw file), not from the code. All are file-level only:
+
+| Keyword | Parameters | Option indicators | Relations / limits the section states |
+|---------|------------|-------------------|---------------------------------------|
+| `IGCCNV` | `(CFnn line-number)`: a CF key CF01-CF24 not already assigned, and the prompt line | not allowed | DBCS display stations only; needs an input-capable DBCS field (or `IGCALTTYP`); avoid with `CHECK(ME)` and `CHECK`/`CMP`/`RANGE`/`VALUES`; file defined for 24 x 80; not displayed over a `USRDFN` format |
+| `DSPRL` | none | not valid | bidirectional device only |
+| `DSPSIZ` | `(*DSw [*DSx])` or `(lines positions [name] [lines positions [name]])`; 24 x 80 and 27 x 132 only; user names 2-8 characters starting `*`; at most two sizes, a `*DSx` name not twice | not valid | first size primary, second secondary; absent means 24 x 80 only; user-defined names rule out the IBM names for conditioning |
+| `ERRSFL` | none | not valid | ignored if the message line overlaps a displayed record; with it `MSGLOC` 25 (24 x 80) / 28 (27 x 132) is refused; message line then defaults to 24 / 27 |
+| `INDARA` | none | not valid | `LOGINP` / `LOGOUT` stop logging indicators (`RETKEY` / `RETCMDKEY` need it - owned by I-121b) |
+| `MSGLOC` | `(line-number)`, required, 1-28 for any display size | not valid | repeated once per display size (unconditioned primary, `*DSx`-conditioned secondary); diagnostic for 26-28 on 24 x 80; defaults 25 / 28 |
+| `OPENPRT` | none | not valid | only with a file-level `PRINT` that names a printer file; not with record-level `PRINT` |
+| `REF` | `([library/]database-file [record-format])`, file name required | not valid | once only; DDM file allowed, IDDU file not |
+
+`DSPSIZ`'s entry copies its size names and its maximum from `DSPSIZ_DOMAIN` at load time, so there is still one table. New accessors: `fileDisplayIoKeywords`, `msgLocLimits`, `errsflRefusedMsgLocs`, `dspsizUserNameRule` (re-exported on `DspfWriter`); the I-121b accessors (`takesNoParameters`, `optionIndicatorsAllowed`) now answer for these eight too.
+
+**One real fix.** `IGCCNV`'s section says "Option indicators are not allowed with this keyword", and the panel never offered a Conditioning toggle on it, but `NO_OPTION_INDICATORS` did not list it, so the writer accepted an indicator added through the raw keyword editor. It is now listed (kind `notAllowed`, the same wording as `IGCALTTYP`). Also corrected a stale comment that said `MSGLOC` takes 1-27 (the section says 1-28). Otherwise a refactor: the Conditioning toggles of the `INDARA`, `DSPRL`, `ERRSFL`, `OPENPRT` and `IGCCNV` rows, which were `undefined` literals, now come from each entry's `optionIndicators` fact.
+
+**Not enforced (spec facts only), found by probing the writer:** `MSGLOC` accepts any text (`99`, `abc`) and `25` beside `ERRSFL`; `OPENPRT` is accepted with no file-level `PRINT`; `IGCCNV` accepts `CF99 abc` and a CF key another keyword already uses. See the finding under Deferred findings.
+
+New `src/test/i121fFileDisplayIoSpec.test.js` (99 checks): every entry against the reference text, each citation against the raw file's heading line, a sweep over the eight in `KEYWORD-LOOKUP.json`, `NO_OPTION_INDICATORS` and the writer's refusal, accessor copies, the rendered file panels, and a "panels follow the spec" part that flips a spec fact and re-renders. Run against the pre-change source the file fails (no accessors).
+
+Full suite: 253 files, 14,191 checks, zero failures (first run found three older tests pinning the option-indicator table size and an `IGCCNV` "unlisted" example; updated, then the whole suite rerun).
 
 ---
 

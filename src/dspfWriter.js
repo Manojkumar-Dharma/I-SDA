@@ -6767,7 +6767,8 @@
 
   // Bug fix (L22 keyword-inventory audit): MSGLOC was entirely missing.
   // Confirmed via IBM's own DDS Reference: MSGLOC is a FILE-LEVEL keyword
-  // with a single required numeric line-number parameter (1-27), used
+  // with a single required numeric line-number parameter (1-28 - see
+  // KeywordSpec.msgLocLimits; this comment said 1-27 until I-121f), used
   // alongside DSPSIZ to give each display size its own error-message
   // line - e.g. `A MSGLOC(1)` for the primary/unconditioned size and
   // `A *DS4 MSGLOC(1)` for a secondary size, using the SAME display-size
@@ -10182,6 +10183,11 @@
     initRetainReturnKeywords: function () { return KeywordSpec.initRetainReturnKeywords(); },
     takesNoParameters: function (n) { return KeywordSpec.takesNoParameters(n); },
     optionIndicatorsAllowed: function (n) { return KeywordSpec.optionIndicatorsAllowed(n); },
+    // Task I-121f
+    fileDisplayIoKeywords: function () { return KeywordSpec.fileDisplayIoKeywords(); },
+    msgLocLimits: function () { return KeywordSpec.msgLocLimits(); },
+    errsflRefusedMsgLocs: function () { return KeywordSpec.errsflRefusedMsgLocs(); },
+    dspsizUserNameRule: function () { return KeywordSpec.dspsizUserNameRule(); },
     // Task I-121e - window / menu-bar / help / logging record keyword facts, straight off the spec.
     windowHelpLogKeywords: function () { return KeywordSpec.windowHelpLogKeywords(); },
     hlpseqLimits: function () { return KeywordSpec.hlpseqLimits(); },

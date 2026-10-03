@@ -52,7 +52,8 @@ check('noOptionIndicatorsNewConflictReason is exported', typeof DspfWriter.noOpt
   const r = list('IGCALTTYP') || '';
   check('IGCALTTYP is listed, and the reason names it and the DDS Reference', /IGCALTTYP/.test(r) && /Option indicators are not allowed/.test(r) && /DDS Reference/.test(r));
   check('lowercase name is normalised', !!list('igcalttyp'));
-  ['DUP', 'COLOR', 'DSPATR', 'KEEP', 'IGCCNV', 'DFTVAL', 'PUTRETAIN', '', null, undefined].forEach((n) => {
+  // IGCCNV used to be in this list; Task I-121f listed it (its section says option indicators are not allowed), so ALARM (option indicators valid) stands in.
+  ['DUP', 'COLOR', 'DSPATR', 'KEEP', 'ALARM', 'DFTVAL', 'PUTRETAIN', '', null, undefined].forEach((n) => {
     check('unlisted keyword ' + JSON.stringify(n) + ' is not listed', !list(n));
   });
 

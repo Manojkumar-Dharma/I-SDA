@@ -835,6 +835,169 @@
     },
     // ---- end I-121e ----
 
+    // ---- I-121f: 8 ----
+    // File-level display and I/O keywords: IGCCNV, DSPRL, DSPSIZ, ERRSFL, INDARA,
+    // MSGLOC, OPENPRT, REF. Every fact below was re-read from DDS_Keyword_V7r6.txt
+    // (the section named in each ddsReference), NOT taken from the code. The field
+    // names are the ones I-121b / I-121e use (levels, noParameters, optionIndicators,
+    // requiresInFile, excludesInFile, parameters). Enforcement stays with the
+    // existing guards; rules with no guard yet are recorded here and logged as
+    // findings in keywordFixes.md.
+    IGCCNV: {
+      levels: ['file'],
+      // "Option indicators are not allowed with this keyword."
+      optionIndicators: 'notValid',
+      repeatable: false,
+      parameters: {
+        format: 'IGCCNV(CFnn line-number)',
+        commandKey: { keyTypes: ['CF'], first: 'CF01', last: 'CF24', notAlreadyAssigned: true },
+        lineNumber: 'the display line that holds the conversion prompt line (it needs an entire line)'
+      },
+      // The remaining rules are runtime / advisory in the section and none is
+      // enforced by the designer today.
+      requiresDbcsDisplay: true,
+      requiresDbcsInputField: true,
+      requiresDisplaySize24x80: true,
+      notDisplayedOverRecordTypes: ['USRDFN'],
+      avoidWith: ['CHECK(ME)', 'CHECK', 'CMP', 'RANGE', 'VALUES'],
+      ddsReference:
+        'IGCCNV (DBCS Conversion) keyword (~line 15008): file-level, IGCCNV(CFnn line-number). The first parameter is a CF key (CF01-CF24) that ' +
+        'is not already assigned a function; the second is the line of the conversion prompt line. Only for files displayed on DBCS display ' +
+        'stations; at least one input-capable DBCS field (or a field with IGCALTTYP) is needed; avoid it with CHECK(ME) and with CHECK, CMP, RANGE ' +
+        'and VALUES; the file must be defined for a 24 x 80 display; do not display the conversion format over a USRDFN format. Option indicators ' +
+        'are not allowed with this keyword.'
+    },
+    DSPRL: {
+      levels: ['file'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      repeatable: false,
+      bidirectionalDeviceOnly: true,
+      ddsReference:
+        'DSPRL (Display Right to Left) keyword (~line 5249): file-level; records are written right to left. This keyword has no parameters. ' +
+        'Option indicators are not valid for this keyword. It can only be used on a bidirectional device.'
+    },
+    DSPSIZ: {
+      levels: ['file'],
+      optionIndicators: 'notValid',
+      repeatable: false,
+      // The size table itself (names, lines x positions, the default, the maximum
+      // of two) lives in DSPSIZ_DOMAIN below; the accessors at the end of this
+      // block copy it into `parameters` so there is one source.
+      parameters: {
+        formats: ['DSPSIZ(*DSw [*DSx])', 'DSPSIZ(lines positions[condition-name-1][lines positions[condition-name-2]])'],
+        standardNames: [],      // filled from DSPSIZ_DOMAIN
+        maxSizes: 0,            // filled from DSPSIZ_DOMAIN
+        standardNameMayRepeat: false,
+        userNameLength: { min: 2, max: 8 },
+        userNameFirstCharacter: '*',
+        userNameMayBeStandardName: false,
+        firstSizeIsPrimary: true
+      },
+      // Without DSPSIZ the file opens only to a 24 x 80 display.
+      absentMeans: '24 x 80 only',
+      // "If you specify user-defined display size condition names for DSPSIZ,
+      // you cannot use IBM-supplied display size condition names for conditioning."
+      userNamesExcludeStandardNamesForConditioning: true,
+      ddsReference:
+        'DSPSIZ (Display Size) keyword (~line 5270): file-level. DSPSIZ(*DSw [*DSx]) takes up to two of *DS3 / *DS4, at least one, neither twice; ' +
+        'DSPSIZ(lines positions[condition-name] [lines positions[condition-name]]) takes 24 x 80 and 27 x 132 only, each optionally with a ' +
+        'user-defined condition name of 2-8 characters whose first character is an asterisk. The first size is the primary size, the second the ' +
+        'secondary. Without DSPSIZ the file opens only to 24 x 80 displays. Option indicators are not valid for this keyword.'
+    },
+    ERRSFL: {
+      levels: ['file'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      repeatable: false,
+      // "If the message line overlaps a record already displayed on the screen,
+      // the ERRSFL keyword is ignored."
+      ignoredWhenMessageLineOverlapsRecord: true,
+      // "If the ERRSFL keyword is specified in the file, you cannot specify a
+      // message location value of 25 for the 24 x 80 display size or 28 for the
+      // 27 x 132 display size."
+      msglocRefused: [{ lines: 24, columns: 80, line: 25 }, { lines: 27, columns: 132, line: 28 }],
+      // MSGLOC absent: the message line moves up one.
+      msglocDefaultWithErrsfl: [{ lines: 24, columns: 80, line: 24 }, { lines: 27, columns: 132, line: 27 }],
+      ddsReference:
+        'ERRSFL (Error Subfile) keyword (~line 6322): file-level; messages are shown in a system-supplied error subfile on the message line (ignored ' +
+        'if the message line overlaps a displayed record). This keyword has no parameters. Option indicators are not valid for this keyword. ' +
+        'With ERRSFL a MSGLOC of 25 (24 x 80) or 28 (27 x 132) is refused; without MSGLOC the message line is 24 (24 x 80) or 27 (27 x 132).'
+    },
+    INDARA: {
+      levels: ['file'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      repeatable: false,
+      // "If you specify INDARA, the LOGINP and LOGOUT keywords do not log
+      // response or option indicators when your program sends I/O operations."
+      loggingOmitsIndicators: ['LOGINP', 'LOGOUT'],
+      // RETKEY / RETCMDKEY name INDARA as a file requirement in their own
+      // entries (I-121b); that relation is owned there.
+      ddsReference:
+        'INDARA (Indicator Area) keyword (~line 7481): file-level; option and response indicators move out of the buffer into a separate 99-byte ' +
+        'indicator area. This keyword has no parameters. With INDARA, LOGINP and LOGOUT do not log response or option indicators. Option indicators ' +
+        'are not valid for this keyword.'
+    },
+    MSGLOC: {
+      levels: ['file'],
+      optionIndicators: 'notValid',
+      // MSGLOC is repeated once per display size: unconditioned for the primary
+      // size and conditioned by a *DSx name for the secondary size. "Display size
+      // condition names must be specified if the message line for the secondary
+      // display size is different from the default message line."
+      displaySizeNames: 'valid',
+      repeatable: true,
+      parameters: {
+        lineNumber: { required: true, min: 1, max: 28, anyDisplaySize: true },
+        defaultLine: [{ lines: 24, columns: 80, line: 25 }, { lines: 27, columns: 132, line: 28 }],
+        // "A diagnostic will be issued when the file is opened if a message
+        // location is in the 26 to 28 range for a 24 x 80 display size."
+        diagnosticOn24x80: { min: 26, max: 28 }
+      },
+      excludesWithKeyword: [{ keyword: 'ERRSFL', lines: 24, columns: 80, line: 25 }, { keyword: 'ERRSFL', lines: 27, columns: 132, line: 28 }],
+      ddsReference:
+        'MSGLOC (Message Location) keyword (~line 9076): file-level, MSGLOC(line-number); the parameter is required and must be 1 through 28, valid ' +
+        'whatever the DSPSIZ sizes; opening the file issues a diagnostic for 26-28 on a 24 x 80 display. Default message line: 25 (24 x 80), 28 ' +
+        '(27 x 132). With ERRSFL, 25 (24 x 80) and 28 (27 x 132) are refused. Display size condition names are needed when the secondary size ' +
+        'differs from the default. Option indicators are not valid for this keyword.'
+    },
+    OPENPRT: {
+      levels: ['file'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      repeatable: false,
+      // "This keyword is valid only if you have specified a file-level PRINT
+      // keyword with a printer file parameter. It is not valid with record-level
+      // PRINT keywords." / "has no effect unless the PRINT file is specified."
+      requiresInFile: ['PRINT'],
+      requiresPrintFileParameter: true,
+      notWithRecordLevel: ['PRINT'],
+      ddsReference:
+        'OPENPRT (Open Printer File) keyword (~line 9167): file-level; keeps the printer file open until the display file closes. This keyword has no ' +
+        'parameters. Valid only with a file-level PRINT keyword that names a printer file; not valid with record-level PRINT. Option indicators are ' +
+        'not valid for this keyword.'
+    },
+    REF: {
+      levels: ['file'],
+      optionIndicators: 'notValid',
+      // "(REF can be specified only once.)"
+      repeatable: false,
+      parameters: {
+        format: 'REF([library-name/]database-file-name [record-format-name])',
+        databaseFileName: { required: true },
+        libraryName: { required: false, default: '*LIBL' },
+        recordFormatName: { required: false, default: 'every record format is searched in order' },
+        ddmFileAllowed: true,
+        iddFileAllowed: false
+      },
+      ddsReference:
+        'REF (Reference) keyword (~line 10039): file-level, REF([library-name/]database-file-name [record-format-name]); the database file name is ' +
+        'required, library and record format are optional; REF can be specified only once; a DDM file may be used, an IDDU file may not. Option ' +
+        'indicators are not valid for this keyword.'
+    },
+    // ---- end I-121f ----
+
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
     // closed list forbidden on the same record in either direction), just
     // a much larger list - re-verified fresh against PULLDOWN's own DDS
@@ -3941,6 +4104,11 @@
   var NO_OPTION_INDICATORS = {
     IGCALTTYP: { kind: 'notAllowed', levels: ['field'],
       ddsReference: 'Option indicators are not allowed with IGCALTTYP.' },
+    // Task I-121f: IGCCNV's section (~line 15040) says "Option indicators are not
+    // allowed with this keyword." The webview never offered a Conditioning toggle
+    // on its row, but the table (and so the writer's refusal) did not list it.
+    IGCCNV: { kind: 'notAllowed', levels: ['file'],
+      ddsReference: 'Option indicators are not allowed with this keyword.' },
     ALTHELP: { kind: 'notValid', levels: ['file'],
       ddsReference: 'Option indicators are not valid for this keyword.' },
     ALTPAGEDWN: { kind: 'notValid', levels: ['file'],
@@ -4514,9 +4682,11 @@
   var I121B_KEYWORDS = ['INZRCD', 'INZINP', 'GETRETAIN', 'RTNDTA', 'RETLCKSTS', 'RETKEY', 'RETCMDKEY'];
   // Task I-121e's eleven (window, menu-bar, help and logging record keywords).
   var I121E_KEYWORDS = ['WDWTITLE', 'RMVWDW', 'USRRSTDSP', 'MNUBARDSP', 'ALTNAME', 'HLPCLR', 'HLPCMDKEY', 'HLPSEQ', 'LOGINP', 'LOGOUT', 'SETOF'];
+  // Task I-121f's eight (file-level display and I/O keywords).
+  var I121F_KEYWORDS = ['IGCCNV', 'DSPRL', 'DSPSIZ', 'ERRSFL', 'INDARA', 'MSGLOC', 'OPENPRT', 'REF'];
   function i121bEntry(name) {
     var n = String(name == null ? '' : name).trim().toUpperCase();
-    return (I121B_KEYWORDS.indexOf(n) !== -1 || I121E_KEYWORDS.indexOf(n) !== -1) ? RECORD_TYPES[n] : null;
+    return (I121B_KEYWORDS.indexOf(n) !== -1 || I121E_KEYWORDS.indexOf(n) !== -1 || I121F_KEYWORDS.indexOf(n) !== -1) ? RECORD_TYPES[n] : null;
   }
   function i121bList(name, field) {
     var e = i121bEntry(name);
@@ -4578,6 +4748,32 @@
   function requiresHelpSpecification(name) { var e = i121bEntry(name); return !!(e && e.requiresHelpSpecification); }
   RECORD_TYPES.WINDOW.requiredFor = requiresWindowOnRecord();
   // ---- end I-121e ----
+  // ---- I-121f: accessors ----
+  // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
+  // so the entry and the domain cannot drift.
+  RECORD_TYPES.DSPSIZ.parameters.standardNames = DSPSIZ_DOMAIN.standardSizes.map(function (z) { return z.name; });
+  RECORD_TYPES.DSPSIZ.parameters.maxSizes = DSPSIZ_DOMAIN.maxSizes;
+  /** The eight file-level display and I/O keywords, in the slice's order. */
+  function fileDisplayIoKeywords() { return I121F_KEYWORDS.slice(); }
+  /** MSGLOC's documented limits: { min, max, diagnosticMin, diagnosticMax, defaults:[{lines,columns,line}] }. */
+  function msgLocLimits() {
+    var p = RECORD_TYPES.MSGLOC.parameters;
+    return {
+      min: p.lineNumber.min, max: p.lineNumber.max,
+      diagnosticMin: p.diagnosticOn24x80.min, diagnosticMax: p.diagnosticOn24x80.max,
+      defaults: p.defaultLine.map(function (d) { return { lines: d.lines, columns: d.columns, line: d.line }; })
+    };
+  }
+  /** The MSGLOC values ERRSFL refuses, as fresh { lines, columns, line } copies. */
+  function errsflRefusedMsgLocs() {
+    return RECORD_TYPES.ERRSFL.msglocRefused.map(function (d) { return { lines: d.lines, columns: d.columns, line: d.line }; });
+  }
+  /** DSPSIZ's user-defined condition name rule: { min, max, firstCharacter }. */
+  function dspsizUserNameRule() {
+    var p = RECORD_TYPES.DSPSIZ.parameters;
+    return { min: p.userNameLength.min, max: p.userNameLength.max, firstCharacter: p.userNameFirstCharacter };
+  }
+  // ---- end I-121f ----
   // ---- end I-121b ----
 
   return {
@@ -4754,6 +4950,11 @@
     hlpseqLimits: hlpseqLimits,
     setofTextMaxLength: setofTextMaxLength,
     mnubardspFieldShapes: mnubardspFieldShapes,
-    requiresHelpSpecification: requiresHelpSpecification
+    requiresHelpSpecification: requiresHelpSpecification,
+    // ---- I-121f ----
+    fileDisplayIoKeywords: fileDisplayIoKeywords,
+    msgLocLimits: msgLocLimits,
+    errsflRefusedMsgLocs: errsflRefusedMsgLocs,
+    dspsizUserNameRule: dspsizUserNameRule
   };
 });
