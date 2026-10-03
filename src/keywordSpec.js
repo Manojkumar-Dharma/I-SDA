@@ -251,7 +251,7 @@
       // the keyword functions only when WINDOW defines a window (not when it
       // names a record format) - a runtime "does not function", not a
       // "cannot be specified" rule, so it is deliberately not enforced here.
-      requiredFor: ['RMVWDW', 'USRRSTDSP'],
+      requiredFor: [],   // Task I-121e: filled in below from RMVWDW / USRRSTDSP's own requiresOnRecord
       requiredForDdsReference:
         'RMVWDW: a WINDOW keyword must be specified on the same record format. ' +
         'USRRSTDSP: the WINDOW keyword must be specified on the same record as the USRRSTDSP keyword.'
@@ -646,6 +646,164 @@
         'ALTPAGEDWN); option indicators are not valid.'
     },
     // ---- end I-121b ----
+
+    // ---- I-121e: 11 ----
+    // Window, menu-bar, help and logging record keywords. Every fact below was
+    // re-read from DDS_Keyword_V7r6.txt (line numbers are that file's), NOT
+    // taken from the code. Fields, beyond the ones I-121b documents:
+    //   noParameters / minParameters - "has no parameters" / "at least one parameter must be specified"
+    //   optionIndicators             - 'valid' | 'notValid' (agrees with NO_OPTION_INDICATORS)
+    //   requiresOnRecord             - keywords that must be on the same record
+    //   excludesInFile / notOnRecordTypes - as in I-121b
+    //   repeatable                   - the keyword may appear more than once on a record
+    //   parameters                   - the documented parameter shapes and limits
+    // Enforcement stays with the existing guards; relations with no guard yet
+    // are recorded here and logged as findings in keywordFixes.md.
+    WDWTITLE: {
+      levels: ['record'],
+      minParameters: 1,
+      optionIndicators: 'valid',
+      repeatable: true,
+      // ~line 13546: \"The WDWTITLE keyword can only be specified on a record
+      // that contains a WINDOW keyword (in the definition format).\" If the
+      // WINDOW keyword references another window, a warning is issued.
+      requiresOnRecord: ['WINDOW'],
+      // Several WDWTITLE keywords combine; for a parameter given twice the
+      // first one wins.
+      parameters: {
+        text: '(*TEXT value) - a character string, or &field (character, usage P, in the window record)',
+        textMaxFollows: 'window-positions of the WINDOW definition (longer text is truncated on the right)',
+        colors: ['BLU', 'GRN', 'WHT', 'RED', 'TRQ', 'YLW', 'PNK'],
+        displayAttributes: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'],
+        alignments: ['*CENTER', '*LEFT', '*RIGHT'],
+        alignmentDefault: '*CENTER',
+        positions: ['*TOP', '*BOTTOM']
+      },
+      ddsReference:
+        'WDWTITLE (~line 13456): at least one parameter must be specified: (*TEXT value), (*COLOR BLU|GRN|WHT|RED|TRQ|YLW|PNK), ' +
+        '(*DSPATR BL|CS|HI|ND|RI|UL ...), *CENTER|*LEFT|*RIGHT, *TOP|*BOTTOM. Only on a record containing a WINDOW definition; ' +
+        'more than one may be specified (the parameters combine, the first value of a repeated parameter wins). Option indicators are valid.'
+    },
+    RMVWDW: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      // ~line 10187: \"When the RMVWDW keyword is specified, a WINDOW keyword
+      // must be specified on the same record format.\" It functions only when
+      // WINDOW defines a window (a runtime fact, not enforced).
+      requiresOnRecord: ['WINDOW'],
+      ddsReference:
+        'RMVWDW (~line 10187): \"This keyword has no parameters.\" ... \"a WINDOW keyword must be specified on the same record format\" ... \"Option indicators are valid for this keyword.\"'
+    },
+    USRRSTDSP: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      requiresOnRecord: ['WINDOW'],
+      ddsReference:
+        'USRRSTDSP (~line 13106): \"This keyword has no parameters.\" ... \"The WINDOW keyword must be specified on the same record as the USRRSTDSP keyword.\" ... \"Option indicators are valid for this keyword.\"'
+    },
+    MNUBARDSP: {
+      levels: ['record'],
+      optionIndicators: 'valid',
+      repeatable: true,
+      // ~line 8405. Two formats: on a record that is not a menu bar,
+      // MNUBARDSP(menu-bar-record &choice-field [&pull-down-input]); on a
+      // MNUBAR record, MNUBARDSP[(&pull-down-input)]. \"More than one MNUBARDSP
+      // keyword can be specified on the record if all are optioned\"; the first
+      // one in effect is used.
+      parameters: {
+        formOnPlainRecord: 'menu-bar-record &choice-field [&pull-down-input]',
+        formOnMnubarRecord: '[&pull-down-input]',
+        choiceField: { usage: 'H', length: 2, decimals: 0, keyboardShift: 'Y' },
+        pullDownInput: { usage: 'H', length: 2, decimals: 0, keyboardShift: 'S', values: ['0', 'n', '-1'] }
+      },
+      multipleRequireOptionIndicators: true,
+      ddsReference:
+        'MNUBARDSP (~line 8405): on a non-menu-bar record MNUBARDSP(menu-bar-record &choice-field [&pull-down-input]) - the menu-bar record must be in the same file, ' +
+        '&choice-field is a hidden (H) 2-long zero-decimal numeric Y field in the record, &pull-down-input a hidden (H) 2-long zero-decimal zoned (S) field; ' +
+        'on a MNUBAR record MNUBARDSP[(&pull-down-input)]. Option indicators are valid and more than one keyword may be specified if all are optioned (the first in effect is used).'
+    },
+    ALTNAME: {
+      levels: ['record'],
+      parameters: { quotedName: true },
+      optionIndicators: 'notValid',
+      // I-108: refused on USRDFN, SFL and MNUBAR records by those record types' own whitelists.
+      notOnRecordTypes: ['SFL', 'USRDFN', 'MNUBAR'],
+      ddsReference:
+        'ALTNAME (~line 1934): ALTNAME(\'alternative-name\') - an alternative record name for program-described files. ' +
+        'Option indicators are not valid (see NO_OPTION_INDICATORS). The System/36 notes live in S36E_RESTRICTIONS.'
+    },
+    HLPCLR: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      // ~line 6840: \"The record specifying the HLPCLR keyword must contain at
+      // least one help specification.\"
+      requiresHelpSpecification: true,
+      ddsReference:
+        'HLPCLR (~line 6831): \"This keyword has no parameters.\" ... \"Option indicators are allowed on this keyword.\" ... ' +
+        '\"The record specifying the HLPCLR keyword must contain at least one help specification.\"'
+    },
+    HLPCMDKEY: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      // ~line 6888: \"You cannot specify HLPCMDKEY on subfile (SFL keyword),
+      // subfile control (SFLCTL keyword), or user-defined (USRDFN keyword)
+      // record formats. You cannot specify the HLPCMDKEY keyword in a file
+      // containing the USRDSPMGT keyword.\"
+      notOnRecordTypes: ['SFL', 'SFLCTL', 'USRDFN'],
+      excludesInFile: ['USRDSPMGT'],
+      ddsReference:
+        'HLPCMDKEY (~line 6860): \"This keyword has no parameters.\" ... cannot be specified on SFL, SFLCTL or USRDFN records or in a file containing USRDSPMGT; ' +
+        'a CAnn / CFnn key must be on the help record or at the file level (a severity-10 warning otherwise); option indicators are not valid.'
+    },
+    HLPSEQ: {
+      levels: ['record'],
+      parameters: {
+        form: 'HLPSEQ(group-name sequence-number)',
+        groupNameMaxLength: 10,
+        sequenceMin: 0,
+        sequenceMax: 99,
+        duplicateSequenceInGroup: false
+      },
+      optionIndicators: 'notValid',
+      notOnRecordTypes: ['SFL', 'USRDFN'],
+      ddsReference:
+        'HLPSEQ (~line 7302): HLPSEQ(group-name sequence-number) - the group name is 1 to 10 characters, the sequence number 0 to 99, duplicate numbers within a group are not allowed. ' +
+        'Cannot be specified on SFL or USRDFN record formats. Option indicators are not valid.'
+    },
+    LOGINP: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      ddsReference:
+        'LOGINP (~line 7872): \"This keyword has no parameters.\" ... ignored for a record with nothing to log or a message-subfile record (a runtime fact, not enforced) ... ' +
+        '\"Option indicators are not valid for this keyword.\"'
+    },
+    LOGOUT: {
+      levels: ['record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      ddsReference:
+        'LOGOUT (~line 7895): \"This keyword has no parameters.\" ... ignored for a record with nothing to log or a message-subfile record (a runtime fact, not enforced) ... ' +
+        '\"Option indicators are valid for this keyword.\"'
+    },
+    SETOF: {
+      levels: ['record'],
+      parameters: {
+        form: 'SETOF(response-indicator [\'text\'])',
+        textMaxLength: 50,
+        textOverflow: 'truncated to 50 characters on the program listing',
+        equivalentKeyword: 'SETOFF'
+      },
+      optionIndicators: 'notValid',
+      ddsReference:
+        'SETOF (~line 10438): SETOF(response-indicator [\'text\']) - the optional text is truncated to 50 characters on the listing; SETOFF is equivalent. ' +
+        'Any indicator is valid and becomes a response indicator. Option indicators are not valid.'
+    },
+    // ---- end I-121e ----
 
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
     // closed list forbidden on the same record in either direction), just
@@ -4204,9 +4362,11 @@
   // ---- end I-121c ----
   // ---- I-121b: accessors ----
   var I121B_KEYWORDS = ['INZRCD', 'INZINP', 'GETRETAIN', 'RTNDTA', 'RETLCKSTS', 'RETKEY', 'RETCMDKEY'];
+  // Task I-121e's eleven (window, menu-bar, help and logging record keywords).
+  var I121E_KEYWORDS = ['WDWTITLE', 'RMVWDW', 'USRRSTDSP', 'MNUBARDSP', 'ALTNAME', 'HLPCLR', 'HLPCMDKEY', 'HLPSEQ', 'LOGINP', 'LOGOUT', 'SETOF'];
   function i121bEntry(name) {
     var n = String(name == null ? '' : name).trim().toUpperCase();
-    return I121B_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+    return (I121B_KEYWORDS.indexOf(n) !== -1 || I121E_KEYWORDS.indexOf(n) !== -1) ? RECORD_TYPES[n] : null;
   }
   function i121bList(name, field) {
     var e = i121bEntry(name);
@@ -4214,7 +4374,7 @@
   }
   /** The seven initialize / retain / return keywords, in the slice's order. */
   function initRetainReturnKeywords() { return I121B_KEYWORDS.slice(); }
-  /** Whether `name` is documented as taking no parameters (all seven are). */
+  /** Whether `name` is documented as taking no parameters (every I-121b keyword is; so are RMVWDW, USRRSTDSP, HLPCLR, HLPCMDKEY, LOGINP, LOGOUT). */
   function takesNoParameters(name) { var e = i121bEntry(name); return !!(e && e.noParameters); }
   /** Whether option indicators are valid on `name` (false for a keyword with
    *  no such entry). */
@@ -4233,6 +4393,35 @@
   function fileRequires(name) { return i121bList(name, 'requiresInFile'); }
   /** Record types (SFL / USRDFN) `name` is refused on (copy). */
   function notOnRecordTypes(name) { return i121bList(name, 'notOnRecordTypes'); }
+  // ---- I-121e: accessors ----
+  /** The eleven window / menu-bar / help / logging record keywords, in the slice's order. */
+  function windowHelpLogKeywords() { return I121E_KEYWORDS.slice(); }
+  /** The record-level keywords whose own entry says a WINDOW must be on the same record, minus WDWTITLE
+   *  (which needs the *defining* form; guarded separately). */
+  function requiresWindowOnRecord() {
+    return ['RMVWDW', 'USRRSTDSP'].filter(function (k) { return RECORD_TYPES[k].requiresOnRecord.indexOf('WINDOW') !== -1; });
+  }
+  /** WDWTITLE's documented parameter vocabulary: { colors, displayAttributes, alignments, positions } (copies). */
+  function wdwtitleVocabulary() {
+    var p = RECORD_TYPES.WDWTITLE.parameters;
+    return { colors: p.colors.slice(), displayAttributes: p.displayAttributes.slice(), alignments: p.alignments.slice(), positions: p.positions.slice(), alignmentDefault: p.alignmentDefault };
+  }
+  /** HLPSEQ's limits: { groupNameMaxLength, sequenceMin, sequenceMax }. */
+  function hlpseqLimits() {
+    var p = RECORD_TYPES.HLPSEQ.parameters;
+    return { groupNameMaxLength: p.groupNameMaxLength, sequenceMin: p.sequenceMin, sequenceMax: p.sequenceMax };
+  }
+  /** SETOF / SETOFF's text limit (50 characters on the listing). */
+  function setofTextMaxLength() { return RECORD_TYPES.SETOF.parameters.textMaxLength; }
+  /** MNUBARDSP's hidden-field shapes: { choiceField, pullDownInput } (copies). */
+  function mnubardspFieldShapes() {
+    var p = RECORD_TYPES.MNUBARDSP.parameters;
+    return { choiceField: Object.assign({}, p.choiceField), pullDownInput: { usage: p.pullDownInput.usage, length: p.pullDownInput.length, decimals: p.pullDownInput.decimals, keyboardShift: p.pullDownInput.keyboardShift, values: p.pullDownInput.values.slice() } };
+  }
+  /** Whether `name` is one whose record needs at least one help specification (HLPCLR). */
+  function requiresHelpSpecification(name) { var e = i121bEntry(name); return !!(e && e.requiresHelpSpecification); }
+  RECORD_TYPES.WINDOW.requiredFor = requiresWindowOnRecord();
+  // ---- end I-121e ----
   // ---- end I-121b ----
 
   return {
@@ -4390,6 +4579,14 @@
     fileAndRecordExcludes: fileAndRecordExcludes,
     fileExcludes: fileExcludes,
     fileRequires: fileRequires,
-    notOnRecordTypes: notOnRecordTypes
+    notOnRecordTypes: notOnRecordTypes,
+    // ---- I-121e ----
+    windowHelpLogKeywords: windowHelpLogKeywords,
+    requiresWindowOnRecord: requiresWindowOnRecord,
+    wdwtitleVocabulary: wdwtitleVocabulary,
+    hlpseqLimits: hlpseqLimits,
+    setofTextMaxLength: setofTextMaxLength,
+    mnubardspFieldShapes: mnubardspFieldShapes,
+    requiresHelpSpecification: requiresHelpSpecification
   };
 });

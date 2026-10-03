@@ -5686,7 +5686,7 @@
     function ok(keywordName) { return recordRestrictionAllows(restrictTo, keywordName); }
     // Row-id stem -> the DDS keyword the row writes (only used to gate).
     var ROW_KEYWORD = { 'check-ab': 'CHECK', 'check-rl': 'CHECK' };
-    // Task I-121b: whether a row shows a Conditioning toggle for these seven
+    // Tasks I-121b / I-121e: whether a row shows a Conditioning toggle for these
     // keywords is the spec's optionIndicators fact, not a per-call literal.
     function i121bConds(name, conditions) {
       return DspfWriter.optionIndicatorsAllowed(name) ? conditions : undefined;
@@ -5880,15 +5880,15 @@
 
     // --- Help ---
     var fHlpclr = DspfWriter.getFileFlagKeyword(kw, 'HLPCLR');
-    var help = gatedFlagRow(p + '-hlpclr', 'Clear previous help text records (HLPCLR)', fHlpclr.present, undefined, undefined, fHlpclr.conditions, expandedSet);
+    var help = gatedFlagRow(p + '-hlpclr', 'Clear previous help text records (HLPCLR)', fHlpclr.present, undefined, undefined, i121bConds('HLPCLR', fHlpclr.conditions), expandedSet);
     if (ok('HLPSEQ')) {
       var hlpseq = DspfWriter.getFileTwoFieldKeyword(kw, 'HLPSEQ');
       help += '<div class="section-label">Sequence of help text records (HLPSEQ)</div>';
       help += '<div class="two-col"><input type="text" id="' + p + '-hlpseq-group" placeholder="Help group name" value="' + escapeHtml(hlpseq.a) + '" />' +
-        '<input type="text" id="' + p + '-hlpseq-num" placeholder="Sequence number 0-99" value="' + escapeHtml(hlpseq.b) + '" /></div>';
+        '<input type="text" id="' + p + '-hlpseq-num" placeholder="Sequence number ' + DspfWriter.hlpseqLimits().sequenceMin + '-' + DspfWriter.hlpseqLimits().sequenceMax + '" value="' + escapeHtml(hlpseq.b) + '" /></div>';
     }
     var fHlpcmdkey = DspfWriter.getFileFlagKeyword(kw, 'HLPCMDKEY');
-    help += gatedFlagRow(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    help += gatedFlagRow(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, i121bConds('HLPCMDKEY', fHlpcmdkey.conditions), expandedSet);
     if (ok('HLPTITLE')) {
       help += '<div class="section-label">Define help title (HLPTITLE)</div>';
       // Task I-27: record-level HLPTITLE rebuilt as a genuine repeatable,
@@ -5912,7 +5912,7 @@
     var fLock = DspfWriter.getFileFlagKeyword(kw, 'LOCK');
     out += gatedFlagRow(p + '-lock', 'Do not unlock keyboard (LOCK)', fLock.present, undefined, undefined, fLock.conditions, expandedSet);
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
-    out += gatedFlagRow(p + '-logout', 'Write record to job log (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
+    out += gatedFlagRow(p + '-logout', 'Write record to job log (LOGOUT)', fLogout.present, undefined, undefined, i121bConds('LOGOUT', fLogout.conditions), expandedSet);
     var fInvite = DspfWriter.getFileFlagKeyword(kw, 'INVITE');
     out += gatedFlagRow(p + '-invite', 'Invite devices for later read (INVITE)', fInvite.present, undefined, undefined, fInvite.conditions, expandedSet);
     var fAlwgph = DspfWriter.getFileFlagKeyword(kw, 'ALWGPH');
@@ -5950,7 +5950,7 @@
 
     // --- Input ---
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
-    var inp = gatedFlagRow(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    var inp = gatedFlagRow(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, i121bConds('LOGINP', fLoginp.conditions), expandedSet);
     var unlock = DspfWriter.getUnlockKeyword(kw);
     inp += gatedFlagRow(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
     if (ok('UNLOCK')) {
@@ -6872,9 +6872,9 @@
     // Task I-13: HLPCLR is on PULLDOWN's own forbidden-keyword list (I-8
     // confirmed it has no USRDFN-side restriction, but PULLDOWN is a
     // separate, unrelated conflict).
-    wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', false, false, false, true);
+    wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', !DspfWriter.takesNoParameters('HLPCLR'), false, false, DspfWriter.optionIndicatorsAllowed('HLPCLR')); // I-121e
     wireUsrdfnGuardedTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
-    wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY');
+    wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY', false, false, false, !DspfWriter.takesNoParameters('HLPCMDKEY'), DspfWriter.optionIndicatorsAllowed('HLPCMDKEY')); // I-121e
     // Task I-27: record-level HLPTITLE rebuilt as a repeatable instance
     // list - see hlptitlePanelHtml's own doc comment above. (This
     // replaces the old single `#p-hlptitle` input/listener pair I-21 had
@@ -6908,7 +6908,7 @@
     wirePulldownGuardedFlag(p + '-alarm', 'ALARM', false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-msgalarm', 'MSGALARM', false, false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-lock', 'LOCK', false, false, false, false, true);
-    wireUsrdfnGuardedFlag(p + '-logout', 'LOGOUT', false, false, false, false, true);
+    wireUsrdfnGuardedFlag(p + '-logout', 'LOGOUT', false, false, false, !DspfWriter.takesNoParameters('LOGOUT'), DspfWriter.optionIndicatorsAllowed('LOGOUT')); // I-121e
     wirePulldownGuardedFlag(p + '-invite', 'INVITE', false, false, false, true);
     wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false, false, false, true);
     wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false, false, false, true);
@@ -6943,7 +6943,7 @@
     // keyword"), so no hasParams/withConditioning flags are needed -
     // wireUsrdfnGuardedFlag's own defaults already match simple()'s prior
     // noConditioning behavior exactly.
-    wireUsrdfnGuardedFlag(p + '-loginp', 'LOGINP');
+    wireUsrdfnGuardedFlag(p + '-loginp', 'LOGINP', false, false, false, !DspfWriter.takesNoParameters('LOGINP'), DspfWriter.optionIndicatorsAllowed('LOGINP')); // I-121e
     var unlockOn = document.getElementById(p + '-unlock-on');
     var unlockErase = document.getElementById(p + '-unlock-erase');
     var unlockMdtoff = document.getElementById(p + '-unlock-mdtoff');
@@ -7813,9 +7813,9 @@
     // parameters" toggle.
     wp += '<div class="section-label" style="margin-top:10px;">Window control</div>';
     var fRmvwdw = DspfWriter.getFileFlagKeyword(keywords, 'RMVWDW');
-    wp += flagRowHtml(idPrefix + '-rmvwdw', 'Remove existing windows before this record is displayed (RMVWDW)', fRmvwdw.present, undefined, undefined, fRmvwdw.conditions, expandedSet);
+    wp += flagRowHtml(idPrefix + '-rmvwdw', 'Remove existing windows before this record is displayed (RMVWDW)', fRmvwdw.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('RMVWDW') ? fRmvwdw.conditions : undefined, DspfWriter.optionIndicatorsAllowed('RMVWDW') ? expandedSet : undefined); // I-121e
     var fUsrrstdsp = DspfWriter.getFileFlagKeyword(keywords, 'USRRSTDSP');
-    wp += flagRowHtml(idPrefix + '-usrrstdsp', 'Program handles display restore around this window (USRRSTDSP)', fUsrrstdsp.present, undefined, undefined, fUsrrstdsp.conditions, expandedSet);
+    wp += flagRowHtml(idPrefix + '-usrrstdsp', 'Program handles display restore around this window (USRRSTDSP)', fUsrrstdsp.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('USRRSTDSP') ? fUsrrstdsp.conditions : undefined, DspfWriter.optionIndicatorsAllowed('USRRSTDSP') ? expandedSet : undefined); // I-121e
     panels.windowParameters = wp;
 
     // --- Border Parameters (shared with F1's file-level Window Border) ---

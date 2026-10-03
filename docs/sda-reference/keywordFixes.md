@@ -168,7 +168,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
-| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Claimed (in progress) | — |
+| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced logged as deferred findings) | v0.10.295 |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Not started | — |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Not started | — |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
@@ -243,6 +243,7 @@ Every finding so far has been opened as a task (I-61 – I-150, see the tables a
 | Raised by | Finding |
 |-----------|---------|
 | I-121a | **Output-control keyword relations are not enforced.** The DDS Reference (and the spec now) states: `ERASE`, `ERASEINP`, `MDTOFF` and `PROTECT` need `OVERLAY` on the same record; `PUTOVR` cannot be with `PUTRETAIN`; `ERASE` takes at most 20 record names; `CSRLOC` and `FRCDTA` may appear once per record format. A search of the writer and panels found no guard (no probe run). The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are already I-148. `PROTECT` also sits outside `PULLDOWN`'s forbidden list although it needs `OVERLAY`, which `PULLDOWN` forbids - an indirect exclusion, worth confirming when the guards are added. |
+| I-121e | **Window, menu-bar, help and logging relations are not enforced.** The spec now states them; no guard exists for: `HLPCMDKEY` on a subfile-control (`SFLCTL`) record or in a file containing `USRDSPMGT`; `WDWTITLE` on a record with no `WINDOW` definition (or with a window-reference `WINDOW`, which IBM warns about); `HLPSEQ`'s group name over 10 characters, sequence number outside 0-99 or duplicated within a group; `HLPCLR` on a record with no help specification; `MNUBARDSP`'s menu-bar record not existing in the file and its `&choice-field` / `&pull-down-input` not being the documented hidden fields (2Y0 / 2S0); more than one `MNUBARDSP` on a record when some are not optioned. Spec facts: `recordRequires`, `notOnRecordTypes`, `fileExcludes`, `hlpseqLimits`, `requiresHelpSpecification`, `mnubardspFieldShapes`. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6165,13 +6166,39 @@ New `src/test/i121dSubfileModeEntryKeywordSpec.test.js`: each entry against the 
 
 ### I-121e — Window, menu-bar, help and logging record keywords
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.295) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (11):** `WDWTITLE`, `RMVWDW`, `USRRSTDSP`, `MNUBARDSP`, `ALTNAME`, `HLPCLR`, `HLPCMDKEY`, `HLPSEQ`, `LOGINP`, `LOGOUT`, `SETOF`.
 
 `RMVWDW`/`USRRSTDSP` `requiredFor: WINDOW` currently sits on the WINDOW entry (I-140) - give each its own entry and point to it. `SETOF`/`SETOFF` alias (I-135) and `ALTNAME`'s refusal on USRDFN/SFL/MNUBAR (I-108) belong here.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.295).** All eleven now have a `RECORD_TYPES` entry in a `// ---- I-121e: 11 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` (the cited line is that keyword's own heading; a test checks every citation against the raw file), not from the code:
+
+| Keyword | Parameters | Option indicators | Relations / limits the section states |
+|---------|------------|-------------------|---------------------------------------|
+| `WDWTITLE` | at least one of `(*TEXT v)`, `(*COLOR BLU/GRN/WHT/RED/TRQ/YLW/PNK)`, `(*DSPATR BL/CS/HI/ND/RI/UL ...)`, `*CENTER/*LEFT/*RIGHT`, `*TOP/*BOTTOM` | valid | only on a record with a WINDOW definition; repeatable, parameters combine, first value of a repeated parameter wins |
+| `RMVWDW` | none | valid | needs `WINDOW` on the record |
+| `USRRSTDSP` | none | valid | needs `WINDOW` on the record |
+| `MNUBARDSP` | `(menu-bar-record &choice-field [&pull-down-input])`, or `[(&pull-down-input)]` on a MNUBAR record | valid | `&choice-field` hidden 2Y0; `&pull-down-input` hidden 2S0 (values 0 / n / -1); several allowed when all optioned, first in effect used |
+| `ALTNAME` | `('alternative-name')` | not valid | not on SFL / USRDFN / MNUBAR (I-108, pinned to those whitelists); S36E notes stay in the S36E table |
+| `HLPCLR` | none | valid | the record must contain a help specification |
+| `HLPCMDKEY` | none | not valid | not on SFL / SFLCTL / USRDFN; not in a file with `USRDSPMGT` |
+| `HLPSEQ` | `(group-name sequence-number)`: name 1-10 characters, number 0-99, no duplicate number in a group | not valid | not on SFL / USRDFN |
+| `LOGINP` | none | not valid | - |
+| `LOGOUT` | none | valid | - |
+| `SETOF` | `(response-indicator ['text'])`, text cut to 50 characters on the listing | not valid | `SETOFF` is equivalent (I-135) |
+
+`WINDOW.requiredFor` (I-140) is now derived from `RMVWDW` / `USRRSTDSP`'s own `requiresOnRecord` instead of being a second literal. New accessors: `windowHelpLogKeywords`, `requiresWindowOnRecord`, `wdwtitleVocabulary`, `hlpseqLimits`, `setofTextMaxLength`, `mnubardspFieldShapes`, `requiresHelpSpecification`; the I-121b accessors (`takesNoParameters`, `optionIndicatorsAllowed`, `recordRequires`, `notOnRecordTypes`, `fileExcludes`, ...) now cover these keywords too. `DspfWriter` re-exports `windowHelpLogKeywords` and `hlpseqLimits`.
+
+**No bug found; this slice is a refactor.** Every option-indicator fact the code already acted on agreed with the reference (`NO_OPTION_INDICATORS` already had `ALTNAME`, `HLPCMDKEY`, `HLPSEQ`, `LOGINP`, `SETOF` and lacked the six that accept them). What changed is where the answer comes from: the Conditioning toggle and the parameter box of the `HLPCLR`, `HLPCMDKEY`, `LOGOUT`, `LOGINP` (record panel) and `RMVWDW`, `USRRSTDSP` (window panel) rows, and the `HLPSEQ` sequence-number placeholder (`0-99`), are now read from the spec instead of per-call literals. The `SFLCTL` panel's own `LOGOUT`/`LOGINP` rows keep their literals (same facts; that panel is a separate surface).
+
+**Not enforced (spec facts only):** see the finding raised by I-121e under Deferred findings.
+
+New `src/test/i121eWindowHelpLogSpec.test.js` (132 checks): every entry against the reference text, each citation against the raw file's heading line, a sweep over the eleven in `KEYWORD-LOOKUP.json`, `NO_OPTION_INDICATORS`, the writer's refusal and the SFL / USRDFN / MNUBAR whitelists, accessor edge inputs and copies, the rendered panels, and a "panels follow the spec" part that flips a spec fact, re-renders and sees the row change. Confirmed failing against pre-slice source (accessors missing) and, for the last part, against the webview reverted alone.
+
+Full suite: 243 files, 13,525 checks, zero failures.
 
 ---
 

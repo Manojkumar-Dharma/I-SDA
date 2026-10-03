@@ -9600,6 +9600,9 @@
     initRetainReturnKeywords: function () { return KeywordSpec.initRetainReturnKeywords(); },
     takesNoParameters: function (n) { return KeywordSpec.takesNoParameters(n); },
     optionIndicatorsAllowed: function (n) { return KeywordSpec.optionIndicatorsAllowed(n); },
+    // Task I-121e - window / menu-bar / help / logging record keyword facts, straight off the spec.
+    windowHelpLogKeywords: function () { return KeywordSpec.windowHelpLogKeywords(); },
+    hlpseqLimits: function () { return KeywordSpec.hlpseqLimits(); },
     altKeyNames: function () { return KeywordSpec.altKeyNames(); },
     systemValueConstantKeywords: function () { return KeywordSpec.systemValueConstantKeywords(); },
     isSystemValueConstantKeyword: function (name) { return KeywordSpec.isSystemValueConstantKeyword(name); },
