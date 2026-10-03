@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-164 of 179 tasks done; 15 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.309**.
+166 of 180 tasks done; 14 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.311**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -218,7 +218,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Done | v0.10.308 |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Done | v0.10.307 |
-| [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
+| [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Done | v0.10.311 |
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes the menu-bar record's field names without the `&` the reference syntax shows | I-152 | Claimed (in progress) | — |
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Claimed (in progress) | — |
@@ -237,13 +237,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-158](#i-158) | Claimed (in progress) | `MNUBARDSP` panel writes the `&` in front of the choice field and pull-down input (raised by I-152). Small. |
-| 2 | [I-156](#i-156) | Claimed (in progress) | `DATE` preview uses the connected job's real date format and separator (QUSRJOBI). |
-| 3 | [I-159](#i-159) | Claimed (in progress) | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
-| 4 | [I-121g](#i-121g), [I-121h](#i-121h), [I-121i](#i-121i), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121g claimed; the rest not started | The seven keyword slices still open: 43 keywords with no spec entry (7 + 10 + 4 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
-| 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 6 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 7 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 8 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 2 | [I-159](#i-159) | Claimed (in progress) | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
+| 3 | [I-121g](#i-121g), [I-121h](#i-121h), [I-121i](#i-121i), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121g claimed; the rest not started | The seven keyword slices still open: 43 keywords with no spec entry (7 + 10 + 4 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 4 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 5 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 6 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 7 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7186,9 +7185,20 @@ Tests: new `src/test/i155MessageSubfileFieldOrder.test.js` (accepted pairs and p
 
 ### I-156 — DATE preview uses the connected job's real date format (QUSRJOBI)
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-154
+> **Area:** Field · **Status:** Done (v0.10.311) · **Depends on:** I-154
 
 Raised after I-154, which had to assume the job attribute `DATFMT` is `*MDY` with a `/` separator because the format is a run-time job attribute. The connected IBM i can tell us: QUSRJOBI format **`JOBI0400`** carries Date separator (offset 218, CHAR(1)) and Date format (offset 219, CHAR(4): `*MDY`, `*DMY`, `*YMD`, `*JUL`). (`JOBI0200`, "WRKACTJOB information", has neither.) The call is made through the existing ISDATEMP wrapper mechanism (as QDBRTVFD is for I-116). It reports the connected SQL job's format - a proxy for the format the screen's own job will have, not a guarantee.
+
+
+**Fix (v0.10.311).** The DATE preview and width follow the connected IBM i job's `DATFMT` and `DATSEP`.
+
+- **Where the values come from.** QUSRJOBI format `JOBI0400` (Retrieve Job Information API, IBM i 7.3 documentation): Date separator CHAR(1) at offset 218, Date format CHAR(4) at 219 (`*MDY`, `*DMY`, `*YMD`, `*JUL`), Time separator at 299. `JOBI0200` ("WRKACTJOB information") has neither - the format named in the original suggestion had to be `JOBI0400`. New `src/jobDateFormat.js` decodes the receiver and reads it through the same mechanism as I-116's QDBRTVFD: a CL-language external SQL procedure `ISDATEMP.QUSRJOBI_X` wraps `QSYS/QUSRJOBI` (a direct SQL `CALL` of an API does not work, as extension.ts documents for QDBRTVFD) and `ISDATEMP.JOBDATE_DUMP` returns the receiver as hex rows. `fetchJobDateFormat(connection)` never throws, sets the objects up once per session, treats `CPF2111` as success, and returns `{ ok: false, error }` for every failure. Character data is decoded from the invariant EBCDIC characters only (`*`, letters, `/ - . , :` and blank), identical in every national code page.
+- **What it changes.** `KeywordSpec.normalizeJobDate`, `JOB_DATE_FORMATS` and `JOB_DATE_SEPARATORS` hold the facts the DATE section states ("the job attribute DATFMT determines the order of the month, day, and year ... DATSEP can be a slash, dash, period, or comma"). Digit order follows the format (MDY `100326`, DMY `031026`, YMD `261003`); `*JUL` is `yyddd` / `yyyyddd` (5 / 7 digits, day of the year); `EDTCDE(Y)` uses the job's `DATSEP` character ("the separator character used is the job attribute DATSEP at run time"), `EDTCDE(W)` always inserts slashes; a Julian date with `Y` is `yy/ddd` (6) or `yyyy/ddd` (8), from the DATFMT table's own "Julian `*JUL` `yy/ddd` 6". `W` with a job format other than `YMD` shows IBM's own caveat (digits in job order). TIME and numeric fields are unaffected.
+- **How it reaches the screen.** `DspfEngine.setJobDateFormat` / `getJobDateFormat`; the host sends a `jobDateFormat` message to the webview, which sets it and re-renders. The host asks once per panel and connection, at most three times (a transient failure may clear, a missing authority will not), and never reports a failure - the preview keeps its design-time assumption (MDY, slash) and the existing "IBM i: Connected" badge says whether there is a connection.
+- **Limits, stated plainly.** The qualified job name `'*'` is the job the call runs in - the SQL server job Code for i holds - not the job the finished screen runs in. Its attributes come from the same user profile, job description and system values, so it is a good proxy, not a guarantee; the real format is whatever the end user's job has. `*JUL` with `EDTCDE(Y)` is derived from the DATFMT table rather than stated for `Y` itself (the generic `Y` pattern table gives `nn/nn/n` for five digits, which is not a Julian date) - an open question for the reference, not a rule. A blank date separator (job attribute `*BLANK`) is accepted from the API although the DATE section lists only four. The ISDATEMP library step is now one shared function in `extension.ts` (`ensureIsdaTempLibrary`: the same checks as before, plus a single in-flight check so QDBRTVFD and QUSRJOBI asking at the same moment share one CRTLIB attempt instead of racing); `ensureIsdaTempQdbrtvfdProcedure` calls it unchanged in behaviour, which `i116ResolveFieldValidity.test.js` pins (its idempotency checks failed on my first version of this change, which created the library in a second place, and pass now).
+- **Not verified against a live system.** The decoder, the SQL text and every failure path are tested against synthetic receivers and a fake connection; the live `QUSRJOBI` call itself could not be run from here. First use on a real system should confirm the wrapper creates (it follows the QDBRTVFD wrapper that is known to work) and that the date format matches `DSPJOBA`.
+
+Tests: new `src/test/i156JobDateFormat.test.js` (91 checks): the JOBI0400 offsets and decoding of every format and separator, short / truncated / unknown receivers, the fake-connection fetch (setup order, once-per-session, `CPF2111`, every failure), the spec (digits, order, `DATSEP`, Julian patterns, day-of-year including a leap year, the preview never longer than the box across six job formats), the engine, and the real webview (a `jobDateFormat` message re-renders the DATE boxes, and `ok: false` clears it). It fails against the previous source. Mutation-checked: an engine that ignores the job date fails 5 checks, a `Y` that ignores `DATSEP` 4, swapped offsets 34.
 
 ---
 

@@ -49,6 +49,12 @@ const QdbrtvfdParser: {
   inheritableValidityKeywords(field: any): Array<{ name: string; parameters: string }>;
   bytesFromRows(rows: any[]): Uint8Array | null;
 } = require('./qdbrtvfdParser.js');
+// Task I-156: the connected job's DATFMT / DATSEP via QUSRJOBI JOBI0400 (so the
+// DATE keyword's preview follows the job attribute IBM says it follows). Plain
+// dependency-free JS with its own fake-connection tests; see its file header.
+const JobDateFormat: {
+  fetchJobDateFormat(connection: any, hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }): Promise<{ ok: boolean; error?: string; dateFormat?: string; dateSeparator?: string; timeSeparator?: string | null }>;
+} = require('./jobDateFormat.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -876,6 +882,43 @@ const ISDA_TEMP_LIBRARY = 'ISDATEMP';
 let isdaTempQdbrtvfdEnsured = false;
 
 /**
+ * Task I-156: the library step of the ISDATEMP setup, shared by every
+ * procedure this extension keeps there (QDBRTVFD_X for I-116, QUSRJOBI_X for
+ * the job date format), so a session checks for / creates the library once no
+ * matter which API asks first - and two asks at the same moment share one
+ * in-flight check rather than racing two. Same checks as before: look for the
+ * schema, CRTLIB if it is missing, CPF2111 (someone else just created it) is
+ * not an error. Returns null on success, or a short error string. Never throws.
+ */
+let isdaTempLibraryEnsured = false;
+let isdaTempLibraryEnsuring: Promise<string | null> | null = null;
+function ensureIsdaTempLibrary(connection: any): Promise<string | null> {
+  if (isdaTempLibraryEnsured) return Promise.resolve(null);
+  if (!isdaTempLibraryEnsuring) {
+    isdaTempLibraryEnsuring = (async (): Promise<string | null> => {
+      try {
+        const existing = await connection.runSQL(`SELECT 1 AS X FROM QSYS2.SYSSCHEMAS WHERE SCHEMA_NAME = '${ISDA_TEMP_LIBRARY}'`);
+        if (!existing || existing.length === 0) {
+          const crtlib = await connection.runCommand({
+            command: `CRTLIB LIB(${ISDA_TEMP_LIBRARY}) TEXT('iSDA temporary objects (QDBRTVFD wrapper) - safe to delete, iSDA recreates it')`,
+            environment: 'ile',
+          });
+          // CPF2111 = library already exists (a race with another session/user is fine - not an error).
+          if (crtlib && typeof crtlib.code === 'number' && crtlib.code !== 0 && !/CPF2111/.test(String(crtlib.stderr || crtlib.stdout || ''))) {
+            return `Could not create library ${ISDA_TEMP_LIBRARY}: ${crtlib.stderr || crtlib.stdout || 'unknown error'}`;
+          }
+        }
+      } catch (err) {
+        return `Could not check/create library ${ISDA_TEMP_LIBRARY}: ${err}`;
+      }
+      isdaTempLibraryEnsured = true;
+      return null;
+    })().finally(() => { isdaTempLibraryEnsuring = null; });
+  }
+  return isdaTempLibraryEnsuring;
+}
+
+/**
  * Creates (if not already present) the library ISDA_TEMP_LIBRARY and, inside
  * it, a small CL-language external SQL procedure wrapping QSYS.QDBRTVFD
  * (format FILD0200) and returning its receiver as hex-encoded 64-byte rows -
@@ -896,21 +939,8 @@ let isdaTempQdbrtvfdEnsured = false;
 async function ensureIsdaTempQdbrtvfdProcedure(connection: any): Promise<string | null> {
   if (isdaTempQdbrtvfdEnsured) return null;
 
-  try {
-    const existing = await connection.runSQL(`SELECT 1 AS X FROM QSYS2.SYSSCHEMAS WHERE SCHEMA_NAME = '${ISDA_TEMP_LIBRARY}'`);
-    if (!existing || existing.length === 0) {
-      const crtlib = await connection.runCommand({
-        command: `CRTLIB LIB(${ISDA_TEMP_LIBRARY}) TEXT('iSDA temporary objects (QDBRTVFD wrapper) - safe to delete, iSDA recreates it')`,
-        environment: 'ile',
-      });
-      // CPF2111 = library already exists (a race with another session/user is fine - not an error).
-      if (crtlib && typeof crtlib.code === 'number' && crtlib.code !== 0 && !/CPF2111/.test(String(crtlib.stderr || crtlib.stdout || ''))) {
-        return `Could not create library ${ISDA_TEMP_LIBRARY}: ${crtlib.stderr || crtlib.stdout || 'unknown error'}`;
-      }
-    }
-  } catch (err) {
-    return `Could not check/create library ${ISDA_TEMP_LIBRARY}: ${err}`;
-  }
+  const libraryError = await ensureIsdaTempLibrary(connection);
+  if (libraryError) return libraryError;
 
   // Same shape as the RTVFD_DUMP procedure worked out and captured against
   // during I-116 (see "iSDA IBMi functionality.sql"), generalized to accept
@@ -1589,9 +1619,33 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     // panel - e.g. Code for i's own connection tree), and on
     // vscode.extensions.onDidChange (catches Code for i being installed or
     // uninstalled while this panel is already open).
+    // Task I-156: once per panel and per connection, ask the connected job for
+    // its DATFMT / DATSEP and hand them to the webview. Failures are silent on
+    // purpose - the preview keeps its MDY / slash assumption (a missing
+    // procedure library, no authority, an older system); the badge already says
+    // whether IBM i is connected.
+    let jobDateSent = false;
+    let jobDateAttempts = 0;
+    const sendJobDateFormat = async () => {
+      const connection = await getConnectedCodeForIBMi();
+      if (!connection) { jobDateSent = false; jobDateAttempts = 0; return; }
+      // At most three tries per connection (a transient failure may clear; a
+      // missing authority will not - never hammer the system every poll).
+      if (jobDateSent || jobDateAttempts >= 3) return;
+      jobDateSent = true;
+      jobDateAttempts++;
+      const result = await JobDateFormat.fetchJobDateFormat(connection, { ensureLibrary: ensureIsdaTempLibrary });
+      if (result.ok) {
+        webviewPanel.webview.postMessage({ type: 'jobDateFormat', ok: true, dateFormat: result.dateFormat, dateSeparator: result.dateSeparator });
+      } else {
+        jobDateSent = false;
+      }
+    };
     const sendCodeForIStatus = async () => {
       const status = await getCodeForIStatus();
       webviewPanel.webview.postMessage({ type: 'codeForIStatus', installed: status.installed, connected: status.connected });
+      if (status.connected) void sendJobDateFormat();
+      else { jobDateSent = false; jobDateAttempts = 0; }
     };
     const statusPollInterval = setInterval(() => { void sendCodeForIStatus(); }, 10000);
     const extChangeSub = vscode.extensions.onDidChange(() => { void sendCodeForIStatus(); });

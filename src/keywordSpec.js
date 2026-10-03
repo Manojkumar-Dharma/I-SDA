@@ -3050,31 +3050,79 @@
     Y: { 3: 'nn/n', 4: 'nn/nn', 5: 'nn/nn/n', 6: 'nn/nn/nn', 7: 'nnn/nn/nn', 8: 'nn/nn/nnnn' },
     W: { 5: 'nn/nnn', 6: 'nnnn/nn', 7: 'nnnn/nnn', 8: 'nnnn/nn/nn' }
   };
+  /** Task I-156 - the job attribute DATFMT (and DATSEP) as the DATE
+   *  keyword's own section describes them (DDS_Keyword_V7r6.txt ~line 4505):
+   *  "the job attribute DATFMT determines the order of the month, day, and
+   *  year. (DATFMT can be MDY, DMY, YMD, or JUL ...  DATSEP can be a slash
+   *  (/), dash (-), period (.), or comma (,).)" The API that reads them
+   *  (QUSRJOBI JOBI0400, Date format CHAR(4) and Date separator CHAR(1))
+   *  returns the format with its asterisk and may return a blank separator
+   *  (job attribute *BLANK), which is accepted as a plain blank. `order`
+   *  is the digit order of the date in the field; Julian is year then
+   *  day-of-year. */
+  var JOB_DATE_FORMATS = {
+    '*MDY': { order: 'MDY', julian: false },
+    '*DMY': { order: 'DMY', julian: false },
+    '*YMD': { order: 'YMD', julian: false },
+    '*JUL': { order: 'YDDD', julian: true }
+  };
+  var JOB_DATE_SEPARATORS = ['/', '-', '.', ',', ' '];
+  /** A job date info { dateFormat: '*MDY', dateSeparator: '/' } checked and
+   *  normalised (upper-case format; a missing separator becomes the default
+   *  slash IBM documents), or null for anything unusable - the caller then
+   *  keeps its design-time assumption. */
+  function normalizeJobDate(info) {
+    if (!info || typeof info !== 'object') return null;
+    var f = String(info.dateFormat == null ? '' : info.dateFormat).trim().toUpperCase();
+    if (f && f.charAt(0) !== '*') f = '*' + f;
+    if (!Object.prototype.hasOwnProperty.call(JOB_DATE_FORMATS, f)) return null;
+    var sep = info.dateSeparator;
+    if (sep == null || sep === '') sep = '/';
+    sep = String(sep).charAt(0);
+    if (JOB_DATE_SEPARATORS.indexOf(sep) < 0) return null;
+    return { dateFormat: f, dateSeparator: sep };
+  }
+
   /** The pattern for edit code `code` (Y or W, any case) on a field of
    *  `digits` digits, or null. */
-  function dateEditCodePattern(code, digits) {
+  function dateEditCodePattern(code, digits, julian) {
     var c = String(code == null ? '' : code).trim().toUpperCase();
     if (!Object.prototype.hasOwnProperty.call(DATE_EDIT_CODE_PATTERNS, c)) return null;
+    // Task I-156: a Julian date (DATE with DATFMT *JUL) is yy/ddd - the
+    // DATFMT table's own "Julian *JUL yy/ddd 6" - not the month/day/year
+    // pattern the generic digit-count table gives for five or seven digits.
+    if (julian === true && c === 'Y') {
+      if (digits === 5) return 'nn/nnn';
+      if (digits === 7) return 'nnnn/nnn';
+    }
     var table = DATE_EDIT_CODE_PATTERNS[c];
     return Object.prototype.hasOwnProperty.call(table, digits) ? table[digits] : null;
   }
   /** The display width that pattern gives, or null (the caller keeps the
    *  field's coded length). */
-  function dateEditCodeWidth(code, digits) {
-    var p = dateEditCodePattern(code, digits);
+  function dateEditCodeWidth(code, digits, julian) {
+    var p = dateEditCodePattern(code, digits, julian);
     return p ? p.length : null;
   }
   /** How many digits a DATE / TIME constant carries before any editing:
    *  TIME hhmmss = 6; DATE per its *Y (2-digit year) / *YY (4-digit year)
-   *  parameter, for a job DATFMT of MDY, DMY or YMD (6 / 8) - the Julian
-   *  format (5 / 7) is a job attribute that is not known at design time,
-   *  so it is not assumed. null for any other keyword. */
-  function systemValueDigits(name, dateParameterText) {
+   *  parameter - 6 / 8 for a job DATFMT of MDY, DMY or YMD, 5 / 7 for the
+   *  Julian format (yyddd, yyyyddd). `jobDate` (optional, { dateFormat,
+   *  dateSeparator }, Task I-156) is the connected job's DATFMT; without it
+   *  the design-time assumption is a six / eight digit date. null for any
+   *  other keyword. */
+  function systemValueDigits(name, dateParameterText, jobDate) {
     if (name === 'TIME') return 6;
     if (name !== 'DATE') return null;
     var w = RECORD_TYPES.DATE.displayWidth;
     var tokens = String(dateParameterText || '').toUpperCase().split(/\s+/).filter(Boolean);
-    return tokens.indexOf('*YY') >= 0 ? w.digits['*YY'] : w.digits['*Y'];
+    var n = tokens.indexOf('*YY') >= 0 ? w.digits['*YY'] : w.digits['*Y'];
+    return jobDateIsJulian(jobDate) ? n - 1 : n;
+  }
+  /** Whether `jobDate` is a usable job date info whose format is *JUL. */
+  function jobDateIsJulian(jobDate) {
+    var jd = normalizeJobDate(jobDate);
+    return !!(jd && JOB_DATE_FORMATS[jd.dateFormat].julian);
   }
 
   /** Task I-144 / I-154 - the columns a system-value constant occupies on
@@ -3086,7 +3134,8 @@
    *  or edit code replaces it; DATE is its year digits unless an edit word
    *  or edit code replaces them. The Y and W edit codes insert separators
    *  in IBM's own patterns (dateEditCodePattern); a field with other edit
-   *  codes is sized by the caller (the engine's numeric edit-code rules). */
+   *  codes is sized by the caller (the engine's numeric edit-code rules).
+   *  `opts.jobDate` (Task I-156) is the connected job's DATFMT / DATSEP. */
   function systemValueConstantWidth(name, opts) {
     var e = constantKeywordEntry(name);
     if (!e || SYSTEM_VALUE_CONSTANT_KEYWORDS.every(function (x) { return x.name !== name; })) return null;
@@ -3095,9 +3144,9 @@
     if (typeof o.editWordWidth === 'number' && o.editWordWidth > 0) return o.editWordWidth;
     var w = e.displayWidth;
     if (!w) return null;
-    var digits = systemValueDigits(name, o.dateParameters);
+    var digits = systemValueDigits(name, o.dateParameters, o.jobDate);
     var code = String(o.editCode || '').toUpperCase();
-    var patterned = dateEditCodeWidth(code, digits);
+    var patterned = dateEditCodeWidth(code, digits, name === 'DATE' && jobDateIsJulian(o.jobDate));
     if (patterned != null) return patterned;
     // The default edit word is what IBM supplies; only an IBM edit code or an
     // edit word replaces it. A user-defined code 5-9 (QEDIT5-9) is defined on
@@ -3114,7 +3163,10 @@
    *  *Y two-digit year, *YY four); EDTCDE(Y) and EDTCDE(W) pour the digits
    *  into IBM's pattern with "/" (the DATSEP default). Digit order: MDY for
    *  everything except W, which IBM says is correct only for a YMD job date
-   *  with a four-digit year, so W previews YMD. A field with another edit
+   *  with a four-digit year, so W previews YMD - unless `opts.jobDate` (Task
+   *  I-156, the connected job's DATFMT and DATSEP) says otherwise: then every
+   *  code uses that format's order (and a Julian date is yyddd), and Y uses
+   *  that job's DATSEP character. A field with another edit
    *  code or an edit word previews its bare digits (a shorter text is fine
    *  - the box is never overrun). Y and W apply IBM's zero suppression
    *  (the suppressed digit shows as a blank). null for USER / SYSNAME / any other name
@@ -3122,6 +3174,7 @@
   function systemValuePreviewText(name, opts, now) {
     if (name !== 'DATE' && name !== 'TIME') return null;
     var o = opts || {};
+    var jobDate = normalizeJobDate(o.jobDate);
     var d = now instanceof Date ? now : new Date();
     function p2(n) { return (n < 10 ? '0' : '') + n; }
     var code = String(o.editCode || '').toUpperCase();
@@ -3133,7 +3186,19 @@
       var four = String(o.dateParameters || '').toUpperCase().split(/\s+/).indexOf('*YY') >= 0;
       var yr = four ? yyyy : yyyy.slice(-2);
       var mm = p2(d.getMonth() + 1), dd = p2(d.getDate());
-      digitText = code === 'W' ? yr + mm + dd : mm + dd + yr;
+      // Task I-156: with the connected job's DATFMT known, the digit order is
+      // that format's ("the job attribute DATFMT determines the order of the
+      // month, day, and year"); a Julian date is yy then the day of the year.
+      // Without it the design-time assumption stands: MDY, except W, which
+      // IBM says is correct only for a YMD job date with a four-digit year.
+      if (jobDate) {
+        var order = JOB_DATE_FORMATS[jobDate.dateFormat].order;
+        var doy = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(d.getFullYear(), 0, 1)) / 86400000) + 1;
+        var ddd = (doy < 100 ? (doy < 10 ? '00' : '0') : '') + doy;
+        digitText = order === 'MDY' ? mm + dd + yr : order === 'DMY' ? dd + mm + yr : order === 'YMD' ? yr + mm + dd : yr + ddd;
+      } else {
+        digitText = code === 'W' ? yr + mm + dd : mm + dd + yr;
+      }
     }
     // IBM's EDTCDE table: Y suppresses the farthest left zero of a date field
     // 3-6 or 8 digits long (the two farthest left of a 7-digit one); W
@@ -3153,8 +3218,13 @@
         return out;
       });
     }
-    var pattern = dateEditCodePattern(code, digitText.length);
-    if (pattern) return pour(pattern);
+    var pattern = dateEditCodePattern(code, digitText.length, name === 'DATE' && !!jobDate && JOB_DATE_FORMATS[jobDate.dateFormat].julian);
+    if (pattern) {
+      var poured = pour(pattern);
+      // EDTCDE(Y) on a DATE uses the job attribute DATSEP at run time (the
+      // slash is only the default); W always inserts slashes.
+      return (code === 'Y' && jobDate) ? poured.replace(/\//g, jobDate.dateSeparator) : poured;
+    }
     if (typeof o.editWordWidth === 'number' && o.editWordWidth > 0) return digitText;
     if (name === 'TIME' && code === '') {
       var i = 0;
@@ -5028,6 +5098,10 @@
     systemValueConstantWidth: systemValueConstantWidth,
     systemValuePreviewText: systemValuePreviewText,
     systemValueDigits: systemValueDigits,
+    normalizeJobDate: normalizeJobDate,
+    jobDateIsJulian: jobDateIsJulian,
+    JOB_DATE_FORMATS: JOB_DATE_FORMATS,
+    JOB_DATE_SEPARATORS: JOB_DATE_SEPARATORS,
     dateEditCodePattern: dateEditCodePattern,
     dateEditCodeWidth: dateEditCodeWidth,
     msgconLengthRange: msgconLengthRange,

@@ -357,6 +357,14 @@
   // wide. Its real width is the keyword section's own fact
   // (KeywordSpec.systemValueConstantWidth); this only gathers the field's
   // EDTWRD / EDTCDE / DATE parameter text for it. null = not one of them.
+  // Task I-156: the connected IBM i job's DATFMT / DATSEP (QUSRJOBI JOBI0400,
+  // see src/jobDateFormat.js), or null - then DATE previews with the
+  // design-time assumption (MDY, "/"). Set by the host through the webview
+  // ('jobDateFormat' message); a bad value is dropped to null.
+  var jobDateFormat = null;
+  function setJobDateFormat(info) { jobDateFormat = KeywordSpec.normalizeJobDate(info); return jobDateFormat; }
+  function getJobDateFormat() { return jobDateFormat ? { dateFormat: jobDateFormat.dateFormat, dateSeparator: jobDateFormat.dateSeparator } : null; }
+
   function systemValueConstantInfo(field) {
     if (field.nameType !== 'CONSTANT' || field.constantValue != null) return null;
     var kws = field.keywords || [];
@@ -372,6 +380,7 @@
       edtcde: edtcde || null,
       opts: {
         dateParameters: date ? date.parameters : '',
+        jobDate: jobDateFormat,
         editCode: edtcde ? String(edtcde.parameters || '').trim().split(/\s+/)[0] : '',
         editWordWidth: edtwrd ? edtwrdDisplayWidth(edtwrd.parameters) : null
       }
@@ -386,7 +395,7 @@
     // IBM's patterns) is sized by the same numeric edit-code rules as any
     // other numeric field. Not when an edit word sizes it (above) or for a
     // user-defined code 5-9, whose editing is not known here.
-    var digits = KeywordSpec.systemValueDigits(info.name, info.opts.dateParameters);
+    var digits = KeywordSpec.systemValueDigits(info.name, info.opts.dateParameters, info.opts.jobDate);
     var code = String(info.opts.editCode || '').toUpperCase();
     if (info.edtcde && digits != null && info.opts.editWordWidth == null && code !== 'Y' && code !== 'W') {
       return edtcdeDisplayWidth({ length: digits, decimalPositions: 0 }, info.edtcde);
@@ -2725,6 +2734,8 @@
     conditionsSatisfied: conditionsSatisfied,
     parseScreenSizes: parseScreenSizes,
     resolveScreen: resolveScreen,
+    setJobDateFormat: setJobDateFormat,
+    getJobDateFormat: getJobDateFormat,
     resolveMultiScreen: resolveMultiScreen,
     resolveReferenceTarget: resolveReferenceTarget,
     referenceKey: referenceKey,

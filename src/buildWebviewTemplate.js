@@ -7412,6 +7412,12 @@ const htmlTemplate = `<!DOCTYPE html>
       if (overlay && overlay.__onDatabaseFieldsResult) overlay.__onDatabaseFieldsResult(msg);
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
+    } else if (msg.type === 'jobDateFormat') {
+      // Task I-156 - the connected job's DATFMT / DATSEP (QUSRJOBI JOBI0400).
+      // Only the engine's DATE preview and width follow it; an unusable value
+      // clears it back to the design-time assumption (MDY, slash).
+      DspfEngine.setJobDateFormat(msg.ok === false ? null : { dateFormat: msg.dateFormat, dateSeparator: msg.dateSeparator });
+      render();
     } else if (msg.type === 'modTrackingConfig') {
       // Task L38 - only ever the STARTING values (see this message's own
       // sendModTrackingConfig() doc comment in extension.ts); if the person
