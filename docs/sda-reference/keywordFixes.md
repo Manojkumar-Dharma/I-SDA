@@ -171,7 +171,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced opened as I-152) | v0.10.295 |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done v0.10.305 (8 entries; IGCCNV added to the no-indicator table; rules not enforced logged) | v0.10.305 |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done v0.10.310 (7 entries, two of them command-key patterns; relations not enforced opened as I-160) | v0.10.310 |
-| [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
+| [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Claimed (in progress) | — |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Not started | — |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
@@ -6290,7 +6290,7 @@ Full suite: 258 files, 14,521 checks, zero failures (run on the tree merged with
 
 ### I-121h — Command-function keywords
 
-> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** File / Record · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (10):** `ALWGPH`, `CLEAR`, `HELP`, `HLPRTN`, `HOME`, `INVITE`, `PAGEDOWN`, `PAGEUP`, `PRINT`, `VLDCMDKEY`.
 
