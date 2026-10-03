@@ -4590,7 +4590,7 @@
     g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', fIndara.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('INDARA') ? fIndara.conditions : undefined, DspfWriter.optionIndicatorsAllowed('INDARA') ? expandedSet : undefined)  /* I-121f */;
     // Task I-3: USRDSPMGT - "Option indicators are not valid for this keyword."
     var fUsrdspmgt = DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT');
-    g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, undefined, undefined);
+    g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('USRDSPMGT') ? fUsrdspmgt.conditions : undefined, DspfWriter.optionIndicatorsAllowed('USRDSPMGT') ? expandedSet : undefined) /* I-121g */;
     // Task I-3: CHECK - IBM's own summary line ("Option indicators are valid
     // only for CHECK(ER) and CHECK(ME)") plus each individual code's own
     // restated line confirm AB/MF/RL/RLTB are all NOT eligible - only ER and
@@ -4761,12 +4761,12 @@
     // Task I-3: HLPSCHIDX - "Option indicators are not valid for this keyword."
     var hlpschidx = DspfWriter.getFileFlagKeyword(kw, 'HLPSCHIDX');
     var hlpschidxState = DspfWriter.getFileHlpSchIdxKeyword(kw);
-    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, undefined, undefined, undefined, undefined);
+    help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('HLPSCHIDX') ? hlpschidx.conditions : undefined, DspfWriter.optionIndicatorsAllowed('HLPSCHIDX') ? expandedSet : undefined) /* I-121g */;
     help += '<div class="two-col"><input type="text" id="fk-hlpschidx-library" placeholder="Library (opt)" value="' + escapeHtml(hlpschidxState.library) + '" />' +
       '<input type="text" id="fk-hlpschidx-searchindex" placeholder="Search index object" value="' + escapeHtml(hlpschidxState.searchIndex) + '" /></div>';
     // Task I-3: HLPFULL - "Option indicators are not valid for this keyword."
     var fHlpfull = DspfWriter.getFileFlagKeyword(kw, 'HLPFULL');
-    help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, undefined, undefined);
+    help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('HLPFULL') ? fHlpfull.conditions : undefined, DspfWriter.optionIndicatorsAllowed('HLPFULL') ? expandedSet : undefined) /* I-121g */;
     help += '<div class="section-label">Help title (HLPTITLE)</div>';
     help += '<input type="text" id="fk-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
     // Task I-5: HLPRCD was a confirmed-missing file-level keyword (IBM's
@@ -5201,7 +5201,7 @@
     if (hlpschidxLibrary) hlpschidxLibrary.addEventListener('change', commitHlpschidx);
     if (hlpschidxSearchindex) hlpschidxSearchindex.addEventListener('change', commitHlpschidx);
     // Task I-3: HLPFULL - "Option indicators are not valid for this keyword."
-    simple('fk-hlpfull', 'HLPFULL', false, undefined, true);
+    simple('fk-hlpfull', 'HLPFULL', false, undefined, !DspfWriter.optionIndicatorsAllowed('HLPFULL')); // I-121g
     var hlptitle = document.getElementById('fk-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
     // Task I-5: HLPRCD - same "-on" checkbox drives presence regardless of

@@ -998,6 +998,146 @@
     },
     // ---- end I-121f ----
 
+    // ---- I-121g: 7 ----
+    // File-level help, program-control and command-key keywords: PASSRCD,
+    // USRDSPMGT, HLPFULL, HLPRCD, HLPSCHIDX, CA01-CA24, CF01-CF24. Every fact below
+    // was re-read from DDS_Keyword_V7r6.txt (the section named in each ddsReference),
+    // not taken from the code, and only what a section states is recorded (a
+    // section that does not say "only once" gets no `repeatable`). The HLPPNLGRP <->
+    // HLPRCD pair is owned by HLPPNLGRP's `mutex` above and the ALWROL / CLRL / SLNO
+    // / WINDOW PASSRCD restrictions by those entries' `passrcdRestricted` flags;
+    // neither is repeated here. The System/36 *response-indicator* restrictions are
+    // I-121p's (S36E_RESTRICTIONS); this slice records only USRDSPMGT's own list.
+    PASSRCD: {
+      levels: ['file'],
+      optionIndicators: 'notValid',
+      parameters: {
+        format: 'PASSRCD(record-format-name)',
+        recordFormatName: { required: true, mustExistInFile: true }
+      },
+      // The keywords PASSRCD's OWN section forbids on the named record format. WINDOW
+      // is forbidden by WINDOW's section instead (its entry carries the flag); the
+      // flagged set is these three plus WINDOW (checked in the I-121g test).
+      ownSectionRestrictedKeywords: ['ALWROL', 'CLRL', 'SLNO'],
+      // "The passed data is processed only if your program's first request after
+      // file open is an input operation without a record format name."
+      passedDataProcessedOnlyIfFirstRequestIsInputWithoutFormat: true,
+      ddsReference:
+        'PASSRCD (Passed Record) keyword (~line 9375): file-level, PASSRCD(record-format-name); the name is required and must exist in the file; ' +
+        'it is the format used when another program passes unformatted data, processed only if the first request after open is an input ' +
+        'operation without a record format name. ALWROL, CLRL and SLNO cannot be specified on that record format. Option indicators are not ' +
+        'valid for this keyword.'
+    },
+    USRDSPMGT: {
+      levels: ['file'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      // The keyword's own System/36 section (~line 14167): "You cannot use USRDSPMGT
+      // in display files containing any of the following keywords". Eight names.
+      cannotCoexistWith: ['ASSUME', 'ERASE', 'HLPCMDKEY', 'IGCCNV', 'KEEP', 'PUTRETAIN', 'SFL', 'SFLCTL'],
+      // The System/36 considerations section (~line 13897) lists twelve - the eight
+      // above plus ERRSFL, MNUBAR, PULLDOWN and SNGCHCFLD. The two lists are not
+      // the same and the reference does not reconcile them; both are recorded.
+      cannotCoexistWithConsiderationsList: ['ASSUME', 'ERASE', 'ERRSFL', 'HLPCMDKEY', 'IGCCNV', 'KEEP', 'MNUBAR', 'PULLDOWN', 'PUTRETAIN', 'SFL', 'SFLCTL', 'SNGCHCFLD'],
+      overlayIgnored: true,
+      ddsReference:
+        'USRDSPMGT (User Display Management) keyword (~line 13097; the System/36 copy is at ~line 14167): file-level; all data written to the ' +
+        'display is held until overwritten or cleared with CLRL, and the file is processed with System/36 environment functions. This keyword ' +
+        'has no parameters. Its own section forbids ASSUME, ERASE, HLPCMDKEY, IGCCNV, KEEP, PUTRETAIN, SFL and SFLCTL in the file; the System/36 ' +
+        'considerations list adds ERRSFL, MNUBAR, PULLDOWN and SNGCHCFLD. OVERLAY is ignored in such a file. Option indicators are not valid ' +
+        'for this keyword (stated in the System/36 copy).'
+    },
+    HLPFULL: {
+      levels: ['file'],
+      noParameters: true,
+      optionIndicators: 'notValid',
+      // "When you specify the HLPFULL keyword, you must specify the HLPPNLGRP
+      // keyword either at the file level or at the help specification level."
+      requiresKeywordAtLevels: { keyword: 'HLPPNLGRP', levels: ['file', 'helpSpecification'] },
+      absentMeans: 'help is shown in a window unless *HLPFULL is set for the user profile',
+      ddsReference:
+        'HLPFULL (Help Full) keyword (~line 7038): file-level; help text is shown full screen instead of in windows (without it, in a window ' +
+        'unless *HLPFULL is set for the user profile). This keyword has no parameters. HLPPNLGRP must be specified at the file level or at the ' +
+        'help specification level. Option indicators are not valid for this keyword.'
+    },
+    HLPRCD: {
+      levels: ['file'],
+      // "You use this file-level or help-specification-level keyword".
+      alsoValidAtHelpSpecification: true,
+      optionIndicators: 'valid',
+      parameters: {
+        format: 'HLPRCD(record-format-name [[library-name/]file-name])',
+        recordFormatName: { required: true },
+        fileName: { required: false, default: 'the file being defined' },
+        libraryName: { required: false, default: '*LIBL' }
+      },
+      // Which record shows: the help-specification one when the cursor is in its
+      // HLPARA and the H specification is active (its option indicator decides);
+      // the file-level one when no help area of an active record holds the cursor.
+      fileLevelShownWhenNoHelpAreaHoldsCursor: true,
+      ddsReference:
+        'HLPRCD (Help Record) keyword (~line 7150): file-level or help-specification-level, HLPRCD(record-format-name [[library-name/]file-name]); ' +
+        'the record format is in the file being defined unless a file is named, and the library defaults to *LIBL at run time. The file-level ' +
+        'record is displayed when no help area of the active records holds the cursor. Option indicators are valid for this keyword. (The ' +
+        'HLPPNLGRP / HLPRCD exclusion is HLPPNLGRP\'s entry.)'
+    },
+    HLPSCHIDX: {
+      levels: ['file'],
+      optionIndicators: 'notValid',
+      parameters: {
+        format: 'HLPSCHIDX([library-name/]search-index-object)',
+        searchIndexObject: { required: true, mustExistAtCreation: false },
+        libraryName: { required: false, default: '*LIBL' }
+      },
+      // "HLPSCHIDX is valid only when at least one HLPPNLGRP keyword is specified in
+      // the file." / "HLPSCHIDX keyword cannot be specified with the HLPSHELF keyword."
+      requiresInFile: ['HLPPNLGRP'],
+      excludesInFile: ['HLPSHELF'],
+      enablesIndexSearchKey: 'F11',
+      ddsReference:
+        'HLPSCHIDX (Help Search Index) keyword (~line 7268): file-level, HLPSCHIDX([library-name/]search-index-object); enables the F11 index ' +
+        'search on the Help display; the library defaults to *LIBL and the object need not exist when the file is created. Valid only when at ' +
+        'least one HLPPNLGRP keyword is in the file; cannot be specified with HLPSHELF. Option indicators are not valid for this keyword.'
+    },
+    // CAnn and CFnn are ONE pattern entry each, not 24: the entry key is the ledger /
+    // KEYWORD-LOOKUP name, and commandKeyEntry('CA05') resolves a concrete keyword to it.
+    'CA01-CA24': {
+      levels: ['file', 'record'],
+      pattern: { type: 'CA', first: 1, last: 24, digits: 2 },
+      optionIndicators: 'valid',
+      parameters: {
+        format: "CAnn[(response-indicator ['text'])]",
+        responseIndicator: { required: false, min: 1, max: 99 },
+        keyNumberMustHaveLeadingZero: true
+      },
+      transmitsInputData: false,
+      sameKeyNumberAsOtherType: 'notAllowed',
+      fileLevelKeysExtendToRecordLevel: true,
+      ddsReference:
+        'CAnn (Command Attention) keyword (~line 2404): file-level or record-level, CAnn[(response-indicator [\'text\'])], nn = 01-24 with the ' +
+        'leading zero; response indicators 01-99 are valid. No input data is transmitted. The same key number cannot be both CA and CF in a ' +
+        'file (CA02 and CF02 are invalid together), and file-level keys extend to the record level, so CA02 at file level makes CF02 at record ' +
+        'level an error. Option indicators are valid for this keyword.'
+    },
+    'CF01-CF24': {
+      levels: ['file', 'record'],
+      pattern: { type: 'CF', first: 1, last: 24, digits: 2 },
+      optionIndicators: 'valid',
+      parameters: {
+        format: "CFnn[(response-indicator ['text'])]",
+        responseIndicator: { required: false, min: 1, max: 99 },
+        keyNumberMustHaveLeadingZero: true
+      },
+      transmitsInputData: true,
+      sameKeyNumberAsOtherType: 'notAllowed',
+      fileLevelKeysExtendToRecordLevel: true,
+      ddsReference:
+        'CFnn (Command Function) keyword (~line 2509): file-level or record-level, CFnn[(response-indicator [\'text\'])], nn = 01-24 with the ' +
+        'leading zero; response indicators 01-99 are valid. Changed input data is transmitted (unlike CA). The same key number cannot be both CA ' +
+        'and CF in a file, and file-level keys extend to the record level. Option indicators are valid for this keyword.'
+    },
+    // ---- end I-121g ----
+
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
     // closed list forbidden on the same record in either direction), just
     // a much larger list - re-verified fresh against PULLDOWN's own DDS
@@ -4733,9 +4873,11 @@
   var I121E_KEYWORDS = ['WDWTITLE', 'RMVWDW', 'USRRSTDSP', 'MNUBARDSP', 'ALTNAME', 'HLPCLR', 'HLPCMDKEY', 'HLPSEQ', 'LOGINP', 'LOGOUT', 'SETOF'];
   // Task I-121f's eight (file-level display and I/O keywords).
   var I121F_KEYWORDS = ['IGCCNV', 'DSPRL', 'DSPSIZ', 'ERRSFL', 'INDARA', 'MSGLOC', 'OPENPRT', 'REF'];
+  // Task I-121g's seven (file-level help, program-control and command-key keywords).
+  var I121G_KEYWORDS = ['PASSRCD', 'USRDSPMGT', 'HLPFULL', 'HLPRCD', 'HLPSCHIDX', 'CA01-CA24', 'CF01-CF24'];
   function i121bEntry(name) {
     var n = String(name == null ? '' : name).trim().toUpperCase();
-    return (I121B_KEYWORDS.indexOf(n) !== -1 || I121E_KEYWORDS.indexOf(n) !== -1 || I121F_KEYWORDS.indexOf(n) !== -1) ? RECORD_TYPES[n] : null;
+    return (I121B_KEYWORDS.indexOf(n) !== -1 || I121E_KEYWORDS.indexOf(n) !== -1 || I121F_KEYWORDS.indexOf(n) !== -1 || I121G_KEYWORDS.indexOf(n) !== -1) ? RECORD_TYPES[n] : null;
   }
   function i121bList(name, field) {
     var e = i121bEntry(name);
@@ -4823,6 +4965,28 @@
     return { min: p.userNameLength.min, max: p.userNameLength.max, firstCharacter: p.userNameFirstCharacter };
   }
   // ---- end I-121f ----
+  // ---- I-121g: accessors ----
+  /** The seven file-level help, program-control and command-key entries, in the slice's order (a fresh array). */
+  function fileHelpCommandKeywords() { return I121G_KEYWORDS.slice(); }
+  /** The pattern entry for a concrete command key ('CA05' -> the 'CA01-CA24' entry, 'CF24' -> 'CF01-CF24'),
+   *  or null when `token` is not an exact CAnn / CFnn in 01-24 (CA00 and CA25 are not keys). */
+  function commandKeyEntry(token) {
+    var k = parseCommandKey(token);
+    if (!k) return null;
+    var n = Number(k.number);
+    var e = RECORD_TYPES[k.type + '01-' + k.type + '24'];
+    return (e && n >= e.pattern.first && n <= e.pattern.last) ? e : null;
+  }
+  /** The keywords PASSRCD's own section forbids on the named record format (a fresh array). */
+  function passrcdOwnSectionRestricted() { return RECORD_TYPES.PASSRCD.ownSectionRestrictedKeywords.slice(); }
+  /** USRDSPMGT's two forbidden-keyword lists: { own: [...8], considerations: [...12] } (fresh arrays). */
+  function usrdspmgtForbiddenKeywords() {
+    return {
+      own: RECORD_TYPES.USRDSPMGT.cannotCoexistWith.slice(),
+      considerations: RECORD_TYPES.USRDSPMGT.cannotCoexistWithConsiderationsList.slice()
+    };
+  }
+  // ---- end I-121g ----
   // ---- end I-121b ----
 
   return {
@@ -5010,6 +5174,11 @@
     fileDisplayIoKeywords: fileDisplayIoKeywords,
     msgLocLimits: msgLocLimits,
     errsflRefusedMsgLocs: errsflRefusedMsgLocs,
-    dspsizUserNameRule: dspsizUserNameRule
+    dspsizUserNameRule: dspsizUserNameRule,
+    // ---- I-121g ----
+    fileHelpCommandKeywords: fileHelpCommandKeywords,
+    commandKeyEntry: commandKeyEntry,
+    passrcdOwnSectionRestricted: passrcdOwnSectionRestricted,
+    usrdspmgtForbiddenKeywords: usrdspmgtForbiddenKeywords
   };
 });

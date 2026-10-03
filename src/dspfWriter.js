@@ -10461,6 +10461,11 @@
     msgLocLimits: function () { return KeywordSpec.msgLocLimits(); },
     errsflRefusedMsgLocs: function () { return KeywordSpec.errsflRefusedMsgLocs(); },
     dspsizUserNameRule: function () { return KeywordSpec.dspsizUserNameRule(); },
+    // Task I-121g
+    fileHelpCommandKeywords: function () { return KeywordSpec.fileHelpCommandKeywords(); },
+    commandKeyEntry: function (t) { return KeywordSpec.commandKeyEntry(t); },
+    passrcdOwnSectionRestricted: function () { return KeywordSpec.passrcdOwnSectionRestricted(); },
+    usrdspmgtForbiddenKeywords: function () { return KeywordSpec.usrdspmgtForbiddenKeywords(); },
     // Task I-121e - window / menu-bar / help / logging record keyword facts, straight off the spec.
     windowHelpLogKeywords: function () { return KeywordSpec.windowHelpLogKeywords(); },
     hlpseqLimits: function () { return KeywordSpec.hlpseqLimits(); },

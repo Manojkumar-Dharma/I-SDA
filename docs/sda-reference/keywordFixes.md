@@ -170,7 +170,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced opened as I-152) | v0.10.295 |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done v0.10.305 (8 entries; IGCCNV added to the no-indicator table; rules not enforced logged) | v0.10.305 |
-| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Claimed (in progress) | — |
+| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done v0.10.310 (7 entries, two of them command-key patterns; relations not enforced opened as I-160) | v0.10.310 |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Not started | — |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
@@ -222,6 +222,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes the menu-bar record's field names without the `&` the reference syntax shows | I-152 | Claimed (in progress) | — |
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Not started | — |
+| [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -248,12 +249,13 @@ This table lists open tasks only: a task that lands is removed from it, and its 
 
 ## Deferred findings (not yet tasks)
 
-Every actionable finding so far has been opened as a task (I-61 – I-159, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every actionable finding so far has been opened as a task (I-61 – I-160, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
 | I-153 | **Blocked - needs an IBM source or a real compile.** `MSGCON` states no rule for the message ID or for `message-file-name` / `library-name` beyond the optional `library-name/` prefix (the seven-character form is `MSGID`'s own, for its `&field` and `msg-id` parameters). Recorded as `openQuestions` on the spec entry; nothing is enforced. Becomes a task once a rule is found. |
 | I-154 | **Blocked - the reference is ambiguous.** The `DATE`, `USER` and `SYSNAME` sections say "you can specify ... and, optionally, ..." without "only", so whether those companion keyword lists are closed is undecided. They stay unenforced facts. Becomes a task if IBM states the lists are closed. |
+| I-121g | **Blocked - the reference gives two lists.** `USRDSPMGT`'s own section forbids eight keywords (`ASSUME`, `ERASE`, `HLPCMDKEY`, `IGCCNV`, `KEEP`, `PUTRETAIN`, `SFL`, `SFLCTL`); the "Keyword considerations for display files used in the System/36 environment" section lists twelve (those plus `ERRSFL`, `MNUBAR`, `PULLDOWN`, `SNGCHCFLD`). Both are recorded in the spec; which one a guard should enforce is undecided. Becomes a task (part of I-160) when an IBM source or a real compile settles it. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6253,13 +6255,35 @@ Full suite: 253 files, 14,191 checks, zero failures (first run found three older
 
 ### I-121g — File-level help, program-control and command-key keywords
 
-> **Area:** File · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** File · **Status:** Done (v0.10.310) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (7):** `PASSRCD`, `USRDSPMGT`, `HLPFULL`, `HLPRCD`, `HLPSCHIDX`, `CA01-CA24`, `CF01-CF24`.
 
 `PASSRCD`'s restricted-keyword list and `COMMAND_KEY_GRAMMAR` already exist. `USRDSPMGT` is the gate for the S36E table: coordinate with I-121p. `CA01-CA24`/`CF01-CF24` are one pattern entry each, not 48 entries.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.310).** All seven now have a `RECORD_TYPES` entry in a `// ---- I-121g: 7 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` (the cited line is that keyword's own heading; a test checks every citation against the raw file). Only what a section states is recorded: for example none of these five sections says "only once", so none carries `repeatable`.
+
+| Keyword | Parameters | Option indicators | Relations the section states |
+|---------|------------|-------------------|------------------------------|
+| `PASSRCD` | `(record-format-name)`, required, must exist in the file | not valid | `ALWROL`, `CLRL`, `SLNO` cannot be on that record format (`WINDOW` is forbidden by `WINDOW`'s own section; the flagged set is checked against both) |
+| `USRDSPMGT` | none | not valid (stated only in its System/36 copy, ~line 14167) | forbids `ASSUME`, `ERASE`, `HLPCMDKEY`, `IGCCNV`, `KEEP`, `PUTRETAIN`, `SFL`, `SFLCTL` in the file; `OVERLAY` is ignored |
+| `HLPFULL` | none | not valid | `HLPPNLGRP` must be at the file or help-specification level; without it help shows in a window unless `*HLPFULL` is on the user profile |
+| `HLPRCD` | `(record-format-name [[library/]file])`; file defaults to this file, library to `*LIBL` | **valid** | file-level or help-specification-level; the file-level record shows when no help area of an active record holds the cursor |
+| `HLPSCHIDX` | `([library/]search-index-object)`; library defaults to `*LIBL`; the object need not exist yet | not valid | needs at least one `HLPPNLGRP` in the file; cannot be with `HLPSHELF`; enables F11 index search |
+| `CA01-CA24` | `CAnn[(response-indicator ['text'])]`, key 01-24 with the leading zero, response indicator 01-99 | **valid** | file or record level; no input data transmitted; the same key number cannot be both CA and CF; file-level keys extend to record level |
+| `CF01-CF24` | same shape | **valid** | as `CA`, but changed input data is transmitted |
+
+`CA01-CA24` and `CF01-CF24` are one pattern entry each, keyed by the ledger name; the new `commandKeyEntry('CA05')` resolves a concrete keyword to its pattern entry (and refuses `CA00`, `CA25`, lowercase and padding). The `HLPPNLGRP` / `HLPRCD` exclusion stays owned by `HLPPNLGRP`'s entry and the `ALWROL` / `CLRL` / `SLNO` / `WINDOW` restrictions by their own `passrcdRestricted` flags (no second copy). The System/36 response-indicator table is I-121p's and is untouched. Other new accessors: `fileHelpCommandKeywords`, `passrcdOwnSectionRestricted`, `usrdspmgtForbiddenKeywords` (re-exported on `DspfWriter`); the `takesNoParameters` / `optionIndicatorsAllowed` / `fileRequires` / `fileExcludes` accessors now answer for these seven.
+
+**Two lists, one keyword.** `USRDSPMGT`'s own section lists eight forbidden keywords; the separate "Keyword considerations ... System/36 environment" section lists twelve (the eight plus `ERRSFL`, `MNUBAR`, `PULLDOWN`, `SNGCHCFLD`). The reference does not reconcile them, so both are recorded as facts and the difference is a deferred finding (nothing to enforce until it is settled).
+
+A pure refactor with no behaviour change: the Conditioning toggles of the `USRDSPMGT`, `HLPSCHIDX` and `HLPFULL` rows, which were `undefined` literals, now come from each entry's `optionIndicators` fact (the `HLPRCD` row already offered one, and a test now pins that the spec agrees). The unenforced relations found by probing the writer are opened as [I-160](#i-160).
+
+New `src/test/i121gHelpCommandKeySpec.test.js`: every entry against the reference text, each citation against the raw file's heading line, a sweep over the seven in `KEYWORD-LOOKUP.json`, `NO_OPTION_INDICATORS` and the writer, the `PASSRCD` cross-check against the other entries' flags, accessor copies and the pattern resolver, the rendered file panels, and a "panels follow the spec" part that flips a spec fact and re-renders. Against the pre-change source the file fails (no accessors), and mutating a spec fact makes the matching checks fail.
+
+Full suite: 258 files, 14,521 checks, zero failures (run on the tree merged with upstream v0.10.309).
 
 ---
 
@@ -7212,5 +7236,15 @@ To do:
 Raised by the I-121f slice and opened as a task from the Deferred findings table. File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice.
 
 To do: re-read each keyword's own section in `DDS_Keyword_V7r6.txt` first (the wording above is the slice's summary, not the rule), probe the not-yet-probed cases in the raw keyword editor, then add spec-driven guards in the I-140 / I-148 shape (refuse only a violation the edit adds, both directions where the relation is a pair), hooked into the webview's edit choke point. Where the reference does not state a rule, record an open question instead of inventing one. Size (estimate): Medium.
+
+---
+
+### I-160 — File-level help and USRDSPMGT rules are not enforced
+
+> **Area:** File · **Status:** Not started · **Depends on:** I-121g
+
+Raised by the I-121g slice. Probed on v0.10.309 through `setFileFlagKeyword` (the file panel's own write path): `HLPFULL` is accepted with no `HLPPNLGRP` in the file; `HLPSCHIDX` is accepted with no `HLPPNLGRP`, and with `HLPSHELF` present; `USRDSPMGT` is accepted beside a file-level `KEEP` (the `HLPCMDKEY` half has been enforced since I-152; the other seven names in its own section were not probed one by one); `HLPRCD` is accepted with an empty record format name. Not probed: `PASSRCD` naming a record format that does not exist in the file (the section says it must), and the CA / CF same-key-number rule through the raw editor.
+
+To do: re-read each keyword's own section in `DDS_Keyword_V7r6.txt` first (the wording above is the slice's summary, not the rule), probe the not-yet-probed cases, then add spec-driven guards in the I-140 / I-148 shape (refuse only a violation the edit adds, both directions where the relation is a pair - `HLPPNLGRP` removed while `HLPFULL` stays, for instance), reading the new `requiresInFile` / `excludesInFile` / `requiresKeywordAtLevels` / `cannotCoexistWith` facts instead of new literals. `HLPFULL`'s `HLPPNLGRP` may sit at the help-specification level, so that check needs the model, not only the file keywords. For `USRDSPMGT` use the eight-name list from its own section; the twelve-name list is an open question (see Deferred findings). Size (estimate): Medium.
 
 ---
