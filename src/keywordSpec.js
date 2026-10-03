@@ -347,11 +347,14 @@
       displaySizeNames: 'valid',
       displaySizeNamesRequiredWhen: 'the first message line changes with the display size',
       textValidAtRecordLevel: true,
+      // Predefined: only the field name and the keyword are specified (the
+      // SFLMSGKEY and SFLPGMQ sections); SFLPGMQ(276) predefines 276 bytes
+      // instead of the default 10 (found by the I-145 guard).
       // The two predefined fields a message subfile record may hold (the
       // section: \"There can be only two predefined fields\").
       predefinedFields: [
         { purpose: 'message identifier', position: 1, dataType: 'A', length: 4, usage: 'H', requires: 'SFLMSGKEY' },
-        { purpose: 'program queue name', position: 2, dataType: 'A', length: 10, usage: 'H', requires: 'SFLPGMQ' }
+        { purpose: 'program queue name', position: 2, dataType: 'A', length: 10, lengthWhenParameter276: 276, usage: 'H', requires: 'SFLPGMQ' }
       ],
       requiresWithSflinz: 'SFLPGMQ',
       mustNotOverlapDisplayableControlFields: true,

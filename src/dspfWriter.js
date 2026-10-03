@@ -5245,6 +5245,141 @@
     return firstNewViolation(sflctlDependencyViolations(oldModel), after);
   }
 
+  /** Task I-145 - the subfile-keyword rules the I-121d slice found unenforced.
+   *  Every rule is a fact in KeywordSpec (SFLRNA.requiresOnRecord /
+   *  notOnMessageSubfile, SFLMODE.modeField, SFLMSGRCD.predefinedFields /
+   *  requiresWithSflinz / parameterMaximum). Each is a violation keyed by
+   *  record, so the same diff-based check as I-140 / I-141 reports only what
+   *  an edit adds (whether it adds the keyword or removes what it needs). */
+  function hasKeywordNamed(list, name) {
+    return (list || []).some(function (k) { return k && k.name === name; });
+  }
+  function keywordNamed(list, name) {
+    return (list || []).find(function (k) { return k && k.name === name; }) || null;
+  }
+  /** Last display line of the file's largest DSPSIZ (24 when DSPSIZ is absent). */
+  function largestDisplayRows(model) {
+    var dsp = keywordNamed(model && model.fileKeywords, 'DSPSIZ');
+    var tokens = String(dsp && dsp.parameters != null ? dsp.parameters : '').trim().split(/\s+/).filter(Boolean);
+    var best = 0;
+    for (var i = 0; i + 1 < tokens.length; i++) {
+      if (/^\d+$/.test(tokens[i]) && /^\d+$/.test(tokens[i + 1])) { best = Math.max(best, Number(tokens[i])); i += 2; }
+    }
+    return best || 24;
+  }
+  function subfileRecordOf(model, controlRecord) {
+    var c = keywordNamed(controlRecord.keywords, 'SFLCTL');
+    var name = c ? String(c.parameters == null ? '' : c.parameters).trim().toUpperCase() : '';
+    if (!name) return null;
+    return ((model && model.records) || []).find(function (r) { return String(r.name).toUpperCase() === name; }) || null;
+  }
+  function fieldProblemText(f, dataType, length, usage) {
+    var issues = [];
+    if (!f.isReference) {
+      var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
+      if (dt !== dataType) issues.push('its data type is ' + (dt || 'blank'));
+      var len = Number(f.length);
+      if (f.length != null && f.length !== '' && len !== length) issues.push('its length is ' + f.length);
+    }
+    var u = String(f.usage == null ? '' : f.usage).trim().toUpperCase();
+    if (u !== usage) issues.push('its usage is ' + (u || 'blank (output)'));
+    return issues;
+  }
+  function subfileKeywordViolations(model) {
+    var out = {};
+    var maxRows = largestDisplayRows(model);
+    ((model && model.records) || []).forEach(function (r) {
+      var kws = r.keywords || [];
+      var sub = hasKeywordNamed(kws, 'SFLCTL') ? subfileRecordOf(model, r) : null;
+      var onMessageSubfile = !!(sub && hasKeywordNamed(sub.keywords, 'SFLMSGRCD'));
+      // SFLRNA: "The SFLINZ keyword is required when SFLRNA is specified."
+      if (hasKeywordNamed(kws, 'SFLRNA')) {
+        KeywordSpec.sflrnaRequires().forEach(function (need) {
+          if (!hasKeywordNamed(kws, need)) {
+            out[r.name + '|SFLRNA|' + need] = 'SFLRNA cannot be specified on record format ' + r.name +
+              ' without the ' + need + ' keyword on the same record format (per the DDS Reference).';
+          }
+        });
+        if (onMessageSubfile) {
+          out[r.name + '|SFLRNA|MSG'] = 'SFLRNA cannot be specified for a message subfile - record format ' + sub.name +
+            ' carries SFLMSGRCD (per the DDS Reference).';
+        }
+      }
+      // SFLINZ on a message subfile needs SFLPGMQ in the subfile record.
+      if (hasKeywordNamed(kws, 'SFLINZ') && onMessageSubfile) {
+        var needs = KeywordSpec.messageSubfileFacts().requiresWithSflinz;
+        var hasQ = (sub.fields || []).some(function (f) { return hasKeywordNamed(f.keywords, needs); });
+        if (!hasQ) {
+          out[r.name + '|SFLINZ|' + needs] = 'SFLINZ on a message subfile (record format ' + sub.name +
+            ') cannot be specified without ' + needs + ' on a field of that record (per the DDS Reference).';
+        }
+      }
+      // SFLMODE(&mode): the field must exist in the control record as A, length 1, usage H.
+      var mode = keywordNamed(kws, 'SFLMODE');
+      if (mode) {
+        var mf = KeywordSpec.sflmodeField();
+        var text = String(mode.parameters == null ? '' : mode.parameters).trim();
+        var key = r.name + '|SFLMODE|' + text.toUpperCase();
+        if (text.charAt(0) !== '&' || text.length < 2 || /\s/.test(text)) {
+          out[key] = 'SFLMODE\'s parameter must be one field name written with a leading & - SFLMODE(&MODE) (per the DDS Reference).';
+        } else {
+          var f = msgDataFieldFind(r.fields, text);
+          if (!f) {
+            out[key] = 'SFLMODE field ' + text.toUpperCase() + ' does not exist in this record format - define it first as a hidden field (A, length ' + mf.length + ', usage ' + mf.usage + '), then name it here (per the DDS Reference).';
+          } else {
+            var issues = fieldProblemText(f, mf.dataType, mf.length, mf.usage);
+            if (issues.length) {
+              out[key] = 'SFLMODE field ' + text.toUpperCase() + ' must be a character (A) field of length ' + mf.length + ' with usage ' + mf.usage + ' (' + issues.join(', ') + ') (per the DDS Reference).';
+            }
+          }
+        }
+      }
+      // SFLMSGRCD(line-number): a line the display has; its predefined fields.
+      var msg = keywordNamed(kws, 'SFLMSGRCD');
+      if (msg) {
+        var lt = String(msg.parameters == null ? '' : msg.parameters).trim();
+        // The Message Record panel also accepts a field name here (the
+        // reference shows only a line number); that form is left alone and
+        // logged as a finding rather than refused.
+        var fieldForm = /^&?[A-Za-z$#@][A-Za-z0-9_$#@]{0,9}$/.test(lt);
+        if (!fieldForm && (!/^\d+$/.test(lt) || Number(lt) < 1 || Number(lt) > maxRows)) {
+          out[r.name + '|SFLMSGRCD|' + lt] = 'SFLMSGRCD(' + lt + ') must be a line number from 1 to ' + maxRows + ' (the last line of the display size in use) (per the DDS Reference).';
+        }
+        // The two predefined fields: "The field name and the keyword and
+        // parameters are the only DDS you can specify for this field", so a
+        // blank data type / length / usage is the normal case. Only a value
+        // that conflicts with the predefinition is refused (SFLPGMQ(276)
+        // predefines a 276-byte field, otherwise 10).
+        KeywordSpec.messageSubfileFacts().predefinedFields.forEach(function (pf) {
+          (r.fields || []).forEach(function (f) {
+            var fk = keywordNamed(f.keywords, pf.requires);
+            if (!fk) return;
+            var want = pf.length;
+            var fp = String(fk.parameters == null ? '' : fk.parameters).trim();
+            if (pf.requires === 'SFLPGMQ' && fp === '276') want = pf.lengthWhenParameter276;
+            var iss = [];
+            var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
+            if (!f.isReference && dt && dt !== pf.dataType) iss.push('its data type is ' + dt);
+            if (!f.isReference && f.length != null && String(f.length).trim() !== '' && Number(f.length) !== want) iss.push('its length is ' + f.length);
+            var u = String(f.usage == null ? '' : f.usage).trim().toUpperCase();
+            if (u && u !== pf.usage) iss.push('its usage is ' + u);
+            if (iss.length) {
+              // Keyed by record + keyword (not the field's name) so renaming a
+              // field that was already wrong is not reported as a new violation.
+              out[r.name + '|' + pf.requires] = pf.requires + ' field ' + String(f.name).toUpperCase() + ' is predefined as a character (A) hidden field of length ' + want + ' - only its name and the keyword are specified (' + iss.join(', ') + ') (per the DDS Reference).';
+            }
+          });
+        });
+      }
+    });
+    return out;
+  }
+  function subfileKeywordNewConflictReason(oldModel, newModel) {
+    var after = subfileKeywordViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(subfileKeywordViolations(oldModel), after);
+  }
+
   /** Task I-141 - SFLDLT: \"Option indicators are required for this keyword;
    *  display size condition names are not valid.\" Per record, the number of
    *  display-size condition groups on its SFLDLT keywords. */
@@ -9763,6 +9898,8 @@
     altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,
     windowDependencyNewConflictReason: windowDependencyNewConflictReason,
     sflctlDependencyNewConflictReason: sflctlDependencyNewConflictReason,
+    subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
+    subfileKeywordViolations: subfileKeywordViolations,
     sflcsrrrnNewConflictReason: sflcsrrrnNewConflictReason,
     sflcsrrrnAddReason: sflcsrrrnAddReason,
     sflcsrrrnParameterProblem: sflcsrrrnParameterProblem,

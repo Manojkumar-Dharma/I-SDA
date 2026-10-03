@@ -100,8 +100,21 @@ setTimeout(() => {
 
   console.log('\nediting a now-ineligible SFLCTL keyword still commits normally');
   {
-    const sflrnaOn = doc.getElementById('sflctl-SFLCTLR-sflrna-on');
+    // Task I-145: SFLRNA now needs SFLINZ on the same record (DDS Reference),
+    // so SFLINZ goes on first; SFLRNA alone is refused with an alert.
+    let alerted = null;
+    const realAlert = dom.window.alert;
+    dom.window.alert = (m) => { alerted = m; };
+    let sflrnaOn = doc.getElementById('sflctl-SFLCTLR-sflrna-on');
     check('setup: SFLRNA checkbox is present', !!sflrnaOn);
+    sflrnaOn.checked = true;
+    sflrnaOn.dispatchEvent(new Event('change', { bubbles: true }));
+    check('SFLRNA without SFLINZ is refused with an alert naming SFLINZ', /SFLINZ/.test(alerted || ''));
+    dom.window.alert = realAlert;
+    const sflinzOn = doc.getElementById('sflctl-SFLCTLR-sflinz-on');
+    sflinzOn.checked = true;
+    sflinzOn.dispatchEvent(new Event('change', { bubbles: true }));
+    sflrnaOn = doc.getElementById('sflctl-SFLCTLR-sflrna-on');
     sflrnaOn.checked = true;
     sflrnaOn.dispatchEvent(new Event('change', { bubbles: true }));
     const sflrnaOnAfter = doc.getElementById('sflctl-SFLCTLR-sflrna-on');

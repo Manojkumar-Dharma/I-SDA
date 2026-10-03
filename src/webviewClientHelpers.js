@@ -8360,7 +8360,18 @@
     }
     wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCSRRRN').conditions, expandedSet, rerender, sflcsrrrnGuard);
     // I-10: SFLMODE - "Option indicators are not valid for this keyword."
-    wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params, undefined, conditions); }, undefined, undefined, undefined);
+    // Task I-145: SFLMODE(&mode) is written with the leading ampersand the
+    // DDS Reference format shows (SFLCSRRRN's guard does the same); the
+    // writer-level check then says whether the field exists and is A / 1 / H.
+    function sflmodeGuard(present) {
+      if (!present) return true;
+      var box = document.getElementById(p + '-sflmode-params');
+      if (!box) return true;
+      var v = box.value.trim();
+      if (/^[A-Za-z$#@][A-Za-z0-9_$#@]{0,9}$/.test(v)) box.value = '&' + v;
+      return true;
+    }
+    wireFlagRow(p + '-sflmode', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLMODE', present, params, undefined, conditions); }, undefined, undefined, undefined, sflmodeGuard);
     wireFlagRow(p + '-sfldsp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSP', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDSP').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sfldspctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDSPCTL', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDSPCTL').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sflinz', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLINZ', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLINZ').conditions, expandedSet, rerender);

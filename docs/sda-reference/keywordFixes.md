@@ -207,7 +207,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Done | v0.10.282 |
 | [I-143](#i-143) | Field | `MSGCON` rules from its DDS section are not enforced: the DATE/DFT/EDTCDE/EDTWRD/TIME exclusion, constant-only, and the 1-132 length | I-121m | Done | v0.10.296 |
 | [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Done | v0.10.293 |
-| [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Not started | — |
+| [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Done | v0.10.297 |
 | [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Not started | — |
 | [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Not started | — |
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
@@ -217,6 +217,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Claimed (in progress) | — |
+| [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -236,7 +237,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-151](#i-151) | Not started | Output-control relations (probed: all accepted today). |
 | 5 | [I-152](#i-152) | Not started | Window / menu-bar / help / logging relations (probed: all accepted today). |
 | 6 | [I-153](#i-153) | Not started | `MSGCON` message ID and file validation. Small. |
-| 7 | [I-145](#i-145) | Not started | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
+| 7 | [I-145](#i-145) | Done v0.10.297 | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
 | 8 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
 | 9 | [I-147](#i-147) | Not started | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
 | 10 | [I-148](#i-148) | Not started | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
@@ -252,7 +253,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-154, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-155, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6881,11 +6882,37 @@ New `src/test/i144SystemValueConstants.test.js`: spec facts (each figure traced 
 
 ### I-145 — Message-subfile and `SFLINZ`/`SFLRNA` keyword rules are not enforced
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121d
+> **Area:** Record · **Status:** Done (v0.10.297) · **Depends on:** I-121d
 
-Raised by the I-121d slice (subfile mode and entry keywords). `SFLRNA` is accepted without `SFLINZ`, on a message subfile (`SFLMSGRCD`) and with field selection; `SFLMODE`'s field (A, length 1, usage H, in the control record) and `SFLMSGRCD`'s line number (not above the display's last line) and predefined fields (A4 + `SFLMSGKEY`, A10 + `SFLPGMQ`) are not validated; `SFLINZ` is accepted with `SFLMSGRCD` and no `SFLPGMQ`. No guard was found in `dspfWriter.js`. The facts are in `keywordSpec.js` (`requiresOnRecord`, `notOnMessageSubfile`, `modeField`, `predefinedFields`, `requiresWithSflinz`).
+Raised by the I-121d slice (subfile mode and entry keywords). `SFLRNA` was accepted without `SFLINZ` and on a message subfile; `SFLMODE`'s field and `SFLMSGRCD`'s line number and predefined fields were not validated; `SFLINZ` was accepted with `SFLMSGRCD` and no `SFLPGMQ`. No guard existed in `dspfWriter.js`.
 
-To do: confirm each case with a probe in the raw keyword editor (not yet run), decide per case whether it is a refusal in the writer backstop or an audit warning (as I-141 did for `SFLDLT`), and add the guards with tests. The `SFLINZ`-without-`SFLPGMQ` case is shared with I-147; do it in whichever task lands first.
+**Fix (v0.10.297).** One diff-based guard, `DspfWriter.subfileKeywordNewConflictReason` (the I-140 / I-141 shape: only a violation the edit adds is reported, in either direction), wired into the webview's existing `windowDependencyGuardBlocks` choke point. Every number comes from the I-121d spec facts.
+
+1. **`SFLRNA` needs `SFLINZ`** on the same record, and is refused when the control record's subfile carries `SFLMSGRCD` ("cannot be specified for a message subfile").
+2. **`SFLINZ` on a message subfile needs an `SFLPGMQ` field** in that subfile record. This was also listed under I-147; it is done here.
+3. **`SFLMODE(&mode)`**: written with the leading `&`, naming a field of the control record that is A, length 1, usage H. The `SFLMODE` row of the Subfile Control panel now adds the `&` for you (as the `SFLCSRRRN` row does); it does not yet offer to create the hidden field.
+4. **`SFLMSGRCD(line)`**: a number from 1 to the last row of the largest `DSPSIZ` (24 when absent). A field-name form is deliberately left alone (see I-155).
+5. **`SFLMSGKEY` / `SFLPGMQ` fields**: refused only when a value conflicts with the predefinition (data type not A, usage not H, length not 4 / 10, or 276 when `SFLPGMQ(276)`). A blank type, length or usage is the normal case, because the sections say the name and keyword are the only DDS you specify; the add-message-subfile dialog writes exactly that.
+
+**Corrections to I-121d found on the way.** The `SFLPGMQ` predefined field is 10 bytes **or 276 with `SFLPGMQ(276)`**; the spec fact now carries `lengthWhenParameter276`. Violations are keyed by record and keyword (not field name), so renaming an already-wrong field is not blocked.
+
+**Existing test changed.** `i10SflctlConditioningAudit.test.js` switched `SFLRNA` on without `SFLINZ`, which is now refused; it sets `SFLINZ` first and gained a check that `SFLRNA` alone is refused with an alert.
+
+Not done, see [I-155](#i-155): the "field selection" cases (the model has nothing that says a record uses field selection), the "only two predefined fields, in this order" rule, and `SFLMSGRCD`'s field-name form.
+
+Tests: new `src/test/i145SubfileMessageKeywordRules.test.js` (every refusal, every accepted path, the unchanged-hand-written cases, the rename case, the exports and the webview wiring). Confirmed failing without the guard via stash.
+
+---
+
+<a id="i-155"></a>
+
+### I-155 — Subfile keyword relations I-145 left alone
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-145
+
+Raised by I-145. (1) The reference says `SFLRNA`, `SFLINZ`, `SFLDROP`, `SFLFOLD` (and `SFLLIN`, `SFLRCDNBR`, `SFLROLVAL` on the control record) are not valid when the subfile record "contains field selection"; the parsed model has no marker for a record that uses field selection, so none of those cases are checked. Decide what the marker is (a field with option-indicator-conditioned output? the `SFLCHCCTL` family?) from the reference before guarding. (2) The message subfile may hold only two predefined fields, `SFLMSGKEY` first and `SFLPGMQ` second, immediately following; neither the count nor the order is checked. (3) `SFLMSGRCD` accepts a field name in the Message Record panel (and now in the writer) although the reference shows only a line number; decide whether that is a deliberate extension or a bug.
+
+To do: probe each case in the raw keyword editor, then guard with the I-145 helper where the rule is unambiguous.
 
 ---
 
@@ -6907,7 +6934,7 @@ To do: extend the SFLSIZ = SFLPAG check I-127 built for `SFLSCROLL` to the other
 
 > **Area:** Record · **Status:** Not started · **Depends on:** I-121c
 
-Raised by the I-121c slice (subfile control keywords). The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` are not validated either. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`, `sflendGrammar`).
+Raised by the I-121c slice (subfile control keywords). The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` (now enforced by I-145) are not validated either. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`, `sflendGrammar`).
 
 To do: widen the I-141 `recordDependencyViolations` helper to the five keywords above, refuse display size names where the reference says they are not valid, and decide, as I-141 did for `SFLDLT`, which of the option-indicator and required-companion rules are refusals and which are notes (a bare keyword that the panel checkbox writes cannot be refused without making the row unusable).
 
