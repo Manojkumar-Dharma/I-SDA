@@ -5660,6 +5660,24 @@
             if (problem) add(r.name + '|dateparams|' + params.toUpperCase(), problem + ' (per the DDS Reference).');
           }
         });
+        // Task I-154: a keyword whose own section says "You can specify ONLY
+        // the location of the field, <keyword>, and optionally ..." (TIME
+        // alone - companionsStatedAsOnly) allows no other keyword on its
+        // field. DATE, USER and SYSNAME say "you can specify ... and,
+        // optionally, ..." without "only", so their lists stay unenforced
+        // facts.
+        var fieldKws = f.keywords || [];
+        fieldKws.forEach(function (owner, oi) {
+          if (!KeywordSpec.companionsStatedAsOnly(owner.name)) return;
+          if (fieldKws.findIndex(function (x) { return x.name === owner.name; }) !== oi) return;
+          var companions = KeywordSpec.listedCompanionKeywords(owner.name) || [];
+          var allowed = [owner.name].concat(companions);
+          fieldKws.forEach(function (k) {
+            if (allowed.indexOf(k.name) >= 0) return;
+            add(r.name + '|only|' + owner.name + '|' + k.name,
+              k.name + ' cannot be specified on a field with ' + owner.name + ': you can specify only the location of the field, ' + owner.name + ' and, optionally, ' + companions.join(', ') + ' (per the DDS Reference).');
+          });
+        });
       });
     });
     return out;

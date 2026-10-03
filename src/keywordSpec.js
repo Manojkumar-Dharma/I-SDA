@@ -2701,15 +2701,55 @@
     var e = constantKeywordEntry(name);
     return e && typeof e.fixedLength === 'number' ? e.fixedLength : null;
   }
-  /** Task I-144 - the columns a system-value constant occupies on the
-   *  display, or null for a keyword that is not one of DATE / TIME / USER /
-   *  SYSNAME. `opts` (all optional): `dateParameters` (the DATE parameter
-   *  text), `editCode` (the first EDTCDE token), `editWordWidth` (the width
-   *  of an EDTWRD template). USER / SYSNAME state their length outright;
-   *  TIME is its default edit word's length unless an edit word replaces it;
-   *  DATE is year digits (+ separators under EDTCDE(Y)) unless an edit word
-   *  replaces it. See the `displayWidth` notes on the DATE entry for what
-   *  the DATE figure assumes. */
+  /** Task I-154 - IBM's own slash patterns for the two date edit codes
+   *  (DDS_Keyword_V7r6.txt, EDTCDE table notes 2 and 3, ~line 5671 and
+   *  5680), keyed by the number of digits in the field. `n` is a digit, `/`
+   *  is the separator (its character is the job attribute DATSEP at run
+   *  time, "/" by default - the pattern fixes how MANY separator characters
+   *  there are, so the display width is exact). Y: "nn/n" ... "nn/nn/nnnn".
+   *  W: "nn/nnn" ... "nnnn/nn/nn". A digit count not in a code's list is not
+   *  a date IBM defines the pattern for. */
+  var DATE_EDIT_CODE_PATTERNS = {
+    Y: { 3: 'nn/n', 4: 'nn/nn', 5: 'nn/nn/n', 6: 'nn/nn/nn', 7: 'nnn/nn/nn', 8: 'nn/nn/nnnn' },
+    W: { 5: 'nn/nnn', 6: 'nnnn/nn', 7: 'nnnn/nnn', 8: 'nnnn/nn/nn' }
+  };
+  /** The pattern for edit code `code` (Y or W, any case) on a field of
+   *  `digits` digits, or null. */
+  function dateEditCodePattern(code, digits) {
+    var c = String(code == null ? '' : code).trim().toUpperCase();
+    if (!Object.prototype.hasOwnProperty.call(DATE_EDIT_CODE_PATTERNS, c)) return null;
+    var table = DATE_EDIT_CODE_PATTERNS[c];
+    return Object.prototype.hasOwnProperty.call(table, digits) ? table[digits] : null;
+  }
+  /** The display width that pattern gives, or null (the caller keeps the
+   *  field's coded length). */
+  function dateEditCodeWidth(code, digits) {
+    var p = dateEditCodePattern(code, digits);
+    return p ? p.length : null;
+  }
+  /** How many digits a DATE / TIME constant carries before any editing:
+   *  TIME hhmmss = 6; DATE per its *Y (2-digit year) / *YY (4-digit year)
+   *  parameter, for a job DATFMT of MDY, DMY or YMD (6 / 8) - the Julian
+   *  format (5 / 7) is a job attribute that is not known at design time,
+   *  so it is not assumed. null for any other keyword. */
+  function systemValueDigits(name, dateParameterText) {
+    if (name === 'TIME') return 6;
+    if (name !== 'DATE') return null;
+    var w = RECORD_TYPES.DATE.displayWidth;
+    var tokens = String(dateParameterText || '').toUpperCase().split(/\s+/).filter(Boolean);
+    return tokens.indexOf('*YY') >= 0 ? w.digits['*YY'] : w.digits['*Y'];
+  }
+
+  /** Task I-144 / I-154 - the columns a system-value constant occupies on
+   *  the display, or null for a keyword that is not one of DATE / TIME /
+   *  USER / SYSNAME. `opts` (all optional): `dateParameters` (the DATE
+   *  parameter text), `editCode` (the first EDTCDE token), `editWordWidth`
+   *  (the width of an EDTWRD template). USER / SYSNAME state their length
+   *  outright; TIME is its default edit word's length unless an edit word
+   *  or edit code replaces it; DATE is its year digits unless an edit word
+   *  or edit code replaces them. The Y and W edit codes insert separators
+   *  in IBM's own patterns (dateEditCodePattern); a field with other edit
+   *  codes is sized by the caller (the engine's numeric edit-code rules). */
   function systemValueConstantWidth(name, opts) {
     var e = constantKeywordEntry(name);
     if (!e || SYSTEM_VALUE_CONSTANT_KEYWORDS.every(function (x) { return x.name !== name; })) return null;
@@ -2718,11 +2758,72 @@
     if (typeof o.editWordWidth === 'number' && o.editWordWidth > 0) return o.editWordWidth;
     var w = e.displayWidth;
     if (!w) return null;
-    if (w.defaultEditWord) return w.defaultEditWord.length;
-    var tokens = String(o.dateParameters || '').toUpperCase().split(/\s+/).filter(Boolean);
-    var width = tokens.indexOf('*YY') >= 0 ? w.digits['*YY'] : w.digits['*Y'];
-    if (String(o.editCode || '').toUpperCase() === 'Y') width += w.separatorsWithEdtcdeY;
-    return width;
+    var digits = systemValueDigits(name, o.dateParameters);
+    var code = String(o.editCode || '').toUpperCase();
+    var patterned = dateEditCodeWidth(code, digits);
+    if (patterned != null) return patterned;
+    // The default edit word is what IBM supplies; only an IBM edit code or an
+    // edit word replaces it. A user-defined code 5-9 (QEDIT5-9) is defined on
+    // the system, so its width is not known here: keep the default's.
+    if (w.defaultEditWord && (code === '' || /^[5-9]$/.test(code))) return w.defaultEditWord.length;
+    return digits;
+  }
+
+  /** Task I-154 - the design-time text a DATE / TIME constant previews,
+   *  built from `now` (a Date) in IBM's own formats and always the width the
+   *  field is drawn at (never longer): TIME with no edit code or word is its
+   *  default edit word '0_:__:__' poured over hhmmss ("11:06:45", IBM's own
+   *  example); DATE with no editing is the bare digits (IBM: "mmddyy" -
+   *  *Y two-digit year, *YY four); EDTCDE(Y) and EDTCDE(W) pour the digits
+   *  into IBM's pattern with "/" (the DATSEP default). Digit order: MDY for
+   *  everything except W, which IBM says is correct only for a YMD job date
+   *  with a four-digit year, so W previews YMD. A field with another edit
+   *  code or an edit word previews its bare digits (a shorter text is fine
+   *  - the box is never overrun). Y and W apply IBM's zero suppression
+   *  (the suppressed digit shows as a blank). null for USER / SYSNAME / any other name
+   *  (the engine keeps its "*USER" / "*SYSNAME" placeholders). */
+  function systemValuePreviewText(name, opts, now) {
+    if (name !== 'DATE' && name !== 'TIME') return null;
+    var o = opts || {};
+    var d = now instanceof Date ? now : new Date();
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    var code = String(o.editCode || '').toUpperCase();
+    var digitText;
+    if (name === 'TIME') {
+      digitText = p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
+    } else {
+      var yyyy = String(d.getFullYear());
+      var four = String(o.dateParameters || '').toUpperCase().split(/\s+/).indexOf('*YY') >= 0;
+      var yr = four ? yyyy : yyyy.slice(-2);
+      var mm = p2(d.getMonth() + 1), dd = p2(d.getDate());
+      digitText = code === 'W' ? yr + mm + dd : mm + dd + yr;
+    }
+    // IBM's EDTCDE table: Y suppresses the farthest left zero of a date field
+    // 3-6 or 8 digits long (the two farthest left of a 7-digit one); W
+    // suppresses the farthest left zero of a 5-digit date and the three
+    // farthest left zeros of a 6-8 digit one. Suppressed zeros print as
+    // blanks (the width does not change).
+    var suppress = 0;
+    if (code === 'Y') suppress = digitText.length === 7 ? 2 : 1;
+    else if (code === 'W') suppress = digitText.length === 5 ? 1 : 3;
+    function pour(pattern) {
+      var i = 0, blanking = true;
+      return pattern.replace(/n/g, function () {
+        var ch = digitText.charAt(i);
+        var out = (blanking && ch === '0' && i < suppress) ? ' ' : ch;
+        if (out !== ' ') blanking = false;
+        i++;
+        return out;
+      });
+    }
+    var pattern = dateEditCodePattern(code, digitText.length);
+    if (pattern) return pour(pattern);
+    if (typeof o.editWordWidth === 'number' && o.editWordWidth > 0) return digitText;
+    if (name === 'TIME' && code === '') {
+      var i = 0;
+      return RECORD_TYPES.TIME.displayWidth.defaultEditWord.replace(/[_0]/g, function () { return digitText.charAt(i++); });
+    }
+    return digitText;
   }
   /** MSGCON's length parameter range, { min: 1, max: 132 } (a fresh
    *  object). */
@@ -4503,6 +4604,10 @@
     fixedDisplayLength: fixedDisplayLength,
     fieldKeywordsWithoutParameters: fieldKeywordsWithoutParameters,
     systemValueConstantWidth: systemValueConstantWidth,
+    systemValuePreviewText: systemValuePreviewText,
+    systemValueDigits: systemValueDigits,
+    dateEditCodePattern: dateEditCodePattern,
+    dateEditCodeWidth: dateEditCodeWidth,
     msgconLengthRange: msgconLengthRange,
     isNumericShiftDataType: isNumericShiftDataType,
     keyboardShiftValues: keyboardShiftValues,

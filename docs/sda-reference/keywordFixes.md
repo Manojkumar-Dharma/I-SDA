@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-151 of 174 tasks done; 23 open (see [Open work](#open-work)). Current version: **v0.10.296**.
+156 of 175 tasks done; 19 open (see [Open work](#open-work)). Current version: **v0.10.301**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -216,7 +216,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
-| [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Claimed (in progress) | — |
+| [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -233,7 +233,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-143](#i-143) | Done v0.10.296 | `MSGCON` rules enforced (named field, exclusion list, length 1-132). |
 | 2 | [I-144](#i-144) | Done v0.10.293 | DATE/TIME/USER/SYSNAME rules enforced and the preview drawn at real width. |
-| 3 | [I-154](#i-154) | Claimed | I-144 follow-up against IBM's own edit-code patterns and examples. |
+| 3 | [I-154](#i-154) | Done v0.10.301 | I-144 follow-up against IBM's own edit-code patterns and examples. |
 | 4 | [I-151](#i-151) | Not started | Output-control relations (probed: all accepted today). |
 | 5 | [I-152](#i-152) | Not started | Window / menu-bar / help / logging relations (probed: all accepted today). |
 | 6 | [I-153](#i-153) | Not started | `MSGCON` message ID and file validation. Small. |
@@ -7051,8 +7051,23 @@ Follow-up to I-143, which enforced `MSGCON`'s three stated rules (constant field
 
 ### I-154 — System-value constants: IBM's edit-code widths, preview text and TIME's "only" rule
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-144
+> **Area:** Field · **Status:** Done (v0.10.301) · **Depends on:** I-144
 
 Follow-up to I-144 against the DDS Reference itself. Measured on v0.10.296 with IBM's own examples: (1) **`W` edit code.** The EDTCDE table's note 2 gives `W`'s exact slash patterns (`nn/nnn`, `nnnn/nn`, `nnnn/nnn`, `nnnn/nn/nn` for 5-8 digits), but `DATE(*YY) EDTCDE(W)` is drawn 8 wide (IBM: 10). The engine's general numeric path has the same gap for `W` and `Y` (it returns the coded length "because the separator is runtime"; only the separator *character* is runtime - note 3 gives `Y`'s patterns `nn/n` ... `nn/nn/nnnn`). (2) **Preview text.** DATE and TIME preview the browser's locale string (`10/3/2026`, `2:31:11 AM`), up to 11 characters in a 6-8 column box; IBM's TIME example shows `11:06:45`, DATE without editing is `mmddyy`, with `EDTCDE(Y)` `mm/dd/yy`. (3) **TIME's companions.** Its section says "You can specify **only** the location of the field, TIME, and optionally EDTCDE, EDTWRD, COLOR, DSPATR, or TEXT"; not enforced (I-144 left all companion lists open because only TIME says "only" - TIME is the one explicit case).
+
+
+**Fix (v0.10.301).** Everything below is IBM's own text from `DDS_Keyword_V7r6.txt`; where the reference does not say, nothing is assumed.
+
+1. **`W` / `Y` edit-code patterns** (EDTCDE table notes 2 and 3): `DATE_EDIT_CODE_PATTERNS` in `keywordSpec.js` holds the ten patterns by digit count (`Y`: 3-8 digits, `nn/n` ... `nn/nn/nnnn`; `W`: 5-8 digits, `nn/nnn` ... `nnnn/nn/nn`), with `dateEditCodePattern` / `dateEditCodeWidth`. Only the separator *character* is a run-time job attribute (`DATSEP`); how many there are is fixed, so the width is exact. `DATE(*YY) EDTCDE(W)` is now 10 wide (was 8) and the same fact sizes a plain numeric field: 6 digits with `Y` is 8, 8 digits with `Y` is 10, 5 with `W` is 6. A digit count IBM lists no pattern for, and a field with decimals, keep the coded length.
+2. **Preview text in IBM's format at the real width.** `KeywordSpec.systemValuePreviewText` replaces the browser's locale string (`10/3/2026`, `2:31:11 AM`, up to 11 characters in a 6-8 column box). `TIME` is its default edit word `0_:__:__` poured over `hhmmss` (`11:06:45`, IBM's own example); `DATE` with no editing is the bare digits (`mmddyy`, `*YY` four-digit year); `EDTCDE(Y)` / `(W)` pour them into IBM's pattern with IBM's zero suppression (`Y`: farthest-left zero of a 3-6 or 8 digit date, two for 7; `W`: one for 5 digits, three for 6-8), a suppressed zero showing as a blank so the width never changes. A test sweeps every month, four days, both keywords and eight edit-code combinations: the text is never longer than the box.
+3. **TIME's "only" rule.** Its section says "You can specify **only** the location of the field, TIME, and optionally the EDTCDE, EDTWRD, COLOR, DSPATR, or TEXT keyword". Any other keyword on a `TIME` field (`DFT`, `DATE`, `USER`, `HTML`, `DUP`, `CHECK`, ...) is refused, in the same diff-based collector as I-144's rules (an already-invalid hand-written field is not re-reported; removing the keyword is allowed). Driven by `companionsStatedAsOnly`, which is true for `TIME` alone.
+
+**Assumptions the reference forces, stated rather than hidden.** The job attribute `DATFMT` is not known at design time, so the preview and the `*Y` / `*YY` digit counts assume a six / eight digit date in `MDY` order (the order IBM's own `EDTCDE(Y)` example uses) - except `W`, which IBM says is correct only for a `YMD` job date with a four-digit year, so `W` previews `YMD`. The Julian format (5 / 7 digits) is not assumed. The separator previews as `/`, IBM's `DATSEP` default. A user-defined edit code 5-9 (`QEDIT5`-`9`) is defined on the system, so a `TIME` with one keeps the default edit word's 8 columns; an `EDTWRD` sizes the field (IBM's own `TIME` example is 22 wide) and previews the bare digits - the edit word is not applied to them.
+
+**Left open, on purpose.** The `DATE`, `USER` and `SYSNAME` sections say "you can specify ... and, optionally, ..." without "only", so whether those companion lists are closed is still an open question; they stay unenforced facts.
+
+Two existing expectations pinned the old behaviour and were changed deliberately, not worked around: `i121DisplayWidthKeywordSpec` ("`EDTCDE(W)` / `(Y)` leave the coded length untouched" - now IBM's widths) and `i121SystemValueConstantSpec` ("`DATE` previews the current date" via `toLocaleDateString` - now IBM's `mmddyy`).
+
+Tests: new `src/test/i154SystemValueIbmRules.test.js` (65 checks): every pattern against the reference text, widths through the spec and the engine (including IBM's 22-wide `TIME` example), numeric fields, preview text and its zero suppression, the never-longer sweep, the `TIME` rule (allowed and refused keywords, diff behaviour, `DATE` + `DFT` still open), and the real webview (the boxes show `hh:mm:ss` / six digits; the raw editor refuses `DFT` on `TIME`, allows `COLOR`). It fails against the previous source. Mutation-checked: removing the `TIME` rule fails 9 checks, restoring the locale preview 2, a wrong `Y` pattern 7.
 
 ---

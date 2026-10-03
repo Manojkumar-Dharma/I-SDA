@@ -70,8 +70,13 @@ console.log('\nEngine preview text');
     return DspfEngine.resolveScreen(model, 'SCR1', new Set()).fields.map(function (f) { return f.text; });
   }
   const t = previews(['DATE', 'TIME', 'USER', 'SYSNAME', "'Lit'"]);
-  check('DATE previews the current date', t[0] === new Date().toLocaleDateString());
-  check('TIME previews a time', typeof t[1] === 'string' && t[1].length > 0 && t[1] !== '*TIME' && /\d/.test(t[1]));
+  // Task I-154: IBM's own formats, not the browser's locale string - DATE
+  // with no editing is the bare digits (mmddyy, *Y), TIME its default edit
+  // word '0_:__:__' (hh:mm:ss).
+  const now = new Date();
+  const p2 = (n) => (n < 10 ? '0' : '') + n;
+  check('DATE previews today as IBM\'s bare mmddyy', t[0] === p2(now.getMonth() + 1) + p2(now.getDate()) + String(now.getFullYear()).slice(-2));
+  check('TIME previews a time in IBM\'s hh:mm:ss', /^\d\d:\d\d:\d\d$/.test(t[1]));
   check('USER previews *USER', t[2] === '*USER');
   check('SYSNAME previews *SYSNAME', t[3] === '*SYSNAME');
   check('a literal constant still previews its text', t[4] === 'Lit');

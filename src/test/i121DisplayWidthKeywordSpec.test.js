@@ -72,7 +72,13 @@ check('SALARY 8,2 EDTCDE(1 *) -> 10', w(num(8, 2, [{ name: 'EDTCDE', parameters:
 check('EDTCDE(A) 6,0: one comma + CR (2) -> 9', w(num(6, 0, [{ name: 'EDTCDE', parameters: 'A' }])) === 9);
 check('EDTCDE(3) 6,0 adds nothing: 6', w(num(6, 0, [{ name: 'EDTCDE', parameters: '3' }])) === 6);
 check('EDTCDE(Z) 6,2 only the point: 7', w(num(6, 2, [{ name: 'EDTCDE', parameters: 'Z' }])) === 7);
-check('EDTCDE(W) / (Y) leave the coded length untouched', w(num(6, 0, [{ name: 'EDTCDE', parameters: 'W' }])) === 6 && w(num(8, 0, [{ name: 'EDTCDE', parameters: 'y' }])) === 8);
+// Task I-154: IBM's EDTCDE table (notes 2 and 3) fixes how many slashes W and Y
+// insert for each digit count (only the separator CHARACTER is a run-time job
+// attribute), so the width is exact: W 6 digits -> nnnn/nn = 7, Y 8 digits ->
+// nn/nn/nnnn = 10. A digit count IBM gives no pattern for, or a field with
+// decimals, keeps its coded length.
+check('EDTCDE(W) 6 digits -> nnnn/nn = 7, EDTCDE(Y) 8 digits -> nn/nn/nnnn = 10', w(num(6, 0, [{ name: 'EDTCDE', parameters: 'W' }])) === 7 && w(num(8, 0, [{ name: 'EDTCDE', parameters: 'y' }])) === 10);
+check('EDTCDE(Y) / (W) with a digit count IBM lists no pattern for keep the coded length', w(num(9, 0, [{ name: 'EDTCDE', parameters: 'Y' }])) === 9 && w(num(4, 0, [{ name: 'EDTCDE', parameters: 'W' }])) === 4 && w(num(6, 2, [{ name: 'EDTCDE', parameters: 'Y' }])) === 6);
 check('EDTCDE(5) user-defined adds nothing but decimals', w(num(6, 2, [{ name: 'EDTCDE', parameters: '5' }])) === 7);
 check('lowercase edit code still resolves', w(num(5, 2, [{ name: 'EDTCDE', parameters: 'j' }])) === 7);
 check('comma grouping tracks integer digits: 10,0 EDTCDE(2) -> 13', w(num(10, 0, [{ name: 'EDTCDE', parameters: '2' }])) === 13);

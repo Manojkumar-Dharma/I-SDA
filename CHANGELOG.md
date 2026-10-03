@@ -14,6 +14,7 @@ citations and tests live in the task's section of
 
 - Docs (no version): README rewritten; this changelog condensed to one line per version; I-121 split into independent slices I-121a – I-121t in `keywordFixes.md`.
 - Docs (no version): the two deferred findings (I-121a, I-121e) and the `MSGCON` parameter follow-up opened as tasks I-151 – I-153, with probe results; Open work now lists I-145 – I-153.
+- **0.10.301** — I-154: DATE/TIME previews use IBM's formats at the real width; EDTCDE W/Y widths follow IBM's slash patterns (DATE and numeric fields); TIME accepts only its listed keywords.
 - **0.10.300** — I-147: `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are refused on a record with no `SFLCTL`; display size names are refused on `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLINZ`; `SFLEND`'s second parameter is refused unless it follows `*SCRBAR`; the SFLCTL panel notes a missing `SFLPAG`/`SFLDSP` and a missing option indicator on `SFLCLR`/`SFLEND` (**behaviour change**)
 - **0.10.299** — I-151: `ERASE`, `ERASEINP`, `MDTOFF` and `PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, an `ERASE` naming more than 20 record formats, and a second `CSRLOC` or `FRCDTA` on a record are now refused (previously all accepted and written) *(fix)*
 - **0.10.298** — I-146: on a field-selection subfile (option indicators on subfile-record fields) the control record refuses SFLDROP, SFLFOLD, SFLINZ, SFLLIN, SFLRCDNBR, SFLRNA and SFLROLVAL; SFLFOLD is refused when SFLSIZ equals SFLPAG; SFLDROP and SFLFOLD must use the same key.

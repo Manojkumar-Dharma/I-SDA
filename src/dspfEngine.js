@@ -306,12 +306,15 @@
     var code = m ? m[1].toUpperCase() : '';
     var second = m && m[2] ? m[2] : '';
     var floatingCurrency = second !== '' && second !== '*';
-    // W and Y are the DATE-keyword-specific "date edit" codes (they insert
-    // job-attribute-dependent separator characters, same runtime-only
-    // ambiguity that keeps WINDOW(*DFT) a placeholder elsewhere in this
-    // file) - leave the field's own coded length untouched rather than
-    // guess at a separator width we can't know at design time.
-    if (KeywordSpec.isRuntimeSeparatorEditCode(code)) return len;
+    // Task I-154: IBM's EDTCDE table (notes 2 and 3) gives the exact slash
+    // pattern for W and Y by digit count - only the separator CHARACTER is a
+    // run-time job attribute (DATSEP), not how many there are - so the width
+    // is known. A digit count IBM gives no pattern for (or a field with
+    // decimals, which is not a date) keeps its coded length.
+    if (KeywordSpec.isRuntimeSeparatorEditCode(code)) {
+      var patterned = dec === 0 ? KeywordSpec.dateEditCodeWidth(code, len) : null;
+      return patterned != null ? patterned : len;
+    }
     var extra = 0;
     if (dec > 0) extra += 1; // decimal point - every numeric edit code inserts one when there are decimals
     if (KeywordSpec.editCodeInsertsCommas(code) && intDigits > 3) extra += Math.floor((intDigits - 1) / 3);
@@ -354,7 +357,7 @@
   // wide. Its real width is the keyword section's own fact
   // (KeywordSpec.systemValueConstantWidth); this only gathers the field's
   // EDTWRD / EDTCDE / DATE parameter text for it. null = not one of them.
-  function systemValueConstantDisplayLength(field) {
+  function systemValueConstantInfo(field) {
     if (field.nameType !== 'CONSTANT' || field.constantValue != null) return null;
     var kws = field.keywords || [];
     var names = kws.map(function (k) { return k.name; });
@@ -364,11 +367,31 @@
     var edtwrd = find('EDTWRD');
     var edtcde = find('EDTCDE');
     var date = find('DATE');
-    return KeywordSpec.systemValueConstantWidth(sysKw, {
-      dateParameters: date ? date.parameters : '',
-      editCode: edtcde ? String(edtcde.parameters || '').trim().split(/\s+/)[0] : '',
-      editWordWidth: edtwrd ? edtwrdDisplayWidth(edtwrd.parameters) : null
-    });
+    return {
+      name: sysKw,
+      edtcde: edtcde || null,
+      opts: {
+        dateParameters: date ? date.parameters : '',
+        editCode: edtcde ? String(edtcde.parameters || '').trim().split(/\s+/)[0] : '',
+        editWordWidth: edtwrd ? edtwrdDisplayWidth(edtwrd.parameters) : null
+      }
+    };
+  }
+  function systemValueConstantDisplayLength(field) {
+    var info = systemValueConstantInfo(field);
+    if (!info) return null;
+    var width = KeywordSpec.systemValueConstantWidth(info.name, info.opts);
+    // Task I-154: a DATE / TIME is a numeric field of its digit count with 0
+    // decimals; an edit code other than Y / W (which the spec sizes from
+    // IBM's patterns) is sized by the same numeric edit-code rules as any
+    // other numeric field. Not when an edit word sizes it (above) or for a
+    // user-defined code 5-9, whose editing is not known here.
+    var digits = KeywordSpec.systemValueDigits(info.name, info.opts.dateParameters);
+    var code = String(info.opts.editCode || '').toUpperCase();
+    if (info.edtcde && digits != null && info.opts.editWordWidth == null && code !== 'Y' && code !== 'W') {
+      return edtcdeDisplayWidth({ length: digits, decimalPositions: 0 }, info.edtcde);
+    }
+    return width;
   }
 
   function displayLength(field, record, dspfFile) {
@@ -403,9 +426,11 @@
         // supply a system value, and their precedence, are KeywordSpec's own
         // fact; this only maps each to its design-time placeholder text.
         var sysKw = KeywordSpec.systemValueConstantKeywords().filter(function (n) { return kwNames.indexOf(n) !== -1; })[0];
-        if (sysKw === 'DATE') text = new Date().toLocaleDateString();
-        else if (sysKw === 'TIME') text = new Date().toLocaleTimeString();
-        else if (sysKw) text = '*' + sysKw; // USER -> *USER, SYSNAME -> *SYSNAME
+        if (sysKw === 'DATE' || sysKw === 'TIME') {
+          // Task I-154: IBM's own formats at the real width (see
+          // KeywordSpec.systemValuePreviewText), not a browser-locale string.
+          text = KeywordSpec.systemValuePreviewText(sysKw, (systemValueConstantInfo(field) || {}).opts, new Date());
+        } else if (sysKw) text = '*' + sysKw; // USER -> *USER, SYSNAME -> *SYSNAME
         else {
           // I-33 - MSGCON constants have no literal text either (their
           // display value comes from a message description at run time,
