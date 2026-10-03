@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-166 of 180 tasks done; 14 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.311**.
+167 of 180 tasks done; 13 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.312**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -220,7 +220,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Done | v0.10.307 |
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Done | v0.10.311 |
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
-| [I-158](#i-158) | Record | `MNUBARDSP` panel writes the menu-bar record's field names without the `&` the reference syntax shows | I-152 | Claimed (in progress) | — |
+| [I-158](#i-158) | Record | `MNUBARDSP` panel writes its field names without the `&` the compiler requires | I-152 | Done | v0.10.312 |
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Claimed (in progress) | — |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Claimed (in progress) | — |
 
@@ -236,13 +236,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-158](#i-158) | Claimed (in progress) | `MNUBARDSP` panel writes the `&` in front of the choice field and pull-down input (raised by I-152). Small. |
-| 2 | [I-159](#i-159) | Claimed (in progress) | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
-| 3 | [I-121g](#i-121g), [I-121h](#i-121h), [I-121i](#i-121i), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121g claimed; the rest not started | The seven keyword slices still open: 43 keywords with no spec entry (7 + 10 + 4 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
-| 4 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 5 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 6 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 7 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 1 | [I-159](#i-159) | Claimed (in progress) | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
+| 2 | [I-121g](#i-121g), [I-121h](#i-121h), [I-121i](#i-121i), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121g claimed; the rest not started | The seven keyword slices still open: 43 keywords with no spec entry (7 + 10 + 4 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7110,7 +7109,7 @@ Raised by the I-121e slice; opened as a task with a probe. **Window, menu-bar, h
 - `WDWTITLE` with no `WINDOW` on the record, and removing the `WINDOW` while `WDWTITLE` stays. **Decided:** a `WINDOW` that only references another window is accepted - the reference says a warning is issued for that case, not that it is invalid, so refusing it would block a file IBM compiles.
 - `HLPSEQ`: group name over 10 characters, sequence number outside 0-99, and the same (group, number) pair on more than one record in the file (group compared without case). A missing or non-numeric sequence is left to the grammar checks.
 - `HLPCLR` on a record with no help specification (`helpEntries`), including removing the last one while `HLPCLR` stays.
-- `MNUBARDSP`: on a non-menu-bar record the named menu-bar record must exist in the file and carry `MNUBAR`; `&choice-field` must be a hidden, 2-long, zero-decimal `Y` field of the record and `&pull-down-input` a hidden, 2-long, zero-decimal `S` field; on a `MNUBAR` record the optional `&pull-down-input` has the same `S` shape; several `MNUBARDSP` on one record are refused when any is not optioned. The first-instance placeholder the panel writes (a blank `MNUBARDSP` on a normal record) is not counted until it has names, otherwise a second instance could never be added through the panel.
+- `MNUBARDSP`: on a non-menu-bar record the named menu-bar record must exist in the file and carry `MNUBAR`; `&choice-field` must be a hidden, 2-long, zero-decimal `Y` field of the record and `&pull-down-input` a hidden, 2-long, zero-decimal `S` field; on a `MNUBAR` record the optional `&pull-down-input` has the same `S` shape; several `MNUBARDSP` on one record are refused when any is not optioned. (v0.10.310, I-158: a field name without its leading `&` is also refused - the compiler requires it; this bullet originally accepted both forms.) The first-instance placeholder the panel writes (a blank `MNUBARDSP` on a normal record) is not counted until it has names, otherwise a second instance could never be added through the panel.
 
 The cases the task text left unprobed are now covered by tests: `HLPCMDKEY` in a `USRDSPMGT` file, the `MNUBARDSP` hidden-field shapes, a duplicated `HLPSEQ` number in a group, and several un-optioned `MNUBARDSP` on one record.
 
@@ -7223,17 +7222,22 @@ New `src/test/i157SubfileControlRequiresSflctl.test.js` (56 checks): each cited 
 
 ### I-158 — `MNUBARDSP` panel writes field names without the `&`
 
-> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-152
+> **Area:** Record · **Status:** Done (v0.10.312) · **Depends on:** I-152
 
 Raised by the I-152 slice. The DDS Reference gives the form `MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])`, and each of its three examples writes the fields with the `&` (`MNUBARDSP(MENURCD &MNUCHOICE &INPUT)`, `MNUBARDSP(MENUBAR &MNUCHOICE)`). The Menu-Bar display rows (I-17) compose `BAR1 MNUFLD` - no `&` - and `i17MnubardspRepeatableInstances` asserts exactly that text. On a `MNUBAR` record the optional pull-down input has the same shape (`&pull-down-input`) and the same gap. The I-152 guard accepts both forms, so nothing is refused today; the question is what the panel writes.
 
-Cannot be probed here: whether the compiler accepts the bare form needs a real IBM i compile, which is not available in this environment. The reference syntax and examples are the only evidence, so the fix follows them ("as per the IBM i source reference").
+**Confirmed against the IBM i document (by Warrior): the compiler requires the `&` on both field parameters.** So a bare `MNUBARDSP(BAR1 MNUFLD)` is not merely unusual, it is invalid, and the I-152 guard's "accepts both forms" was too lenient. (The DDS Reference's own text only shows the `&` in the syntax and its three examples; it does not say "required", so the requirement itself rests on the IBM i document, not on the reference file in this repo.)
 
 To do:
 - The panel writes the `&` in front of the choice field and the pull-down input (and the `MNUBAR` record's pull-down input); the menu-bar record name stays bare.
 - The panel shows the field names without the `&` (the inputs are labelled "Choice field (name)"), and accepts a name typed with or without it, so a hand-written `&MNUCHOICE` and a bare `MNUCHOICE` both display and re-save as `&MNUCHOICE`.
 - Existing files are not rewritten on open; a bare-name `MNUBARDSP` is normalised only when its row is edited.
-- Update `i17MnubardspRepeatableInstances` (and any other test asserting the bare text) to the `&` form, add round trips for typed-with and typed-without, and keep the guard's both-forms acceptance pinned.
+- Make the I-152 guard enforce it: adding a field name without the `&` (raw keyword editor, any edit path) is refused, on a plain record and on a `MNUBAR` record, in the same diff-based way as the other I-152 rules, so an already-bare hand-written file still opens and an unrelated edit to it is not blocked.
+- Update `i17MnubardspRepeatableInstances` to the `&` form and add round trips for typed-with and typed-without.
+
+**Fix (v0.10.312).** In `webviewClientHelpers.js` the panel's parse strips a leading `&` for display and its compose writes `&name` for the choice field and the pull-down input (and for a `MNUBAR` record's pull-down input); the menu-bar record name stays bare. `fieldReferencePrefix: '&'` is now a spec fact on `MNUBARDSP.parameters` (read through `mnubardspFieldShapes()`), and `windowHelpMenuViolations` refuses a field parameter that lacks it - "MNUBARDSP field CHC on record format APP must be written &CHC" - only when the edit adds it. A name typed with the `&`, without it, with stray blanks or with `&&` is written once as `&NAME`; clearing the pull-down input leaves no stray `&`. Opening a file posts no edit.
+
+New `src/test/i158MnubardspAmpersand.test.js` (15 checks): bare and `&` hand-written rows display the same, a bare row is rewritten to the `&` form only when edited, every typed variant, the cleared field, the `MNUBAR` record, nothing posted on load, and the raw editor (bare refused, `&` accepted). `i152WindowHelpMenuRelations` gained the guard's rules (95 checks; the old "bare accepted" check became the refusal checks). `i17MnubardspRepeatableInstances` now asserts the `&` form and has a second hidden pull-down field in its fixture, because the I-152 guard refuses a pull-down name that is not a field of the record. Full suite: 260 files, 14,637 checks, zero failures.
 
 ---
 

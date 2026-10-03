@@ -5580,7 +5580,8 @@
    *   HLPCLR              the record needs at least one help specification
    *   MNUBARDSP           the menu-bar record it names exists in the file and
    *                       is a MNUBAR record; &choice-field / &pull-down-input
-   *                       are hidden fields of the documented shape; several
+   *                       are written with the leading & the compiler requires
+   *                       (I-158) and are hidden fields of the documented shape; several
    *                       MNUBARDSP on one record must all carry option
    *                       indicators
    *  Violations are keyed so firstNewViolation reports only what an edit adds,
@@ -5674,6 +5675,16 @@
         };
         var checkField = function (ref, shape, role) {
           if (!ref) return;
+          //  Task I-158: the compiler requires the leading & on both field
+          //  parameters (the reference syntax and all its examples write it),
+          //  so a bare name is a violation like any other here - reported only
+          //  when an edit adds it, so a hand-written bare file still opens.
+          if (ref.charAt(0) !== shapes.fieldReferencePrefix) {
+            out[r.name + '|MNUBARDSP|AMP|' + role + '|' + i] = 'MNUBARDSP field ' + ref + ' on record format ' + r.name +
+              ' must be written ' + shapes.fieldReferencePrefix + ref + ' (the field parameters take a leading ' +
+              shapes.fieldReferencePrefix + ') (per the DDS Reference).';
+            return;
+          }
           var problem = shapeProblem(fieldOf(ref), shape);
           if (problem) {
             out[r.name + '|MNUBARDSP|' + role + '|' + i] = 'MNUBARDSP field ' + String(ref).replace(/^&/, '') + ' on record format ' + r.name + ' ' + problem +

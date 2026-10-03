@@ -123,7 +123,15 @@ const bar = (name) => dds({ t: 'R', name, fn: 'MNUBAR' });
 const good = () => src(R('APP'), K('ALARM'), FIELD('CHC', 2, 'Y', 0, 'H'), FIELD('PDI', 2, 'S', 0, 'H'), bar('BAR1'));
 const withDsp = (p, fields) => src(R('APP'), K('MNUBARDSP(' + p + ')'), ...(fields || [FIELD('CHC', 2, 'Y', 0, 'H'), FIELD('PDI', 2, 'S', 0, 'H')]), bar('BAR1'));
 check('a correct MNUBARDSP is accepted', guard(good(), withDsp('BAR1 &CHC &PDI')) === null);
-check('...also without the & prefix (the panel writes bare names)', guard(good(), withDsp('BAR1 CHC PDI')) === null);
+// Task I-158: the compiler requires the leading & on the field parameters (the reference syntax and examples write it).
+check('the spec records the & as a fact', KeywordSpec.mnubardspFieldShapes().fieldReferencePrefix === '&' && has('MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])') && has('MNUBARDSP[(&pull-down-input)]'));
+check('a bare choice field is refused, naming the & form', say(/MNUBARDSP field CHC on record format APP must be written &CHC \(the field parameters take a leading &\) \(per the DDS Reference\)/, guard(good(), withDsp('BAR1 CHC &PDI'))));
+check('a bare pull-down input is refused', say(/MNUBARDSP field PDI on record format APP must be written &PDI/, guard(good(), withDsp('BAR1 &CHC PDI'))));
+check('both bare: refused (the first is reported)', say(/must be written &/, guard(good(), withDsp('BAR1 CHC PDI'))));
+check('the menu-bar record name is NOT given an & (it is a plain record name)', guard(good(), withDsp('BAR1 &CHC')) === null && !/BAR1.*must be written/.test(guard(good(), withDsp('BAR1 CHC')) || ''));
+check('an already-bare hand-written MNUBARDSP does not block an unrelated edit', guard(withDsp('BAR1 CHC PDI'), src(R('APP'), K('MNUBARDSP(BAR1 CHC PDI)'), K('ALARM'), FIELD('CHC', 2, 'Y', 0, 'H'), FIELD('PDI', 2, 'S', 0, 'H'), bar('BAR1'))) === null);
+check('...and rewriting it in the & form is accepted', guard(withDsp('BAR1 CHC PDI'), withDsp('BAR1 &CHC &PDI')) === null);
+check('...but a second new bare name in the same file is still reported', say(/must be written &/, guard(withDsp('BAR1 CHC'), withDsp('BAR1 CHC PDI'))));
 check('...and with the pull-down input left out', guard(good(), withDsp('BAR1 &CHC')) === null);
 check('a menu-bar record that does not exist is refused', say(/MNUBARDSP on record format APP names NOBAR, which is not a menu-bar \(MNUBAR\) record format in this file \(per the DDS Reference\)/, guard(good(), withDsp('NOBAR &CHC'))));
 check('naming a record that is not a MNUBAR record is refused', say(/names APP, which is not a menu-bar/, guard(good(), withDsp('APP &CHC'))));
@@ -142,6 +150,7 @@ check('one name only (grammar is not this task) is left alone', guard(good(), wi
 const onBar = (p, fields) => src(dds({ t: 'R', name: 'BAR1', fn: 'MNUBAR' }), K('MNUBARDSP' + (p === undefined ? '' : '(' + p + ')')), ...(fields || [FIELD('PDI', 2, 'S', 0, 'H')]));
 check('MNUBARDSP(&pull-down) on a MNUBAR record with a correct hidden field is accepted', guard(src(dds({ t: 'R', name: 'BAR1', fn: 'MNUBAR' }), FIELD('PDI', 2, 'S', 0, 'H')), onBar('&PDI')) === null);
 check('a bare MNUBARDSP on a MNUBAR record is accepted', guard(src(dds({ t: 'R', name: 'BAR1', fn: 'MNUBAR' })), onBar(undefined, [])) === null);
+check('a bare pull-down input on a MNUBAR record is refused too', say(/MNUBARDSP field PDI on record format BAR1 must be written &PDI/, guard(src(dds({ t: 'R', name: 'BAR1', fn: 'MNUBAR' })), onBar('PDI'))));
 check('a MNUBAR record\'s pull-down input of the wrong shape is refused', say(/MNUBARDSP field PDI on record format BAR1 must be data type S/, guard(src(dds({ t: 'R', name: 'BAR1', fn: 'MNUBAR' })), onBar('&PDI', [FIELD('PDI', 2, 'Y', 0, 'H')]))));
 // Several MNUBARDSP: all must be optioned.
 const multi = (a, b, ia, ib) => src(R('APP'), K('MNUBARDSP(' + a + ')', ia), K('MNUBARDSP(' + b + ')', ib), FIELD('CHC', 2, 'Y', 0, 'H'), bar('BAR1'), bar('BAR2'));

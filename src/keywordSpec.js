@@ -745,6 +745,11 @@
       parameters: {
         formOnPlainRecord: 'menu-bar-record &choice-field [&pull-down-input]',
         formOnMnubarRecord: '[&pull-down-input]',
+        // I-158: the two field parameters are written with a leading & in the
+        // reference syntax and in every example; Warrior confirmed against the
+        // IBM i document that the compiler requires it. The menu-bar-record
+        // parameter is a plain record name (no &).
+        fieldReferencePrefix: '&',
         choiceField: { usage: 'H', length: 2, decimals: 0, keyboardShift: 'Y' },
         pullDownInput: { usage: 'H', length: 2, decimals: 0, keyboardShift: 'S', values: ['0', 'n', '-1'] }
       },
@@ -5003,7 +5008,7 @@
   /** MNUBARDSP's hidden-field shapes: { choiceField, pullDownInput } (copies). */
   function mnubardspFieldShapes() {
     var p = RECORD_TYPES.MNUBARDSP.parameters;
-    return { choiceField: Object.assign({}, p.choiceField), pullDownInput: { usage: p.pullDownInput.usage, length: p.pullDownInput.length, decimals: p.pullDownInput.decimals, keyboardShift: p.pullDownInput.keyboardShift, values: p.pullDownInput.values.slice() } };
+    return { fieldReferencePrefix: p.fieldReferencePrefix, choiceField: Object.assign({}, p.choiceField), pullDownInput: { usage: p.pullDownInput.usage, length: p.pullDownInput.length, decimals: p.pullDownInput.decimals, keyboardShift: p.pullDownInput.keyboardShift, values: p.pullDownInput.values.slice() } };
   }
   /** Whether `name` is one whose record needs at least one help specification (HLPCLR). */
   function requiresHelpSpecification(name) { var e = i121bEntry(name); return !!(e && e.requiresHelpSpecification); }

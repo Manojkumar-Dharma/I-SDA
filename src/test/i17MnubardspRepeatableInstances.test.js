@@ -42,6 +42,8 @@ const dspfSource =
     '     A            MNUFLD         2Y 0B 3  2',
     "     A                                      MNUBARCHC(1 PULLFILE '>File')",
     '     A            PULLIN         2S 0H',
+    // A second hidden pull-down field, so the "typed with its &" step below names a real field.
+    '     A            PULLIN2        2S 0H',
     '     A          R BAR2                       MNUBAR',
     '     A            MNUFLD         2Y 0B 3  2',
     "     A                                      MNUBARCHC(1 PULLFILE '>Edit')",
@@ -98,7 +100,9 @@ setTimeout(() => {
   doc.querySelector('.' + inst0 + '-chc').dispatchEvent(new Event('change', { bubbles: true }));
   reparsed = latestRecord('APPSCR');
   const mnubardsp0 = reparsed.keywords.find((k) => k.name === 'MNUBARDSP');
-  check('MNUBARDSP written as "BAR1 MNUFLD" (no trailing blank)', mnubardsp0.parameters.trim() === 'BAR1 MNUFLD');
+  // Task I-158: the reference form is MNUBARDSP(menu-bar-record &choice-field [&pull-down-input]).
+  check('MNUBARDSP written as "BAR1 &MNUFLD" (the & on the choice field, no trailing blank)', mnubardsp0.parameters.trim() === 'BAR1 &MNUFLD');
+  check('...and the choice input still shows the bare name', doc.querySelector('.' + inst0 + '-chc').value === 'MNUFLD');
   posted.length = 0;
 
   console.log('\nconditioning instance 0 (while it is the only one), then adding a SECOND, independently-conditioned instance - the behavior I-14 flagged as unmodeled');
@@ -119,7 +123,7 @@ setTimeout(() => {
   condOnRow(0, '30');
   reparsed = latestRecord('APPSCR');
   const afterFirstCond = reparsed.keywords.find((k) => k.name === 'MNUBARDSP');
-  check('instance 0 (BAR1 MNUFLD) is now conditioned on indicator 30', afterFirstCond.parameters.trim() === 'BAR1 MNUFLD' && afterFirstCond.conditions.length === 1 && afterFirstCond.conditions[0].indicators[0].number === '30');
+  check('instance 0 (BAR1 &MNUFLD) is now conditioned on indicator 30', afterFirstCond.parameters.trim() === 'BAR1 &MNUFLD' && afterFirstCond.conditions.length === 1 && afterFirstCond.conditions[0].indicators[0].number === '30');
   posted.length = 0;
 
   doc.querySelector('.repeat-inst-add[data-prefix="' + rkAppscr + '"]').dispatchEvent(new Event('click', { bubbles: true }));
@@ -140,10 +144,10 @@ setTimeout(() => {
   doc.querySelector('.' + inst1 + '-pull').dispatchEvent(new Event('change', { bubbles: true }));
   reparsed = latestRecord('APPSCR');
   const mnubardspInsts = reparsed.keywords.filter((k) => k.name === 'MNUBARDSP');
-  const bar1Inst = mnubardspInsts.find((k) => k.parameters.trim() === 'BAR1 MNUFLD');
-  const bar2Inst = mnubardspInsts.find((k) => k.parameters.trim() === 'BAR2 MNUFLD2 PULLFLD');
-  check('first instance (\"BAR1 MNUFLD\") untouched by editing the second, still on indicator 30', !!bar1Inst && bar1Inst.conditions.length === 1 && bar1Inst.conditions[0].indicators[0].number === '30');
-  check('second instance written with all 3 names (\"BAR2 MNUFLD2 PULLFLD\") and its own indicator 31', !!bar2Inst && bar2Inst.conditions.length === 1 && bar2Inst.conditions[0].indicators[0].number === '31');
+  const bar1Inst = mnubardspInsts.find((k) => k.parameters.trim() === 'BAR1 &MNUFLD');
+  const bar2Inst = mnubardspInsts.find((k) => k.parameters.trim() === 'BAR2 &MNUFLD2 &PULLFLD');
+  check('first instance (\"BAR1 &MNUFLD\") untouched by editing the second, still on indicator 30', !!bar1Inst && bar1Inst.conditions.length === 1 && bar1Inst.conditions[0].indicators[0].number === '30');
+  check('second instance written with all 3 names (\"BAR2 &MNUFLD2 &PULLFLD\") and its own indicator 31', !!bar2Inst && bar2Inst.conditions.length === 1 && bar2Inst.conditions[0].indicators[0].number === '31');
   posted.length = 0;
 
   console.log('\nremoving one instance leaves the other intact');
@@ -168,7 +172,7 @@ setTimeout(() => {
   reparsed = latestRecord('APPSCR');
   const afterRemove = reparsed.keywords.filter((k) => k.name === 'MNUBARDSP');
   check('exactly one MNUBARDSP remains', afterRemove.length === 1);
-  check('the remaining one is BAR1 MNUFLD, still conditioned on 30', afterRemove[0].parameters.trim() === 'BAR1 MNUFLD' && afterRemove[0].conditions.length === 1 && afterRemove[0].conditions[0].indicators[0].number === '30');
+  check('the remaining one is BAR1 &MNUFLD, still conditioned on 30', afterRemove[0].parameters.trim() === 'BAR1 &MNUFLD' && afterRemove[0].conditions.length === 1 && afterRemove[0].conditions[0].indicators[0].number === '30');
   posted.length = 0;
 
   console.log('\nMNUBAR record (BAR1) itself: the SAME row renders the single pull-down-input shape, not the 3-name one');
@@ -189,10 +193,24 @@ setTimeout(() => {
   doc.querySelector('.' + bar1Inst0 + '-pull').value = 'PULLIN';
   doc.querySelector('.' + bar1Inst0 + '-pull').dispatchEvent(new Event('change', { bubbles: true }));
   reparsed = latestRecord('BAR1');
-  check('MNUBARDSP written as just "PULLIN" (single-name shape, no record/choice names)', reparsed.keywords.find((k) => k.name === 'MNUBARDSP').parameters.trim() === 'PULLIN');
-  check("BAR1's own MNUBAR keyword is untouched throughout", reparsed.keywords.some((k) => k.name === 'MNUBAR'));
-  check("BAR1's own field-level MNUBARCHC (on MNUFLD) is untouched throughout", reparsed.fields.some((f) => f.name === 'MNUFLD' && f.keywords.some((k) => k.name === 'MNUBARCHC')));
-
-  console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
-  process.exit(failureCount() === 0 ? 0 : 1);
+  check('MNUBARDSP written as just "&PULLIN" (single-name shape, no record/choice names)', reparsed.keywords.find((k) => k.name === 'MNUBARDSP').parameters.trim() === '&PULLIN');
+  check('...the input still shows the bare name', doc.querySelector('.' + bar1Inst0 + '-pull').value === 'PULLIN');
+  // Typed WITH the & is accepted and not doubled. The panel re-renders after a
+  // commit, so each further edit waits for it (the second edit would otherwise
+  // be typed into an input about to be replaced).
+  setTimeout(() => {
+    const pull = () => doc.querySelector('.' + bar1Inst0 + '-pull');
+    pull().value = '&PULLIN2';
+    pull().dispatchEvent(new Event('change', { bubbles: true }));
+    reparsed = latestRecord('BAR1');
+    check('a pull-down name typed with its & is written once ("&PULLIN2"), not doubled', reparsed.keywords.find((k) => k.name === 'MNUBARDSP').parameters.trim() === '&PULLIN2');
+    setTimeout(() => {
+      pull().value = '';
+      pull().dispatchEvent(new Event('change', { bubbles: true }));
+      reparsed = latestRecord('BAR1');
+      check('clearing the pull-down name writes no stray & (bare MNUBARDSP)', reparsed.keywords.find((k) => k.name === 'MNUBARDSP').parameters.trim() === '');
+      console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
+      process.exit(failureCount() === 0 ? 0 : 1);
+    }, 50);
+  }, 50);
 }, 0);

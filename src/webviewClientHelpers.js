@@ -5462,10 +5462,17 @@
 
   /** Splits one MNUBARDSP instance's raw `parameters` text into its
    *  positional fields for whichever of the two shapes applies. */
+  //  Task I-158: the DDS Reference writes the two field parameters with the &
+  //  (MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])), so the
+  //  panel WRITES the & and shows the bare name. A name is accepted typed with
+  //  or without it, and a hand-written bare-name MNUBARDSP displays the same;
+  //  it is normalised to the & form only when its row is edited.
+  function stripFieldAmp(name) { return String(name || '').trim().replace(/^&+/, '').trim(); }
+  function ampField(name) { var n = stripFieldAmp(name); return n ? '&' + n : ''; }
   function parseMnubardspInstanceParams(text, isMnuBarRec) {
     var parts = (text || '').trim().split(/\s+/).filter(Boolean);
-    if (isMnuBarRec) return { menuBarRecord: '', choiceField: '', pullDownField: parts[0] || '' };
-    return { menuBarRecord: parts[0] || '', choiceField: parts[1] || '', pullDownField: parts[2] || '' };
+    if (isMnuBarRec) return { menuBarRecord: '', choiceField: '', pullDownField: stripFieldAmp(parts[0]) };
+    return { menuBarRecord: parts[0] || '', choiceField: stripFieldAmp(parts[1]), pullDownField: stripFieldAmp(parts[2]) };
   }
 
   /** Inverse of parseMnubardspInstanceParams - joins whichever fields
@@ -5473,8 +5480,8 @@
    *  blank pullDownField on the non-MNUBAR-record shape writes just
    *  "REC1 CHC1", not "REC1 CHC1 "). */
   function composeMnubardspInstanceParams(f, isMnuBarRec) {
-    if (isMnuBarRec) return (f.pullDownField || '').trim();
-    var parts = [(f.menuBarRecord || '').trim(), (f.choiceField || '').trim(), (f.pullDownField || '').trim()];
+    if (isMnuBarRec) return ampField(f.pullDownField);
+    var parts = [(f.menuBarRecord || '').trim(), ampField(f.choiceField), ampField(f.pullDownField)];
     while (parts.length && !parts[parts.length - 1]) parts.pop();
     return parts.join(' ');
   }
