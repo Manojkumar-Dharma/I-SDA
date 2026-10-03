@@ -4524,6 +4524,12 @@
   function optionIndicatorsAllowed(name) { var e = i121bEntry(name); return !!(e && e.optionIndicators === 'valid'); }
   /** Keywords that must be on the same record as `name` (copy; [] if none). */
   function recordRequires(name) { return i121bList(name, 'requiresOnRecord'); }
+  /** Task I-148 - the three I-121b keywords whose record-level requires / excludes
+   *  the record guard enforces: INZINP (PUTOVR, OVERLAY, ERASEINP(*ALL)), GETRETAIN
+   *  (a bare UNLOCK) and RTNDTA (not with UNLOCK). RETKEY / RETCMDKEY also carry
+   *  `excludesOnRecord` facts but span the file level too - they are I-149. */
+  var I148_KEYWORDS = ['INZINP', 'GETRETAIN', 'RTNDTA'];
+  function initRetainReturnRelationKeywords() { return I148_KEYWORDS.slice(); }
   /** The one keyword `name` needs WITHOUT parameters (GETRETAIN -> UNLOCK), or null. */
   function requiresBareKeyword(name) { var e = i121bEntry(name); return (e && e.requiresBareKeyword) || null; }
   /** Keywords refused on the same record as `name` (copy; [] if none). */
@@ -4726,6 +4732,7 @@
     initRetainReturnKeywords: initRetainReturnKeywords,
     takesNoParameters: takesNoParameters,
     optionIndicatorsAllowed: optionIndicatorsAllowed,
+    initRetainReturnRelationKeywords: initRetainReturnRelationKeywords,
     recordRequires: recordRequires,
     requiresBareKeyword: requiresBareKeyword,
     recordExcludes: recordExcludes,

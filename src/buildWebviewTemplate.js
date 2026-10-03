@@ -6308,7 +6308,9 @@ const htmlTemplate = `<!DOCTYPE html>
   // SFLFOLD is refused when SFLSIZ equals SFLPAG, SFLDROP and SFLFOLD share one
   // key. Task I-151: ERASE / ERASEINP / MDTOFF / PROTECT need OVERLAY, PUTOVR
   // is not with PUTRETAIN, ERASE names at most 20 record formats, CSRLOC and
-  // FRCDTA once per record format. Task I-147: the other five subfile-control
+  // FRCDTA once per record format. Task I-148: GETRETAIN needs a bare UNLOCK,
+  // RTNDTA is not with UNLOCK, INZINP needs PUTOVR / OVERLAY / ERASEINP(*ALL).
+  // Task I-147: the other five subfile-control
   // keywords also need an SFLCTL, and SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ take
   // no display size names. Returns true
   // (after alerting) when the edit would break one - whether by adding the
@@ -6321,6 +6323,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.subfileKeywordNewConflictReason(model, candidate) ||
       DspfWriter.subfileFoldDropNewConflictReason(model, candidate) ||
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
+      DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
       DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||
       DspfWriter.systemValueKeywordNewConflictReason(model, candidate);

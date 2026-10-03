@@ -5566,6 +5566,64 @@
     return firstNewViolation(retKeyViolations(oldModel), after);
   }
 
+  /** Task I-148 - the initialize / retain / return relations the I-121b slice
+   *  found unenforced, read from KeywordSpec (recordRequires,
+   *  requiresBareKeyword, recordExcludes - nothing hand-copied here):
+   *   GETRETAIN  needs UNLOCK with no parameters on the record (UNLOCK(any
+   *              parameter) makes the system ignore GETRETAIN and issue an error)
+   *   RTNDTA     cannot be with UNLOCK
+   *   INZINP     needs PUTOVR, OVERLAY and ERASEINP(*ALL) on the record
+   *  A requirement written NAME(param) is met only by an instance of NAME whose
+   *  parameter list is exactly that value; a plain NAME by any instance.
+   *  Violations are keyed by record, so firstNewViolation reports only what an
+   *  edit adds, in either direction - adding the dependent keyword, or removing
+   *  or changing what it needs - and an already-invalid hand-written file never
+   *  blocks an unrelated edit. */
+  function initRetainReturnViolations(model) {
+    var out = {};
+    var names = KeywordSpec.initRetainReturnRelationKeywords();
+    var article = function (w) { return /^[AEIOU]/i.test(w) ? 'an' : 'a'; };
+    var paramOf = function (k) { return String(k.parameters == null ? '' : k.parameters).trim().toUpperCase(); };
+    ((model && model.records) || []).forEach(function (r) {
+      var kws = r.keywords || [];
+      names.forEach(function (n) {
+        if (!hasKeywordNamed(kws, n)) return;
+        var bare = KeywordSpec.requiresBareKeyword(n);
+        KeywordSpec.recordRequires(n).forEach(function (req) {
+          var m = /^([A-Z0-9]+)\(([^)]*)\)$/.exec(req);
+          var needName = m ? m[1] : req;
+          var needParam = m ? m[2].trim().toUpperCase() : (bare === req ? '' : null);
+          var met = instancesOf(kws, needName).some(function (k) { return needParam === null || paramOf(k) === needParam; });
+          if (met) return;
+          var label = m ? req : needName;
+          if (needParam === '' && hasKeywordNamed(kws, needName)) {
+            out[r.name + '|' + n + '|REQ|' + req] = n + ' on record format ' + r.name + ' requires ' + needName +
+              ' with no parameters, but ' + needName + ' is specified with ' + instancesOf(kws, needName).map(function (k) { return '(' + paramOf(k) + ')'; }).join(' / ') +
+              ' (per the DDS Reference).';
+          } else if (needParam === '') {
+            out[r.name + '|' + n + '|REQ|' + req] = n + ' cannot be specified on record format ' + r.name +
+              ' without ' + needName + ' (with no parameters) on the same record format (per the DDS Reference).';
+          } else {
+            out[r.name + '|' + n + '|REQ|' + req] = n + ' cannot be specified on record format ' + r.name +
+              ' without ' + article(label) + ' ' + label + ' keyword on the same record format (per the DDS Reference).';
+          }
+        });
+        KeywordSpec.recordExcludes(n).forEach(function (other) {
+          if (hasKeywordNamed(kws, other)) {
+            out[r.name + '|' + n + '|EXC|' + other] = n + ' and ' + other + ' cannot be specified on the same record format (' +
+              r.name + ') (per the DDS Reference).';
+          }
+        });
+      });
+    });
+    return out;
+  }
+  function initRetainReturnNewConflictReason(oldModel, newModel) {
+    var after = initRetainReturnViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(initRetainReturnViolations(oldModel), after);
+  }
+
   function subfileKeywordNewConflictReason(oldModel, newModel) {
     var after = subfileKeywordViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -10177,6 +10235,7 @@
     retKeyViolations: retKeyViolations,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
     outputControlNewConflictReason: outputControlNewConflictReason,
+    initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
     subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,
     subfileFoldDropViolations: subfileFoldDropViolations,
     subfileKeywordViolations: subfileKeywordViolations,

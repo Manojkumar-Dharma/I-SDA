@@ -210,7 +210,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Done | v0.10.297 |
 | [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Done | v0.10.298 |
 | [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Done v0.10.300 (SFLCTL requirement, display size names and SFLEND grammar refused; companions and indicators noted) | v0.10.300 |
-| [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Claimed (in progress) | — |
+| [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Done | v0.10.303 |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Done | v0.10.302 |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
@@ -241,7 +241,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 7 | [I-145](#i-145) | Done v0.10.297 | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
 | 8 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
 | 9 | [I-147](#i-147) | Done v0.10.300 | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
-| 10 | [I-148](#i-148) | Not started | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
+| 10 | [I-148](#i-148) | Done v0.10.303 | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
 | 11 | [I-149](#i-149) | Done v0.10.302 | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
 | 12 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
 | 13 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
@@ -6967,11 +6967,23 @@ Full suite: 248 files, 13,865 checks; the one failure was `i121dSubfileModeEntry
 
 ### I-148 — `GETRETAIN` / `UNLOCK` / `RTNDTA` / `INZINP` requirements are not enforced
 
-> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-121b
+> **Area:** Record · **Status:** Done (v0.10.303) · **Depends on:** I-121b
 
 Raised by the I-121b slice (record-level keywords). `GETRETAIN` is accepted without `UNLOCK` (and with `UNLOCK(*ERASE)` etc.): its section requires `UNLOCK` without parameters. `RTNDTA` and `UNLOCK` are accepted together on one record. `INZINP` is accepted without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`. No guard exists for any of the three; the facts are in `keywordSpec.js` (`recordRequires`, `requiresBareKeyword`, `recordExcludes`).
 
-To do: add a spec-driven record-level "requires" / "excludes" check (the I-140 shape: refuse only violations the edit adds) covering the three cases, and test both the refusals and the accepted paths.
+**Fix (v0.10.303).** `DspfWriter.initRetainReturnNewConflictReason(oldModel, newModel)` finds, per record, every violation of three rules and reports only one the edit adds (the I-140 / I-151 diff shape), so an already-invalid hand-written file never blocks an unrelated edit. It reads `KeywordSpec.recordRequires`, `requiresBareKeyword` and `recordExcludes` for `INZINP`, `GETRETAIN` and `RTNDTA` (new `initRetainReturnRelationKeywords()` names the three), so nothing is copied:
+
+- `GETRETAIN` needs `UNLOCK` with no parameters on the record: refused with no `UNLOCK`, and with only `UNLOCK(*ERASE)` / `UNLOCK(*MDTOFF)` / both (the DDS Reference says `GETRETAIN` is ignored and an error results with `UNLOCK(any parameter)`). A bare `UNLOCK` beside a parameterised one satisfies it, and an option indicator on the `UNLOCK` still counts.
+- `RTNDTA` and `UNLOCK` cannot share a record, in either direction, whatever `UNLOCK`'s parameters.
+- `INZINP` needs `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`: a requirement written `NAME(param)` is met only by an instance of `NAME` with exactly that parameter list, so a plain `ERASEINP` or `ERASEINP(*MDTON)` does not count (a second `ERASEINP(*ALL)` beside it does).
+
+All three are refused both when the keyword is added and when what it needs is removed or changed (for example `UNLOCK` -> `UNLOCK(*ERASE)` while `GETRETAIN` stays). The guard is hooked into the webview's `windowDependencyGuardBlocks` edit choke point (alert, re-render, nothing written), so the raw keyword editor and the General rows both pass through it.
+
+**Scope.** `RETKEY` / `RETCMDKEY` also carry `excludesOnRecord` facts in the I-121b entries, but they span the file level too and were I-149 (done in v0.10.302, `retKeyNewConflictReason`), so this guard takes only the three I-148 keywords.
+
+New `src/test/i148InitRetainReturnRelations.test.js` (52 checks): each fact against the reference text, each rule accepted and refused (both directions, parameterised `UNLOCK`, `ERASEINP` without `*ALL`, an indicator on `UNLOCK`, an already-invalid file, a second new violation, fail-safe on odd models), `RETKEY` / `RETCMDKEY` left to I-149, and the real webview in jsdom (raw-add refused and accepted, remove `UNLOCK` while `GETRETAIN` stays, remove `ERASEINP` while `INZINP` stays).
+
+**One older test adapted, not the guard.** `i44UsrdfnRecordLevelAudit` ticks the General-tab keywords one after another on a single record, so it added `GETRETAIN` without `UNLOCK` and `INZINP` before `PUTOVR` / `OVERLAY` / `ERASEINP(*ALL)`, which the new rules correctly refuse. It now ticks `UNLOCK` first and turns `GETRETAIN` then `UNLOCK` back off, and ticks `INZINP` after the three it needs; what it asserts about each keyword is unchanged. Full suite: 249 files, 13,919 checks, 0 failures.
 
 ---
 

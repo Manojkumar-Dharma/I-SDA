@@ -153,9 +153,9 @@ setTimeout(() => {
     { suffix: 'logout', name: 'LOGOUT' },
     { suffix: 'dspmod', name: 'DSPMOD', hasParams: true, paramValue: '*DS4' },
     { suffix: 'loginp', name: 'LOGINP' },
-    { suffix: 'getretain', name: 'GETRETAIN' },
+    // Task I-148: GETRETAIN needs a bare UNLOCK on the record (and RTNDTA is refused beside UNLOCK), so this cumulative walk ticks UNLOCK first, then turns GETRETAIN and UNLOCK back off (UNLOCK cannot be removed while GETRETAIN stays).
+    { suffix: 'getretain', name: 'GETRETAIN', needs: ['unlock'], thenOff: true, releases: ['unlock'] },
     { suffix: 'retlcksts', name: 'RETLCKSTS' }, // I-50 fixed the hasParams bug this file used to assert against
-    { suffix: 'inzinp', name: 'INZINP' },
     { suffix: 'alarm', name: 'ALARM' },
     { suffix: 'alwgph', name: 'ALWGPH' },
     { suffix: 'frcdta', name: 'FRCDTA' },
@@ -171,6 +171,8 @@ setTimeout(() => {
     { suffix: 'ovratr', name: 'OVRATR' },
     { suffix: 'mdtoff', name: 'MDTOFF', hasParams: true, paramValue: '*ALL' },
     { suffix: 'eraseinp', name: 'ERASEINP', hasParams: true, paramValue: '*ALL' },
+    // Task I-148: INZINP needs PUTOVR, OVERLAY and ERASEINP(*ALL) on the record, so it is ticked after all three.
+    { suffix: 'inzinp', name: 'INZINP' },
     { suffix: 'erase', name: 'ERASE' },
   ];
 
@@ -193,6 +195,12 @@ setTimeout(() => {
       check('setup: ' + kw.name + ' params box is present on PLAINREC', !!paramsEl);
       if (paramsEl) paramsEl.value = kw.paramValue;
     }
+    (kw.needs || []).forEach(function (sfx) {
+      const need = doc.getElementById(pP + '-' + sfx + '-on');
+      check('setup: ' + sfx.toUpperCase() + ' (needed by ' + kw.name + ') checkbox is present on PLAINREC', !!need);
+      need.checked = true;
+      need.dispatchEvent(new Event('change', { bubbles: true }));
+    });
     posted.length = 0;
     box.checked = true;
     box.dispatchEvent(new Event('change', { bubbles: true }));
@@ -208,6 +216,11 @@ setTimeout(() => {
       box.checked = false;
       box.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    (kw.releases || []).forEach(function (sfx) {
+      const rel = doc.getElementById(pP + '-' + sfx + '-on');
+      rel.checked = false;
+      rel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   });
 
   // CSRLOC: two-field row (row/col), not a checkbox - same idiom as
