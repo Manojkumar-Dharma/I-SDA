@@ -215,7 +215,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Claimed (in progress) | — |
-| [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
+| [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Claimed (in progress) | — |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
@@ -7066,7 +7066,7 @@ Raised by the I-121e slice; opened as a task with a probe. **Window, menu-bar, h
 
 ### I-153 — `MSGCON` message ID and message file parameters are not validated
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-143
+> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-143
 
 Follow-up to I-143, which enforced `MSGCON`'s three stated rules (constant fields only, the exclusion list, length 1-132) and left the other two parameters unchecked: `MSGCON(length message-ID [library-name/]message-file-name)`. Today any token is accepted as the message ID and as the file, so `MSGCON(20 X Y)` is written and an incomplete form falls through `parseMsgConParams` as an unstructured raw edit. To do: (1) read `DDS_Keyword_V7r6.txt` ~line 8922 and the message-description and object-name rules it points to for what IBM states about the message ID (the `MSGID` section gives a 7-character form) and about the file and library names; **if the reference does not state a rule, do not invent one** - record an open question (the ground-truth rule of this series); (2) put whatever is stated into the `RECORD_TYPES.MSGCON.msgconParameters` entry (it holds only the length range today); (3) enforce it at the same three places I-143 used (add-time, `commitEdit` backstop, the constant Add form) with the same diff-based posture; (4) decide what a bare `MSGCON` or a two-token one means - the panel drops an incomplete `MSGCON`, the raw editor accepts it. Size (estimate): Small.
 
