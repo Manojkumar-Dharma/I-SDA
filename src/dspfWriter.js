@@ -5370,6 +5370,29 @@
             }
           });
         });
+        // Task I-155: "There can be only two predefined fields" - the message
+        // identifier (SFLMSGKEY) FIRST, the program queue name (SFLPGMQ) SECOND
+        // and immediately following. Positions and keywords are the spec's
+        // predefinedFields facts. Fewer than two fields is not refused (a
+        // message subfile is built field by field); a third field, a
+        // predefined keyword in the wrong place, or a first / second field
+        // without its keyword is.
+        var mfields = r.fields || [];
+        var pfs = KeywordSpec.messageSubfileFacts().predefinedFields;
+        if (mfields.length > pfs.length) {
+          out[r.name + '|MSGFIELDS|COUNT'] = 'A message subfile (record format ' + r.name + ') can have only ' + pfs.length + ' predefined fields: the message identifier (' + pfs[0].requires + ') first and the program queue name (' + pfs[1].requires + ') second (per the DDS Reference).';
+        }
+        pfs.forEach(function (pf) {
+          mfields.forEach(function (f, idx) {
+            if (hasKeywordNamed(f.keywords, pf.requires) && idx !== pf.position - 1) {
+              out[r.name + '|MSGFIELDS|POS|' + pf.requires] = pf.requires + ' must be on the ' + (pf.position === 1 ? 'first' : 'second') + ' field of a message subfile, but field ' + String(f.name).toUpperCase() + ' is field ' + (idx + 1) + ' of record format ' + r.name + ' (per the DDS Reference).';
+            }
+          });
+          var at = mfields[pf.position - 1];
+          if (at && !hasKeywordNamed(at.keywords, pf.requires)) {
+            out[r.name + '|MSGFIELDS|MISSING|' + pf.requires] = 'The ' + (pf.position === 1 ? 'first' : 'second') + ' field of a message subfile (' + String(at.name).toUpperCase() + ' in record format ' + r.name + ') must be the ' + pf.purpose + ' and carry ' + pf.requires + ' (per the DDS Reference).';
+          }
+        });
       }
     });
     return out;

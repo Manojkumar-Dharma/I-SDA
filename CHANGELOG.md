@@ -14,6 +14,7 @@ citations and tests live in the task's section of
 
 - Docs (no version): README rewritten; this changelog condensed to one line per version; I-121 split into independent slices I-121a – I-121t in `keywordFixes.md`.
 - Docs (no version): the two deferred findings (I-121a, I-121e) and the `MSGCON` parameter follow-up opened as tasks I-151 – I-153, with probe results; Open work now lists I-145 – I-153.
+- **0.10.307** — I-155: a message subfile is refused with a third field, `SFLMSGKEY` off the first field, `SFLPGMQ` off the second, or a first / second field missing its keyword; the `SFLMSGRCD` field-name form is kept
 - **0.10.306** — I-150: `BLANKS` / `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` usage, data type, subfile, width, target-field and `SNGCHCFLD`/`MLTCHCFLD` rules enforced; the General-tab rows are offered only where the DDS Reference allows them
 - **0.10.305** — I-121f *(refactor)*: `IGCCNV`, `DSPRL`, `DSPSIZ`, `ERRSFL`, `INDARA`, `MSGLOC`, `OPENPRT` and `REF` each get a `RECORD_TYPES` entry read from the DDS Reference; the file panel's Conditioning toggles on `INDARA`, `DSPRL`, `ERRSFL`, `OPENPRT` and `IGCCNV` now follow those entries. One real fix: `IGCCNV` ("option indicators are not allowed") was missing from the no-option-indicator table, so a raw-added indicator on it was accepted.
 - **0.10.304** — I-157: `SFLDROP`, `SFLENTER`, `SFLFOLD`, `SFLMODE` and `SFLRNA` are refused on a record with no `SFLCTL` (when added and when `SFLCTL` is removed), closing the finding I-147 deferred; `SFLMSGRCD` is on the subfile record and stays out.

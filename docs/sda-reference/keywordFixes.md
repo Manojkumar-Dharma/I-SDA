@@ -217,7 +217,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Claimed (in progress) | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Claimed (in progress) | — |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
-| [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
+| [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Done | v0.10.307 |
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 
@@ -6933,11 +6933,17 @@ Tests: new `src/test/i145SubfileMessageKeywordRules.test.js` (every refusal, eve
 
 ### I-155 — Subfile keyword relations I-145 left alone
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-145
+> **Area:** Record · **Status:** Done (v0.10.307) · **Depends on:** I-145
 
 Raised by I-145. (1) The reference says `SFLRNA`, `SFLINZ`, `SFLDROP`, `SFLFOLD` (and `SFLLIN`, `SFLRCDNBR`, `SFLROLVAL` on the control record) are not valid when the subfile record "contains field selection"; the parsed model has no marker for a record that uses field selection, so none of those cases are checked. Decide what the marker is (a field with option-indicator-conditioned output? the `SFLCHCCTL` family?) from the reference before guarding. **Settled by I-146 (v0.10.298):** the marker is a field of the subfile record with an option indicator on its own entry; the `SFLRNA` / `SFLINZ` / `SFLDROP` / `SFLFOLD` / `SFLROLVAL` / `SFLLIN` / `SFLRCDNBR` cases are guarded there. (2) The message subfile may hold only two predefined fields, `SFLMSGKEY` first and `SFLPGMQ` second, immediately following; neither the count nor the order is checked. (3) `SFLMSGRCD` accepts a field name in the Message Record panel (and now in the writer) although the reference shows only a line number; decide whether that is a deliberate extension or a bug.
 
 To do: probe each case in the raw keyword editor, then guard with the I-145 helper where the rule is unambiguous.
+
+**Result (v0.10.307).** (1) was settled by I-146, as noted above. (2) is now enforced, in the I-145 guard (`subfileKeywordNewConflictReason`, diff-based, same wiring): a message subfile (a record with `SFL` and `SFLMSGRCD`) is refused with a third field ("only 2 predefined fields"), with `SFLMSGKEY` anywhere but the first field, with `SFLPGMQ` anywhere but the second, and with a first or second field that lacks its keyword. Positions and keywords are read from the I-121d `predefinedFields` facts. Fewer than two fields is deliberately **not** refused, because a message subfile is built field by field (the Add message subfile dialog writes the pair in one edit, and it passes the guard unchanged); the section's "required" wording for the pair is therefore still not enforced when a field is simply missing.
+
+(3) is a decision, not a change: `SFLMSGRCD`'s field-name form stays. The Message Record panel has offered "1-27, or a field name" since the original R5 picker (`wireSflMsgPanels`), a test pins it (`dspfWebview.test.js`, "SFLMSGRCD accepts a field name"), and the reference's single `SFLMSGRCD(line-number)` format neither shows nor forbids a program-to-system field there. The I-145 guard checks a numeric line number against the display and leaves the field form alone. If a future audit of real SDA's own Define Message Record screen shows the field form is not accepted there, tightening it is a one-line change in that guard.
+
+Tests: new `src/test/i155MessageSubfileFieldOrder.test.js` (accepted pairs and partial builds, third field, wrong order, wrong keyword placement, unrelated first / second fields, already-wrong hand-written subfiles and renames not re-reported; fails without the guard).
 
 ---
 
