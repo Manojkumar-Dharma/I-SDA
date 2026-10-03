@@ -2305,7 +2305,9 @@
     // MSGCON may be conditioned (its note is kept as text, not a rule).
     // The shared value-source list (DATE, TIME, USER, SYSNAME) is the
     // SYSTEM_VALUE_CONSTANT_KEYWORDS fact (v0.10.280), asked via
-    // systemValueConstantKeywords(). Task I-144 enforces constant-only, no
+    // systemValueConstantKeywords(). Task I-143 enforces MSGCON's three rules
+    // (named field, exclusion list, length 1-132: DspfWriter.msgconConflictReason
+    // and msgconNewConflictReason). Task I-144 enforces constant-only, no
     // parameters and DATE's parameter grammar
     // (DspfWriter.systemValueKeywordNewConflictReason) and uses the display
     // widths (systemValueConstantWidth); the companion-keyword lists below

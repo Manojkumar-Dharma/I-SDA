@@ -2534,6 +2534,119 @@
     return added.length ? msgidExclusionReverseReason(added) : null;
   }
 
+  /** Task I-143 - MSGCON's own DDS Reference section (~line 8922) states
+   *  three rules the writer did not enforce:
+   *   1. "The MSGCON keyword cannot be used to initialize a named field" -
+   *      it belongs on a constant field only (the spec's constantFieldOnly
+   *      fact on RECORD_TYPES.MSGCON).
+   *   2. "The MSGCON keyword cannot be specified with any of the following
+   *      keywords: DATE, DFT, EDTCDE, EDTWRD, TIME" - a bidirectional
+   *      exclusion on the same field, the list being RECORD_TYPES.MSGCON.mutex
+   *      (the same shape as I-91's MSGID exclusion). The same section adds
+   *      that DFT and MSGCON together make the file not be created, which
+   *      the DFT entry of that list already covers.
+   *   3. "The length can be from 1 to 132 bytes" - KeywordSpec.msgconLengthRange().
+   *  A blank parameter text, or a blank length, is "not yet set" and is not
+   *  reported here (the panels drop an incomplete MSGCON; a bare raw-added
+   *  one has always been accepted - its completeness is a separate rule). */
+  function msgconCount(keywords) {
+    return (keywords || []).filter(function (k) { return k && k.name === 'MSGCON'; }).length;
+  }
+  function msgconHasMsgcon(keywords) { return msgconCount(keywords) > 0; }
+  function msgconExcludedHits(keywords) {
+    var hits = [];
+    (keywords || []).forEach(function (k) {
+      if (k && KeywordSpec.isMutex('MSGCON', k.name)) hits.push(k.name);
+    });
+    return hits;
+  }
+  function msgconExclusionForwardReason(hits) {
+    return 'MSGCON cannot be specified on a field with ' + hits.join(', ') + ' (per the DDS Reference).';
+  }
+  function msgconExclusionReverseReason(hits) {
+    return hits.join(', ') + ' cannot be specified on a field that already has MSGCON (per the DDS Reference).';
+  }
+  /** Rule 1 - a reason when `nameType` is anything but a constant field.
+   *  An unknown or blank name type is not reported (fail-open). */
+  function msgconNamedFieldReason(nameType) {
+    if (!KeywordSpec.isConstantFieldOnlyKeyword('MSGCON')) return null;
+    var t = String(nameType == null ? '' : nameType).trim().toUpperCase();
+    if (t === '' || t === 'CONSTANT') return null;
+    return 'MSGCON cannot be used to initialize a named field - it applies to constant fields only (per the DDS Reference).';
+  }
+  /** Rule 3 for one length token / box value. Blank is "not set" (null). */
+  function msgconLengthProblem(lengthText) {
+    var t = String(lengthText == null ? '' : lengthText).trim();
+    if (t === '') return null;
+    var range = KeywordSpec.msgconLengthRange();
+    var n = /^[0-9]+$/.test(t) ? parseInt(t, 10) : NaN;
+    if (isNaN(n) || n < range.min || n > range.max) {
+      return 'MSGCON\'s length must be a whole number from ' + range.min + ' to ' + range.max + ' bytes (per the DDS Reference).';
+    }
+    return null;
+  }
+  /** Rule 3 for a whole MSGCON parameter text: checks its first token. */
+  function msgconParamsProblem(paramText) {
+    var tokens = String(paramText == null ? '' : paramText).trim().split(/\s+/).filter(Boolean);
+    return tokens.length ? msgconLengthProblem(tokens[0]) : null;
+  }
+
+  /** Add-time check, all three rules, for one keyword being added (the raw
+   *  editor's "+ Add keyword", or ticked as a General row): MSGCON onto a
+   *  named field, onto a field that carries one of its excluded keywords, or
+   *  with a length outside 1-132; or one of the excluded keywords onto a
+   *  field that already carries MSGCON. `fieldContext` is { nameType }.
+   *  Returns a reason string, or null. A no-op for every other keyword. */
+  function msgconConflictReason(keywordName, paramText, fieldKeywords, fieldContext) {
+    var name = String(keywordName || '').toUpperCase();
+    if (name === 'MSGCON') {
+      var named = msgconNamedFieldReason((fieldContext || {}).nameType);
+      if (named) return named;
+      var hits = msgconExcludedHits(fieldKeywords);
+      if (hits.length) return msgconExclusionForwardReason(hits);
+      return msgconParamsProblem(paramText);
+    }
+    if (!KeywordSpec.isMutex('MSGCON', name)) return null;
+    return msgconHasMsgcon(fieldKeywords) ? msgconExclusionReverseReason([name]) : null;
+  }
+
+  /** Diff-based backstop for the commitEdit choke point (every field panel,
+   *  the raw editor and the remove buttons commit through it). Blocks an
+   *  edit that CREATES a problem: MSGCON newly on a named field; an excluded
+   *  keyword newly beside MSGCON (or MSGCON newly beside one); a MSGCON whose
+   *  parameters changed to an out-of-range length. A problem already on the
+   *  field before the edit is not re-reported, and removing either keyword
+   *  is always allowed. */
+  function msgconNewConflictReason(oldKeywords, newKeywords, nameType) {
+    if (!msgconHasMsgcon(newKeywords)) return null;
+    if (msgconCount(newKeywords) > msgconCount(oldKeywords)) {
+      var named = msgconNamedFieldReason(nameType);
+      if (named) return named;
+    }
+    var nowHits = msgconExcludedHits(newKeywords);
+    if (!msgconHasMsgcon(oldKeywords)) {
+      if (nowHits.length) return msgconExclusionForwardReason(nowHits);
+    } else {
+      var before = msgconExcludedHits(oldKeywords);
+      var added = nowHits.filter(function (h) {
+        var i = before.indexOf(h);
+        if (i >= 0) { before.splice(i, 1); return false; }
+        return true;
+      });
+      if (added.length) return msgconExclusionReverseReason(added);
+    }
+    var oldParams = (oldKeywords || []).filter(function (k) { return k && k.name === 'MSGCON'; })
+      .map(function (k) { return String(k.parameters || '').trim(); });
+    var reason = null;
+    (newKeywords || []).forEach(function (k) {
+      if (reason || !k || k.name !== 'MSGCON') return;
+      var p = String(k.parameters || '').trim();
+      if (oldParams.indexOf(p) >= 0) return;
+      reason = msgconParamsProblem(p);
+    });
+    return reason;
+  }
+
   /** Task I-61 - the usage and data-type branches of
    *  wrdwrapFieldConflictReason, pulled out unchanged so the forward check
    *  (turning WRDWRAP on) and wrdwrapBasicEditConflictReason (changing the
@@ -9527,6 +9640,11 @@
     sflmsgkeyFieldNewConflictReason: sflmsgkeyFieldNewConflictReason,
     msgidExclusionConflictReason: msgidExclusionConflictReason,
     msgidExclusionNewConflictReason: msgidExclusionNewConflictReason,
+    msgconConflictReason: msgconConflictReason,
+    msgconNewConflictReason: msgconNewConflictReason,
+    msgconLengthProblem: msgconLengthProblem,
+    msgconParamsProblem: msgconParamsProblem,
+    msgconNamedFieldReason: msgconNamedFieldReason,
     msgidRecordIsSubfile: msgidRecordIsSubfile,
     msgidSflRecordReason: msgidSflRecordReason,
     msgidSflNewConflictReason: msgidSflNewConflictReason,

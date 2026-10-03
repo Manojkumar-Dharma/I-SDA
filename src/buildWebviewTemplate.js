@@ -4916,7 +4916,7 @@ const htmlTemplate = `<!DOCTYPE html>
         vscode.postMessage({ type: 'resolveReferencedField', recordName: ownerRecordName, fieldSourceLine: field.sourceLine });
       });
     }
-    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.edtmskConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.messageIdMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
+    WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.edtmskConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.msgconConflictReason(name, params, field.keywords, { nameType: field.nameType }) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.messageIdMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
     // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
@@ -4939,7 +4939,7 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType);
     }
     // Task I-83: HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to these rows too.
-    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords), field.decimalPositions);
+    WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.msgconConflictReason(name, '', field.keywords, { nameType: field.nameType }), field.decimalPositions);
     if (!isConstant && catVis.inputKeywords) {
       WebviewClientHelpers.wireEntFldAtrEditor(() => field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
@@ -5487,6 +5487,8 @@ const htmlTemplate = `<!DOCTYPE html>
             library: document.getElementById('p-place-msgcon-library').value,
           });
           if (!msgConParams) { errorEl.textContent = 'Enter the message length, message ID, and message file.'; return; }
+          const msgConLengthProblem = DspfWriter.msgconLengthProblem(document.getElementById('p-place-msgcon-length').value);
+          if (msgConLengthProblem) { errorEl.textContent = msgConLengthProblem; return; }
           newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: 'MSGCON', parameters: msgConParams, conditions: [], sourceLines: [] }], location: { line: line, column: column } };
         } else if (constKind === 'html') {
           // Task I-41 - a brand-new constant can't yet carry any of
@@ -6950,6 +6952,15 @@ const htmlTemplate = `<!DOCTYPE html>
       const msgidExclusionReason = DspfWriter.msgidExclusionNewConflictReason(field.keywords, updates.keywords);
       if (msgidExclusionReason) {
         window.alert(msgidExclusionReason);
+        render();
+        return;
+      }
+      // Task I-143: same choke point again, for MSGCON's own three rules - not
+      // on a named field, not beside DATE / DFT / EDTCDE / EDTWRD / TIME (both
+      // directions), and a length of 1 to 132.
+      const msgconReason = DspfWriter.msgconNewConflictReason(field.keywords, updates.keywords, field.nameType);
+      if (msgconReason) {
+        window.alert(msgconReason);
         render();
         return;
       }

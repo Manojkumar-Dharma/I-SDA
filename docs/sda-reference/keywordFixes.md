@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-147 of 164 tasks done; 17 open (see [Open work](#open-work)). Current version: **v0.10.292**.
+151 of 170 tasks done; 19 open (see [Open work](#open-work)). Current version: **v0.10.296**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -205,7 +205,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-140](#i-140) | Record | `RMVWDW` / `USRRSTDSP` are accepted by the raw keyword editor on a record that has no `WINDOW` keyword, and stay after `WINDOW` is removed; IBM requires `WINDOW` on the same record | I-122 | Done | v0.10.276 |
 | [I-141](#i-141) | Record | `SFLDLT` is written with no option indicator (IBM: option indicators are required, display size condition names not valid); `SFLDLT` / `SFLINZ` / `SFLCSRRRN` are accepted by the raw editor on records that are not a subfile-control record | I-122 | Done | v0.10.281 |
 | [I-142](#i-142) | Record | `SFLCSRRRN` is written as a bare keyword when its field box is empty, and as `SFLCSRRRN(RELRCD)` when the `&` is left off; IBM's form is `SFLCSRRRN(&relative-record)` | I-122 | Done | v0.10.282 |
-| [I-143](#i-143) | Field | `MSGCON` rules from its DDS section are not enforced: the DATE/DFT/EDTCDE/EDTWRD/TIME exclusion, constant-only, and the 1-132 length | I-121m | Claimed (in progress) | — |
+| [I-143](#i-143) | Field | `MSGCON` rules from its DDS section are not enforced: the DATE/DFT/EDTCDE/EDTWRD/TIME exclusion, constant-only, and the 1-132 length | I-121m | Done | v0.10.296 |
 | [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Done | v0.10.293 |
 | [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Not started | — |
 | [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Not started | — |
@@ -226,7 +226,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-143](#i-143) | Not started | `MSGCON` rules not enforced - found by I-121m. Real bug, proven fix shape (the MSGCON entry already holds the facts). |
+| 1 | [I-143](#i-143) | Done v0.10.296 | `MSGCON` rules enforced (named field, exclusion list, length 1-132). |
 | 2 | [I-144](#i-144) | Not started | DATE/TIME/USER/SYSNAME rules not enforced and one-column preview - found by I-121m. |
 | 3 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
 | 4 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
@@ -6827,9 +6827,22 @@ New `src/test/i142SflcsrrrnParameter.test.js` (50 checks, including the auto-`&`
 
 ### I-143 — `MSGCON` rules from its DDS section are not enforced
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121m
+> **Area:** Field · **Status:** Done (v0.10.296) · **Depends on:** I-121m
 
 Found by the I-121m probe (raw keyword editor on a constant and on a named field; every case below was **allowed** and wrote an edit). The `MSGCON` section of `DDS_Keyword_V7r6.txt` (~line 8922) says: (1) it "cannot be used to initialize a named field"; (2) it "cannot be specified with any of the following keywords: DATE, DFT, EDTCDE, EDTWRD, TIME"; (3) the length "can be from 1 to 132 bytes". Probe results: `MSGCON` added to a named field - allowed; `DFT`, `DATE`, `TIME`, `EDTCDE`, `EDTWRD` added to a `MSGCON` constant - all allowed; `MSGCON` added to a `DATE` constant - allowed; `MSGCON(0 ...)` and `MSGCON(500 ...)` - allowed through the raw editor (the panel inputs carry `min`/`max` only as HTML attributes). The facts are in `RECORD_TYPES.MSGCON` (`constantFieldOnly`, `mutex`, `msgconParameters`) since I-121m; this task adds the guards, in both directions for the exclusion, and covers the panel, the raw editor and a Basic-tab change, as I-130 – I-140 did. The section also says that with both `DFT` and `MSGCON` on a field the file is not created, which the exclusion list already covers.
+
+
+**Fix (v0.10.296).** Three rules from the `MSGCON` section of the DDS Reference, enforced from the spec facts I-121m added (`constantFieldOnly`, `mutex`, `msgconParameters`):
+
+1. **Constant fields only.** "cannot be used to initialize a named field": `MSGCON` is refused on a field whose name type is not `CONSTANT` (`DspfWriter.msgconNamedFieldReason`). An unknown or blank name type is not reported.
+2. **Exclusion list, both directions.** `DATE`, `DFT`, `EDTCDE`, `EDTWRD`, `TIME`: adding `MSGCON` beside one, or one of them beside `MSGCON`, is refused with the I-91 wording shape. The same section's "DFT and MSGCON together: the file is not created" is covered by the `DFT` entry of that list.
+3. **Length 1 to 132**, from `KeywordSpec.msgconLengthRange()`; a non-numeric, negative, decimal, zero or over-range first token is refused (`msgconLengthProblem` / `msgconParamsProblem`). Blank is "not set" and stays quiet, as before.
+
+Wiring: `msgconConflictReason` (add-time; the raw keyword editor's "+ Add keyword" and the General rows), `msgconNewConflictReason` (diff-based backstop at the `commitEdit` choke point, so the constant panel's Apply, every other panel and the remove buttons are covered), and a length check in the constant Add form. Diff-based means a hand-written invalid field is not re-reported on an unrelated edit, removing either keyword is always allowed, and fixing a bad length is allowed; a second excluded keyword added beside an already-invalid pair *is* reported.
+
+Not changed: `MSGCON`'s message ID and file parameters (7-character ID, file name shape) are not validated; the reference's option-indicator note stays text only; no change to rendering.
+
+Tests: new `src/test/i143MsgconRules.test.js` (74 checks) - the writer functions (every excluded keyword both ways, boundaries 0/1/132/133, odd inputs, the diff cases above) and the real generated webview in jsdom (raw editor, constant panel Apply, constant Add form, pre-existing invalid fields). It fails against the previous source (the new writer functions do not exist). Mutation-checked: removing only the `commitEdit` clause fails the constant-panel Apply check. Removing only the raw editor's add-time clause fails nothing, because the `commitEdit` backstop refuses the same edit with the same message - the clause is there to refuse before the edit is built, as the sibling guards do.
 
 ---
 
