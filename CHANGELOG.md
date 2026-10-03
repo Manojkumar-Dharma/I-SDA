@@ -14,6 +14,7 @@ citations and tests live in the task's section of
 
 - Docs (no version): README rewritten; this changelog condensed to one line per version; I-121 split into independent slices I-121a – I-121t in `keywordFixes.md`.
 - Docs (no version): the two deferred findings (I-121a, I-121e) and the `MSGCON` parameter follow-up opened as tasks I-151 – I-153, with probe results; Open work now lists I-145 – I-153.
+- **0.10.298** — I-146: on a field-selection subfile (option indicators on subfile-record fields) the control record refuses SFLDROP, SFLFOLD, SFLINZ, SFLLIN, SFLRCDNBR, SFLRNA and SFLROLVAL; SFLFOLD is refused when SFLSIZ equals SFLPAG; SFLDROP and SFLFOLD must use the same key.
 - **0.10.297** — I-145: `SFLRNA` needs `SFLINZ` and is refused on a message subfile; `SFLINZ` on a message subfile needs `SFLPGMQ`; `SFLMODE`'s field and `SFLMSGRCD`'s line number and predefined fields are checked; the Subfile Control `SFLMODE` row adds the `&`
 - **0.10.296** — I-143: MSGCON refused on a named field and beside DATE/DFT/EDTCDE/EDTWRD/TIME (both directions); its length must be 1-132, in the raw editor, panels and Add form.
 - **0.10.295** — I-121e: the 11 window, menu-bar, help and logging record keywords (`WDWTITLE`, `RMVWDW`, `USRRSTDSP`, `MNUBARDSP`, `ALTNAME`, `HLPCLR`, `HLPCMDKEY`, `HLPSEQ`, `LOGINP`, `LOGOUT`, `SETOF`) moved into the keyword spec; their rows' Conditioning toggles and the `HLPSEQ` placeholder are read from it, and `WINDOW`'s required-keyword list is derived from `RMVWDW`/`USRRSTDSP`'s entries *(refactor)*

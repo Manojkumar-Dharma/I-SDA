@@ -442,7 +442,22 @@
       optionIndicators: 'notValid',
       displaySizeNames: 'valid',
       excludesWhenSizeEqualsPage: ['SFLDROP', 'SFLFOLD', 'SFLROLVAL'],
-      excludesWithFieldSelection: ['SFLDROP', 'SFLFOLD', 'SFLINZ', 'SFLLIN', 'SFLRCDNBR'],
+      // Task I-146 - the reference contradicts itself on this list: SFLPAG's
+      // section says these three are "not allowed" when SFLSIZ equals SFLPAG,
+      // but SFLDROP's note 2 and SFLROLVAL's section say they are IGNORED
+      // (only for the display sizes where the two are equal), and only
+      // SFLFOLD's note 2 states an error ("an error message (severity 20) is
+      // issued and SFLFOLD is ignored"). The guard refuses the stated error
+      // and leaves the "ignored" ones alone (a multi-size file may
+      // legitimately have them equal on one size).
+      sizeEqualsPageError: ['SFLFOLD'],
+      sizeEqualsPageIgnored: ['SFLDROP', 'SFLROLVAL'],
+      // The "Field selection" part of SFLPAG's section lists SEVEN keywords
+      // (SFLRNA "because SFLINZ is not valid", and SFLROLVAL); this entry
+      // held five. Field selection is defined there: "When subfile page
+      // equals subfile size, you can specify option indicators for fields in
+      // the subfile record format. This is called field selection."
+      excludesWithFieldSelection: ['SFLDROP', 'SFLFOLD', 'SFLINZ', 'SFLLIN', 'SFLRCDNBR', 'SFLRNA', 'SFLROLVAL'],
       ddsReference:
         'SFLPAG (~line 11845): \"You use this record-level keyword on the subfile-control record format to specify the ' +
         'number of records in the subfile to be displayed at the same time.\" \"This keyword is required for the ' +
@@ -4353,6 +4368,11 @@
   function excludedWhenSizeEqualsPage() { return RECORD_TYPES.SFLPAG.excludesWhenSizeEqualsPage.slice(); }
   /** Keywords SFLPAG refuses on the control record under field selection (copy). */
   function excludedWithFieldSelection() { return RECORD_TYPES.SFLPAG.excludesWithFieldSelection.slice(); }
+  /** Task I-146 - keywords whose own section states an ERROR (not "ignored")
+   *  when SFLSIZ equals SFLPAG: SFLFOLD (a copy). */
+  function sizeEqualsPageErrors() { return RECORD_TYPES.SFLPAG.sizeEqualsPageError.slice(); }
+  /** Task I-146 - keywords the reference says are only IGNORED then (a copy). */
+  function sizeEqualsPageIgnored() { return RECORD_TYPES.SFLPAG.sizeEqualsPageIgnored.slice(); }
   /** SFLEND's parameter grammar as data (copies). */
   function sflendGrammar() {
     var e = RECORD_TYPES.SFLEND;
@@ -4573,6 +4593,8 @@
     requiredOnSubfileControl: requiredOnSubfileControl,
     excludedWhenSizeEqualsPage: excludedWhenSizeEqualsPage,
     excludedWithFieldSelection: excludedWithFieldSelection,
+    sizeEqualsPageErrors: sizeEqualsPageErrors,
+    sizeEqualsPageIgnored: sizeEqualsPageIgnored,
     sflendGrammar: sflendGrammar,
     // ---- I-121b ----
     initRetainReturnKeywords: initRetainReturnKeywords,

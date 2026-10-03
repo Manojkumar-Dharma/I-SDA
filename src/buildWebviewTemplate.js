@@ -6303,7 +6303,10 @@ const htmlTemplate = `<!DOCTYPE html>
   // TIME / USER / SYSNAME / NOCCSID, DATE's parameters valid. Task I-145:
   // SFLRNA needs SFLINZ and is not for a message subfile, SFLINZ on a message
   // subfile needs SFLPGMQ, SFLMODE's field and SFLMSGRCD's line / predefined
-  // fields are valid. Returns true
+  // fields are valid. Task I-146: field selection excludes SFLDROP / SFLFOLD /
+  // SFLINZ / SFLLIN / SFLRCDNBR / SFLRNA / SFLROLVAL on the control record,
+  // SFLFOLD is refused when SFLSIZ equals SFLPAG, SFLDROP and SFLFOLD share one
+  // key. Returns true
   // (after alerting) when the edit would break one - whether by adding the
   // dependent keyword or by removing what it depends on.
   function windowDependencyGuardBlocks(newLines) {
@@ -6312,6 +6315,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const reason = DspfWriter.windowDependencyNewConflictReason(model, candidate) ||
       DspfWriter.sflctlDependencyNewConflictReason(model, candidate) ||
       DspfWriter.subfileKeywordNewConflictReason(model, candidate) ||
+      DspfWriter.subfileFoldDropNewConflictReason(model, candidate) ||
       DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||
       DspfWriter.systemValueKeywordNewConflictReason(model, candidate);
     if (!reason) return false;

@@ -5374,6 +5374,72 @@
     });
     return out;
   }
+  /** Task I-146 - three subfile-control rules the I-121c / I-121d slices
+   *  found unenforced, all from the DDS Reference and all as facts in
+   *  KeywordSpec (SFLPAG.excludesWithFieldSelection / sizeEqualsPageError,
+   *  SFLDROP / SFLFOLD pairedWith):
+   *  (1) field selection - "When subfile page equals subfile size, you can
+   *      specify option indicators for fields in the subfile record format.
+   *      This is called field selection." - makes SFLDROP, SFLFOLD, SFLINZ,
+   *      SFLLIN, SFLRCDNBR, SFLRNA and SFLROLVAL not valid on the
+   *      subfile-control record. The marker is a field of the subfile record
+   *      (the one SFLCTL names) with an option indicator on its own entry;
+   *      indicators on a field's keywords (DSPATR and so on) are not field
+   *      selection, and a constant is not a "field", so neither counts.
+   *  (2) SFLFOLD when SFLSIZ equals SFLPAG - its note 2 is the one place that
+   *      states an error ("severity 20"). SFLDROP and SFLROLVAL are only
+   *      "ignored" there and are not refused.
+   *  (3) SFLDROP and SFLFOLD on one record "must use the same key".
+   *  Violations are keyed by record, so firstNewViolation reports only what
+   *  an edit adds, in either direction (adding the keyword, or the indicator
+   *  that makes the subfile a field-selection one). */
+  function subfileFoldDropViolations(model) {
+    var out = {};
+    var fieldSelectionList = KeywordSpec.excludedWithFieldSelection();
+    var errorList = KeywordSpec.sizeEqualsPageErrors();
+    ((model && model.records) || []).forEach(function (r) {
+      var kws = r.keywords || [];
+      if (!hasKeywordNamed(kws, 'SFLCTL')) return;
+      var sub = subfileRecordOf(model, r);
+      var selectionField = sub && (sub.fields || []).filter(function (f) {
+        return f && f.nameType !== 'CONSTANT' && hasOptionIndicator(f.conditions);
+      })[0];
+      if (selectionField) {
+        fieldSelectionList.forEach(function (name) {
+          if (hasKeywordNamed(kws, name)) {
+            out[r.name + '|FLDSEL|' + name] = name + ' cannot be specified on subfile-control record format ' + r.name +
+              ': subfile record ' + sub.name + ' uses field selection (field ' + (selectionField.name || '') + ' has an option indicator) (per the DDS Reference).';
+          }
+        });
+      }
+      errorList.forEach(function (name) {
+        if (!hasKeywordNamed(kws, name)) return;
+        var eq = sflsizPagEqualPair(kws);
+        if (eq) {
+          out[r.name + '|SIZPAG|' + name] = name + ' cannot be specified when SFLSIZ equals SFLPAG (both ' + eq.value +
+            (eq.size ? ' for display size ' + eq.size : '') + ') - the system issues a severity-20 error (per the DDS Reference).';
+        }
+      });
+      var keys = {};
+      ['SFLDROP', 'SFLFOLD'].forEach(function (name) {
+        kws.forEach(function (k) {
+          if (k && k.name === name) keys[String(k.parameters == null ? '' : k.parameters).trim().toUpperCase()] = true;
+        });
+      });
+      var distinct = Object.keys(keys).filter(Boolean);
+      if (hasKeywordNamed(kws, 'SFLDROP') && hasKeywordNamed(kws, 'SFLFOLD') && distinct.length > 1) {
+        out[r.name + '|DROPFOLDKEY'] = 'SFLDROP and SFLFOLD on record format ' + r.name + ' must use the same key (found ' +
+          distinct.join(' and ') + ') (per the DDS Reference).';
+      }
+    });
+    return out;
+  }
+  function subfileFoldDropNewConflictReason(oldModel, newModel) {
+    var after = subfileFoldDropViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(subfileFoldDropViolations(oldModel), after);
+  }
+
   function subfileKeywordNewConflictReason(oldModel, newModel) {
     var after = subfileKeywordViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -9899,6 +9965,8 @@
     windowDependencyNewConflictReason: windowDependencyNewConflictReason,
     sflctlDependencyNewConflictReason: sflctlDependencyNewConflictReason,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
+    subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,
+    subfileFoldDropViolations: subfileFoldDropViolations,
     subfileKeywordViolations: subfileKeywordViolations,
     sflcsrrrnNewConflictReason: sflcsrrrnNewConflictReason,
     sflcsrrrnAddReason: sflcsrrrnAddReason,
