@@ -209,7 +209,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Done | v0.10.293 |
 | [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Done | v0.10.297 |
 | [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Done | v0.10.298 |
-| [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Not started | — |
+| [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Claimed (in progress) | — |
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
@@ -6942,7 +6942,7 @@ New `src/test/i146SubfileFoldDropFieldSelection.test.js`: each cited sentence is
 
 ### I-147 — Subfile-control keywords are accepted without `SFLCTL`, without required companions and with display size names
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121c
+> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-121c
 
 Raised by the I-121c slice (subfile control keywords). The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` (now enforced by I-145) are not validated either. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`, `sflendGrammar`).
 
