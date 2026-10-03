@@ -168,7 +168,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
-| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Not started | — |
+| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Claimed (in progress) | — |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Not started | — |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Not started | — |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
