@@ -75,6 +75,9 @@ const dspfSource =
     // DSPSIZ prerequisite (unrelated to this file's own USRDFN focus)
     // doesn't interfere with Group B's regression check for DSPMOD below.
     '     A                                      DSPSIZ(24 80 *DS3 27 132 *DS4)',
+    // Task I-149: RETKEY / RETCMDKEY need INDARA in the file (DDS Reference),
+    // so the fixture carries it for the Group B "turns on normally" checks.
+    '     A                                      INDARA',
     '     A          R USRREC                     USRDFN',
     '     A          R PLAINREC',
     "     A                                  1  2'PLAIN SCREEN'",

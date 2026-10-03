@@ -40,6 +40,9 @@ const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const dspfSource =
   [
     '     A                                      DSPSIZ(24 80 *DS3 27 132 *DS4)',
+    // Task I-149: the "turns on normally on another record" check turns RETKEY
+    // on, which needs INDARA in the file (DDS Reference).
+    '     A                                      INDARA',
     '     A          R SFLREC                     SFL',
     '     A          R SFLMSGREC                  SFL',
     '     A                                       SFLMSGRCD(SFLREC)',
@@ -158,6 +161,9 @@ setTimeout(() => {
     check('RETKEY commits normally on a non-SFL record', !!result.applyEdit);
     check('no alert fired for RETKEY on a non-SFL record', !result.alertMessage);
   }
+  // Task I-149: RETKEY and PRINT cannot share a record format (DDS Reference),
+  // so RETKEY goes back off before the PRINT check below.
+  toggleFlag(pP, 'retkey', false);
   {
     const result = toggleFlag(pP, 'print', true);
     check('setup: print checkbox is present', !result.missing);

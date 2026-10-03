@@ -24,6 +24,9 @@ const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const dspfSource =
   [
     '     A                                      DSPSIZ(24 80 *DS3)',
+    // Task I-149: the "unrelated, still-valid keyword" check turns RETKEY on,
+    // which needs INDARA in the file (DDS Reference).
+    '     A                                      INDARA',
     '     A          R PDNREC                     PULLDOWN',
     "     A                                  1  2'Choice'",
     '     A          R PLAINREC',

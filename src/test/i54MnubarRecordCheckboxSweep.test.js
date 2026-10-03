@@ -40,6 +40,9 @@ const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const dspfSource =
   [
     '     A                                      DSPSIZ(24 80 *DS3 27 132 *DS4)',
+    // Task I-149: the "turns on normally on another record" check turns RETKEY
+    // on, which needs INDARA in the file (DDS Reference).
+    '     A                                      INDARA',
     '     A          R MNUBARREC                  MNUBAR',
     '     A          R PLAINREC',
     "     A                                  1  2'PLAIN SCREEN'",

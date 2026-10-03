@@ -6321,6 +6321,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.subfileKeywordNewConflictReason(model, candidate) ||
       DspfWriter.subfileFoldDropNewConflictReason(model, candidate) ||
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
+      DspfWriter.retKeyNewConflictReason(model, candidate) ||
       DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||
       DspfWriter.systemValueKeywordNewConflictReason(model, candidate);
     if (!reason) return false;

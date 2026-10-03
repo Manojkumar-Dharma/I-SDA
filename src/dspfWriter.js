@@ -5508,6 +5508,64 @@
     return firstNewViolation(outputControlViolations(oldModel), after);
   }
 
+  /** Task I-149 - RETKEY / RETCMDKEY exclusions and file-level requirements
+   *  (the I-121b spec facts: fileAndRecordExcludes, recordExcludes,
+   *  fileExcludes, fileRequires). The exclusions span the file and the record,
+   *  so each violation is keyed record | keyword | other and the diff-based
+   *  check reports a clash an edit adds from EITHER side: adding RETKEY to a
+   *  record, or adding HELP at the file level while a record has RETKEY.
+   *  `CAnn` / `CFnn` in a spec list stand for any command key keyword. */
+  function retKeyViolations(model) {
+    var out = {};
+    var fileKws = (model && model.fileKeywords) || [];
+    function matches(list, spec) {
+      if (spec === 'CAnn' || spec === 'CFnn') {
+        var t = spec.charAt(1);
+        return (list || []).filter(function (k) {
+          var c = k && KeywordSpec.parseCommandKey(String(k.name || '').toUpperCase());
+          return !!c && c.type === 'C' + t;
+        });
+      }
+      return instancesOf(list, spec);
+    }
+    function label(spec) { return spec === 'CAnn' ? 'a CAnn keyword' : spec === 'CFnn' ? 'a CFnn keyword' : spec; }
+    ((model && model.records) || []).forEach(function (r) {
+      var kws = r.keywords || [];
+      ['RETKEY', 'RETCMDKEY'].forEach(function (n) {
+        if (!hasKeywordNamed(kws, n)) return;
+        KeywordSpec.fileAndRecordExcludes(n).forEach(function (x) {
+          if (matches(fileKws, x).length) {
+            out[r.name + '|' + n + '|FILE|' + x] = n + ' cannot be specified on record format ' + r.name + ' in a file that has ' + label(x) + ' at the file level (per the DDS Reference).';
+          }
+          if (matches(kws, x).length) {
+            out[r.name + '|' + n + '|REC|' + x] = n + ' and ' + label(x) + ' cannot be specified on the same record format (' + r.name + ') (per the DDS Reference).';
+          }
+        });
+        KeywordSpec.recordExcludes(n).forEach(function (x) {
+          if (matches(kws, x).length) {
+            out[r.name + '|' + n + '|REC|' + x] = n + ' and ' + label(x) + ' cannot be specified on the same record format (' + r.name + ') (per the DDS Reference).';
+          }
+        });
+        KeywordSpec.fileExcludes(n).forEach(function (x) {
+          if (hasKeywordNamed(fileKws, x)) {
+            out[r.name + '|' + n + '|FILE|' + x] = n + ' cannot be specified on record format ' + r.name + ' in a file with ' + x + ' (per the DDS Reference).';
+          }
+        });
+        KeywordSpec.fileRequires(n).forEach(function (x) {
+          if (!hasKeywordNamed(fileKws, x)) {
+            out[r.name + '|' + n + '|NEEDS|' + x] = n + ' on record format ' + r.name + ' requires the file to specify ' + x + ' (per the DDS Reference).';
+          }
+        });
+      });
+    });
+    return out;
+  }
+  function retKeyNewConflictReason(oldModel, newModel) {
+    var after = retKeyViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(retKeyViolations(oldModel), after);
+  }
+
   function subfileKeywordNewConflictReason(oldModel, newModel) {
     var after = subfileKeywordViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -10115,6 +10173,8 @@
     sflendParameterProblem: sflendParameterProblem,
     sflendNewConflictReason: sflendNewConflictReason,
     subfileControlNotes: subfileControlNotes,
+    retKeyNewConflictReason: retKeyNewConflictReason,
+    retKeyViolations: retKeyViolations,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
     outputControlNewConflictReason: outputControlNewConflictReason,
     subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,

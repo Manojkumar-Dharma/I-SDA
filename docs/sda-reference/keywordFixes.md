@@ -211,7 +211,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Done | v0.10.298 |
 | [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Done v0.10.300 (SFLCTL requirement, display size names and SFLEND grammar refused; companions and indicators noted) | v0.10.300 |
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Claimed (in progress) | — |
-| [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
+| [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Done | v0.10.302 |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
@@ -242,7 +242,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 8 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
 | 9 | [I-147](#i-147) | Done v0.10.300 | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
 | 10 | [I-148](#i-148) | Not started | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
-| 11 | [I-149](#i-149) | Not started | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
+| 11 | [I-149](#i-149) | Done v0.10.302 | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
 | 12 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
 | 13 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
 | 14 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
@@ -6979,11 +6979,22 @@ To do: add a spec-driven record-level "requires" / "excludes" check (the I-140 s
 
 ### I-149 — `RETKEY` / `RETCMDKEY` exclusions and file-level requirements are not enforced
 
-> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-121b, I-139
+> **Area:** Cross-level · **Status:** Done (v0.10.302) · **Depends on:** I-121b, I-139
 
 Raised by the I-121b slice, and the rest of I-139's open item. `RETKEY` / `RETCMDKEY` accept every exclusion their section states: `RETKEY` with `CLEAR`/`HELP`/`HOME`/`PAGEUP`/`PAGEDOWN`/`ROLLDOWN`/`ROLLUP` (file or record) or `PRINT` (record); `RETCMDKEY` with `CAnn`/`CFnn` (file or record) or `SFLDROP`/`SFLENTER`/`SFLFOLD` (record); both in a file with `ALTHELP`/`ALTPAGEUP`/`ALTPAGEDWN` or without `INDARA`. Spec facts: `fileAndRecordExcludes`, `recordExcludes`, `fileExcludes`, `fileRequires`.
 
 To do: the exclusions span the file and record levels, so the check needs the file-level keywords and the record's together; check how I-139 did the file-and-record command-key clash and reuse it, add the `INDARA` requirement, and test refusals and accepted paths at both levels.
+
+**Fix (v0.10.302).** One diff-based guard, `DspfWriter.retKeyNewConflictReason` (the I-140 / I-151 shape: only a clash the edit adds is reported, from either side), wired into the webview's existing edit choke point. It reads the I-121b spec facts rather than repeating the lists:
+
+- `RETKEY` is refused with `CLEAR`, `HELP`, `HOME`, `PAGEUP`, `PAGEDOWN`, `ROLLDOWN` or `ROLLUP` at the file level **or** on the same record, and with `PRINT` on the same record only (`PRINT` and `HLPRTN` at the file level stay allowed).
+- `RETCMDKEY` is refused with any `CAnn` / `CFnn` keyword at the file level or on the same record, and with `SFLDROP` / `SFLENTER` / `SFLFOLD` on the same record.
+- Both are refused in a file with `ALTHELP`, `ALTPAGEUP` or `ALTPAGEDWN`, and in a file without `INDARA`.
+- Because the exclusions span two levels the violations are keyed by record, keyword and the other keyword, so adding `RETKEY` to a record, adding `HELP` to the file while a record has `RETKEY`, and removing `INDARA` are each caught. A hand-written file that is already wrong is not re-reported on an unrelated edit.
+
+**Existing tests changed.** Five tests turned `RETKEY` on in a fixture with no `INDARA`, which the DDS Reference does not allow: `i44UsrdfnRecordLevelAudit`, `i12WindowConflictAudit`, `i13PulldownConflictAudit`, `i53SflRecordCheckboxSweep` and `i54MnubarRecordCheckboxSweep` now carry `INDARA` in the fixture; `i53` also turns `RETKEY` back off before its `PRINT` check, because the two cannot share a record.
+
+Tests: new `src/test/i149RetKeyRetCmdKeyRules.test.js` (every exclusion at both levels and from both sides, the `INDARA` requirement and its removal, the allowed neighbours, unchanged hand-written leftovers, the wiring). Confirmed failing without the guard via stash.
 
 ---
 
