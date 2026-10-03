@@ -6308,7 +6308,9 @@ const htmlTemplate = `<!DOCTYPE html>
   // SFLFOLD is refused when SFLSIZ equals SFLPAG, SFLDROP and SFLFOLD share one
   // key. Task I-151: ERASE / ERASEINP / MDTOFF / PROTECT need OVERLAY, PUTOVR
   // is not with PUTRETAIN, ERASE names at most 20 record formats, CSRLOC and
-  // FRCDTA once per record format. Returns true
+  // FRCDTA once per record format. Task I-147: the other five subfile-control
+  // keywords also need an SFLCTL, and SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ take
+  // no display size names. Returns true
   // (after alerting) when the edit would break one - whether by adding the
   // dependent keyword or by removing what it depends on.
   function windowDependencyGuardBlocks(newLines) {
@@ -7169,6 +7171,14 @@ const htmlTemplate = `<!DOCTYPE html>
       const sflcsrrrnReason = DspfWriter.sflcsrrrnNewConflictReason(rec.keywords, updates.keywords, rec.fields);
       if (sflcsrrrnReason) {
         window.alert(sflcsrrrnReason);
+        renderRecordProps(recordName);
+        return;
+      }
+      // Task I-147: SFLEND's parameter grammar - the second parameter only after
+      // *SCRBAR. A NEW or changed parameter text only.
+      const sflendReason = DspfWriter.sflendNewConflictReason(rec.keywords, updates.keywords);
+      if (sflendReason) {
+        window.alert(sflendReason);
         renderRecordProps(recordName);
         return;
       }

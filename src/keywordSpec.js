@@ -288,9 +288,14 @@
     // record-level keyword on the subfile-control record format\". A
     // subfile-control record is the one carrying SFLCTL.
     SFLCTL: {
-      requiredFor: ['SFLCSRRRN', 'SFLDLT', 'SFLINZ'],
+      // Task I-147 widened this from the three I-141 named to every subfile-control keyword the
+      // I-121c slice specified (each of those entries has onRecordType 'SFLCTL'): SFLPAG, SFLCLR,
+      // SFLDSP, SFLDSPCTL and SFLEND were accepted on a record with no SFLCTL.
+      requiredFor: ['SFLCSRRRN', 'SFLDLT', 'SFLINZ', 'SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND'],
       requiredForDdsReference:
-        'SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords used on the subfile-control record format.'
+        'SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords used on the subfile-control record format. ' +
+        'SFLPAG (~line 11845) and SFLEND (~line 10975): \"You use this record-level keyword on the subfile-control record format\". ' +
+        'SFLCLR (~line 10620), SFLDSP (~line 10907) and SFLDSPCTL (~line 10939): \"valid only for the subfile-control record format\".'
     },
 
     // ---- I-121d: 6 ----
@@ -4384,6 +4389,18 @@
       moreAddsLines: e.moreAddsLines
     };
   }
+  // ---- I-147: accessors ----
+  /** Keywords the subfile-control record must carry (SFLPAG, SFLDSP), in the slice's order. */
+  function subfileControlRequiredKeywords() {
+    return I121C_KEYWORDS.filter(function (k) { return RECORD_TYPES[k].requiredOnSubfileControl === true; });
+  }
+  /** Keywords whose section says an option indicator is required (SFLCLR, SFLEND, SFLDLT), in the slice's order. */
+  function optionIndicatorRequiredKeywords() {
+    return I121C_KEYWORDS.filter(function (k) { return RECORD_TYPES[k].optionIndicators === 'required'; });
+  }
+  /** Whether the keyword's section says display size condition names (*DS3 / *DS4) are not valid on it. */
+  function refusesDisplaySizeNames(name) { return displaySizeNamesMode(name) === 'notValid'; }
+  // ---- end I-147 ----
   // ---- end I-121c ----
   // ---- I-121b: accessors ----
   var I121B_KEYWORDS = ['INZRCD', 'INZINP', 'GETRETAIN', 'RTNDTA', 'RETLCKSTS', 'RETKEY', 'RETCMDKEY'];
@@ -4596,6 +4613,10 @@
     sizeEqualsPageErrors: sizeEqualsPageErrors,
     sizeEqualsPageIgnored: sizeEqualsPageIgnored,
     sflendGrammar: sflendGrammar,
+    // ---- I-147 ----
+    subfileControlRequiredKeywords: subfileControlRequiredKeywords,
+    optionIndicatorRequiredKeywords: optionIndicatorRequiredKeywords,
+    refusesDisplaySizeNames: refusesDisplaySizeNames,
     // ---- I-121b ----
     initRetainReturnKeywords: initRetainReturnKeywords,
     takesNoParameters: takesNoParameters,

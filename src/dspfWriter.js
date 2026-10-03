@@ -5514,23 +5514,31 @@
     return firstNewViolation(subfileKeywordViolations(oldModel), after);
   }
 
-  /** Task I-141 - SFLDLT: \"Option indicators are required for this keyword;
-   *  display size condition names are not valid.\" Per record, the number of
-   *  display-size condition groups on its SFLDLT keywords. */
+  /** Task I-141 / I-147 - display size condition names (*DS3 / *DS4) are not
+   *  valid on SFLDLT (\"Option indicators are required for this keyword;
+   *  display size condition names are not valid\") nor on SFLCLR, SFLDSP,
+   *  SFLDSPCTL or SFLINZ (each section says the same). Per record, the number
+   *  of display-size condition groups on each such keyword; the keyword list
+   *  is KeywordSpec's `displaySizeNames: 'notValid'` fact, not a literal. */
   function displaySizeConditionsOnRequiredIndicatorKeywords(model) {
     var out = {};
     ((model && model.records) || []).forEach(function (r) {
       (r.keywords || []).forEach(function (k) {
-        var fact = KeywordSpec.optionIndicatorRequiredFact(k.name);
-        if (!fact || !fact.noDisplaySize) return;
+        if (!KeywordSpec.refusesDisplaySizeNames(k.name)) return;
         var n = displaySizeConditionCount(k.conditions);
-        if (n > 0) out[r.name + '|' + k.name] = { count: n, name: k.name, ddsReference: fact.ddsReference };
+        if (n > 0) {
+          var fact = KeywordSpec.optionIndicatorRequiredFact(k.name);
+          out[r.name + '|' + k.name] = { count: n, name: k.name, ddsReference: fact ? fact.ddsReference : null };
+        }
       });
     });
     return out;
   }
-  /** The reason the edit adds a display-size condition name to SFLDLT, or
-   *  null. Diff-based; removing one or an already-present one is fine. */
+  /** The reason the edit adds a display-size condition name to SFLDLT /
+   *  SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ, or null. Diff-based; removing one
+   *  or an already-present one is fine. SFLDLT keeps its I-141 wording (it
+   *  also says an option indicator is required); the others say the keyword
+   *  takes no display size names. */
   function optionIndicatorRequiredNewConflictReason(oldModel, newModel) {
     var after = displaySizeConditionsOnRequiredIndicatorKeywords(newModel);
     var keys = Object.keys(after);
@@ -5538,10 +5546,63 @@
     var before = displaySizeConditionsOnRequiredIndicatorKeywords(oldModel);
     for (var i = 0; i < keys.length; i++) {
       if (after[keys[i]].count > (before[keys[i]] ? before[keys[i]].count : 0)) {
-        return after[keys[i]].name + ': display size condition names (*DS3 / *DS4) are not valid - use an option indicator (per the DDS Reference: ' + after[keys[i]].ddsReference + ')';
+        if (after[keys[i]].ddsReference) {
+          return after[keys[i]].name + ': display size condition names (*DS3 / *DS4) are not valid - use an option indicator (per the DDS Reference: ' + after[keys[i]].ddsReference + ')';
+        }
+        return after[keys[i]].name + ': display size condition names (*DS3 / *DS4) are not valid for this keyword (per the DDS Reference).';
       }
     }
     return null;
+  }
+
+  /** Task I-147 - SFLEND[(*PLUS | *MORE | {*SCRBAR [*SCRBAR | *PLUS | *MORE]})]
+   *  (KeywordSpec.sflendGrammar): the problem with the parameter text, or null
+   *  when it is empty (the *PLUS default) or valid. The second parameter can
+   *  only follow *SCRBAR. */
+  function sflendParameterProblem(text) {
+    var tokens = String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean).map(function (t) { return t.toUpperCase(); });
+    if (!tokens.length) return null;
+    var g = KeywordSpec.sflendGrammar();
+    var shape = 'SFLEND[(*PLUS | *MORE | *SCRBAR [*SCRBAR | *PLUS | *MORE])]';
+    if (tokens.length > 2) return 'SFLEND takes at most two parameters, the second only after *SCRBAR - ' + shape + ' (per the DDS Reference).';
+    if (g.first.indexOf(tokens[0]) < 0) return 'SFLEND\'s first parameter must be ' + g.first.join(', ') + ' - ' + shape + ' (per the DDS Reference).';
+    if (tokens.length === 2) {
+      if (tokens[0] !== g.secondOnlyAfter) return 'SFLEND\'s second parameter can only be specified when ' + g.secondOnlyAfter + ' is the first parameter (per the DDS Reference).';
+      if (g.second.indexOf(tokens[1]) < 0) return 'SFLEND\'s second parameter must be ' + g.second.join(', ') + ' (per the DDS Reference).';
+    }
+    return null;
+  }
+  /** commitRecordEdit choke point: blocks an edit that adds an SFLEND whose
+   *  parameter text is not valid. Diff-based - a parameter text already on the
+   *  record (hand-written) is never re-reported, and removing SFLEND is fine. */
+  function sflendNewConflictReason(oldKeywords, newKeywords) {
+    var olds = {};
+    (oldKeywords || []).forEach(function (k) { if (k && k.name === 'SFLEND') olds[String(k.parameters == null ? '' : k.parameters).trim().toUpperCase()] = true; });
+    var list = (newKeywords || []).filter(function (k) { return k && k.name === 'SFLEND'; });
+    for (var i = 0; i < list.length; i++) {
+      var text = String(list[i].parameters == null ? '' : list[i].parameters).trim();
+      if (olds[text.toUpperCase()]) continue;
+      var problem = sflendParameterProblem(text);
+      if (problem) return problem;
+    }
+    return null;
+  }
+
+  /** Task I-147 - what a subfile-control record is still missing, as notes
+   *  (not refusals: the panel checkbox writes a bare keyword and its
+   *  Conditioning editor only exists once the keyword does, so refusing would
+   *  make the row unusable - the I-141 decision for SFLDLT). `keywords` is the
+   *  record's keyword list. Returns { missingRequired: [keyword names the
+   *  record must carry and does not], needsIndicator: [keyword names that
+   *  need an option indicator and have none] }. */
+  function subfileControlNotes(keywords) {
+    var kws = keywords || [];
+    var missing = KeywordSpec.subfileControlRequiredKeywords().filter(function (n) { return !hasKeywordNamed(kws, n); });
+    var needs = KeywordSpec.optionIndicatorRequiredKeywords().filter(function (n) {
+      var inst = kws.filter(function (k) { return k && k.name === n; });
+      return inst.length > 0 && inst.some(function (k) { return !hasOptionIndicator(k.conditions); });
+    });
+    return { missingRequired: missing, needsIndicator: needs };
   }
 
   /** Task I-144 - DATE([*JOB|*SYS] [*Y|*YY]): the problem with the parameter
@@ -10032,6 +10093,10 @@
     altKeyFileExclusionNewConflictReason: altKeyFileExclusionNewConflictReason,
     windowDependencyNewConflictReason: windowDependencyNewConflictReason,
     sflctlDependencyNewConflictReason: sflctlDependencyNewConflictReason,
+    // Task I-147
+    sflendParameterProblem: sflendParameterProblem,
+    sflendNewConflictReason: sflendNewConflictReason,
+    subfileControlNotes: subfileControlNotes,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
     outputControlNewConflictReason: outputControlNewConflictReason,
     subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,

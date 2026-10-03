@@ -8163,6 +8163,13 @@
     var g = '<div class="section-label">Subfile control</div>';
     var fSflctl = DspfWriter.getFileFlagKeyword(kw, 'SFLCTL');
     g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', fSflctl.present, fSflctl.parameters, 'subfile record name', undefined, undefined); // I-10: option indicators not valid
+    // Task I-147: SFLPAG and SFLDSP are required on the subfile-control record
+    // (KeywordSpec.subfileControlRequiredKeywords). A note, not a refusal - the
+    // record is built up one keyword at a time.
+    var ctlMissing = DspfWriter.subfileControlNotes(kw).missingRequired;
+    if (fSflctl.present && ctlMissing.length) {
+      g += '<div id=\"' + p + '-needs-required\" class=\"kw-warning\" style=\"margin:-4px 0 10px 22px;font-size:11px;color:var(--warn, #b45309);\">' + ctlMissing.join(' and ') + (ctlMissing.length > 1 ? ' are' : ' is') + ' required on the subfile-control record format (IBM).</div>';
+    }
     var fSflcsrrrn = DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN');
     g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', fSflcsrrrn.present, fSflcsrrrn.parameters, 'field name', fSflcsrrrn.conditions, expandedSet); // I-10: no explicit option-indicator statement found either way in the DDS Reference - left as-is rather than guessing, same as I-7's RETKEY/RETCMDKEY/KEEP precedent
     var fSflmode = DspfWriter.getFileFlagKeyword(kw, 'SFLMODE');
@@ -8186,19 +8193,24 @@
     g += flagRowHtml(p + '-sflinz', 'Initialize subfile fields (SFLINZ)', fSflinz.present, undefined, undefined, fSflinz.conditions, expandedSet);
     var fSfldlt = DspfWriter.getFileFlagKeyword(kw, 'SFLDLT');
     g += flagRowHtml(p + '-sfldlt', 'Delete subfile area (SFLDLT)', fSfldlt.present, undefined, undefined, fSfldlt.conditions, expandedSet);
-    // Task I-141: IBM requires an option indicator on SFLDLT (a bare SFLDLT
-    // never deletes anything useful), but the row has to be switchable on
-    // before its Conditioning editor is reachable - so this is a visible note
-    // on the row rather than a refusal of the checkbox.
-    if (fSfldlt.present && !DspfWriter.hasOptionIndicator(fSfldlt.conditions)) {
-      g += '<div id=\"' + p + '-sfldlt-needs-indicator\" class=\"kw-warning\" style=\"margin:-4px 0 10px 22px;font-size:11px;color:var(--warn, #b45309);\">SFLDLT needs an option indicator (open Conditioning above) - IBM: option indicators are required for this keyword.</div>';
+    // Task I-141 / I-147: IBM requires an option indicator on SFLDLT, SFLCLR and
+    // SFLEND (KeywordSpec.optionIndicatorRequiredKeywords), but the row has to be
+    // switchable on before its Conditioning editor is reachable - so this is a
+    // visible note on the row rather than a refusal of the checkbox.
+    var ctlNotes = DspfWriter.subfileControlNotes(kw);
+    function needsIndicatorNote(name) {
+      if (ctlNotes.needsIndicator.indexOf(name) < 0) return '';
+      return '<div id=\"' + p + '-' + name.toLowerCase() + '-needs-indicator\" class=\"kw-warning\" style=\"margin:-4px 0 10px 22px;font-size:11px;color:var(--warn, #b45309);\">' + name + ' needs an option indicator (open Conditioning above) - IBM: an option indicator is required for this keyword.</div>';
     }
+    g += needsIndicatorNote('SFLDLT');
     var fSflclr = DspfWriter.getFileFlagKeyword(kw, 'SFLCLR');
     g += flagRowHtml(p + '-sflclr', 'Clear subfile records (SFLCLR)', fSflclr.present, undefined, undefined, fSflclr.conditions, expandedSet);
+    g += needsIndicatorNote('SFLCLR');
     var fSflrna = DspfWriter.getFileFlagKeyword(kw, 'SFLRNA');
     g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', fSflrna.present, undefined, undefined, undefined, undefined); // I-10: option indicators not valid
     var fSflend = DspfWriter.getFileFlagKeyword(kw, 'SFLEND');
     g += flagRowHtml(p + '-sflend', 'Indicate more records (SFLEND)', fSflend.present, fSflend.parameters, '*MORE, *SCRBAR, or blank', fSflend.conditions, expandedSet);
+    g += needsIndicatorNote('SFLEND');
     g += '<div class="section-label">Subfile behavior</div>';
     var fSfldrop = DspfWriter.getFileFlagKeyword(kw, 'SFLDROP');
     g += flagRowHtml(p + '-sfldrop', 'Subfile initially truncated (SFLDROP)', fSfldrop.present, fSfldrop.parameters, 'CFnn or CAnn', fSfldrop.conditions, expandedSet);

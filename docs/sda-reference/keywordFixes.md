@@ -209,7 +209,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Done | v0.10.293 |
 | [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Done | v0.10.297 |
 | [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Done | v0.10.298 |
-| [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Claimed (in progress) | — |
+| [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Done v0.10.300 (SFLCTL requirement, display size names and SFLEND grammar refused; companions and indicators noted) | v0.10.300 |
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
@@ -239,7 +239,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 6 | [I-153](#i-153) | Not started | `MSGCON` message ID and file validation. Small. |
 | 7 | [I-145](#i-145) | Done v0.10.297 | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
 | 8 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
-| 9 | [I-147](#i-147) | Not started | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
+| 9 | [I-147](#i-147) | Done v0.10.300 | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
 | 10 | [I-148](#i-148) | Not started | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
 | 11 | [I-149](#i-149) | Not started | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
 | 12 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
@@ -257,7 +257,7 @@ Every finding so far has been opened as a task (I-61 – I-155, see the tables a
 
 | Raised by | Finding |
 |-----------|---------|
-| *(none)* | *(none)* |
+| I-147 | **Other control-record keywords are still accepted without `SFLCTL`.** The same probe shows `SFLDROP`, `SFLENTER`, `SFLFOLD`, `SFLMODE` and `SFLRNA` (their entries all say `onRecordType: 'SFLCTL'`) are accepted on a plain record: they are not in `SFLCTL.requiredFor`. Adding them is one list edit plus the same two tests, but each section's wording about where it is valid needs re-reading first (`SFLRNA` and `SFLMODE` in particular), so it was left out of I-147. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6942,11 +6942,23 @@ New `src/test/i146SubfileFoldDropFieldSelection.test.js`: each cited sentence is
 
 ### I-147 — Subfile-control keywords are accepted without `SFLCTL`, without required companions and with display size names
 
-> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-121c
+> **Area:** Record · **Status:** Done (v0.10.300) · **Depends on:** I-121c
 
 Raised by the I-121c slice (subfile control keywords). The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` (now enforced by I-145) are not validated either. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`, `sflendGrammar`).
 
 To do: widen the I-141 `recordDependencyViolations` helper to the five keywords above, refuse display size names where the reference says they are not valid, and decide, as I-141 did for `SFLDLT`, which of the option-indicator and required-companion rules are refusals and which are notes (a bare keyword that the panel checkbox writes cannot be refused without making the row unusable).
+
+**Fix (v0.10.300).** Same split I-141 made for `SFLDLT`: what is plainly invalid DDS is refused at the commit choke point, what the UI has to be able to build up one keyword at a time is a note.
+
+*Refused.* (1) `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` need an `SFLCTL` on the same record: `SFLCTL.requiredFor` in `keywordSpec.js` is widened from the I-141 three to those eight (the existing `sflctlDependencyNewConflictReason` reads it, so raw-adding any of the five to a plain record and removing `SFLCTL` from a record that still carries one are both refused). (2) A display size condition name (`*DS3` / `*DS4`) on `SFLCLR`, `SFLDSP`, `SFLDSPCTL` or `SFLINZ`: `optionIndicatorRequiredNewConflictReason` now reads the spec's `displaySizeNames: 'notValid'` fact (`KeywordSpec.refusesDisplaySizeNames`) instead of being `SFLDLT`-only; `SFLDLT` keeps its I-141 wording, the others say the keyword takes no display size names. `SFLPAG` (display size names valid) and `SFLEND` (section silent) are not refused. (3) `SFLEND`'s grammar, `SFLEND[(*PLUS | *MORE | *SCRBAR [*SCRBAR | *PLUS | *MORE])]`: a first parameter outside the three, a second parameter after anything but `*SCRBAR`, a second parameter outside the three, or more than two (`DspfWriter.sflendParameterProblem` / `sflendNewConflictReason`, read from `KeywordSpec.sflendGrammar`, wired into `commitRecordEdit` beside the I-142 check). Like every guard here it is diff-based: an already-present hand-written parameter text is never re-reported and removing `SFLEND` is always fine.
+
+*Notes, not refusals.* (4) `SFLPAG` and `SFLDSP` are required on the control record ("This keyword is required for the subfile-control record format"; "required and is valid only for the subfile-control record format"). A control record is built keyword by keyword, so the SFLCTL panel shows a note under the `SFLCTL` row (`sflctl-<rec>-needs-required`, "SFLPAG and SFLDSP are required ...") that shrinks as each is added. (5) An option indicator is required on `SFLCLR` ("An option indicator is required for this keyword to prevent the IBM i operating system from clearing the subfile on every output operation") and `SFLEND` ("An option indicator must be specified for this keyword"), as I-141 already did for `SFLDLT`: the checkbox writes a bare keyword and its Conditioning editor only exists once the keyword does, so the panel shows `sflctl-<rec>-<keyword>-needs-indicator` while the keyword is on with no option indicator (a display size name does not count). Both come from `DspfWriter.subfileControlNotes`, which reads the spec lists `subfileControlRequiredKeywords` / `optionIndicatorRequiredKeywords`. Say if you would rather have either as a hard block.
+
+Four I-121c / I-121d / I-141 tests pinned the old behaviour ("no behaviour change" for the five, "a display size on SFLINZ is not this guard's business", the three-keyword requires-list, I-121d's "nothing was added to requiredFor") and were updated to the new facts.
+
+New `src/test/i147SubfileControlRules.test.js` (101 checks): each rule's reference sentence found in `DDS_Keyword_V7r6.txt`, the spec lists against the I-121c entries, the pure guards (add, remove, parameter change, already-invalid, second violation, fail-safe, every SFLEND grammar case, every note case) and the generated webview in jsdom (raw adds on a plain record, unchecking `SFLCTL`, the notes appearing and disappearing, the `SFLEND` parameter field). Mutation-checked three ways: spec + writer + hook reverted (fails), the `SFLEND` hook line alone neutralised (fails exactly the two `SFLEND` refusal checks), and the webview reverted alone (fails the four note checks).
+
+Full suite: 248 files, 13,865 checks; the one failure was `i121dSubfileModeEntryKeywordSpec`'s pin on the old three-keyword `requiredFor` list, updated during the run (the fourth of the pinned tests above) and passing on its own afterwards; the other 247 files had zero failures.
 
 ---
 

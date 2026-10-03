@@ -63,7 +63,8 @@ check('SFLNXTCHG refuses SFLMSGRCD (stated once, on SFLNXTCHG)', KeywordSpec.isM
 check('I-121c SFLPAG lists name SFLDROP and SFLFOLD (this slice agrees)', ['SFLDROP', 'SFLFOLD'].every((k) => KeywordSpec.excludedWhenSizeEqualsPage().indexOf(k) !== -1 && KeywordSpec.excludedWithFieldSelection().indexOf(k) !== -1 && KeywordSpec.foldDropRules(k).ignoredWhenSizeEqualsPage && KeywordSpec.foldDropRules(k).notValidWithFieldSelection));
 check('SFLINZ field-selection and message-subfile notes agree with SFLRNA', R.SFLINZ.excludedWithFieldSelection === R.SFLRNA.excludedWithFieldSelection && /SFLMSGRCD/.test(R.SFLINZ.ddsReference));
 check('SFLCSRRRN (I-142) is untouched by this slice', !!R.SFLCSRRRN.relativeRecordField && SIX.indexOf('SFLCSRRRN') === -1);
-check('nothing was added to SFLCTL requiredFor', R.SFLCTL.requiredFor.join() === 'SFLCSRRRN,SFLDLT,SFLINZ');
+// Task I-147 widened requiredFor with the five I-121c keywords; none of this slice's six was added (logged as a finding).
+check('none of this slice\'s keywords was added to SFLCTL requiredFor', ['SFLMODE', 'SFLRNA', 'SFLDROP', 'SFLENTER', 'SFLFOLD', 'SFLMSGRCD'].every((k) => R.SFLCTL.requiredFor.indexOf(k) === -1) && R.SFLCTL.requiredFor.join() === 'SFLCSRRRN,SFLDLT,SFLINZ,SFLPAG,SFLCLR,SFLDSP,SFLDSPCTL,SFLEND');
 
 // ---- 3. accessors ----
 check('accessors are case/blank safe and null for other keywords', KeywordSpec.subfileModeEntryRecordType('sflmode') === 'SFLCTL' && KeywordSpec.subfileModeEntryRecordType('') === null && KeywordSpec.subfileModeEntryRecordType(null) === null && KeywordSpec.subfileModeEntryIndicatorMode('SFLPAG') === null && KeywordSpec.foldDropRules('SFLENTER') === null && KeywordSpec.foldDropRules(null) === null);

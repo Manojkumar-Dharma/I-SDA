@@ -43,8 +43,9 @@ function dds(o) {
 }
 
 console.log('=== 1. spec facts ===');
-check('SFLCTL requires-list is SFLCSRRRN, SFLDLT, SFLINZ', KeywordSpec.sflctlDependentKeywords().join() === 'SFLCSRRRN,SFLDLT,SFLINZ');
-check('the accessor returns a copy', (() => { const a = KeywordSpec.sflctlDependentKeywords(); a.push('X'); return KeywordSpec.sflctlDependentKeywords().length === 3; })());
+// Task I-147 widened the list from the three I-141 named to the eight subfile-control keywords.
+check('SFLCTL requires-list is the I-141 three then the five I-147 added', KeywordSpec.sflctlDependentKeywords().join() === 'SFLCSRRRN,SFLDLT,SFLINZ,SFLPAG,SFLCLR,SFLDSP,SFLDSPCTL,SFLEND');
+check('the accessor returns a copy', (() => { const a = KeywordSpec.sflctlDependentKeywords(); a.push('X'); return KeywordSpec.sflctlDependentKeywords().length === 8; })());
 check('the citation names the subfile-control record format', /subfile-control record format/.test(KeywordSpec.RECORD_TYPES.SFLCTL.requiredForDdsReference));
 check('SFLDLT has the option-indicator-required fact (no display size)', (() => { const f = KeywordSpec.optionIndicatorRequiredFact('sfldlt'); return !!f && f.required === true && f.noDisplaySize === true && /required for this keyword/.test(f.ddsReference); })());
 check('no other keyword has it', ['SFLINZ', 'SFLCLR', 'SFLEND', 'RMVWDW', ''].every((k) => KeywordSpec.optionIndicatorRequiredFact(k) === null));
@@ -80,7 +81,8 @@ check('adding *DS3 to SFLDLT is refused, naming the DDS rule', /SFLDLT: display 
 check('adding a display size to a bare SFLDLT is refused', dsr(model(rec('C', [kw('SFLCTL', 'S'), kw('SFLDLT')])), model(rec('C', [kw('SFLCTL', 'S'), kw('SFLDLT', '', ds('*DS4'))]))) !== null);
 check('adding another option indicator to SFLDLT is accepted', dsr(base, model(rec('C', [kw('SFLCTL', 'S'), kw('SFLDLT', '', ind('31').concat(ind('32')))]))) === null);
 check('a bare SFLDLT is not refused by this guard', dsr(model(rec('C', [kw('SFLCTL', 'S')])), model(rec('C', [kw('SFLCTL', 'S'), kw('SFLDLT')]))) === null);
-check('a display size on SFLINZ is not this guard\'s business', dsr(model(rec('C', [kw('SFLCTL', 'S'), kw('SFLINZ')])), model(rec('C', [kw('SFLCTL', 'S'), kw('SFLINZ', '', ds('*DS3'))]))) === null);
+// Task I-147: SFLINZ's own "display size condition names are not valid" is now enforced by the same guard.
+check('a display size on SFLINZ is refused too (I-147), with its own name and no "use an option indicator"', (() => { const r = dsr(model(rec('C', [kw('SFLCTL', 'S'), kw('SFLINZ')])), model(rec('C', [kw('SFLCTL', 'S'), kw('SFLINZ', '', ds('*DS3'))]))); return /^SFLINZ: display size condition names/.test(r || '') && !/use an option indicator/.test(r); })());
 check('an SFLDLT that already carries a display size is not re-reported', dsr(model(rec('C', [kw('SFLDLT', '', ds('*DS3'))])), model(rec('C', [kw('SFLDLT', '', ds('*DS3')), kw('PUTOVR')]))) === null);
 check('removing the display size is accepted', dsr(model(rec('C', [kw('SFLDLT', '', ds('*DS3'))])), model(rec('C', [kw('SFLDLT', '', ind('31'))]))) === null);
 check('hasOptionIndicator: indicator yes, display size no, empty no', DspfWriter.hasOptionIndicator(ind('31')) && !DspfWriter.hasOptionIndicator(ds('*DS3')) && !DspfWriter.hasOptionIndicator([]) && !DspfWriter.hasOptionIndicator(undefined));

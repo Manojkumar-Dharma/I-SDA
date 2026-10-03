@@ -60,7 +60,8 @@ SEVEN.forEach((n) => {
 });
 check('SFLPAG is the only one of the seven in the no-option-indicators table', SEVEN.filter((n) => KeywordSpec.noOptionIndicatorsFact(n)).join() === 'SFLPAG');
 check('every keyword SFLPAG excludes has its own lookup entry', KeywordSpec.excludedWhenSizeEqualsPage().concat(KeywordSpec.excludedWithFieldSelection()).every((k) => Object.prototype.hasOwnProperty.call(lookup, k)));
-check('SFLCTL requiredFor does not list the four not yet guarded (no behaviour change)', ['SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND'].every((k) => KeywordSpec.sflctlDependentKeywords().indexOf(k) === -1));
+// Task I-147 added the five to SFLCTL.requiredFor (they were the findings this slice logged).
+check('SFLCTL requiredFor now lists the five this slice found unguarded (I-147)', ['SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND'].every((k) => KeywordSpec.sflctlDependentKeywords().indexOf(k) !== -1));
 // the engine's reading of every valid SFLEND parameter combination agrees with the grammar
 (function () {
   const combos = [''];
@@ -104,7 +105,7 @@ check('SFLCLR / SFLEND (same wording, unguarded) and others still return null', 
   const mk = (n) => ({ records: [{ name: 'R', keywords: [{ name: n, parameters: '', conditions: [{ displaySizeCondition: true, indicators: [] }] }] }] });
   const none = (n) => ({ records: [{ name: 'R', keywords: [{ name: n, parameters: '', conditions: [] }] }] });
   check('adding a display size name to SFLDLT is refused (I-141, unchanged)', !!DspfWriter.optionIndicatorRequiredNewConflictReason(none('SFLDLT'), mk('SFLDLT')));
-  check('the same edit on SFLCLR is not refused (no behaviour change; finding logged)', DspfWriter.optionIndicatorRequiredNewConflictReason(none('SFLCLR'), mk('SFLCLR')) === null);
+  check('the same edit on SFLCLR is refused too (I-147: its section says display size names are not valid)', /^SFLCLR: display size condition names/.test(DspfWriter.optionIndicatorRequiredNewConflictReason(none('SFLCLR'), mk('SFLCLR')) || ''));
 })();
 
 console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : 'FAIL - ' + failureCount() + ' check(s) failed'));
