@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-151 of 173 tasks done; 22 open (see [Open work](#open-work)). Current version: **v0.10.296**.
+151 of 174 tasks done; 23 open (see [Open work](#open-work)). Current version: **v0.10.296**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -216,6 +216,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Not started | — |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
+| [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -231,26 +232,27 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-143](#i-143) | Done v0.10.296 | `MSGCON` rules enforced (named field, exclusion list, length 1-132). |
 | 2 | [I-144](#i-144) | Done v0.10.293 | DATE/TIME/USER/SYSNAME rules enforced and the preview drawn at real width. |
-| 3 | [I-151](#i-151) | Not started | Output-control relations (probed: all accepted today). |
-| 4 | [I-152](#i-152) | Not started | Window / menu-bar / help / logging relations (probed: all accepted today). |
-| 5 | [I-153](#i-153) | Not started | `MSGCON` message ID and file validation. Small. |
-| 6 | [I-145](#i-145) | Not started | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
-| 7 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
-| 8 | [I-147](#i-147) | Not started | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
-| 9 | [I-148](#i-148) | Not started | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
-| 10 | [I-149](#i-149) | Not started | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
-| 11 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
-| 12 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
-| 13 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
-| 14 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 15 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
-| 16 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 17 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 18 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 3 | [I-154](#i-154) | Claimed | I-144 follow-up against IBM's own edit-code patterns and examples. |
+| 4 | [I-151](#i-151) | Not started | Output-control relations (probed: all accepted today). |
+| 5 | [I-152](#i-152) | Not started | Window / menu-bar / help / logging relations (probed: all accepted today). |
+| 6 | [I-153](#i-153) | Not started | `MSGCON` message ID and file validation. Small. |
+| 7 | [I-145](#i-145) | Not started | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
+| 8 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
+| 9 | [I-147](#i-147) | Not started | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
+| 10 | [I-148](#i-148) | Not started | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
+| 11 | [I-149](#i-149) | Not started | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
+| 12 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
+| 13 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
+| 14 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
+| 15 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 16 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
+| 17 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 18 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 19 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-153, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-154, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6978,5 +6980,15 @@ Raised by the I-121e slice; opened as a task with a probe. **Window, menu-bar, h
 > **Area:** Field · **Status:** Not started · **Depends on:** I-143
 
 Follow-up to I-143, which enforced `MSGCON`'s three stated rules (constant fields only, the exclusion list, length 1-132) and left the other two parameters unchecked: `MSGCON(length message-ID [library-name/]message-file-name)`. Today any token is accepted as the message ID and as the file, so `MSGCON(20 X Y)` is written and an incomplete form falls through `parseMsgConParams` as an unstructured raw edit. To do: (1) read `DDS_Keyword_V7r6.txt` ~line 8922 and the message-description and object-name rules it points to for what IBM states about the message ID (the `MSGID` section gives a 7-character form) and about the file and library names; **if the reference does not state a rule, do not invent one** - record an open question (the ground-truth rule of this series); (2) put whatever is stated into the `RECORD_TYPES.MSGCON.msgconParameters` entry (it holds only the length range today); (3) enforce it at the same three places I-143 used (add-time, `commitEdit` backstop, the constant Add form) with the same diff-based posture; (4) decide what a bare `MSGCON` or a two-token one means - the panel drops an incomplete `MSGCON`, the raw editor accepts it. Size (estimate): Small.
+
+---
+
+<a id="i-154"></a>
+
+### I-154 — System-value constants: IBM's edit-code widths, preview text and TIME's "only" rule
+
+> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-144
+
+Follow-up to I-144 against the DDS Reference itself. Measured on v0.10.296 with IBM's own examples: (1) **`W` edit code.** The EDTCDE table's note 2 gives `W`'s exact slash patterns (`nn/nnn`, `nnnn/nn`, `nnnn/nnn`, `nnnn/nn/nn` for 5-8 digits), but `DATE(*YY) EDTCDE(W)` is drawn 8 wide (IBM: 10). The engine's general numeric path has the same gap for `W` and `Y` (it returns the coded length "because the separator is runtime"; only the separator *character* is runtime - note 3 gives `Y`'s patterns `nn/n` ... `nn/nn/nnnn`). (2) **Preview text.** DATE and TIME preview the browser's locale string (`10/3/2026`, `2:31:11 AM`), up to 11 characters in a 6-8 column box; IBM's TIME example shows `11:06:45`, DATE without editing is `mmddyy`, with `EDTCDE(Y)` `mm/dd/yy`. (3) **TIME's companions.** Its section says "You can specify **only** the location of the field, TIME, and optionally EDTCDE, EDTWRD, COLOR, DSPATR, or TEXT"; not enforced (I-144 left all companion lists open because only TIME says "only" - TIME is the one explicit case).
 
 ---
