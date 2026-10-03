@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-156 of 175 tasks done; 19 open (see [Open work](#open-work)). Current version: **v0.10.301**.
+156 of 176 tasks done; 20 open (see [Open work](#open-work)). Current version: **v0.10.301**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -218,6 +218,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
+| [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -253,7 +254,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-155, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-156, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -7069,5 +7070,15 @@ Follow-up to I-144 against the DDS Reference itself. Measured on v0.10.296 with 
 Two existing expectations pinned the old behaviour and were changed deliberately, not worked around: `i121DisplayWidthKeywordSpec` ("`EDTCDE(W)` / `(Y)` leave the coded length untouched" - now IBM's widths) and `i121SystemValueConstantSpec` ("`DATE` previews the current date" via `toLocaleDateString` - now IBM's `mmddyy`).
 
 Tests: new `src/test/i154SystemValueIbmRules.test.js` (65 checks): every pattern against the reference text, widths through the spec and the engine (including IBM's 22-wide `TIME` example), numeric fields, preview text and its zero suppression, the never-longer sweep, the `TIME` rule (allowed and refused keywords, diff behaviour, `DATE` + `DFT` still open), and the real webview (the boxes show `hh:mm:ss` / six digits; the raw editor refuses `DFT` on `TIME`, allows `COLOR`). It fails against the previous source. Mutation-checked: removing the `TIME` rule fails 9 checks, restoring the locale preview 2, a wrong `Y` pattern 7.
+
+---
+
+<a id="i-156"></a>
+
+### I-156 — DATE preview uses the connected job's real date format (QUSRJOBI)
+
+> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-154
+
+Raised after I-154, which had to assume the job attribute `DATFMT` is `*MDY` with a `/` separator because the format is a run-time job attribute. The connected IBM i can tell us: QUSRJOBI format **`JOBI0400`** carries Date separator (offset 218, CHAR(1)) and Date format (offset 219, CHAR(4): `*MDY`, `*DMY`, `*YMD`, `*JUL`). (`JOBI0200`, "WRKACTJOB information", has neither.) The call is made through the existing ISDATEMP wrapper mechanism (as QDBRTVFD is for I-116). It reports the connected SQL job's format - a proxy for the format the screen's own job will have, not a guarantee.
 
 ---
