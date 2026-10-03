@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-151 of 170 tasks done; 19 open (see [Open work](#open-work)). Current version: **v0.10.296**.
+151 of 173 tasks done; 22 open (see [Open work](#open-work)). Current version: **v0.10.296**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -164,11 +164,11 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
-| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Done v0.10.294 (13 entries; relations not enforced logged as deferred findings) | v0.10.294 |
+| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Done v0.10.294 (13 entries; relations not enforced opened as I-151) | v0.10.294 |
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
-| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced logged as deferred findings) | v0.10.295 |
+| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced opened as I-152) | v0.10.295 |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Not started | — |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Not started | — |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
@@ -213,6 +213,9 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
+| [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Not started | — |
+| [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
+| [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -227,23 +230,31 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-143](#i-143) | Done v0.10.296 | `MSGCON` rules enforced (named field, exclusion list, length 1-132). |
-| 2 | [I-144](#i-144) | Not started | DATE/TIME/USER/SYSNAME rules not enforced and one-column preview - found by I-121m. |
-| 3 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
-| 4 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
-| 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 6 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
-| 7 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 8 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 9 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 2 | [I-144](#i-144) | Done v0.10.293 | DATE/TIME/USER/SYSNAME rules enforced and the preview drawn at real width. |
+| 3 | [I-151](#i-151) | Not started | Output-control relations (probed: all accepted today). |
+| 4 | [I-152](#i-152) | Not started | Window / menu-bar / help / logging relations (probed: all accepted today). |
+| 5 | [I-153](#i-153) | Not started | `MSGCON` message ID and file validation. Small. |
+| 6 | [I-145](#i-145) | Not started | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
+| 7 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
+| 8 | [I-147](#i-147) | Not started | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
+| 9 | [I-148](#i-148) | Not started | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
+| 10 | [I-149](#i-149) | Not started | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
+| 11 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
+| 12 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
+| 13 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
+| 14 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 15 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
+| 16 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 17 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 18 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-150, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-153, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121a | **Output-control keyword relations are not enforced.** The DDS Reference (and the spec now) states: `ERASE`, `ERASEINP`, `MDTOFF` and `PROTECT` need `OVERLAY` on the same record; `PUTOVR` cannot be with `PUTRETAIN`; `ERASE` takes at most 20 record names; `CSRLOC` and `FRCDTA` may appear once per record format. A search of the writer and panels found no guard (no probe run). The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are already I-148. `PROTECT` also sits outside `PULLDOWN`'s forbidden list although it needs `OVERLAY`, which `PULLDOWN` forbids - an indirect exclusion, worth confirming when the guards are added. |
-| I-121e | **Window, menu-bar, help and logging relations are not enforced.** The spec now states them; no guard exists for: `HLPCMDKEY` on a subfile-control (`SFLCTL`) record or in a file containing `USRDSPMGT`; `WDWTITLE` on a record with no `WINDOW` definition (or with a window-reference `WINDOW`, which IBM warns about); `HLPSEQ`'s group name over 10 characters, sequence number outside 0-99 or duplicated within a group; `HLPCLR` on a record with no help specification; `MNUBARDSP`'s menu-bar record not existing in the file and its `&choice-field` / `&pull-down-input` not being the documented hidden fields (2Y0 / 2S0); more than one `MNUBARDSP` on a record when some are not optioned. Spec facts: `recordRequires`, `notOnRecordTypes`, `fileExcludes`, `hlpseqLimits`, `requiresHelpSpecification`, `mnubardspFieldShapes`. |
+| *(none)* | *(none)* |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6933,5 +6944,39 @@ To do: the exclusions span the file and record levels, so the check needs the fi
 Raised by the I-121n slice (found while writing the spec entries; a search of the writer, engine and panels found no guard, no probe has been run). The DDS Reference states, and the spec now holds as facts: `CNTFLD` needs an input-capable field of data type A, not in a subfile, with a width smaller than the field length - its row is offered for every data type and usage; `FLDCSRPRG` needs an input-capable field not in a subfile, naming an input-capable field of the same record, and is not allowed with `SNGCHCFLD` / `MLTCHCFLD`; `FLTFIXDEC` needs usage B or O (its row is gated on data type F only); `BLANKS` is for input-capable fields (I, B). The spec entries hold `allowedUsage` and `requiredDataTypes`; the subfile and `FLDCSRPRG` rules are in the reference text cited there.
 
 To do: follow the I-131 `VALNUM` pattern - hide the row (General tab) where the reference does not allow the keyword, and add a writer backstop so raw-editor adds and Basic-tab data type / usage changes cannot create an invalid combination; the subfile and `SNGCHCFLD` / `MLTCHCFLD` rules need the record context.
+
+---
+
+<a id="i-151"></a>
+
+### I-151 — Output-control keyword relations are not enforced
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121a
+
+Raised by the I-121a slice; opened as a task with a probe. **Output-control keyword relations are not enforced.** The DDS Reference (and the spec now) states: `ERASE`, `ERASEINP`, `MDTOFF` and `PROTECT` need `OVERLAY` on the same record; `PUTOVR` cannot be with `PUTRETAIN`; `ERASE` takes at most 20 record names; `CSRLOC` and `FRCDTA` may appear once per record format. A search of the writer and panels found no guard (no probe run). The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are already I-148. `PROTECT` also sits outside `PULLDOWN`'s forbidden list although it needs `OVERLAY`, which `PULLDOWN` forbids - an indirect exclusion, worth confirming when the guards are added.
+
+**Probe (raw record keyword editor, v0.10.296; every case below was *allowed* and wrote an edit):** `ERASE`, `ERASEINP(*ALL)`, `MDTOFF` and `PROTECT` each added to a record with no `OVERLAY`; `PUTOVR` added to a record carrying `PUTRETAIN`; `ERASE` with 21 record names; `CSRLOC` and `FRCDTA` each added a second time to a record that already had one. The spec facts are in the I-121a entries; this task adds the guards (add-time check for the raw editor and General rows, the diff-based backstop at `commitEdit`, both directions where a relation is a pair - removing `OVERLAY` while `ERASE` stays), in the style of I-140. The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are I-148, not this task. Confirm the `PROTECT` / `PULLDOWN` indirect exclusion before deciding where that message is raised.
+
+---
+
+<a id="i-152"></a>
+
+### I-152 — Window, menu-bar, help and logging relations are not enforced
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-121e
+
+Raised by the I-121e slice; opened as a task with a probe. **Window, menu-bar, help and logging relations are not enforced.** The spec now states them; no guard exists for: `HLPCMDKEY` on a subfile-control (`SFLCTL`) record or in a file containing `USRDSPMGT`; `WDWTITLE` on a record with no `WINDOW` definition (or with a window-reference `WINDOW`, which IBM warns about); `HLPSEQ`'s group name over 10 characters, sequence number outside 0-99 or duplicated within a group; `HLPCLR` on a record with no help specification; `MNUBARDSP`'s menu-bar record not existing in the file and its `&choice-field` / `&pull-down-input` not being the documented hidden fields (2Y0 / 2S0); more than one `MNUBARDSP` on a record when some are not optioned. Spec facts: `recordRequires`, `notOnRecordTypes`, `fileExcludes`, `hlpseqLimits`, `requiresHelpSpecification`, `mnubardspFieldShapes`.
+
+**Probe (raw record keyword editor, v0.10.296; allowed, edit written):** `HLPCMDKEY` on an `SFLCTL` record; `WDWTITLE` on a record with no `WINDOW`; `HLPSEQ` with an 11-character group name and with sequence number 100; `HLPCLR` on a record with no help specification; `MNUBARDSP` naming a menu-bar record that does not exist in the file. Not probed (needs a richer fixture): `HLPCMDKEY` in a file containing `USRDSPMGT`, the `MNUBARDSP` hidden-field shapes, a duplicated `HLPSEQ` number within a group, and several un-optioned `MNUBARDSP` on one record. Add the guards for each (writer backstop, raw editor, panels), both directions where the relation is a pair.
+
+---
+
+<a id="i-153"></a>
+
+### I-153 — `MSGCON` message ID and message file parameters are not validated
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-143
+
+Follow-up to I-143, which enforced `MSGCON`'s three stated rules (constant fields only, the exclusion list, length 1-132) and left the other two parameters unchecked: `MSGCON(length message-ID [library-name/]message-file-name)`. Today any token is accepted as the message ID and as the file, so `MSGCON(20 X Y)` is written and an incomplete form falls through `parseMsgConParams` as an unstructured raw edit. To do: (1) read `DDS_Keyword_V7r6.txt` ~line 8922 and the message-description and object-name rules it points to for what IBM states about the message ID (the `MSGID` section gives a 7-character form) and about the file and library names; **if the reference does not state a rule, do not invent one** - record an open question (the ground-truth rule of this series); (2) put whatever is stated into the `RECORD_TYPES.MSGCON.msgconParameters` entry (it holds only the length range today); (3) enforce it at the same three places I-143 used (add-time, `commitEdit` backstop, the constant Add form) with the same diff-based posture; (4) decide what a bare `MSGCON` or a two-token one means - the panel drops an incomplete `MSGCON`, the raw editor accepts it. Size (estimate): Small.
 
 ---
