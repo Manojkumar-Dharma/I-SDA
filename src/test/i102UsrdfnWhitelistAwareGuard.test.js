@@ -160,8 +160,10 @@ console.log('\ncontrol: a plain record still accepts them (nothing here is USRDF
 // ===========================================================================
 // Part 3 - the real generated designer
 // ===========================================================================
+// Task I-152: HLPCLR needs at least one help specification on its record, so the fixture record carries one.
 const SRC = [
   buildLine({ seq: '00010', nameType: 'R', name: 'USRREC', func: 'USRDFN' }),
+  buildLine({ seq: '00020', nameType: 'H', func: 'HLPARA(1 2 1 10)' }),
 ].join('\n') + '\n';
 const html = webviewHtml('vscode-webview://fake', 'testnonce', SRC, 'I102.DSPF');
 const posted = [];

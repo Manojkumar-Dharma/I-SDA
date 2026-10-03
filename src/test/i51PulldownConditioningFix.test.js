@@ -36,10 +36,12 @@ const DspfParser = require('../../dist/dspfParser.js');
 const { check, failureCount } = require('./helpers/harness');
 const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
+// Task I-152: HLPCLR needs at least one help specification on its record, so the fixture record carries one.
 const dspfSource =
   [
     '     A                                      DSPSIZ(24 80 *DS3)',
     '     A          R SCR1',
+    '     A          H                           HLPARA(1 2 1 10)',
     "     A                                  1  2'MAIN SCREEN'",
   ].join('\n') + '\n';
 

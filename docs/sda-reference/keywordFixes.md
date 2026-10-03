@@ -214,7 +214,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Done | v0.10.302 |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Done | v0.10.306 |
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
-| [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Claimed (in progress) | — |
+| [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Done | v0.10.309 |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Done | v0.10.308 |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Done | v0.10.307 |
@@ -260,6 +260,7 @@ Every finding so far has been opened as a task (I-61 – I-157, see the tables a
 | Raised by | Finding |
 |-----------|---------|
 | I-121f | File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice. Not opened as a task yet. |
+| I-152 | **The `MNUBARDSP` panel writes field names without the `&`.** The reference form is `MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])` (its examples write `&MNUCHOICE`), but the Menu-Bar display rows write the bare names (`BAR1 MNUFLD`, asserted by `i17MnubardspRepeatableInstances`). The I-152 guard accepts both forms. Whether the compiler accepts the bare form, and whether the panel should write the `&`, is unconfirmed (no probe, not tried against a real compile). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -7098,11 +7099,26 @@ New `src/test/i151OutputControlRelations.test.js` (80 checks): each fact against
 
 ### I-152 — Window, menu-bar, help and logging relations are not enforced
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-121e
+> **Area:** Record · **Status:** Done (v0.10.309) · **Depends on:** I-121e
 
 Raised by the I-121e slice; opened as a task with a probe. **Window, menu-bar, help and logging relations are not enforced.** The spec now states them; no guard exists for: `HLPCMDKEY` on a subfile-control (`SFLCTL`) record or in a file containing `USRDSPMGT`; `WDWTITLE` on a record with no `WINDOW` definition (or with a window-reference `WINDOW`, which IBM warns about); `HLPSEQ`'s group name over 10 characters, sequence number outside 0-99 or duplicated within a group; `HLPCLR` on a record with no help specification; `MNUBARDSP`'s menu-bar record not existing in the file and its `&choice-field` / `&pull-down-input` not being the documented hidden fields (2Y0 / 2S0); more than one `MNUBARDSP` on a record when some are not optioned. Spec facts: `recordRequires`, `notOnRecordTypes`, `fileExcludes`, `hlpseqLimits`, `requiresHelpSpecification`, `mnubardspFieldShapes`.
 
 **Probe (raw record keyword editor, v0.10.296; allowed, edit written):** `HLPCMDKEY` on an `SFLCTL` record; `WDWTITLE` on a record with no `WINDOW`; `HLPSEQ` with an 11-character group name and with sequence number 100; `HLPCLR` on a record with no help specification; `MNUBARDSP` naming a menu-bar record that does not exist in the file. Not probed (needs a richer fixture): `HLPCMDKEY` in a file containing `USRDSPMGT`, the `MNUBARDSP` hidden-field shapes, a duplicated `HLPSEQ` number within a group, and several un-optioned `MNUBARDSP` on one record. Add the guards for each (writer backstop, raw editor, panels), both directions where the relation is a pair.
+
+
+**Fix (v0.10.309).** `DspfWriter.windowHelpMenuNewConflictReason(oldModel, newModel)` finds, per record and per file, every violation of the relations below and reports only one the edit adds (the I-140 / I-148 / I-151 diff shape), so an already-invalid hand-written file never blocks an unrelated edit. Every value is read from the I-121e spec facts (`notOnRecordTypes`, `fileExcludes`, `recordRequires`, `hlpseqLimits`, `requiresHelpSpecification`, `mnubardspFieldShapes`); nothing is copied. It is hooked into the same webview edit choke point as I-151, so the raw keyword editor, the General rows, the panels and every other edit pass through it (alert, re-render, nothing written).
+
+- `HLPCMDKEY` and `HLPSEQ` on the record types the spec lists (`HLPCMDKEY`: `SFL`, `SFLCTL`, `USRDFN`; `HLPSEQ`: `SFL`, `USRDFN` - its section does not list `SFLCTL`, and a test pins that), and `HLPCMDKEY` in a file with `USRDSPMGT` - refused from either side: adding the keyword, or adding the record type / file keyword while the other is present.
+- `WDWTITLE` with no `WINDOW` on the record, and removing the `WINDOW` while `WDWTITLE` stays. **Decided:** a `WINDOW` that only references another window is accepted - the reference says a warning is issued for that case, not that it is invalid, so refusing it would block a file IBM compiles.
+- `HLPSEQ`: group name over 10 characters, sequence number outside 0-99, and the same (group, number) pair on more than one record in the file (group compared without case). A missing or non-numeric sequence is left to the grammar checks.
+- `HLPCLR` on a record with no help specification (`helpEntries`), including removing the last one while `HLPCLR` stays.
+- `MNUBARDSP`: on a non-menu-bar record the named menu-bar record must exist in the file and carry `MNUBAR`; `&choice-field` must be a hidden, 2-long, zero-decimal `Y` field of the record and `&pull-down-input` a hidden, 2-long, zero-decimal `S` field; on a `MNUBAR` record the optional `&pull-down-input` has the same `S` shape; several `MNUBARDSP` on one record are refused when any is not optioned. The first-instance placeholder the panel writes (a blank `MNUBARDSP` on a normal record) is not counted until it has names, otherwise a second instance could never be added through the panel.
+
+The cases the task text left unprobed are now covered by tests: `HLPCMDKEY` in a `USRDSPMGT` file, the `MNUBARDSP` hidden-field shapes, a duplicated `HLPSEQ` number in a group, and several un-optioned `MNUBARDSP` on one record.
+
+New `src/test/i152WindowHelpMenuRelations.test.js` (87 checks): each fact against the reference text, every rule accepted and refused (both directions, boundary values, case, an already-invalid file, a second new violation, fail-safe on odd models), the other I-121e keywords left alone, and the real webview in jsdom (raw-add refused and accepted, remove `WINDOW` while `WDWTITLE` stays). Mutation-checked: removing only the commit-point hook fails 9 checks.
+
+**Five older tests adapted, not the guard.** `i13PulldownConflictAudit`, `i102UsrdfnWhitelistAwareGuard`, `i49UsrdfnRawKeywordEditorWhitelist` and `i51PulldownConditioningFix` tick `HLPCLR` on a record that had no help specification; each fixture record now carries one (`HLPARA`). `i17MnubardspRepeatableInstances` named menu-bar records and fields that did not exist and added a second un-optioned instance; its fixture now has real `MNUBAR` records and hidden fields, and each instance is conditioned before the next is filled. What each test asserts is unchanged. Full suite: 257 files, 14,427 checks, zero failures.
 
 ---
 

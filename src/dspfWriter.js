@@ -5566,6 +5566,149 @@
     return firstNewViolation(outputControlViolations(oldModel), after);
   }
 
+  /** Task I-152 - the window, menu-bar, help and logging relations the
+   *  I-121e slice found unenforced, every value read from KeywordSpec
+   *  (recordRequires, notOnRecordTypes, fileExcludes, hlpseqLimits,
+   *  requiresHelpSpecification, mnubardspFieldShapes - nothing hand-copied):
+   *   HLPCMDKEY / HLPSEQ  not on the record types the spec lists (SFLCTL was the
+   *                       unguarded one); HLPCMDKEY not in a file with USRDSPMGT
+   *   WDWTITLE            needs a WINDOW on the record. A WINDOW that only
+   *                       REFERENCES another window is accepted: the reference
+   *                       says a warning is issued, not that it is invalid
+   *   HLPSEQ              group name <= 10 characters, sequence 0-99, and a
+   *                       (group, sequence) pair used once across the file
+   *   HLPCLR              the record needs at least one help specification
+   *   MNUBARDSP           the menu-bar record it names exists in the file and
+   *                       is a MNUBAR record; &choice-field / &pull-down-input
+   *                       are hidden fields of the documented shape; several
+   *                       MNUBARDSP on one record must all carry option
+   *                       indicators
+   *  Violations are keyed so firstNewViolation reports only what an edit adds,
+   *  in either direction (adding the keyword, or removing what it needs), and
+   *  an already-invalid hand-written file never blocks an unrelated edit. */
+  var RECORD_TYPE_LABELS = { SFL: 'subfile (SFL)', SFLCTL: 'subfile-control (SFLCTL)', USRDFN: 'user-defined (USRDFN)', MNUBAR: 'menu-bar (MNUBAR)' };
+  function windowHelpMenuViolations(model) {
+    var out = {};
+    var fileKws = (model && model.fileKeywords) || [];
+    var records = (model && model.records) || [];
+    var seqSeen = {};
+    var limits = KeywordSpec.hlpseqLimits();
+    var shapes = KeywordSpec.mnubardspFieldShapes();
+    function shapeProblem(field, shape) {
+      if (!field) return 'is not a field of the record';
+      var bits = [];
+      if (String(field.usage || '').toUpperCase() !== shape.usage) bits.push('hidden (usage ' + shape.usage + ')');
+      if (Number(field.length) !== shape.length) bits.push(shape.length + ' long');
+      if (Number(field.decimalPositions) !== shape.decimals) bits.push(shape.decimals + ' decimal positions');
+      if (String(field.dataType || '').toUpperCase() !== shape.keyboardShift) bits.push('data type ' + shape.keyboardShift);
+      return bits.length ? 'must be ' + bits.join(', ') : null;
+    }
+    records.forEach(function (r) {
+      var kws = r.keywords || [];
+      // (1) record types a keyword is refused on, and keywords the file excludes.
+      ['HLPCMDKEY', 'HLPSEQ'].forEach(function (n) {
+        if (!hasKeywordNamed(kws, n)) return;
+        KeywordSpec.notOnRecordTypes(n).forEach(function (type) {
+          if (hasKeywordNamed(kws, type)) {
+            out[r.name + '|' + n + '|TYPE|' + type] = n + ' cannot be specified on a ' + (RECORD_TYPE_LABELS[type] || type) +
+              ' record format (' + r.name + ') (per the DDS Reference).';
+          }
+        });
+        KeywordSpec.fileExcludes(n).forEach(function (x) {
+          if (hasKeywordNamed(fileKws, x)) {
+            out[r.name + '|' + n + '|FILE|' + x] = n + ' cannot be specified on record format ' + r.name + ' in a file with ' + x + ' (per the DDS Reference).';
+          }
+        });
+      });
+      // (2) WDWTITLE needs a WINDOW on the record (a reference-form WINDOW counts).
+      if (hasKeywordNamed(kws, 'WDWTITLE')) {
+        KeywordSpec.recordRequires('WDWTITLE').forEach(function (need) {
+          if (!hasKeywordNamed(kws, need)) {
+            out[r.name + '|WDWTITLE|REQ|' + need] = 'WDWTITLE cannot be specified on record format ' + r.name + ' without a ' + need +
+              ' keyword on the same record format (per the DDS Reference).';
+          }
+        });
+      }
+      // (3) HLPSEQ group name and sequence number.
+      instancesOf(kws, 'HLPSEQ').forEach(function (k, i) {
+        var tokens = String(k.parameters == null ? '' : k.parameters).trim().split(/\s+/).filter(Boolean);
+        var group = tokens[0];
+        var seq = tokens[1];
+        if (group && group.length > limits.groupNameMaxLength) {
+          out[r.name + '|HLPSEQ|GROUP|' + i] = 'HLPSEQ group name ' + group + ' on record format ' + r.name + ' is ' + group.length +
+            ' characters; at most ' + limits.groupNameMaxLength + ' are allowed (per the DDS Reference).';
+        }
+        if (seq !== undefined && /^-?\d+$/.test(seq)) {
+          var n = Number(seq);
+          if (n < limits.sequenceMin || n > limits.sequenceMax) {
+            out[r.name + '|HLPSEQ|SEQ|' + i] = 'HLPSEQ sequence number ' + seq + ' on record format ' + r.name + ' must be ' +
+              limits.sequenceMin + ' to ' + limits.sequenceMax + ' (per the DDS Reference).';
+          }
+          if (group) {
+            var key = group.toUpperCase() + '|' + n;
+            (seqSeen[key] = seqSeen[key] || []).push(r.name);
+          }
+        }
+      });
+      // (4) HLPCLR needs a help specification on the record.
+      if (hasKeywordNamed(kws, 'HLPCLR') && KeywordSpec.requiresHelpSpecification('HLPCLR') && !(r.helpEntries || []).length) {
+        out[r.name + '|HLPCLR|HELPSPEC'] = 'HLPCLR on record format ' + r.name +
+          ' requires the record to contain at least one help specification (per the DDS Reference).';
+      }
+      // (5) MNUBARDSP.
+      var dsps = instancesOf(kws, 'MNUBARDSP');
+      var isMnubarRecord = hasKeywordNamed(kws, 'MNUBAR');
+      // A blank instance on a non-menu-bar record is the panel's just-added
+      // placeholder (the keyword needs names there), so it is not counted
+      // until it has parameters; on a MNUBAR record a bare MNUBARDSP is valid.
+      var inEffect = dsps.filter(function (k) { return isMnubarRecord || String(k.parameters == null ? '' : k.parameters).trim() !== ''; });
+      if (inEffect.length > 1 && inEffect.some(function (k) { return !(k.conditions || []).length; })) {
+        out[r.name + '|MNUBARDSP|OPTIONED'] = 'More than one MNUBARDSP can be specified on record format ' + r.name +
+          ' only if every one carries an option indicator (per the DDS Reference).';
+      }
+      dsps.forEach(function (k, i) {
+        var tokens = String(k.parameters == null ? '' : k.parameters).trim().split(/\s+/).filter(Boolean);
+        var fieldOf = function (ref) {
+          var nm = String(ref).replace(/^&/, '').toUpperCase();
+          return (r.fields || []).find(function (f) { return String(f.name || '').toUpperCase() === nm; }) || null;
+        };
+        var checkField = function (ref, shape, role) {
+          if (!ref) return;
+          var problem = shapeProblem(fieldOf(ref), shape);
+          if (problem) {
+            out[r.name + '|MNUBARDSP|' + role + '|' + i] = 'MNUBARDSP field ' + String(ref).replace(/^&/, '') + ' on record format ' + r.name + ' ' + problem +
+              ' (per the DDS Reference).';
+          }
+        };
+        if (isMnubarRecord) {
+          checkField(tokens[0], shapes.pullDownInput, 'PDI');
+          return;
+        }
+        if (tokens.length < 2) return;
+        var bar = records.find(function (x) { return String(x.name).toUpperCase() === tokens[0].toUpperCase(); });
+        if (!bar || !hasKeywordNamed(bar.keywords, 'MNUBAR')) {
+          out[r.name + '|MNUBARDSP|BAR|' + i] = 'MNUBARDSP on record format ' + r.name + ' names ' + tokens[0] +
+            ', which is not a menu-bar (MNUBAR) record format in this file (per the DDS Reference).';
+        }
+        checkField(tokens[1], shapes.choiceField, 'CHC');
+        checkField(tokens[2], shapes.pullDownInput, 'PDI');
+      });
+    });
+    Object.keys(seqSeen).forEach(function (key) {
+      if (seqSeen[key].length > 1) {
+        var parts = key.split('|');
+        out['HLPSEQ|DUP|' + key] = 'HLPSEQ sequence number ' + parts[1] + ' is used more than once in help group ' + parts[0] +
+          ' (' + seqSeen[key].join(', ') + '); duplicate numbers within a group are not allowed (per the DDS Reference).';
+      }
+    });
+    return out;
+  }
+  function windowHelpMenuNewConflictReason(oldModel, newModel) {
+    var after = windowHelpMenuViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(windowHelpMenuViolations(oldModel), after);
+  }
+
   /** Task I-149 - RETKEY / RETCMDKEY exclusions and file-level requirements
    *  (the I-121b spec facts: fileAndRecordExcludes, recordExcludes,
    *  fileExcludes, fileRequires). The exclusions span the file and the record,
@@ -10373,6 +10516,7 @@
     fieldKindViolations: fieldKindViolations,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
     outputControlNewConflictReason: outputControlNewConflictReason,
+    windowHelpMenuNewConflictReason: windowHelpMenuNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
     subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,
     subfileFoldDropViolations: subfileFoldDropViolations,

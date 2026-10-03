@@ -29,11 +29,22 @@ const { newWebviewDom, webviewHtml } = require('./helpers/common');
 
 const dspfSource =
   [
+    // Task I-152: MNUBARDSP now needs real menu-bar records (BAR1, BAR2) and
+    // hidden choice (2Y0) / pull-down-input (2S0) fields on the record, so
+    // the fixture carries them; and several instances must all be optioned,
+    // so the test conditions each one before filling the next.
     '     A          R APPSCR',
     '     A            APPFLD         5A  B 1  2',
+    '     A            MNUFLD         2Y 0H',
+    '     A            MNUFLD2        2Y 0H',
+    '     A            PULLFLD        2S 0H',
     '     A          R BAR1                       MNUBAR',
     '     A            MNUFLD         2Y 0B 3  2',
     "     A                                      MNUBARCHC(1 PULLFILE '>File')",
+    '     A            PULLIN         2S 0H',
+    '     A          R BAR2                       MNUBAR',
+    '     A            MNUFLD         2Y 0B 3  2',
+    "     A                                      MNUBARCHC(1 PULLFILE '>Edit')",
   ].join('\n') + '\n';
 
 const html = webviewHtml('vscode-webview://fake', 'testnonce', dspfSource, 'MYSCR.DSPF');
@@ -90,14 +101,37 @@ setTimeout(() => {
   check('MNUBARDSP written as "BAR1 MNUFLD" (no trailing blank)', mnubardsp0.parameters.trim() === 'BAR1 MNUFLD');
   posted.length = 0;
 
-  console.log('\nadding a SECOND, independently-conditioned MNUBARDSP instance on the same record - the exact behavior I-14 flagged as unmodeled');
+  console.log('\nconditioning instance 0 (while it is the only one), then adding a SECOND, independently-conditioned instance - the behavior I-14 flagged as unmodeled');
+  const condOnRow = (idx, number) => {
+    const pfx = rkAppscr + '-inst' + idx;
+    // The accordion's open state follows the row INDEX, and conditioning reorders rows, so
+    // an index can already be open; only click the toggle when it is closed.
+    if (!doc.querySelector('.cond-add-group[data-prefix="' + pfx + '"]')) {
+      doc.querySelector('.repeat-inst-cond-toggle[data-prefix="' + rkAppscr + '"][data-idx="' + idx + '"]').dispatchEvent(new Event('click', { bubbles: true }));
+    }
+    const addBtn = doc.querySelector('.cond-add-group[data-prefix="' + pfx + '"]');
+    check('setup: Conditioning accordion for instance ' + idx + ' expanded', !!addBtn);
+    addBtn.dispatchEvent(new Event('click', { bubbles: true }));
+    doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num').value = number;
+    doc.querySelector('.cond-ind-add[data-prefix="' + pfx + '"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
+  };
+  const recInputs = () => Array.from(doc.querySelectorAll('[class$="-rec"]')).filter((el) => el.className.indexOf(rkAppscr + '-inst') === 0);
+  condOnRow(0, '30');
+  reparsed = latestRecord('APPSCR');
+  const afterFirstCond = reparsed.keywords.find((k) => k.name === 'MNUBARDSP');
+  check('instance 0 (BAR1 MNUFLD) is now conditioned on indicator 30', afterFirstCond.parameters.trim() === 'BAR1 MNUFLD' && afterFirstCond.conditions.length === 1 && afterFirstCond.conditions[0].indicators[0].number === '30');
+  posted.length = 0;
+
   doc.querySelector('.repeat-inst-add[data-prefix="' + rkAppscr + '"]').dispatchEvent(new Event('click', { bubbles: true }));
   applyEdit = posted.find((m) => m.type === 'applyEdit');
   reparsed = DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'APPSCR');
-  check('a second MNUBARDSP now exists', reparsed.keywords.filter((k) => k.name === 'MNUBARDSP').length === 2);
+  check('a second MNUBARDSP now exists (a blank placeholder is not yet an instance in effect)', reparsed.keywords.filter((k) => k.name === 'MNUBARDSP').length === 2);
   posted.length = 0;
 
-  const inst1 = rkAppscr + '-inst1';
+  // The blank row is the one whose record input is empty; its index can differ from the typing order.
+  const blankIdx = recInputs().find((el) => el.value === '').className.match(/-inst(\d+)-rec$/)[1];
+  condOnRow(blankIdx, '31');
+  const inst1 = rkAppscr + '-inst' + blankIdx;
   doc.querySelector('.' + inst1 + '-rec').value = 'BAR2';
   doc.querySelector('.' + inst1 + '-rec').dispatchEvent(new Event('change', { bubbles: true }));
   doc.querySelector('.' + inst1 + '-chc').value = 'MNUFLD2';
@@ -106,23 +140,10 @@ setTimeout(() => {
   doc.querySelector('.' + inst1 + '-pull').dispatchEvent(new Event('change', { bubbles: true }));
   reparsed = latestRecord('APPSCR');
   const mnubardspInsts = reparsed.keywords.filter((k) => k.name === 'MNUBARDSP');
-  check('first instance ("BAR1 MNUFLD") untouched by editing the second', mnubardspInsts.some((k) => k.parameters.trim() === 'BAR1 MNUFLD'));
-  check('second instance written with all 3 names ("BAR2 MNUFLD2 PULLFLD")', mnubardspInsts.some((k) => k.parameters.trim() === 'BAR2 MNUFLD2 PULLFLD'));
-  posted.length = 0;
-
-  console.log('\nconditioning one instance leaves the other\u2019s conditioning (none) untouched - independently-conditioned, not a shared toggle');
-  doc.querySelector('.repeat-inst-cond-toggle[data-prefix="' + rkAppscr + '"][data-idx="0"]').dispatchEvent(new Event('click', { bubbles: true }));
-  const condAddBtn = doc.querySelector('.cond-add-group[data-prefix="' + inst0 + '"]');
-  check('setup: Conditioning accordion for instance 0 expanded', !!condAddBtn);
-  condAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
-  doc.querySelector('.cond-group[data-group="pending"] .cond-ind-num').value = '30';
-  doc.querySelector('.cond-ind-add[data-prefix="' + inst0 + '"][data-group="pending"]').dispatchEvent(new Event('click', { bubbles: true }));
-  reparsed = latestRecord('APPSCR');
-  const afterCond = reparsed.keywords.filter((k) => k.name === 'MNUBARDSP');
-  const bar1Inst = afterCond.find((k) => k.parameters.trim() === 'BAR1 MNUFLD');
-  const bar2Inst = afterCond.find((k) => k.parameters.trim() === 'BAR2 MNUFLD2 PULLFLD');
-  check('instance 0 (BAR1 MNUFLD) is now conditioned on indicator 30', bar1Inst && bar1Inst.conditions.length === 1 && bar1Inst.conditions[0].indicators[0].number === '30');
-  check('instance 1 (BAR2 ...) remains unconditioned', bar2Inst && bar2Inst.conditions.length === 0);
+  const bar1Inst = mnubardspInsts.find((k) => k.parameters.trim() === 'BAR1 MNUFLD');
+  const bar2Inst = mnubardspInsts.find((k) => k.parameters.trim() === 'BAR2 MNUFLD2 PULLFLD');
+  check('first instance (\"BAR1 MNUFLD\") untouched by editing the second, still on indicator 30', !!bar1Inst && bar1Inst.conditions.length === 1 && bar1Inst.conditions[0].indicators[0].number === '30');
+  check('second instance written with all 3 names (\"BAR2 MNUFLD2 PULLFLD\") and its own indicator 31', !!bar2Inst && bar2Inst.conditions.length === 1 && bar2Inst.conditions[0].indicators[0].number === '31');
   posted.length = 0;
 
   console.log('\nremoving one instance leaves the other intact');

@@ -6326,6 +6326,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.subfileKeywordNewConflictReason(model, candidate) ||
       DspfWriter.subfileFoldDropNewConflictReason(model, candidate) ||
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
+      DspfWriter.windowHelpMenuNewConflictReason(model, candidate) ||
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
       DspfWriter.fieldKindNewConflictReason(model, candidate) ||

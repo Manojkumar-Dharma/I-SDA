@@ -30,6 +30,8 @@ const dspfSource =
     '     A          R PDNREC                     PULLDOWN',
     "     A                                  1  2'Choice'",
     '     A          R PLAINREC',
+    // Task I-152: HLPCLR needs a help specification on its record.
+    '     A          H                           HLPARA(1 2 1 10)',
     "     A                                  1  2'PLAIN SCREEN'",
     '     A          R PLAINREC2',
     "     A                                  1  2'PLAIN SCREEN 2'",
