@@ -14,6 +14,7 @@ citations and tests live in the task's section of
 
 - Docs (no version): README rewritten; this changelog condensed to one line per version; I-121 split into independent slices I-121a – I-121t in `keywordFixes.md`.
 - Docs (no version): the two deferred findings (I-121a, I-121e) and the `MSGCON` parameter follow-up opened as tasks I-151 – I-153, with probe results; Open work now lists I-145 – I-153.
+- **0.10.304** — I-157: `SFLDROP`, `SFLENTER`, `SFLFOLD`, `SFLMODE` and `SFLRNA` are refused on a record with no `SFLCTL` (when added and when `SFLCTL` is removed), closing the finding I-147 deferred; `SFLMSGRCD` is on the subfile record and stays out.
 - **0.10.303** — I-148: `GETRETAIN` is refused without a parameterless `UNLOCK` on the record (including beside `UNLOCK(*ERASE)` / `UNLOCK(*MDTOFF)`), `RTNDTA` is refused beside `UNLOCK`, and `INZINP` is refused without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)`; each is refused when added and when what it needs is removed or changed, and only a violation the edit adds is reported; `RETKEY` / `RETCMDKEY` exclusions stay with I-149.
 - **0.10.302** — I-149: `RETKEY` / `RETCMDKEY` refused with the command keys, `SFL*` keywords and alt keys their sections exclude, at the file and record levels, and in a file without `INDARA`
 - **0.10.301** — I-154: DATE/TIME previews use IBM's formats at the real width; EDTCDE W/Y widths follow IBM's slash patterns (DATE and numeric fields); TIME accepts only its listed keywords.

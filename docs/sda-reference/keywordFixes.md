@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-156 of 177 tasks done; 21 open (see [Open work](#open-work)). Current version: **v0.10.303**.
+157 of 177 tasks done; 20 open (see [Open work](#open-work)). Current version: **v0.10.304**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -219,7 +219,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
-| [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Claimed (in progress) | — |
+| [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -7111,10 +7111,14 @@ Raised after I-154, which had to assume the job attribute `DATFMT` is `*MDY` wit
 
 ### I-157 — `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL`
 
-> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-147
+> **Area:** Record · **Status:** Done (v0.10.304) · **Depends on:** I-147
 
 Opened from the deferred finding raised by I-147. I-147 added `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` to `SFLCTL.requiredFor`; `SFLDROP`, `SFLENTER`, `SFLFOLD`, `SFLMODE` and `SFLRNA` (whose spec entries all say `onRecordType: 'SFLCTL'`) were left out because each section's wording about where it is valid had to be re-read first. That re-read is done (`DDS_Keyword_V7r6.txt`): `SFLDROP`, `SFLFOLD` and `SFLMODE` say "You use this record-level keyword on the subfile-control record format"; `SFLENTER` says the same and adds "This optional keyword is valid only for the subfile-control record format"; `SFLRNA` says "You use this record-level keyword with the Subfile Initialize (SFLINZ) keyword on the subfile-control record format". None of the five names another record type.
 
-To do: add the five to `SFLCTL.requiredFor` (and its `requiredForDdsReference`) so the existing I-141 / I-147 dependency check refuses them on a record without `SFLCTL`, when added and when `SFLCTL` is removed; test the refusals and accepted paths in the I-147 shape, including the raw keyword editor in jsdom, and adapt any older test that adds them to a plain record.
+**Fix (v0.10.304).** The five are added to `SFLCTL.requiredFor` (and its `requiredForDdsReference`, which now cites each section), so the existing I-141 / I-147 dependency check - `DspfWriter.sflctlDependencyNewConflictReason`, diff-based, both directions, already hooked into the webview's edit choke point - refuses `SFLDROP`, `SFLENTER`, `SFLFOLD`, `SFLMODE` and `SFLRNA` on a record with no `SFLCTL`, both when one is added and when `SFLCTL` is removed while one stays. No new guard code: the list is the only change, which is what the finding predicted. `SFLMSGRCD` stays out on purpose: it is on the subfile record (`SFL`), not the control record.
+
+New `src/test/i157SubfileControlRequiresSflctl.test.js` (56 checks): each cited sentence against the reference text, the list and its citation, every keyword refused / accepted / removed (both directions, an already-invalid record, an option indicator on `SFLDROP`, per-record judgement, fail-safe on odd models), and the real webview in jsdom (raw-adding each of the five to a plain record is refused with nothing written, `SFLENTER` goes through on the `SFLCTL` record, removing `SFLCTL` while `SFLMODE` stays is refused). Mutation-checked: with the old list the test has 16 failures.
+
+**Three older tests adapted, not the guard.** `i121dSubfileModeEntryKeywordSpec` asserted the five were *not* in the list (that was the logged finding), `i141SubfileControlKeywords` pinned the list at eight, and `i147SubfileControlRules` pinned it to the first eight; each now states the thirteen-keyword list. Full suite: 252 files, 14,092 checks, 0 failures.
 
 ---

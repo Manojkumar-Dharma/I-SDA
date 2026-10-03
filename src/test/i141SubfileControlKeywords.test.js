@@ -43,9 +43,9 @@ function dds(o) {
 }
 
 console.log('=== 1. spec facts ===');
-// Task I-147 widened the list from the three I-141 named to the eight subfile-control keywords.
-check('SFLCTL requires-list is the I-141 three then the five I-147 added', KeywordSpec.sflctlDependentKeywords().join() === 'SFLCSRRRN,SFLDLT,SFLINZ,SFLPAG,SFLCLR,SFLDSP,SFLDSPCTL,SFLEND');
-check('the accessor returns a copy', (() => { const a = KeywordSpec.sflctlDependentKeywords(); a.push('X'); return KeywordSpec.sflctlDependentKeywords().length === 8; })());
+// Task I-147 widened the list from the three I-141 named to the eight subfile-control keywords; Task I-157 added the five I-121d ones (13).
+check('SFLCTL requires-list is the I-141 three, the five I-147 added, then the five I-157 added', KeywordSpec.sflctlDependentKeywords().join() === 'SFLCSRRRN,SFLDLT,SFLINZ,SFLPAG,SFLCLR,SFLDSP,SFLDSPCTL,SFLEND,SFLDROP,SFLENTER,SFLFOLD,SFLMODE,SFLRNA');
+check('the accessor returns a copy', (() => { const a = KeywordSpec.sflctlDependentKeywords(); a.push('X'); return KeywordSpec.sflctlDependentKeywords().length === 13; })());
 check('the citation names the subfile-control record format', /subfile-control record format/.test(KeywordSpec.RECORD_TYPES.SFLCTL.requiredForDdsReference));
 check('SFLDLT has the option-indicator-required fact (no display size)', (() => { const f = KeywordSpec.optionIndicatorRequiredFact('sfldlt'); return !!f && f.required === true && f.noDisplaySize === true && /required for this keyword/.test(f.ddsReference); })());
 check('no other keyword has it', ['SFLINZ', 'SFLCLR', 'SFLEND', 'RMVWDW', ''].every((k) => KeywordSpec.optionIndicatorRequiredFact(k) === null));

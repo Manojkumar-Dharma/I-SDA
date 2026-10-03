@@ -291,11 +291,18 @@
       // Task I-147 widened this from the three I-141 named to every subfile-control keyword the
       // I-121c slice specified (each of those entries has onRecordType 'SFLCTL'): SFLPAG, SFLCLR,
       // SFLDSP, SFLDSPCTL and SFLEND were accepted on a record with no SFLCTL.
-      requiredFor: ['SFLCSRRRN', 'SFLDLT', 'SFLINZ', 'SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND'],
+      // Task I-157 added the five I-121d control-record keywords I-147 left for a re-read of their wording:
+      // SFLDROP, SFLENTER, SFLFOLD, SFLMODE and SFLRNA (SFLMSGRCD is on the subfile record, not here).
+      requiredFor: ['SFLCSRRRN', 'SFLDLT', 'SFLINZ', 'SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND',
+        'SFLDROP', 'SFLENTER', 'SFLFOLD', 'SFLMODE', 'SFLRNA'],
       requiredForDdsReference:
         'SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords used on the subfile-control record format. ' +
         'SFLPAG (~line 11845) and SFLEND (~line 10975): \"You use this record-level keyword on the subfile-control record format\". ' +
-        'SFLCLR (~line 10620), SFLDSP (~line 10907) and SFLDSPCTL (~line 10939): \"valid only for the subfile-control record format\".'
+        'SFLCLR (~line 10620), SFLDSP (~line 10907) and SFLDSPCTL (~line 10939): \"valid only for the subfile-control record format\". ' +
+        'Task I-157 - SFLDROP (~line 10849), SFLFOLD (~line 11200), SFLMODE (~line 11491) and SFLENTER (~line 11159): ' +
+        '\"You use this record-level keyword on the subfile-control record format\" (SFLENTER adds \"This optional keyword is valid only for ' +
+        'the subfile-control record format\"); SFLRNA (~line 12116): \"You use this record-level keyword with the Subfile Initialize ' +
+        '(SFLINZ) keyword on the subfile-control record format\".'
     },
 
     // ---- I-121d: 6 ----

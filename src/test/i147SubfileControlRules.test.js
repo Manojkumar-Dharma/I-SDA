@@ -82,7 +82,7 @@ console.log('=== 1. spec facts against the reference ===');
   const dlt = section('SFLDLT (Subfile Delete) keyword for display files', /display size condition names are not valid/);
   check('SFLDLT: option indicators required, display size names not valid (I-141)', /Option indicators are required for this keyword; display size condition names are not valid/.test(dlt));
 
-  check('SFLCTL.requiredFor: the I-141 three then the five', KeywordSpec.sflctlDependentKeywords().join() === 'SFLCSRRRN,SFLDLT,SFLINZ,' + FIVE.join());
+  check('SFLCTL.requiredFor: the I-141 three then the five (Task I-157 appends five more after them)', KeywordSpec.sflctlDependentKeywords().slice(0, 8).join() === 'SFLCSRRRN,SFLDLT,SFLINZ,' + FIVE.join());
   check('every I-121c keyword whose entry is on the control record is in the requires-list', KeywordSpec.subfileControlKeywords().every((k) => KeywordSpec.subfileControlRecordType(k) !== 'SFLCTL' || KeywordSpec.sflctlDependentKeywords().indexOf(k) !== -1));
   check('the citation names every one of the five and the subfile-control wording', FIVE.every((k) => new RegExp(k).test(KeywordSpec.RECORD_TYPES.SFLCTL.requiredForDdsReference)) && /subfile-control record format/.test(KeywordSpec.RECORD_TYPES.SFLCTL.requiredForDdsReference));
   check('required on the control record: SFLPAG, SFLDSP (accessor and entries agree)', KeywordSpec.subfileControlRequiredKeywords().join() === 'SFLPAG,SFLDSP' && KeywordSpec.subfileControlKeywords().filter((k) => KeywordSpec.requiredOnSubfileControl(k)).join() === 'SFLPAG,SFLDSP');
