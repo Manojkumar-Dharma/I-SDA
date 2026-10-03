@@ -220,6 +220,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Done | v0.10.307 |
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
+| [I-158](#i-158) | Record | `MNUBARDSP` panel writes the menu-bar record's field names without the `&` the reference syntax shows | I-152 | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -255,12 +256,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-157, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-158, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
 | I-121f | File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice. Not opened as a task yet. |
-| I-152 | **The `MNUBARDSP` panel writes field names without the `&`.** The reference form is `MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])` (its examples write `&MNUCHOICE`), but the Menu-Bar display rows write the bare names (`BAR1 MNUFLD`, asserted by `i17MnubardspRepeatableInstances`). The I-152 guard accepts both forms. Whether the compiler accepts the bare form, and whether the panel should write the `&`, is unconfirmed (no probe, not tried against a real compile). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -7188,5 +7188,24 @@ Opened from the deferred finding raised by I-147. I-147 added `SFLPAG`, `SFLCLR`
 New `src/test/i157SubfileControlRequiresSflctl.test.js` (56 checks): each cited sentence against the reference text, the list and its citation, every keyword refused / accepted / removed (both directions, an already-invalid record, an option indicator on `SFLDROP`, per-record judgement, fail-safe on odd models), and the real webview in jsdom (raw-adding each of the five to a plain record is refused with nothing written, `SFLENTER` goes through on the `SFLCTL` record, removing `SFLCTL` while `SFLMODE` stays is refused). Mutation-checked: with the old list the test has 16 failures.
 
 **Three older tests adapted, not the guard.** `i121dSubfileModeEntryKeywordSpec` asserted the five were *not* in the list (that was the logged finding), `i141SubfileControlKeywords` pinned the list at eight, and `i147SubfileControlRules` pinned it to the first eight; each now states the thirteen-keyword list. Full suite: 252 files, 14,092 checks, 0 failures.
+
+
+---
+
+<a id="i-158"></a>
+
+### I-158 — `MNUBARDSP` panel writes field names without the `&`
+
+> **Area:** Record · **Status:** In progress · **Depends on:** I-152
+
+Raised by the I-152 slice. The DDS Reference gives the form `MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])`, and each of its three examples writes the fields with the `&` (`MNUBARDSP(MENURCD &MNUCHOICE &INPUT)`, `MNUBARDSP(MENUBAR &MNUCHOICE)`). The Menu-Bar display rows (I-17) compose `BAR1 MNUFLD` - no `&` - and `i17MnubardspRepeatableInstances` asserts exactly that text. On a `MNUBAR` record the optional pull-down input has the same shape (`&pull-down-input`) and the same gap. The I-152 guard accepts both forms, so nothing is refused today; the question is what the panel writes.
+
+Cannot be probed here: whether the compiler accepts the bare form needs a real IBM i compile, which is not available in this environment. The reference syntax and examples are the only evidence, so the fix follows them ("as per the IBM i source reference").
+
+To do:
+- The panel writes the `&` in front of the choice field and the pull-down input (and the `MNUBAR` record's pull-down input); the menu-bar record name stays bare.
+- The panel shows the field names without the `&` (the inputs are labelled "Choice field (name)"), and accepts a name typed with or without it, so a hand-written `&MNUCHOICE` and a bare `MNUCHOICE` both display and re-save as `&MNUCHOICE`.
+- Existing files are not rewritten on open; a bare-name `MNUBARDSP` is normalised only when its row is edited.
+- Update `i17MnubardspRepeatableInstances` (and any other test asserting the bare text) to the `&` form, add round trips for typed-with and typed-without, and keep the guard's both-forms acceptance pinned.
 
 ---
