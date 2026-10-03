@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-156 of 176 tasks done; 20 open (see [Open work](#open-work)). Current version: **v0.10.301**.
+156 of 177 tasks done; 21 open (see [Open work](#open-work)). Current version: **v0.10.303**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -219,6 +219,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Not started | — |
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
+| [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -254,11 +255,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-156, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-157, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-147 | **Other control-record keywords are still accepted without `SFLCTL`.** The same probe shows `SFLDROP`, `SFLENTER`, `SFLFOLD`, `SFLMODE` and `SFLRNA` (their entries all say `onRecordType: 'SFLCTL'`) are accepted on a plain record: they are not in `SFLCTL.requiredFor`. Adding them is one list edit plus the same two tests, but each section's wording about where it is valid needs re-reading first (`SFLRNA` and `SFLMODE` in particular), so it was left out of I-147. |
+| — | None at present. (The I-147 finding, the other five control-record keywords accepted without `SFLCTL`, was opened as [I-157](#i-157).) |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -7103,5 +7104,17 @@ Tests: new `src/test/i154SystemValueIbmRules.test.js` (65 checks): every pattern
 > **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-154
 
 Raised after I-154, which had to assume the job attribute `DATFMT` is `*MDY` with a `/` separator because the format is a run-time job attribute. The connected IBM i can tell us: QUSRJOBI format **`JOBI0400`** carries Date separator (offset 218, CHAR(1)) and Date format (offset 219, CHAR(4): `*MDY`, `*DMY`, `*YMD`, `*JUL`). (`JOBI0200`, "WRKACTJOB information", has neither.) The call is made through the existing ISDATEMP wrapper mechanism (as QDBRTVFD is for I-116). It reports the connected SQL job's format - a proxy for the format the screen's own job will have, not a guarantee.
+
+---
+
+<a id="i-157"></a>
+
+### I-157 — `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL`
+
+> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-147
+
+Opened from the deferred finding raised by I-147. I-147 added `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` to `SFLCTL.requiredFor`; `SFLDROP`, `SFLENTER`, `SFLFOLD`, `SFLMODE` and `SFLRNA` (whose spec entries all say `onRecordType: 'SFLCTL'`) were left out because each section's wording about where it is valid had to be re-read first. That re-read is done (`DDS_Keyword_V7r6.txt`): `SFLDROP`, `SFLFOLD` and `SFLMODE` say "You use this record-level keyword on the subfile-control record format"; `SFLENTER` says the same and adds "This optional keyword is valid only for the subfile-control record format"; `SFLRNA` says "You use this record-level keyword with the Subfile Initialize (SFLINZ) keyword on the subfile-control record format". None of the five names another record type.
+
+To do: add the five to `SFLCTL.requiredFor` (and its `requiredForDdsReference`) so the existing I-141 / I-147 dependency check refuses them on a record without `SFLCTL`, when added and when `SFLCTL` is removed; test the refusals and accepted paths in the I-147 shape, including the raw keyword editor in jsdom, and adapt any older test that adds them to a plain record.
 
 ---
