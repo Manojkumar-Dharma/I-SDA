@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-157 of 177 tasks done; 20 open (see [Open work](#open-work)). Current version: **v0.10.308**.
+164 of 179 tasks done; 15 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.309**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -161,7 +161,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-116](#i-116) | Field | Read a referenced field's validity checks (and `FLTPCN`) from the `QDBRTVFD` API | I-112 | Done | v0.10.198 |
 | [I-117](#i-117) | Record | The SFLMSG tab's own General / Indicator panels accept keywords the message-subfile whitelist refuses (decision first) | I-115 | Done | v0.10.194 |
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
-| [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done (v0.10.204) | — |
+| [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done | v0.10.204 |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
 | [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
 | [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Done v0.10.294 (13 entries; relations not enforced opened as I-151) | v0.10.294 |
@@ -170,16 +170,16 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced opened as I-152) | v0.10.295 |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done v0.10.305 (8 entries; IGCCNV added to the no-indicator table; rules not enforced logged) | v0.10.305 |
-| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | In progress | — |
+| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Claimed (in progress) | — |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Not started | — |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Not started | — |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
-| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done (v0.10.292); 6 of 6 specified | v0.10.292 |
-| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done (v0.10.291); 8 of 8 specified | v0.10.291 |
+| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
+| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
-| [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done v0.10.285 | — |
+| [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done | v0.10.285 |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
@@ -221,6 +221,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes the menu-bar record's field names without the `&` the reference syntax shows | I-152 | Claimed (in progress) | — |
+| [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -234,33 +235,25 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-143](#i-143) | Done v0.10.296 | `MSGCON` rules enforced (named field, exclusion list, length 1-132). |
-| 2 | [I-144](#i-144) | Done v0.10.293 | DATE/TIME/USER/SYSNAME rules enforced and the preview drawn at real width. |
-| 3 | [I-154](#i-154) | Done v0.10.301 | I-144 follow-up against IBM's own edit-code patterns and examples. |
-| 4 | [I-151](#i-151) | Not started | Output-control relations (probed: all accepted today). |
-| 5 | [I-152](#i-152) | Not started | Window / menu-bar / help / logging relations (probed: all accepted today). |
-| 6 | [I-153](#i-153) | Done v0.10.308 | `MSGCON` parameter form enforced; message-ID and file-name content rules recorded as open questions (the reference states none). |
-| 7 | [I-145](#i-145) | Done v0.10.297 | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
-| 8 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
-| 9 | [I-147](#i-147) | Done v0.10.300 | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
-| 10 | [I-148](#i-148) | Done v0.10.303 | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
-| 11 | [I-149](#i-149) | Done v0.10.302 | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
-| 12 | [I-150](#i-150) | Done v0.10.306 | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
-| 13 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, f, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
-| 14 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
-| 15 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 16 | [I-121r](#i-121r), [I-121s](#i-121s) | Partly done | Webview and engine/writer constant tables (one webview table and one engine table already done). Independent of the keyword slices. |
-| 17 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 18 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 19 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 1 | [I-158](#i-158) | Claimed (in progress) | `MNUBARDSP` panel writes the `&` in front of the choice field and pull-down input (raised by I-152). Small. |
+| 2 | [I-156](#i-156) | Claimed (in progress) | `DATE` preview uses the connected job's real date format and separator (QUSRJOBI). |
+| 3 | [I-159](#i-159) | Not started | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
+| 4 | [I-121g](#i-121g), [I-121h](#i-121h), [I-121i](#i-121i), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121g claimed; the rest not started | The seven keyword slices still open: 43 keywords with no spec entry (7 + 10 + 4 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 6 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 7 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 8 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+
+This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-158, see the tables above) except those below. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every actionable finding so far has been opened as a task (I-61 – I-159, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121f | File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice. Not opened as a task yet. |
+| I-153 | **Blocked - needs an IBM source or a real compile.** `MSGCON` states no rule for the message ID or for `message-file-name` / `library-name` beyond the optional `library-name/` prefix (the seven-character form is `MSGID`'s own, for its `&field` and `msg-id` parameters). Recorded as `openQuestions` on the spec entry; nothing is enforced. Becomes a task once a rule is found. |
+| I-154 | **Blocked - the reference is ambiguous.** The `DATE`, `USER` and `SYSNAME` sections say "you can specify ... and, optionally, ..." without "only", so whether those companion keyword lists are closed is undecided. They stay unenforced facts. Becomes a task if IBM states the lists are closed. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -6260,7 +6253,7 @@ Full suite: 253 files, 14,191 checks, zero failures (first run found three older
 
 ### I-121g — File-level help, program-control and command-key keywords
 
-> **Area:** File · **Status:** In progress · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** File · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (7):** `PASSRCD`, `USRDSPMGT`, `HLPFULL`, `HLPRCD`, `HLPSCHIDX`, `CA01-CA24`, `CF01-CF24`.
 
@@ -6930,24 +6923,6 @@ Tests: new `src/test/i145SubfileMessageKeywordRules.test.js` (every refusal, eve
 
 ---
 
-<a id="i-155"></a>
-
-### I-155 — Subfile keyword relations I-145 left alone
-
-> **Area:** Record · **Status:** Done (v0.10.307) · **Depends on:** I-145
-
-Raised by I-145. (1) The reference says `SFLRNA`, `SFLINZ`, `SFLDROP`, `SFLFOLD` (and `SFLLIN`, `SFLRCDNBR`, `SFLROLVAL` on the control record) are not valid when the subfile record "contains field selection"; the parsed model has no marker for a record that uses field selection, so none of those cases are checked. Decide what the marker is (a field with option-indicator-conditioned output? the `SFLCHCCTL` family?) from the reference before guarding. **Settled by I-146 (v0.10.298):** the marker is a field of the subfile record with an option indicator on its own entry; the `SFLRNA` / `SFLINZ` / `SFLDROP` / `SFLFOLD` / `SFLROLVAL` / `SFLLIN` / `SFLRCDNBR` cases are guarded there. (2) The message subfile may hold only two predefined fields, `SFLMSGKEY` first and `SFLPGMQ` second, immediately following; neither the count nor the order is checked. (3) `SFLMSGRCD` accepts a field name in the Message Record panel (and now in the writer) although the reference shows only a line number; decide whether that is a deliberate extension or a bug.
-
-To do: probe each case in the raw keyword editor, then guard with the I-145 helper where the rule is unambiguous.
-
-**Result (v0.10.307).** (1) was settled by I-146, as noted above. (2) is now enforced, in the I-145 guard (`subfileKeywordNewConflictReason`, diff-based, same wiring): a message subfile (a record with `SFL` and `SFLMSGRCD`) is refused with a third field ("only 2 predefined fields"), with `SFLMSGKEY` anywhere but the first field, with `SFLPGMQ` anywhere but the second, and with a first or second field that lacks its keyword. Positions and keywords are read from the I-121d `predefinedFields` facts. Fewer than two fields is deliberately **not** refused, because a message subfile is built field by field (the Add message subfile dialog writes the pair in one edit, and it passes the guard unchanged); the section's "required" wording for the pair is therefore still not enforced when a field is simply missing.
-
-(3) is a decision, not a change: `SFLMSGRCD`'s field-name form stays. The Message Record panel has offered "1-27, or a field name" since the original R5 picker (`wireSflMsgPanels`), a test pins it (`dspfWebview.test.js`, "SFLMSGRCD accepts a field name"), and the reference's single `SFLMSGRCD(line-number)` format neither shows nor forbids a program-to-system field there. The I-145 guard checks a numeric line number against the display and leaves the field form alone. If a future audit of real SDA's own Define Message Record screen shows the field form is not accepted there, tightening it is a one-line change in that guard.
-
-Tests: new `src/test/i155MessageSubfileFieldOrder.test.js` (accepted pairs and partial builds, third field, wrong order, wrong keyword placement, unrelated first / second fields, already-wrong hand-written subfiles and renames not re-reported; fails without the guard).
-
----
-
 <a id="i-146"></a>
 
 ### I-146 — `SFLDROP` / `SFLFOLD` pairing and the SFLSIZ = SFLPAG / field-selection exclusions are not enforced
@@ -7165,6 +7140,24 @@ Tests: new `src/test/i154SystemValueIbmRules.test.js` (65 checks): every pattern
 
 ---
 
+<a id="i-155"></a>
+
+### I-155 — Subfile keyword relations I-145 left alone
+
+> **Area:** Record · **Status:** Done (v0.10.307) · **Depends on:** I-145
+
+Raised by I-145. (1) The reference says `SFLRNA`, `SFLINZ`, `SFLDROP`, `SFLFOLD` (and `SFLLIN`, `SFLRCDNBR`, `SFLROLVAL` on the control record) are not valid when the subfile record "contains field selection"; the parsed model has no marker for a record that uses field selection, so none of those cases are checked. Decide what the marker is (a field with option-indicator-conditioned output? the `SFLCHCCTL` family?) from the reference before guarding. **Settled by I-146 (v0.10.298):** the marker is a field of the subfile record with an option indicator on its own entry; the `SFLRNA` / `SFLINZ` / `SFLDROP` / `SFLFOLD` / `SFLROLVAL` / `SFLLIN` / `SFLRCDNBR` cases are guarded there. (2) The message subfile may hold only two predefined fields, `SFLMSGKEY` first and `SFLPGMQ` second, immediately following; neither the count nor the order is checked. (3) `SFLMSGRCD` accepts a field name in the Message Record panel (and now in the writer) although the reference shows only a line number; decide whether that is a deliberate extension or a bug.
+
+To do: probe each case in the raw keyword editor, then guard with the I-145 helper where the rule is unambiguous.
+
+**Result (v0.10.307).** (1) was settled by I-146, as noted above. (2) is now enforced, in the I-145 guard (`subfileKeywordNewConflictReason`, diff-based, same wiring): a message subfile (a record with `SFL` and `SFLMSGRCD`) is refused with a third field ("only 2 predefined fields"), with `SFLMSGKEY` anywhere but the first field, with `SFLPGMQ` anywhere but the second, and with a first or second field that lacks its keyword. Positions and keywords are read from the I-121d `predefinedFields` facts. Fewer than two fields is deliberately **not** refused, because a message subfile is built field by field (the Add message subfile dialog writes the pair in one edit, and it passes the guard unchanged); the section's "required" wording for the pair is therefore still not enforced when a field is simply missing.
+
+(3) is a decision, not a change: `SFLMSGRCD`'s field-name form stays. The Message Record panel has offered "1-27, or a field name" since the original R5 picker (`wireSflMsgPanels`), a test pins it (`dspfWebview.test.js`, "SFLMSGRCD accepts a field name"), and the reference's single `SFLMSGRCD(line-number)` format neither shows nor forbids a program-to-system field there. The I-145 guard checks a numeric line number against the display and leaves the field form alone. If a future audit of real SDA's own Define Message Record screen shows the field form is not accepted there, tightening it is a one-line change in that guard.
+
+Tests: new `src/test/i155MessageSubfileFieldOrder.test.js` (accepted pairs and partial builds, third field, wrong order, wrong keyword placement, unrelated first / second fields, already-wrong hand-written subfiles and renames not re-reported; fails without the guard).
+
+---
+
 <a id="i-156"></a>
 
 ### I-156 — DATE preview uses the connected job's real date format (QUSRJOBI)
@@ -7196,7 +7189,7 @@ New `src/test/i157SubfileControlRequiresSflctl.test.js` (56 checks): each cited 
 
 ### I-158 — `MNUBARDSP` panel writes field names without the `&`
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-152
+> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-152
 
 Raised by the I-152 slice. The DDS Reference gives the form `MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])`, and each of its three examples writes the fields with the `&` (`MNUBARDSP(MENURCD &MNUCHOICE &INPUT)`, `MNUBARDSP(MENUBAR &MNUCHOICE)`). The Menu-Bar display rows (I-17) compose `BAR1 MNUFLD` - no `&` - and `i17MnubardspRepeatableInstances` asserts exactly that text. On a `MNUBAR` record the optional pull-down input has the same shape (`&pull-down-input`) and the same gap. The I-152 guard accepts both forms, so nothing is refused today; the question is what the panel writes.
 
@@ -7207,5 +7200,17 @@ To do:
 - The panel shows the field names without the `&` (the inputs are labelled "Choice field (name)"), and accepts a name typed with or without it, so a hand-written `&MNUCHOICE` and a bare `MNUCHOICE` both display and re-save as `&MNUCHOICE`.
 - Existing files are not rewritten on open; a bare-name `MNUBARDSP` is normalised only when its row is edited.
 - Update `i17MnubardspRepeatableInstances` (and any other test asserting the bare text) to the `&` form, add round trips for typed-with and typed-without, and keep the guard's both-forms acceptance pinned.
+
+---
+
+<a id="i-159"></a>
+
+### I-159 — File-level display and I/O keyword rules are not enforced
+
+> **Area:** File · **Status:** Not started · **Depends on:** I-121f
+
+Raised by the I-121f slice and opened as a task from the Deferred findings table. File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice.
+
+To do: re-read each keyword's own section in `DDS_Keyword_V7r6.txt` first (the wording above is the slice's summary, not the rule), probe the not-yet-probed cases in the raw keyword editor, then add spec-driven guards in the I-140 / I-148 shape (refuse only a violation the edit adds, both directions where the relation is a pair), hooked into the webview's edit choke point. Where the reference does not state a rule, record an open question instead of inventing one. Size (estimate): Medium.
 
 ---
