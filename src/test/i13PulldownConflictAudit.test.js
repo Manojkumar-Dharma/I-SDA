@@ -175,6 +175,11 @@ setTimeout(() => {
     check(name + ' commits normally (edit posted)', !!applyEdit);
     const reparsed = applyEdit && DspfParser.parseDspf(applyEdit.text).records.find((r) => r.name === 'PLAINREC');
     check(name + ' actually present in the rewritten DDS', !!reparsed && reparsed.keywords.some((k) => k.name === name));
+    // Task I-151: PUTRETAIN and PUTOVR cannot share a record; the walk turns PUTRETAIN back off before PUTOVR is ticked.
+    if (suffix === 'putretain') {
+      box.checked = false;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+    }
   });
 
   console.log('\nnon-PULLDOWN record: ASSUME still turns on normally on its own record (no regression from the new guard)');

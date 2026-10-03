@@ -5440,6 +5440,74 @@
     return firstNewViolation(subfileFoldDropViolations(oldModel), after);
   }
 
+  /** Task I-151 - the output-control relations the I-121a slice found
+   *  unenforced, every one a fact in KeywordSpec.recordKeywordFacts (read per
+   *  keyword, nothing hand-copied here):
+   *   requiresRecordKeyword  ERASE / ERASEINP / MDTOFF / PROTECT need OVERLAY
+   *   mutex                  PUTOVR and PUTRETAIN cannot share a record
+   *   parameterCount.max     ERASE names at most 20 record formats
+   *   oncePerRecordFormat    CSRLOC and FRCDTA appear once per record format
+   *  (UNLOCK / GETRETAIN / RTNDTA and INZINP are I-148.) Violations are keyed
+   *  by record, so firstNewViolation reports only what an edit adds, in either
+   *  direction - adding the keyword, or removing the OVERLAY it needs - and an
+   *  already-invalid hand-written file never blocks an unrelated edit.
+   *  PROTECT needs no PULLDOWN rule of its own: PULLDOWN forbids OVERLAY (its
+   *  section lists ERASE, ERASEINP, MDTOFF and OVERLAY, not PROTECT), so
+   *  PROTECT on a PULLDOWN record can never have the OVERLAY it requires. */
+  function instancesOf(list, name) {
+    return (list || []).filter(function (k) { return k && k.name === name; });
+  }
+  function outputControlViolations(model) {
+    var out = {};
+    var names = KeywordSpec.outputControlKeywords();
+    // (1) requires a marker keyword on the same record, grouped by marker.
+    var byMarker = {};
+    names.forEach(function (n) {
+      var need = KeywordSpec.recordKeywordFacts(n).requiresRecordKeyword;
+      if (need) (byMarker[need] = byMarker[need] || []).push(n);
+    });
+    Object.keys(byMarker).forEach(function (marker) {
+      var found = recordDependencyViolations(model, marker, byMarker[marker], 'an');
+      Object.keys(found).forEach(function (k) { out[k] = found[k]; });
+    });
+    ((model && model.records) || []).forEach(function (r) {
+      var kws = r.keywords || [];
+      names.forEach(function (n) {
+        var facts = KeywordSpec.recordKeywordFacts(n);
+        var mine = instancesOf(kws, n);
+        if (!mine.length) return;
+        // (2) cannot be on the same record format as another keyword.
+        (facts.mutex || []).forEach(function (other) {
+          if (hasKeywordNamed(kws, other)) {
+            out[r.name + '|' + n + '|' + other] = n + ' and ' + other + ' cannot be specified on the same record format (' +
+              r.name + ') (per the DDS Reference).';
+          }
+        });
+        // (3) at most N names in the parameter list.
+        if (facts.parameterCount && facts.repeatable) {
+          mine.forEach(function (k, i) {
+            var count = String(k.parameters == null ? '' : k.parameters).split(/[\s,]+/).filter(Boolean).length;
+            if (count > facts.parameterCount.max) {
+              out[r.name + '|' + n + '|MAX|' + i] = n + ' names ' + count + ' record formats on record format ' + r.name +
+                '; at most ' + facts.parameterCount.max + ' are allowed (per the DDS Reference).';
+            }
+          });
+        }
+        // (4) once per record format.
+        if (facts.oncePerRecordFormat && mine.length > 1) {
+          out[r.name + '|' + n + '|ONCE'] = n + ' can be specified only once per record format, and record format ' + r.name +
+            ' has ' + mine.length + ' (per the DDS Reference).';
+        }
+      });
+    });
+    return out;
+  }
+  function outputControlNewConflictReason(oldModel, newModel) {
+    var after = outputControlViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(outputControlViolations(oldModel), after);
+  }
+
   function subfileKeywordNewConflictReason(oldModel, newModel) {
     var after = subfileKeywordViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -9965,6 +10033,7 @@
     windowDependencyNewConflictReason: windowDependencyNewConflictReason,
     sflctlDependencyNewConflictReason: sflctlDependencyNewConflictReason,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
+    outputControlNewConflictReason: outputControlNewConflictReason,
     subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,
     subfileFoldDropViolations: subfileFoldDropViolations,
     subfileKeywordViolations: subfileKeywordViolations,

@@ -213,7 +213,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
-| [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Claimed (in progress) | — |
+| [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Claimed (in progress) | — |
@@ -6990,11 +6990,26 @@ To do: follow the I-131 `VALNUM` pattern - hide the row (General tab) where the 
 
 ### I-151 — Output-control keyword relations are not enforced
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-121a
+> **Area:** Record · **Status:** Done (v0.10.299) · **Depends on:** I-121a
 
 Raised by the I-121a slice; opened as a task with a probe. **Output-control keyword relations are not enforced.** The DDS Reference (and the spec now) states: `ERASE`, `ERASEINP`, `MDTOFF` and `PROTECT` need `OVERLAY` on the same record; `PUTOVR` cannot be with `PUTRETAIN`; `ERASE` takes at most 20 record names; `CSRLOC` and `FRCDTA` may appear once per record format. A search of the writer and panels found no guard (no probe run). The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are already I-148. `PROTECT` also sits outside `PULLDOWN`'s forbidden list although it needs `OVERLAY`, which `PULLDOWN` forbids - an indirect exclusion, worth confirming when the guards are added.
 
 **Probe (raw record keyword editor, v0.10.296; every case below was *allowed* and wrote an edit):** `ERASE`, `ERASEINP(*ALL)`, `MDTOFF` and `PROTECT` each added to a record with no `OVERLAY`; `PUTOVR` added to a record carrying `PUTRETAIN`; `ERASE` with 21 record names; `CSRLOC` and `FRCDTA` each added a second time to a record that already had one. The spec facts are in the I-121a entries; this task adds the guards (add-time check for the raw editor and General rows, the diff-based backstop at `commitEdit`, both directions where a relation is a pair - removing `OVERLAY` while `ERASE` stays), in the style of I-140. The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are I-148, not this task. Confirm the `PROTECT` / `PULLDOWN` indirect exclusion before deciding where that message is raised.
+
+**Fix (v0.10.299).** `DspfWriter.outputControlNewConflictReason(oldModel, newModel)` finds, per record, every violation of five rules and reports only one the edit adds (the I-140 / I-145 / I-146 diff shape), so an already-invalid hand-written file never blocks an unrelated edit. It reads `KeywordSpec.recordKeywordFacts` for every rule, so nothing is copied:
+
+- `ERASE`, `ERASEINP`, `MDTOFF`, `PROTECT` without `OVERLAY` on the record (`requiresRecordKeyword`) - refused when the keyword is added and when `OVERLAY` is removed while one of them stays. It reuses `recordDependencyViolations`, the same helper as the `WINDOW` and `SFLCTL` checks.
+- `PUTOVR` with `PUTRETAIN` (`mutex`), in either direction.
+- `ERASE` over 20 record names (`parameterCount.max`), counting space- or comma-separated names across `+` continuation lines, per `ERASE` keyword (it may repeat, so two of 20 are fine).
+- A second `CSRLOC` or `FRCDTA` on one record (`oncePerRecordFormat`).
+
+It is hooked into the webview's `windowDependencyGuardBlocks` edit choke point (alert, re-render, nothing written), so the raw keyword editor, the General rows and any other edit all pass through it.
+
+**`PROTECT` / `PULLDOWN`, decided.** `PULLDOWN`'s own section lists `ERASE`, `ERASEINP`, `MDTOFF` and `OVERLAY` but not `PROTECT`; that is the reference's wording, and the spec's `PULLDOWN` mutex matches it. `PROTECT` on a `PULLDOWN` record is still refused, through the `OVERLAY` rule (`PULLDOWN` forbids `OVERLAY`, so `PROTECT` can never have the `OVERLAY` it needs), so no `PULLDOWN`-specific rule was added. A test pins both halves.
+
+New `src/test/i151OutputControlRelations.test.js` (80 checks): each fact against the reference text, each rule accepted and refused (both directions, over-long and exact-limit `ERASE`, comma-separated names, repeated `ERASE`, an already-invalid file, a second new violation, fail-safe on odd models), `UNLOCK` / `GETRETAIN` / `RTNDTA` left to I-148, and the real webview in jsdom (raw-add refused and accepted, remove `OVERLAY` while `ERASE` stays). Mutation-checked: removing only the `commitSourceChange` hook fails 8 checks.
+
+**Four older tests adapted, not the guard.** `i13PulldownConflictAudit`, `i44UsrdfnRecordLevelAudit`, `i48MnubarRawKeywordEditorWhitelist` and `i51PulldownConditioningFix` tick a list of record keywords one after another on a single record, so they added `PROTECT` before `OVERLAY` and `PUTOVR` after `PUTRETAIN`, which the new rules correctly refuse. Each now adds `OVERLAY` before `PROTECT` and turns `PUTRETAIN` off before `PUTOVR`; what they assert about each keyword is unchanged. Full suite: 247 files, 13,765 checks, zero failures.
 
 ---
 

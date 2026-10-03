@@ -107,6 +107,12 @@ setTimeout(() => {
     check(name + ' is now conditioned on indicator ' + indicatorNumber, !!kw && kw.conditions.length === 1 && kw.conditions[0].indicators[0].number === indicatorNumber);
     posted.length = 0;
     check('re-rendering shows the Conditioning(1) summary on the ' + name + ' row, not hidden', /Conditioning\s*\(1\)/.test(doc.querySelector('.kw-cond-toggle[data-flag-id="' + p + '-' + suffix + '"]').textContent));
+    // Task I-151: PUTRETAIN and PUTOVR cannot share a record, so PUTRETAIN is turned back off before PUTOVR.
+    if (suffix === 'putretain') {
+      box.checked = false;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+      posted.length = 0;
+    }
   }
 
   console.log('\nAll 13 genuinely-in-scope wirePulldownGuardedFlag keywords: Conditioning toggle now actually commits an indicator (previously a dead control)');

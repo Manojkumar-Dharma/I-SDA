@@ -92,7 +92,8 @@ setTimeout(() => {
 
   // === Group B: whitelisted keywords still add normally on a MNUBAR record ===
   console.log('\nMNUBAR record: raw editor still allows whitelisted keywords through');
-  ['CLRL', 'DSPMOD', 'KEEP', 'PROTECT'].forEach(function (name) {
+  // Task I-151: PROTECT needs OVERLAY on the record, and OVERLAY is itself whitelisted for MNUBAR.
+  ['CLRL', 'DSPMOD', 'KEEP', 'OVERLAY', 'PROTECT'].forEach(function (name) {
     const result = addRawKeyword(mbOwner, name);
     check(name + ' (whitelisted) commits normally on a MNUBAR record', !!result.applyEdit);
     const reparsed = result.applyEdit && reparsedRecord(result.applyEdit.text, 'MB');

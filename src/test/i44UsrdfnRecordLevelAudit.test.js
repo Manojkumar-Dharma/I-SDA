@@ -152,7 +152,6 @@ setTimeout(() => {
     { suffix: 'loginp', name: 'LOGINP' },
     { suffix: 'getretain', name: 'GETRETAIN' },
     { suffix: 'retlcksts', name: 'RETLCKSTS' }, // I-50 fixed the hasParams bug this file used to assert against
-    { suffix: 'protect', name: 'PROTECT' },
     { suffix: 'inzinp', name: 'INZINP' },
     { suffix: 'alarm', name: 'ALARM' },
     { suffix: 'alwgph', name: 'ALWGPH' },
@@ -161,7 +160,9 @@ setTimeout(() => {
     { suffix: 'clrl', name: 'CLRL', hasParams: true, paramValue: '10' },
     { suffix: 'rtndta', name: 'RTNDTA' },
     { suffix: 'overlay', name: 'OVERLAY' },
-    { suffix: 'putretain', name: 'PUTRETAIN' },
+    // Task I-151: PUTRETAIN and PUTOVR cannot share a record, and PROTECT needs OVERLAY, so this cumulative walk turns PUTRETAIN back off before PUTOVR is ticked (and ticks OVERLAY before PROTECT).
+    { suffix: 'protect', name: 'PROTECT' },
+    { suffix: 'putretain', name: 'PUTRETAIN', thenOff: true },
     { suffix: 'putovr', name: 'PUTOVR' },
     { suffix: 'ovrdta', name: 'OVRDTA' },
     { suffix: 'ovratr', name: 'OVRATR' },
@@ -199,6 +200,10 @@ setTimeout(() => {
     check(kw.name + ' actually present in the rewritten DDS', !!found);
     if (kw.hasParams && found) {
       check(kw.name + ' parameter text preserved (' + kw.paramValue + ')', (found.parameters || '').indexOf(kw.paramValue) !== -1);
+    }
+    if (kw.thenOff) {
+      box.checked = false;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
     }
   });
 
