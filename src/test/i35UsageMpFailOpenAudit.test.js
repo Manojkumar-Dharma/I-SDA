@@ -112,8 +112,14 @@ console.log('\ngeneralFieldKeywordsHtml - usage P shows only ALIAS/INDTXT/TEXT (
 console.log('\ngeneralFieldKeywordsHtml - no regression: usage O still shows every row');
 {
   const html = Helpers.generalFieldKeywordsHtml([], 'genO', new Set(), 'A', 'O', [], false);
-  ['alias', 'indtxt', 'dft', 'dftval', 'cntfld', 'text', 'fldcsrprg', 'putretain', 'ovrdta', 'ovratr', 'chrid', 'noccsid'].forEach(function (key) {
+  ['alias', 'indtxt', 'dft', 'dftval', 'text', 'putretain', 'ovrdta', 'ovratr', 'chrid', 'noccsid'].forEach(function (key) {
     check('gen-' + key + ' row present for usage O', html.indexOf('genO-gen-' + key + '-on') >= 0);
+  });
+  // Task I-150: CNTFLD and FLDCSRPRG need an input-capable field (usage I or B,
+  // DDS Reference), so they are no longer offered on an output-only field.
+  ['cntfld', 'fldcsrprg'].forEach(function (key) {
+    check('gen-' + key + ' row absent for usage O (I-150: needs usage I or B)', html.indexOf('genO-gen-' + key + '-on') === -1);
+    check('gen-' + key + ' row present for usage B', Helpers.generalFieldKeywordsHtml([], 'genB', new Set(), 'A', 'B', [], false).indexOf('genB-gen-' + key + '-on') >= 0);
   });
   // Task I-94: IGCALTTYP is the one General row that is NOT offered on an
   // output-only field - "input- and output-capable fields" only (usage B).

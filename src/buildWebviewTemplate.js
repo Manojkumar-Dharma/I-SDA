@@ -6325,6 +6325,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
+      DspfWriter.fieldKindNewConflictReason(model, candidate) ||
       DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||
       DspfWriter.systemValueKeywordNewConflictReason(model, candidate);
     if (!reason) return false;

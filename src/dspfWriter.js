@@ -5624,6 +5624,76 @@
     return firstNewViolation(initRetainReturnViolations(oldModel), after);
   }
 
+  /** Task I-150 - BLANKS / CNTFLD / FLDCSRPRG / FLTFIXDEC field rules (the
+   *  I-121n spec facts: allowedUsage, requiredDataTypes, plus notInSubfile,
+   *  notWithKeywords, widthMustBeLessThanFieldLength and
+   *  parameterNamesInputCapableFieldInSameRecord). A model-diff check, so the
+   *  raw keyword editor, every panel and the Basic tab's data type / usage
+   *  change are all covered, with the record context (subfile) the per-field
+   *  backstops lack. A blank usage is O; a blank data type is not F, but IS
+   *  character for CNTFLD when no decimal positions are given. Violations are
+   *  keyed record | keyword | rule | n (n = nth violating field of that kind in
+   *  the record), so renaming an already-wrong field is not a new violation. */
+  function fieldKindViolations(model) {
+    var out = {};
+    ((model && model.records) || []).forEach(function (r) {
+      var inSubfile = hasKeywordNamed(r.keywords, 'SFL');
+      var counts = {};
+      function add(kw, rule, text) {
+        var c = counts[kw + '|' + rule] = (counts[kw + '|' + rule] || 0) + 1;
+        out[r.name + '|' + kw + '|' + rule + '|' + c] = text;
+      }
+      (r.fields || []).forEach(function (f) {
+        if (f.nameType === 'CONSTANT') return;
+        var usage = String(f.usage == null ? '' : f.usage).trim().toUpperCase() || 'O';
+        var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
+        var fname = String(f.name || '').toUpperCase();
+        KeywordSpec.fieldKindGuardedKeywords().forEach(function (kw) {
+          var k = keywordNamed(f.keywords, kw);
+          if (!k) return;
+          var allowedUsage = KeywordSpec.allowedUsage(kw);
+          if (allowedUsage && allowedUsage.indexOf(usage) < 0) {
+            add(kw, 'USAGE', kw + ' on field ' + fname + ' needs usage ' + allowedUsage.join(' or ') + ' (the field has usage ' + usage + ') (per the DDS Reference).');
+          }
+          var required = KeywordSpec.requiredDataTypes(kw);
+          if (required) {
+            var noDecimals = !f.decimalPositions && String(f.decimalPositionsRaw == null ? '' : f.decimalPositionsRaw).trim() === '';
+            var okType = required.indexOf(dt) >= 0 ||
+              (dt === '' && KeywordSpec.blankDataTypeIsCharacter(kw) && required.indexOf('A') >= 0 && noDecimals);
+            if (!okType) {
+              add(kw, 'TYPE', kw + ' on field ' + fname + ' needs data type ' + required.join(', ') + ' (the field has ' + (dt ? 'data type ' + dt : 'no data type') + ') (per the DDS Reference).');
+            }
+          }
+          if (inSubfile && KeywordSpec.notInSubfile(kw)) {
+            add(kw, 'SFL', kw + ' cannot be specified on field ' + fname + ' - record format ' + r.name + ' is a subfile (per the DDS Reference).');
+          }
+          KeywordSpec.notWithKeywords(kw).forEach(function (other) {
+            if (hasKeywordNamed(f.keywords, other)) {
+              add(kw, 'WITH|' + other, kw + ' cannot be specified with ' + other + ' on field ' + fname + ' (per the DDS Reference).');
+            }
+          });
+          var param = String(k.parameters == null ? '' : k.parameters).trim();
+          if (kw === 'CNTFLD' && /^\d+$/.test(param) && Number(f.length) > 0 && Number(param) >= Number(f.length)) {
+            add(kw, 'WIDTH', 'CNTFLD(' + param + ') on field ' + fname + ': the column width must be less than the field length (' + f.length + ') (per the DDS Reference).');
+          }
+          if (kw === 'FLDCSRPRG' && param) {
+            var target = (r.fields || []).find(function (g) { return String(g.name || '').toUpperCase() === param.toUpperCase(); });
+            var tu = target ? (String(target.usage == null ? '' : target.usage).trim().toUpperCase() || 'O') : '';
+            if (!target || (tu !== 'I' && tu !== 'B')) {
+              add(kw, 'TARGET', 'FLDCSRPRG(' + param + ') on field ' + fname + ' must name an input-capable field (usage I or B) of the same record format (per the DDS Reference).');
+            }
+          }
+        });
+      });
+    });
+    return out;
+  }
+  function fieldKindNewConflictReason(oldModel, newModel) {
+    var after = fieldKindViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(fieldKindViolations(oldModel), after);
+  }
+
   function subfileKeywordNewConflictReason(oldModel, newModel) {
     var after = subfileKeywordViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -10239,6 +10309,8 @@
     subfileControlNotes: subfileControlNotes,
     retKeyNewConflictReason: retKeyNewConflictReason,
     retKeyViolations: retKeyViolations,
+    fieldKindNewConflictReason: fieldKindNewConflictReason,
+    fieldKindViolations: fieldKindViolations,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
     outputControlNewConflictReason: outputControlNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,

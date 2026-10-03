@@ -212,7 +212,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Done v0.10.300 (SFLCTL requirement, display size names and SFLEND grammar refused; companions and indicators noted) | v0.10.300 |
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Done | v0.10.303 |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Done | v0.10.302 |
-| [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
+| [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Done | v0.10.306 |
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Claimed (in progress) | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Claimed (in progress) | — |
@@ -244,7 +244,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 9 | [I-147](#i-147) | Done v0.10.300 | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
 | 10 | [I-148](#i-148) | Done v0.10.303 | `GETRETAIN` / `RTNDTA` / `INZINP` relations (I-121b). |
 | 11 | [I-149](#i-149) | Done v0.10.302 | `RETKEY` / `RETCMDKEY` exclusions and the `INDARA` requirement. |
-| 12 | [I-150](#i-150) | Not started | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
+| 12 | [I-150](#i-150) | Done v0.10.306 | `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` field rules (I-121n). |
 | 13 | [I-121a – I-121o](#i-121-slices) | In progress (a, b, c, d, e, f, m, n done) | Fifteen keyword slices; together they own all 111 keywords that had no spec entry at v0.10.278, each exactly once. Fully parallel. |
 | 14 | [I-121p](#i-121p) | Done v0.10.285 | S36E restriction table. Re-claimed after `3fc4915` never landed. |
 | 15 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
@@ -7038,11 +7038,26 @@ Tests: new `src/test/i149RetKeyRetCmdKeyRules.test.js` (every exclusion at both 
 
 ### I-150 — `CNTFLD` / `FLDCSRPRG` / `FLTFIXDEC` / `BLANKS` usage, data type and subfile rules are not enforced
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-121n
+> **Area:** Field · **Status:** Done (v0.10.306) · **Depends on:** I-121n
 
 Raised by the I-121n slice (found while writing the spec entries; a search of the writer, engine and panels found no guard, no probe has been run). The DDS Reference states, and the spec now holds as facts: `CNTFLD` needs an input-capable field of data type A, not in a subfile, with a width smaller than the field length - its row is offered for every data type and usage; `FLDCSRPRG` needs an input-capable field not in a subfile, naming an input-capable field of the same record, and is not allowed with `SNGCHCFLD` / `MLTCHCFLD`; `FLTFIXDEC` needs usage B or O (its row is gated on data type F only); `BLANKS` is for input-capable fields (I, B). The spec entries hold `allowedUsage` and `requiredDataTypes`; the subfile and `FLDCSRPRG` rules are in the reference text cited there.
 
 To do: follow the I-131 `VALNUM` pattern - hide the row (General tab) where the reference does not allow the keyword, and add a writer backstop so raw-editor adds and Basic-tab data type / usage changes cannot create an invalid combination; the subfile and `SNGCHCFLD` / `MLTCHCFLD` rules need the record context.
+
+**Fix (v0.10.306).** One model-diff guard, `DspfWriter.fieldKindNewConflictReason`, wired into the webview's existing edit choke point (the I-140 / I-149 shape: only a violation the edit adds is reported, so a hand-written field that is already wrong stays editable). Being a model diff it covers the raw keyword editor, every panel and the Basic tab's usage / data type change in one place, and it has the record context the per-field backstops lack. The rules, each read from the I-121n spec facts or the sections re-read for this task:
+
+- `BLANKS`: usage I or B (numeric and character fields are both fine, so no data type rule).
+- `CNTFLD`: usage I or B, data type A (a blank type with no decimal positions counts as character), not in a subfile record, and the column width must be less than the field length.
+- `FLDCSRPRG`: usage I or B, not in a subfile record, not with `SNGCHCFLD` / `MLTCHCFLD` on the same field, and the parameter must name an input-capable (I / B) field of the same record format.
+- `FLTFIXDEC`: usage B or O (a blank usage is O), data type F.
+
+A blank usage is O everywhere, as in I-131. Violations are keyed record, keyword, rule and the nth violating field, so renaming an already-wrong field is not blocked. New spec facts: `notInSubfile`, `notWithKeywords`, `widthMustBeLessThanFieldLength`, `parameterNamesInputCapableFieldInSameRecord`, `blankDataTypeIsCharacterWithoutDecimals`, with accessors `fieldKindGuardedKeywords`, `notInSubfile`, `notWithKeywords`, `blankDataTypeIsCharacter`.
+
+**General-tab rows.** `CNTFLD` is now offered only on input-capable character fields, `FLDCSRPRG` only on input-capable fields, and `FLTFIXDEC` only on B / O floating-point fields (new `char-only` data type scope and `output-capable` usage scope on the existing row table). The `BLANKS` row sits in the Input keywords panel, which is already limited to input-capable usage, so it needed no change.
+
+**Existing tests changed.** `dspfWebview.test.js` turned `CNTFLD` on for a numeric field; it now checks the row is not offered there (the positive path moved to the new test). `i35UsageMpFailOpenAudit.test.js` expected `CNTFLD` / `FLDCSRPRG` rows on a usage-O field; it now expects them absent for O and present for B.
+
+Tests: new `src/test/i150FieldKeywordKindRules.test.js` (every rule from both sides, blank type / usage handling, renames and unchanged leftovers, constants, plus the real generated webview in jsdom for row visibility and a refused / accepted `CNTFLD` width). Confirmed failing without the guard via stash.
 
 ---
 

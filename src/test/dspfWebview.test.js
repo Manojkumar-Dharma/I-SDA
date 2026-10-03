@@ -2043,19 +2043,13 @@ function runFieldPropertyHelpersScenario() {
     check('posts PUTRETAIN bare', genFields2 && genFields2.some((k) => k.name === 'PUTRETAIN'));
     check('the earlier ALIAS commit survives this separate PUTRETAIN commit', genFields2 && genFields2.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE'));
 
-    console.log('  Bug fix: CNTFLD is now selectable in General keywords - previously absent from the row list entirely, so there was no way to add it from the panel');
-    posted.length = 0;
-    const cntfldOn = doc.getElementById(fieldKey + '-gen-cntfld-on');
-    const cntfldParams = doc.getElementById(fieldKey + '-gen-cntfld-params');
-    check('the CNTFLD checkbox is present', !!cntfldOn);
-    check('the CNTFLD param input is present', !!cntfldParams);
-    cntfldParams.value = '40';
-    cntfldOn.checked = true;
-    cntfldOn.dispatchEvent(new Event('change', { bubbles: true }));
-    let cntfldEdit = posted.find((m) => m.type === 'applyEdit');
-    const cntfldFields = cntfldEdit && DspfParser.parseDspf(cntfldEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
-    check('posts CNTFLD with the entered characters-per-line value', cntfldFields && cntfldFields.some((k) => k.name === 'CNTFLD' && k.parameters === '40'));
-    check('the earlier ALIAS/PUTRETAIN commits survive this separate CNTFLD commit', cntfldFields && cntfldFields.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE') && cntfldFields.some((k) => k.name === 'PUTRETAIN'));
+    // Task I-150: CNTFLD needs an input-capable CHARACTER field (DDS Reference), so
+    // the row is no longer offered on this numeric (7Y 2) AMOUNT field; the
+    // positive path (offered and committing on a character input field) is
+    // covered in i150FieldKeywordKindRules.test.js.
+    console.log('  Task I-150: CNTFLD is not offered on a numeric field (data type A only)');
+    check('the CNTFLD checkbox is not offered on the numeric AMOUNT field', !doc.getElementById(fieldKey + '-gen-cntfld-on'));
+    check('the CNTFLD param input is not offered on the numeric AMOUNT field', !doc.getElementById(fieldKey + '-gen-cntfld-params'));
 
     console.log('  Task L81: DFT/DFTVAL hard-blocked from creating DDS-invalid combinations (mutual exclusion + floating-point), per the DDS Reference');
     posted.length = 0;

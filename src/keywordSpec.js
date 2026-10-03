@@ -2421,7 +2421,13 @@
         'input-capable field with the data type A. It cannot be defined in ' +
         'a subfile.',
       allowedUsage: ['I', 'B'],
-      requiredDataTypes: ['A']
+      requiredDataTypes: ['A'],
+      // Task I-150: the rest of the section's field rules, as facts the guard reads.
+      notInSubfile: true,
+      widthMustBeLessThanFieldLength: true,
+      // A blank data type with no decimal positions IS character (A), so a
+      // field still being drafted is not refused for it.
+      blankDataTypeIsCharacterWithoutDecimals: true
     },
     // "FLTFIXDEC (Floating-Point to Fixed Decimal) keyword": "to display a
     // number in an output-capable (usage B or O) floating-point field". No
@@ -2460,7 +2466,11 @@
         'input-capable field. It cannot be defined in a subfile. The ' +
         'FLDCSRPRG keyword is not allowed with the SNGCHCFLD or MLTCHCFLD ' +
         'keywords.',
-      allowedUsage: ['I', 'B']
+      allowedUsage: ['I', 'B'],
+      // Task I-150: the rest of the section's field rules, as facts the guard reads.
+      notInSubfile: true,
+      notWithKeywords: ['SNGCHCFLD', 'MLTCHCFLD'],
+      parameterNamesInputCapableFieldInSameRecord: true
     },
     // "ERRMSG (Error Message) and ERRMSGID": "Option indicators are valid
     // for these keywords." Parameters: 'message-text' [response-indicator].
@@ -4627,6 +4637,21 @@
     }));
   }
   // ---- end I-121d ----
+  // ---- I-150: accessors ----
+  var I150_KEYWORDS = ['BLANKS', 'CNTFLD', 'FLDCSRPRG', 'FLTFIXDEC'];
+  function i150Entry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I150_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  /** The four field keywords whose usage / data type / subfile rules the I-150 guard enforces. */
+  function fieldKindGuardedKeywords() { return I150_KEYWORDS.slice(); }
+  /** Whether the keyword cannot be on a field of a subfile record. */
+  function notInSubfile(name) { var e = i150Entry(name); return !!(e && e.notInSubfile); }
+  /** Keywords the keyword cannot share a field with (copy; [] otherwise). */
+  function notWithKeywords(name) { var e = i150Entry(name); return (e && e.notWithKeywords) ? e.notWithKeywords.slice() : []; }
+  /** Whether a blank data type counts as character (A) for the keyword when no decimal positions are given. */
+  function blankDataTypeIsCharacter(name) { var e = i150Entry(name); return !!(e && e.blankDataTypeIsCharacterWithoutDecimals); }
+  // ---- end I-150 ----
   // ---- I-121c: accessors ----
   var I121C_KEYWORDS = ['SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND', 'SFLINZ', 'SFLDLT'];
   function i121cEntry(name) {
@@ -4907,6 +4932,11 @@
     recordReferenceLocator: recordReferenceLocator,
     sflChoiceKeywords: sflChoiceKeywords,
     alwrolClrlSlnoKeywords: alwrolClrlSlnoKeywords,
+    // ---- I-150 ----
+    fieldKindGuardedKeywords: fieldKindGuardedKeywords,
+    notInSubfile: notInSubfile,
+    notWithKeywords: notWithKeywords,
+    blankDataTypeIsCharacter: blankDataTypeIsCharacter,
     // ---- I-121d ----
     subfileModeEntryKeywords: subfileModeEntryKeywords,
     subfileModeEntryRecordType: subfileModeEntryRecordType,

@@ -2577,7 +2577,8 @@
     // FLDCSRPRG rows above/below it) is field-semantics-only in real DDS -
     // this shared row list doesn't yet gate any of the three out for
     // constants, a pre-existing scope note, not something new here.
-    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, 'named', false, 'none'],
+    // Task I-150: input-capable (I/B) character fields only (DDS Reference).
+    ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, 'named', false, 'none', 'char-only', 'input-capable'],
     // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
     // a pure documentation keyword (no compiled/runtime effect at all,
     // per IBM's own DDS Reference - it's purely for people reading the
@@ -2590,7 +2591,8 @@
     // raw-text for every quoted keyword already in it, so TEXT matches
     // its neighbors instead of introducing a second convention here.
     ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, 'all', false, 'all'],
-    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false, 'none'],
+    // Task I-150: input-capable (I/B) fields only (DDS Reference).
+    ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false, 'none', undefined, 'input-capable'],
     ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, 'constant', false, 'none'],
     ['putretain', 'PUTRETAIN', 'Retain field on display', false, 'all', true, 'none'],
     ['ovrdta', 'OVRDTA', 'Override data', false, 'all', true, 'msg-only'],
@@ -2623,7 +2625,8 @@
     // first pass; a follow-up task can add a friendlier editor for either
     // if it turns out to be worth it.
     ['blkfold', 'BLKFOLD', undefined, false, 'named', false, 'none', 'non-float'],
-    ['fltfixdec', 'FLTFIXDEC', undefined, false, 'named', false, 'none', 'float-only'],
+    // Task I-150: output-capable (B/O) floating-point fields only (DDS Reference).
+    ['fltfixdec', 'FLTFIXDEC', undefined, false, 'named', false, 'none', 'float-only', 'output-capable'],
     ['fltpcn', 'FLTPCN', '*SINGLE or *DOUBLE', true, 'named', false, 'none', 'float-only'],
     ['mapval', 'MAPVAL', "e.g. ('01/01/40' *BLANK)", true, 'named', false, 'none', 'datetime-only'],
     // Task I-42 - VALNUM/WRDWRAP are each documented "file-level,
@@ -2656,6 +2659,8 @@
     // BLKFOLD slice's own fact and is unchanged.
     if (dtScope === 'float-only' || dtScope === 'datetime-only') return DspfWriter.keywordRequiredDataTypeAllows(keywordName, dataType);
     if (dtScope === 'non-float') return dataType !== 'F';
+    // Task I-150 - CNTFLD needs data type A; a blank data type (character by default) still shows the row.
+    if (dtScope === 'char-only') return !dataType || DspfWriter.keywordRequiredDataTypeAllows(keywordName, dataType);
     // Task I-42 - VALNUM: "input-capable field with the data type Y".
     // Task I-121 (VALNUM slice) - the required Y now comes from keywordSpec.js via
     // DspfWriter.keywordRequiredDataTypeAllows; a blank data type still hides the row.
@@ -2682,6 +2687,8 @@
       // (keywordSpec.js allowedUsage), not a copy here; blank usage fails open.
       return DspfWriter.keywordUsageAllowed(keywordName, usage);
     }
+    // Task I-150 - FLTFIXDEC: usage B or O (the keyword's own spec fact); blank usage is O.
+    if (usageScope === 'output-capable') return DspfWriter.keywordUsageAllowed(keywordName, usage);
     return true;
   }
 
