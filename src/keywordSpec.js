@@ -2594,7 +2594,24 @@
         'specified with any of the following keywords: DATE DFT EDTCDE ' +
         'EDTWRD TIME',
       constantFieldOnly: true,
-      msgconParameters: { lengthMin: 1, lengthMax: 132 },
+      // Task I-153: the format line states three parameters - length, message-ID and
+      // [library-name/]message-file-name - of which only the library is optional, so the
+      // parameter text is exactly `parameterCount` blank-separated tokens and the file
+      // token is `[library-name/]message-file-name` (one `libraryDelimiter` at most, neither
+      // side empty). The section states NO rule for the message ID or for the file / library
+      // names (no length, character set or format; the 7-character form and the 10-character
+      // field lengths belong to MSGID's own section, which has field-name parameters MSGCON
+      // lacks), so none is enforced: `messageIdRule` / `fileNameRule` are null on purpose and
+      // `openQuestions` records why.
+      msgconParameters: {
+        lengthMin: 1, lengthMax: 132,
+        parameterCount: 3, libraryDelimiter: '/',
+        messageIdRule: null, fileNameRule: null,
+        openQuestions: [
+          'MSGCON states no rule for the message-ID (MSGID\'s 7-character form is MSGID\'s own, for its &field and msg-id parameters).',
+          'MSGCON states no rule for message-file-name or library-name beyond the optional library-name/ prefix.'
+        ]
+      },
       mutex: ['DATE', 'DFT', 'EDTCDE', 'EDTWRD', 'TIME'],
       optionIndicatorNote:
         'Option indicators are not valid for changing the value of the ' +
@@ -3010,6 +3027,13 @@
   function msgconLengthRange() {
     var m = RECORD_TYPES.MSGCON.msgconParameters;
     return { min: m.lengthMin, max: m.lengthMax };
+  }
+  /** Task I-153 - MSGCON's parameter shape as the format line states it:
+   *  { count: 3, libraryDelimiter: '/' } (a fresh object). Nothing about the
+   *  message-ID or file / library names is stated, so nothing else is here. */
+  function msgconParameterShape() {
+    var m = RECORD_TYPES.MSGCON.msgconParameters;
+    return { count: m.parameterCount, libraryDelimiter: m.libraryDelimiter };
   }
 
   /** Task I-121 (keyboard-shift position-35 slice) - IBM's own "Valid
@@ -4843,6 +4867,7 @@
     dateEditCodePattern: dateEditCodePattern,
     dateEditCodeWidth: dateEditCodeWidth,
     msgconLengthRange: msgconLengthRange,
+    msgconParameterShape: msgconParameterShape,
     isNumericShiftDataType: isNumericShiftDataType,
     keyboardShiftValues: keyboardShiftValues,
     keyboardShiftPermitted: keyboardShiftPermitted,

@@ -5489,6 +5489,9 @@ const htmlTemplate = `<!DOCTYPE html>
           if (!msgConParams) { errorEl.textContent = 'Enter the message length, message ID, and message file.'; return; }
           const msgConLengthProblem = DspfWriter.msgconLengthProblem(document.getElementById('p-place-msgcon-length').value);
           if (msgConLengthProblem) { errorEl.textContent = msgConLengthProblem; return; }
+          // Task I-153: the composed text must be the stated three-parameter form (a message ID with a blank in it, or a file / library box holding a slash, would not be).
+          const msgConStructureProblem = DspfWriter.msgconStructureProblem(msgConParams);
+          if (msgConStructureProblem) { errorEl.textContent = msgConStructureProblem; return; }
           newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: 'MSGCON', parameters: msgConParams, conditions: [], sourceLines: [] }], location: { line: line, column: column } };
         } else if (constKind === 'html') {
           // Task I-41 - a brand-new constant can't yet carry any of
@@ -6975,7 +6978,8 @@ const htmlTemplate = `<!DOCTYPE html>
       }
       // Task I-143: same choke point again, for MSGCON's own three rules - not
       // on a named field, not beside DATE / DFT / EDTCDE / EDTWRD / TIME (both
-      // directions), and a length of 1 to 132.
+      // directions), and a length of 1 to 132. Task I-153: and the stated
+      // three-parameter form (length, message ID, [library/]file).
       const msgconReason = DspfWriter.msgconNewConflictReason(field.keywords, updates.keywords, field.nameType);
       if (msgconReason) {
         window.alert(msgconReason);

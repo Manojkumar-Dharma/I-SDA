@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-157 of 177 tasks done; 20 open (see [Open work](#open-work)). Current version: **v0.10.304**.
+157 of 177 tasks done; 20 open (see [Open work](#open-work)). Current version: **v0.10.308**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -215,7 +215,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Done | v0.10.306 |
 | [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Done | v0.10.299 |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Claimed (in progress) | — |
-| [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Claimed (in progress) | — |
+| [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Done | v0.10.308 |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Done | v0.10.301 |
 | [I-155](#i-155) | Record | Subfile keyword relations I-145 left alone: the "field selection" exclusions, the two-predefined-fields order rule, and `SFLMSGRCD`'s field-name form | I-145 | Done | v0.10.307 |
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
@@ -238,7 +238,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 3 | [I-154](#i-154) | Done v0.10.301 | I-144 follow-up against IBM's own edit-code patterns and examples. |
 | 4 | [I-151](#i-151) | Not started | Output-control relations (probed: all accepted today). |
 | 5 | [I-152](#i-152) | Not started | Window / menu-bar / help / logging relations (probed: all accepted today). |
-| 6 | [I-153](#i-153) | Not started | `MSGCON` message ID and file validation. Small. |
+| 6 | [I-153](#i-153) | Done v0.10.308 | `MSGCON` parameter form enforced; message-ID and file-name content rules recorded as open questions (the reference states none). |
 | 7 | [I-145](#i-145) | Done v0.10.297 | Message-subfile and `SFLINZ`/`SFLRNA` rules (raised by I-121d). |
 | 8 | [I-146](#i-146) | Not started | `SFLDROP`/`SFLFOLD` pairing and SFLSIZ = SFLPAG / field-selection exclusions. |
 | 9 | [I-147](#i-147) | Done v0.10.300 | Subfile-control keywords accepted without `SFLCTL`; companions and option indicators. |
@@ -7110,9 +7110,17 @@ Raised by the I-121e slice; opened as a task with a probe. **Window, menu-bar, h
 
 ### I-153 — `MSGCON` message ID and message file parameters are not validated
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-143
+> **Area:** Field · **Status:** Done (v0.10.308) · **Depends on:** I-143
 
-Follow-up to I-143, which enforced `MSGCON`'s three stated rules (constant fields only, the exclusion list, length 1-132) and left the other two parameters unchecked: `MSGCON(length message-ID [library-name/]message-file-name)`. Today any token is accepted as the message ID and as the file, so `MSGCON(20 X Y)` is written and an incomplete form falls through `parseMsgConParams` as an unstructured raw edit. To do: (1) read `DDS_Keyword_V7r6.txt` ~line 8922 and the message-description and object-name rules it points to for what IBM states about the message ID (the `MSGID` section gives a 7-character form) and about the file and library names; **if the reference does not state a rule, do not invent one** - record an open question (the ground-truth rule of this series); (2) put whatever is stated into the `RECORD_TYPES.MSGCON.msgconParameters` entry (it holds only the length range today); (3) enforce it at the same three places I-143 used (add-time, `commitEdit` backstop, the constant Add form) with the same diff-based posture; (4) decide what a bare `MSGCON` or a two-token one means - the panel drops an incomplete `MSGCON`, the raw editor accepts it. Size (estimate): Small.
+Follow-up to I-143, which enforced `MSGCON`'s three stated rules (constant fields only, the exclusion list, length 1-132) and left the other two parameters unchecked: `MSGCON(length message-ID [library-name/]message-file-name)`. Today any token is accepted as the message ID and as the file, so `MSGCON(20 X Y)` is written and an incomplete form falls through `parseMsgConParams` as an unstructured raw edit. **What the reference states (re-read for this task).** `MSGCON`'s section gives only the format `MSGCON(length message-ID [library-name/]message-file-name)`; that the message-ID "specifies the message description that contains the text"; that the file name "identifies the message file"; and that "the library-name parameter is optional". It states **no** length, character-set or format rule for the message ID, nor for the file or library names. The 7-character message-ID form (or 3-character prefix plus 4) and the ten-character file / library lengths in the `MSGID` section are `MSGID`'s own: they govern its `&field` and `msg-id` parameters, and `MSGCON` has no field-reference form. By the series' ground-truth rule none of them is applied to `MSGCON`.
+
+**Fix (v0.10.308).** What the format line does state is enforced: three parameters, only the library optional. `DspfWriter.msgconStructureProblem` refuses a parameter text that is not exactly three blank-separated tokens (a bare `MSGCON`, a two-token one, a fourth token) and a file token that is not `message-file-name` or `library-name/message-file-name` (a leading, trailing or second slash). `msgconFullProblem` runs the existing length check first and then this one, and replaces the length-only check at the same three places I-143 used: add-time (`msgconConflictReason`, the raw editor and the General rows), the `commitEdit` backstop (`msgconNewConflictReason`, diff-based, so an already-incomplete hand-written `MSGCON` never blocks an unrelated edit and fixing or removing it is always allowed), and the constant Add form (which also still shows its own "Enter the message length, message ID, and message file" message first). `parseMsgConParams` now agrees, so a malformed file token stays an unstructured raw edit instead of being silently normalised by the next Apply. The spec entry (`RECORD_TYPES.MSGCON.msgconParameters`) gains `parameterCount: 3` and `libraryDelimiter: '/'` (read through the new `KeywordSpec.msgconParameterShape()`), plus `messageIdRule: null`, `fileNameRule: null` and the two `openQuestions` below.
+
+**Decision on a bare or two-token `MSGCON` (item 4).** Both are refused when an edit introduces them, because the format line shows all three parameters as required; the General-tab / constant panels already dropped an incomplete one, and the raw editor now agrees with them. A hand-written incomplete `MSGCON` already in a file is left alone until it is edited.
+
+**Open questions (not enforced, recorded on the spec entry).** (1) `MSGCON` states no rule for the message-ID; if IBM's compiler enforces the usual seven-character form it is not in this reference. (2) It states none for `message-file-name` or `library-name` beyond the optional `library-name/` prefix (for example whether `*LIBL` or `*CURLIB` is accepted as the library). Both need either another IBM source or a compile on a real system before a rule can be added.
+
+New `src/test/i153MsgconParameterForm.test.js` (88 checks): each cited sentence against the reference text, including that the section states no ID or name rule and that the 7- and 10-character figures are `MSGID`'s; the form accepted and refused (tokens, slashes, tabs, and that unusual IDs and long names are deliberately accepted); the panel parser agreeing; add-time and diff-based behaviour in both directions; and the real webview in jsdom (raw editor, constant panel Apply, constant Add form). Mutation-checked: with the new check switched off it has 14 failures. No older test needed changing. Full suite on the pre-rebase tree: 253 files, 14,180 checks, 0 failures.
 
 ---
 

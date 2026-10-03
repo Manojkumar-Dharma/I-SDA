@@ -2591,6 +2591,37 @@
     return tokens.length ? msgconLengthProblem(tokens[0]) : null;
   }
 
+  /** Task I-153 - the format line `MSGCON(length message-ID
+   *  [library-name/]message-file-name)` states three parameters, only the
+   *  library being optional. A parameter text that is not exactly three
+   *  blank-separated tokens (a bare MSGCON, a two-token one, a fourth token),
+   *  or whose file token is not `message-file-name` / `library-name/message-
+   *  file-name` (a second or leading / trailing slash), is not that form. The
+   *  length token is msgconLengthProblem's; the message-ID and the file and
+   *  library names get no content check because the section states no rule
+   *  for them (an open question in the spec, not an invented rule). Unlike
+   *  msgconParamsProblem a BLANK text is reported here: a bare MSGCON is
+   *  incomplete. Callers run it only for text an edit introduces. */
+  function msgconStructureProblem(paramText) {
+    var shape = KeywordSpec.msgconParameterShape();
+    var tokens = String(paramText == null ? '' : paramText).trim().split(/\s+/).filter(Boolean);
+    if (tokens.length !== shape.count) {
+      return 'MSGCON takes ' + shape.count + ' parameters - MSGCON(length message-ID [library-name' + shape.libraryDelimiter +
+        ']message-file-name) - and this one has ' + (tokens.length || 'none') + ' (per the DDS Reference).';
+    }
+    var parts = tokens[2].split(shape.libraryDelimiter);
+    if (parts.length > 2 || parts.some(function (p) { return p === ''; })) {
+      return 'MSGCON\'s message file must be written message-file-name or library-name' + shape.libraryDelimiter +
+        'message-file-name (per the DDS Reference).';
+    }
+    return null;
+  }
+  /** The first problem in a whole MSGCON parameter text: its length (rule 3),
+   *  then its overall form. */
+  function msgconFullProblem(paramText) {
+    return msgconParamsProblem(paramText) || msgconStructureProblem(paramText);
+  }
+
   /** Add-time check, all three rules, for one keyword being added (the raw
    *  editor's "+ Add keyword", or ticked as a General row): MSGCON onto a
    *  named field, onto a field that carries one of its excluded keywords, or
@@ -2604,7 +2635,7 @@
       if (named) return named;
       var hits = msgconExcludedHits(fieldKeywords);
       if (hits.length) return msgconExclusionForwardReason(hits);
-      return msgconParamsProblem(paramText);
+      return msgconFullProblem(paramText);
     }
     if (!KeywordSpec.isMutex('MSGCON', name)) return null;
     return msgconHasMsgcon(fieldKeywords) ? msgconExclusionReverseReason([name]) : null;
@@ -2642,7 +2673,7 @@
       if (reason || !k || k.name !== 'MSGCON') return;
       var p = String(k.parameters || '').trim();
       if (oldParams.indexOf(p) >= 0) return;
-      reason = msgconParamsProblem(p);
+      reason = msgconFullProblem(p);
     });
     return reason;
   }
@@ -4580,6 +4611,10 @@
     var slash = fileToken.indexOf('/');
     var library = slash >= 0 ? fileToken.slice(0, slash) : '';
     var msgFile = slash >= 0 ? fileToken.slice(slash + 1) : fileToken;
+    // Task I-153: the file token is `message-file-name` or `library-name/message-file-name` - a
+    // leading slash (empty library) or a second slash is not that form, so it stays unstructured
+    // (a raw edit) instead of being silently normalised by the next Apply.
+    if (msgconStructureProblem(trimmed)) return { structured: false, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
     if (!msgId || !msgFile) return { structured: false, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
     return { structured: true, length: length, msgId: msgId, library: library, msgFile: msgFile, raw: trimmed };
   }
@@ -10202,6 +10237,8 @@
     msgconNewConflictReason: msgconNewConflictReason,
     msgconLengthProblem: msgconLengthProblem,
     msgconParamsProblem: msgconParamsProblem,
+    msgconStructureProblem: msgconStructureProblem,
+    msgconFullProblem: msgconFullProblem,
     msgconNamedFieldReason: msgconNamedFieldReason,
     msgidRecordIsSubfile: msgidRecordIsSubfile,
     msgidSflRecordReason: msgidSflRecordReason,
