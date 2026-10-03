@@ -222,7 +222,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes the menu-bar record's field names without the `&` the reference syntax shows | I-152 | Claimed (in progress) | — |
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Claimed (in progress) | — |
-| [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Not started | — |
+| [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -7241,7 +7241,7 @@ To do: re-read each keyword's own section in `DDS_Keyword_V7r6.txt` first (the w
 
 ### I-160 — File-level help and USRDSPMGT rules are not enforced
 
-> **Area:** File · **Status:** Not started · **Depends on:** I-121g
+> **Area:** File · **Status:** Claimed (in progress) · **Depends on:** I-121g
 
 Raised by the I-121g slice. Probed on v0.10.309 through `setFileFlagKeyword` (the file panel's own write path): `HLPFULL` is accepted with no `HLPPNLGRP` in the file; `HLPSCHIDX` is accepted with no `HLPPNLGRP`, and with `HLPSHELF` present; `USRDSPMGT` is accepted beside a file-level `KEEP` (the `HLPCMDKEY` half has been enforced since I-152; the other seven names in its own section were not probed one by one); `HLPRCD` is accepted with an empty record format name. Not probed: `PASSRCD` naming a record format that does not exist in the file (the section says it must), and the CA / CF same-key-number rule through the raw editor.
 
