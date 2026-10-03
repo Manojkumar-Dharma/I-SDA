@@ -221,7 +221,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Claimed (in progress) | — |
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes the menu-bar record's field names without the `&` the reference syntax shows | I-152 | Claimed (in progress) | — |
-| [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Not started | — |
+| [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Claimed (in progress) | — |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -238,7 +238,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-158](#i-158) | Claimed (in progress) | `MNUBARDSP` panel writes the `&` in front of the choice field and pull-down input (raised by I-152). Small. |
 | 2 | [I-156](#i-156) | Claimed (in progress) | `DATE` preview uses the connected job's real date format and separator (QUSRJOBI). |
-| 3 | [I-159](#i-159) | Not started | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
+| 3 | [I-159](#i-159) | Claimed (in progress) | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
 | 4 | [I-121g](#i-121g), [I-121h](#i-121h), [I-121i](#i-121i), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121g claimed; the rest not started | The seven keyword slices still open: 43 keywords with no spec entry (7 + 10 + 4 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
 | 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 6 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
@@ -7231,7 +7231,7 @@ To do:
 
 ### I-159 — File-level display and I/O keyword rules are not enforced
 
-> **Area:** File · **Status:** Not started · **Depends on:** I-121f
+> **Area:** File · **Status:** Claimed (in progress) · **Depends on:** I-121f
 
 Raised by the I-121f slice and opened as a task from the Deferred findings table. File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice.
 
