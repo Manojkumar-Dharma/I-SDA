@@ -208,7 +208,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-143](#i-143) | Field | `MSGCON` rules from its DDS section are not enforced: the DATE/DFT/EDTCDE/EDTWRD/TIME exclusion, constant-only, and the 1-132 length | I-121m | Done | v0.10.296 |
 | [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Done | v0.10.293 |
 | [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Done | v0.10.297 |
-| [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Not started | — |
+| [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Claimed (in progress) | — |
 | [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Not started | — |
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
@@ -6920,7 +6920,7 @@ To do: probe each case in the raw keyword editor, then guard with the I-145 help
 
 ### I-146 — `SFLDROP` / `SFLFOLD` pairing and the SFLSIZ = SFLPAG / field-selection exclusions are not enforced
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121c, I-121d
+> **Area:** Record · **Status:** Claimed (in progress) · **Depends on:** I-121c, I-121d
 
 Raised by the I-121d and I-121c slices. (1) `SFLDROP` and `SFLFOLD` on one record must use the same key, and `SFLDROP` / `SFLFOLD` are ignored when SFLSIZ equals SFLPAG or refused with field selection; none of that is checked (only the `SFLSNGCHC`/`SFLMLTCHC` exclusion and the command-key clash are). Facts: `foldDropRules`. (2) `SFLPAG`'s own section refuses `SFLDROP`/`SFLFOLD`/`SFLROLVAL` when SFLSIZ equals SFLPAG and `SFLDROP`/`SFLFOLD`/`SFLINZ`/`SFLLIN`/`SFLRCDNBR` under field selection; only `SFLSCROLL` (I-127) is checked against SFLSIZ = SFLPAG. The lists are in the spec (`excludedWhenSizeEqualsPage`, `excludedWithFieldSelection`).
 
