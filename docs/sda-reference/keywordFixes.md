@@ -213,7 +213,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Not started | — |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Not started | — |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Not started | — |
-| [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Not started | — |
+| [I-151](#i-151) | Record | Output-control relations not enforced: `ERASE`/`ERASEINP`/`MDTOFF`/`PROTECT` without `OVERLAY`, `PUTOVR` with `PUTRETAIN`, `ERASE` over 20 record names, `CSRLOC`/`FRCDTA` more than once per record | I-121a | Claimed (in progress) | — |
 | [I-152](#i-152) | Record | Window, menu-bar, help and logging relations not enforced: `HLPCMDKEY`, `WDWTITLE`, `HLPSEQ`, `HLPCLR`, `MNUBARDSP` | I-121e | Not started | — |
 | [I-153](#i-153) | Field | `MSGCON` message ID and message file parameters are not validated (the length is, since I-143) | I-143 | Not started | — |
 | [I-154](#i-154) | Field | System-value constants vs IBM's rules: `W`/`Y` edit-code widths (also on numeric fields), DATE/TIME preview text in IBM's format at the real width, TIME's "can specify only" rule | I-144 | Claimed (in progress) | — |
@@ -6990,7 +6990,7 @@ To do: follow the I-131 `VALNUM` pattern - hide the row (General tab) where the 
 
 ### I-151 — Output-control keyword relations are not enforced
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-121a
+> **Area:** Record · **Status:** In progress · **Depends on:** I-121a
 
 Raised by the I-121a slice; opened as a task with a probe. **Output-control keyword relations are not enforced.** The DDS Reference (and the spec now) states: `ERASE`, `ERASEINP`, `MDTOFF` and `PROTECT` need `OVERLAY` on the same record; `PUTOVR` cannot be with `PUTRETAIN`; `ERASE` takes at most 20 record names; `CSRLOC` and `FRCDTA` may appear once per record format. A search of the writer and panels found no guard (no probe run). The `UNLOCK` / `GETRETAIN` / `RTNDTA` relations are already I-148. `PROTECT` also sits outside `PULLDOWN`'s forbidden list although it needs `OVERLAY`, which `PULLDOWN` forbids - an indirect exclusion, worth confirming when the guards are added.
 
