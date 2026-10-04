@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-179 of 189 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.324**.
+180 of 190 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.325**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -178,7 +178,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Claimed (in progress) | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
-| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Claimed (in progress) | — |
+| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Done v0.10.325 (5 of 5 specified) | v0.10.325 |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done | v0.10.285 |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
@@ -232,6 +232,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
+| [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -246,13 +247,14 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-162](#i-162) | Claimed | `HELP` relations to the other help keywords (raised by I-121h, probed). |
-| 2 | [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The two keyword slices still open: 13 keywords with no spec entry (8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 2 | [I-121l](#i-121l) | Claimed | The one keyword slice still open: 8 keywords with no spec entry (`check_spec_coverage.py` confirms). |
 | 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 | 7 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
 | 8 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
+| 9 | [I-170](#i-170) | Not started | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -6476,11 +6478,20 @@ Full suite: 239 files, 13,132 checks, zero failures.
 
 ### I-121o — Reference and database-inherit field keywords
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.325) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (5):** `ALIAS`, `REFFLD`, `DLTCHK`, `DLTEDT`, `HLPID`.
 
 `DLTEDT`/`DLTCHK` already sit in `FIELD_KEYWORD_GROUPS`. `REFFLD` is written bare by "+ Fields from database file" (I-113) - the entry must allow that form.
+
+**Result (v0.10.325).** All five keywords now have a `RECORD_TYPES` entry, in the block fenced `// ---- I-121o: reference and database-inherit field keywords ----` in `keywordSpec.js`; `check_spec_coverage.py` reports `I-121o 5/5`. Each entry was written from its own section of `DDS_Keyword_V7r6.txt`, and the new test checks every cited sentence appears verbatim in that file.
+
+- **Facts per entry.** `REFFLD`, `DLTCHK` and `DLTEDT` carry `requiresReferenceFlag` (valid only with R in position 29). `DLTCHK` / `DLTEDT` take no parameters and name the `FIELD_KEYWORD_GROUPS` group they delete. `REFFLD` carries its grammar, the required field name, the optional file part (so `REFFLD(ITEM)` and the two-part `REFFLD(NAME FILE)` that "+ Fields from database file" writes are both inside the entry), `*SRC` and "the field you refer to must precede". `ALIAS` carries uniqueness and "copied to a referencing field". `HLPID` carries `validOnlyOnConstantField`, the required numeric parameter, range 1-999 and uniqueness within the record. Option indicators are not restated: all five are already in the `NO_OPTION_INDICATORS` table.
+- **One copy removed.** The General keywords panel's `HLPID` row had the literal scope `'constant'`; it now reads `KeywordSpec.validOnlyOnConstantField` through the new `generalRowHiddenByScope`, used by both the render and the wire-up loops. This is a different fact from I-121m's `constantFieldOnly` (keywords that supply a constant's value), so that list and its test are untouched.
+- **Accessors** (re-exported off `DspfWriter`): `referenceFlagRequiredKeywords`, `requiresReferenceFlag`, `validOnlyOnConstantField`, `helpIdentifierRange`.
+- **Not changed.** Nothing the writer enforces changed: a pure refactor. The rendered General rows were compared old against new for 96 combinations (8 data types x 6 usages x constant / named) and are identical.
+- **Tests.** New `src/test/i121oReferenceFieldKeywordsSpec.test.js` (512 checks): citations, every fact, accessor semantics, a sweep over every `KEYWORD-LOOKUP.json` keyword, REFFLD parameter forms round-tripping, and the real generated webview's HLPID row. Fails against the pre-change source (stash check).
+- **Findings, opened as a task.** Searching the code for each stated rule found none enforced: [I-170](#i-170).
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
 
@@ -7544,5 +7555,21 @@ Opened from the I-160 deferred finding. The reference says a file cannot specify
 - Not touched: the `RETCMDKEY` and `ALTPAGEDWN` key-number rules, which are other keywords' sections and have their own guards.
 
 Tests: new `src/test/i169CommandKeyNumberClash.test.js` (the three source sentences against the reference text, the spec facts, every placement from both sides, the two-digit and lower-case forms, the neighbours that stay allowed, removal and unchanged hand-written leftovers, a second new clash still reported, fail-safe models, and the raw keyword editors at file and record level in jsdom). Mutation-checked: dropping the hook fails 6 checks, dropping the check fails 16.
+
+---
+
+<a id="i-170"></a>
+
+### I-170 — Reference-field and help-identifier rules are not enforced
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-121o
+
+Raised by the I-121o slice. The DDS Reference states, and `keywordSpec.js` now holds as facts, rules that no guard enforces (found by searching the writer, webview and extension host for each keyword; no raw-editor probe has been run yet):
+
+- `DLTCHK` and `DLTEDT` are "valid only when R is specified in position 29", and `REFFLD` needs "an R in position 29". Nothing refuses them on a non-reference field, and turning the reference flag off drops `REFFLD` but leaves `DLTCHK` / `DLTEDT` behind.
+- `ALIAS`: the alternative name must differ from all other alternative names and all field names in the record format. No duplicate check exists.
+- `HLPID`: a numeric value 1 to 999, unique within the record. Neither is checked, and the General keywords row is a free-text box with the placeholder `e.g. FLDHELP1`, which suggests a name rather than a number.
+
+To do: probe each case in the raw keyword editor and the panels, then add spec-driven, diff-based guards in the I-140 / I-151 shape, make the `HLPID` input numeric 1-999, and decide what turning the reference flag off should do to `DLTCHK` / `DLTEDT`.
 
 ---

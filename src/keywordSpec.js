@@ -2959,6 +2959,99 @@
     },
     // ---- end I-121n ----
 
+    // ---- I-121o: reference and database-inherit field keywords ----
+    // Task I-121o - ALIAS, REFFLD, DLTCHK, DLTEDT and HLPID, each re-read
+    // fresh against its own section of DDS_Keyword_V7r6.txt (ALIAS ~1837,
+    // DLTCHK ~4785, DLTEDT ~4805, HLPID ~7070, REFFLD ~10095), not against
+    // the code. Facts, not new behaviour: the one consumer is the General
+    // keywords panel's HLPID row scope (validOnlyOnConstantField); the rest
+    // are stated because the reference states them and are logged in the
+    // Deferred findings / Open work tables where no guard enforces them.
+    // Option indicators are "not valid" for all five; that stays in the
+    // NO_OPTION_INDICATORS table (I-101) and is not restated.
+    //   requiresReferenceFlag   the keyword is valid only when position 29 is R
+    //   validOnlyOnConstantField the keyword belongs to a constant field only
+    //   alternativeNameMustBeUnique ALIAS: unique among alias names and field names
+    //   copiedFromReferencedField ALIAS: a referencing field copies it in
+    //   fieldNameRequired       REFFLD: the referenced field name is always written
+    //   srcMeansSameSourceFile  REFFLD: *SRC names the DDS source being defined
+    //   srcFieldMustPrecede     REFFLD: a *SRC target must precede the referencing field
+    //   parameterForm           the keyword's parameter grammar, as IBM writes it
+    //   deletes                 DLTCHK / DLTEDT: the FIELD_KEYWORD_GROUPS group they delete
+    ALIAS: {
+      ddsReference:
+        'You use this field-level keyword to specify an alternative name ' +
+        'for a field. The alternative-name must be different from all ' +
+        'other alternative names and from all DDS field names in the ' +
+        'record format. When you refer to a field that has the ALIAS ' +
+        'keyword, the ALIAS keyword is copied in unless the ALIAS keyword ' +
+        'is explicitly specified on the referencing field.',
+      parameterForm: 'ALIAS(alternative-name)',
+      alternativeNameMustBeUnique: true,
+      copiedFromReferencedField: true
+    },
+    REFFLD: {
+      ddsReference:
+        'You use this field-level keyword to refer to a field when the ' +
+        'name, record format, file, or library of the referenced field ' +
+        'differs from its equivalent in positions 19 through 28. The ' +
+        'referenced-field-name is required even if it is the same as the ' +
+        'referencing field. Use the record format name when the ' +
+        'referenced file contains more than one record format. Note: When ' +
+        'you refer to a field in the same DDS source file, the field you ' +
+        'are referring to must precede the field you are defining. You ' +
+        'must specify an R in position 29.',
+      parameterForm: 'REFFLD([record-format-name/]referenced-field-name [{*SRC | [library-name/]database-file-name}])',
+      requiresReferenceFlag: true,
+      fieldNameRequired: true,
+      // The file part is optional: REFFLD(ITEM) is the first documented
+      // example, and "+ Fields from database file" (I-113) writes the
+      // two-part form REFFLD(NAME FILE) on a field with no length or type.
+      fileParameterOptional: true,
+      srcMeansSameSourceFile: true,
+      srcFieldMustPrecede: true
+    },
+    DLTCHK: {
+      ddsReference:
+        'You use this field-level keyword to specify that the IBM i ' +
+        'operating system is to ignore all validity checking and CHKMSGID ' +
+        'keywords that are specified for a referenced field. This keyword ' +
+        'is valid only when R is specified in position 29. This keyword ' +
+        'has no parameters. If you specify any new validity checking ' +
+        'keywords, DLTCHK is unnecessary.',
+      requiresReferenceFlag: true,
+      noParameters: true,
+      deletes: 'VALIDITY'
+    },
+    DLTEDT: {
+      ddsReference:
+        'You use this field-level keyword to specify that the IBM i ' +
+        'operating system is to ignore the EDTCDE or EDTWRD keyword if ' +
+        'either of them is specified for a referenced field. This keyword ' +
+        'is valid only when you specify R in position 29. This keyword ' +
+        'has no parameters. If you specify a new editing keyword, DLTEDT ' +
+        'is unnecessary.',
+      requiresReferenceFlag: true,
+      noParameters: true,
+      deletes: 'EDIT'
+    },
+    HLPID: {
+      ddsReference:
+        'You use this constant field-level keyword to specify an ' +
+        'identifier for the constant in the field-level help. The ' +
+        'identifier you specify can be used on the HLPARA keyword to link ' +
+        'help text to this constant field. The help-identifier parameter ' +
+        'is required and can be only a numeric value from 1 to 999. The ' +
+        'value you specify must be unique within the record you are ' +
+        'defining.',
+      parameterForm: 'HLPID(help-identifier)',
+      validOnlyOnConstantField: true,
+      parameterRequired: true,
+      identifierRange: { min: 1, max: 999 },
+      uniqueWithinRecord: true
+    },
+    // ---- end I-121o ----
+
     // ---- I-121m: constant and system-value field keywords ----
     // DATE, TIME, USER, SYSNAME, MSGCON and NOCCSID, each re-read fresh
     // against DDS_Keyword_V7r6.txt (DATE ~line 4480, SYSNAME ~12785, TIME
@@ -3558,6 +3651,31 @@
       if (e.name === name) return e.name + ' - ' + e.description;
     }
     return null;
+  }
+
+  /** Task I-121o - the keywords valid only when position 29 is R (REFFLD,
+   *  DLTCHK, DLTEDT), in entry order. A fresh array. */
+  function referenceFlagRequiredKeywords() {
+    return Object.keys(RECORD_TYPES).filter(function (k) { return RECORD_TYPES[k].requiresReferenceFlag === true; });
+  }
+  /** Task I-121o - true when `keywordName` is valid only on a reference
+   *  field (R in position 29). */
+  function requiresReferenceFlag(keywordName) {
+    var e = Object.prototype.hasOwnProperty.call(RECORD_TYPES, keywordName) ? RECORD_TYPES[keywordName] : null;
+    return !!(e && e.requiresReferenceFlag === true);
+  }
+  /** Task I-121o - true when `keywordName` belongs to a constant field only
+   *  (HLPID). Not the same fact as constantFieldOnly (I-121m), which marks the
+   *  keywords that SUPPLY a constant's value. */
+  function validOnlyOnConstantField(keywordName) {
+    var e = Object.prototype.hasOwnProperty.call(RECORD_TYPES, keywordName) ? RECORD_TYPES[keywordName] : null;
+    return !!(e && e.validOnlyOnConstantField === true);
+  }
+  /** Task I-121o - the numeric range a help identifier (HLPID) may take, as
+   *  a fresh { min, max }; null for a keyword with no such fact. */
+  function helpIdentifierRange() {
+    var e = RECORD_TYPES.HLPID;
+    return e && e.identifierRange ? { min: e.identifierRange.min, max: e.identifierRange.max } : null;
   }
 
   /** Task I-121m - the entry for a constant / system-value keyword, or null
@@ -5900,6 +6018,10 @@
     constantKeywordTakesNoParameters: constantKeywordTakesNoParameters,
     dateParameters: dateParameters,
     fixedDisplayLength: fixedDisplayLength,
+    referenceFlagRequiredKeywords: referenceFlagRequiredKeywords,
+    requiresReferenceFlag: requiresReferenceFlag,
+    validOnlyOnConstantField: validOnlyOnConstantField,
+    helpIdentifierRange: helpIdentifierRange,
     fieldKeywordsWithoutParameters: fieldKeywordsWithoutParameters,
     systemValueConstantWidth: systemValueConstantWidth,
     systemValuePreviewText: systemValuePreviewText,

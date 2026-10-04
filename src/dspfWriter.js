@@ -11148,6 +11148,11 @@
     isSystemValueConstantKeyword: function (name) { return KeywordSpec.isSystemValueConstantKeyword(name); },
     systemValueConstantLabel: function (name) { return KeywordSpec.systemValueConstantLabel(name); },
     msgconLengthRange: function () { return KeywordSpec.msgconLengthRange(); },
+    // Task I-121o - reference-flag and constant-field-only facts, read off the spec.
+    requiresReferenceFlag: function (name) { return KeywordSpec.requiresReferenceFlag(name); },
+    referenceFlagRequiredKeywords: function () { return KeywordSpec.referenceFlagRequiredKeywords(); },
+    validOnlyOnConstantField: function (name) { return KeywordSpec.validOnlyOnConstantField(name); },
+    helpIdentifierRange: function () { return KeywordSpec.helpIdentifierRange(); },
     keywordAlternateNames: function (name) { return KeywordSpec.alternateNamesOf(name); },
     keyboardShiftValues: function (dataType) { return KeywordSpec.keyboardShiftValues(dataType); },
     isPosition35Value: function (value) { return KeywordSpec.isPosition35Value(value); },

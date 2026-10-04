@@ -2593,7 +2593,8 @@
     ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, 'all', false, 'all'],
     // Task I-150: input-capable (I/B) fields only (DDS Reference).
     ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false, 'none', undefined, 'input-capable'],
-    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, 'constant', false, 'none'],
+    // Task I-121o - constant-field-only now comes from the spec (validOnlyOnConstantField), see generalRowHiddenByScope.
+    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, 'all', false, 'none'],
     ['putretain', 'PUTRETAIN', 'Retain field on display', false, 'all', true, 'none'],
     ['ovrdta', 'OVRDTA', 'Override data', false, 'all', true, 'msg-only'],
     ['ovratr', 'OVRATR', 'Override attributes', false, 'all', true, 'none'],
@@ -2740,12 +2741,21 @@
     return !!DspfWriter.multiLevelFieldReason(name, usage, isConstant, keywords, '');
   }
 
+  /** Task I-121o - true when a General keywords row is hidden by its scope: a
+   *  'named' row on a constant, or a constant-only row on a named field. A row
+   *  is constant-only when its scope says so OR the keyword spec says the
+   *  keyword is valid only on a constant field (HLPID). */
+  function generalRowHiddenByScope(name, scope, isConstant) {
+    if (scope === 'named' && isConstant) return true;
+    if (!isConstant && (scope === 'constant' || DspfWriter.validOnlyOnConstantField(name))) return true;
+    return false;
+  }
+
   function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant, decimalPositions) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
-      if (scope === 'named' && isConstant) return;
-      if (scope === 'constant' && !isConstant) return;
+      if (generalRowHiddenByScope(name, scope, isConstant)) return;
       // Task I-35: Usage M/P each have a fixed, much smaller keyword list
       // than every other usage (see fieldKeywordCategoryVisibility's own
       // I-35 doc comment) - mpScope, unlike scope above, only ever
@@ -2782,8 +2792,7 @@
     onChange = withAddGuard(keywords, onChange, rerender, addGuardFn);
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
-      if (scope === 'named' && isConstant) return;
-      if (scope === 'constant' && !isConstant) return;
+      if (generalRowHiddenByScope(name, scope, isConstant)) return;
       // Task I-35 - see generalFieldKeywordsHtml's own I-35 comment above;
       // must match its own skip logic exactly or a row could render (or
       // fail to render) without a matching wire-up.
