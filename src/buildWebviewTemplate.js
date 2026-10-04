@@ -6328,6 +6328,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
       DspfWriter.windowHelpMenuNewConflictReason(model, candidate) ||
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
+      DspfWriter.fileLevelDisplayNewConflictReason(model, candidate) ||
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
       DspfWriter.fieldKindNewConflictReason(model, candidate) ||
       DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||

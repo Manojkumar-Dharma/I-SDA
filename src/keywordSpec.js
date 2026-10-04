@@ -939,8 +939,19 @@
       parameters: {
         format: 'IGCCNV(CFnn line-number)',
         commandKey: { keyTypes: ['CF'], first: 'CF01', last: 'CF24', notAlreadyAssigned: true },
-        lineNumber: 'the display line that holds the conversion prompt line (it needs an entire line)'
+        lineNumber: 'the display line that holds the conversion prompt line (it needs an entire line)',
+        // Task I-159: the format line states two parameters, both required. The section gives
+        // the second no range, so only "a line number" (a whole number from 1, as MSGLOC's
+        // "range 1 through 28" numbers the display's lines) is checked, never an upper bound.
+        parameterCount: 2,
+        lineNumberRule: { wholeNumber: true, min: 1, max: null }
       },
+      // Task I-159: what the section does NOT settle, so it is not enforced.
+      openQuestions: [
+        'IGCCNV states no upper limit for line-number (a 24 x 80 display has 24 lines, but the section does not say the line must fit).',
+        'IGCCNV says "a CF key that has already been assigned a function"; whether a CAnn of the same number counts as assigned is not stated, so only another CFnn use of that key is refused.',
+        'IGCCNV says the file must be defined for a 24 x 80 display; a DSPSIZ that also lists 27 x 132 still defines it for 24 x 80, so only a DSPSIZ with no 24 x 80 size is refused.'
+      ],
       // The remaining rules are runtime / advisory in the section and none is
       // enforced by the designer today.
       requiresDbcsDisplay: true,
@@ -984,6 +995,14 @@
       },
       // Without DSPSIZ the file opens only to a 24 x 80 display.
       absentMeans: '24 x 80 only',
+      // Task I-159: the section says a user-defined name is "other than *DS3 or *DS4" yet the
+      // designer's own Display Sizes picker (and widespread DDS) writes DSPSIZ(24 80 *DS3 27 132 *DS4),
+      // so a standard name after a size is NOT refused; `userNameMayBeStandardName` above stays a
+      // recorded fact. Mixing the two formats (*DS3 27 132) matches neither format line and is refused.
+      openQuestions: [
+        'DSPSIZ says a user-defined condition name must be other than *DS3 or *DS4, but 24 80 *DS3 27 132 *DS4 is written by the Display Sizes picker and is common DDS; not refused.',
+        'DSPSIZ(24 80 24 80) (the same size twice in the lines-and-positions form) is not covered by "you cannot specify a parameter value twice", which belongs to the *DS3 / *DS4 form; not refused.'
+      ],
       // "If you specify user-defined display size condition names for DSPSIZ,
       // you cannot use IBM-supplied display size condition names for conditioning."
       userNamesExcludeStandardNamesForConditioning: true,
@@ -1061,6 +1080,13 @@
       requiresInFile: ['PRINT'],
       requiresPrintFileParameter: true,
       notWithRecordLevel: ['PRINT'],
+      // Task I-159: PRINT's format line is PRINT[(response-indicator ['text']) | (*PGM) |
+      // ([library-name/]printer-file-name)], so a "printer file parameter" is the last form -
+      // a bare PRINT (QSYSPRT / the device's PRTFILE), PRINT(*PGM) and PRINT(nn 'text') do not name one.
+      printFileParameterExcludes: ['no parameter', '*PGM', 'a response indicator (with optional text)'],
+      openQuestions: [
+        'OPENPRT says it "is not valid with record-level PRINT keywords"; whether that forbids a record-level PRINT beside a file-level PRINT(printer-file), or only restates that a record-level PRINT cannot satisfy the requirement, is not clear, so only the requirement is enforced.'
+      ],
       ddsReference:
         'OPENPRT (Open Printer File) keyword (~line 9167): file-level; keeps the printer file open until the display file closes. This keyword has no ' +
         'parameters. Valid only with a file-level PRINT keyword that names a printer file; not valid with record-level PRINT. Option indicators are ' +
@@ -1077,7 +1103,11 @@
         libraryName: { required: false, default: '*LIBL' },
         recordFormatName: { required: false, default: 'every record format is searched in order' },
         ddmFileAllowed: true,
-        iddFileAllowed: false
+        iddFileAllowed: false,
+        // Task I-159: one or two blank-separated parameters, the file token being
+        // [library-name/]database-file-name. No rule is stated for the names themselves.
+        parameterCount: { min: 1, max: 2 },
+        libraryDelimiter: '/'
       },
       ddsReference:
         'REF (Reference) keyword (~line 10039): file-level, REF([library-name/]database-file-name [record-format-name]); the database file name is ' +
@@ -5156,6 +5186,21 @@
     var p = RECORD_TYPES.DSPSIZ.parameters;
     return { min: p.userNameLength.min, max: p.userNameLength.max, firstCharacter: p.userNameFirstCharacter };
   }
+  /** Task I-159 - the stated shape of the file-level display / I-O keywords the writer enforces:
+   *  { igccnv: { parameterCount, firstKey: {type, first, last}, lineMin }, ref: { min, max, delimiter } }. */
+  function fileDisplayIoShapes() {
+    var ig = RECORD_TYPES.IGCCNV.parameters;
+    var ck = parseCommandKey(ig.commandKey.first), cl = parseCommandKey(ig.commandKey.last);
+    var rf = RECORD_TYPES.REF.parameters;
+    return {
+      igccnv: {
+        parameterCount: ig.parameterCount,
+        firstKey: { type: ck.type, first: Number(ck.number), last: Number(cl.number) },
+        lineMin: ig.lineNumberRule.min
+      },
+      ref: { min: rf.parameterCount.min, max: rf.parameterCount.max, delimiter: rf.libraryDelimiter }
+    };
+  }
   // ---- end I-121f ----
   // ---- I-121g: accessors ----
   /** The seven file-level help, program-control and command-key entries, in the slice's order (a fresh array). */
@@ -5378,6 +5423,7 @@
     msgLocLimits: msgLocLimits,
     errsflRefusedMsgLocs: errsflRefusedMsgLocs,
     dspsizUserNameRule: dspsizUserNameRule,
+    fileDisplayIoShapes: fileDisplayIoShapes,
     // ---- I-121g ----
     fileHelpCommandKeywords: fileHelpCommandKeywords,
     commandKeyEntry: commandKeyEntry,

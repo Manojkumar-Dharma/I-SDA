@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-167 of 180 tasks done; 13 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.312**.
+169 of 180 tasks done; 11 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.314**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -221,7 +221,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-156](#i-156) | Field | DATE preview uses the connected job's real date format and separator (QUSRJOBI `JOBI0400`) instead of an assumed MDY and `/` | I-154 | Done | v0.10.311 |
 | [I-157](#i-157) | Record | `SFLDROP` / `SFLENTER` / `SFLFOLD` / `SFLMODE` / `SFLRNA` are accepted on a record with no `SFLCTL` | I-147 | Done | v0.10.304 |
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes its field names without the `&` the compiler requires | I-152 | Done | v0.10.312 |
-| [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Claimed (in progress) | — |
+| [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Done | v0.10.314 |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -236,8 +236,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-159](#i-159) | Claimed (in progress) | File-level display and I/O rules raised by I-121f: `MSGLOC`, `ERRSFL` vs display size, `OPENPRT`, `IGCCNV` (opened from the deferred finding). Size (estimate): Medium. |
-| 2 | [I-121g](#i-121g), [I-121h](#i-121h), [I-121i](#i-121i), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121g claimed; the rest not started | The seven keyword slices still open: 43 keywords with no spec entry (7 + 10 + 4 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 1 | [I-160](#i-160) | Claimed (in progress) | File-level help and `USRDSPMGT` rules raised by I-121g: `HLPFULL` / `HLPSCHIDX` need `HLPPNLGRP`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format. |
+| 2 | [I-121h](#i-121h), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121h claimed; the rest not started | The five keyword slices still open: 32 keywords with no spec entry (10 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
 | 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
@@ -7262,13 +7262,28 @@ New `src/test/i158MnubardspAmpersand.test.js` (15 checks): bare and `&` hand-wri
 
 ### I-159 — File-level display and I/O keyword rules are not enforced
 
-> **Area:** File · **Status:** Claimed (in progress) · **Depends on:** I-121f
+> **Area:** File · **Status:** Done (v0.10.314) · **Depends on:** I-121f
 
 Raised by the I-121f slice and opened as a task from the Deferred findings table. File-level display and I/O keywords: rules the DDS Reference states but the writer does not enforce (probed on v0.10.304): `MSGLOC` takes 1-28 (any text such as `99` or `abc` is accepted), and `25` (24 x 80) / `28` (27 x 132) are refused beside `ERRSFL`; `OPENPRT` is valid only with a file-level `PRINT` that names a printer file; `IGCCNV`'s CF key must be CF01-CF24 and not already assigned (`commandKeyClaimsInModel` does not know it; the box is free text) and the prompt line is a line number. Not probed: `DSPSIZ` user-defined condition names (2-8 characters, leading `*`) through the raw editor, and `REF` given twice.
 
-To do: re-read each keyword's own section in `DDS_Keyword_V7r6.txt` first (the wording above is the slice's summary, not the rule), probe the not-yet-probed cases in the raw keyword editor, then add spec-driven guards in the I-140 / I-148 shape (refuse only a violation the edit adds, both directions where the relation is a pair), hooked into the webview's edit choke point. Where the reference does not state a rule, record an open question instead of inventing one. Size (estimate): Medium.
+**What the reference states (re-read for this task).** `MSGLOC`: "The parameter value is required and must be in the range 1 through 28", every number valid whatever the display sizes, 26 to 28 on 24 x 80 only an open-time diagnostic; its two examples show an unconditioned `MSGLOC` is the primary size's and a `*DS4` one the secondary's. `ERRSFL`: "you cannot specify a message location value of 25 for the 24 x 80 display size or 28 for the 27 x 132 display size". `OPENPRT`: "valid only if you have specified a file-level PRINT keyword with a printer file parameter"; `PRINT`'s own format line is `PRINT[(response-indicator ['text']) | (*PGM) | ([library-name/]printer-file-name)]`, so only the last form names a printer file. `IGCCNV(CFnn line-number)`: CF01 through CF24, "Do not specify a CF key that has already been assigned a function", "You must define the file for a 24 x 80 display"; the line number is given no range. `DSPSIZ`: `*DS3` / `*DS4` form (up to two, at least one, not twice) or lines-and-positions form (only 24 x 80 and 27 x 132; condition names 2 to 8 characters, first an asterisk). `REF`: "can be specified only once", the database file name required, library and record format optional.
+
+**Fix (v0.10.314).** One model-diff guard, `DspfWriter.fileLevelDisplayNewConflictReason(oldModel, newModel)`, in the I-140 / I-148 shape (it reports only a violation the edit adds, in either direction, so an already-invalid hand-written file never blocks an unrelated edit), hooked into the webview's edit choke point (alert, re-render, nothing written). It reads the stated facts from the I-121f spec entries and the new `KeywordSpec.fileDisplayIoShapes()`:
+
+- **`MSGLOC`** needs a whole number 1 through 28 (a bare, text, 0 or over-28 value is refused). 26 to 28 on 24 x 80 is deliberately not refused: the reference calls it a diagnostic.
+- **`ERRSFL`** with `MSGLOC` 25 on the 24 x 80 size or 28 on the 27 x 132 size is refused whichever is added last. The size an unconditioned `MSGLOC` applies to is the first `DSPSIZ` size (24 x 80 with no `DSPSIZ`); a `*DS3` / `*DS4` or user-named condition is that size's; a name `DSPSIZ` does not declare is not judged.
+- **`OPENPRT`** needs a file-level `PRINT` naming a printer file; a bare `PRINT`, `PRINT(*PGM)`, `PRINT(nn 'text')` and a record-level `PRINT` do not count. Removing or changing the `PRINT` while `OPENPRT` stays is refused.
+- **`IGCCNV`** needs exactly two parameters, a key CF01 to CF24, a whole-number line of 1 or more, a key no other keyword claims (checked with the existing `commandKeyClaimsInModel`, so a file- or record-level `CFnn`, `ALTHELP(CFnn)`, `SFLDROP(CFnn)` and the other command-key claimers all count), and a file that lists a 24 x 80 size when `DSPSIZ` is present.
+- **`DSPSIZ`** must match one of its two formats: 24 x 80 / 27 x 132 only, at most two sizes, names 2 to 8 characters starting with `*`, `*DS3 *DS3` refused, the formats not mixed.
+- **`REF`** twice is refused, as are no parameter, more than two parameters and a file token that is not `file` or `library/file`.
+
+**Left open on purpose (recorded as `openQuestions` on the spec entries, nothing enforced).** `IGCCNV`'s line number has no stated upper bound; whether a `CAnn` of the same number counts as "assigned" is not stated, so only another `CFnn` use is refused; a `DSPSIZ(*DS3 *DS4)` file still defines a 24 x 80 display, so only a `DSPSIZ` with no 24 x 80 size is refused. `OPENPRT`'s sentence "not valid with record-level PRINT keywords" is ambiguous (it may forbid a record-level `PRINT` beside the file-level one, or only restate that a record-level one cannot satisfy the requirement), so only the requirement is enforced. `DSPSIZ`'s "other than `*DS3` or `*DS4`" for user names conflicts with the Display Sizes picker's own `24 80 *DS3 27 132 *DS4`, so a standard name after a size is not refused, nor is `24 80 24 80`.
+
+New `src/test/i159FileLevelDisplayIoRules.test.js` (175 checks): each cited sentence against the reference text, every rule accepted and refused in both directions, the size resolution for `ERRSFL` (no `DSPSIZ`, `*DS4` only, two sizes in either order, user-named sizes), `IGCCNV` against every kind of key claimer, the unenforced cases proved accepted, and the real webview in jsdom through the file-level raw keyword editor (20 cases). Mutation-checked: with the guard switched off it has 61 failures. No older test needed changing. Full suite on the pre-rebase tree: 259 files, 14,696 checks, 0 failures.
 
 ---
+
+<a id="i-160"></a>
 
 ### I-160 — File-level help and USRDSPMGT rules are not enforced
 

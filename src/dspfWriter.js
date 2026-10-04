@@ -5778,6 +5778,178 @@
     return firstNewViolation(retKeyViolations(oldModel), after);
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-159 - the file-level display and I/O rules the I-121f slice found
+  // unenforced. Each below is a sentence of the keyword's own DDS Reference
+  // section (see the spec entries); where a section does not settle a point
+  // the spec records an open question and nothing is invented:
+  //   MSGLOC   the parameter is required, a line number 1 through 28
+  //   ERRSFL   no MSGLOC of 25 for the 24 x 80 size or 28 for the 27 x 132
+  //            size in a file that has ERRSFL (an unconditioned MSGLOC is the
+  //            primary size's; a *DSx / user-named one is that size's)
+  //   OPENPRT  valid only with a file-level PRINT that names a printer file
+  //   IGCCNV   IGCCNV(CFnn line-number): CF01-CF24, a line number, a key no
+  //            other keyword has assigned, a file defined for 24 x 80
+  //   DSPSIZ   one of its two formats, 24 x 80 / 27 x 132 only, user names
+  //            2-8 characters starting with an asterisk
+  //   REF      once only, 1-2 parameters, file token [library-name/]file
+  // Violations are keyed so firstNewViolation reports only what an edit adds,
+  // in either direction; an already-invalid hand-written file never blocks an
+  // unrelated edit.
+  // -----------------------------------------------------------------------
+  function fileTokens(text) {
+    return String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean);
+  }
+  /** The first problem in a DSPSIZ parameter text against its two stated
+   *  formats, or null. */
+  function dspsizFormProblem(paramText) {
+    var toks = fileTokens(paramText);
+    var max = KeywordSpec.maxDisplaySizes();
+    var rule = KeywordSpec.dspsizUserNameRule();
+    var std = KeywordSpec.standardDisplaySizes();
+    if (!toks.length) return 'DSPSIZ needs at least one display size: DSPSIZ(*DS3 [*DS4]) or DSPSIZ(lines positions [condition-name] ...) (per the DDS Reference).';
+    if (toks.every(function (t) { return !!KeywordSpec.standardDisplaySize(t); })) {
+      if (toks.length > max) return 'DSPSIZ takes at most ' + max + ' IBM-supplied display size names (per the DDS Reference).';
+      if (toks.length === 2 && toks[0].toUpperCase() === toks[1].toUpperCase()) return 'DSPSIZ cannot specify the display size ' + toks[0].toUpperCase() + ' twice (per the DDS Reference).';
+      return null;
+    }
+    var i = 0, sizes = 0;
+    while (i < toks.length) {
+      if (!/^\d+$/.test(toks[i]) || i + 1 >= toks.length || !/^\d+$/.test(toks[i + 1])) {
+        return 'DSPSIZ must be DSPSIZ(*DSw [*DSx]) or DSPSIZ(lines positions [condition-name] [lines positions [condition-name]]); "' +
+          fileTokens(paramText).join(' ') + '" is neither (per the DDS Reference).';
+      }
+      var lines = Number(toks[i]), cols = Number(toks[i + 1]);
+      if (!std.some(function (z) { return z.lines === lines && z.columns === cols; })) {
+        return 'DSPSIZ accepts only ' + std.map(function (z) { return z.lines + ' x ' + z.columns; }).join(' and ') + '; ' + lines + ' x ' + cols + ' is not a valid display size (per the DDS Reference).';
+      }
+      sizes++;
+      i += 2;
+      if (i < toks.length && !/^\d+$/.test(toks[i])) {
+        var nm = toks[i];
+        if (nm.charAt(0) !== rule.firstCharacter) return 'A DSPSIZ display size condition name must start with an asterisk; "' + nm + '" does not (per the DDS Reference).';
+        if (nm.length < rule.min || nm.length > rule.max) return 'A DSPSIZ display size condition name must be ' + rule.min + ' to ' + rule.max + ' characters long; "' + nm + '" is ' + nm.length + ' (per the DDS Reference).';
+        i++;
+      }
+    }
+    if (sizes > max) return 'DSPSIZ takes at most ' + max + ' display sizes (per the DDS Reference).';
+    return null;
+  }
+  /** Whether a PRINT keyword's parameter names a printer file: not bare, not
+   *  *PGM, not a response indicator (two digits, with optional text). */
+  function printNamesPrinterFile(k) {
+    var p = String(k && k.parameters != null ? k.parameters : '').trim();
+    if (!p) return false;
+    if (/^\*PGM$/i.test(p)) return false;
+    if (/^\d/.test(p)) return false;
+    return true;
+  }
+  /** The display size a MSGLOC applies to: the primary size when
+   *  unconditioned, else the size its condition name stands for; null when
+   *  it cannot be resolved. */
+  function msglocDisplaySize(kw, sizes) {
+    var grp = (kw.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
+    if (!grp) return sizes.length ? sizes[0] : KeywordSpec.defaultDisplaySize();
+    if (grp.displaySizeCondition.not) return null;
+    var nm = String(grp.displaySizeCondition.name || '').toUpperCase();
+    var std = KeywordSpec.standardDisplaySize(nm);
+    if (std) return std;
+    for (var i = 0; i < sizes.length; i++) if (String(sizes[i].name || '').toUpperCase() === nm) return sizes[i];
+    return null;
+  }
+  function fileLevelDisplayViolations(model) {
+    var out = {};
+    var fk = (model && model.fileKeywords) || [];
+    var named = function (n) { return fk.filter(function (k) { return String(k && k.name || '').toUpperCase() === n; }); };
+    var param = function (k) { return String(k && k.parameters != null ? k.parameters : '').trim(); };
+    var sizes = getDisplaySizesList(fk);
+    var limits = KeywordSpec.msgLocLimits();
+    var shapes = KeywordSpec.fileDisplayIoShapes();
+
+    named('DSPSIZ').forEach(function (k) {
+      var why = dspsizFormProblem(param(k));
+      if (why) out['DSPSIZ|' + param(k)] = why;
+    });
+
+    var errsfl = named('ERRSFL').length > 0;
+    named('MSGLOC').forEach(function (k) {
+      var p = param(k);
+      var grp = (k.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
+      var cond = grp ? grp.displaySizeCondition.name : '';
+      var n = /^\d+$/.test(p) ? Number(p) : NaN;
+      if (!(n >= limits.min && n <= limits.max)) {
+        out['MSGLOC|' + cond + '|' + p] = 'MSGLOC' + (p ? '(' + p + ')' : '') + ': the line number is required and must be in the range ' +
+          limits.min + ' through ' + limits.max + (p ? '; "' + p + '" is not' : '') + ' (per the DDS Reference).';
+        return;
+      }
+      if (!errsfl) return;
+      var size = msglocDisplaySize(k, sizes);
+      if (!size) return;
+      KeywordSpec.errsflRefusedMsgLocs().forEach(function (d) {
+        if (d.lines === size.lines && d.columns === size.columns && d.line === n) {
+          out['ERRSFL|' + d.lines + 'x' + d.columns + '|' + n] = 'MSGLOC(' + n + ') cannot be specified for the ' + d.lines + ' x ' + d.columns +
+            ' display size in a file that has ERRSFL (per the DDS Reference).';
+        }
+      });
+    });
+
+    if (named('OPENPRT').length && !named('PRINT').some(printNamesPrinterFile)) {
+      var prints = named('PRINT');
+      out['OPENPRT'] = 'OPENPRT is valid only with a file-level PRINT keyword that names a printer file - PRINT(printer-file-name) or PRINT(library-name/printer-file-name) - and this file has ' +
+        (prints.length ? 'a file-level PRINT without one (a bare PRINT, PRINT(*PGM) and PRINT(response-indicator) do not name a printer file)' : 'no file-level PRINT') + ' (per the DDS Reference).';
+    }
+
+    var claims = null;
+    named('IGCCNV').forEach(function (k) {
+      var p = param(k), toks = fileTokens(p), key = 'IGCCNV|' + p;
+      if (toks.length !== shapes.igccnv.parameterCount) {
+        out[key + '|form'] = 'IGCCNV takes ' + shapes.igccnv.parameterCount + ' parameters - IGCCNV(CFnn line-number) - and this one has ' + (toks.length || 'none') + ' (per the DDS Reference).';
+        return;
+      }
+      var ck = KeywordSpec.parseCommandKey(toks[0].toUpperCase());
+      var kn = ck ? Number(ck.number) : NaN;
+      if (!ck || ck.type !== shapes.igccnv.firstKey.type || !(kn >= shapes.igccnv.firstKey.first && kn <= shapes.igccnv.firstKey.last)) {
+        out[key + '|key'] = 'IGCCNV\'s first parameter must be a command function key, CF01 through CF24; "' + toks[0] + '" is not (per the DDS Reference).';
+      } else {
+        if (!claims) claims = commandKeyClaimsInModel(model);
+        claims.forEach(function (c) {
+          if (c.keyword === 'IGCCNV' || c.type !== ck.type || Number(c.number) !== kn) return;
+          out[key + '|taken|' + c.owner + '|' + c.label] = 'IGCCNV cannot use ' + toks[0].toUpperCase() + ': it is already assigned to ' + c.label +
+            (c.owner ? ' (on ' + c.owner + ')' : '') + ', and a CF key that has already been assigned a function must not be specified (per the DDS Reference).';
+        });
+      }
+      if (!/^\d+$/.test(toks[1]) || Number(toks[1]) < shapes.igccnv.lineMin) {
+        out[key + '|line'] = 'IGCCNV\'s second parameter must be a display line number (' + shapes.igccnv.lineMin + ' or more); "' + toks[1] + '" is not (per the DDS Reference).';
+      }
+      var std24 = KeywordSpec.defaultDisplaySize();
+      if (sizes.length && !sizes.some(function (z) { return z.lines === std24.lines && z.columns === std24.columns; })) {
+        out[key + '|24x80'] = 'IGCCNV requires the file to be defined for a 24 x 80 display, but DSPSIZ lists only ' +
+          sizes.map(function (z) { return z.lines + ' x ' + z.columns; }).join(' and ') + ' (per the DDS Reference).';
+      }
+    });
+
+    var refs = named('REF');
+    if (refs.length > 1) out['REF|twice'] = 'REF can be specified only once (per the DDS Reference).';
+    refs.forEach(function (k) {
+      var p = param(k), toks = fileTokens(p);
+      if (toks.length < shapes.ref.min || toks.length > shapes.ref.max) {
+        out['REF|' + p + '|form'] = 'REF takes REF([library-name' + shapes.ref.delimiter + ']database-file-name [record-format-name]) - the file name is required and there is at most one more parameter - and this one has ' +
+          (toks.length || 'none') + ' (per the DDS Reference).';
+        return;
+      }
+      var parts = toks[0].split(shapes.ref.delimiter);
+      if (parts.length > 2 || parts.some(function (x) { return x === ''; })) {
+        out['REF|' + p + '|file'] = 'REF\'s file must be written database-file-name or library-name' + shapes.ref.delimiter + 'database-file-name (per the DDS Reference).';
+      }
+    });
+    return out;
+  }
+  function fileLevelDisplayNewConflictReason(oldModel, newModel) {
+    var after = fileLevelDisplayViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(fileLevelDisplayViolations(oldModel), after);
+  }
+
   /** Task I-148 - the initialize / retain / return relations the I-121b slice
    *  found unenforced, read from KeywordSpec (recordRequires,
    *  requiresBareKeyword, recordExcludes - nothing hand-copied here):
@@ -10534,6 +10706,8 @@
     outputControlNewConflictReason: outputControlNewConflictReason,
     windowHelpMenuNewConflictReason: windowHelpMenuNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
+    fileLevelDisplayNewConflictReason: fileLevelDisplayNewConflictReason,
+    dspsizFormProblem: dspsizFormProblem,
     subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,
     subfileFoldDropViolations: subfileFoldDropViolations,
     subfileKeywordViolations: subfileKeywordViolations,
