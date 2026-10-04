@@ -101,6 +101,8 @@ console.log('Part 2 - the real template (renderRecordProps)');
   const DspfParser = require('../../dist/dspfParser.js');
   const src =
     [
+      // Task I-162: HLPRTN in a file needs a file-level HELP with no response indicator.
+      buildLine({ seq: '00005', func: 'HELP' }),
       buildLine({ seq: '00010', nameType: 'R', name: 'USERDEFN', func: 'USRDFN' }),
       buildLine({ seq: '00020', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
       buildLine({ seq: '00030', nameType: 'R', name: 'PLAIN' }),

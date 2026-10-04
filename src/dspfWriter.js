@@ -6049,6 +6049,79 @@
     return firstNewViolation(helpSpecViolations(oldModel), after);
   }
 
+  /** Task I-162 - HELP's two relations to the other help keywords, the
+   *  I-121h spec facts read through KeywordSpec.helpRelations() (nothing
+   *  hand-copied). The HELP section (DDS_Keyword_V7r6.txt ~line 6564) says:
+   *   1. "When a response indicator is specified on the HELP keyword, no H
+   *      specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can
+   *      be specified in the file."
+   *   2. "HELP (with no response indicator) is required if the file contains
+   *      H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords."
+   *  "In the file" is the whole file: the file level, every record (HLPRTN
+   *  and HELP are also record-level), every help specification. Relation 2
+   *  is read in its weakest form - the file needs at least one HELP with no
+   *  response indicator somewhere - because the section does not say which
+   *  level it must sit at (a stricter reading would refuse valid files);
+   *  option indicators on that HELP do not matter, only the response
+   *  indicator does. Violations are keyed so firstNewViolation reports only
+   *  what an edit adds, in every direction (adding HELP(95) beside a help
+   *  keyword, adding a help keyword beside HELP(95) or into a file with no
+   *  bare HELP, removing the last bare HELP, giving a bare HELP an
+   *  indicator), and an already-invalid hand-written file never blocks an
+   *  unrelated edit. */
+  function helpKeywordRelationViolations(model) {
+    var out = {};
+    var rel = KeywordSpec.helpRelations();
+    var fileKws = (model && model.fileKeywords) || [];
+    var records = (model && model.records) || [];
+    // Where each keyword can be found: file level, record level, help specs.
+    var lists = [fileKws];
+    var helpSpecCount = 0;
+    records.forEach(function (r) {
+      lists.push(r.keywords || []);
+      (r.helpEntries || []).forEach(function (h) { helpSpecCount++; lists.push(h.keywords || []); });
+    });
+    // HELP itself exists at the file level and the record level only.
+    var helps = [];
+    [fileKws].concat(records.map(function (r) { return r.keywords || []; })).forEach(function (list) {
+      list.forEach(function (k) { if (k && k.name === 'HELP') helps.push(k); });
+    });
+    function hasResponseIndicator(k) { return String(k.parameters == null ? '' : k.parameters).trim() !== ''; }
+    var withIndicator = helps.filter(hasResponseIndicator);
+    var bare = helps.filter(function (k) { return !hasResponseIndicator(k); });
+    function present(name) { return lists.some(function (l) { return hasKeywordNamed(l, name); }); }
+
+    // Relation 1.
+    if (withIndicator.length) {
+      var shown = 'HELP(' + String(withIndicator[0].parameters).trim() + ')';
+      rel.withResponseIndicatorExcludesInFile.forEach(function (x) {
+        if (present(x)) {
+          out['HELP|RI|' + x] = x + ' cannot be specified in a display file whose HELP names a response indicator (' + shown +
+            '): HELP must have no response indicator when the file contains H specifications or HLPRCD, HLPPNLGRP, HLPDOC or HLPRTN keywords (per the DDS Reference).';
+        }
+      });
+      if (rel.withResponseIndicatorExcludesHelpSpecifications && helpSpecCount > 0) {
+        out['HELP|RI|HSPEC'] = 'H specifications cannot be specified in a display file whose HELP names a response indicator (' + shown +
+          '): HELP must have no response indicator when the file contains H specifications or HLPRCD, HLPPNLGRP, HLPDOC or HLPRTN keywords (per the DDS Reference).';
+      }
+    }
+    // Relation 2.
+    if (!bare.length) {
+      var needers = rel.withoutResponseIndicatorRequiredWhenFileContains.filter(present);
+      if (rel.withoutResponseIndicatorRequiredWhenFileHasHelpSpecifications && helpSpecCount > 0) needers.push('H specifications');
+      if (needers.length) {
+        out['HELP|REQUIRED'] = 'A file that contains ' + needers[0] + ' needs the HELP keyword with no response indicator (per the DDS Reference); ' +
+          (withIndicator.length ? 'its HELP names a response indicator.' : 'add HELP first.');
+      }
+    }
+    return out;
+  }
+  function helpKeywordRelationNewConflictReason(oldModel, newModel) {
+    var after = helpKeywordRelationViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(helpKeywordRelationViolations(oldModel), after);
+  }
+
   /** Task I-149 - RETKEY / RETCMDKEY exclusions and file-level requirements
    *  (the I-121b spec facts: fileAndRecordExcludes, recordExcludes,
    *  fileExcludes, fileRequires). The exclusions span the file and the record,
@@ -11199,6 +11272,8 @@
     fileHelpNewConflictReason: fileHelpNewConflictReason,
     helpSpecNewConflictReason: helpSpecNewConflictReason,
     helpSpecViolations: helpSpecViolations,
+    helpKeywordRelationNewConflictReason: helpKeywordRelationNewConflictReason,
+    helpKeywordRelationViolations: helpKeywordRelationViolations,
     fileHelpViolations: fileHelpViolations,
     retKeyViolations: retKeyViolations,
     commandFunctionPairingNewConflictReason: commandFunctionPairingNewConflictReason,

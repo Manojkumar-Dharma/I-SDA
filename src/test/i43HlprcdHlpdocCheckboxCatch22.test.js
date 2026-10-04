@@ -38,6 +38,9 @@ const { newWebviewDom, webviewHtml } = require('./helpers/common');
 const dspfSource =
   [
     '     A                                      DSPSIZ(24 80 *DS3)',
+    // Task I-162: a file that gets HLPRCD / HLPDOC / HLPRTN needs a HELP with no
+    // response indicator (the HELP section), so the fixture carries one.
+    '     A                                      HELP',
     '     A          R SCR1',
     "     A                                  1  2'MAIN SCREEN'",
   ].join('\n') + '\n';

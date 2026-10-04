@@ -144,7 +144,8 @@ const PNL = K('HLPPNLGRP(GENERAL LIBA/PNL1)');
 }
 
 console.log('\n=== 3. the commit hook (jsdom) ===');
-const SOURCE = src(K('DSPSIZ(24 80 *DS3)'), R('REC1'), K('KEEP'), R('REC2'));
+// Task I-162: a file that gets HLPPNLGRP / HLPRCD needs a HELP with no response indicator.
+const SOURCE = src(K('DSPSIZ(24 80 *DS3)'), K('HELP'), R('REC1'), K('KEEP'), R('REC2'));
 const html = webviewHtml('vscode-webview://fake', 'testnonce', SOURCE, 'MYSCR.DSPF');
 const posted = [];
 const dom = newWebviewDom(html, {

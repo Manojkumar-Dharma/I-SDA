@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-181 of 191 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.326**.
+182 of 191 tasks done; 9 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.327**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -224,7 +224,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Done | v0.10.314 |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Done | v0.10.315 |
 | [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Done | v0.10.320 |
-| [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Claimed (in progress) | — |
+| [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Done | v0.10.327 |
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Done | v0.10.319 |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
@@ -247,15 +247,14 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-162](#i-162) | Claimed | `HELP` relations to the other help keywords (raised by I-121h, probed). |
-| 2 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 3 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 5 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 6 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
-| 7 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
-| 8 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
-| 9 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
+| 1 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 5 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
+| 6 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
+| 7 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
+| 8 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7438,9 +7437,21 @@ Full suite: 268 files, 15,258 checks, zero failures (run on the tree merged with
 
 ### I-162 — `HELP` relations to the other help keywords are not enforced
 
-> **Area:** File / Record · **Status:** Claimed (in progress) · **Depends on:** I-121h
+> **Area:** File / Record · **Status:** Done (v0.10.327) · **Depends on:** I-121h
 
 Raised by I-121h; opened as a task with a probe. The `HELP` section (~line 6564) states: "When a response indicator is specified on the HELP keyword, no H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can be specified in the file" and "HELP (with no response indicator) is required if the file contains H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords". **Probe (raw keyword editor, v0.10.311; every case below was *allowed* and wrote an edit):** `HELP(95)` added at file level to a file that has a file-level `HLPRCD`; `HLPRCD` added at file level to a file that has `HELP(95)`; `HLPRTN` added to a file with `HELP(95)`; `HLPRCD` added to a record of a file with no `HELP` at all. The facts are in `RECORD_TYPES.HELP` (`withResponseIndicatorExcludesInFile`, `withoutResponseIndicatorRequiredWhenFileContains`, and the H-specification flags, read through `KeywordSpec.helpRelations()`). This task adds the guards, both directions and at both levels (the file-level and record-level `HELP`, the help keywords' own rows, the raw editor, the `commitEdit` backstop), diff-based like I-140's. Related existing guards to build on, not duplicate: the `HLPDOC` / `HLPRTN` / `HLPPNLGRP` / `HLPRCD` pair rules (I-38, I-68), `HLPRCD`'s H-specification check, I-160's file-level help rules and I-161's help-specification rules. Open questions: whether "in the file" means any record's `HELP` too, and what "required" should do when the user adds a help keyword (refuse, or offer to add a bare `HELP`).
+
+
+**Fix (v0.10.327).** One model-diff guard, `DspfWriter.helpKeywordRelationNewConflictReason(oldModel, newModel)`, in the I-140 / I-148 / I-152 / I-160 shape (it reports only a violation the edit adds, in either direction, so an already-invalid hand-written file never blocks an unrelated edit), hooked into the webview's edit choke point beside `fileHelpNewConflictReason` (alert, refuse, nothing written). Both lists come from `KeywordSpec.helpRelations()` (the I-121h facts), nothing hand-copied:
+
+1. **A response indicator on `HELP` excludes the other help keywords.** "When a response indicator is specified on the HELP keyword, no H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can be specified in the file." Adding any of the four (file level, or `HLPRTN` on a record) or an H specification to a file whose `HELP` names an indicator is refused, and so is giving the `HELP` an indicator while one of them is in the file. `HELP(95 'text')` counts; an option indicator on the keyword does not (it is a condition, not a response indicator).
+2. **Those keywords need a `HELP` with no response indicator.** "HELP (with no response indicator) is required if the file contains H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords." Adding one to a file with no bare `HELP` is refused ("add HELP first"), and so is removing the last bare `HELP` while one stays.
+
+**Readings chosen, stated rather than hidden.** "In the file" is the whole file: the file level, every record and every help specification. Relation 2 is read in its weakest form: the file needs at least one `HELP` with no response indicator *somewhere* (file or record level, any option indicators), because the section does not say which level it sits at, and a stricter reading would refuse files that may be valid. A file that has both a bare `HELP` and a `HELP(95)` somewhere is treated as naming an indicator (relation 1), the literal reading. The I-162 open question "refuse, or offer to add a bare HELP" was settled the way I-160 settled `HLPFULL` / `HLPPNLGRP`: refuse, with the message telling the user to add `HELP` first.
+
+**Existing tests that pinned the old behaviour were changed deliberately.** Their fixtures put `HLPDOC`, `HLPRCD`, `HLPPNLGRP` or `HLPRTN` in a file with no `HELP`, which the reference says is not valid; each now has a bare `HELP` in its fixture (`i38HlpdocFileLevel`, `i68HlprtnReverseGuard`, `i160FileHelpRelations`, and - found by the full suite - `i43HlprcdHlpdocCheckboxCatch22`, `i5FileLevelKeywords`, `i114UsrdfnIndicatorSubtab`). Nothing they assert about their own subject changed.
+
+Tests: new `src/test/i162HelpKeywordRelations.test.js` (56 checks): both rule sentences against the reference text, every one of the four keywords and H specifications in every direction (add beside, give an indicator, remove the last bare `HELP`), both levels, the weakest reading, diff behaviour on already-invalid files, and the real webview (file-level raw editor, record-level raw editor, the file-level `HELP` row's checkbox and indicator box). It fails against the previous source. Mutation-checked: dropping relation 2 fails 11 checks, relation 1 fails 15, a `HELP` read at file level only fails 2.
 
 ---
 

@@ -26,7 +26,9 @@ const KW = (text) => '     A                                      ' + text;
 const HLPDOC = KW('HLPDOC(START GENERAL.HLP HELP.F1)');
 
 function sourceOf(fileKeywords) {
-  return ['     A                                      DSPSIZ(24 80 *DS3)']
+  // Task I-162: a file that contains HLPRTN / HLPDOC needs a HELP with no
+  // response indicator (the HELP section), so every fixture carries one.
+  return ['     A                                      DSPSIZ(24 80 *DS3)', KW('HELP')]
     .concat(fileKeywords)
     .concat(['     A          R SCR1', "     A                                  1  2'MAIN SCREEN'"])
     .join('\n') + '\n';
