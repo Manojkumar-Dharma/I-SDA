@@ -5640,6 +5640,31 @@
     return 'PUTRETAIN with ' + other.join(', ') + ' on the same record format: the DDS Reference says a warning is issued when the display file is created, and PUTRETAIN is ignored when the display mode changes. Creating the file with RSTDSP(*YES) is recommended.';
   }
 
+  /** Task I-168 - the advisory (not a refusal) for the four keywords that only
+   *  the System/36 considerations list adds to USRDSPMGT's forbidden set
+   *  (ERRSFL, MNUBAR, PULLDOWN, SNGCHCFLD), or null. The keyword's own eight
+   *  names are refused by fileHelpViolations (I-160); the extras are read from
+   *  the spec as considerations minus own, never copied. Decision: that section
+   *  is conditioned on the System/36 environment, so the edit stays allowed and
+   *  the panel says so; promote to a refusal only if a compile settles it. */
+  function usrdspmgtSystem36ExtrasNote(model) {
+    var fileKws = (model && model.fileKeywords) || [];
+    if (!hasKeywordNamed(fileKws, 'USRDSPMGT')) return null;
+    var lists = [fileKws];
+    ((model && model.records) || []).forEach(function (r) {
+      lists.push(r.keywords || []);
+      (r.fields || []).forEach(function (f) { lists.push(f.keywords || []); });
+    });
+    var both = KeywordSpec.usrdspmgtForbiddenKeywords();
+    var found = both.considerations.filter(function (k) {
+      return both.own.indexOf(k) < 0 && lists.some(function (l) { return hasKeywordNamed(l, k); });
+    });
+    if (!found.length) return null;
+    return 'USRDSPMGT with ' + found.join(', ') + ' in the same file: the DDS Reference lists ' + (found.length > 1 ? 'these keywords' : 'this keyword') +
+      ' among those not to use with USRDSPMGT in its System/36 considerations section, but not in the keyword\'s own list. It is not refused here; ' +
+      'if the file is created for the System/36 environment, remove ' + (found.length > 1 ? 'them' : 'it') + '.';
+  }
+
   /** Task I-152 - the window, menu-bar, help and logging relations the
    *  I-121e slice found unenforced, every value read from KeywordSpec
    *  (recordRequires, notOnRecordTypes, fileExcludes, hlpseqLimits,
@@ -11181,6 +11206,7 @@
     multiLevelEligibilityNewConflictReason: multiLevelEligibilityNewConflictReason,
     multiLevelFieldReason: multiLevelFieldReason,
     putretainDspmodAdvisory: putretainDspmodAdvisory,
+    usrdspmgtSystem36ExtrasNote: usrdspmgtSystem36ExtrasNote,
     windowHelpMenuNewConflictReason: windowHelpMenuNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
     fileLevelDisplayNewConflictReason: fileLevelDisplayNewConflictReason,

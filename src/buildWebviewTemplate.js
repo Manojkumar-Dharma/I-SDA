@@ -4348,7 +4348,7 @@ const htmlTemplate = `<!DOCTYPE html>
    */
 
   function renderFileProps() {
-    const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords, expandedKeywordConditioning);
+    const panels = WebviewClientHelpers.fileKeywordsPanelsHtml(model.fileKeywords, expandedKeywordConditioning, model);
     const availableForFile = DspfWriter.allCommandKeyNumbers();
     const commandKeysHtml = WebviewClientHelpers.commandKeysSectionHtml('file-level', model.fileKeywords, availableForFile, 'file', expandedKeywordConditioning);
     // Task L13 - file-level comment lines (the same "preamble" area file

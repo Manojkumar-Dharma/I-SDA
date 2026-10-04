@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-178 of 189 tasks done; 11 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.323**.
+179 of 189 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.324**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -230,7 +230,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
 | [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Not started (needs a rule or a decision) | — |
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
-| [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Claimed (in progress; decided: keep the eight as a refusal, show the four extras as an advisory) | — |
+| [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -251,9 +251,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 7 | [I-168](#i-168) | Not started (decision) | `USRDSPMGT` eight-name versus twelve-name list; the first step is choosing which. Size (estimate): Small once decided. |
-| 8 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
-| 9 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
+| 7 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
+| 8 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7515,13 +7514,17 @@ Opened from the I-154 deferred finding. The `TIME` section says "You can specify
 
 ### I-168 — `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight
 
-> **Area:** File · **Status:** Claimed (in progress; decided: keep the eight as a refusal, show the four extras as an advisory) · **Depends on:** I-121g, I-160 · **Size (estimate):** Small once decided
+> **Area:** File · **Status:** Done (v0.10.324) · **Depends on:** I-121g, I-160 · **Size (estimate):** Small
 
 Opened from the I-121g deferred finding. `USRDSPMGT`'s own section forbids eight keywords (`ASSUME`, `ERASE`, `HLPCMDKEY`, `IGCCNV`, `KEEP`, `PUTRETAIN`, `SFL`, `SFLCTL`). The "Keyword considerations for display files used in the System/36 environment" section lists twelve: those eight plus `ERRSFL`, `MNUBAR`, `PULLDOWN` and `SNGCHCFLD`. Both lists are recorded in the spec; I-160 enforces the eight-name list only, and a test pins that the four extra names are still accepted.
 
 **Decision needed first.** Which list a guard enforces. The two do not contradict each other (the twelve contains the eight), so the real question is whether the System/36 section describes the same restriction or a separate one that applies only when the file is created for the System/36 environment. Recommendation: keep the eight enforced as a refusal and show the four extra names as an advisory note on the file panel, since the System/36 section is conditioned on that environment; promote them to a refusal only if a compile settles it.
 
-**To do:** once decided, add the four names to the I-160 guard (or the advisory), read from `usrdspmgtForbiddenKeywords()` rather than copying, update the pinning test to the decision, and add both-direction tests.
+**Decision (on request).** Keep the eight enforced as a refusal and show the four extra names as an advisory, because the System/36 considerations section is conditioned on that environment; promote them to a refusal only if a compile settles it.
+
+**Fix (v0.10.324).** The I-160 refusal is unchanged (`fileHelpViolations` still reads `usrdspmgtForbiddenKeywords().own`). New `DspfWriter.usrdspmgtSystem36ExtrasNote(model)` returns an advisory when the file has `USRDSPMGT` and any of the extra names (`considerations` minus `own`, read from the spec, never copied: `ERRSFL`, `MNUBAR`, `PULLDOWN`, `SNGCHCFLD`) appears at the file level, on a record or on a field; several extras are named together. The File properties panel shows it under the `USRDSPMGT` row as a `.hint-small.warn`; the edit itself is allowed. `fileKeywordsPanelsHtml` takes the model as an optional third argument for this.
+
+**Tests.** `i160FileHelpRelations.test.js`: the pinning test is now "each extra is accepted by the guard and gets the advisory naming it", plus the other direction (extra without `USRDSPMGT`: no advisory), `USRDSPMGT` alone (none), several extras together, the advisory never naming one of the eight, and the rendered panel hint.
 
 ---
 

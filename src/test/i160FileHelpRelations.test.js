@@ -103,12 +103,30 @@ const PNL = K('HLPPNLGRP(GENERAL LIBA/PNL1)');
     check('adding ' + n + ' to a file that has USRDSPMGT is refused (the other direction)', say(new RegExp('USRDSPMGT cannot be used in a display file that contains ' + n), guard(src(K('USRDSPMGT'), R('REC1')), wasBuilt)));
   });
   check('USRDSPMGT alone is accepted', guard(src(R('REC1')), src(K('USRDSPMGT'), R('REC1'))) === null);
-  // The twelve-name System/36 list is an open question: its four extra names are NOT enforced.
+  // I-168 decision: the four extra names of the twelve-name System/36 list are NOT refused (the
+  // section is conditioned on that environment); they get an advisory instead (checked below).
   ['ERRSFL', 'MNUBAR', 'PULLDOWN', 'SNGCHCFLD'].forEach((n) => {
     const extra = KeywordSpec.usrdspmgtForbiddenKeywords().considerations.indexOf(n) >= 0 && KeywordSpec.usrdspmgtForbiddenKeywords().own.indexOf(n) < 0;
     const withN = n === 'ERRSFL' ? src(K('USRDSPMGT'), K('ERRSFL'), R('REC1')) : src(K('USRDSPMGT'), R('REC1'), K(n));
-    check(n + ' (only in the twelve-name list) is not refused with USRDSPMGT - the two-list question is still open', extra && guard(src(K('USRDSPMGT'), R('REC1')), withN) === null);
+    check(n + ' (only in the twelve-name list) is accepted with USRDSPMGT, not refused (I-168)', extra && guard(src(K('USRDSPMGT'), R('REC1')), withN) === null);
+    const note = DspfWriter.usrdspmgtSystem36ExtrasNote(parse(withN));
+    check(n + ' with USRDSPMGT gets the System/36 advisory naming it', !!note && new RegExp('USRDSPMGT with ' + n + ' in the same file').test(note) && /not refused here/.test(note));
+    check(n + ' without USRDSPMGT gets no advisory (other direction)', DspfWriter.usrdspmgtSystem36ExtrasNote(parse(n === 'ERRSFL' ? src(K('ERRSFL'), R('REC1')) : src(R('REC1'), K(n)))) === null);
   });
+  {
+    global.DspfWriter = DspfWriter; global.KeywordSpec = KeywordSpec; // the helpers reference them as free variables, like the webview's script tags
+    const Helpers = require(path.join(__dirname, '../webviewClientHelpers.js'));
+    const withExtra = parse(src(K('USRDSPMGT'), K('ERRSFL'), R('REC1')));
+    const panelWith = Helpers.fileKeywordsPanelsHtml(withExtra.fileKeywords, new Set(), withExtra).general;
+    check('the file panel shows the System/36 advisory as a warn hint (I-168)', /hint-small warn[^>]*>USRDSPMGT with ERRSFL in the same file/.test(panelWith || ''));
+    const clean = parse(src(K('USRDSPMGT'), R('REC1')));
+    check('the file panel shows no advisory for USRDSPMGT alone', !/USRDSPMGT with /.test(Helpers.fileKeywordsPanelsHtml(clean.fileKeywords, new Set(), clean).general || ''));
+  }
+  check('USRDSPMGT alone gets no advisory', DspfWriter.usrdspmgtSystem36ExtrasNote(parse(src(K('USRDSPMGT'), R('REC1')))) === null);
+  check('the advisory never names one of the eight refused keywords (those are refusals)',
+    !/KEEP|ASSUME/.test(DspfWriter.usrdspmgtSystem36ExtrasNote(parse(src(K('USRDSPMGT'), K('ERRSFL'), R('REC1')))) || ''));
+  check('the advisory lists several extras together',
+    /ERRSFL, [A-Z]+/.test(DspfWriter.usrdspmgtSystem36ExtrasNote(parse(src(K('USRDSPMGT'), K('ERRSFL'), R('REC1'), K('PULLDOWN')))) || ''));
   check('an already-invalid file (USRDSPMGT + KEEP) does not block an unrelated edit', guard(HOW.KEEP(K('USRDSPMGT')), HOW.KEEP(K('USRDSPMGT')).replace('USRDSPMGT', 'USRDSPMGT\n' + K('DSPRL'))) === null);
 }
 {

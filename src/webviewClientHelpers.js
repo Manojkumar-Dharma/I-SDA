@@ -4584,7 +4584,7 @@
    * tab is currently visible (same "all panels exist in the DOM, CSS just
    * hides the inactive ones" approach tabsHtml already uses elsewhere).
    */
-  function fileKeywordsPanelsHtml(fileKeywords, expandedSet) {
+  function fileKeywordsPanelsHtml(fileKeywords, expandedSet, model) {
     var kw = fileKeywords || [];
     var panels = {};
 
@@ -4606,6 +4606,9 @@
     // Task I-3: USRDSPMGT - "Option indicators are not valid for this keyword."
     var fUsrdspmgt = DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT');
     g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('USRDSPMGT') ? fUsrdspmgt.conditions : undefined, DspfWriter.optionIndicatorsAllowed('USRDSPMGT') ? expandedSet : undefined) /* I-121g */;
+    // Task I-168: the four System/36-list-only names are an advisory, not a refusal.
+    var usrdspmgtExtrasNote = DspfWriter.usrdspmgtSystem36ExtrasNote(model || { fileKeywords: kw, records: [] });
+    if (usrdspmgtExtrasNote) g += '<div class="hint-small warn">' + escapeHtml(usrdspmgtExtrasNote) + '</div>';
     // Task I-3: CHECK - IBM's own summary line ("Option indicators are valid
     // only for CHECK(ER) and CHECK(ME)") plus each individual code's own
     // restated line confirm AB/MF/RL/RLTB are all NOT eligible - only ER and
