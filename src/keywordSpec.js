@@ -3376,6 +3376,143 @@
         'extended help is the file-level HLPPNLGRP help plus the HLPPNLGRP of every active H specification. Option indicators are valid for this keyword.'
     },
     // ---- end I-121k ----
+    // ---- I-121j: 6 ----
+    // Keywords valid at several levels: CHANGE, OVRATR, OVRDTA, PUTRETAIN,
+    // TEXT, INDTXT. Every fact below was re-read from DDS_Keyword_V7r6.txt (the
+    // section named in each ddsReference), NOT taken from the code. The point of
+    // this slice is the per-level scope fact (file / record / field). Pure
+    // refactor: nothing here adds a guard; rules with no guard yet are recorded
+    // here and logged as findings in keywordFixes.md.
+    //   * Option indicators: CHANGE, INDTXT and TEXT are in NO_OPTION_INDICATORS
+    //     (levels agree with `levels` below; a test pins the two); OVRATR, OVRDTA
+    //     and PUTRETAIN accept them.
+    //   * PUTRETAIN / PUTOVR: the exclusion lives once, on PUTOVR's entry (the
+    //     owner's list is the only one isMutex reads), so it is NOT repeated here.
+    //   * CHANGE and INDTXT are repeatable response / option indicator rows
+    //     (RECORD_INDICATOR_KEYWORDS); the System/36 warning on CHANGE lives in
+    //     S36E_RESTRICTIONS. Neither is repeated here.
+    CHANGE: {
+      levels: ['record', 'field'],
+      parameters: 'required',
+      parameterGrammar: "CHANGE(response-indicator ['text'])",
+      textQuoted: true,
+      textMaxLength: 50,
+      optionIndicators: 'notValid',
+      // Record level: any input-capable field in the record format has its modified
+      // data tag (MDT) on. Field level: that input-capable field has its MDT on.
+      setsIndicatorWhen: {
+        record: 'any input-capable field in the record format has its MDT on',
+        field: 'the input-capable field has its MDT on'
+      },
+      // The MDT is also set by DSPATR(MDT) and by retyping the same data.
+      notSetByCommandKeys: ['CAnn', 'Help', 'Print', 'Home', 'Clear'],
+      indicatorStaysOnThroughValidityErrors: true,
+      ddsReference:
+        'CHANGE (~line 2592): record- or field-level; sets the response indicator on an input operation when an input-capable field has its MDT on ' +
+        '(record level: any such field; field level: that field). Format CHANGE(response-indicator [\'text\']); the single quotation marks are required ' +
+        'and the text is truncated to 50 characters. Not set when a command attention key (CAnn, Help, Print, Home, Clear) is pressed; stays on through ' +
+        'validity checking errors until the record reaches the program. "Option indicators are not valid for this keyword."'
+    },
+    OVRATR: {
+      levels: ['record', 'field'],
+      parameters: 'none',
+      optionIndicators: 'valid',
+      usedWith: 'PUTOVR',
+      canCombineWith: ['OVRDTA'],
+      // "When OVRATR is specified at both the record and field level, the field level specification is used for that field."
+      fieldLevelWinsOverRecordLevel: true,
+      overridableAttributes: ['CHECK(ER)', 'CHECK(ME)', 'DSPATR (all except OID and SP)', 'DUP'],
+      // Field level: valid only on these field types. Record level: applies to each of them.
+      fieldTypes: ['input-only', 'output-only', 'input/output', 'constant'],
+      fieldLevel: { allowedUsage: ['I', 'O', 'B'], constantFields: true },
+      ddsReference:
+        'OVRATR (~line 9267): field- or record-level; with PUTOVR overrides the display attributes of a field or record already on the display ' +
+        '(CHECK(ER), CHECK(ME), DSPATR except OID and SP, DUP). "This keyword has no parameters." Can be used with OVRDTA; the field-level ' +
+        'specification wins over the record-level one. At field level valid only on input-only, output-only, input/output and constant fields; at ' +
+        'record level it applies to each of them. "Option indicators are valid for this keyword."'
+    },
+    OVRDTA: {
+      levels: ['record', 'field'],
+      parameters: 'none',
+      optionIndicators: 'valid',
+      usedWith: 'PUTOVR',
+      canCombineWith: ['OVRATR'],
+      fieldLevelWinsOverRecordLevel: true,
+      // "OVRDTA is required if the DFT keyword is specified for output-only or input/output fields."
+      requiredWhenFieldHas: { keyword: 'DFT', onUsage: ['O', 'B'] },
+      fieldTypes: ['output-only', 'input/output', 'message'],
+      fieldLevel: { allowedUsage: ['O', 'B', 'M'], constantFields: false },
+      ddsReference:
+        'OVRDTA (~line 9305): field- or record-level; with PUTOVR overrides the data contents of a field or record already on the display. ' +
+        '"This keyword has no parameters." Can be used with OVRATR; the field-level specification wins over the record-level one. Required if DFT ' +
+        'is specified for output-only or input/output fields. At field level valid only on output-only, input/output and message fields; at record ' +
+        'level it applies to each of them. "Option indicators are valid for this keyword."'
+    },
+    PUTRETAIN: {
+      levels: ['record', 'field'],
+      parameters: 'none',
+      optionIndicators: 'valid',
+      // "The OVERLAY keyword must be specified whenever PUTRETAIN is specified." Without it PUTRETAIN is ignored.
+      requiresRecordKeyword: 'OVERLAY',
+      ignoredWithoutOverlay: true,
+      // Applies only to the record format it is specified for, and only if that record is already displayed.
+      appliesOnlyToRecordAlreadyDisplayed: true,
+      // "This keyword can be specified for more than one field of a record format, but only once per field",
+      // and at the record level and the field level of the same record format.
+      oncePerField: true,
+      allowedAtBothLevelsOfOneRecord: true,
+      // A warning is issued at file creation when the record also has DSPMOD; PUTRETAIN is ignored when the display mode changes.
+      warnsAtCreationWith: ['DSPMOD'],
+      ignoredWhenDisplayModeChanges: true,
+      recommendedFileCreationOption: 'RSTDSP(*YES)',
+      ddsReference:
+        'PUTRETAIN (~line 9919): record- or field-level; with OVERLAY stops the system deleting data already on the display when the record is ' +
+        'displayed again. "This keyword has no parameters." OVERLAY must be specified whenever PUTRETAIN is, otherwise PUTRETAIN is ignored. Applies ' +
+        'only to the record format it is specified for and only if that record is already displayed; may be on more than one field but once per field, ' +
+        'and at both levels of one record. Cannot be specified with PUTOVR (recorded once, on PUTOVR). Warning at creation with DSPMOD; RSTDSP(*YES) ' +
+        'recommended. "Option indicators are valid for this keyword."'
+    },
+    INDTXT: {
+      levels: ['file', 'record', 'field'],
+      parameters: 'required',
+      parameterGrammar: "INDTXT(indicator 'indicator-text')",
+      textRequired: true,
+      textQuoted: true,
+      textMaxLength: 50,
+      optionIndicators: 'notValid',
+      // "You can specify the keyword once for each response and option indicator."
+      oncePerIndicator: true,
+      // "When an indicator has been given a text assignment ..., no other text assignment is allowed."
+      noOtherTextAssignmentAllowed: true,
+      // The keyword does not put the indicator in the record area; with the indicator unused the text is lost without a diagnostic.
+      doesNotAddIndicatorToRecordArea: true,
+      textLostSilentlyWhenIndicatorUnused: true,
+      ddsReference:
+        'INDTXT (~line 7517): file-, record- or field-level; associates descriptive text with a response or option indicator, once per indicator. ' +
+        'Format INDTXT(indicator \'indicator-text\'); the text is required, the single quotation marks are required, truncated to 50 characters. ' +
+        'It does not put the indicator in the input or output record area; if the indicator is not used elsewhere the text is lost without a ' +
+        'diagnostic; an indicator that already has text (from this keyword or response indicator text) cannot be given another. ' +
+        '"Option indicators are not valid for this keyword."'
+    },
+    TEXT: {
+      levels: ['record', 'field'],
+      parameters: 'required',
+      parameterGrammar: "TEXT('description')",
+      textQuoted: true,
+      // "only the first 50 characters are used by the high-level language compiler."
+      textMaxLength: 50,
+      optionIndicators: 'notValid',
+      // "TEXT is valid for any record format or field, except a SFLMSGKEY or SFLPGMQ field."
+      validForAnyRecordFormat: true,
+      notValidOnFieldsWithKeyword: ['SFLMSGKEY', 'SFLPGMQ'],
+      // No file-level form is documented (Task I-6 removed the file-level TEXT row).
+      fileLevelForm: false,
+      ddsReference:
+        'TEXT (~line 12810): record- or field-level; a description for program documentation. "TEXT is valid for any record format or field, ' +
+        'except a SFLMSGKEY or SFLPGMQ field." Format TEXT(\'description\'); the single quotation marks are required, only the first 50 characters ' +
+        'are used by the compiler. No file-level form is documented. "Option indicators are not valid for this keyword."'
+    },
+    // ---- end I-121j ----
   };
 
   /** Task I-121 (system-value constant keywords slice) - the field-level
@@ -5608,6 +5745,29 @@
   /** The rules for an H specification itself (HLPARA's section), a deep copy. */
   function helpSpecificationRules() { return JSON.parse(JSON.stringify(RECORD_TYPES.HLPARA.helpSpecification)); }
   // ---- end I-121k ----
+  // ---- I-121j: accessors ----
+  var I121J_KEYWORDS = ['CHANGE', 'OVRATR', 'OVRDTA', 'PUTRETAIN', 'TEXT', 'INDTXT'];
+  function i121jEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I121J_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  /** The six multi-level keywords, in the slice's order. */
+  function multiLevelKeywords() { return I121J_KEYWORDS.slice(); }
+  /** The levels ('file' | 'record' | 'field') the keyword is valid at (copy), or null for another keyword. */
+  function multiLevelLevels(name) { var e = i121jEntry(name); return e ? e.levels.slice() : null; }
+  /** Whether the keyword is valid at `level`; null for another keyword. */
+  function multiLevelValidAt(name, level) { var e = i121jEntry(name); return e ? e.levels.indexOf(level) !== -1 : null; }
+  /** 'valid' | 'notValid' for the keyword's option indicators, or null for another keyword. */
+  function multiLevelIndicatorMode(name) { var e = i121jEntry(name); return e ? e.optionIndicators : null; }
+  /** The keyword's own-section facts (a deep copy without the prose), or null for another keyword. */
+  function multiLevelFacts(name) {
+    var e = i121jEntry(name);
+    if (!e) return null;
+    var copy = JSON.parse(JSON.stringify(e));
+    delete copy.ddsReference;
+    return copy;
+  }
+  // ---- end I-121j ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
   // so the entry and the domain cannot drift.
@@ -5731,6 +5891,11 @@
     isAltKeyName: isAltKeyName,
     altKeyDefaultKey: altKeyDefaultKey,
     isValidValue: isValidValue,
+    multiLevelKeywords: multiLevelKeywords,
+    multiLevelLevels: multiLevelLevels,
+    multiLevelValidAt: multiLevelValidAt,
+    multiLevelIndicatorMode: multiLevelIndicatorMode,
+    multiLevelFacts: multiLevelFacts,
     helpSpecKeywords: helpSpecKeywords,
     helpSpecFacts: helpSpecFacts,
     helpSpecificationRules: helpSpecificationRules,

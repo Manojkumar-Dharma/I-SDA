@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-175 of 184 tasks done; 9 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.320**.
+176 of 185 tasks done; 9 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.321**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -173,7 +173,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done v0.10.310 (7 entries, two of them command-key patterns; relations not enforced opened as I-160) | v0.10.310 |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Done v0.10.317 | v0.10.317 |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
-| [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Claimed (in progress) | — |
+| [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Done | v0.10.321 |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Done | v0.10.316 |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
@@ -227,6 +227,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Claimed (in progress) | — |
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Done | v0.10.319 |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
+| [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` or with `DSPMOD` | I-121j | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -241,17 +242,18 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-162](#i-162) | Claimed | `HELP` relations to the other help keywords (raised by I-121h, probed). |
-| 2 | [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The three keyword slices still open: 19 keywords with no spec entry (6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 2 | [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The two keyword slices still open: 13 keywords with no spec entry (8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
 | 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 7 | [I-165](#i-165) | Not started | Multi-level keyword eligibility (raised by I-121j). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every actionable finding so far has been opened as a task (I-61 – I-161, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every actionable finding so far has been opened as a task (I-61 – I-165, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6350,13 +6352,32 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121j — Keywords valid at several levels
 
-> **Area:** Cross-level · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Cross-level · **Status:** Done (v0.10.321) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (6):** `CHANGE`, `OVRATR`, `OVRDTA`, `PUTRETAIN`, `TEXT`, `INDTXT`.
 
 The point of this slice is the per-level scope fact (file / record / field). `INDTXT` is valid at all three; `TEXT` is not valid at file level (I-6). `PUTRETAIN` is in `PULLDOWN`'s mutex.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.321).** The six keywords now have a `RECORD_TYPES` entry in a `// ---- I-121j: 6 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` with the line cited in the entry:
+
+| Keyword | Levels | Parameters | Option indicators | Facts the section states |
+|---------|--------|-----------|-------------------|--------------------------|
+| `CHANGE` | record, field | `(response-indicator ['text'])`, quotes required, 50 characters | not valid (`NO_OPTION_INDICATORS` agrees) | record level: any input-capable field has its MDT on; field level: that field; not set by CAnn, Help, Print, Home, Clear; stays on through validity errors |
+| `OVRATR` | record, field | none | valid | with `PUTOVR`; can combine with `OVRDTA`; field level wins; overrides `CHECK(ER)`, `CHECK(ME)`, `DSPATR` (not OID, SP), `DUP`; field level on input-only, output-only, input/output and constant fields |
+| `OVRDTA` | record, field | none | valid | with `PUTOVR`; can combine with `OVRATR`; field level wins; required when `DFT` is on an output-only or input/output field; field level on output-only, input/output and message fields |
+| `PUTRETAIN` | record, field | none | valid | needs `OVERLAY` (ignored without it); only for a record already displayed; once per field, at both levels of one record; warning at creation with `DSPMOD`; `RSTDSP(*YES)` recommended |
+| `INDTXT` | file, record, field | `(indicator 'indicator-text')`, text required, 50 characters | not valid | once per indicator; adds no indicator to a record area; text lost silently if the indicator is unused; no second text assignment |
+| `TEXT` | record, field | `('description')`, quotes required, 50 characters | not valid | any record format or field except a `SFLMSGKEY` / `SFLPGMQ` field; no file-level form (I-6) |
+
+**No second source of truth.** `PUTRETAIN` with `PUTOVR` lives once, on `PUTOVR`'s entry; `PULLDOWN`'s list (which holds `OVRATR`, `OVRDTA`, `PUTRETAIN`) stays with `PULLDOWN`; the repeatable response-indicator rows and the System/36 warning on `CHANGE` stay in their own tables. The test pins that none of the six carries a `mutex`.
+
+New accessors `multiLevelKeywords()`, `multiLevelLevels(name)`, `multiLevelValidAt(name, level)`, `multiLevelIndicatorMode(name)` and `multiLevelFacts(name)` (a deep copy without the prose; `null` outside the six).
+
+**Not enforced (spec facts only; opened as [I-165](#i-165)):** probing the field panel (General keywords, v0.10.320) found `OVRATR` offered on hidden fields, `OVRDTA` offered on input-only, hidden and constant fields, and `TEXT` offered on `SFLMSGKEY` / `SFLPGMQ` fields; nothing enforces `PUTRETAIN` needing `OVERLAY` or its warning with `DSPMOD`.
+
+New `src/test/i121jMultiLevelKeywordSpec.test.js` (79 checks): every heading and cited sentence against the keyword's own section, the facts, a sweep over `KEYWORD-LOOKUP.json` (levels agree both ways), the no-option-indicators table, `PULLDOWN`'s list and the writer, `PUTOVR` as the single owner, the file-level panel (only `INDTXT`) and the field panel's Usage M / P rows, and the accessors. Confirmed failing against the pre-change source via stash. Full suite: 269 files, 15,337 checks, zero failures.
 
 ---
 
@@ -7427,5 +7448,22 @@ Raised by I-121h; opened as a task with a probe. The `PAGEDOWN`/`PAGEUP` section
 **Open question, answered.** A file-level `ROLLUP` with a record-level `PAGEDOWN` (and the `PAGEUP` / `ROLLDOWN` pair) is **not** refused: the section states the exclusion without a level, the same-record / same-level reading is the stated one, and refusing across levels would invent a rule the reference does not give. If real SDA is found to refuse it, widening the check is a small change in that guard.
 
 Tests: new `src/test/i164CommandFunctionPairings.test.js` (each pairing from both sides, the allowed neighbours, per-record scope, the file-level and cross-level cases, the INVITE both ways, unchanged hand-written leftovers, the wiring; fails without the guard).
+
+---
+
+<a id="i-165"></a>
+
+### I-165 — Multi-level keyword eligibility is not enforced
+
+> **Area:** Field / Record · **Status:** Not started · **Depends on:** I-121j
+
+Raised by the I-121j slice. The DDS Reference states, and `keywordSpec.js` now holds as facts (`multiLevelFacts`), eligibility rules the field panel and the writer do not enforce. Found by reading the General keywords panel for each usage (v0.10.320); no raw-editor probe has been run yet.
+
+- `OVRATR` at field level is valid only on input-only, output-only, input/output and constant fields; the panel also offers it on hidden (H) fields.
+- `OVRDTA` at field level is valid only on output-only, input/output and message fields; the panel also offers it on input-only, hidden and constant fields.
+- `TEXT` is "valid for any record format or field, except a `SFLMSGKEY` or `SFLPGMQ` field"; the panel offers it on those fields.
+- `PUTRETAIN` needs `OVERLAY` on the record (otherwise it is ignored), and a warning is issued at creation when the record also has `DSPMOD`. `PUTRETAIN` with `PUTOVR` is already refused (I-151).
+
+To do: probe each case in the raw keyword editor, then add a spec-driven, diff-based guard in the I-140 / I-151 shape (refuse only what an edit adds), narrow the panel rows from the spec's `fieldLevel` usage lists, and decide whether the `DSPMOD` case is a refusal or an advisory note (the reference says warning).
 
 ---
