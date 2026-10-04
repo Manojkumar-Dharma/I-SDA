@@ -173,7 +173,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done v0.10.310 (7 entries, two of them command-key patterns; relations not enforced opened as I-160) | v0.10.310 |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Done v0.10.317 | v0.10.317 |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
-| [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
+| [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Claimed (in progress) | — |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Done | v0.10.316 |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
@@ -6350,7 +6350,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121j — Keywords valid at several levels
 
-> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Cross-level · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (6):** `CHANGE`, `OVRATR`, `OVRDTA`, `PUTRETAIN`, `TEXT`, `INDTXT`.
 
