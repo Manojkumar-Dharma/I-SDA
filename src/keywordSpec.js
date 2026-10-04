@@ -3056,8 +3056,114 @@
       // holds them on those two entries (GETRETAIN `requiresOnRecord` /
       // `requiresBareKeyword` UNLOCK; RTNDTA `excludesOnRecord` UNLOCK). They
       // are not a plain mutex - GETRETAIN with a BARE UNLOCK is the legal form.
-    }
+    },
     // ---- end I-121a ----
+
+    // ---- I-121k: 3 ----
+    // Help-specification-level keywords: HLPARA, HLPBDY, HLPEXCLD. Every fact
+    // below was re-read from DDS_Keyword_V7r6.txt (the section named in each
+    // ddsReference), NOT taken from the code. `levels: ['help']` is the H
+    // specification (an H in position 17, after the record-level keywords and
+    // before the first field). Field names are the ones I-121b / I-121e / I-121i
+    // use. Enforcement stays with the existing guards; rules with no guard yet
+    // are recorded here and logged as findings in keywordFixes.md.
+    //   * HLPBDY's exclusion with HLPDOC is NOT repeated here: it already lives
+    //     once, on HLPDOC's entry (I-121, v0.10.212), where hlpdocHspecConflictReason
+    //     reads it; isMutex reads only the owner's list, so a copy here would be
+    //     a second source of truth.
+    //   * Option indicators: HLPARA is in NO_OPTION_INDICATORS (the fact is stated
+    //     there too, and the sweep test pins the two together); HLPBDY and
+    //     HLPEXCLD accept them.
+    HLPARA: {
+      levels: ['help'],
+      optionIndicators: 'notValid',
+      parameterForms: [
+        'HLPARA(top-line left-position bottom-line right-position)',
+        'HLPARA(*RCD)',
+        'HLPARA(*NONE)',
+        'HLPARA(*FLD field-name [choice-number])',
+        'HLPARA(*CNST help-identifier)'
+      ],
+      specialValues: ['*RCD', '*NONE', '*FLD', '*CNST'],
+      coordinates: {
+        withinDisplaySize: true,
+        topLineNotAfterBottomLine: true,
+        leftPositionNotAfterRightPosition: true,
+        adjustedBySlno: true,
+        // Without a secondary-size HLPARA the primary one is used if valid for it, else *NONE.
+        secondarySizeFallback: 'primary HLPARA if valid for the secondary size, otherwise *NONE'
+      },
+      rcd: {
+        notOnRecordTypes: ['SFLCTL', 'USRDFN'],
+        recordNeedsDisplayableField: true,
+        // Hidden (H), message (M) and program-to-system (P) fields and SFLPGMQ / SFLMSGKEY fields are not displayable.
+        notDisplayable: ['usage H', 'usage M', 'usage P', 'SFLPGMQ', 'SFLMSGKEY']
+      },
+      fld: {
+        fieldMustExistInRecord: true,
+        choiceNumber: { min: 1, max: 99, onlyForFieldsWith: ['MNUBARCHC', 'CHOICE'], mustBeOnThatKeyword: true }
+      },
+      cnst: {
+        constantFieldMustExistInRecord: true,
+        constantFieldNeedsKeyword: 'HLPID',
+        sameHelpIdentifier: true
+      },
+      atLeastOnePerHelpSpecification: true,
+      multipleNeedDisplaySizeConditioning: true,
+      helpAreasMayOverlap: true,
+      // The first H specification whose HLPARA holds the cursor and whose HLPRCD / HLPPNLGRP / HLPDOC indicator is on is used.
+      firstMatchingHelpSpecificationUsed: true,
+      // The rules for the H specification itself, stated in HLPARA's section (shared by HLPBDY and HLPEXCLD).
+      helpSpecification: {
+        startsWithHInPosition17: true,
+        locatedAfterRecordKeywordsBeforeFirstField: true,
+        exactlyOneOf: ['HLPRCD', 'HLPPNLGRP', 'HLPDOC'],
+        atMostOneOf: ['HLPBDY', 'HLPEXCLD'],
+        atLeastOne: ['HLPARA'],
+        notOnRecordTypes: ['SFL'],
+        notOnSflctlWith: 'SFLMSGRCD'
+      },
+      ddsReference:
+        'HLPARA (Help Area) (~line 6618): help-specification-level; defines the rectangular area (or the record, a field, a constant, or none) whose ' +
+        'cursor position selects the H specification\'s help. Forms: HLPARA(top-line left-position bottom-line right-position), HLPARA(*RCD), ' +
+        'HLPARA(*NONE), HLPARA(*FLD field-name [choice-number]), HLPARA(*CNST help-identifier). Line and position values are within the display size, ' +
+        'top line not after bottom line, left position not after right position, adjusted by SLNO; with no HLPARA for a secondary size the primary one is used ' +
+        'if valid there, else *NONE. *RCD is not valid for SFLCTL or USRDFN records and needs a displayable field in the record (not H, M or P usage, not ' +
+        'SFLPGMQ / SFLMSGKEY). *FLD names a field of the record; the choice number (1 to 99) is for a menu-bar or selection field and must be on its MNUBARCHC / ' +
+        'CHOICE. *CNST names a constant field of the record that has HLPID with the same identifier. At least one HLPARA per H specification, and display size ' +
+        'conditioning when there are several. The H specification: exactly one HLPRCD / HLPPNLGRP / HLPDOC, up to one HLPBDY or HLPEXCLD, at least one HLPARA; ' +
+        'not in SFL records or in SFLCTL records associated with SFLMSGRCD. Option indicators are not valid for this keyword.'
+    },
+    HLPBDY: {
+      levels: ['help'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      // Partitions the accumulated H specifications into sublists; the H specification carrying HLPBDY is before the boundary.
+      partitionsHelpSpecifications: true,
+      atMostOneOfPerHelpSpecification: ['HLPBDY', 'HLPEXCLD'],
+      // The HLPDOC exclusion is HLPDOC's entry (see the note above).
+      ddsReference:
+        'HLPBDY (Help Boundary) (~line 6773): help-specification-level; limits the online help available, partitioning the accumulated H specifications ' +
+        'into sublists (the H specification with HLPBDY is before the boundary); with HLPRCD the user reaches only the sublist of the selected H specification, ' +
+        'with HLPPNLGRP the sublists determine the extended help. This keyword has no parameters. Option indicators are valid for this keyword. (The ' +
+        'HLPDOC exclusion is HLPDOC\'s entry; up to one HLPBDY or HLPEXCLD is from HLPARA\'s section.)'
+    },
+    HLPEXCLD: {
+      levels: ['help'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      // Allowed only on help-specifications that specify a HLPPNLGRP keyword.
+      requiresOnHelpSpecification: ['HLPPNLGRP'],
+      atMostOneOfPerHelpSpecification: ['HLPBDY', 'HLPEXCLD'],
+      // At least one instance of each HLPPNLGRP parameter should not have HLPEXCLD (a run-time error otherwise).
+      eachHlppnlgrpParameterNeedsOneNonExcluded: true,
+      ddsReference:
+        'HLPEXCLD (Help Excluded) (~line 7003): help-specification-level; the help of this H specification is not shown as extended help but is still ' +
+        'item-specific help. This keyword has no parameters. Allowed only on H specifications that specify HLPPNLGRP. At least one instance of each HLPPNLGRP ' +
+        'parameter should not carry HLPEXCLD (if all are excluded, a run-time error is issued when Help is pressed in that panel group\'s help area). Without it, ' +
+        'extended help is the file-level HLPPNLGRP help plus the HLPPNLGRP of every active H specification. Option indicators are valid for this keyword.'
+    },
+    // ---- end I-121k ----
   };
 
   /** Task I-121 (system-value constant keywords slice) - the field-level
@@ -5161,6 +5267,25 @@
   /** MSGALARM's trigger keywords (copy). */
   function msgalarmTriggers() { return RECORD_TYPES.MSGALARM.soundsWith.slice(); }
   // ---- end I-121i ----
+  // ---- I-121k: accessors ----
+  var I121K_KEYWORDS = ['HLPARA', 'HLPBDY', 'HLPEXCLD'];
+  function i121kEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I121K_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  /** The three help-specification-level keywords, in the slice's order. */
+  function helpSpecKeywords() { return I121K_KEYWORDS.slice(); }
+  /** The keyword's own-section facts (a deep copy without the prose), or null for another keyword. */
+  function helpSpecFacts(name) {
+    var e = i121kEntry(name);
+    if (!e) return null;
+    var copy = JSON.parse(JSON.stringify(e));
+    delete copy.ddsReference;
+    return copy;
+  }
+  /** The rules for an H specification itself (HLPARA's section), a deep copy. */
+  function helpSpecificationRules() { return JSON.parse(JSON.stringify(RECORD_TYPES.HLPARA.helpSpecification)); }
+  // ---- end I-121k ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
   // so the entry and the domain cannot drift.
@@ -5284,6 +5409,9 @@
     isAltKeyName: isAltKeyName,
     altKeyDefaultKey: altKeyDefaultKey,
     isValidValue: isValidValue,
+    helpSpecKeywords: helpSpecKeywords,
+    helpSpecFacts: helpSpecFacts,
+    helpSpecificationRules: helpSpecificationRules,
     displayAttributeValues: displayAttributeValues,
     outputControlKeywords: outputControlKeywords,
     recordKeywordFacts: recordKeywordFacts,

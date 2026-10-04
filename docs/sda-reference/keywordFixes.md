@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-170 of 180 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.315**.
+171 of 181 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.316**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -174,7 +174,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Claimed (in progress) | — |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
-| [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Claimed (in progress) | — |
+| [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Done | v0.10.316 |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
@@ -223,6 +223,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes its field names without the `&` the compiler requires | I-152 | Done | v0.10.312 |
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Done | v0.10.314 |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Done | v0.10.315 |
+| [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -236,17 +237,18 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121h](#i-121h), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121h and I-121k claimed; the rest not started | The five keyword slices still open: 32 keywords with no spec entry (10 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 1 | [I-121h](#i-121h), [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | I-121h claimed; the rest not started | The four keyword slices still open: 29 keywords with no spec entry (10 + 6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
 | 2 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 3 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 5 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 6 | [I-161](#i-161) | Not started | Help-specification rules and `HLPARA` parameters (raised by I-121k). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every actionable finding so far has been opened as a task (I-61 – I-160, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every actionable finding so far has been opened as a task (I-61 – I-161, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6348,7 +6350,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121k — Help-specification-level keywords
 
-> **Area:** Help-spec · **Status:** In progress · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Help-spec · **Status:** Done (v0.10.316) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (3):** `HLPARA`, `HLPBDY`, `HLPEXCLD`.
 
@@ -6356,6 +6358,23 @@ The `HLPBDY` mutex web already lives with `HLPDOC`/`HLPPNLGRP`/`HLPRCD` (I-121, 
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
 
+**Done (v%s).** The three keywords now have a `RECORD_TYPES` entry in a `// ---- I-121k: 3 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` with the line cited in the entry. All three are help-specification level (`levels: ['help']`, an H specification):
+
+| Keyword | Parameters | Option indicators | Relations the section states |
+|---------|-----------|-------------------|------------------------------|
+| `HLPARA` | five forms: `(top-line left-position bottom-line right-position)`, `(*RCD)`, `(*NONE)`, `(*FLD field-name [choice-number])`, `(*CNST help-identifier)` | not valid (`NO_OPTION_INDICATORS` agrees) | coordinates within the display size, top not after bottom, left not after right, adjusted by `SLNO`; secondary size falls back to the primary `HLPARA` or `*NONE`; `*RCD` not on `SFLCTL` / `USRDFN` and needs a displayable field; `*FLD` names a field of the record, choice number 1 to 99 on a `MNUBARCHC` / `CHOICE` field; `*CNST` names a constant field with `HLPID` of the same identifier; at least one per H specification, display size conditioning when several |
+| `HLPBDY` | none | valid | partitions the H specifications into sublists; at most one of `HLPBDY` / `HLPEXCLD` per H specification |
+| `HLPEXCLD` | none | valid | only on an H specification that has `HLPPNLGRP`; each `HLPPNLGRP` parameter needs one non-excluded instance; at most one of `HLPBDY` / `HLPEXCLD` |
+
+The rules for the H specification itself are stated in `HLPARA`'s section, so they sit on its entry as `helpSpecification` (read through `helpSpecificationRules()`): it starts with an `H` in position 17 after the record keywords and before the first field, has exactly one of `HLPRCD` / `HLPPNLGRP` / `HLPDOC`, up to one of `HLPBDY` / `HLPEXCLD`, at least one `HLPARA`, and is not allowed in `SFL` records or in `SFLCTL` records associated with `SFLMSGRCD`.
+
+**`HLPBDY`'s exclusion with `HLPDOC` is not repeated.** It already lives once on `HLPDOC`'s entry (I-121, v0.10.212), where `hlpdocHspecConflictReason` reads it, and `isMutex` reads only the owner's list, so a copy on `HLPBDY` would have been a second source of truth. The test pins that: `HLPBDY` and `HLPEXCLD` carry no `mutex`. `HLPEXCLD` had no mention in the spec before. Pure refactor, no behaviour change: no hand-written copy of these facts existed outside `NO_OPTION_INDICATORS.HLPARA`, which the test checks against the new entry.
+
+New accessors `helpSpecKeywords()`, `helpSpecFacts(name)` (a deep copy without the prose; `null` outside the three) and `helpSpecificationRules()`.
+
+**Not enforced (spec facts only; opened as [I-161](#i-161)):** the H-specification composition rules, `HLPEXCLD` without `HLPPNLGRP`, `HLPBDY` with `HLPEXCLD`, `HLPARA(*RCD)` on `SFLCTL` / `USRDFN`, an H specification in an `SFL` record, and every `HLPARA` parameter check - the H-specification panel only offers `HLPARA` as a plain checkbox, so its five forms can be entered only in the raw keyword editor.
+
+New `src/test/i121kHelpSpecKeywordSpec.test.js` (42 checks): every heading and cited sentence against the reference text, the facts, a sweep over `KEYWORD-LOOKUP.json` (all three at the help-specification level), the no-option-indicators table, the `HLPDOC` mutex as the single owner, the parser's reading of an H specification (the three keywords belong to it, not to the record), and the accessors. Confirmed failing against the pre-change source via stash. Full suite: 264 files, 14,955 checks, zero failures.
 ---
 
 <a id="i-121l"></a>
@@ -7306,4 +7325,24 @@ Raised by the I-121g slice. Probed on v0.10.309 through `setFileFlagKeyword` (th
 New `src/test/i160FileHelpRelations.test.js` (54 checks): each cited sentence against the reference text, every rule accepted and refused in both directions (all eight `USRDSPMGT` names, `HLPPNLGRP` at both levels, `HLPSHELF`), the already-invalid-file case for each, the open twelve-name list pinned, and the real webview (file panel checkbox and raw keyword editor) refusing with nothing written. Dropping the hook, or dropping the old-model diff, makes the matching checks fail.
 
 Full suite: 263 files, 14,913 checks, zero failures (run on the tree merged with upstream v0.10.314).
+
+---
+
+<a id="i-161"></a>
+
+### I-161 — Help-specification rules are not enforced and `HLPARA`'s parameters are not reachable
+
+> **Area:** Help-spec · **Status:** Not started · **Depends on:** I-121k
+
+Raised by the I-121k slice (help-specification-level keywords). The DDS Reference states, and `keywordSpec.js` now holds as facts (`helpSpecFacts`, `helpSpecificationRules`), rules a search of the writer, engine and panels found no guard for (no probe has been run); only `HLPBDY` with `HLPDOC` and the file-level help relations (I-160) are enforced today:
+
+- Each H specification must have exactly one of `HLPRCD`, `HLPPNLGRP`, `HLPDOC`, up to one of `HLPBDY` / `HLPEXCLD`, and at least one `HLPARA`.
+- `HLPEXCLD` is allowed only on an H specification that has `HLPPNLGRP`; each `HLPPNLGRP` parameter should keep one instance without `HLPEXCLD`.
+- An H specification is not allowed in an `SFL` record or in an `SFLCTL` record associated with `SFLMSGRCD`; `HLPARA(*RCD)` is not valid on `SFLCTL` / `USRDFN` records and needs a displayable field.
+- `HLPARA`'s parameters: the coordinates (within the display size, top not after bottom, left not after right), `*FLD` naming a field of the record with a choice number 1 to 99 that is on its `MNUBARCHC` / `CHOICE`, `*CNST` naming a constant field with the same `HLPID`, and display size conditioning when there are several.
+
+Also: the H-specification panel offers `HLPARA` only as a bare "Define help area" checkbox with no parameter inputs, so the five documented forms can be written only in the raw keyword editor.
+
+To do: probe each case, then add a spec-driven, diff-based guard in the I-140 / I-151 / I-152 shape (refuse only what an edit adds, so existing files still open) with tests, and decide whether the panel gets `HLPARA` parameter inputs (the reference gives the grammar, so they could be built from the spec).
+
 ---
