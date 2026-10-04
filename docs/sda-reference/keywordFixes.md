@@ -233,7 +233,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Claimed (in progress) | — |
-| [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Not started | — |
+| [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -255,7 +255,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 6 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
 | 7 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
 | 8 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
-| 9 | [I-171](#i-171) | Not started | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
+| 9 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7600,7 +7600,7 @@ To do: probe each case in the raw keyword editor and the panels, then add spec-d
 
 ### I-171 — Choice and menu-bar rules are not enforced
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-121l
+> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121l
 
 Raised by the I-121l slice. The DDS Reference states, and `keywordSpec.js` now holds as facts (`choiceMenuBarFacts`), rules the writer has no spec-driven guard for. Found by reading the writer's existing choice and menu-bar functions; no raw-editor or panel probe has been run yet, so each item needs confirming before a guard is written.
 
