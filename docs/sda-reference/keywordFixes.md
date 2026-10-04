@@ -229,7 +229,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
 | [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Done | v0.10.328 |
-| [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
+| [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Claimed (in progress; decided: keep the three lists open, no behaviour change) | — |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Claimed (in progress) | — |
@@ -7547,7 +7547,7 @@ Opened from the I-153 deferred finding. `MSGCON(length message-ID [library-name/
 
 ### I-167 — Companion-keyword lists for `DATE`, `USER` and `SYSNAME`
 
-> **Area:** Field · **Status:** Not started (needs a decision) · **Depends on:** I-154 · **Size (estimate):** Small once decided
+> **Area:** Field · **Status:** Claimed (in progress; decided: keep the three lists open, no behaviour change) · **Depends on:** I-154 · **Size (estimate):** Small
 
 Opened from the I-154 deferred finding. The `TIME` section says "You can specify **only** the location of the field, TIME, and optionally EDTCDE, EDTWRD, COLOR, DSPATR, or TEXT", and I-154 enforces that (`companionsStatedAsOnly` is true for `TIME` alone). The `DATE`, `USER` and `SYSNAME` sections use "you can specify ... and, optionally, ..." without "only". The spec holds each list as `listedCompanionKeywords` (`DATE`: `EDTCDE`, `EDTWRD`, `COLOR`, `DSPATR`, `TEXT`; `USER` and `SYSNAME`: `COLOR`, `DSPATR`, `TEXT`).
 
