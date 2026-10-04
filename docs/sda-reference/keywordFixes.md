@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-177 of 185 tasks done; 8 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.322**.
+177 of 189 tasks done; 12 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.322**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -228,6 +228,10 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Done | v0.10.319 |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
+| [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Not started (needs a rule or a decision) | — |
+| [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
+| [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Not started (needs a decision) | — |
+| [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (file-level versus record is unambiguous; record versus record is not; opened from the I-160 deferred finding) | I-160 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -247,19 +251,20 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 7 | [I-169](#i-169) | Not started | `CAnn` / `CFnn` same key number: the file-level versus record half is unambiguous and can ship alone. Size (estimate): Small. |
+| 8 | [I-168](#i-168) | Not started (decision) | `USRDSPMGT` eight-name versus twelve-name list; the first step is choosing which. Size (estimate): Small once decided. |
+| 9 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
+| 10 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every actionable finding so far has been opened as a task (I-61 – I-165, see the tables above). The rows below are the exceptions: findings that cannot become a task yet because the DDS Reference does not settle them, so there is nothing to implement or test until a rule is found. A new finding goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-169, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-153 | **Blocked - needs an IBM source or a real compile.** `MSGCON` states no rule for the message ID or for `message-file-name` / `library-name` beyond the optional `library-name/` prefix (the seven-character form is `MSGID`'s own, for its `&field` and `msg-id` parameters). Recorded as `openQuestions` on the spec entry; nothing is enforced. Becomes a task once a rule is found. |
-| I-154 | **Blocked - the reference is ambiguous.** The `DATE`, `USER` and `SYSNAME` sections say "you can specify ... and, optionally, ..." without "only", so whether those companion keyword lists are closed is undecided. They stay unenforced facts. Becomes a task if IBM states the lists are closed. |
-| I-121g | **Blocked - the reference gives two lists.** `USRDSPMGT`'s own section forbids eight keywords (`ASSUME`, `ERASE`, `HLPCMDKEY`, `IGCCNV`, `KEEP`, `PUTRETAIN`, `SFL`, `SFLCTL`); the "Keyword considerations for display files used in the System/36 environment" section lists twelve (those plus `ERRSFL`, `MNUBAR`, `PULLDOWN`, `SNGCHCFLD`). Both are recorded in the spec; which one a guard should enforce is undecided. I-160 enforces the eight-name list only. Becomes a task when an IBM source or a real compile settles which list is right. |
-| I-160 | **Blocked - the reference leaves a case open.** `CAnn` and `CFnn` with the same key number: the reference says a file cannot specify the same number as both, and that file-level keys extend to the record level (`CA02` at the file level makes `CF02` at a record level an error). Probed on v0.10.314: `CA03` at the file level with `CF03` on a record is accepted by every guard in the edit chain. Whether `CA03` on one record and `CF03` on another also counts is not stated. Becomes a task when an IBM source or a real compile settles it (the file-level-versus-record half is unambiguous and could be done first). |
+| *(none open)* | |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -7476,5 +7481,61 @@ To do (done below): probe each case in the raw keyword editor, then add a spec-d
 **Decision: `PUTRETAIN` with `DSPMOD` is an advisory note, not a refusal.** The reference says a warning is issued when the display file is created, which is not an error, so refusing would invent a rule. `DspfWriter.putretainDspmodAdvisory` returns the text and the record Overlay panel shows it under the `PUTRETAIN` row when both are present; creating with `RSTDSP(*YES)` is the reference's own recommendation. If real SDA is found to refuse the combination, the advisory can become a guard row.
 
 Tests: new `src/test/i165MultiLevelEligibility.test.js` (the spec accessors, every usage for `OVRATR` / `OVRDTA`, constants, `TEXT` beside both keywords from both sides, `PUTRETAIN` at record and field level, the `OVERLAY` removal, diff semantics for unchanged hand-written leftovers, the panel rows, the advisory, and the raw keyword editor in jsdom).
+
+---
+
+<a id="i-166"></a>
+
+### I-166 — `MSGCON` message ID and message file name rules
+
+> **Area:** Field · **Status:** Not started (needs a rule or a decision) · **Depends on:** I-153 · **Size (estimate):** Small once a rule exists
+
+Opened from the I-153 deferred finding. `MSGCON(length message-ID [library-name/]message-file-name)`: the section states no length, character-set or format rule for the message ID, nor for the file or library names beyond the optional `library-name/` prefix. The seven-character message-ID form and the ten-character file and library lengths in the `MSGID` section are `MSGID`'s own and govern its `&field` and `msg-id` parameters; `MSGCON` has no field-reference form. Today any token is accepted (`MSGCON(20 X Y)` is written), by design, and the two open questions are recorded as `openQuestions` on the spec entry.
+
+**Open questions.** (1) Does the compiler enforce the usual seven-character message ID for `MSGCON`? (2) Is `*LIBL` or `*CURLIB` accepted as the library, and what are the file and library name limits?
+
+**Decision needed first.** Either an IBM source or a compile on a real system settles the rule, or a deliberate choice is made to enforce the `MSGID`-style forms as a warning only. Recommendation: do not refuse anything on a guess; if no source turns up, ship an advisory note (not a refusal) for an ID that is not seven characters, in the I-165 `PUTRETAIN` / `DSPMOD` shape, and leave the file and library names open.
+
+**To do:** settle the rule, then extend `DspfWriter.msgconStructureProblem` (or add a sibling) reading the facts from the spec entry, keep the diff-based wiring I-153 already has, add tests, and remove the matching `openQuestions`.
+
+---
+
+<a id="i-167"></a>
+
+### I-167 — Companion-keyword lists for `DATE`, `USER` and `SYSNAME`
+
+> **Area:** Field · **Status:** Not started (needs a decision) · **Depends on:** I-154 · **Size (estimate):** Small once decided
+
+Opened from the I-154 deferred finding. The `TIME` section says "You can specify **only** the location of the field, TIME, and optionally EDTCDE, EDTWRD, COLOR, DSPATR, or TEXT", and I-154 enforces that (`companionsStatedAsOnly` is true for `TIME` alone). The `DATE`, `USER` and `SYSNAME` sections use "you can specify ... and, optionally, ..." without "only". The spec holds each list as `listedCompanionKeywords` (`DATE`: `EDTCDE`, `EDTWRD`, `COLOR`, `DSPATR`, `TEXT`; `USER` and `SYSNAME`: `COLOR`, `DSPATR`, `TEXT`).
+
+**Decision needed first.** Whether those lists are closed. The reading that the sentence is a list of what is available, not a prohibition, is the literal one; enforcing it would refuse `DFT`, `CHECK` and the rest on those fields. Recommendation: keep them open unless IBM states otherwise or a compile refuses an extra keyword, because a refusal on the wrong reading blocks valid DDS. If a compile shows they are closed, flip `companionsStatedAsOnly` for the three keywords; the I-144 / I-154 collector is already driven by that flag, so the change is the spec value plus tests.
+
+---
+
+<a id="i-168"></a>
+
+### I-168 — `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight
+
+> **Area:** File · **Status:** Not started (needs a decision) · **Depends on:** I-121g, I-160 · **Size (estimate):** Small once decided
+
+Opened from the I-121g deferred finding. `USRDSPMGT`'s own section forbids eight keywords (`ASSUME`, `ERASE`, `HLPCMDKEY`, `IGCCNV`, `KEEP`, `PUTRETAIN`, `SFL`, `SFLCTL`). The "Keyword considerations for display files used in the System/36 environment" section lists twelve: those eight plus `ERRSFL`, `MNUBAR`, `PULLDOWN` and `SNGCHCFLD`. Both lists are recorded in the spec; I-160 enforces the eight-name list only, and a test pins that the four extra names are still accepted.
+
+**Decision needed first.** Which list a guard enforces. The two do not contradict each other (the twelve contains the eight), so the real question is whether the System/36 section describes the same restriction or a separate one that applies only when the file is created for the System/36 environment. Recommendation: keep the eight enforced as a refusal and show the four extra names as an advisory note on the file panel, since the System/36 section is conditioned on that environment; promote them to a refusal only if a compile settles it.
+
+**To do:** once decided, add the four names to the I-160 guard (or the advisory), read from `usrdspmgtForbiddenKeywords()` rather than copying, update the pinning test to the decision, and add both-direction tests.
+
+---
+
+<a id="i-169"></a>
+
+### I-169 — `CAnn` and `CFnn` with the same key number
+
+> **Area:** File / Record · **Status:** Not started · **Depends on:** I-160 · **Size (estimate):** Small
+
+Opened from the I-160 deferred finding. The reference says a file cannot specify the same key number as both `CAnn` and `CFnn`, and that file-level keys extend to the record level: `CA02` at the file level makes `CF02` at a record level an error. Probed on v0.10.314: `CA03` at the file level with `CF03` on a record is accepted by every guard in the edit chain.
+
+**Two halves.** (1) File level versus record level (either direction): unambiguous, can ship on its own. (2) `CA03` on one record and `CF03` on another record: not stated. Recommendation: do half (1) now as a diff-based guard in the I-140 / I-151 shape (refuse only what an edit adds, from either side, naming the record format), and leave half (2) allowed with a note in the spec, the same call I-164 made for the file-level `ROLLUP` with record-level `PAGEDOWN` case. Also check same-level same-number (`CA03` and `CF03` on the same record, or both at file level), which the sentence plainly covers.
+
+**To do:** probe all four placements in the raw keyword editor and the file panel first, then add the guard reading the key-number range from the spec (`CA01`-`CA24`, `CF01`-`CF24`), wire it into the `commitSourceChange` guard chain, add tests, and record the record-versus-record question on the spec entry as an open question.
 
 ---
