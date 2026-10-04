@@ -6032,6 +6032,97 @@
     return firstNewViolation(fileLevelDisplayViolations(oldModel), after);
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-163 - the parameter forms of the command-function keywords. Each is
+  // a format line of its own DDS Reference section, read through
+  // KeywordSpec.commandFunctionParameterShapes():
+  //   ALWGPH, INVITE         "This keyword has no parameters."
+  //   VLDCMDKEY              VLDCMDKEY(response-indicator ['text']) - "The
+  //                          response-indicator parameter is required"
+  //   CLEAR HELP HLPRTN HOME PAGEDOWN PAGEUP (and ROLLUP / ROLLDOWN)
+  //                          NAME[(response-indicator ['text'])]
+  //   PRINT                  PRINT[(response-indicator ['text']) | (*PGM) |
+  //                          ([library-name/]printer-file-name)]
+  // The text is "single quotation marks required". NOT enforced because the
+  // sections state nothing (recorded as open questions on the spec entries): a
+  // range for the response indicator, an object-name rule for the printer file
+  // and library, and any limit on the text (it is only truncated on the
+  // listing). File level and record level both; violations are keyed so
+  // firstNewViolation reports only what an edit adds.
+  // -----------------------------------------------------------------------
+  /** Split `token ['text']`: { indicator, text } or null when the parameter
+   *  text is not that shape (text not single-quoted or not balanced, text
+   *  before the indicator, a third part). */
+  function indicatorAndText(p) {
+    var m = /^(\S+)(?:\s+('(?:[^']|'')*'))?$/.exec(p);
+    if (!m || m[1].charAt(0) === "'") return null;
+    return { indicator: m[1], text: m[2] || '' };
+  }
+  function commandFunctionParamProblem(name, paramText) {
+    var shapes = KeywordSpec.commandFunctionParameterShapes();
+    var up = String(name || '').toUpperCase();
+    var p = String(paramText == null ? '' : paramText).trim();
+    var base = up;
+    shapes.optional.forEach(function (n) { if (KeywordSpec.alternateNamesOf(n).indexOf(up) !== -1) base = n; });
+    if (shapes.noParameters.indexOf(base) !== -1) {
+      return p ? up + ' has no parameters; "' + p + '" is not allowed (per the DDS Reference).' : null;
+    }
+    if (base === shapes.printKeyword) {
+      if (!p || p.toUpperCase() === shapes.pgm) return null;
+      var it = indicatorAndText(p);
+      if (!it) {
+        return 'PRINT\'s parameter must be one of its four forms - none, a response indicator [\'text\'], ' + shapes.pgm + ', or [library-name' +
+          shapes.libraryDelimiter + ']printer-file-name; "' + p + '" is none of them (per the DDS Reference).';
+      }
+      if (it.indicator.toUpperCase() === shapes.pgm) {
+        return 'PRINT(' + shapes.pgm + ') takes no text - the text goes only with a response indicator (per the DDS Reference).';
+      }
+      var parts = it.indicator.split(shapes.libraryDelimiter);
+      if (parts.length > 1 || it.indicator.indexOf(shapes.libraryDelimiter) !== -1) {
+        if (parts.length > 2 || parts.some(function (x) { return x === ''; })) {
+          return 'PRINT\'s printer file must be written printer-file-name or library-name' + shapes.libraryDelimiter + 'printer-file-name (per the DDS Reference).';
+        }
+        if (it.text) return 'PRINT\'s text goes only with a response indicator, not with a printer file (per the DDS Reference).';
+      }
+      return null;
+    }
+    var required = shapes.required.indexOf(base) !== -1;
+    if (shapes.optional.indexOf(base) === -1 && !required) return null;
+    if (!p) {
+      return required ? up + ' needs a response indicator: ' + up + '(response-indicator [\'text\']) - the response-indicator parameter is required (per the DDS Reference).' : null;
+    }
+    if (!indicatorAndText(p)) {
+      return up + '\'s parameter must be ' + (required ? up + '(response-indicator [\'text\'])' : up + '[(response-indicator [\'text\'])]') +
+        ' with the indicator first and the text in single quotation marks; "' + p + '" is not (per the DDS Reference).';
+    }
+    return null;
+  }
+  function commandFunctionParameterViolations(model) {
+    var out = {};
+    var shapes = KeywordSpec.commandFunctionParameterShapes();
+    var names = {};
+    shapes.noParameters.concat(shapes.required, shapes.optional, [shapes.printKeyword]).forEach(function (n) {
+      names[n] = true;
+      KeywordSpec.alternateNamesOf(n).forEach(function (a) { names[a] = true; });
+    });
+    function scan(list, where) {
+      (list || []).forEach(function (k) {
+        var n = String(k && k.name || '').toUpperCase();
+        if (!names[n]) return;
+        var why = commandFunctionParamProblem(n, k.parameters);
+        if (why) out[where + '|' + n + '|' + String(k.parameters == null ? '' : k.parameters).trim()] = why + (where === 'file' ? '' : ' (record format ' + where + ')');
+      });
+    }
+    scan(model && model.fileKeywords, 'file');
+    ((model && model.records) || []).forEach(function (r) { scan(r && r.keywords, r && r.name || ''); });
+    return out;
+  }
+  function commandFunctionParameterNewConflictReason(oldModel, newModel) {
+    var after = commandFunctionParameterViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(commandFunctionParameterViolations(oldModel), after);
+  }
+
   /** Task I-148 - the initialize / retain / return relations the I-121b slice
    *  found unenforced, read from KeywordSpec (recordRequires,
    *  requiresBareKeyword, recordExcludes - nothing hand-copied here):
@@ -10830,6 +10921,8 @@
     windowHelpMenuNewConflictReason: windowHelpMenuNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
     fileLevelDisplayNewConflictReason: fileLevelDisplayNewConflictReason,
+    commandFunctionParameterNewConflictReason: commandFunctionParameterNewConflictReason,
+    commandFunctionParamProblem: commandFunctionParamProblem,
     dspsizFormProblem: dspsizFormProblem,
     subfileFoldDropNewConflictReason: subfileFoldDropNewConflictReason,
     subfileFoldDropViolations: subfileFoldDropViolations,

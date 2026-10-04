@@ -104,6 +104,9 @@ async function main() {
   await scenario([HLPDOC], async (c) => {
     for (const [id, name] of [['fk-clear', 'CLEAR'], ['fk-home', 'HOME'], ['fk-pagedown', 'PAGEDOWN'], ['fk-pageup', 'PAGEUP'], ['fk-vldcmdkey', 'VLDCMDKEY']]) {
       const on = c.doc.getElementById(id + '-on');
+      // Task I-163: VLDCMDKEY's response indicator is required ("The response-indicator parameter is
+      // required"), so a bare tick is now refused - type the indicator first, as the row asks.
+      if (name === 'VLDCMDKEY') c.doc.getElementById(id + '-ind').value = '25';
       c.reset();
       on.checked = true;
       c.fire(on);

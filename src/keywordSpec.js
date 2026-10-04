@@ -1295,6 +1295,14 @@
       // "The Clear key is processed like a command attention key (no input data is
       // transmitted from the device)."
       processedLike: 'commandAttentionKey',
+      // Task I-163: the format line is enforced (the indicator comes first, the optional text is
+      // single-quoted); these two points the sections do not settle, so they are NOT enforced and
+      // apply to every optional-indicator keyword here (CLEAR, HELP, HLPRTN, HOME, PAGEDOWN/ROLLUP,
+      // PAGEUP/ROLLDOWN) and to VLDCMDKEY and PRINT.
+      openQuestions: [
+        'None of the ten sections states the legal range of a response indicator (only the CAnn / CFnn sections say 01 through 99), so CLEAR(0), CLEAR(100) and CLEAR(X) are accepted.',
+        'Text over 50 characters is only truncated on the compile listing ("the text is truncated to 50 characters on the program printout"), so it is not refused.'
+      ],
       ddsReference:
         'CLEAR (Clear) keyword (~line 3881): file- or record-level; your program receives control if the workstation user presses the Clear key and, ' +
         "optionally, the response indicator is set on. CLEAR[(response-indicator ['text'])]. The Clear key is processed like a command attention key. " +
@@ -1415,6 +1423,13 @@
       // "The only difference between these two forms [response indicator, *PGM] is
       // the response indicator; all other processing is the same."
       pgmEquivalentToResponseIndicator: true,
+      // Task I-163: a single-token parameter is the response-indicator form or the printer-file form
+      // (the section cannot tell them apart without a range for the indicator), and the sections state
+      // no rule for a printer file or library name, so no length or character rule is enforced.
+      openQuestions: [
+        'The sections state no object-name rule for printer-file-name or library-name (no length, no character set), so PRINT(ABCDEFGHIJK) is accepted; only the shape [library-name/]printer-file-name is checked.',
+        'A single-token parameter without a slash could be a response indicator or a printer file; the range of a response indicator is not stated, so both are accepted.'
+      ],
       ddsReference:
         'PRINT (Print) keyword (~line 9407): file- or record-level; the workstation user can press the Print key to print the current display. ' +
         "PRINT[(response-indicator ['text']) | (*PGM) | ([library-name/]printer-file-name)]. With a response indicator or *PGM control returns to your " +
@@ -4528,6 +4543,23 @@
   }
 
   // ---- I-121h accessors ----
+  /** Task I-163 - what the command-function keywords' format lines state about
+   *  their parameter text, for the writer's guard: { noParameters, required,
+   *  optional (fresh arrays of names), printKeyword, pgm, libraryDelimiter }.
+   *  The legal range of a response indicator and the shape of an object name are
+   *  NOT stated by these sections, so they are not here (open questions on the
+   *  entries). */
+  function commandFunctionParameterShapes() {
+    var none = [], req = [], opt = [];
+    commandFunctionKeywords().forEach(function (n) {
+      var e = commandFunctionEntry(n);
+      if (e.noParameters) none.push(n);
+      else if (n === 'PRINT') return;
+      else if (e.parameters && e.parameters.responseIndicator && e.parameters.responseIndicator.required) req.push(n);
+      else opt.push(n);
+    });
+    return { noParameters: none, required: req, optional: opt, printKeyword: 'PRINT', pgm: '*PGM', libraryDelimiter: '/' };
+  }
   var COMMAND_FUNCTION_KEYWORDS = ['ALWGPH', 'CLEAR', 'HELP', 'HLPRTN', 'HOME', 'INVITE',
     'PAGEDOWN', 'PAGEUP', 'PRINT', 'VLDCMDKEY'];
   /** Task I-121h - the ten command-function keywords, in entry order (a fresh
@@ -5853,6 +5885,7 @@
     msgLocLimits: msgLocLimits,
     errsflRefusedMsgLocs: errsflRefusedMsgLocs,
     dspsizUserNameRule: dspsizUserNameRule,
+    commandFunctionParameterShapes: commandFunctionParameterShapes,
     fileDisplayIoShapes: fileDisplayIoShapes,
     // ---- I-121g ----
     fileHelpCommandKeywords: fileHelpCommandKeywords,

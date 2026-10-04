@@ -6332,6 +6332,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.windowHelpMenuNewConflictReason(model, candidate) ||
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.fileLevelDisplayNewConflictReason(model, candidate) ||
+      DspfWriter.commandFunctionParameterNewConflictReason(model, candidate) ||
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
       DspfWriter.fileHelpNewConflictReason(model, candidate) ||
       DspfWriter.fieldKindNewConflictReason(model, candidate) ||

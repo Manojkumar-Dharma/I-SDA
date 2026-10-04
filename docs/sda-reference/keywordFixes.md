@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-172 of 184 tasks done; 12 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.317**.
+174 of 184 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.319**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -225,7 +225,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Done | v0.10.315 |
 | [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Claimed (in progress) | — |
 | [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Claimed (in progress) | — |
-| [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Claimed (in progress) | — |
+| [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Done | v0.10.319 |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -241,14 +241,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-162](#i-162) | Claimed | `HELP` relations to the other help keywords (raised by I-121h, probed). |
-| 2 | [I-163](#i-163) | Claimed (in progress) | Command-function keyword parameter forms (raised by I-121h, probed). Small. |
-| 3 | [I-164](#i-164) | Done v0.10.318 | `ROLLUP`/`PAGEDOWN`, `ROLLDOWN`/`PAGEUP` and `INVITE` file+record pairings (raised by I-121h, probed). Small. |
-| 4 | [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The three keyword slices still open: 19 keywords with no spec entry (6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
-| 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 6 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 7 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 8 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 9 | [I-161](#i-161) | Claimed (in progress) | Help-specification rules and `HLPARA` parameters (raised by I-121k). Size (estimate): Medium. |
+| 2 | [I-161](#i-161) | Claimed (in progress) | Help-specification rules and `HLPARA` parameters (raised by I-121k). Size (estimate): Medium. |
+| 3 | [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The three keyword slices still open: 19 keywords with no spec entry (6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 4 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 5 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 6 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 7 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7378,9 +7376,22 @@ Raised by I-121h; opened as a task with a probe. The `HELP` section (~line 6564)
 
 ### I-163 — Parameter forms of the command-function keywords are not enforced
 
-> **Area:** File / Record · **Status:** Claimed (in progress) · **Depends on:** I-121h
+> **Area:** File / Record · **Status:** Done (v0.10.319) · **Depends on:** I-121h
 
-Raised by I-121h; opened as a task with a probe. **Probe (raw keyword editor, v0.10.311; all *allowed*):** `ALWGPH(X)` and `INVITE(X)` (both "This keyword has no parameters"); `VLDCMDKEY` with no response indicator ("The response-indicator parameter is required"); `PRINT(1234 5678 9)` and `PRINT(ABCDEFGHIJK)` (the section gives exactly four forms - none, `response-indicator ['text']`, `*PGM`, `[library-name/]printer-file-name`; an 11-character name is not a valid object name); `CLEAR(0)` and `CLEAR(100)`. The facts are in the entries (`noParameters`, `parameters.responseIndicator.required`, `parameters.forms`). To do: guard the first three at the same places I-143 used (add-time, the `commitEdit` backstop, the panels); `PRINT`'s printer-file form needs IBM's object-name rule (read the reference; if it states none, record an open question and do not invent one). **Open question, not a rule:** none of these ten sections states the legal range of a response indicator - only the `CAnn`/`CFnn` sections say "01 through 99" - so decide whether to apply that to these keywords before enforcing `CLEAR(0)` / `CLEAR(100)`. Also open: the optional text over 50 characters is only truncated on the listing, so at most a warning, not a refusal. Size (estimate): Small.
+Raised by I-121h; opened as a task with a probe. **Probe (raw keyword editor, v0.10.311; all *allowed*):** `ALWGPH(X)` and `INVITE(X)` (both "This keyword has no parameters"); `VLDCMDKEY` with no response indicator ("The response-indicator parameter is required"); `PRINT(1234 5678 9)` and `PRINT(ABCDEFGHIJK)` (the section gives exactly four forms - none, `response-indicator ['text']`, `*PGM`, `[library-name/]printer-file-name`; an 11-character name is not a valid object name); `CLEAR(0)` and `CLEAR(100)`. The facts are in the entries (`noParameters`, `parameters.responseIndicator.required`, `parameters.forms`).
+
+**What the reference states (re-read for this task).** `ALWGPH` and `INVITE`: "This keyword has no parameters." `VLDCMDKEY(response-indicator ['text'])`: "The response-indicator parameter is required." `CLEAR`, `HELP`, `HLPRTN`, `HOME`, `PAGEDOWN` and `PAGEUP` (and their alternate names `ROLLUP` / `ROLLDOWN`): `NAME[(response-indicator ['text'])]`, and for the text "The single quotation marks are required." `PRINT[(response-indicator ['text']) | (*PGM) | ([library-name/]printer-file-name)]`, with four examples (a bare `PRINT`, `PRINT(01 'User presses Print key')`, `PRINT(*PGM)`, `PRINT(LIB1/PRINTFILE1)`). It states **no** range for a response indicator on these keywords (only the `CAnn` / `CFnn` sections say 01 through 99), **no** object-name rule for a printer file or library, and no limit on the text beyond "truncated to 50 characters on the program printout".
+
+**Fix (v0.10.319).** One model-diff guard, `DspfWriter.commandFunctionParameterNewConflictReason(oldModel, newModel)` (the I-140 / I-148 / I-159 shape: it reports only a violation the edit adds, so an already-invalid hand-written file never blocks an unrelated edit), hooked into the webview's edit choke point, so the raw editors, the General rows and the panels all pass through it, at file and record level. It reads the stated shape from the I-121h entries through the new `KeywordSpec.commandFunctionParameterShapes()`:
+
+- **`ALWGPH`, `INVITE`:** any parameter is refused (`ALWGPH(X)`, `INVITE(25)`).
+- **`VLDCMDKEY`:** a bare `VLDCMDKEY` is refused, as is text with no indicator before it.
+- **`CLEAR`, `HELP`, `HLPRTN`, `HOME`, `PAGEDOWN`, `PAGEUP`, `ROLLUP`, `ROLLDOWN`:** bare, `(25)` and `(25 'text')` are accepted (a doubled quote inside the text is fine); unquoted text, an unbalanced quote, text before the indicator and a third part are refused.
+- **`PRINT`:** none, `*PGM`, a single token and `token 'text'` are accepted; `PRINT(1234 5678 9)` and the other shapes that are none of the four forms are refused; a printer file must be `file` or `library/file` (a leading, trailing or second slash is refused); `*PGM` and a `library/file` take no text.
+
+**Left open on purpose (recorded as `openQuestions` on the `CLEAR` and `PRINT` entries, nothing enforced).** (1) The legal range of a response indicator: the task asked whether to carry the `CAnn` / `CFnn` "01 through 99" over to these keywords. I did not, because those sections state it for their own keywords and these ten say nothing; `CLEAR(0)`, `CLEAR(100)` and `CLEAR(X)` are accepted. (2) An object-name rule for `printer-file-name` / `library-name`: the reference states none, so `PRINT(ABCDEFGHIJK)` is accepted and only the shape `[library-name/]printer-file-name` is checked. (3) A single-token `PRINT` parameter without a slash could be a response indicator or a printer file and the range is not stated, so both are accepted. (4) Text over 50 characters is only truncated on the compile listing, so it is not refused (a warning at most).
+
+New `src/test/i163CommandFunctionParameterForms.test.js` (153 checks): each cited sentence against the reference text, every keyword accepted and refused at file and record level, the alternate names, the unenforced cases proved accepted, both directions and the already-invalid-file posture, and the real webview in jsdom through the file-level raw keyword editor (10 refusals, 12 accepted). Mutation-checked: with the guard switched off the new test has 20 failures. **One older test adapted, not the guard:** `i68HlprtnReverseGuard` ticked `VLDCMDKEY` with its indicator box empty and expected a bare `VLDCMDKEY` to be written; it now types the indicator first, as the row asks (a required indicator is the reference's own wording). Full suite: 266 files, 15,030 checks, 1 failure (that test, fixed afterwards); the rest of the run was green.
 
 ---
 
