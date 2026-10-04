@@ -5720,6 +5720,88 @@
     return firstNewViolation(windowHelpMenuViolations(oldModel), after);
   }
 
+  /** Task I-160 - the file-level help and USRDSPMGT relations the I-121g slice
+   *  found unenforced, every list read from KeywordSpec (requiresInFile,
+   *  excludesInFile, requiresKeywordAtLevels, cannotCoexistWith,
+   *  parameters.recordFormatName - nothing hand-copied):
+   *   HLPFULL    needs HLPPNLGRP at the file level or on a help specification
+   *   HLPSCHIDX  needs at least one HLPPNLGRP (file level or help specification)
+   *              and cannot be with HLPSHELF
+   *   USRDSPMGT  not in a file with the eight keywords its own section lists
+   *              (the twelve-name System/36 list is an open question and is
+   *              NOT enforced); a keyword on a record or a field counts
+   *   HLPRCD     the record format name is required (file level)
+   *   PASSRCD    the record format it names must exist in the file
+   *  Violations are keyed so firstNewViolation reports only what an edit adds,
+   *  in either direction (adding the keyword, adding what it forbids, or
+   *  removing what it needs), and an already-invalid hand-written file never
+   *  blocks an unrelated edit. HLPSHELF has no section of its own in the
+   *  reference (only HLPSCHIDX names it), so it is matched at any level. */
+  function fileHelpViolations(model) {
+    var out = {};
+    var fileKws = (model && model.fileKeywords) || [];
+    var records = (model && model.records) || [];
+    // Every keyword list in the file: the file level, each record's keywords, each
+    // field's, and each help specification's. Fields live on r.fields.
+    var lists = [{ where: 'file', list: fileKws }];
+    records.forEach(function (r) {
+      lists.push({ where: 'record ' + r.name, list: r.keywords || [] });
+      (r.fields || []).forEach(function (f) { lists.push({ where: 'record ' + r.name, list: f.keywords || [] }); });
+      (r.helpEntries || []).forEach(function (h) { lists.push({ where: 'help', list: h.keywords || [] }); });
+    });
+    function anywhere(name) { return lists.some(function (e) { return hasKeywordNamed(e.list, name); }); }
+    function atLevel(name, level) {
+      return lists.some(function (e) { return (level === 'file' ? e.where === 'file' : level === 'helpSpecification' ? e.where === 'help' : false) && hasKeywordNamed(e.list, name); });
+    }
+    function has(list, name) { return hasKeywordNamed(list, name); }
+
+    // HLPFULL: HLPPNLGRP at one of the spec's levels.
+    var hf = KeywordSpec.RECORD_TYPES.HLPFULL.requiresKeywordAtLevels;
+    if (has(fileKws, 'HLPFULL') && !hf.levels.some(function (lv) { return atLevel(hf.keyword, lv); })) {
+      out['HLPFULL|NEEDS|' + hf.keyword] = 'HLPFULL requires ' + hf.keyword + ' at the file level or on a help specification (per the DDS Reference).';
+    }
+    // HLPSCHIDX: required keywords and the excluded one.
+    if (has(fileKws, 'HLPSCHIDX')) {
+      KeywordSpec.fileRequires('HLPSCHIDX').forEach(function (x) {
+        if (!anywhere(x)) out['HLPSCHIDX|NEEDS|' + x] = 'HLPSCHIDX is valid only when at least one ' + x + ' keyword is specified in the file (per the DDS Reference).';
+      });
+      KeywordSpec.fileExcludes('HLPSCHIDX').forEach(function (x) {
+        if (anywhere(x)) out['HLPSCHIDX|WITH|' + x] = 'HLPSCHIDX cannot be specified with the ' + x + ' keyword (per the DDS Reference).';
+      });
+    }
+    // USRDSPMGT: the keywords its own section forbids in the file.
+    if (has(fileKws, 'USRDSPMGT')) {
+      KeywordSpec.usrdspmgtForbiddenKeywords().own.forEach(function (x) {
+        if (anywhere(x)) out['USRDSPMGT|WITH|' + x] = 'USRDSPMGT cannot be used in a display file that contains ' + x + ' (per the DDS Reference).';
+      });
+    }
+    // HLPRCD: the record format name is required.
+    if (KeywordSpec.RECORD_TYPES.HLPRCD.parameters.recordFormatName.required) {
+      fileKws.forEach(function (k, i) {
+        if (k && k.name === 'HLPRCD' && !String(k.parameters == null ? '' : k.parameters).trim()) {
+          out['HLPRCD|NAME|' + i] = 'HLPRCD needs a record format name (per the DDS Reference).';
+        }
+      });
+    }
+    // PASSRCD: the named record format must exist in the file.
+    if (KeywordSpec.RECORD_TYPES.PASSRCD.parameters.recordFormatName.mustExistInFile) {
+      fileKws.forEach(function (k) {
+        if (!k || k.name !== 'PASSRCD') return;
+        var name = String(k.parameters == null ? '' : k.parameters).trim().split(/\s+/)[0];
+        if (!name) { out['PASSRCD|NAME'] = 'PASSRCD needs a record format name (per the DDS Reference).'; return; }
+        if (!records.some(function (r) { return r.name === name; })) {
+          out['PASSRCD|EXISTS|' + name] = 'PASSRCD names record format ' + name + ', which is not a record format in this file (per the DDS Reference).';
+        }
+      });
+    }
+    return out;
+  }
+  function fileHelpNewConflictReason(oldModel, newModel) {
+    var after = fileHelpViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(fileHelpViolations(oldModel), after);
+  }
+
   /** Task I-149 - RETKEY / RETCMDKEY exclusions and file-level requirements
    *  (the I-121b spec facts: fileAndRecordExcludes, recordExcludes,
    *  fileExcludes, fileRequires). The exclusions span the file and the record,
@@ -10699,6 +10781,8 @@
     sflendNewConflictReason: sflendNewConflictReason,
     subfileControlNotes: subfileControlNotes,
     retKeyNewConflictReason: retKeyNewConflictReason,
+    fileHelpNewConflictReason: fileHelpNewConflictReason,
+    fileHelpViolations: fileHelpViolations,
     retKeyViolations: retKeyViolations,
     fieldKindNewConflictReason: fieldKindNewConflictReason,
     fieldKindViolations: fieldKindViolations,

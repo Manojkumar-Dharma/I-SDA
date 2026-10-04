@@ -6313,6 +6313,9 @@ const htmlTemplate = `<!DOCTYPE html>
   // is not with PUTRETAIN, ERASE names at most 20 record formats, CSRLOC and
   // FRCDTA once per record format. Task I-148: GETRETAIN needs a bare UNLOCK,
   // RTNDTA is not with UNLOCK, INZINP needs PUTOVR / OVERLAY / ERASEINP(*ALL).
+  // Task I-160: HLPFULL / HLPSCHIDX need HLPPNLGRP, HLPSCHIDX not with HLPSHELF,
+  // USRDSPMGT not with its eight forbidden keywords, HLPRCD needs a record format
+  // name, PASSRCD must name an existing record format.
   // Task I-147: the other five subfile-control
   // keywords also need an SFLCTL, and SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ take
   // no display size names. Returns true
@@ -6330,6 +6333,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.fileLevelDisplayNewConflictReason(model, candidate) ||
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
+      DspfWriter.fileHelpNewConflictReason(model, candidate) ||
       DspfWriter.fieldKindNewConflictReason(model, candidate) ||
       DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||
       DspfWriter.systemValueKeywordNewConflictReason(model, candidate);
