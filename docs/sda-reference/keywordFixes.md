@@ -178,7 +178,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Claimed (in progress) | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
-| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
+| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Claimed (in progress) | — |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done | v0.10.285 |
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
@@ -6474,7 +6474,7 @@ Full suite: 239 files, 13,132 checks, zero failures.
 
 ### I-121o — Reference and database-inherit field keywords
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (5):** `ALIAS`, `REFFLD`, `DLTCHK`, `DLTEDT`, `HLPID`.
 
