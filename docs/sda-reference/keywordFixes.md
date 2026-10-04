@@ -231,7 +231,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Not started (needs a rule or a decision) | — |
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Not started (needs a decision) | — |
-| [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (file-level versus record is unambiguous; record versus record is not; opened from the I-160 deferred finding) | I-160 | Not started | — |
+| [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (file-level versus record is unambiguous; record versus record is not; opened from the I-160 deferred finding) | I-160 | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -7530,7 +7530,7 @@ Opened from the I-121g deferred finding. `USRDSPMGT`'s own section forbids eight
 
 ### I-169 — `CAnn` and `CFnn` with the same key number
 
-> **Area:** File / Record · **Status:** Not started · **Depends on:** I-160 · **Size (estimate):** Small
+> **Area:** File / Record · **Status:** Claimed (in progress) · **Depends on:** I-160 · **Size (estimate):** Small
 
 Opened from the I-160 deferred finding. The reference says a file cannot specify the same key number as both `CAnn` and `CFnn`, and that file-level keys extend to the record level: `CA02` at the file level makes `CF02` at a record level an error. Probed on v0.10.314: `CA03` at the file level with `CF03` on a record is accepted by every guard in the edit chain.
 
