@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-176 of 185 tasks done; 9 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.321**.
+177 of 185 tasks done; 8 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.322**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -227,7 +227,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Claimed (in progress) | — |
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Done | v0.10.319 |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
-| [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` or with `DSPMOD` | I-121j | Not started | — |
+| [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -247,7 +247,6 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 7 | [I-165](#i-165) | Not started | Multi-level keyword eligibility (raised by I-121j). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7455,7 +7454,7 @@ Tests: new `src/test/i164CommandFunctionPairings.test.js` (each pairing from bot
 
 ### I-165 — Multi-level keyword eligibility is not enforced
 
-> **Area:** Field / Record · **Status:** Not started · **Depends on:** I-121j
+> **Area:** Field / Record · **Status:** Done (v0.10.322) · **Depends on:** I-121j
 
 Raised by the I-121j slice. The DDS Reference states, and `keywordSpec.js` now holds as facts (`multiLevelFacts`), eligibility rules the field panel and the writer do not enforce. Found by reading the General keywords panel for each usage (v0.10.320); no raw-editor probe has been run yet.
 
@@ -7464,6 +7463,18 @@ Raised by the I-121j slice. The DDS Reference states, and `keywordSpec.js` now h
 - `TEXT` is "valid for any record format or field, except a `SFLMSGKEY` or `SFLPGMQ` field"; the panel offers it on those fields.
 - `PUTRETAIN` needs `OVERLAY` on the record (otherwise it is ignored), and a warning is issued at creation when the record also has `DSPMOD`. `PUTRETAIN` with `PUTOVR` is already refused (I-151).
 
-To do: probe each case in the raw keyword editor, then add a spec-driven, diff-based guard in the I-140 / I-151 shape (refuse only what an edit adds), narrow the panel rows from the spec's `fieldLevel` usage lists, and decide whether the `DSPMOD` case is a refusal or an advisory note (the reference says warning).
+To do (done below): probe each case in the raw keyword editor, then add a spec-driven, diff-based guard in the I-140 / I-151 shape (refuse only what an edit adds), narrow the panel rows from the spec's `fieldLevel` usage lists, and decide whether the `DSPMOD` case is a refusal or an advisory note (the reference says warning).
+
+**Fix (v0.10.322).** One model-diff guard, `DspfWriter.multiLevelEligibilityNewConflictReason`, added to the webview's existing `commitSourceChange` guard chain beside the I-140 / I-151 guards (only a violation the edit adds is reported, in either direction; a hand-written file that is already wrong stays editable). It reads the I-121j facts through two new accessors, `KeywordSpec.fieldLevelEligibility` (usage list, constant-field flag, keywords TEXT is not valid beside) and `KeywordSpec.putretainRecordRules` (required record keyword, keywords that warn); nothing is copied into the writer. The per-field part is `DspfWriter.multiLevelFieldReason`, shared with the panel so the two cannot disagree.
+
+- `OVRATR` on a hidden (H) field is refused; allowed on I, O, B, blank (output) and constant fields.
+- `OVRDTA` on an input-only (I) or hidden (H) field, or on a constant, is refused; allowed on O, B, M and blank.
+- `TEXT` is refused on a field that carries `SFLMSGKEY` or `SFLPGMQ`, from either side (adding `TEXT`, or adding one of the two to a field that has `TEXT`).
+- `PUTRETAIN`, at record level or on any field of the record, is refused without `OVERLAY` on the same record format, and removing `OVERLAY` while `PUTRETAIN` remains is refused.
+- Panel: the General keywords rows for `OVRATR`, `OVRDTA` and `TEXT` are hidden on the fields above, but only while the keyword is not already on the field (the I-70 `CHRID` idiom), so a hand-written invalid field still shows the ticked box and it can be un-ticked.
+
+**Decision: `PUTRETAIN` with `DSPMOD` is an advisory note, not a refusal.** The reference says a warning is issued when the display file is created, which is not an error, so refusing would invent a rule. `DspfWriter.putretainDspmodAdvisory` returns the text and the record Overlay panel shows it under the `PUTRETAIN` row when both are present; creating with `RSTDSP(*YES)` is the reference's own recommendation. If real SDA is found to refuse the combination, the advisory can become a guard row.
+
+Tests: new `src/test/i165MultiLevelEligibility.test.js` (the spec accessors, every usage for `OVRATR` / `OVRDTA`, constants, `TEXT` beside both keywords from both sides, `PUTRETAIN` at record and field level, the `OVERLAY` removal, diff semantics for unchanged hand-written leftovers, the panel rows, the advisory, and the raw keyword editor in jsdom).
 
 ---

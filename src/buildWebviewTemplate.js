@@ -6329,6 +6329,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.subfileKeywordNewConflictReason(model, candidate) ||
       DspfWriter.subfileFoldDropNewConflictReason(model, candidate) ||
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
+      DspfWriter.multiLevelEligibilityNewConflictReason(model, candidate) ||
       DspfWriter.windowHelpMenuNewConflictReason(model, candidate) ||
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.fileLevelDisplayNewConflictReason(model, candidate) ||

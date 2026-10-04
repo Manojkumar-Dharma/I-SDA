@@ -5767,6 +5767,25 @@
     delete copy.ddsReference;
     return copy;
   }
+  /** Task I-165 - the field-level eligibility facts the I-121j slice recorded, as one
+   *  shape: { allowedUsage:[..]|null, constantFields:bool|null, notOnFieldsWithKeyword:[..] }.
+   *  OVRATR: usage I/O/B and constants; OVRDTA: usage O/B/M, no constants; TEXT: not on a
+   *  SFLMSGKEY / SFLPGMQ field. Null for any other keyword. */
+  function fieldLevelEligibility(name) {
+    var e = i121jEntry(name);
+    if (!e || (!e.fieldLevel && !e.notValidOnFieldsWithKeyword)) return null;
+    var fl = e.fieldLevel || {};
+    return {
+      allowedUsage: fl.allowedUsage ? fl.allowedUsage.slice() : null,
+      constantFields: typeof fl.constantFields === 'boolean' ? fl.constantFields : null,
+      notOnFieldsWithKeyword: (e.notValidOnFieldsWithKeyword || []).slice()
+    };
+  }
+  /** Task I-165 - PUTRETAIN's record-level facts: { requiresRecordKeyword, warnsAtCreationWith:[..] }. */
+  function putretainRecordRules() {
+    var e = RECORD_TYPES.PUTRETAIN;
+    return { requiresRecordKeyword: e.requiresRecordKeyword, warnsAtCreationWith: e.warnsAtCreationWith.slice() };
+  }
   // ---- end I-121j ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
@@ -5896,6 +5915,8 @@
     multiLevelValidAt: multiLevelValidAt,
     multiLevelIndicatorMode: multiLevelIndicatorMode,
     multiLevelFacts: multiLevelFacts,
+    fieldLevelEligibility: fieldLevelEligibility,
+    putretainRecordRules: putretainRecordRules,
     helpSpecKeywords: helpSpecKeywords,
     helpSpecFacts: helpSpecFacts,
     helpSpecificationRules: helpSpecificationRules,

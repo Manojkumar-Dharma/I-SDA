@@ -2727,6 +2727,19 @@
     return !!DspfWriter.igcalttypEligibilityReason(usage, dataType, isConstant);
   }
 
+  /** Task I-165 - OVRATR / OVRDTA / TEXT are hidden on the fields the DDS
+   *  Reference rules them out for (OVRATR on hidden, OVRDTA on input-only /
+   *  hidden / constant, TEXT on SFLMSGKEY / SFLPGMQ fields). Like CHRID's row
+   *  (I-70) the row is hidden only while the keyword is NOT already on the
+   *  field, so a hand-written invalid field still shows the ticked box and it
+   *  can be un-ticked. Shared by generalFieldKeywordsHtml and
+   *  wireGeneralFieldKeywordsEditor so the two can never disagree. */
+  function multiLevelRowHidden(keywords, name, usage, isConstant) {
+    if (name !== 'OVRATR' && name !== 'OVRDTA' && name !== 'TEXT') return false;
+    if (DspfWriter.getFileFlagKeyword(keywords, name).present) return false;
+    return !!DspfWriter.multiLevelFieldReason(name, usage, isConstant, keywords, '');
+  }
+
   function generalFieldKeywordsHtml(keywords, ownerKey, expandedSet, dataType, usage, recordKeywords, isConstant, decimalPositions) {
     var html = '<div class="section-label">General keywords</div>';
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
@@ -2748,6 +2761,7 @@
       // Task I-70 - CHRID is not valid on hidden or numeric fields.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
       if (key === 'igcalttyp' && igcalttypRowHidden(keywords, usage, dataType, isConstant)) return;
+      if (multiLevelRowHidden(keywords, name, usage, isConstant)) return;
       var id = ownerKey + '-gen-' + key;
       var kw = DspfWriter.getFileFlagKeyword(keywords, name);
       html += flagRowHtml(id, name, kw.present, hasParam ? kw.parameters : undefined, hasParam ? placeholder : undefined, conditionable ? kw.conditions : undefined, expandedSet);
@@ -2785,6 +2799,7 @@
       // exactly, same reasoning as the mpScope/dtScope/usageScope comments.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
       if (key === 'igcalttyp' && igcalttypRowHidden(keywords, usage, dataType, isConstant)) return;
+      if (multiLevelRowHidden(keywords, name, usage, isConstant)) return;
       var id = ownerKey + '-gen-' + key;
       if (key === 'chrid') {
         // Task I-70 - guarded wiring (alert + revert, same idiom as the
@@ -5995,6 +6010,9 @@
     var ov = gatedFlagRow(p + '-overlay', 'Overlay without erasing (OVERLAY)', fOverlay.present, undefined, undefined, fOverlay.conditions, expandedSet);
     var fPutretain = DspfWriter.getFileFlagKeyword(kw, 'PUTRETAIN');
     ov += gatedFlagRow(p + '-putretain', 'Retain data on re-display (PUTRETAIN)', fPutretain.present, undefined, undefined, fPutretain.conditions, expandedSet);
+    // Task I-165 - advisory only: the DDS Reference says a warning is issued at file creation when PUTRETAIN and DSPMOD share a record.
+    var putretainNote = DspfWriter.putretainDspmodAdvisory(kw, []);
+    if (putretainNote) ov += '<div class="hint-small kw-cond-warning">' + escapeHtml(putretainNote) + '</div>';
     var fProtect = DspfWriter.getFileFlagKeyword(kw, 'PROTECT');
     ov += gatedFlagRow(p + '-protect', 'Protect all input fields (PROTECT)', fProtect.present, undefined, undefined, fProtect.conditions, expandedSet);
     var fPutovr = DspfWriter.getFileFlagKeyword(kw, 'PUTOVR');

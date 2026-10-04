@@ -171,8 +171,9 @@ function scenario2() {
 // unaffected
 // ---------------------------------------------------------------------------
 function scenario3() {
+  // Task I-165: PUTRETAIN needs OVERLAY on the record (DDS Reference), so this record carries it.
   const ctx = makeDom([
-    '     A          R RECORD1',
+    '     A          R RECORD1                   OVERLAY',
     "     A                                  1 10'PLAIN'",
     '     A            FLD1          5A  B  2  2',
   ]);

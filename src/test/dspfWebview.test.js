@@ -2033,15 +2033,23 @@ function runFieldPropertyHelpersScenario() {
     let genEdit = posted.find((m) => m.type === 'applyEdit');
     check('posts ALIAS with the entered name', genEdit && DspfParser.parseDspf(genEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.find((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE'));
 
+    // Task I-165: PUTRETAIN needs OVERLAY on the record (DDS Reference), and SCR1 has none,
+    // so ticking the row is refused with that wording and nothing is committed; the earlier
+    // ALIAS commit is still the last edit. The accepted path (OVERLAY present) is covered in
+    // i165MultiLevelEligibility.test.js.
+    const lastAliasEdit = genEdit;
     posted.length = 0;
     const putretainOn = doc.getElementById(fieldKey + '-gen-putretain-on');
     check('setup: the PUTRETAIN checkbox is present', !!putretainOn);
+    const putretainAlertOrig = dom.window.alert;
+    let putretainAlert = null;
+    dom.window.alert = (msg) => { putretainAlert = msg; };
     putretainOn.checked = true;
     putretainOn.dispatchEvent(new Event('change', { bubbles: true }));
-    let genEdit2 = posted.find((m) => m.type === 'applyEdit');
-    const genFields2 = genEdit2 && DspfParser.parseDspf(genEdit2.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords;
-    check('posts PUTRETAIN bare', genFields2 && genFields2.some((k) => k.name === 'PUTRETAIN'));
-    check('the earlier ALIAS commit survives this separate PUTRETAIN commit', genFields2 && genFields2.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE'));
+    dom.window.alert = putretainAlertOrig;
+    check('PUTRETAIN on a field of a record without OVERLAY is refused with the DDS wording', /PUTRETAIN cannot be specified on record format SCR1 without OVERLAY/.test(putretainAlert || ''));
+    check('and nothing is posted for it', !posted.some((m) => m.type === 'applyEdit'));
+    check('the earlier ALIAS commit is untouched', lastAliasEdit && DspfParser.parseDspf(lastAliasEdit.text).records[0].fields.find((f) => f.name === 'AMOUNT').keywords.some((k) => k.name === 'ALIAS' && k.parameters === 'AMOUNT_DUE'));
 
     // Task I-150: CNTFLD needs an input-capable CHARACTER field (DDS Reference), so
     // the row is no longer offered on this numeric (7Y 2) AMOUNT field; the
@@ -6562,9 +6570,11 @@ function runGeneralKeywordsConstantGatingScenario() {
       check('constant: ' + k.toUpperCase() + ' row absent', !doc.getElementById(constKey + '-gen-' + k + '-on'));
     });
     check('constant: HLPID row present', !!doc.getElementById(constKey + '-gen-hlpid-on'));
-    ['alias', 'indtxt', 'dft', 'text', 'putretain', 'ovrdta', 'ovratr', 'noccsid'].forEach((k) => {
+    ['alias', 'indtxt', 'dft', 'text', 'putretain', 'ovratr', 'noccsid'].forEach((k) => {
       check('constant: ' + k.toUpperCase() + ' row still present (applies to all field kinds)', !!doc.getElementById(constKey + '-gen-' + k + '-on'));
     });
+    // Task I-165: OVRDTA is not valid on a constant (DDS Reference), so its row is no longer offered.
+    check('constant: OVRDTA row absent (not valid on constant fields)', !doc.getElementById(constKey + '-gen-ovrdta-on'));
 
     console.log('  NAMEFLD (a named field): DFTVAL/CNTFLD/FLDCSRPRG/CHRID/IGCALTTYP ARE offered, HLPID is NOT (constant-only, was previously offered here too - the inverse half of this bug)');
     boxes[1].click();

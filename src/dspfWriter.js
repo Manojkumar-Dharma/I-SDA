@@ -5566,6 +5566,80 @@
     return firstNewViolation(outputControlViolations(oldModel), after);
   }
 
+  /** Task I-165 - why `kw` (OVRATR / OVRDTA / TEXT) cannot be on ONE field, or
+   *  null. `usage` blank is O; `fieldKeywords` is the field's keyword list
+   *  (TEXT is refused beside SFLMSGKEY / SFLPGMQ). Shared by the model guard
+   *  and the panel's row hiding so the two cannot disagree. */
+  function multiLevelFieldReason(kw, usage, isConstant, fieldKeywords, fieldLabel) {
+    var rule = KeywordSpec.fieldLevelEligibility(kw);
+    if (!rule) return null;
+    var u = String(usage == null ? '' : usage).trim().toUpperCase() || 'O';
+    var label = fieldLabel || 'this field';
+    if (isConstant) {
+      if (rule.constantFields === false) return kw + ' cannot be specified on constant field ' + label + ' (per the DDS Reference).';
+    } else if (rule.allowedUsage && rule.allowedUsage.indexOf(u) < 0) {
+      return kw + ' on field ' + label + ' needs usage ' + rule.allowedUsage.join(', ') + (rule.constantFields ? ' (or a constant field)' : '') +
+        ' (the field has usage ' + u + ') (per the DDS Reference).';
+    }
+    for (var i = 0; i < rule.notOnFieldsWithKeyword.length; i++) {
+      var other = rule.notOnFieldsWithKeyword[i];
+      if (hasKeywordNamed(fieldKeywords, other)) return kw + ' cannot be specified on field ' + label + ', a ' + other + ' field (per the DDS Reference).';
+    }
+    return null;
+  }
+  /** Task I-165 - the multi-level keyword eligibility rules the I-121j slice
+   *  recorded as spec facts (KeywordSpec.fieldLevelEligibility /
+   *  putretainRecordRules - nothing hand-copied here):
+   *   OVRATR  field level only on usage I / O / B and constant fields (not H)
+   *   OVRDTA  field level only on usage O / B / M and never on a constant
+   *   TEXT    not on a field that carries SFLMSGKEY or SFLPGMQ
+   *   PUTRETAIN  (record level or on any field) needs OVERLAY on the record
+   *  A blank usage is O, as everywhere else. Violations are keyed record |
+   *  keyword | rule | field, so firstNewViolation reports only what an edit
+   *  adds, in either direction (adding the keyword, changing the field's
+   *  usage, or removing OVERLAY) and an already-invalid hand-written file
+   *  never blocks an unrelated edit. PUTRETAIN with DSPMOD is NOT a violation:
+   *  the reference says a warning is issued, so it is an advisory note
+   *  (putretainDspmodAdvisory). */
+  function multiLevelEligibilityViolations(model) {
+    var out = {};
+    ((model && model.records) || []).forEach(function (r) {
+      var rname = String(r.name || '').toUpperCase();
+      (r.fields || []).forEach(function (f) {
+        var fname = String(f.name || '').toUpperCase();
+        var isConstant = f.nameType === 'CONSTANT';
+        ['OVRATR', 'OVRDTA', 'TEXT'].forEach(function (kw) {
+          if (!hasKeywordNamed(f.keywords, kw)) return;
+          var why = multiLevelFieldReason(kw, f.usage, isConstant, f.keywords, fname || ('in ' + rname));
+          if (why) out[rname + '|' + kw + '|FIELD|' + fname] = why;
+        });
+      });
+      var pr = KeywordSpec.putretainRecordRules();
+      var onRecord = hasKeywordNamed(r.keywords, 'PUTRETAIN');
+      var onFields = (r.fields || []).some(function (f) { return hasKeywordNamed(f.keywords, 'PUTRETAIN'); });
+      if ((onRecord || onFields) && !hasKeywordNamed(r.keywords, pr.requiresRecordKeyword)) {
+        out[rname + '|PUTRETAIN|REQ|' + pr.requiresRecordKeyword] = 'PUTRETAIN cannot be specified on record format ' + r.name +
+          ' without ' + pr.requiresRecordKeyword + ' on the same record format; without it PUTRETAIN is ignored (per the DDS Reference).';
+      }
+    });
+    return out;
+  }
+  function multiLevelEligibilityNewConflictReason(oldModel, newModel) {
+    var after = multiLevelEligibilityViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(multiLevelEligibilityViolations(oldModel), after);
+  }
+  /** Task I-165 - the advisory (not a refusal) for PUTRETAIN on a record that
+   *  also has DSPMOD, or null. `recordKeywords` / `fields` are the record's. */
+  function putretainDspmodAdvisory(recordKeywords, fields) {
+    var pr = KeywordSpec.putretainRecordRules();
+    var has = hasKeywordNamed(recordKeywords, 'PUTRETAIN') || (fields || []).some(function (f) { return hasKeywordNamed(f.keywords, 'PUTRETAIN'); });
+    if (!has) return null;
+    var other = pr.warnsAtCreationWith.filter(function (k) { return hasKeywordNamed(recordKeywords, k); });
+    if (!other.length) return null;
+    return 'PUTRETAIN with ' + other.join(', ') + ' on the same record format: the DDS Reference says a warning is issued when the display file is created, and PUTRETAIN is ignored when the display mode changes. Creating the file with RSTDSP(*YES) is recommended.';
+  }
+
   /** Task I-152 - the window, menu-bar, help and logging relations the
    *  I-121e slice found unenforced, every value read from KeywordSpec
    *  (recordRequires, notOnRecordTypes, fileExcludes, hlpseqLimits,
@@ -11068,6 +11142,9 @@
     fieldKindViolations: fieldKindViolations,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
     outputControlNewConflictReason: outputControlNewConflictReason,
+    multiLevelEligibilityNewConflictReason: multiLevelEligibilityNewConflictReason,
+    multiLevelFieldReason: multiLevelFieldReason,
+    putretainDspmodAdvisory: putretainDspmodAdvisory,
     windowHelpMenuNewConflictReason: windowHelpMenuNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
     fileLevelDisplayNewConflictReason: fileLevelDisplayNewConflictReason,
