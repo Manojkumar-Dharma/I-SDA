@@ -230,7 +230,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
 | [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Not started (needs a rule or a decision) | — |
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
-| [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Not started (needs a decision) | — |
+| [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Claimed (in progress; decided: keep the eight as a refusal, show the four extras as an advisory) | — |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (file-level versus record is unambiguous; record versus record is not; opened from the I-160 deferred finding) | I-160 | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -7516,7 +7516,7 @@ Opened from the I-154 deferred finding. The `TIME` section says "You can specify
 
 ### I-168 — `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight
 
-> **Area:** File · **Status:** Not started (needs a decision) · **Depends on:** I-121g, I-160 · **Size (estimate):** Small once decided
+> **Area:** File · **Status:** Claimed (in progress; decided: keep the eight as a refusal, show the four extras as an advisory) · **Depends on:** I-121g, I-160 · **Size (estimate):** Small once decided
 
 Opened from the I-121g deferred finding. `USRDSPMGT`'s own section forbids eight keywords (`ASSUME`, `ERASE`, `HLPCMDKEY`, `IGCCNV`, `KEEP`, `PUTRETAIN`, `SFL`, `SFLCTL`). The "Keyword considerations for display files used in the System/36 environment" section lists twelve: those eight plus `ERRSFL`, `MNUBAR`, `PULLDOWN` and `SNGCHCFLD`. Both lists are recorded in the spec; I-160 enforces the eight-name list only, and a test pins that the four extra names are still accepted.
 
