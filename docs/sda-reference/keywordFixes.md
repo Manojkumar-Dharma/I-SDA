@@ -232,7 +232,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
-| [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Not started | — |
+| [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -254,7 +254,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 | 7 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
 | 8 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
-| 9 | [I-170](#i-170) | Not started | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
+| 9 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7562,7 +7562,7 @@ Tests: new `src/test/i169CommandKeyNumberClash.test.js` (the three source senten
 
 ### I-170 — Reference-field and help-identifier rules are not enforced
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-121o
+> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121o
 
 Raised by the I-121o slice. The DDS Reference states, and `keywordSpec.js` now holds as facts, rules that no guard enforces (found by searching the writer, webview and extension host for each keyword; no raw-editor probe has been run yet):
 
