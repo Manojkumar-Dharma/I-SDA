@@ -840,6 +840,89 @@
     },
     // ---- end I-121e ----
 
+    // ---- I-121i: 4 ----
+    // Cursor, message and help-title keywords: CSRINPONLY, ENTFLDATR, MSGALARM,
+    // HLPTITLE. Every fact below was re-read from DDS_Keyword_V7r6.txt (the
+    // section named in each ddsReference), NOT taken from the code. Pure
+    // refactor: nothing here adds a guard; rules with no guard yet are recorded
+    // here and logged as findings in keywordFixes.md. The option-indicator rule
+    // of HLPTITLE stays owned by the NO_OPTION_INDICATORS table (fileLevelOnly);
+    // the entry restates it as `optionIndicators` and a test pins the two.
+    CSRINPONLY: {
+      levels: ['file', 'record'],
+      parameters: 'none',
+      optionIndicators: 'valid',
+      // "This keyword only affects cursor movement caused by using the arrow keys."
+      affectsOnly: 'arrow-key cursor movement',
+      ddsReference:
+        'CSRINPONLY (~line 4396): file- or record-level; restricts cursor movement to input-capable positions (arrow keys only). "This keyword ' +
+        'has no parameters." "Option indicators are valid for this keyword."'
+    },
+    MSGALARM: {
+      levels: ['file', 'record'],
+      parameters: 'none',
+      optionIndicators: 'valid',
+      // The alarm sounds when the record is displayed with an active one of
+      // these, or when a validity checking error is detected.
+      soundsWith: ['ERRMSG', 'ERRMSGID', 'SFLMSG', 'SFLMSGID'],
+      soundsOnValidityCheckError: true,
+      // "If you specify the MSGALARM and ALARM keywords on the same record
+      // format and both are active, the alarm sounds only once."
+      withAlarmSoundsOnce: true,
+      ddsReference:
+        'MSGALARM (~line 8876): file- or record-level; sounds the short alarm when the record is displayed with an active ERRMSG, ERRMSGID, ' +
+        'SFLMSG or SFLMSGID, or on a validity checking error. "This keyword has no parameters." With ALARM on the same record and both active the ' +
+        'alarm sounds once. "Option indicators are valid with this keyword."'
+    },
+    ENTFLDATR: {
+      levels: ['field', 'record', 'file'],
+      parameters: 'optional',
+      parameterGrammar: 'ENTFLDATR[([color] [display attribute] [cursor visible])]',
+      optionIndicators: 'valid',
+      color: { wrapper: '*COLOR', values: ['BLU', 'GRN', 'PNK', 'RED', 'TRQ', 'YLW', 'WHT'], default: 'WHT' },
+      displayAttribute: { wrapper: '*DSPATR', values: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'], default: ['HI'] },
+      cursorVisible: { values: ['*CURSOR', '*NOCURSOR'], default: '*CURSOR', noCursorNeedsDataType: 'I' },
+      // "The field containing the ENTFLDATR keyword must be an input-capable field."
+      fieldLevel: { allowedUsage: ['I', 'B'] },
+      // "When defined at both the field- and record-level, the field-level
+      // specification is used for the field."
+      fieldLevelWinsOverRecordLevel: true,
+      ignoredWithDspatrPR: true,
+      ignoredWithoutEnhancedDataStream: true,
+      unpredictableWith: ['EDTMSK'],
+      ddsReference:
+        'ENTFLDATR (~line 5977): field-, record- or file-level; the leading attribute of the field changes while the cursor is in it. Format ' +
+        'ENTFLDATR[([color] [display attribute] [cursor visible])]: (*COLOR BLU|GRN|PNK|RED|TRQ|YLW|WHT) default white; (*DSPATR BL|CS|HI|ND|RI|UL ...) ' +
+        'default HI; *CURSOR (default) / *NOCURSOR, and *NOCURSOR needs data type I (otherwise the default is used). The field must be input-capable; ' +
+        'ignored with DSPATR(PR); the field-level specification wins over the record-level one; unpredictable with EDTMSK. "Option indicators are valid ' +
+        'for this keyword."'
+    },
+    HLPTITLE: {
+      levels: ['file', 'record'],
+      parameters: 'required',
+      parameterGrammar: "HLPTITLE('text')",
+      textMaxLength: 55,
+      // File level: not valid. Record level: valid, and required on EVERY
+      // HLPTITLE of a record that has more than one.
+      optionIndicators: { file: 'notValid', record: 'valid' },
+      indicatorsRequiredOnEachWhenMultiple: true,
+      maxPerRecordWithIndicators: 15,
+      firstInEffectUsed: true,
+      // "the file must contain at least one HLPPNLGRP keyword at either the
+      // file or help specification level."
+      requiresInFile: ['HLPPNLGRP'],
+      fileLevelRequiredWhen: 'a file-level HLPPNLGRP and no help specifications are defined in the file',
+      recordRequiredWhen: 'no file-level HLPTITLE is specified and the record contains help specifications',
+      notValidOnRecordsWithoutHelpSpecs: true,
+      ddsReference:
+        'HLPTITLE (~line 7331): file- or record-level; HLPTITLE(\'text\'), the text up to 55 characters, the default title of online help (full-screen ' +
+        'help only, when the help source gives none). The file needs at least one HLPPNLGRP (file or help-specification level); with a file-level ' +
+        'HLPPNLGRP and no help specifications HLPTITLE is required at file level; otherwise every record with help specifications needs at least one; not ' +
+        'valid on records without help specifications. Option indicators are not valid on a file-level HLPTITLE; allowed on record-level ones and then ' +
+        'required on each if there are several; at most 15 per record when all have indicators; the first in effect is used.'
+    },
+    // ---- end I-121i ----
+
     // ---- I-121f: 8 ----
     // File-level display and I/O keywords: IGCCNV, DSPRL, DSPSIZ, ERRSFL, INDARA,
     // MSGLOC, OPENPRT, REF. Every fact below was re-read from DDS_Keyword_V7r6.txt
@@ -5014,6 +5097,40 @@
   function requiresHelpSpecification(name) { var e = i121bEntry(name); return !!(e && e.requiresHelpSpecification); }
   RECORD_TYPES.WINDOW.requiredFor = requiresWindowOnRecord();
   // ---- end I-121e ----
+  // ---- I-121i: accessors ----
+  var I121I_KEYWORDS = ['CSRINPONLY', 'ENTFLDATR', 'MSGALARM', 'HLPTITLE'];
+  function i121iEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I121I_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  /** The four cursor, message and help-title keywords, in the slice's order. */
+  function cursorMessageHelpKeywords() { return I121I_KEYWORDS.slice(); }
+  /** The levels the keyword is valid at (copy), or null for another keyword. */
+  function cursorMessageHelpLevels(name) { var e = i121iEntry(name); return e ? e.levels.slice() : null; }
+  /** 'valid' | 'notValid' for the keyword at `level` ('file' | 'record' | 'field'), or null. HLPTITLE differs by level. */
+  function cursorMessageHelpIndicatorMode(name, level) {
+    var e = i121iEntry(name);
+    if (!e) return null;
+    if (typeof e.optionIndicators === 'string') return e.optionIndicators;
+    return e.optionIndicators[level] || null;
+  }
+  /** ENTFLDATR's parameter value sets and defaults (deep copy). */
+  function entFldAtrRules() {
+    var e = RECORD_TYPES.ENTFLDATR;
+    return JSON.parse(JSON.stringify({ color: e.color, displayAttribute: e.displayAttribute, cursorVisible: e.cursorVisible, fieldLevel: e.fieldLevel }));
+  }
+  /** HLPTITLE's limits and requirements (deep copy). */
+  function hlptitleRules() {
+    var e = RECORD_TYPES.HLPTITLE;
+    return JSON.parse(JSON.stringify({
+      textMaxLength: e.textMaxLength, maxPerRecordWithIndicators: e.maxPerRecordWithIndicators,
+      indicatorsRequiredOnEachWhenMultiple: e.indicatorsRequiredOnEachWhenMultiple, requiresInFile: e.requiresInFile,
+      notValidOnRecordsWithoutHelpSpecs: e.notValidOnRecordsWithoutHelpSpecs
+    }));
+  }
+  /** MSGALARM's trigger keywords (copy). */
+  function msgalarmTriggers() { return RECORD_TYPES.MSGALARM.soundsWith.slice(); }
+  // ---- end I-121i ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
   // so the entry and the domain cannot drift.
@@ -5249,6 +5366,13 @@
     setofTextMaxLength: setofTextMaxLength,
     mnubardspFieldShapes: mnubardspFieldShapes,
     requiresHelpSpecification: requiresHelpSpecification,
+    // ---- I-121i ----
+    cursorMessageHelpKeywords: cursorMessageHelpKeywords,
+    cursorMessageHelpLevels: cursorMessageHelpLevels,
+    cursorMessageHelpIndicatorMode: cursorMessageHelpIndicatorMode,
+    entFldAtrRules: entFldAtrRules,
+    hlptitleRules: hlptitleRules,
+    msgalarmTriggers: msgalarmTriggers,
     // ---- I-121f ----
     fileDisplayIoKeywords: fileDisplayIoKeywords,
     msgLocLimits: msgLocLimits,

@@ -172,7 +172,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done v0.10.305 (8 entries; IGCCNV added to the no-indicator table; rules not enforced logged) | v0.10.305 |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done v0.10.310 (7 entries, two of them command-key patterns; relations not enforced opened as I-160) | v0.10.310 |
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Claimed (in progress) | — |
-| [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Not started | — |
+| [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
@@ -6303,11 +6303,28 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121i — Cursor, message and help-title keywords
 
-> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** File / Record · **Status:** Done (v0.10.313) · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (4):** `CSRINPONLY`, `ENTFLDATR`, `MSGALARM`, `HLPTITLE`.
 
 `ENTFLDATR` is also field-level (I-42). `HLPTITLE` is repeatable up to 15 per record (I-27) and has a file-level no-option-indicators entry.
+
+**Done (v0.10.313).** The four keywords now have a `RECORD_TYPES` entry in a `// ---- I-121i: 4 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` with the line cited in the entry:
+
+| Keyword | Levels | Parameters | Option indicators | Relations the section states |
+|---------|--------|-----------|-------------------|------------------------------|
+| `CSRINPONLY` | file, record | none | valid | arrow-key cursor movement only |
+| `MSGALARM` | file, record | none | valid | sounds with an active `ERRMSG`/`ERRMSGID`/`SFLMSG`/`SFLMSGID` or a validity error; once when `ALARM` is also active |
+| `ENTFLDATR` | field, record, file | optional `[(*COLOR c)] [(*DSPATR a ...)] [*CURSOR \| *NOCURSOR]` (colours BLU GRN PNK RED TRQ YLW WHT, default WHT; attributes BL CS HI ND RI UL, default HI; `*NOCURSOR` needs data type I) | valid | field level needs usage I or B; field-level wins over record-level; ignored with `DSPATR(PR)`; unpredictable with `EDTMSK` |
+| `HLPTITLE` | file, record | required `('text')`, at most 55 characters | not valid at file level, valid at record level and then required on each when there are several | needs a `HLPPNLGRP` in the file; file-level required with a file-level `HLPPNLGRP` and no help specifications, otherwise one per record with help specifications; not valid on records without help specifications; at most 15 per record; first in effect is used |
+
+`HLPTITLE`'s file-level indicator rule stays owned by the no-option-indicators table (`fileLevelOnly`); the spec entry restates it per level and the test checks the two agree for all four keywords at every level. New accessors: `cursorMessageHelpKeywords`, `cursorMessageHelpLevels`, `cursorMessageHelpIndicatorMode(name, level)`, `entFldAtrRules`, `hlptitleRules`, `msgalarmTriggers` (copies; null for other keywords).
+
+**Pure refactor, no behaviour change.** The `ENTFLDATR` field-level eligibility (input-capable only) and `HLPTITLE`'s instance panel and 15 cap already read their own tables; this slice records the facts beside them rather than re-pointing them, and logs what no guard enforces (below).
+
+**Findings, not fixed here** (the section states them; no guard was found): `HLPTITLE` text over 55 characters is accepted, as is `HLPTITLE` in a file with no `HLPPNLGRP`, a record-level `HLPTITLE` without indicators when the record has several, and a record on a file where the file-level / per-record requirement is not met; `ENTFLDATR` with a colour, display attribute or cursor value outside the lists is accepted through the raw editor, and `*NOCURSOR` on a non-I field is only an advisory note (correct - the reference says it is ignored), but the "unpredictable with `EDTMSK`" combination is not mentioned anywhere.
+
+New `src/test/i121iCursorMessageHelpTitleSpec.test.js`: each entry against the reference text (phrases looked up in the reference file itself), sweeps against `KEYWORD-LOOKUP.json`, the no-option-indicators table at every level, the writer's reading of every documented `ENTFLDATR` colour / attribute / cursor value, the field-keyword category rule, and accessor copy / safety. Confirmed failing against the pre-change spec via stash.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
 
