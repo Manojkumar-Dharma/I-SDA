@@ -228,7 +228,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Done | v0.10.319 |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
-| [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Not started (needs a rule or a decision) | — |
+| [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Claimed (in progress; decided: advisory only for an ID that is not seven characters, nothing refused) | — |
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
@@ -7530,7 +7530,7 @@ Tests: new `src/test/i165MultiLevelEligibility.test.js` (the spec accessors, eve
 
 ### I-166 — `MSGCON` message ID and message file name rules
 
-> **Area:** Field · **Status:** Not started (needs a rule or a decision) · **Depends on:** I-153 · **Size (estimate):** Small once a rule exists
+> **Area:** Field · **Status:** Claimed (in progress; decided: advisory only for an ID that is not seven characters, nothing refused) · **Depends on:** I-153 · **Size (estimate):** Small
 
 Opened from the I-153 deferred finding. `MSGCON(length message-ID [library-name/]message-file-name)`: the section states no length, character-set or format rule for the message ID, nor for the file or library names beyond the optional `library-name/` prefix. The seven-character message-ID form and the ten-character file and library lengths in the `MSGID` section are `MSGID`'s own and govern its `&field` and `msg-id` parameters; `MSGCON` has no field-reference form. Today any token is accepted (`MSGCON(20 X Y)` is written), by design, and the two open questions are recorded as `openQuestions` on the spec entry.
 
