@@ -3610,6 +3610,282 @@
         'are used by the compiler. No file-level form is documented. "Option indicators are not valid for this keyword."'
     },
     // ---- end I-121j ----
+    // ---- I-121l: 8 ----
+    // Choice and menu-bar field keywords: MNUBARCHC, MNUBARSEP, CHOICE, CHCACCEL,
+    // CHCAVAIL, CHCCTL, CHCSLT, CHCUNAVAIL. Every fact below was re-read from
+    // DDS_Keyword_V7r6.txt (the section named in each ddsReference), NOT taken from
+    // the code. All eight are field-level keywords. Pure refactor: nothing here
+    // adds a guard; rules with no guard yet are recorded here and logged as
+    // findings in keywordFixes.md.
+    //   * Option indicators: CHCACCEL and CHCCTL are in NO_OPTION_INDICATORS (a test
+    //     pins the two together); the other six accept them.
+    //   * The three colour-state keywords (CHCAVAIL, CHCUNAVAIL, CHCSLT) stay listed
+    //     in CHOICE_COLOR_STATE_KEYWORDS and PSHBTNFLD's whitelist keeps saying which
+    //     of them a push-button field may carry; the `requiresOneOfOnField` lists
+    //     below are the keyword's own section and a test cross-checks both ways.
+    //   * Where the record-level facts (MNUBAR's whitelist, PULLDOWN, SNGCHCFLD /
+    //     MLTCHCFLD parameters) live on their own entries they are NOT repeated.
+    MNUBARCHC: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'MNUBARCHC(choice-number pull-down-record choice-text [&return-field])',
+      optionIndicators: 'valid',
+      choiceNumber: { min: 1, max: 99, uniqueWithinMenuBarField: true },
+      pullDownRecord: { required: true, mustExistInFile: true, mustHaveKeyword: 'PULLDOWN' },
+      choiceText: {
+        required: true,
+        forms: ['character string', '&field-name'],
+        // The field must exist in the menu-bar record: character, usage P.
+        textField: { mustExistInMenuBarRecord: true, dataType: 'A', usage: 'P' },
+        mustFitOneLine: true,
+        // The first choice on a line begins at position 3 and a trailing blank is always inserted.
+        firstChoiceStartsAtPosition: 3,
+        maxLength: { '24x80': 76, '27x132': 128 },
+        trailingBlanksTruncated: true,
+        blanksBetweenChoices: 3
+      },
+      maxLinesForMenuBarField: 12,
+      maxLinesIncludeSeparatorLine: true,
+      mnemonic: {
+        marker: '>',
+        literalMarkerByDoubling: true,
+        markerCannotBeTheMnemonic: true,
+        singleByteNonBlank: true,
+        onlyOneInChoiceText: true,
+        notSharedBetweenChoices: true
+      },
+      // The optional hidden field that tells the program a choice was selected.
+      returnField: { optional: true, mustExistInMenuBarRecord: true, usage: 'H', dataType: 'Y', length: 2, decimalPositions: 0 },
+      // The menu-bar field itself: input-capable numeric, length 2, row 1 column 2.
+      menuBarField: { inputCapable: true, dataType: 'Y', length: 2, decimalPositions: 0, row: 1, column: 2 },
+      requiresOnRecord: ['MNUBAR'],
+      multiplePerField: true,
+      allowedOnSameField: ['ALIAS', 'CHCAVAIL', 'CHCSLT', 'INDTXT', 'MNUBARSEP', 'TEXT'],
+      ddsReference:
+        'MNUBARCHC (~line 8211): field-level; defines a choice for a menu-bar field. Format MNUBARCHC(choice-number pull-down-record choice-text [&return-field]). ' +
+        'The choice number (1 to 99) must be unique within the menu-bar field; the pull-down record must exist in the file and contain PULLDOWN. The choice text ' +
+        '(character string or a character usage-P field of the menu-bar record) must fit on one line: the first choice begins at position 3, so at most 76 ' +
+        'characters on a 24 x 80 display and 128 on 27 x 132; 3 blanks between choices; a menu-bar field takes at most 12 lines including the separator line. ' +
+        '">" marks the mnemonic (doubled to mean the character itself; it cannot be the mnemonic; single-byte, not blank, one per choice text, not shared between choices). ' +
+        'The optional return-field is a 2-digit numeric hidden field; the menu-bar field is input-capable Y 2,0 at row 1 column 2. The MNUBAR keyword is required at ' +
+        'the record level. Allowed alongside it on the field: ALIAS, CHCAVAIL, CHCSLT, INDTXT, MNUBARSEP, TEXT. "Option indicators are valid for this keyword."'
+    },
+    MNUBARSEP: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'MNUBARSEP([color] [display-attribute] [character])',
+      onParameterRequired: 'one',
+      optionIndicators: 'valid',
+      color: { wrapper: '*COLOR', values: ['BLU', 'GRN', 'PNK', 'RED', 'TRQ', 'YLW', 'WHT'], default: 'BLU', ignoredOnMonochrome: true },
+      displayAttribute: { wrapper: '*DSPATR', values: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'], default: 'normal (or low) intensity' },
+      // HI, RI and UL make the separator line not display.
+      attributesThatHideSeparator: ['HI', 'RI', 'UL'],
+      character: { wrapper: '*CHAR', length: 1, default: '-', recommendedInvariantCharactersOnly: true },
+      requiresOnRecord: ['MNUBAR'],
+      // The *NOSEPARATOR parameter cannot be used on MNUBAR when MNUBARSEP is specified.
+      conflictsWithMnubarParameter: '*NOSEPARATOR',
+      ifMoreThanOneColorKeywordFirstSpecifiedIsUsed: true,
+      ddsReference:
+        'MNUBARSEP (~line 8485): field-level, on a menu-bar field; sets the colour, display attributes or character of the menu-bar separator line. ' +
+        'Format MNUBARSEP([color] [display-attribute] [character]); one parameter must be specified. (*COLOR BLU|GRN|PNK|RED|TRQ|YLW|WHT), default blue, ignored on a ' +
+        'monochrome display; (*DSPATR BL|CS|HI|ND|RI|UL), default normal intensity, HI / RI / UL cause the separator line not to be displayed; (*CHAR \'c\'), one character, ' +
+        'default a dash. The MNUBAR keyword must be on the record; the *NOSEPARATOR parameter cannot be used on MNUBAR if MNUBARSEP is specified. ' +
+        '"Option indicators are valid for this keyword."'
+    },
+    CHOICE: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'CHOICE(choice-number choice-text [*SPACEB])',
+      optionIndicators: 'valid',
+      choiceNumber: { min: 1, max: 99, uniqueWithinSelectionField: true },
+      choiceText: {
+        required: true,
+        forms: ['character string', '&field-name'],
+        textField: { mustExistInSameRecord: true, dataType: 'A', usage: 'P' },
+        // The sum of position, choice-number width, text and gutter must fit the smallest display size.
+        mustFitSmallestDisplaySize: true,
+        maxWidth: { '24x80': 80, '27x132': 132 }
+      },
+      mnemonic: {
+        marker: '>',
+        literalMarkerByDoubling: true,
+        markerCannotBeTheMnemonic: true,
+        singleByteNonBlank: true,
+        onlyOneInChoiceText: true,
+        notSharedBetweenChoices: true,
+        ignoredWhenRenderedWithNumericSelection: true
+      },
+      spaceBefore: { parameter: '*SPACEB', optional: true },
+      // Vertical selection fields get a blank line between non-consecutive choice numbers; horizontal ones do not.
+      blankLineAutomaticallyBetweenNonConsecutiveVertical: true,
+      requiresOneOfOnField: ['SNGCHCFLD', 'MLTCHCFLD'],
+      multiplePerField: true,
+      allChoicesMustFitSmallestDisplaySize: true,
+      // When an option indicator turns a CHOICE off the list of choices is compressed.
+      choiceTurnedOffCompressesList: true,
+      ddsReference:
+        'CHOICE (~line 3756): field-level; defines a choice for a selection field. Format CHOICE(choice-number choice-text [*SPACEB]). The choice number (1 to 99) ' +
+        'is required and must be unique within the selection field; the choice text is a character string or a character usage-P field of the same record and must ' +
+        'fit the smallest display size (80 on 24 x 80, 132 on 27 x 132). ">" marks the mnemonic (doubled to mean the character itself; single-byte, not blank, ' +
+        'one per text, not shared between choices). *SPACEB inserts a blank space before the choice; vertical selection fields get one automatically between ' +
+        'non-consecutive choice numbers. SNGCHCFLD or MLTCHCFLD must also be on the field. Several CHOICE keywords per field. "Option indicators are valid for this ' +
+        'keyword. When a CHOICE keyword is turned off, the list of choices is compressed."'
+    },
+    CHCACCEL: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'CHCACCEL(choice-number accelerator-text)',
+      optionIndicators: 'notValid',
+      choiceNumber: { min: 1, max: 99 },
+      acceleratorText: {
+        required: true,
+        forms: ['character string', '&field-name'],
+        textField: { mustExistInSameRecord: true, dataType: 'A', usage: 'P' },
+        placedSpacesRightOfLongestChoiceText: 3,
+        // Together with the longest choice text it must not exceed the smallest display size's width.
+        combinedWithChoiceTextMustFitSmallestDisplaySize: true
+      },
+      // CHCACCEL only describes the accelerator key; it does not enable the function key.
+      doesNotEnableFunctionKey: true,
+      requiresOnField: ['SNGCHCFLD'],
+      requiresOnRecord: ['PULLDOWN'],
+      ddsReference:
+        'CHCACCEL (~line 2653): field-level, on a single-choice selection field in a pull-down record; supplies the text describing the accelerator key (it does not ' +
+        'enable the function key). Format CHCACCEL(choice-number accelerator-text); choice number 1 to 99; the text is a character string or a character usage-P ' +
+        'field of the same record, placed 3 spaces right of the longest choice text, the two together not wider than the smallest display size. Allowed only on ' +
+        'SNGCHCFLD fields in PULLDOWN records. "Option indicators are not valid for this keyword."'
+    },
+    CHCAVAIL: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'CHCAVAIL([color] [display-attributes])',
+      onParameterRequired: 'one',
+      optionIndicators: 'valid',
+      color: {
+        wrapper: '*COLOR',
+        values: ['BLU', 'GRN', 'PNK', 'RED', 'TRQ', 'YLW', 'WHT'],
+        default: 'GRN',
+        defaultAppliesTo: ['menu bar', 'selection field'],
+        ignoredOnMonochrome: true,
+        choiceTextFrom: ['MNUBARCHC', 'CHOICE', 'PSHBTNCHC']
+      },
+      displayAttribute: {
+        wrapper: '*DSPATR',
+        values: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'],
+        defaults: { menuBar: 'high intensity', selectionField: 'normal (or low) intensity' }
+      },
+      appliesTo: ['menu bar', 'push button', 'selection field', 'subfile single-choice list', 'subfile multiple-choice list'],
+      // Allowed on a field only if it has one or more of these.
+      requiresOneOfOnField: ['PSHBTNCHC', 'CHOICE', 'MNUBARCHC'],
+      // Also allowed on a subfile control record that uses one of these.
+      allowedOnSubfileControlRecordWithOneOf: ['SFLSNGCHC', 'SFLMLTCHC'],
+      ddsReference:
+        'CHCAVAIL (~line 2700): field-level; colour / display attributes of the available choices in a menu bar, push button, selection field, or subfile single- or ' +
+        'multiple-choice list. Format CHCAVAIL([color] [display-attributes]); one parameter must be specified. (*COLOR BLU|GRN|PNK|RED|TRQ|YLW|WHT), default green, ' +
+        'ignored on a monochrome display; (*DSPATR BL|CS|HI|ND|RI|UL), default high intensity in a menu bar and normal intensity in a selection field. Allowed on a field ' +
+        'only if it has one or more PSHBTNCHC, CHOICE or MNUBARCHC keywords; also on a subfile control record that uses SFLSNGCHC or SFLMLTCHC. "Option indicators are ' +
+        'valid for this keyword."'
+    },
+    CHCCTL: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'CHCCTL(choice-number &control-field [msg-id [msg-lib/]msg-file]) or CHCCTL(choice-number &control-field [&msg-id [&msg-lib/]&msg-file])',
+      optionIndicators: 'notValid',
+      choiceNumber: { min: 1, max: 99 },
+      // The 1-byte numeric hidden field holding the control value.
+      controlField: { required: true, mustBeInSameRecord: true, dataType: 'Y', length: 1, decimalPositions: 0, usage: 'H' },
+      controlValues: {
+        0: { onOutput: 'available', onInput: 'unselected' },
+        1: { onOutput: 'selected', onInput: 'selected' },
+        2: { onOutput: 'unavailable (cannot place cursor on choice unless help for choice is available)' },
+        3: { onOutput: 'unavailable (placing cursor on choice is allowed)' },
+        4: { onOutput: 'unavailable (cannot place cursor on choice even if help for choice is available)' }
+      },
+      // The cursor restrictions apply only to displays attached to a controller with the enhanced interface.
+      cursorRestrictionsNeedEnhancedInterfaceController: true,
+      message: {
+        optional: true,
+        defaultMessage: 'CPD919B',
+        messageFileRequiredWithMessageId: true,
+        libraryDefault: '*LIBL',
+        messageIdField: { mustExistInSameRecord: true, dataType: 'A', usage: 'P', length: 7 },
+        messageFileOrLibraryField: { mustExistInSameRecord: true, dataType: 'A', usage: 'P', length: 10 }
+      },
+      // A CHOICE or PSHBTNCHC keyword with the same choice number must be on the field.
+      requiresOneOfOnFieldWithSameChoiceNumber: ['CHOICE', 'PSHBTNCHC'],
+      ddsReference:
+        'CHCCTL (~line 2833): field-level, on a selection field; controls the availability of a choice. Format CHCCTL(choice-number &control-field [msg-id [msg-lib/]msg-file]) ' +
+        'or with the message parts as &fields. The choice number (1 to 99) and the control field are required; the control field is a 1-byte numeric (Y, 0 decimals) hidden ' +
+        'field in the same record whose output values are 0 available, 1 selected, 2 / 3 / 4 unavailable (cursor restrictions only on enhanced-interface controllers) and ' +
+        'whose input values are 0 unselected, 1 selected. The optional message is shown when an unavailable choice is selected, default CPD919B; a message-id field is A / P / 7, ' +
+        'a library or file field A / P / 10, the message file is required with a message id, *LIBL is searched if the library is omitted. A CHOICE or PSHBTNCHC keyword with the ' +
+        'same choice number must be on the field. "Option indicators are not valid for this keyword."'
+    },
+    CHCSLT: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'CHCSLT([color] [display-attributes])',
+      onParameterRequired: 'one',
+      optionIndicators: 'valid',
+      color: {
+        wrapper: '*COLOR',
+        values: ['BLU', 'GRN', 'PNK', 'RED', 'TRQ', 'YLW', 'WHT'],
+        default: 'WHT',
+        defaultAppliesTo: ['menu bar', 'selection field in a pull-down menu that does not display selection characters'],
+        ignoredOnMonochrome: true,
+        choiceTextFrom: ['MNUBARCHC', 'CHOICE']
+      },
+      displayAttribute: {
+        wrapper: '*DSPATR',
+        values: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'],
+        defaults: { menuBar: 'normal (or low) intensity', selectionFieldInPullDownWithoutSelectionCharacters: 'high intensity' }
+      },
+      // For a selection field in a pull-down menu with PULLDOWN(*NOSLTIND); also a subfile control record.
+      appliesTo: ['menu bar', 'selection field', 'subfile single-choice list', 'subfile multiple-choice list'],
+      requiresOneOfOnField: ['MNUBARCHC', 'CHOICE'],
+      // With CHOICE (rather than MNUBARCHC) the record must have PULLDOWN(*NOSLTIND).
+      whenChoiceInsteadOfMnubarchcRecordNeeds: 'PULLDOWN(*NOSLTIND)',
+      // On a subfile control record SFLSNGCHC or SFLMLTCHC must also be there.
+      onSubfileControlRecordRequiresOneOf: ['SFLSNGCHC', 'SFLMLTCHC'],
+      ddsReference:
+        'CHCSLT (~line 2920): field-level; colour / display attributes of a selected choice in a menu bar or selection field (a selection field in a PULLDOWN(*NOSLTIND) ' +
+        'pull-down menu), and of a subfile single- or multiple-choice list. Format CHCSLT([color] [display-attributes]); one parameter must be specified. (*COLOR ...), ' +
+        'default white, ignored on monochrome; (*DSPATR BL|CS|HI|ND|RI|UL), default normal intensity in a menu bar and high intensity in a selection field of a pull-down ' +
+        'that does not display selection characters. MNUBARCHC or CHOICE must also be on the field; with CHOICE the record needs PULLDOWN(*NOSLTIND); on a subfile ' +
+        'control record SFLSNGCHC or SFLMLTCHC is required. "Option indicators are valid for this keyword."'
+    },
+    CHCUNAVAIL: {
+      levels: ['field'],
+      parameters: 'required',
+      parameterGrammar: 'CHCUNAVAIL([color] [display-attributes])',
+      onParameterRequired: 'one',
+      optionIndicators: 'valid',
+      color: {
+        wrapper: '*COLOR',
+        values: ['BLU', 'GRN', 'PNK', 'RED', 'TRQ', 'YLW', 'WHT'],
+        default: 'BLU',
+        defaultAppliesTo: ['selection field'],
+        ignoredOnMonochrome: true,
+        choiceTextFrom: ['CHOICE', 'PSHBTNCHC']
+      },
+      displayAttribute: {
+        wrapper: '*DSPATR',
+        values: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'],
+        defaults: { selectionFieldOnMonochrome: 'normal (or low) intensity' },
+        // On a monochrome display the first character of an unavailable choice is overwritten with an asterisk.
+        monochromeFirstCharacterOverwrittenWith: '*'
+      },
+      appliesTo: ['selection field', 'push button field', 'subfile single-choice list', 'subfile multiple-choice list'],
+      requiresOneOfOnField: ['CHOICE', 'PSHBTNCHC'],
+      onSubfileControlRecordRequiresOneOf: ['SFLSNGCHC', 'SFLMLTCHC'],
+      ddsReference:
+        'CHCUNAVAIL (~line 3002): field-level; colour / display attributes of the unavailable choices in a selection field or push button field (and subfile single- or ' +
+        'multiple-choice lists). Format CHCUNAVAIL([color] [display-attributes]); one parameter must be specified. (*COLOR ...), default blue, ignored on monochrome; ' +
+        '(*DSPATR BL|CS|HI|ND|RI|UL), default normal intensity on monochrome, where the first character of an unavailable choice is overwritten with an asterisk. ' +
+        'On a field it is allowed only if there are also one or more CHOICE or PSHBTNCHC keywords; on a subfile control record only if SFLSNGCHC or SFLMLTCHC is also ' +
+        'used. "Option indicators are valid for this keyword."'
+    },
+    // ---- end I-121l ----
   };
 
   /** Task I-121 (system-value constant keywords slice) - the field-level
@@ -5909,6 +6185,30 @@
     return { requiresRecordKeyword: e.requiresRecordKeyword, warnsAtCreationWith: e.warnsAtCreationWith.slice() };
   }
   // ---- end I-121j ----
+  // ---- I-121l: accessors ----
+  var I121L_KEYWORDS = ['MNUBARCHC', 'MNUBARSEP', 'CHOICE', 'CHCACCEL', 'CHCAVAIL', 'CHCCTL', 'CHCSLT', 'CHCUNAVAIL'];
+  function i121lEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return I121L_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
+  }
+  /** The eight choice and menu-bar field keywords, in the slice's order. */
+  function choiceMenuBarKeywords() { return I121L_KEYWORDS.slice(); }
+  /** 'valid' | 'notValid' for the keyword's option indicators, or null for another keyword. */
+  function choiceMenuBarIndicatorMode(name) { var e = i121lEntry(name); return e ? e.optionIndicators : null; }
+  /** The keywords of which the field must carry at least one, or [] (a copy; null for another keyword). */
+  function choiceMenuBarRequiresOneOf(name) {
+    var e = i121lEntry(name);
+    return e ? (e.requiresOneOfOnField || []).slice() : null;
+  }
+  /** The keyword's own-section facts (a deep copy without the prose), or null for another keyword. */
+  function choiceMenuBarFacts(name) {
+    var e = i121lEntry(name);
+    if (!e) return null;
+    var copy = JSON.parse(JSON.stringify(e));
+    delete copy.ddsReference;
+    return copy;
+  }
+  // ---- end I-121l ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
   // so the entry and the domain cannot drift.
@@ -6045,6 +6345,10 @@
     isAltKeyName: isAltKeyName,
     altKeyDefaultKey: altKeyDefaultKey,
     isValidValue: isValidValue,
+    choiceMenuBarKeywords: choiceMenuBarKeywords,
+    choiceMenuBarIndicatorMode: choiceMenuBarIndicatorMode,
+    choiceMenuBarRequiresOneOf: choiceMenuBarRequiresOneOf,
+    choiceMenuBarFacts: choiceMenuBarFacts,
     multiLevelKeywords: multiLevelKeywords,
     multiLevelLevels: multiLevelLevels,
     multiLevelValidAt: multiLevelValidAt,

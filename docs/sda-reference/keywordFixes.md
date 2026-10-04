@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-180 of 190 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.325**.
+181 of 191 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.326**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -175,7 +175,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Done | v0.10.321 |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Done | v0.10.316 |
-| [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Claimed (in progress) | — |
+| [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Done | v0.10.326 |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Done v0.10.325 (5 of 5 specified) | v0.10.325 |
@@ -233,6 +233,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Claimed (in progress) | — |
+| [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -247,20 +248,20 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-162](#i-162) | Claimed | `HELP` relations to the other help keywords (raised by I-121h, probed). |
-| 2 | [I-121l](#i-121l) | Claimed | The one keyword slice still open: 8 keywords with no spec entry (`check_spec_coverage.py` confirms). |
-| 3 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 7 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
-| 8 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
-| 9 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
+| 2 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 3 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 5 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 6 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
+| 7 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
+| 8 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
+| 9 | [I-171](#i-171) | Not started | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-169, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-171, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6420,13 +6421,34 @@ New `src/test/i121kHelpSpecKeywordSpec.test.js` (42 checks): every heading and c
 
 ### I-121l — Choice and menu-bar field keywords
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Field · **Status:** Done (v0.10.326) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `MNUBARCHC`, `MNUBARSEP`, `CHOICE`, `CHCACCEL`, `CHCAVAIL`, `CHCCTL`, `CHCSLT`, `CHCUNAVAIL`.
 
 `CHOICE_COLOR_STATE_KEYWORDS` already holds the colour-state trio (v0.10.269); `PSHBTNFLD`'s whitelist names `CHCCTL`/`CHCAVAIL`/`CHCUNAVAIL`. Cross-check both directions.
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
+
+**Done (v0.10.326).** The eight keywords now have a `RECORD_TYPES` entry in a `// ---- I-121l: 8 ----` block of `keywordSpec.js`, each re-read from `DDS_Keyword_V7r6.txt` with the line cited in the entry. All eight are field-level:
+
+| Keyword | Parameters | Option indicators | Facts the section states |
+|---------|-----------|-------------------|--------------------------|
+| `MNUBARCHC` | `(choice-number pull-down-record choice-text [&return-field])` | valid | number 1-99, unique in the field; pull-down record must exist and have `PULLDOWN`; text 76 / 128 characters, 3 blanks between choices, 12 lines including the separator; mnemonic rules; return field a 2-digit numeric hidden field; menu-bar field input-capable Y 2,0 at row 1 column 2; `MNUBAR` required on the record |
+| `MNUBARSEP` | `([color] [display-attribute] [character])`, one required | valid | default blue, normal intensity, a dash; `HI`, `RI`, `UL` hide the line; `MNUBAR` on the record; `MNUBAR(*NOSEPARATOR)` conflicts |
+| `CHOICE` | `(choice-number choice-text [*SPACEB])` | valid | number 1-99, unique in the field; text fits 80 / 132; mnemonic rules; blank line between non-consecutive vertical choices; `SNGCHCFLD` or `MLTCHCFLD` required; turning a choice off compresses the list |
+| `CHCACCEL` | `(choice-number accelerator-text)` | not valid | text 3 spaces right of the longest choice; does not enable the key; only on `SNGCHCFLD` fields in `PULLDOWN` records |
+| `CHCAVAIL` | `([color] [display-attributes])`, one required | valid | default green; high intensity in a menu bar, normal in a selection field; needs `PSHBTNCHC`, `CHOICE` or `MNUBARCHC`; also on a subfile control record with `SFLSNGCHC` / `SFLMLTCHC` |
+| `CHCCTL` | `(choice-number &control-field [msg-id [msg-lib/]msg-file])` | not valid | control field a 1-byte numeric hidden field (Y, 0 decimals) with values 0-4; message optional, default CPD919B, file required with an id, `*LIBL`; a `CHOICE` or `PSHBTNCHC` with the same number required |
+| `CHCSLT` | `([color] [display-attributes])`, one required | valid | default white; normal intensity in a menu bar, high in a selection field of a pull-down without selection characters; `MNUBARCHC` or `CHOICE` required, and with `CHOICE` the record needs `PULLDOWN(*NOSLTIND)`; subfile control record needs `SFLSNGCHC` / `SFLMLTCHC` |
+| `CHCUNAVAIL` | `([color] [display-attributes])`, one required | valid | default blue; on monochrome normal intensity and an asterisk over the first character; needs `CHOICE` or `PSHBTNCHC`; subfile control record needs `SFLSNGCHC` / `SFLMLTCHC` |
+
+**No second source of truth.** `CHOICE_COLOR_STATE_KEYWORDS` and `PSHBTNFLD`'s whitelist stay as they are and the new test cross-checks them both ways (`PSHBTNFLD` may carry `CHCAVAIL` and `CHCUNAVAIL` but not `CHCSLT`, and the keywords' own prerequisites say the same); `MNUBAR`'s whitelist, `PULLDOWN`, the `SNGCHCFLD` / `MLTCHCFLD` parameters and the `HLPARA(*FLD)` choice-number bounds stay with their owners. None of the eight carries a `mutex`, `whitelist` or record-reference fact.
+
+New accessors `choiceMenuBarKeywords()`, `choiceMenuBarIndicatorMode(name)`, `choiceMenuBarRequiresOneOf(name)` and `choiceMenuBarFacts(name)` (a deep copy without the prose; `null` outside the eight).
+
+**Not enforced (spec facts only; opened as [I-171](#i-171)).**
+
+New `src/test/i121lChoiceMenuBarKeywordSpec.test.js` (99 checks): every cited sentence against the keyword's own section, the levels against `KEYWORD-LOOKUP.json`, the no-option-indicators table both ways, `CHOICE_COLOR_STATE_KEYWORDS` phrases, `PSHBTNFLD`'s and `MNUBAR`'s whitelists, the record-reference table and the accessors. Confirmed failing against the pre-change source via stash. Full suite: 273 files, 16,047 checks, zero failures. `check_spec_coverage.py` now reports every keyword in the lookup as specified.
 
 ---
 
@@ -7571,5 +7593,23 @@ Raised by the I-121o slice. The DDS Reference states, and `keywordSpec.js` now h
 - `HLPID`: a numeric value 1 to 999, unique within the record. Neither is checked, and the General keywords row is a free-text box with the placeholder `e.g. FLDHELP1`, which suggests a name rather than a number.
 
 To do: probe each case in the raw keyword editor and the panels, then add spec-driven, diff-based guards in the I-140 / I-151 shape, make the `HLPID` input numeric 1-999, and decide what turning the reference flag off should do to `DLTCHK` / `DLTEDT`.
+
+---
+
+<a id="i-171"></a>
+
+### I-171 — Choice and menu-bar rules are not enforced
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-121l
+
+Raised by the I-121l slice. The DDS Reference states, and `keywordSpec.js` now holds as facts (`choiceMenuBarFacts`), rules the writer has no spec-driven guard for. Found by reading the writer's existing choice and menu-bar functions; no raw-editor or panel probe has been run yet, so each item needs confirming before a guard is written.
+
+- `CHCACCEL` is "allowed only on single-choice selection fields (`SNGCHCFLD`) in pull-down records (`PULLDOWN`)".
+- `CHCSLT` with `CHOICE` (rather than `MNUBARCHC`) needs the record to have `PULLDOWN(*NOSLTIND)`.
+- `CHCCTL`: the control field must be a 1-byte numeric hidden field (Y, 0 decimals) in the same record, and a `CHOICE` or `PSHBTNCHC` with the same choice number must be on the field.
+- `MNUBARCHC`: the pull-down record must exist and carry `PULLDOWN`, and a menu-bar field is limited to 12 lines including the separator.
+- `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` need their companion choice keyword on the field (`CHCSLT`: `MNUBARCHC` or `CHOICE`; the others as in the table above).
+
+To do: probe each case in the raw keyword editor and the choice and menu-bar panels, then add spec-driven, diff-based guards in the I-140 / I-151 shape (refuse only what an edit adds), and decide for each whether the reference's "must" is a refusal or an advisory note.
 
 ---
