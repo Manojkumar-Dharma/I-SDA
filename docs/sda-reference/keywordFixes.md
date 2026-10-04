@@ -223,7 +223,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-158](#i-158) | Record | `MNUBARDSP` panel writes its field names without the `&` the compiler requires | I-152 | Done | v0.10.312 |
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Done | v0.10.314 |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Done | v0.10.315 |
-| [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Not started | — |
+| [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -242,7 +242,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 3 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 5 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 6 | [I-161](#i-161) | Not started | Help-specification rules and `HLPARA` parameters (raised by I-121k). Size (estimate): Medium. |
+| 6 | [I-161](#i-161) | Claimed (in progress) | Help-specification rules and `HLPARA` parameters (raised by I-121k). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7332,7 +7332,7 @@ Full suite: 263 files, 14,913 checks, zero failures (run on the tree merged with
 
 ### I-161 — Help-specification rules are not enforced and `HLPARA`'s parameters are not reachable
 
-> **Area:** Help-spec · **Status:** Not started · **Depends on:** I-121k
+> **Area:** Help-spec · **Status:** Claimed (in progress) · **Depends on:** I-121k
 
 Raised by the I-121k slice (help-specification-level keywords). The DDS Reference states, and `keywordSpec.js` now holds as facts (`helpSpecFacts`, `helpSpecificationRules`), rules a search of the writer, engine and panels found no guard for (no probe has been run); only `HLPBDY` with `HLPDOC` and the file-level help relations (I-160) are enforced today:
 
