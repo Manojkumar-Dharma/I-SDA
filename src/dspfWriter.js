@@ -10739,6 +10739,7 @@
     isSystemValueConstantKeyword: function (name) { return KeywordSpec.isSystemValueConstantKeyword(name); },
     systemValueConstantLabel: function (name) { return KeywordSpec.systemValueConstantLabel(name); },
     msgconLengthRange: function () { return KeywordSpec.msgconLengthRange(); },
+    keywordAlternateNames: function (name) { return KeywordSpec.alternateNamesOf(name); },
     keyboardShiftValues: function (dataType) { return KeywordSpec.keyboardShiftValues(dataType); },
     isPosition35Value: function (value) { return KeywordSpec.isPosition35Value(value); },
     parseCommandKey: function (token) { return KeywordSpec.parseCommandKey(token); },

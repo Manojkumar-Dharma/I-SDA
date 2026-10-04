@@ -4675,8 +4675,8 @@
       // "PAGEUP/ROLLDOWN", the same keyword under two names. altNames
       // (4th arg) below is what makes getFileFlagKeyword recognize a
       // legacy-spelled instance as this row's own state.
-      ['fk-pagedown', 'PAGEDOWN', 'Page down / Roll up', '10-99', ['ROLLUP']],
-      ['fk-pageup', 'PAGEUP', 'Page up / Roll down', '10-99', ['ROLLDOWN']],
+      ['fk-pagedown', 'PAGEDOWN', 'Page down / Roll up', '10-99', DspfWriter.keywordAlternateNames('PAGEDOWN')],
+      ['fk-pageup', 'PAGEUP', 'Page up / Roll down', '10-99', DspfWriter.keywordAlternateNames('PAGEUP')],
       ['fk-help', 'HELP', 'Help', '10-99'],
       ['fk-hlprtn', 'HLPRTN', 'Help return', '10-99'],
       // Task I-3: VLDCMDKEY - "Option indicators are not valid for this
@@ -5050,8 +5050,8 @@
     [
       ['fk-clear', 'CLEAR'],
       ['fk-home', 'HOME'],
-      ['fk-pagedown', 'PAGEDOWN', ['ROLLUP']],
-      ['fk-pageup', 'PAGEUP', ['ROLLDOWN']],
+      ['fk-pagedown', 'PAGEDOWN', DspfWriter.keywordAlternateNames('PAGEDOWN')],
+      ['fk-pageup', 'PAGEUP', DspfWriter.keywordAlternateNames('PAGEUP')],
       // Task I-68 - HLPRTN's own reverse-direction conflict check (see
       // commitIndicatorTextRow's `conflictFn` comment): 5th element
       // (row[4]; row[2] is altNames, row[3] is noConditioning).

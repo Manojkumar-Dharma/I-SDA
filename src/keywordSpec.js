@@ -1256,6 +1256,203 @@
     },
     // ---- end I-121g ----
 
+    // ---- I-121h: 10 ----
+    // The command-function keywords: ALWGPH, CLEAR, HELP, HLPRTN, HOME, INVITE,
+    // PAGEDOWN, PAGEUP, PRINT, VLDCMDKEY (ROLLUP / ROLLDOWN are PAGEDOWN's and
+    // PAGEUP's alternate names, not entries of their own). Every fact below was
+    // re-read from DDS_Keyword_V7r6.txt (the section named in each ddsReference),
+    // not taken from the code, and only what a section states is recorded; where
+    // the section is silent nothing is invented (none of these sections states the
+    // legal range of a response indicator, so none is recorded - see the I-121h
+    // section of keywordFixes.md). The field names are the ones the other slices
+    // use (levels, noParameters, optionIndicators, parameters, requiresInFile,
+    // excludesInFile, mutex). Enforcement stays with the existing guards; rules with
+    // no guard yet are recorded here and opened as tasks. The System/36 response-
+    // indicator restrictions are I-121p's (S36E_RESTRICTIONS), not repeated here.
+    ALWGPH: {
+      levels: ['file', 'record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      // "This keyword cannot be specified with the SFL or the USRDFN keywords."
+      // (SFL and USRDFN records already refuse it through their own closed lists.)
+      excludesOnRecordTypes: ['SFL', 'USRDFN'],
+      // "The keyword is ignored if it is specified for a file displayed on any other
+      // type of display." - a runtime fact, not enforced.
+      ignoredExceptOnDevice: '5292 Model 2 Color Display Station',
+      ddsReference:
+        'ALWGPH (Allow Graphics) keyword (~line 2046): file- or record-level; allows graphics and alphanumeric contents to be displayed by the ' +
+        'record format on a 5292 Model 2 Color Display Station at the same time, ignored on any other display. This keyword has no parameters. ' +
+        'Option indicators are valid for this keyword. This keyword cannot be specified with the SFL or the USRDFN keywords.'
+    },
+    CLEAR: {
+      levels: ['file', 'record'],
+      optionIndicators: 'valid',
+      parameters: {
+        format: "CLEAR[(response-indicator ['text'])]",
+        responseIndicator: { required: false },
+        text: { quoted: true, maxPrintedLength: 50, longerIsTruncatedOnTheListing: true }
+      },
+      // "The Clear key is processed like a command attention key (no input data is
+      // transmitted from the device)."
+      processedLike: 'commandAttentionKey',
+      ddsReference:
+        'CLEAR (Clear) keyword (~line 3881): file- or record-level; your program receives control if the workstation user presses the Clear key and, ' +
+        "optionally, the response indicator is set on. CLEAR[(response-indicator ['text'])]. The Clear key is processed like a command attention key. " +
+        'The optional text (single quotation marks required) is truncated to 50 characters on the program printout. Option indicators are valid for this keyword.'
+    },
+    HELP: {
+      levels: ['file', 'record'],
+      optionIndicators: 'valid',
+      parameters: {
+        format: "HELP[(response-indicator ['text'])]",
+        responseIndicator: { required: false },
+        text: { quoted: true, maxPrintedLength: 50, longerIsTruncatedOnTheListing: true }
+      },
+      // "When a response indicator is specified on the HELP keyword, no H
+      // specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can be
+      // specified in the file."
+      withResponseIndicatorExcludesInFile: ['HLPRCD', 'HLPPNLGRP', 'HLPDOC', 'HLPRTN'],
+      withResponseIndicatorExcludesHelpSpecifications: true,
+      // "HELP (with no response indicator) is required if the file contains H
+      // specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords."
+      withoutResponseIndicatorRequiredWhenFileContains: ['HLPRCD', 'HLPPNLGRP', 'HLPDOC', 'HLPRTN'],
+      withoutResponseIndicatorRequiredWhenFileHasHelpSpecifications: true,
+      ddsReference:
+        'HELP (Help) keyword (~line 6564): file- or record-level; enables the Help key. HELP[(response-indicator [\'text\'])]. When a response indicator ' +
+        'is specified on the HELP keyword, no H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can be specified in the file. HELP ' +
+        '(with no response indicator) is required if the file contains H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords. Option ' +
+        'indicators are valid for this keyword.'
+    },
+    HLPRTN: {
+      levels: ['file', 'record'],
+      optionIndicators: 'valid',
+      parameters: {
+        format: "HLPRTN[(response-indicator ['text'])]",
+        responseIndicator: { required: false },
+        text: { quoted: true, maxPrintedLength: 50, longerIsTruncatedOnTheListing: true }
+      },
+      // "HLPRTN at either the file or record level takes priority over any HLPRCD,
+      // HLPPNLGRP, or HLPDOC keywords."
+      takesPriorityOver: ['HLPRCD', 'HLPPNLGRP', 'HLPDOC'],
+      // "A warning message appears at creation time if you specify an unoptioned
+      // HLPRTN keyword on a file or record containing H specifications."
+      unoptionedWithHelpSpecificationsWarnsAtCreation: true,
+      ddsReference:
+        'HLPRTN (Help Return) keyword (~line 7194): file- or record-level; returns control to your program when you press the Help key. HLPRTN[(response-' +
+        'indicator [\'text\'])]. It takes priority over any HLPRCD, HLPPNLGRP, or HLPDOC keywords. Without an option indicator control returns to your program ' +
+        '(a creation-time warning if the file or record contains H specifications); with one, only when it is on. Option indicators are valid for this keyword.'
+    },
+    HOME: {
+      levels: ['file', 'record'],
+      optionIndicators: 'valid',
+      parameters: {
+        format: "HOME[(response-indicator ['text'])]",
+        responseIndicator: { required: false },
+        text: { quoted: true, maxPrintedLength: 50, longerIsTruncatedOnTheListing: true }
+      },
+      // The home position, in order of priority (a runtime fact).
+      homePositionPriority: ['the cursor position specified by the last output operation', 'the first unprotected input field', 'position 1, line 1'],
+      ddsReference:
+        'HOME (Home) keyword (~line 7380): file- or record-level; recognise and handle the Home key through your program. HOME[(response-indicator ' +
+        '[\'text\'])]. If the cursor is already at the home position when the key is pressed, control returns to the program as for a command attention key. ' +
+        'Option indicators are valid for this keyword.'
+    },
+    INVITE: {
+      levels: ['file', 'record'],
+      noParameters: true,
+      optionIndicators: 'valid',
+      // "INVITE cannot be specified at both the file and record level and cannot be
+      // specified with the subfile keyword (SFL)."
+      notAtBothFileAndRecordLevel: true,
+      excludesOnRecordTypes: ['SFL'],
+      ddsReference:
+        'INVITE (Invite) keyword (~line 7553): file- or record-level; invites the device for a later read operation. This keyword has no parameters. ' +
+        'INVITE cannot be specified at both the file and record level and cannot be specified with the subfile keyword (SFL). Option indicators are valid ' +
+        'for this keyword.'
+    },
+    PAGEDOWN: {
+      levels: ['file', 'record'],
+      optionIndicators: 'valid',
+      // "PAGEDOWN is the same as ROLLUP" - ROLLUP is read as PAGEDOWN and PAGEDOWN is
+      // written back (the record-indicator group derives its alternate names here).
+      alternateNames: ['ROLLUP'],
+      parameters: {
+        format: "PAGEDOWN[(response-indicator ['text'])]",
+        responseIndicator: { required: false },
+        text: { quoted: true, maxPrintedLength: 50, longerIsTruncatedOnTheListing: true }
+      },
+      // "The ROLLUP keyword cannot be specified with PAGEDOWN."
+      notWithAlternateName: 'ROLLUP',
+      ddsReference:
+        'PAGEDOWN/PAGEUP (Page Down/Page Up) keywords (~line 9326): file- or record-level; PAGEDOWN[(response-indicator [\'text\'])]. The ROLLUP keyword ' +
+        'cannot be specified with PAGEDOWN. Note: PAGEDOWN is the same as ROLLUP. Option indicators are valid for these keywords.'
+    },
+    PAGEUP: {
+      levels: ['file', 'record'],
+      optionIndicators: 'valid',
+      alternateNames: ['ROLLDOWN'],
+      parameters: {
+        format: "PAGEUP[(response-indicator ['text'])]",
+        responseIndicator: { required: false },
+        text: { quoted: true, maxPrintedLength: 50, longerIsTruncatedOnTheListing: true }
+      },
+      // "The ROLLDOWN keyword cannot be specified with PAGEUP."
+      notWithAlternateName: 'ROLLDOWN',
+      ddsReference:
+        'PAGEDOWN/PAGEUP (Page Down/Page Up) keywords (~line 9326): file- or record-level; PAGEUP[(response-indicator [\'text\'])]. The ROLLDOWN keyword ' +
+        'cannot be specified with PAGEUP. Note: PAGEUP is the same as ROLLDOWN. Option indicators are valid for these keywords.'
+    },
+    PRINT: {
+      levels: ['file', 'record'],
+      optionIndicators: 'valid',
+      parameters: {
+        format: "PRINT[(response-indicator ['text']) | (*PGM) | ([library-name/]printer-file-name)]",
+        // The four ways the section lists; a bare PRINT spools to QSYSPRT (or the
+        // device's PRTFILE).
+        forms: ['none', 'response-indicator', '*PGM', '[library-name/]printer-file-name'],
+        text: { quoted: true, maxPrintedLength: 50, onlyWithResponseIndicator: true, longerIsTruncatedOnTheListing: true }
+      },
+      // "The only difference between these two forms [response indicator, *PGM] is
+      // the response indicator; all other processing is the same."
+      pgmEquivalentToResponseIndicator: true,
+      ddsReference:
+        'PRINT (Print) keyword (~line 9407): file- or record-level; the workstation user can press the Print key to print the current display. ' +
+        "PRINT[(response-indicator ['text']) | (*PGM) | ([library-name/]printer-file-name)]. With a response indicator or *PGM control returns to your " +
+        'program (no data is received); with a printer file the display image is printed through it. Option indicators are valid for this keyword.'
+    },
+    VLDCMDKEY: {
+      levels: ['file', 'record'],
+      // "Option indicators are not valid for this keyword." (the noOptionIndicators fact)
+      optionIndicators: 'notValid',
+      parameters: {
+        format: "VLDCMDKEY(response-indicator ['text'])",
+        responseIndicator: { required: true },
+        text: { quoted: true, maxPrintedLength: 50, longerIsTruncatedOnTheListing: true }
+      },
+      // The keys a command key must be activated through to count as valid, with
+      // the section's own conditions.
+      validCommandKeysActivatedBy: [
+        { keyword: 'ALTHELP(CAnn)' },
+        { keyword: 'ALTPAGEUP(CFnn)', onlyIf: 'PAGEUP is also specified' },
+        { keyword: 'ALTPAGEDWN(CFnn)', onlyIf: 'PAGEDOWN is also specified' },
+        { keyword: 'CAnn' },
+        { keyword: 'CFnn' },
+        { keyword: 'CLEAR' },
+        { keyword: 'HELP', onlyIf: 'the Help key is passed back to the application (HELP and HLPRTN, or HELP and no help areas for the displayed records)' },
+        { keyword: 'HOME' },
+        { keyword: 'PAGEDOWN' },
+        { keyword: 'PAGEUP' },
+        { keyword: 'PRINT', onlyIf: 'the Print key is passed back to the application (a response indicator or *PGM)' },
+        { keyword: 'ROLLUP' },
+        { keyword: 'ROLLDOWN' }
+      ],
+      ddsReference:
+        'VLDCMDKEY (Valid Command Key) keyword (~line 13218): file- or record-level; the response indicator is set on when any valid command key other ' +
+        "than the Enter key is pressed. VLDCMDKEY(response-indicator ['text']). The response-indicator parameter is required. For a command key to be " +
+        'considered valid it must have been activated by one of the listed keywords. Option indicators are not valid for this keyword.'
+    },
+    // ---- end I-121h ----
+
     // Task I-121 PULLDOWN slice. Same mutex shape as WINDOW above (a
     // closed list forbidden on the same record in either direction), just
     // a much larger list - re-verified fresh against PULLDOWN's own DDS
@@ -4330,6 +4527,82 @@
     return !!(sp && sp.gutterRequiresLayout);
   }
 
+  // ---- I-121h accessors ----
+  var COMMAND_FUNCTION_KEYWORDS = ['ALWGPH', 'CLEAR', 'HELP', 'HLPRTN', 'HOME', 'INVITE',
+    'PAGEDOWN', 'PAGEUP', 'PRINT', 'VLDCMDKEY'];
+  /** Task I-121h - the ten command-function keywords, in entry order (a fresh
+   *  array). ROLLUP / ROLLDOWN are PAGEDOWN's / PAGEUP's alternate names. */
+  function commandFunctionKeywords() { return COMMAND_FUNCTION_KEYWORDS.slice(); }
+  /** The entry for one of them, or null (own-property safe, case-sensitive,
+   *  non-strings are not keywords). */
+  function commandFunctionEntry(name) {
+    if (typeof name !== 'string' || COMMAND_FUNCTION_KEYWORDS.indexOf(name) < 0) return null;
+    return RECORD_TYPES[name];
+  }
+  /** Other spellings DDS reads as the same keyword (PAGEDOWN -> ['ROLLUP'],
+   *  PAGEUP -> ['ROLLDOWN']); [] for every other name. A fresh array. */
+  function alternateNamesOf(name) {
+    var e = commandFunctionEntry(name);
+    return e && e.alternateNames ? e.alternateNames.slice() : [];
+  }
+  /** Whether the keyword's format has a response-indicator parameter (CLEAR,
+   *  HELP, HLPRTN, HOME, PAGEDOWN, PAGEUP, VLDCMDKEY; PRINT's is one of its
+   *  forms). ALWGPH and INVITE have no parameters. */
+  function takesResponseIndicator(name) {
+    var e = commandFunctionEntry(name);
+    if (!e || !e.parameters) return false;
+    return !!e.parameters.responseIndicator || (name === 'PRINT');
+  }
+  /** Whether the section says the response indicator is required (VLDCMDKEY
+   *  alone: "The response-indicator parameter is required"). */
+  function responseIndicatorRequired(name) {
+    var e = commandFunctionEntry(name);
+    return !!(e && e.parameters && e.parameters.responseIndicator && e.parameters.responseIndicator.required === true);
+  }
+  /** The length the optional 'text' is truncated to on the listing (50), or
+   *  null for a keyword with no text parameter. */
+  function indicatorTextMaxLength(name) {
+    var e = commandFunctionEntry(name);
+    return e && e.parameters && e.parameters.text ? e.parameters.text.maxPrintedLength : null;
+  }
+  /** PRINT's four forms as the section lists them (a fresh array). */
+  function printForms() { return RECORD_TYPES.PRINT.parameters.forms.slice(); }
+  /** HELP's two relations to the other help keywords, as the section states
+   *  them (fresh arrays): with a response indicator none of
+   *  `excludedInFile` (nor H specifications) may be in the file; without one
+   *  HELP is required when the file contains any of `requiredWhenFileContains`
+   *  (or H specifications). */
+  function helpRelations() {
+    var h = RECORD_TYPES.HELP;
+    return {
+      withResponseIndicatorExcludesInFile: h.withResponseIndicatorExcludesInFile.slice(),
+      withResponseIndicatorExcludesHelpSpecifications: h.withResponseIndicatorExcludesHelpSpecifications === true,
+      withoutResponseIndicatorRequiredWhenFileContains: h.withoutResponseIndicatorRequiredWhenFileContains.slice(),
+      withoutResponseIndicatorRequiredWhenFileHasHelpSpecifications: h.withoutResponseIndicatorRequiredWhenFileHasHelpSpecifications === true
+    };
+  }
+  /** The record types the section says the keyword cannot be specified with
+   *  (ALWGPH: SFL, USRDFN; INVITE: SFL), a fresh array, [] otherwise. */
+  function commandFunctionExcludedRecordTypes(name) {
+    var e = commandFunctionEntry(name);
+    return e && e.excludesOnRecordTypes ? e.excludesOnRecordTypes.slice() : [];
+  }
+  /** Whether the section forbids the keyword at both file and record level
+   *  (INVITE). */
+  function commandFunctionNotAtBothLevels(name) {
+    var e = commandFunctionEntry(name);
+    return !!(e && e.notAtBothFileAndRecordLevel === true);
+  }
+  /** VLDCMDKEY's list of keywords a command key must be activated through
+   *  (copies of the entries). */
+  function validCommandKeys() {
+    return RECORD_TYPES.VLDCMDKEY.validCommandKeysActivatedBy.map(function (k) {
+      var o = { keyword: k.keyword };
+      if (k.onlyIf) o.onlyIf = k.onlyIf;
+      return o;
+    });
+  }
+
   /** Task I-121 record-indicator group slice - the group's keyword names in
    *  the writer's original order (a copy). */
   function recordIndicatorKeywordNames() {
@@ -4804,14 +5077,25 @@
   // INDTXT have one, the other six do not), so the two can never drift.
   // Not migrated: the row labels and the dropdown's own order (a screen
   // presentation). (Task I-135 later added SETOFF as SETOF's alternate name.)
+  // Task I-121h: the seven keywords of this group that are command-function
+  // keywords (CLEAR, PAGEDOWN, PAGEUP, HOME, HELP, HLPRTN, VLDCMDKEY) take
+  // their alternate names and their DDS citation from their own RECORD_TYPES
+  // entry - the group derives from the entries, not the reverse. SETOF,
+  // CHANGE and INDTXT are not command-function keywords and keep theirs here.
+  function fromEntry(name) {
+    var e = RECORD_TYPES[name];
+    var out = { ddsReference: e.ddsReference };
+    if (e.alternateNames) out.alternateNames = e.alternateNames.slice();
+    return out;
+  }
   var RECORD_INDICATOR_KEYWORDS = {
-    CLEAR: { ddsReference: 'specify that your program is to receive control if the workstation user presses the Clear key' },
-    PAGEDOWN: { alternateNames: ['ROLLUP'], ddsReference: 'The PAGEDOWN keyword is the same as the ROLLUP keyword.' },
-    PAGEUP: { alternateNames: ['ROLLDOWN'], ddsReference: 'The PAGEUP keyword is the same as the ROLLDOWN keyword.' },
-    HOME: { ddsReference: 'specify that you want to recognize and handle the Home key through your program' },
-    HELP: { ddsReference: 'enable the Help key' },
-    HLPRTN: { ddsReference: 'return control to your program when you press the Help key' },
-    VLDCMDKEY: { ddsReference: 'set on the specified response indicator when any valid command key other than the Enter key' },
+    CLEAR: fromEntry('CLEAR'),
+    PAGEDOWN: fromEntry('PAGEDOWN'),
+    PAGEUP: fromEntry('PAGEUP'),
+    HOME: fromEntry('HOME'),
+    HELP: fromEntry('HELP'),
+    HLPRTN: fromEntry('HLPRTN'),
+    VLDCMDKEY: fromEntry('VLDCMDKEY'),
     // Task I-135: "SETOF is equivalent to the SETOFF keyword" (and SETOFF's
     // own section says the reverse, "The SETOF keyword is preferred").
     SETOF: { alternateNames: ['SETOFF'], ddsReference: 'SETOF is equivalent to the SETOFF keyword.' },
@@ -5483,6 +5767,17 @@
     repeatableGroupAlternateKinds: repeatableGroupAlternateKinds,
     recordIndicatorKeywordNames: recordIndicatorKeywordNames,
     recordIndicatorAlternateKinds: recordIndicatorAlternateKinds,
+    commandFunctionKeywords: commandFunctionKeywords,
+    commandFunctionEntry: commandFunctionEntry,
+    alternateNamesOf: alternateNamesOf,
+    takesResponseIndicator: takesResponseIndicator,
+    responseIndicatorRequired: responseIndicatorRequired,
+    indicatorTextMaxLength: indicatorTextMaxLength,
+    printForms: printForms,
+    helpRelations: helpRelations,
+    commandFunctionExcludedRecordTypes: commandFunctionExcludedRecordTypes,
+    commandFunctionNotAtBothLevels: commandFunctionNotAtBothLevels,
+    validCommandKeys: validCommandKeys,
     recordIndicatorTakesOptionIndicators: recordIndicatorTakesOptionIndicators,
     RECORD_REFERENCES: RECORD_REFERENCES,
     recordReferenceKeywords: recordReferenceKeywords,

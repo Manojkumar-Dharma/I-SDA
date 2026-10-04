@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-171 of 181 tasks done; 10 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.316**.
+172 of 184 tasks done; 12 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.317**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -171,7 +171,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced opened as I-152) | v0.10.295 |
 | [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done v0.10.305 (8 entries; IGCCNV added to the no-indicator table; rules not enforced logged) | v0.10.305 |
 | [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done v0.10.310 (7 entries, two of them command-key patterns; relations not enforced opened as I-160) | v0.10.310 |
-| [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Claimed (in progress) | — |
+| [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Done v0.10.317 | v0.10.317 |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Done | v0.10.316 |
@@ -224,6 +224,9 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Done | v0.10.314 |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Done | v0.10.315 |
 | [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Claimed (in progress) | — |
+| [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Not started | — |
+| [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Not started | — |
+| [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -237,12 +240,15 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121h](#i-121h), [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | I-121h claimed; the rest not started | The four keyword slices still open: 29 keywords with no spec entry (10 + 6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
-| 2 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 3 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 5 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 6 | [I-161](#i-161) | Claimed (in progress) | Help-specification rules and `HLPARA` parameters (raised by I-121k). Size (estimate): Medium. |
+| 1 | [I-162](#i-162) | Not started | `HELP` relations to the other help keywords (raised by I-121h, probed). |
+| 2 | [I-163](#i-163) | Not started | Command-function keyword parameter forms (raised by I-121h, probed). Small. |
+| 3 | [I-164](#i-164) | Not started | `ROLLUP`/`PAGEDOWN`, `ROLLDOWN`/`PAGEUP` and `INVITE` file+record pairings (raised by I-121h, probed). Small. |
+| 4 | [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The three keyword slices still open: 19 keywords with no spec entry (6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
+| 6 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 7 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 8 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 9 | [I-161](#i-161) | Claimed (in progress) | Help-specification rules and `HLPARA` parameters (raised by I-121k). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -5604,7 +5610,7 @@ Rules for one keyword currently live in `*ConflictReason` functions (67), rule t
 
 #### Completed slices (history)
 
-Done so far, with versions: USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice done v0.10.211; HLPDOC/HLPBDY/HLPPNLGRP/HLPRCD slice done v0.10.212; HTML slice done v0.10.213; MSGID slice done v0.10.214; WRDWRAP/IGCALTTYP slice done v0.10.215; DFT/DFTVAL/EDTCDE/EDTWRD slice done v0.10.216; PSHBTNFLD slice done v0.10.217; PASSRCD-restricted-keywords slice done v0.10.218; DUP/BLKFOLD-floating-point slice done v0.10.219; CHRID slice done v0.10.220; DATFMT/DATSEP/TIMFMT/TIMSEP + L/T/Z usage slice done v0.10.221; SFLCHCCTL slice done v0.10.222; CHKMSGID slice done v0.10.224; SFLSCROLL slice done v0.10.225; message-data-field slice done v0.10.226; SFLRTNSEL slice done v0.10.229; SFLLIN/SFLCSRPRG slice done v0.10.230; SFLSNGCHC/SFLMLTCHC slice done v0.10.231; SFLSIZ slice done v0.10.240; MNUBARSW/MNUCNL slice done v0.10.241; SFLMSGKEY/SFLPGMQ slice done v0.10.243; EDTCDE/EDTMSK slice done v0.10.244; WRDWRAP/IGCALTTYP field-eligibility slice done v0.10.246; VALNUM field-eligibility slice done v0.10.247; CHECK(AB) floating-point slice done v0.10.249; no-option-indicators table slice done v0.10.251; SNGCHCFLD/MLTCHCFLD selection-type-parameters slice done v0.10.252; record-indicator keyword group slice done v0.10.259; DFT/DFTVAL floating-point slice done v0.10.263; repeatable-instance keyword groups slice done v0.10.266; choice color-state keywords slice done v0.10.269; DFT output-requirement slice done v0.10.270; edit/validity keyword groups slice done v0.10.271; display-width slice done v0.10.272; PSHBTNCHC command-key domain slice done v0.10.273; S36E restriction table slice claimed; command-key grammar / alt-key table slice done v0.10.275; DSPSIZ display-size names slice done v0.10.277; command-key parameter keywords slice done v0.10.278; keyboard-shift (position 35) value-domain slice done v0.10.279; system-value constant keywords slice done v0.10.280; choice selection-type radio groups slice done v0.10.284; constant and system-value field keywords slice (I-121m) done v0.10.292.
+Done so far, with versions: USRDFN slice done v0.10.205; WINDOW slice done v0.10.206; PULLDOWN slice done v0.10.207; MNUBAR slice done v0.10.208; SFL slice done v0.10.209; KEEP/ALWROL/CLRL/SLNO/ASSUME slice done v0.10.210; SFLNXTCHG/SFLMSGRCD + DSPMOD/SFL slice done v0.10.211; HLPDOC/HLPBDY/HLPPNLGRP/HLPRCD slice done v0.10.212; HTML slice done v0.10.213; MSGID slice done v0.10.214; WRDWRAP/IGCALTTYP slice done v0.10.215; DFT/DFTVAL/EDTCDE/EDTWRD slice done v0.10.216; PSHBTNFLD slice done v0.10.217; PASSRCD-restricted-keywords slice done v0.10.218; DUP/BLKFOLD-floating-point slice done v0.10.219; CHRID slice done v0.10.220; DATFMT/DATSEP/TIMFMT/TIMSEP + L/T/Z usage slice done v0.10.221; SFLCHCCTL slice done v0.10.222; CHKMSGID slice done v0.10.224; SFLSCROLL slice done v0.10.225; message-data-field slice done v0.10.226; SFLRTNSEL slice done v0.10.229; SFLLIN/SFLCSRPRG slice done v0.10.230; SFLSNGCHC/SFLMLTCHC slice done v0.10.231; SFLSIZ slice done v0.10.240; MNUBARSW/MNUCNL slice done v0.10.241; SFLMSGKEY/SFLPGMQ slice done v0.10.243; EDTCDE/EDTMSK slice done v0.10.244; WRDWRAP/IGCALTTYP field-eligibility slice done v0.10.246; VALNUM field-eligibility slice done v0.10.247; CHECK(AB) floating-point slice done v0.10.249; no-option-indicators table slice done v0.10.251; SNGCHCFLD/MLTCHCFLD selection-type-parameters slice done v0.10.252; record-indicator keyword group slice done v0.10.259; DFT/DFTVAL floating-point slice done v0.10.263; repeatable-instance keyword groups slice done v0.10.266; choice color-state keywords slice done v0.10.269; DFT output-requirement slice done v0.10.270; edit/validity keyword groups slice done v0.10.271; display-width slice done v0.10.272; PSHBTNCHC command-key domain slice done v0.10.273; S36E restriction table slice claimed; command-key grammar / alt-key table slice done v0.10.275; DSPSIZ display-size names slice done v0.10.277; command-key parameter keywords slice done v0.10.278; keyboard-shift (position 35) value-domain slice done v0.10.279; system-value constant keywords slice done v0.10.280; choice selection-type radio groups slice done v0.10.284; constant and system-value field keywords slice (I-121m) done v0.10.292; command-function keywords slice (I-121h) done v0.10.317.
 
 
 **USRDFN slice (v0.10.205).** New `src/keywordSpec.js` - a dependency-free UMD module, same shape as `dspfEngine.js`, loaded before `dspfWriter.js` in both webviews (and via `require` in Node) - holding `RECORD_TYPES.USRDFN`: the 9-keyword closed whitelist (re-verified fresh against `DDS_Keyword_V7r6.txt`'s own USRDFN section, unchanged from what the code already had), the exact DDS Reference citation text, the derived `indicatorKinds` (`HELP`/`HLPRTN` - Task I-114's own finding, now data instead of only living in a fallback-order loop's outcome), and `keywordTabs` (the General/Indicator/Help/Print subset Task R2/I-114 narrow a USRDFN record's Keywords tab to).
@@ -6291,11 +6297,22 @@ Full suite: 258 files, 14,521 checks, zero failures (run on the tree merged with
 
 ### I-121h — Command-function keywords
 
-> **Area:** File / Record · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** File / Record · **Status:** Done (v0.10.317) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (10):** `ALWGPH`, `CLEAR`, `HELP`, `HLPRTN`, `HOME`, `INVITE`, `PAGEDOWN`, `PAGEUP`, `PRINT`, `VLDCMDKEY`.
 
 The ten record-indicator kinds already sit in `RECORD_INDICATOR_KEYWORDS` (I-121, v0.10.259) - make that table derive from these entries rather than the reverse. `PAGEDOWN`/`PAGEUP` and `ROLLUP`/`ROLLDOWN` are synonym pairs. `HELP`/`HLPRTN`/`PRINT` also have S36E rules (I-121p).
+
+**Result (v0.10.317).** All ten keywords now have a `RECORD_TYPES` entry, in the block fenced `// ---- I-121h: 10 ----` in `keywordSpec.js`; `check_spec_coverage.py` reports `I-121h 10/10`. Each entry was written from its own section of `DDS_Keyword_V7r6.txt` (`ALWGPH` ~2046, `CLEAR` ~3881, `HELP` ~6564, `HLPRTN` ~7194, `HOME` ~7380, `INVITE` ~7553, `PAGEDOWN`/`PAGEUP` ~9326, `PRINT` ~9407, `VLDCMDKEY` ~13218) and the test checks 34 source sentences against that file.
+
+- **Facts per entry.** All ten are file- and record-level; `ALWGPH` and `INVITE` take no parameters; `VLDCMDKEY` alone says option indicators are not valid (and agrees with the I-101 table); seven take `[(response-indicator ['text'])]` with the text truncated to 50 characters on the listing (a comment, not an error); `VLDCMDKEY`'s response indicator is the only required one; `PRINT` has its four forms (none, response indicator, `*PGM`, `[library/]printer-file`) and the section's own sentence that `*PGM` and a response indicator differ only in the indicator. `PAGEDOWN` reads `ROLLUP` and `PAGEUP` reads `ROLLDOWN` (`alternateNames`), and `PAGEDOWN` cannot be with `ROLLUP`, `PAGEUP` not with `ROLLDOWN`. `ALWGPH` cannot be with `SFL` or `USRDFN`, `INVITE` not with `SFL` and not at both file and record level. `HELP` carries its two relations (with a response indicator none of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN` or H specifications may be in the file; without one it is required when they are) and `HLPRTN` its priority over `HLPRCD`/`HLPPNLGRP`/`HLPDOC` and its creation-time warning. `HOME` records its three home positions, `VLDCMDKEY` the thirteen keywords a command key must be activated through, with the section's own conditions on `ALTPAGEUP`, `ALTPAGEDWN`, `HELP` and `PRINT`.
+- **No range is recorded for the response indicator.** None of these ten sections states the legal range, so none is written (the `CAnn`/`CFnn` sections say 01 through 99; whether that applies to these keywords is an open question for the reference - see I-163). The webview's "10-99" box hint is UI text and stays.
+- **The record-indicator group now derives from the entries.** `RECORD_INDICATOR_KEYWORDS`' seven command-function keywords (`CLEAR`, `PAGEDOWN`, `PAGEUP`, `HOME`, `HELP`, `HLPRTN`, `VLDCMDKEY`) take their alternate names and citation from their own entry (as the slice note asked: the table derives from the entries, not the reverse); its order, its three non-command keywords (`SETOF`, `CHANGE`, `INDTXT`) and `recordIndicatorAlternateKinds()` (`ROLLUP`, `ROLLDOWN`, `SETOFF`) are unchanged.
+- **Four hand-written copies removed.** The file-level Page down / Page up rows' `['ROLLUP']` / `['ROLLDOWN']` arrays (two rows, each in the render and the commit paths of `webviewClientHelpers.js`) now read `DspfWriter.keywordAlternateNames('PAGEDOWN' | 'PAGEUP')`.
+- **Accessors.** `commandFunctionKeywords`, `commandFunctionEntry`, `alternateNamesOf`, `takesResponseIndicator`, `responseIndicatorRequired`, `indicatorTextMaxLength`, `printForms`, `helpRelations`, `commandFunctionExcludedRecordTypes`, `commandFunctionNotAtBothLevels`, `validCommandKeys` (all fresh copies, own-property safe), plus the writer re-export `keywordAlternateNames`.
+- **Not changed.** Nothing the writer enforces changed (a pure refactor). Left alone on purpose: the dropdown fallback order `['CLEAR', 'HOME', 'HELP', ...]` in `webviewClientHelpers.js` (a selection heuristic, not a keyword fact), the row labels, and `PRINT`'s System/36 rules, which are I-121p's (`S36E_RESTRICTIONS`).
+- **Tests.** New `src/test/i121hCommandFunctionKeywordSpec.test.js` (50 checks): the source sentences against the reference, every fact, accessor semantics, ties to the no-option-indicators table, the derived record-indicator group, `KEYWORD-LOOKUP.json`, and the real generated webview (a hand-written `ROLLUP(25 'Roll up')` and `ROLLDOWN(26)` still show in the file-level Page down / Page up rows, and the old literals are gone from the source). It fails against the previous source. Mutation-checked: restoring a literal fails 1 check, a wrong alternate name 3, `VLDCMDKEY`'s indicator marked optional 1.
+- **Findings, opened as tasks.** Probing the raw keyword editor (file and record level, v0.10.311) showed the rules in the entries are not enforced: [I-162](#i-162) (the `HELP` relations), [I-163](#i-163) (parameter forms) and [I-164](#i-164) (the `ROLLUP` / `INVITE` pairings).
 
 Done when: the checklist in [I-121](#i-121-slices) is met for every keyword above and `check_spec_coverage.py` no longer lists them.
 
@@ -7344,5 +7361,35 @@ Raised by the I-121k slice (help-specification-level keywords). The DDS Referenc
 Also: the H-specification panel offers `HLPARA` only as a bare "Define help area" checkbox with no parameter inputs, so the five documented forms can be written only in the raw keyword editor.
 
 To do: probe each case, then add a spec-driven, diff-based guard in the I-140 / I-151 / I-152 shape (refuse only what an edit adds, so existing files still open) with tests, and decide whether the panel gets `HLPARA` parameter inputs (the reference gives the grammar, so they could be built from the spec).
+
+---
+
+<a id="i-162"></a>
+
+### I-162 — `HELP` relations to the other help keywords are not enforced
+
+> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121h
+
+Raised by I-121h; opened as a task with a probe. The `HELP` section (~line 6564) states: "When a response indicator is specified on the HELP keyword, no H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can be specified in the file" and "HELP (with no response indicator) is required if the file contains H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords". **Probe (raw keyword editor, v0.10.311; every case below was *allowed* and wrote an edit):** `HELP(95)` added at file level to a file that has a file-level `HLPRCD`; `HLPRCD` added at file level to a file that has `HELP(95)`; `HLPRTN` added to a file with `HELP(95)`; `HLPRCD` added to a record of a file with no `HELP` at all. The facts are in `RECORD_TYPES.HELP` (`withResponseIndicatorExcludesInFile`, `withoutResponseIndicatorRequiredWhenFileContains`, and the H-specification flags, read through `KeywordSpec.helpRelations()`). This task adds the guards, both directions and at both levels (the file-level and record-level `HELP`, the help keywords' own rows, the raw editor, the `commitEdit` backstop), diff-based like I-140's. Related existing guards to build on, not duplicate: the `HLPDOC` / `HLPRTN` / `HLPPNLGRP` / `HLPRCD` pair rules (I-38, I-68), `HLPRCD`'s H-specification check, I-160's file-level help rules and I-161's help-specification rules. Open questions: whether "in the file" means any record's `HELP` too, and what "required" should do when the user adds a help keyword (refuse, or offer to add a bare `HELP`).
+
+---
+
+<a id="i-163"></a>
+
+### I-163 — Parameter forms of the command-function keywords are not enforced
+
+> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121h
+
+Raised by I-121h; opened as a task with a probe. **Probe (raw keyword editor, v0.10.311; all *allowed*):** `ALWGPH(X)` and `INVITE(X)` (both "This keyword has no parameters"); `VLDCMDKEY` with no response indicator ("The response-indicator parameter is required"); `PRINT(1234 5678 9)` and `PRINT(ABCDEFGHIJK)` (the section gives exactly four forms - none, `response-indicator ['text']`, `*PGM`, `[library-name/]printer-file-name`; an 11-character name is not a valid object name); `CLEAR(0)` and `CLEAR(100)`. The facts are in the entries (`noParameters`, `parameters.responseIndicator.required`, `parameters.forms`). To do: guard the first three at the same places I-143 used (add-time, the `commitEdit` backstop, the panels); `PRINT`'s printer-file form needs IBM's object-name rule (read the reference; if it states none, record an open question and do not invent one). **Open question, not a rule:** none of these ten sections states the legal range of a response indicator - only the `CAnn`/`CFnn` sections say "01 through 99" - so decide whether to apply that to these keywords before enforcing `CLEAR(0)` / `CLEAR(100)`. Also open: the optional text over 50 characters is only truncated on the listing, so at most a warning, not a refusal. Size (estimate): Small.
+
+---
+
+<a id="i-164"></a>
+
+### I-164 — `ROLLUP`/`PAGEDOWN`, `ROLLDOWN`/`PAGEUP` and `INVITE` pairings are not enforced
+
+> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121h
+
+Raised by I-121h; opened as a task with a probe. The `PAGEDOWN`/`PAGEUP` section (~line 9326) says "The ROLLUP keyword cannot be specified with PAGEDOWN. The ROLLDOWN keyword cannot be specified with PAGEUP." The `INVITE` section says it "cannot be specified at both the file and record level". **Probe (raw keyword editor, v0.10.311; all *allowed*):** `PAGEDOWN` added to a record that has `ROLLUP`; `ROLLUP` added to a record that has `PAGEDOWN`; `PAGEUP` added to a record that has `ROLLDOWN`; `INVITE` added at record level to a file that has `INVITE`, and at file level to a file with a record-level `INVITE`. Note the designer reads `ROLLUP` as `PAGEDOWN` and writes `PAGEDOWN` back (I-135-style alternate names), so a record carrying both spellings is only possible from a hand-written file or the raw editor. The facts are in `RECORD_TYPES.PAGEDOWN` / `PAGEUP` (`notWithAlternateName`) and `RECORD_TYPES.INVITE` (`notAtBothFileAndRecordLevel`). Add the guards in both directions, diff-based. Open question: the `PAGEDOWN`/`PAGEUP` section does not say whether the exclusion applies across file and record level (a file-level `ROLLUP` with a record-level `PAGEDOWN`) - the same-record reading is the stated one. Size (estimate): Small.
 
 ---
